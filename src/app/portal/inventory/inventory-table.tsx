@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, LayoutGrid, List } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { AddDonationModal } from "../home/add-donation-modal";
@@ -20,59 +20,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { cn } from "@/lib/utils";
-
-type InventoryItem = {
-  id: string;
-  description: string;
-  type: string;
-  size: string | null;
-  gender: string | null;
-  condition: string;
-  face_value: number | string | null;
-  status: string;
-};
-
-const CONDITIONS = [
-  { value: "new", label: "New" },
-  { value: "like_new", label: "Like new" },
-  { value: "good", label: "Good" },
-  { value: "fair", label: "Fair" },
-  { value: "poor", label: "Poor" },
-];
-
-const GENDERS = [
-  { value: "unisex", label: "Unisex" },
-  { value: "men", label: "Men" },
-  { value: "women", label: "Women" },
-  { value: "kids", label: "Kids" },
-  { value: "other", label: "Other" },
-];
-
-const STATUSES = [
-  { value: "available", label: "Available" },
-  { value: "distributed", label: "Distributed" },
-  { value: "damaged", label: "Damaged" },
-  { value: "lost", label: "Lost" },
-  { value: "retired", label: "Retired" },
-  { value: "other", label: "Other" },
-];
-
-function labelFor(options: { value: string; label: string }[], value: string | null) {
-  if (!value) return null;
-  return options.find((option) => option.value === value)?.label ?? value;
-}
-
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
-
-function formatFaceValue(value: number | string | null) {
-  if (value === null || value === undefined) return "—";
-  const numeric = typeof value === "string" ? Number(value) : value;
-  return Number.isFinite(numeric) ? currencyFormatter.format(numeric) : "—";
-}
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { EditInventoryModal } from "./edit-inventory-modal";
+import { InventoryCard } from "./inventory-card";
+import {
+  CONDITIONS,
+  GENDERS,
+  STATUSES,
+  StatusBadge,
+  formatFaceValue,
+  labelFor,
+  type InventoryItem,
+} from "./inventory-shared";
 
 type SortKey =
   | "description"
@@ -103,6 +62,7 @@ function compareNullableStrings(a: string | null, b: string | null) {
 }
 
 export function InventoryTable({ items }: { items: InventoryItem[] }) {
+  const [view, setView] = useState<"list" | "gallery">("list");
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [conditionFilter, setConditionFilter] = useState<string | null>(null);
@@ -251,70 +211,104 @@ export function InventoryTable({ items }: { items: InventoryItem[] }) {
               </SelectContent>
             </Select>
           </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+              View
+            </span>
+            <ToggleGroup
+              value={[view]}
+              onValueChange={(value) => {
+                if (value[0]) setView(value[0] as "list" | "gallery");
+              }}
+              variant="outline"
+              className="h-8"
+            >
+              <ToggleGroupItem value="list" aria-label="List view" className="h-8 px-2.5">
+                <List className="size-4" />
+              </ToggleGroupItem>
+              <ToggleGroupItem value="gallery" aria-label="Gallery view" className="h-8 px-2.5">
+                <LayoutGrid className="size-4" />
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
         </div>
       </div>
 
-      <Card>
-        <CardContent className="px-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {SORT_COLUMNS.map((column) => (
-                  <TableHead key={column.key}>
-                    <button
-                      type="button"
-                      onClick={() => handleSort(column.key)}
-                      className="inline-flex items-center gap-1 hover:text-foreground"
-                    >
-                      {column.label}
-                      {sortKey === column.key ? (
-                        sortDirection === "asc" ? (
-                          <ArrowUp className="size-3.5" />
-                        ) : (
-                          <ArrowDown className="size-3.5" />
-                        )
-                      ) : (
-                        <ArrowUpDown className="size-3.5 text-muted-foreground" />
-                      )}
-                    </button>
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {visibleItems.length === 0 ? (
+      {view === "gallery" ? (
+        visibleItems.length === 0 ? (
+          <p className="app-muted py-16 text-center text-sm">No items match your filters.</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {visibleItems.map((item) => (
+              <InventoryCard key={item.id} item={item} />
+            ))}
+          </div>
+        )
+      ) : (
+        <Card>
+          <CardContent className="px-0">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={SORT_COLUMNS.length} className="app-muted text-center">
-                    No items match your filters.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                visibleItems.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="whitespace-normal">{item.description}</TableCell>
-                    <TableCell>{item.type}</TableCell>
-                    <TableCell>{item.size ?? "—"}</TableCell>
-                    <TableCell>{labelFor(GENDERS, item.gender) ?? "—"}</TableCell>
-                    <TableCell>{labelFor(CONDITIONS, item.condition)}</TableCell>
-                    <TableCell>{formatFaceValue(item.face_value)}</TableCell>
-                    <TableCell>
-                      <span
-                        className={cn(
-                          "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-                          item.status === "available" && "bg-primary/10 text-primary",
-                          item.status !== "available" && "bg-muted text-muted-foreground"
-                        )}
+                  {SORT_COLUMNS.map((column) => (
+                    <TableHead key={column.key}>
+                      <button
+                        type="button"
+                        onClick={() => handleSort(column.key)}
+                        className="inline-flex items-center gap-1 hover:text-foreground"
                       >
-                        {labelFor(STATUSES, item.status)}
-                      </span>
+                        {column.label}
+                        {sortKey === column.key ? (
+                          sortDirection === "asc" ? (
+                            <ArrowUp className="size-3.5" />
+                          ) : (
+                            <ArrowDown className="size-3.5" />
+                          )
+                        ) : (
+                          <ArrowUpDown className="size-3.5 text-muted-foreground" />
+                        )}
+                      </button>
+                    </TableHead>
+                  ))}
+                  <TableHead className="w-0">
+                    <span className="sr-only">Actions</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {visibleItems.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={SORT_COLUMNS.length + 1}
+                      className="app-muted text-center"
+                    >
+                      No items match your filters.
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                ) : (
+                  visibleItems.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="whitespace-normal">{item.description}</TableCell>
+                      <TableCell>{item.type}</TableCell>
+                      <TableCell>{item.size ?? "—"}</TableCell>
+                      <TableCell>{labelFor(GENDERS, item.gender) ?? "—"}</TableCell>
+                      <TableCell>{labelFor(CONDITIONS, item.condition)}</TableCell>
+                      <TableCell>{formatFaceValue(item.face_value)}</TableCell>
+                      <TableCell>
+                        <StatusBadge status={item.status} />
+                      </TableCell>
+                      <TableCell>
+                        <EditInventoryModal item={item} />
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

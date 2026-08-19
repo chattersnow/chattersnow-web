@@ -15,7 +15,12 @@ export default function PortalLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() =>
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("error") === "oauth_failed"
+      ? "Google sign-in failed. Please try again."
+      : null,
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
 

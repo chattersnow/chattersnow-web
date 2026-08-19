@@ -18,7 +18,9 @@ export default async function InventoryPage() {
 
   const { data: items } = await supabase
     .from("inventory_items")
-    .select("id, description, type, size, gender, condition, face_value, status")
+    .select(
+      "id, description, type, size, gender, condition, face_value, status, photo_url, notes"
+    )
     .order("created_at", { ascending: false });
 
   return (
