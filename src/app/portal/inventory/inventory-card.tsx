@@ -8,18 +8,20 @@ import {
   StatusBadge,
   formatFaceValue,
   labelFor,
+  resolveImageUrl,
   type InventoryItem,
 } from "./inventory-shared";
 
 export function InventoryCard({ item }: { item: InventoryItem }) {
   const genderLabel = labelFor(GENDERS, item.gender);
+  const imageUrl = resolveImageUrl(item.photo_url);
 
   return (
     <Card className="gap-0 overflow-hidden py-0">
       <div className="relative aspect-square w-full bg-muted">
-        {item.photo_url ? (
+        {imageUrl ? (
           <Image
-            src={item.photo_url}
+            src={imageUrl}
             alt={item.description}
             fill
             sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
