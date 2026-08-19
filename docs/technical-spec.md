@@ -11,7 +11,7 @@
 
 ## 1. Purpose
 
-Chatter Snow needs a public website for sharing its mission and programs, plus a secure operations portal for managing events, donations, inventory, finances, raffles, volunteers, and reporting.
+Chatter Snow needs a public website for sharing its mission and programs, plus a secure admin portal for managing events, donations, inventory, expenses, and operational summaries.
 
 The product has two distinct audiences:
 
@@ -26,25 +26,26 @@ The public site must remain useful without an account. Operational data must req
 1. Publish accessible information about Chatter Snow, its mission, programs, leadership, contact details, and ways to support it.
 2. Publish upcoming and past events with optional registration.
 3. Give authorized staff and volunteers a secure place to manage operational records.
-4. Treat donations, inventory changes, distributions, and financial activity as transactions with history, rather than silently overwriting facts.
-5. Establish a foundation for dashboards and reporting without requiring those features in the first release.
+4. Treat donations, inventory changes, distributions, and expenses as records with history, rather than silently overwriting facts.
+5. Give administrators a dashboard that summarizes events, inventory, donations, and expenses.
 
 ### Non-goals for the initial release
 
 - Full accounting software or tax preparation.
-- A public view of the complete internal inventory record.
+- Public inventory availability or a public view of the internal inventory record.
 - Automated calendar synchronization.
 - Waitlists, capacity automation, confirmation emails, or event photo galleries unless prioritized separately.
-- A complete dashboard before the underlying event, inventory, and finance workflows are stable.
+- Raffles, volunteer management, attendance tracking, and full accounting software unless prioritized separately.
 
 ## 3. Technology and Deployment
 
 | Area | Decision |
 | --- | --- |
 | Frontend and application | Next.js App Router, TypeScript, React |
+| UI components | shadcn/ui (Tailwind v4 + Base UI primitives), composed with the project's own brand tokens/classes in `globals.css` |
 | Hosting | Vercel |
 | Database | Supabase PostgreSQL |
-| Authentication | Supabase Auth |
+| Authentication | Supabase Auth with Google OAuth |
 | Files | Supabase Storage |
 | Data API | Supabase-generated API and server-side Next.js routes/actions where orchestration is required |
 | Authorization | PostgreSQL Row Level Security (RLS), with server-side checks for sensitive workflows |
@@ -63,7 +64,8 @@ Required application configuration:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 - `SUPABASE_SECRET_KEY` for trusted server-only operations, if required
-- Site URL and redirect URLs for local, preview, and production environments
+- Google OAuth credentials configured in Supabase Auth
+- Site URL and OAuth redirect URLs for local, preview, and production environments
 
 The secret key must never be exposed to browser code. Production and preview environments should use separate Supabase projects or clearly separated configuration and data policies.
 
@@ -77,22 +79,20 @@ Public routes may expose approved content and explicitly public records:
 - Upcoming events
 - Past events and event details
 - Registration form when enabled
-- A curated view of gear available for distribution, if approved
+- Public event information marked for publication
 
-Public routes must not expose donor contact details, private event data, internal notes, financial records, individual recipient information, or complete inventory history.
+Public routes must not expose donor contact details, private event data, internal notes, financial records, inventory records, individual recipient information, or inventory history.
 
 ### Operations portal
 
-Authenticated routes support:
+The authenticated admin portal supports:
 
+- Dashboard summary
 - Event management
-- Inventory and distribution management
-- Monetary and in-kind donation records
-- Event income and expenses
-- Raffle records
-- Volunteer and attendance records
-- Reports and future dashboard views
-- User and role administration for authorized administrators
+- Donation and inventory management
+- Expense management
+
+Raffles, volunteers, attendance, and expanded reporting are planned capabilities and are not required for the initial portal.
 
 ## 5. Functional Requirements
 
@@ -133,54 +133,28 @@ An event must support these fields:
 
 Future event capabilities may include registration status, waitlists, confirmations, calendar integration, and event photos.
 
-### 5.3 Public inventory availability
+### 5.3 Authentication and authorization
 
-The recommended product behavior is **Option B: show gear available for distribution**, not the entire internal inventory.
+Users shall authenticate through Supabase Auth using Google OAuth. The application shall verify the authenticated user's authorization before rendering or changing portal data.
 
-The public view should be a derived, curated availability view grouped by item type and size. It may show values such as “Skis, 155 cm: 2 available” without exposing:
+The initial portal role is `admin`. Admin users may access the dashboard, events, expenses, and inventory workflows. Additional roles and narrower permissions may be introduced when operational needs are confirmed.
 
-- Donor identity
-- Purchase or estimated value
-- Internal location
-- Item-level notes
-- Condition history
-- Distribution recipients
-- Complete stock movement history
-
-This decision requires team confirmation before implementation. Until confirmed, inventory remains portal-only.
-
-### 5.4 Authentication and authorization
-
-Users shall authenticate through Supabase Auth. The application shall use named roles rather than treating every authenticated user as an administrator.
-
-Candidate roles:
-
-- `admin`: user and system administration
-- `officer`: organization-wide operational and financial access
-- `operations`: inventory and distribution workflows
-- `event_manager`: event, registration, and event bookkeeping workflows
-- `inventory_manager`: inventory and donation item workflows
-- `volunteer`: explicitly limited operational access
-
-The exact role set and permission matrix are decisions for the team. A user may have more than one role if that is useful operationally.
-
-### 5.5 Inventory management
+### 5.4 Inventory and donation management
 
 #### Receive a donation
 
 Authorized users shall be able to:
 
-1. Record donor information or select an existing donor.
-2. Record donation date and source type.
-3. Record one or more donated items.
-4. Record item type, brand, model, size, quantity, condition, estimated value, photos, event/source, and notes as applicable.
-5. Create an inventory receipt transaction.
+1. Record the donation and donor information when required.
+2. Record one or more donated inventory items.
+3. Record each item's description, size, type, gender, condition, face value, photo, and status.
+4. Create an inventory receipt transaction.
 
 Source types should distinguish individual, brand, organization, event, and other sources.
 
 #### Update inventory
 
-Authorized users shall be able to update item metadata and create controlled stock adjustments. The system shall support increasing or decreasing quantity, changing condition, adding photos, marking gear unavailable, and correcting errors.
+Authorized users shall be able to update item metadata and status, add photos, and create controlled stock adjustments. Inventory status should support at least available, distributed, damaged, lost, retired, and other organization-approved values.
 
 Corrections must record a reason and actor. Quantity should not be changed through an untraceable direct overwrite when a transaction can express the change.
 
@@ -198,79 +172,40 @@ Inventory changes shall be represented by a stock movement or distribution trans
 
 For distribution, the system should eventually record who received the gear, when, at which event, and who distributed it. Personally identifying recipient information must be protected by RLS and should not be public.
 
-Available quantity should be derived from valid inventory transactions and reservations, subject to an explicit policy for damaged, lost, retired, and reserved stock.
+Available quantity should be derived from valid inventory transactions, subject to an explicit policy for damaged, lost, and retired stock.
 
-### 5.6 Event management
+### 5.5 Event management
 
 Authorized users shall be able to create and manage events, including:
 
-- Basic information and publication status
-- Sponsors and partners
-- Registration and attendance
-- Volunteers
-- Inventory distributed
-- Donations associated with the event
-- Income and expenses
-- Raffle activity
+- Name
+- Location
+- Date and time, including timezone
+- Sponsors
+- Associated expenses
+- Raffle sales
+- Public/private visibility and publication status
 
-The event record should support a public/private boundary so internal planning details do not become public accidentally.
+The event record should support a public/private boundary so internal planning details do not become public accidentally. Registration, attendance, volunteers, and inventory distributions may be added as later capabilities.
 
-### 5.7 Event bookkeeping
+### 5.6 Expense management
 
-Authorized users shall be able to record event income:
+Authorized users shall be able to record expenses with:
 
-- Donations
-- Raffle ticket sales
-- Other revenue
-
-Authorized users shall be able to record event expenses:
-
-- Venue
-- Food
-- Transportation
-- Equipment
-- Marketing
-- Supplies
-- Other
-
-Each expense should support amount, date, category, description, vendor/payee, receipt, event, and entering user. Receipts should be stored in a private Supabase Storage bucket.
-
-The system shall calculate, at minimum:
-
-```text
-Event net = event revenue - event expenses
-```
-
-This is operational reporting and does not replace the organization's accounting controls.
-
-### 5.8 Donations
-
-Donations shall distinguish monetary donations from gear or other in-kind donations because they have different operational and reporting treatment.
-
-Monetary donation fields:
-
-- Donor
+- Description
 - Date
 - Amount and currency
-- Payment method
-- Optional event
-- Notes
-- Recording user
+- Receipt
+- Optional event association
+- Entering user
 
-In-kind donation fields:
+Receipts should be stored in a private Supabase Storage bucket. Expense records are operational data and do not replace the organization's accounting controls.
 
-- Donor
-- Date
-- Items and quantities
-- Condition
-- Estimated value
-- Optional event/source
-- Notes
-- Recording user
+### 5.7 Donations
 
-Donor personal information must be restricted to authorized users with a legitimate operational need.
+The initial inventory workflow is the primary way administrators manage donated gear. Donation records should retain donor and donation context where needed, while inventory records retain the item-level details. Donor personal information must be restricted to authorized users with a legitimate operational need.
 
-### 5.9 Raffles
+### 5.8 Raffles
 
 Raffles are a planned capability and may be delivered after the initial release. The model should support:
 
@@ -285,20 +220,19 @@ Raffles are a planned capability and may be delivered after the initial release.
 
 The implementation must be reviewed for applicable legal, tax, and jurisdictional requirements before enabling public ticket sales.
 
-### 5.10 Dashboard and reporting
+### 5.9 Dashboard and reporting
 
-A future operations dashboard may show:
+The initial admin dashboard shall summarize:
 
 - Upcoming events
-- Available gear
-- Donations for a selected period
+- Inventory by status and type
+- Donation inventory totals
 - Expenses for a selected period
-- Raffle revenue
-- Pending tasks
+- Raffle sales associated with events
 
-Future reports should be based on transaction history and include filters, date ranges, event, category, and export requirements defined by the team.
+Dashboard values should be derived from stored records and clearly indicate the relevant date range. Expanded reports may later include filters, exports, and pending tasks.
 
-### 5.11 Audit and history
+### 5.10 Audit and history
 
 The system shall preserve who changed what and when for material operational records, including:
 
@@ -327,19 +261,15 @@ The following is a logical model, not a final migration. IDs should be UUIDs and
 - `pages` or repository content: approved public content
 - `events`
 - `event_sponsors`
-- `event_registrations`
-- `event_attendance`
-- `volunteers`
-- `event_volunteers`
+- `event_registrations`: optional future capability
 
 ### Inventory and donations
 
 - `donors`
 - `donations`
 - `donation_items`
-- `inventory_items`: canonical item/category and descriptive data
-- `inventory_movements`: receipt, distribution, reservation, adjustment, and retirement transactions
-- `inventory_reservations`: optional future reservation records
+- `inventory_items`: donation-managed inventory records with description, size, type, gender, condition, face value, photo, and status
+- `inventory_movements`: receipt, distribution, adjustment, and retirement transactions
 - `inventory_photos`
 - `distribution_recipients`: protected recipient records, if needed
 
@@ -348,9 +278,7 @@ The following is a logical model, not a final migration. IDs should be UUIDs and
 - `event_revenue`
 - `event_expenses`
 - `file_attachments`
-- `raffles`
-- `raffle_prizes`
-- `raffle_winners`
+- `raffles`, `raffle_prizes`, and `raffle_winners`: planned future capability
 
 ### Governance
 
@@ -381,16 +309,13 @@ src/app/
   (public)/
     about/
     events/
-    inventory/
     support/
   (portal)/
     portal/
+      page.tsx                 # admin dashboard
       events/
       inventory/
-      donations/
-      finance/
-      raffles/
-      reports/
+      expenses/
   auth/
   api/
 ```
@@ -420,7 +345,7 @@ Supabase database changes should be implemented as ordered migrations under `sup
 
 ### Distribute gear
 
-1. Authorized user selects available gear and quantity.
+1. Authorized user selects inventory and quantity.
 2. Server checks current availability and permissions.
 3. User records event, recipient information if required, and reason.
 4. Server creates the distribution movement atomically.
@@ -430,48 +355,11 @@ Supabase database changes should be implemented as ordered migrations under `sup
 ### Record event expense
 
 1. Authorized user selects an event and enters expense details.
-2. Server validates amount, category, and event access.
+2. Server validates amount and event access when an event is associated.
 3. Optional receipt is uploaded to private storage.
 4. Expense and attachment metadata are saved.
 5. Audit entry records the action.
 
-## 10. Delivery Phases
-
-### Phase 0: Decisions and foundation
-
-- Confirm public inventory policy: portal-only, or curated available-for-distribution view.
-- Confirm roles, permission matrix, donor privacy rules, and organization timezone.
-- Confirm event registration data and retention requirements.
-- Establish environments, GitHub workflow, Vercel project, Cloudflare DNS, and Supabase project configuration.
-- Add migrations, typed database access, Auth session handling, and RLS test strategy.
-
-### Phase 1: Public launch
-
-- Replace the coming-soon page with About, programs, team, contact, support, and events pages.
-- Add published upcoming/past event views and event details.
-- Add registration only if the minimum registration workflow is agreed.
-- Keep inventory private unless the public availability decision is approved.
-
-### Phase 2: Operations foundation
-
-- Add authentication and role management.
-- Add event management.
-- Add donors and monetary/in-kind donation records.
-- Add inventory receipt, update, and movement workflows.
-- Add private file storage for photos and receipts.
-- Add audit history for material actions.
-
-### Phase 3: Finance and event operations
-
-- Add event revenue and expenses with net calculation.
-- Add attendance and volunteer records.
-- Add inventory distributions linked to events.
-- Add initial operational reports.
-
-### Phase 4: Extended operations
-
-- Add raffles after legal review.
-- Add dashboard, exports, calendar integration, waitlists, confirmations, and event photos as prioritized.
 
 ## 11. Non-Functional Requirements
 
@@ -491,31 +379,20 @@ The initial release is ready when:
 - Published upcoming and past events render correctly with their public details.
 - Private or draft events do not appear publicly.
 - A user cannot read donor, recipient, financial, inventory history, or audit data through the anonymous client.
-- An authorized user can authenticate and access only the portal areas allowed by their role.
-- Donation receipt and inventory distribution workflows preserve transaction history.
+- An administrator can authenticate with Google and access the dashboard, events, expenses, and inventory portal areas.
+- Donation receipt and inventory update workflows preserve transaction history.
 - Inventory counts cannot become negative through normal application workflows.
 - Sensitive uploaded files are private and access-controlled.
 - RLS and authorization behavior are covered by automated tests or documented repeatable checks.
 - Production deployment works through Vercel with Cloudflare DNS and environment-specific Supabase configuration.
 
-## 13. Open Decisions
 
-1. Is public inventory visibility approved, and does it mean all gear or only available gear for distribution?
-2. What exact roles are needed at launch, and which permissions does each role have?
-3. Which event registration fields are required, and is registration open to minors?
-4. Is online payment collection required for donations or raffle tickets, or are those records entered manually?
-5. What accounting system, reporting format, and tax treatment must event finance data support?
-6. Which donor and recipient data may be stored, for how long, and who may access it?
-7. Are event locations public for every event, or can some locations remain private until registration?
-8. What are the organization timezone, currency, email sender, and notification requirements?
-9. Which content should be editable by staff, and is a CMS needed after the public launch?
-10. What jurisdictional requirements apply to raffles and public fundraising?
 
 ## 14. Risks and Mitigations
 
 | Risk | Mitigation |
 | --- | --- |
-| Public exposure of internal inventory or donor data | Curated public views, private-by-default tables/storage, and RLS tests |
+| Public exposure of internal inventory or donor data | Private-by-default tables/storage and RLS tests |
 | Inventory counts lose their history | Append-only movement records and controlled correction workflow |
 | Financial records are mistaken for formal accounting | Define reporting scope and reconcile with the organization's accounting process |
 | Roles become too broad | Create a permission matrix and review access with real operators before launch |
