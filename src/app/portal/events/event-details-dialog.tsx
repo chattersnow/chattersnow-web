@@ -1,104 +1,44 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Eye } from "lucide-react";
-import { updateEventAction } from "./actions";
 import type { EventRow } from "./event-badges";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { OverviewTab } from "./overview-tab";
+import { AttendanceTab } from "./attendance-tab";
+import { SponsorsTab } from "./sponsors-tab";
+import { DonationsTab } from "./donations-tab";
+import { DistributionsTab } from "./distributions-tab";
+import { EventExpensesTab } from "./event-expenses-tab";
+import { RaffleTab } from "./raffle-tab";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const VISIBILITIES = [
-  { value: "private", label: "Private" },
-  { value: "public", label: "Public" },
-];
-
-const STATUSES = [
-  { value: "draft", label: "Draft" },
-  { value: "published", label: "Published" },
-];
-
-function toDatetimeLocalValue(iso: string | null) {
-  if (!iso) return "";
-  const date = new Date(iso);
-  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
-  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
-}
-
-function formStateFor(event: EventRow) {
-  return {
-    name: event.name,
-    location: event.location ?? "",
-    startsAt: toDatetimeLocalValue(event.starts_at),
-    endsAt: toDatetimeLocalValue(event.ends_at),
-    timezone: event.timezone,
-    visibility: event.visibility,
-    status: event.status,
-  };
-}
+type TabValue =
+  | "overview"
+  | "sponsors"
+  | "attendance"
+  | "donations"
+  | "distributions"
+  | "expenses"
+  | "raffle";
 
 export function EventDetailsDialog({ event }: { event: EventRow }) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState(() => formStateFor(event));
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  function update<K extends keyof ReturnType<typeof formStateFor>>(
-    key: K,
-    value: ReturnType<typeof formStateFor>[K]
-  ) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  }
+  const [tab, setTab] = useState<TabValue>("overview");
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
     if (nextOpen) {
-      setForm(formStateFor(event));
-      setError(null);
+      setTab("overview");
     }
-  }
-
-  function handleSubmit(formEvent: FormEvent<HTMLFormElement>) {
-    formEvent.preventDefault();
-    setError(null);
-
-    const formData = new FormData();
-    formData.set("name", form.name);
-    formData.set("location", form.location);
-    formData.set("startsAt", form.startsAt);
-    formData.set("endsAt", form.endsAt);
-    formData.set("timezone", form.timezone);
-    formData.set("visibility", form.visibility);
-    formData.set("status", form.status);
-
-    startTransition(async () => {
-      const result = await updateEventAction(event.id, formData);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      setOpen(false);
-      router.refresh();
-    });
   }
 
   return (
@@ -108,118 +48,45 @@ export function EventDetailsDialog({ event }: { event: EventRow }) {
       >
         <Eye />
       </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{event.name}</DialogTitle>
           <DialogDescription>View and update this event&apos;s details.</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="details-name">Event name</FieldLabel>
-              <Input
-                id="details-name"
-                required
-                value={form.name}
-                onChange={(changeEvent) => update("name", changeEvent.target.value)}
-              />
-            </Field>
+        <Tabs value={tab} onValueChange={(value) => setTab(value as TabValue)} className="mt-2">
+          <TabsList variant="line" className="flex-wrap">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="sponsors">Sponsors</TabsTrigger>
+            <TabsTrigger value="attendance">Attendance</TabsTrigger>
+            <TabsTrigger value="donations">Donations</TabsTrigger>
+            <TabsTrigger value="distributions">Distributions</TabsTrigger>
+            <TabsTrigger value="expenses">Expenses</TabsTrigger>
+            <TabsTrigger value="raffle">Raffle</TabsTrigger>
+          </TabsList>
 
-            <Field>
-              <FieldLabel htmlFor="details-location">Location</FieldLabel>
-              <Input
-                id="details-location"
-                value={form.location}
-                onChange={(changeEvent) => update("location", changeEvent.target.value)}
-              />
-            </Field>
-
-            <Field orientation="responsive">
-              <Field>
-                <FieldLabel htmlFor="details-startsAt">Starts</FieldLabel>
-                <Input
-                  id="details-startsAt"
-                  required
-                  type="datetime-local"
-                  value={form.startsAt}
-                  onChange={(changeEvent) => update("startsAt", changeEvent.target.value)}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="details-endsAt">Ends</FieldLabel>
-                <Input
-                  id="details-endsAt"
-                  type="datetime-local"
-                  value={form.endsAt}
-                  onChange={(changeEvent) => update("endsAt", changeEvent.target.value)}
-                />
-              </Field>
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="details-timezone">Timezone</FieldLabel>
-              <Input
-                id="details-timezone"
-                required
-                placeholder="e.g. America/Chicago"
-                value={form.timezone}
-                onChange={(changeEvent) => update("timezone", changeEvent.target.value)}
-              />
-            </Field>
-
-            <Field orientation="responsive">
-              <Field>
-                <FieldLabel htmlFor="details-visibility">Visibility</FieldLabel>
-                <Select
-                  value={form.visibility}
-                  onValueChange={(value) => update("visibility", value ?? "private")}
-                >
-                  <SelectTrigger id="details-visibility" className="w-full">
-                    <SelectValue placeholder="Select visibility" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {VISIBILITIES.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="details-status">Status</FieldLabel>
-                <Select
-                  value={form.status}
-                  onValueChange={(value) => update("status", value ?? "draft")}
-                >
-                  <SelectTrigger id="details-status" className="w-full">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUSES.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </Field>
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-          </FieldGroup>
-
-          <DialogFooter>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? "Saving..." : "Save changes"}
-            </Button>
-          </DialogFooter>
-        </form>
+          <TabsContent value="overview" className="mt-4">
+            <OverviewTab event={event} onSaved={() => setOpen(false)} />
+          </TabsContent>
+          <TabsContent value="sponsors" className="mt-4">
+            <SponsorsTab eventId={event.id} active={tab === "sponsors"} />
+          </TabsContent>
+          <TabsContent value="attendance" className="mt-4">
+            <AttendanceTab event={event} />
+          </TabsContent>
+          <TabsContent value="donations" className="mt-4">
+            <DonationsTab eventId={event.id} active={tab === "donations"} />
+          </TabsContent>
+          <TabsContent value="distributions" className="mt-4">
+            <DistributionsTab eventId={event.id} active={tab === "distributions"} />
+          </TabsContent>
+          <TabsContent value="expenses" className="mt-4">
+            <EventExpensesTab eventId={event.id} eventName={event.name} active={tab === "expenses"} />
+          </TabsContent>
+          <TabsContent value="raffle" className="mt-4">
+            <RaffleTab eventId={event.id} active={tab === "raffle"} />
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

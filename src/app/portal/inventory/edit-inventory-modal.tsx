@@ -4,7 +4,7 @@ import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
 import { updateInventoryItemAction } from "./actions";
-import { CONDITIONS, GENDERS, STATUSES, type InventoryItem } from "./inventory-shared";
+import { CONDITIONS, GENDERS, STATUSES, labelFor, type InventoryItem } from "./inventory-shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -142,7 +142,9 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
                   onValueChange={(value) => update("gender", value ?? "")}
                 >
                   <SelectTrigger id="edit-gender" className="w-full">
-                    <SelectValue placeholder="Select a gender" />
+                    <SelectValue placeholder="Select a gender">
+                      {(value: string) => labelFor(GENDERS, value) ?? "Select a gender"}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {GENDERS.map((option) => (
@@ -160,7 +162,9 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
                   onValueChange={(value) => update("condition", value ?? "")}
                 >
                   <SelectTrigger id="edit-condition" className="w-full">
-                    <SelectValue placeholder="Select a condition" />
+                    <SelectValue placeholder="Select a condition">
+                      {(value: string) => labelFor(CONDITIONS, value) ?? "Select a condition"}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {CONDITIONS.map((option) => (
@@ -181,7 +185,9 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
                   onValueChange={(value) => update("status", value ?? "")}
                 >
                   <SelectTrigger id="edit-status" className="w-full">
-                    <SelectValue placeholder="Select a status" />
+                    <SelectValue placeholder="Select a status">
+                      {(value: string) => labelFor(STATUSES, value) ?? "Select a status"}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {STATUSES.map((option) => (

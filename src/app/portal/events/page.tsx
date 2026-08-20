@@ -88,7 +88,9 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
 
   let query = supabase
     .from("events")
-    .select("id, name, location, starts_at, ends_at, timezone, visibility, status")
+    .select(
+      "id, name, location, starts_at, ends_at, timezone, visibility, status, attendance_count, attendance_notes"
+    )
     .order(sort, { ascending: dir === "asc" })
     .order("id", { ascending: true });
 

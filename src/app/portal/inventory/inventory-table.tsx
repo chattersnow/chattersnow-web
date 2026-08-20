@@ -179,7 +179,9 @@ export function InventoryTable({ items }: { items: InventoryItem[] }) {
               }
             >
               <SelectTrigger className="h-8">
-                <SelectValue placeholder="Condition" />
+                <SelectValue placeholder="Condition">
+                  {(value: string) => (value === FILTER_ALL ? "All conditions" : (labelFor(CONDITIONS, value) ?? "Condition"))}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={FILTER_ALL}>All conditions</SelectItem>
@@ -201,7 +203,9 @@ export function InventoryTable({ items }: { items: InventoryItem[] }) {
               onValueChange={(value) => setStatusFilter(value === FILTER_ALL ? null : value)}
             >
               <SelectTrigger className="h-8">
-                <SelectValue placeholder="Status" />
+                <SelectValue placeholder="Status">
+                  {(value: string) => (value === FILTER_ALL ? "All statuses" : (labelFor(STATUSES, value) ?? "Status"))}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={FILTER_ALL}>All statuses</SelectItem>

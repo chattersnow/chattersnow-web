@@ -10,6 +10,8 @@ export type EventRow = {
   timezone: string;
   visibility: string;
   status: string;
+  attendance_count: number | null;
+  attendance_notes: string | null;
 };
 
 const STATUS_STYLES: Record<string, string> = {

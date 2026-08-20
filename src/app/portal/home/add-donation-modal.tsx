@@ -92,8 +92,12 @@ function createEmptyItem(): ItemDraft {
 
 export function AddDonationModal({
   triggerLabel = "Record donation",
+  eventId,
+  onSaved,
 }: {
   triggerLabel?: string;
+  eventId?: string;
+  onSaved?: () => void;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -164,6 +168,7 @@ export function AddDonationModal({
         faceValue: item.faceValue ? Number(item.faceValue) : null,
         notes: item.notes || undefined,
       })),
+      eventId,
     };
 
     startTransition(async () => {
@@ -174,6 +179,7 @@ export function AddDonationModal({
       }
       handleOpenChange(false);
       router.refresh();
+      onSaved?.();
     });
   }
 
@@ -251,7 +257,9 @@ export function AddDonationModal({
                   onValueChange={(value) => updateDonor("sourceType", value ?? "")}
                 >
                   <SelectTrigger id="sourceType" className="w-full">
-                    <SelectValue placeholder="Select a source" />
+                    <SelectValue placeholder="Select a source">
+                      {(value: string) => SOURCE_TYPES.find((option) => option.value === value)?.label ?? "Select a source"}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {SOURCE_TYPES.map((option) => (
@@ -338,7 +346,9 @@ export function AddDonationModal({
                         onValueChange={(value) => updateItem(item.key, "gender", value ?? "")}
                       >
                         <SelectTrigger id={`itemGender-${item.key}`} className="w-full">
-                          <SelectValue placeholder="Select a gender" />
+                          <SelectValue placeholder="Select a gender">
+                            {(value: string) => GENDERS.find((option) => option.value === value)?.label ?? "Select a gender"}
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           {GENDERS.map((option) => (
@@ -356,7 +366,9 @@ export function AddDonationModal({
                         onValueChange={(value) => updateItem(item.key, "condition", value ?? "")}
                       >
                         <SelectTrigger id={`condition-${item.key}`} className="w-full">
-                          <SelectValue placeholder="Select a condition" />
+                          <SelectValue placeholder="Select a condition">
+                            {(value: string) => CONDITIONS.find((option) => option.value === value)?.label ?? "Select a condition"}
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           {CONDITIONS.map((option) => (

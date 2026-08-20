@@ -170,7 +170,9 @@ export function NewEventDialog() {
                   onValueChange={(value) => update("visibility", value ?? "private")}
                 >
                   <SelectTrigger id="visibility" className="w-full">
-                    <SelectValue placeholder="Select visibility" />
+                    <SelectValue placeholder="Select visibility">
+                      {(value: string) => VISIBILITIES.find((option) => option.value === value)?.label ?? "Select visibility"}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {VISIBILITIES.map((option) => (
@@ -188,7 +190,9 @@ export function NewEventDialog() {
                   onValueChange={(value) => update("status", value ?? "draft")}
                 >
                   <SelectTrigger id="status" className="w-full">
-                    <SelectValue placeholder="Select status" />
+                    <SelectValue placeholder="Select status">
+                      {(value: string) => STATUSES.find((option) => option.value === value)?.label ?? "Select status"}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {STATUSES.map((option) => (

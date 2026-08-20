@@ -60,6 +60,47 @@ export async function createEventAction(formData: FormData): Promise<CreateEvent
   return { success: true };
 }
 
+export async function updateEventAttendanceAction(
+  id: string,
+  formData: FormData
+): Promise<CreateEventResult> {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: "You must be signed in to update attendance." };
+  }
+
+  const countRaw = String(formData.get("attendanceCount") ?? "").trim();
+  const notes = String(formData.get("attendanceNotes") ?? "").trim();
+
+  let attendanceCount: number | null = null;
+  if (countRaw) {
+    const parsed = Number(countRaw);
+    if (!Number.isInteger(parsed) || parsed < 0) {
+      return { error: "Attendance must be a whole number of 0 or more." };
+    }
+    attendanceCount = parsed;
+  }
+
+  const { error } = await supabase
+    .from("events")
+    .update({
+      attendance_count: attendanceCount,
+      attendance_notes: notes || null,
+    })
+    .eq("id", id);
+
+  if (error) {
+    return { error: "Could not update attendance. Please try again." };
+  }
+
+  revalidatePath("/portal/home");
+  revalidatePath("/portal/events");
+  return { success: true };
+}
+
 export async function updateEventAction(
   id: string,
   formData: FormData

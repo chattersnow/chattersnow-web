@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CONDITIONS, GENDERS } from "@/lib/inventory";
+import { CONDITIONS, GENDERS, labelFor } from "@/lib/inventory";
 import { GearCard } from "./gear-card";
 
 export type GearItem = {
@@ -102,7 +102,9 @@ export function GearCatalog({ items }: { items: GearItem[] }) {
             onValueChange={(value) => setConditionFilter(value === FILTER_ALL ? null : value)}
           >
             <SelectTrigger className="h-8">
-              <SelectValue placeholder="Condition" />
+              <SelectValue placeholder="Condition">
+                {(value: string) => (value === FILTER_ALL ? "All conditions" : (labelFor(CONDITIONS, value) ?? "Condition"))}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={FILTER_ALL}>All conditions</SelectItem>
@@ -124,7 +126,9 @@ export function GearCatalog({ items }: { items: GearItem[] }) {
             onValueChange={(value) => setGenderFilter(value === FILTER_ALL ? null : value)}
           >
             <SelectTrigger className="h-8">
-              <SelectValue placeholder="Gender" />
+              <SelectValue placeholder="Gender">
+                {(value: string) => (value === FILTER_ALL ? "All genders" : (labelFor(GENDERS, value) ?? "Gender"))}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={FILTER_ALL}>All genders</SelectItem>
