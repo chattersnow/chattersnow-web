@@ -32,7 +32,7 @@ The public site must remain useful without an account. Operational data must req
 ### Non-goals for the initial release
 
 - Full accounting software or tax preparation.
-- Public inventory availability or a public view of the internal inventory record.
+- A public view of the internal inventory record (donor/donation linkage, face value, internal notes, status, or movement history). A curated, read-only public catalog of currently available gear is in scope — see §4 and §5.4.
 - Automated calendar synchronization.
 - Waitlists, capacity automation, confirmation emails, or event photo galleries unless prioritized separately.
 - Raffles, volunteer management, attendance tracking, and full accounting software unless prioritized separately.
@@ -53,7 +53,7 @@ The public site must remain useful without an account. Operational data must req
 | DNS and domain | Cloudflare DNS; Vercel manages application deployment and domain integration |
 | Local development | Next.js development server and Supabase local stack |
 
-The current repository is a minimal Next.js application. Supabase Auth, Storage, and API services are enabled in `supabase/config.toml`; database schema and migrations remain to be implemented.
+The repository started as a minimal Next.js application and is being built out incrementally. Supabase Auth, Storage, and API services are enabled in `supabase/config.toml`. Schema exists as ordered migrations under `supabase/migrations/` for donors, donations, inventory items/movements, events, and the public gear catalog view; roles/permissions, event sponsors/registrations, expenses, raffles, and the audit log remain to be implemented.
 
 ### Environment configuration
 
@@ -80,8 +80,9 @@ Public routes may expose approved content and explicitly public records:
 - Past events and event details
 - Registration form when enabled
 - Public event information marked for publication
+- Gear availability catalog: a curated, read-only list of items with `status = available`, limited to description, size, type, gender, condition, and photo
 
-Public routes must not expose donor contact details, private event data, internal notes, financial records, inventory records, individual recipient information, or inventory history.
+Public routes must not expose donor contact details, private event data, internal notes, financial records, the internal inventory record (donation linkage, face value, notes, status, or movement history), individual recipient information, or inventory history. The gear availability catalog above is the sole approved exception, and only through its curated field list.
 
 ### Operations portal
 
@@ -173,6 +174,10 @@ Inventory changes shall be represented by a stock movement or distribution trans
 For distribution, the system should eventually record who received the gear, when, at which event, and who distributed it. Personally identifying recipient information must be protected by RLS and should not be public.
 
 Available quantity should be derived from valid inventory transactions, subject to an explicit policy for damaged, lost, and retired stock.
+
+#### Public gear availability
+
+The public site shall let visitors browse a gallery of gear currently available (`status = available`), with filtering by type, condition, and gender, and free-text search by description. The public read path must go through a dedicated, curated database view rather than a relaxed policy on the internal `inventory_items` table, so donor linkage, face value, notes, status, and movement history stay behind authenticated-only access regardless of how the public view's field list evolves.
 
 ### 5.5 Event management
 
@@ -270,6 +275,7 @@ The following is a logical model, not a final migration. IDs should be UUIDs and
 - `donation_items`
 - `inventory_items`: donation-managed inventory records with description, size, type, gender, condition, face value, photo, and status
 - `inventory_movements`: receipt, distribution, adjustment, and retirement transactions
+- `public_gear_catalog`: read-only view over `inventory_items` limited to `status = available` rows and a curated column set (description, size, type, gender, condition, photo); granted to the `anon` role so it can back the public gear gallery without relaxing RLS on the base table
 - `inventory_photos`
 - `distribution_recipients`: protected recipient records, if needed
 
@@ -310,6 +316,7 @@ src/app/
     about/
     events/
     support/
+    gears/                    # public gear availability catalog
   (portal)/
     portal/
       page.tsx                 # admin dashboard
@@ -379,6 +386,7 @@ The initial release is ready when:
 - Published upcoming and past events render correctly with their public details.
 - Private or draft events do not appear publicly.
 - A user cannot read donor, recipient, financial, inventory history, or audit data through the anonymous client.
+- An unauthenticated visitor can browse the public gear availability catalog (filter/search included) and never sees donor, financial, notes, or status/movement data in the page or its network responses.
 - An administrator can authenticate with Google and access the dashboard, events, expenses, and inventory portal areas.
 - Donation receipt and inventory update workflows preserve transaction history.
 - Inventory counts cannot become negative through normal application workflows.
