@@ -50,6 +50,7 @@ export default async function PortalHomePage() {
               width={150}
               height={200}
               className="h-14 w-auto shrink-0 sm:h-16"
+              style={{ width: "auto" }}
               priority
             />
             <h1 className="brand-display whitespace-nowrap text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">

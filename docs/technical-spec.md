@@ -3,8 +3,8 @@
 ## Technical Specification
 
 - **Status:** Draft for team review
-- **Version:** 0.1
-- **Date:** 2026-08-18
+- **Version:** 0.2
+- **Date:** 2026-08-20
 - **Owner:** Chatter Snow
 - **Repository:** `chattersnow-web`
 - **Canonical domain:** `https://chattersnow.org`
@@ -73,14 +73,13 @@ The secret key must never be exposed to browser code. Production and preview env
 
 ### Public website
 
-Public routes may expose approved content and explicitly public records:
+Public routes may expose approved content and explicitly public records. The public site has five top-level sections:
 
-- About, mission, programs, team, contact, and support pages
-- Upcoming events
-- Past events and event details
-- Registration form when enabled
-- Public event information marked for publication
-- Gear availability catalog: a curated, read-only list of items with `status = available`, limited to description, size, type, gender, condition, and photo
+- **Home** (`/`): a landing page, primarily imagery/highlights linking into the other sections.
+- **About Us** (`/about`): the organization's mission and programs, plus a **Meet the Team** sub-page (`/about/team`) with staff/leadership profiles.
+- **Events** (`/events`): upcoming and past events with detail pages. Initial release renders events as a list; a calendar view is a possible future enhancement pending further research.
+- **Gears** (`/gears`): the curated, read-only gear availability catalog (`status = available`), limited to description, size, type, gender, condition, and photo.
+- **Contact Us** (`/contact`): a contact form that sends an email to the organization, plus the organization's published email address and social media links.
 
 Public routes must not expose donor contact details, private event data, internal notes, financial records, the internal inventory record (donation linkage, face value, notes, status, or movement history), individual recipient information, or inventory history. The gear availability catalog above is the sole approved exception, and only through its curated field list.
 
@@ -101,13 +100,14 @@ Raffles, volunteers, attendance, and expanded reporting are planned capabilities
 
 The site shall allow visitors to:
 
-- Learn about Chatter Snow and its mission.
-- Review programs and initiatives.
-- Meet the team or leadership.
-- Find contact information.
+- View a home page introducing Chatter Snow and linking into About Us, Events, Gears, and Contact Us.
+- Learn about Chatter Snow, its mission, and its programs on the About Us page.
+- Meet the team or leadership on an About Us sub-page.
+- Submit a contact inquiry through a form that delivers an email to the organization.
+- Find the organization's published contact email address and social media links.
 - Learn how to support the organization.
 
-Content management is not required to be self-service in the first release. The initial implementation may use repository-managed content, while the data model should leave room for a future CMS or admin-managed content.
+Content management is not required to be self-service in the first release. The initial implementation may use repository-managed content, while the data model should leave room for a future CMS or admin-managed content. The contact form is a public write path: it must be rate-limited, validated server-side, and must not create or expose any authenticated-only record.
 
 ### 5.2 Public events
 
@@ -119,6 +119,8 @@ The site shall allow visitors to:
 - See date/time, location, and description.
 - See sponsors or partners when marked for publication.
 - Register when registration is enabled.
+
+Events are presented as a list in the initial release. A calendar view is a possible future enhancement, pending research into a suitable approach; the data model should not preclude it.
 
 An event must support these fields:
 
@@ -313,10 +315,13 @@ Use the Next.js App Router with route groups that make the public/portal boundar
 ```text
 src/app/
   (public)/
+    page.tsx                   # home
     about/
-    events/
-    support/
-    gears/                    # public gear availability catalog
+      page.tsx                 # about us
+      team/                    # meet the team
+    events/                    # list view; calendar view is a future option
+    gears/                     # public gear availability catalog
+    contact/                   # contact form (sends email) + email/socials
   (portal)/
     portal/
       page.tsx                 # admin dashboard
@@ -358,6 +363,13 @@ Supabase database changes should be implemented as ordered migrations under `sup
 4. Server creates the distribution movement atomically.
 5. Available quantity reflects the movement.
 6. Audit entry records who distributed what and when.
+
+### Public contact inquiry
+
+1. Visitor submits the contact form on the Contact Us page.
+2. Server validates input and applies rate limiting/bot protection.
+3. Server sends the inquiry to the organization's email via a transactional email provider; no record is persisted in the database for the initial release.
+4. Visitor sees a confirmation state; failures are surfaced without exposing delivery internals.
 
 ### Record event expense
 

@@ -13,10 +13,10 @@ Keep your replies extremely concise and focus on coveying the key information. N
 ## Commands
 
 ```bash
-npm run dev     # start dev server (Next.js, Turbopack by default)
-npm run build   # production build
-npm run start   # run production build
-npm run lint    # eslint (flat config, eslint-config-next core-web-vitals + typescript)
+bun run dev     # start dev server (Next.js, Turbopack by default)
+bun run build   # production build
+bun run start   # run production build
+bun run lint    # eslint (flat config, eslint-config-next core-web-vitals + typescript)
 ```
 
 There is no test suite configured yet. TypeScript is checked via `next build` / editor tooling, not a standalone `tsc` script.

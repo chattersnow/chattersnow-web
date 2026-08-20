@@ -25,6 +25,7 @@ export default async function GearsPage() {
             width={150}
             height={200}
             className="h-14 w-auto shrink-0 sm:h-16"
+            style={{ width: "auto" }}
             priority
           />
           <div className="min-w-0">
