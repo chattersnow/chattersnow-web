@@ -3,13 +3,33 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
+export type DonationItemInput = {
+  description: string;
+  size?: string;
+  type: string;
+  gender?: string;
+  condition: string;
+  faceValue?: number | null;
+  notes?: string;
+};
+
+export type CreateDonationInput = {
+  isAnonymous: boolean;
+  donorName: string;
+  donorEmail?: string;
+  donorPhone?: string;
+  sourceType: string;
+  donorNotes?: string;
+  items: DonationItemInput[];
+};
+
 export type CreateDonationResult = { error: string } | { success: true };
 
 const SOURCE_TYPES = ["individual", "brand", "organization", "event", "other"] as const;
 const CONDITIONS = ["new", "like_new", "good", "fair", "poor"] as const;
 
 export async function createDonationAction(
-  formData: FormData
+  input: CreateDonationInput
 ): Promise<CreateDonationResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -19,49 +39,53 @@ export async function createDonationAction(
     return { error: "You must be signed in to record a donation." };
   }
 
-  const isAnonymous = formData.get("isAnonymous") === "on";
-  const donorName = String(formData.get("donorName") ?? "").trim();
-  const sourceType = String(formData.get("sourceType") ?? "");
-  const itemDescription = String(formData.get("itemDescription") ?? "").trim();
-  const itemType = String(formData.get("itemType") ?? "").trim();
-  const condition = String(formData.get("condition") ?? "");
-
-  if (!isAnonymous && !donorName) {
+  const donorName = input.donorName.trim();
+  if (!input.isAnonymous && !donorName) {
     return { error: "Donor name is required unless the donation is anonymous." };
   }
-  if (!SOURCE_TYPES.includes(sourceType as (typeof SOURCE_TYPES)[number])) {
+  if (!SOURCE_TYPES.includes(input.sourceType as (typeof SOURCE_TYPES)[number])) {
     return { error: "Select a valid donor source." };
   }
-  if (!itemDescription) {
-    return { error: "Item description is required." };
-  }
-  if (!itemType) {
-    return { error: "Item type is required." };
-  }
-  if (!CONDITIONS.includes(condition as (typeof CONDITIONS)[number])) {
-    return { error: "Select a valid item condition." };
+  if (!input.items.length) {
+    return { error: "Add at least one item to the donation." };
   }
 
-  const faceValueRaw = formData.get("faceValue");
-  const faceValue = faceValueRaw ? Number(faceValueRaw) : null;
-  if (faceValueRaw && (Number.isNaN(faceValue) || (faceValue as number) < 0)) {
-    return { error: "Face value must be a positive number." };
+  for (let i = 0; i < input.items.length; i++) {
+    const item = input.items[i];
+    const label = `Item ${i + 1}`;
+    if (!item.description.trim()) {
+      return { error: `${label}: description is required.` };
+    }
+    if (!item.type.trim()) {
+      return { error: `${label}: type is required.` };
+    }
+    if (!CONDITIONS.includes(item.condition as (typeof CONDITIONS)[number])) {
+      return { error: `${label}: select a valid condition.` };
+    }
+    if (
+      item.faceValue != null &&
+      (Number.isNaN(item.faceValue) || item.faceValue < 0)
+    ) {
+      return { error: `${label}: face value must be a positive number.` };
+    }
   }
 
-  const { error } = await supabase.rpc("create_donation_with_item", {
-    p_donor_name: isAnonymous ? null : donorName,
-    p_donor_is_anonymous: isAnonymous,
-    p_donor_source_type: sourceType,
-    p_donor_email: String(formData.get("donorEmail") ?? "").trim() || null,
-    p_donor_phone: String(formData.get("donorPhone") ?? "").trim() || null,
-    p_donor_notes: String(formData.get("donorNotes") ?? "").trim() || null,
-    p_item_description: itemDescription,
-    p_item_size: String(formData.get("itemSize") ?? "").trim() || null,
-    p_item_type: itemType,
-    p_item_gender: String(formData.get("itemGender") ?? "") || null,
-    p_item_condition: condition,
-    p_item_face_value: faceValue,
-    p_item_notes: String(formData.get("itemNotes") ?? "").trim() || null,
+  const { error } = await supabase.rpc("create_donation_with_items", {
+    p_donor_name: input.isAnonymous ? null : donorName,
+    p_donor_is_anonymous: input.isAnonymous,
+    p_donor_source_type: input.sourceType,
+    p_donor_email: input.donorEmail?.trim() || null,
+    p_donor_phone: input.donorPhone?.trim() || null,
+    p_donor_notes: input.donorNotes?.trim() || null,
+    p_items: input.items.map((item) => ({
+      description: item.description.trim(),
+      size: item.size?.trim() || null,
+      type: item.type.trim(),
+      gender: item.gender || null,
+      condition: item.condition,
+      face_value: item.faceValue ?? null,
+      notes: item.notes?.trim() || null,
+    })),
   });
 
   if (error) {

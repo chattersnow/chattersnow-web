@@ -1,14 +1,27 @@
 import type { Metadata } from "next";
-import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
+import {
+  Caveat_Brush,
+  Geist_Mono,
+  Permanent_Marker,
+  Rock_Salt,
+} from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const caveatBrush = Caveat_Brush({
+  variable: "--font-caveat-brush",
+  weight: "400",
   subsets: ["latin"],
 });
 
-const bricolageGrotesque = Bricolage_Grotesque({
-  variable: "--font-bricolage-grotesque",
+const permanentMarker = Permanent_Marker({
+  variable: "--font-permanent-marker",
+  weight: "400",
+  subsets: ["latin"],
+});
+
+const rockSalt = Rock_Salt({
+  variable: "--font-rock-salt",
+  weight: "400",
   subsets: ["latin"],
 });
 
@@ -26,7 +39,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${bricolageGrotesque.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${caveatBrush.variable} ${permanentMarker.variable} ${rockSalt.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

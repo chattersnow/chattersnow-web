@@ -16,6 +16,7 @@ import {
 import { LogoutButton } from "../logout-button";
 import { PortalTabs } from "../portal-tabs";
 import { NewEventDialog } from "./new-event-dialog";
+import { EventDetailsDialog } from "./event-details-dialog";
 import { StatusBadge, VisibilityBadge } from "./event-badges";
 
 const SORTABLE_COLUMNS = ["name", "starts_at", "status", "visibility", "location"] as const;
@@ -240,6 +241,7 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
                         </Link>
                       </TableHead>
                     ))}
+                    <TableHead className="w-px" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -253,6 +255,9 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
                       </TableCell>
                       <TableCell>
                         <VisibilityBadge visibility={event.visibility} />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <EventDetailsDialog event={event} />
                       </TableCell>
                     </TableRow>
                   ))}

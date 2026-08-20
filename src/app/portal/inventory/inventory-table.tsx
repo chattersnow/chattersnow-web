@@ -115,9 +115,11 @@ export function InventoryTable({ items }: { items: InventoryItem[] }) {
     return (
       <div className="space-y-4">
         <AddDonationModal triggerLabel="Add item" />
-        <p className="app-muted py-16 text-center text-sm">
-          No inventory items yet.
-        </p>
+        <Card>
+          <CardContent className="px-0">
+            <p className="app-muted px-4 py-6 text-sm">No inventory items yet.</p>
+          </CardContent>
+        </Card>
       </div>
     );
   }

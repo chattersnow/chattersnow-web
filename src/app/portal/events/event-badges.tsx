@@ -1,6 +1,17 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
+export type EventRow = {
+  id: string;
+  name: string;
+  location: string | null;
+  starts_at: string;
+  ends_at: string | null;
+  timezone: string;
+  visibility: string;
+  status: string;
+};
+
 const STATUS_STYLES: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
   published: "bg-primary/10 text-primary",
