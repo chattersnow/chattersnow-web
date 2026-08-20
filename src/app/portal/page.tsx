@@ -11,5 +11,5 @@ export default async function PortalPage() {
     redirect("/portal/login");
   }
 
-  redirect("/home");
+  redirect("/portal/entry");
 }
