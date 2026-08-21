@@ -1,12 +1,10 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
+import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateEventAction } from "./actions";
 import type { EventRow } from "./event-badges";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { DialogFooter } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -46,11 +44,25 @@ function formStateFor(event: EventRow) {
   };
 }
 
-export function OverviewTab({ event, onSaved }: { event: EventRow; onSaved: () => void }) {
+export function OverviewTab({
+  event,
+  formId,
+  onSaved,
+  onPendingChange,
+}: {
+  event: EventRow;
+  formId: string;
+  onSaved: () => void;
+  onPendingChange?: (pending: boolean) => void;
+}) {
   const router = useRouter();
   const [form, setForm] = useState(() => formStateFor(event));
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    onPendingChange?.(isPending);
+  }, [isPending, onPendingChange]);
 
   function update<K extends keyof ReturnType<typeof formStateFor>>(
     key: K,
@@ -84,7 +96,7 @@ export function OverviewTab({ event, onSaved }: { event: EventRow; onSaved: () =
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form id={formId} onSubmit={handleSubmit}>
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="details-name">Event name</FieldLabel>
@@ -184,12 +196,6 @@ export function OverviewTab({ event, onSaved }: { event: EventRow; onSaved: () =
           </Alert>
         )}
       </FieldGroup>
-
-      <DialogFooter>
-        <Button type="submit" disabled={isPending}>
-          {isPending ? "Saving..." : "Save changes"}
-        </Button>
-      </DialogFooter>
     </form>
   );
 }
