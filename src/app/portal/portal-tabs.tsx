@@ -10,6 +10,7 @@ const TABS = [
   { value: "inventory", label: "Inventory", href: "/portal/inventory" },
   { value: "expenses", label: "Expenses", href: "/portal/expenses" },
   { value: "people", label: "People", href: "/portal/people" },
+  { value: "governance", label: "Governance", href: "/portal/governance" },
 ] as const;
 
 function activeTabFor(pathname: string) {
@@ -17,6 +18,7 @@ function activeTabFor(pathname: string) {
   if (pathname.startsWith("/portal/inventory")) return "inventory";
   if (pathname.startsWith("/portal/expenses")) return "expenses";
   if (pathname.startsWith("/portal/people")) return "people";
+  if (pathname.startsWith("/portal/governance")) return "governance";
   return "overview";
 }
 

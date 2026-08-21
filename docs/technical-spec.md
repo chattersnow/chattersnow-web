@@ -53,7 +53,7 @@ The public site must remain useful without an account. Operational data must req
 | DNS and domain | Cloudflare DNS; Vercel manages application deployment and domain integration |
 | Local development | Next.js development server and Supabase local stack |
 
-The repository started as a minimal Next.js application and is being built out incrementally. Supabase Auth, Storage, and API services are enabled in `supabase/config.toml`. Schema exists as ordered migrations under `supabase/migrations/` for donors, donations, inventory items/movements, events, and the public gear catalog view; roles/permissions, event sponsors/registrations, expenses, raffles, and the audit log remain to be implemented.
+The repository started as a minimal Next.js application and is being built out incrementally. Supabase Auth, Storage, and API services are enabled in `supabase/config.toml`. Schema exists as ordered migrations under `supabase/migrations/` for the shared `people` directory (donors, sponsors, volunteers), donations, inventory items/movements, events, event sponsors, event expenses, raffles, and the public gear catalog view; roles/permissions, event registrations, and the audit log remain to be implemented.
 
 ### Environment configuration
 
@@ -195,6 +195,16 @@ Authorized users shall be able to create and manage events, including:
 
 The event record should support a public/private boundary so internal planning details do not become public accidentally. Registration, attendance, volunteers, and inventory distributions may be added as later capabilities.
 
+#### Sponsor and partner selection
+
+Event sponsors/partners are people or organizations that already live in the shared `people` directory (the same table backing donors and volunteers, see §6) rather than free text typed per event. Managing an event's sponsors shall work as follows:
+
+1. The event editor's Sponsors tab provides a type-ahead search (matching on name and email) over `people`. Staff pick an existing person/organization from the results to link them to the event.
+2. If no existing record matches, the same control lets staff create a new `people` record inline (name required; email, phone, and notes optional) and link it to the event in one step, without leaving the event editor.
+3. Linking a person who is not yet tagged `is_sponsor` sets that flag, so they appear correctly in the People directory (`/portal/people`) going forward. Existing donor/volunteer flags on that person are left unchanged.
+4. Per-event sponsorship details — support type (cash, in-kind, both, other), in-kind description, contribution value, public visibility, and notes — are stored on the event-sponsor link, not on the person record, since the same sponsor can support different events differently.
+5. A person may be linked to a given event only once; re-selecting an already-linked person edits the existing link rather than creating a duplicate.
+
 ### 5.6 Expense management
 
 Authorized users shall be able to record expenses with:
@@ -202,6 +212,7 @@ Authorized users shall be able to record expenses with:
 - Description
 - Date
 - Amount and currency
+- Category (e.g. branding/marketing, food, transportation, supplies, venue, other)
 - Receipt
 - Optional event association
 - Entering user
@@ -227,7 +238,17 @@ Raffles are a planned capability and may be delivered after the initial release.
 
 The implementation must be reviewed for applicable legal, tax, and jurisdictional requirements before enabling public ticket sales.
 
-### 5.9 Dashboard and reporting
+### 5.9 People directory
+
+A person's record in the People directory (`/portal/people`) shall show that individual's full operational history across roles, not just their contact details and role flags:
+
+- Donations given, if `is_donor`
+- Events sponsored and sponsorship details (support type, in-kind description, contribution value), if `is_sponsor`
+- Volunteer activity, if `is_volunteer`, once volunteer tracking exists
+
+This view should read from the existing donation, event-sponsor, and (future) volunteer records rather than duplicating that history onto the `people` row.
+
+### 5.10 Dashboard and reporting
 
 The initial admin dashboard shall summarize:
 
@@ -239,7 +260,7 @@ The initial admin dashboard shall summarize:
 
 Dashboard values should be derived from stored records and clearly indicate the relevant date range. Expanded reports may later include filters, exports, and pending tasks.
 
-### 5.10 Audit and history
+### 5.11 Audit and history
 
 The system shall preserve who changed what and when for material operational records, including:
 
@@ -252,6 +273,30 @@ The system shall preserve who changed what and when for material operational rec
 - User role changes
 
 Audit history should be append-only for normal application users. At minimum, store actor, action, entity type, entity ID, timestamp, and a structured before/after or change payload. Audit data must be visible only to authorized roles.
+
+### 5.12 Governance
+
+Authorized users shall be able to manage nonprofit governance records:
+
+- **Board members**: linked to `people`, with role/title, term start/end, and active status.
+- **Meetings**: date, type (board, committee, annual, other), attendees, and associated:
+  - **Agendas**
+  - **Minutes**
+  - **Resolutions**: motion text, mover/seconder, vote outcome, and effective date
+- **Bylaws**: the governing document, with effective date and amendment history.
+- **Policies**: named policies (e.g. whistleblower, document retention, conflict of interest policy itself), each with a category and effective date.
+- **Conflict of interest**: per-person annual disclosure statements, on-file date, and any noted conflicts.
+- **Annual requirements**: recurring compliance items (e.g. annual report, IRS Form 990, state charitable registration renewal) with due date, completion status/date, and responsible party.
+
+The content of an individual governance record (a policy's text, a set of minutes, a signed bylaws amendment, etc.) is not required to take one fixed form. A record may hold an uploaded file attachment, an external link (e.g. to a shared drive), a free-text body, or any combination of the three, so staff can start with a quick note or link and attach a scanned/signed file later without changing record type. See `file_attachments` in §6.
+
+Governance records contain sensitive organizational and personal information and must not be public. Access should be limited to the `admin` role initially, with a narrower dedicated role (e.g. `board`) introduced later if needed.
+
+### 5.13 Open questions
+
+- **Volunteer-facing donation/distribution recording**: recording a donation or distribution from an event should be quick and easy for a volunteer to reach in the field, not just from the main inventory workflow.
+- **Quick edit from the events list**: editing a donation/distribution via the events list may only need to collect a number and notes tied to the event, rather than the full inventory workflow.
+- **Raffle prizes drawn from in-kind donations**: when a donated item is used as a raffle prize, decide whether it should still follow the standard in-kind donation/inventory process (receipt, status, movement) or a separate raffle-specific path.
 
 ## 6. Proposed Data Model
 
@@ -267,12 +312,12 @@ The following is a logical model, not a final migration. IDs should be UUIDs and
 
 - `pages` or repository content: approved public content
 - `events`
-- `event_sponsors`
+- `event_sponsors`: links an event to a `people` record via `person_id` (one row per event/person pair), plus per-event sponsorship details — support type, in-kind description, contribution value, public visibility, notes. Sponsor/partner name and contact info are not duplicated here; they live on the linked `people` row.
 - `event_registrations`: optional future capability
 
 ### Inventory and donations
 
-- `donors`
+- `people`: shared directory of donors, sponsors, and volunteers (name, email, phone, notes, `is_donor`/`is_sponsor`/`is_volunteer` flags), so the same contact can be reused across roles instead of being duplicated per context
 - `donations`
 - `donation_items`
 - `inventory_items`: donation-managed inventory records with description, size, type, gender, condition, face value, photo, and status
@@ -290,7 +335,18 @@ The following is a logical model, not a final migration. IDs should be UUIDs and
 
 ### Governance
 
+- `board_members`: links a `people` record with role/title, term start/end, and active status
+- `governance_meetings`: date, type (board, committee, annual, other), status; associated `governance_meeting_attendees` link table to `people`
+- `agendas`: linked to a `governance_meetings` row
+- `minutes`: linked to a `governance_meetings` row
+- `resolutions`: linked to a `governance_meetings` row (optional), motion text, mover/seconder (`people`), vote outcome, effective date
+- `bylaws`: version, effective date, amendment history
+- `policies`: name, category, effective date, version
+- `conflict_of_interest_disclosures`: linked to a `people`/`board_members` record, disclosure period, on-file date, notes
+- `annual_requirements`: name, due date, completed-at, responsible `people` record
 - `audit_log`
+
+`agendas`, `minutes`, `resolutions`, `bylaws`, `policies`, `conflict_of_interest_disclosures`, and `annual_requirements` each hold their substantive content via nullable `file_attachment_id` (→ `file_attachments`), `external_link`, and `body_text` columns, populated in any combination per §5.11.
 
 Foreign keys should enforce relationships. Monetary amounts should use a fixed-precision numeric type, not floating-point values. Dates should be stored with timezone-aware timestamps; event display timezone is an event or organization configuration decision.
 
@@ -328,6 +384,7 @@ src/app/
       events/
       inventory/
       expenses/
+      governance/
   auth/
   api/
 ```

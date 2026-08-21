@@ -1,4 +1,3 @@
-import Image from "next/image";
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { GearCatalog } from "./gear-catalog";
@@ -19,15 +18,6 @@ export default async function GearsPage() {
     <main className="app-shell px-6 py-8 sm:px-10">
       <div className="mx-auto max-w-6xl">
         <header className="flex items-center gap-3 border-b border-[var(--line)] pb-6">
-          <Image
-            src="/chatter-logo-transparent.png"
-            alt="Chatter Snow"
-            width={150}
-            height={200}
-            className="h-14 w-auto shrink-0 sm:h-16"
-            style={{ width: "auto" }}
-            priority
-          />
           <div className="min-w-0">
             <p className="app-muted text-xs font-semibold uppercase tracking-[0.16em]">
               Available gear

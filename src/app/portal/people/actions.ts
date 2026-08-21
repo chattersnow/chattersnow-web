@@ -3,7 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-export type PersonActionResult = { error: string } | { success: true };
+export type PersonActionResult =
+  | { error: string }
+  | { success: true; person?: { id: string; name: string | null; email: string | null; phone: string | null } };
+
+export type PersonListItem = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  is_sponsor: boolean;
+};
 
 type PersonValues = {
   name: string;
@@ -54,15 +64,30 @@ export async function createPersonAction(formData: FormData): Promise<PersonActi
   const parsed = readPersonForm(formData);
   if ("error" in parsed) return parsed;
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("people")
-    .insert({ ...parsed.values, is_anonymous: false, source_type: "other" });
+    .insert({ ...parsed.values, is_anonymous: false, source_type: "other" })
+    .select("id, name, email, phone")
+    .single();
   if (error) {
     return { error: "Could not save this person. Please try again." };
   }
 
   revalidatePath("/portal/people");
-  return { success: true };
+  return { success: true, person: data };
+}
+
+export async function listPeopleAction(): Promise<{ data: PersonListItem[] } | { error: string }> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("people")
+    .select("id, name, email, phone, is_sponsor")
+    .order("name", { ascending: true });
+
+  if (error) {
+    return { error: "Could not load people. Please try again." };
+  }
+  return { data: (data ?? []) as PersonListItem[] };
 }
 
 export async function updatePersonAction(

@@ -3,18 +3,23 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
+export type EventSponsorPerson = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+};
+
 export type EventSponsor = {
   id: string;
   event_id: string;
-  name: string;
-  contact_name: string | null;
-  contact_email: string | null;
-  contact_phone: string | null;
+  person_id: string;
   support_type: string;
   in_kind_description: string | null;
   contribution_value: number | string | null;
   is_public: boolean;
   notes: string | null;
+  person: EventSponsorPerson;
 };
 
 export type SponsorActionResult = { error: string } | { success: true };
@@ -28,22 +33,17 @@ export async function listEventSponsorsAction(
   const { data, error } = await supabase
     .from("event_sponsors")
     .select(
-      "id, event_id, name, contact_name, contact_email, contact_phone, support_type, in_kind_description, contribution_value, is_public, notes"
+      "id, event_id, person_id, support_type, in_kind_description, contribution_value, is_public, notes, person:people(id, name, email, phone)"
     )
-    .eq("event_id", eventId)
-    .order("name", { ascending: true });
+    .eq("event_id", eventId);
 
   if (error) {
     return { error: "Could not load sponsors. Please try again." };
   }
-  return { data: data ?? [] };
+  return { data: (data ?? []) as unknown as EventSponsor[] };
 }
 
 type SponsorValues = {
-  name: string;
-  contact_name: string | null;
-  contact_email: string | null;
-  contact_phone: string | null;
   support_type: string;
   in_kind_description: string | null;
   contribution_value: number | null;
@@ -52,17 +52,12 @@ type SponsorValues = {
 };
 
 function readSponsorForm(formData: FormData): { error: string } | { values: SponsorValues } {
-  const name = String(formData.get("name") ?? "").trim();
-  const contactName = String(formData.get("contactName") ?? "").trim();
-  const contactEmail = String(formData.get("contactEmail") ?? "").trim();
-  const contactPhone = String(formData.get("contactPhone") ?? "").trim();
   const supportType = String(formData.get("supportType") ?? "in_kind");
   const inKindDescription = String(formData.get("inKindDescription") ?? "").trim();
   const contributionValueRaw = String(formData.get("contributionValue") ?? "").trim();
   const isPublic = formData.get("isPublic") === "on" || formData.get("isPublic") === "true";
   const notes = String(formData.get("notes") ?? "").trim();
 
-  if (!name) return { error: "Sponsor name is required." } as const;
   if (!SUPPORT_TYPES.includes(supportType as (typeof SUPPORT_TYPES)[number])) {
     return { error: "Select a valid support type." } as const;
   }
@@ -78,10 +73,6 @@ function readSponsorForm(formData: FormData): { error: string } | { values: Spon
 
   return {
     values: {
-      name,
-      contact_name: contactName || null,
-      contact_email: contactEmail || null,
-      contact_phone: contactPhone || null,
       support_type: supportType,
       in_kind_description: inKindDescription || null,
       contribution_value: contributionValue,
@@ -93,6 +84,7 @@ function readSponsorForm(formData: FormData): { error: string } | { values: Spon
 
 export async function createEventSponsorAction(
   eventId: string,
+  personId: string,
   formData: FormData
 ): Promise<SponsorActionResult> {
   const supabase = await createSupabaseServerClient();
@@ -103,14 +95,23 @@ export async function createEventSponsorAction(
     return { error: "You must be signed in to add a sponsor." };
   }
 
+  if (!personId) {
+    return { error: "Select or create a person to link." };
+  }
+
   const parsed = readSponsorForm(formData);
   if ("error" in parsed) return parsed;
 
   const { error } = await supabase
     .from("event_sponsors")
-    .insert({ event_id: eventId, ...parsed.values });
+    .insert({ event_id: eventId, person_id: personId, ...parsed.values });
 
   if (error) {
+    if (error.code === "23505") {
+      return {
+        error: "This person is already linked to this event as a sponsor. Edit their existing entry instead.",
+      };
+    }
     return { error: "Could not save the sponsor. Please try again." };
   }
 

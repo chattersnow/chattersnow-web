@@ -9,7 +9,11 @@ import {
   listEventSponsorsAction,
   updateEventSponsorAction,
   type EventSponsor,
+  type EventSponsorPerson,
+  type SponsorActionResult,
 } from "./sponsors-actions";
+import { SponsorPersonPicker, type PickedPerson } from "./sponsor-person-picker";
+import { listPeopleAction, type PersonListItem } from "../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -41,10 +45,6 @@ function formatValue(value: number | string | null) {
 }
 
 type SponsorFormState = {
-  name: string;
-  contactName: string;
-  contactEmail: string;
-  contactPhone: string;
   supportType: string;
   inKindDescription: string;
   contributionValue: string;
@@ -54,10 +54,6 @@ type SponsorFormState = {
 
 function emptySponsorForm(): SponsorFormState {
   return {
-    name: "",
-    contactName: "",
-    contactEmail: "",
-    contactPhone: "",
     supportType: "in_kind",
     inKindDescription: "",
     contributionValue: "",
@@ -68,10 +64,6 @@ function emptySponsorForm(): SponsorFormState {
 
 function formStateFor(sponsor: EventSponsor): SponsorFormState {
   return {
-    name: sponsor.name,
-    contactName: sponsor.contact_name ?? "",
-    contactEmail: sponsor.contact_email ?? "",
-    contactPhone: sponsor.contact_phone ?? "",
     supportType: sponsor.support_type,
     inKindDescription: sponsor.in_kind_description ?? "",
     contributionValue: sponsor.contribution_value === null ? "" : String(sponsor.contribution_value),
@@ -85,14 +77,21 @@ function SponsorForm({
   submitLabel,
   onSubmit,
   onCancel,
+  people,
+  onPersonCreated,
+  personDisplay,
 }: {
   initial: SponsorFormState;
   submitLabel: string;
-  onSubmit: (formData: FormData) => Promise<{ error: string } | { success: true }>;
+  onSubmit: (formData: FormData, personId: string | null) => Promise<SponsorActionResult>;
   onCancel?: () => void;
+  people: PersonListItem[];
+  onPersonCreated: (person: PickedPerson) => void;
+  personDisplay?: EventSponsorPerson;
 }) {
   const router = useRouter();
   const [form, setForm] = useState(initial);
+  const [selectedPerson, setSelectedPerson] = useState<PickedPerson | null>(personDisplay ?? null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -104,11 +103,12 @@ function SponsorForm({
     event.preventDefault();
     setError(null);
 
+    if (!personDisplay && !selectedPerson) {
+      setError("Select or create a person to link.");
+      return;
+    }
+
     const formData = new FormData();
-    formData.set("name", form.name);
-    formData.set("contactName", form.contactName);
-    formData.set("contactEmail", form.contactEmail);
-    formData.set("contactPhone", form.contactPhone);
     formData.set("supportType", form.supportType);
     formData.set("inKindDescription", form.inKindDescription);
     formData.set("contributionValue", form.contributionValue);
@@ -116,7 +116,7 @@ function SponsorForm({
     formData.set("notes", form.notes);
 
     startTransition(async () => {
-      const result = await onSubmit(formData);
+      const result = await onSubmit(formData, selectedPerson?.id ?? null);
       if ("error" in result) {
         setError(result.error);
         return;
@@ -129,16 +129,27 @@ function SponsorForm({
   return (
     <form onSubmit={handleSubmit} className="rounded-md border border-[var(--line)] p-4">
       <FieldGroup>
-        <Field orientation="responsive">
+        {personDisplay ? (
           <Field>
-            <FieldLabel htmlFor="sponsor-name">Sponsor / partner name</FieldLabel>
-            <Input
-              id="sponsor-name"
-              required
-              value={form.name}
-              onChange={(event) => update("name", event.target.value)}
+            <FieldLabel>Sponsor / partner</FieldLabel>
+            <div className="rounded-md border border-[var(--line)] px-3 py-2">
+              <p className="text-sm font-medium">{personDisplay.name ?? "—"}</p>
+              {personDisplay.email && <p className="app-muted text-xs">{personDisplay.email}</p>}
+            </div>
+          </Field>
+        ) : (
+          <Field>
+            <FieldLabel>Sponsor / partner</FieldLabel>
+            <SponsorPersonPicker
+              people={people}
+              selected={selectedPerson}
+              onSelect={setSelectedPerson}
+              onPersonCreated={onPersonCreated}
             />
           </Field>
+        )}
+
+        <Field orientation="responsive">
           <Field>
             <FieldLabel htmlFor="sponsor-supportType">Support type</FieldLabel>
             <Select value={form.supportType} onValueChange={(value) => update("supportType", value ?? "in_kind")}>
@@ -156,17 +167,6 @@ function SponsorForm({
               </SelectContent>
             </Select>
           </Field>
-        </Field>
-
-        <Field orientation="responsive">
-          <Field>
-            <FieldLabel htmlFor="sponsor-contactName">Contact name</FieldLabel>
-            <Input
-              id="sponsor-contactName"
-              value={form.contactName}
-              onChange={(event) => update("contactName", event.target.value)}
-            />
-          </Field>
           <Field>
             <FieldLabel htmlFor="sponsor-contributionValue">Contribution value ($)</FieldLabel>
             <Input
@@ -176,27 +176,6 @@ function SponsorForm({
               step="0.01"
               value={form.contributionValue}
               onChange={(event) => update("contributionValue", event.target.value)}
-            />
-          </Field>
-        </Field>
-
-        <Field orientation="responsive">
-          <Field>
-            <FieldLabel htmlFor="sponsor-contactEmail">Contact email</FieldLabel>
-            <Input
-              id="sponsor-contactEmail"
-              type="email"
-              value={form.contactEmail}
-              onChange={(event) => update("contactEmail", event.target.value)}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="sponsor-contactPhone">Contact phone</FieldLabel>
-            <Input
-              id="sponsor-contactPhone"
-              type="tel"
-              value={form.contactPhone}
-              onChange={(event) => update("contactPhone", event.target.value)}
             />
           </Field>
         </Field>
@@ -253,16 +232,14 @@ function SponsorForm({
 export function SponsorsTab({ eventId, active }: { eventId: string; active: boolean }) {
   const router = useRouter();
   const [sponsors, setSponsors] = useState<EventSponsor[] | null>(null);
+  const [people, setPeople] = useState<PersonListItem[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isDeleting, startDeleteTransition] = useTransition();
 
-  useEffect(() => {
-    if (!active) return;
-    let cancelled = false;
+  function load() {
     listEventSponsorsAction(eventId).then((result) => {
-      if (cancelled) return;
       if ("error" in result) {
         setLoadError(result.error);
       } else {
@@ -270,21 +247,24 @@ export function SponsorsTab({ eventId, active }: { eventId: string; active: bool
         setSponsors(result.data);
       }
     });
-    return () => {
-      cancelled = true;
-    };
+    listPeopleAction().then((result) => {
+      if (!("error" in result)) setPeople(result.data);
+    });
+  }
+
+  useEffect(() => {
+    if (!active) return;
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, eventId]);
 
   function refresh() {
-    listEventSponsorsAction(eventId).then((result) => {
-      if ("error" in result) {
-        setLoadError(result.error);
-      } else {
-        setLoadError(null);
-        setSponsors(result.data);
-      }
-    });
+    load();
     router.refresh();
+  }
+
+  function handlePersonCreated(person: PickedPerson) {
+    setPeople((prev) => [...prev, { ...person, is_sponsor: true }]);
   }
 
   function handleDelete(id: string) {
@@ -293,6 +273,10 @@ export function SponsorsTab({ eventId, active }: { eventId: string; active: bool
       refresh();
     });
   }
+
+  const sortedSponsors = (sponsors ?? [])
+    .slice()
+    .sort((a, b) => (a.person?.name ?? "").localeCompare(b.person?.name ?? ""));
 
   return (
     <div className="flex flex-col gap-4">
@@ -304,7 +288,7 @@ export function SponsorsTab({ eventId, active }: { eventId: string; active: bool
 
       {sponsors === null ? (
         <p className="app-muted text-sm">Loading sponsors...</p>
-      ) : sponsors.length === 0 && !showAdd ? (
+      ) : sortedSponsors.length === 0 && !showAdd ? (
         <p className="app-muted text-sm">No sponsors or partners recorded yet.</p>
       ) : (
         <Table>
@@ -318,7 +302,7 @@ export function SponsorsTab({ eventId, active }: { eventId: string; active: bool
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sponsors?.map((sponsor) =>
+            {sortedSponsors.map((sponsor) =>
               editingId === sponsor.id ? (
                 <TableRow key={sponsor.id}>
                   <TableCell colSpan={5}>
@@ -330,12 +314,15 @@ export function SponsorsTab({ eventId, active }: { eventId: string; active: bool
                         setEditingId(null);
                         refresh();
                       }}
+                      people={people}
+                      onPersonCreated={handlePersonCreated}
+                      personDisplay={sponsor.person}
                     />
                   </TableCell>
                 </TableRow>
               ) : (
                 <TableRow key={sponsor.id}>
-                  <TableCell className="font-medium">{sponsor.name}</TableCell>
+                  <TableCell className="font-medium">{sponsor.person?.name ?? "—"}</TableCell>
                   <TableCell className="app-muted capitalize">
                     {sponsor.support_type.replace("_", " ")}
                   </TableCell>
@@ -373,11 +360,13 @@ export function SponsorsTab({ eventId, active }: { eventId: string; active: bool
         <SponsorForm
           initial={emptySponsorForm()}
           submitLabel="Add sponsor"
-          onSubmit={(formData) => createEventSponsorAction(eventId, formData)}
+          onSubmit={(formData, personId) => createEventSponsorAction(eventId, personId!, formData)}
           onCancel={() => {
             setShowAdd(false);
             refresh();
           }}
+          people={people}
+          onPersonCreated={handlePersonCreated}
         />
       ) : (
         <Button type="button" variant="outline" onClick={() => setShowAdd(true)}>
