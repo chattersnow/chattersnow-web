@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TabNavOverlay } from "../tab-nav-overlay";
 
 const TABS = [
   { value: "board-members", label: "Board Members", href: "/portal/governance/board-members" },
@@ -45,6 +46,7 @@ export function GovernanceTabs() {
             render={<Link href={tab.href} />}
           >
             {tab.label}
+            <TabNavOverlay />
           </TabsTrigger>
         ))}
       </TabsList>

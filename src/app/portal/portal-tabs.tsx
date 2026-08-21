@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TabNavOverlay } from "./tab-nav-overlay";
 
 const TABS = [
   { value: "overview", label: "Overview", href: "/portal/home" },
@@ -37,6 +38,7 @@ export function PortalTabs() {
             render={<Link href={tab.href} />}
           >
             {tab.label}
+            <TabNavOverlay />
           </TabsTrigger>
         ))}
       </TabsList>
