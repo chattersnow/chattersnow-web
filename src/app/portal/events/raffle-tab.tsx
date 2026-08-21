@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Pencil } from "lucide-react";
 import {
   createRafflePrizeAction,
   deleteRafflePrizeAction,
@@ -10,7 +11,9 @@ import {
   upsertRaffleWinnerAction,
   type Raffle,
   type RafflePrize,
+  type RaffleWinner,
 } from "./raffle-actions";
+import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -25,11 +28,17 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 
 const currencyFormatter = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
 
 function formatMoney(value: number | string | null) {
   if (value === null || value === undefined) return "—";
   const numeric = typeof value === "string" ? Number(value) : value;
   return Number.isFinite(numeric) ? currencyFormatter.format(numeric) : "—";
+}
+
+function formatDate(iso: string | null) {
+  if (!iso) return "—";
+  return dateFormatter.format(new Date(iso));
 }
 
 function toDateInputValue(iso: string | null) {
@@ -44,7 +53,21 @@ const DISTRIBUTION_STATUSES = [
   { value: "other", label: "Other" },
 ];
 
-function RaffleSalesForm({ eventId, raffle, onSaved }: { eventId: string; raffle: Raffle | null; onSaved: () => void }) {
+const DISTRIBUTION_STATUS_LABELS: Record<string, string> = Object.fromEntries(
+  DISTRIBUTION_STATUSES.map((option) => [option.value, option.label])
+);
+
+function RaffleSalesForm({
+  eventId,
+  raffle,
+  onSaved,
+  onCancel,
+}: {
+  eventId: string;
+  raffle: Raffle | null;
+  onSaved: () => void;
+  onCancel?: () => void;
+}) {
   const [name, setName] = useState(raffle?.name ?? "");
   const [ticketsSold, setTicketsSold] = useState(String(raffle?.tickets_sold ?? 0));
   const [ticketPrice, setTicketPrice] = useState(
@@ -145,7 +168,12 @@ function RaffleSalesForm({ eventId, raffle, onSaved }: { eventId: string; raffle
           </Alert>
         )}
 
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          {onCancel && (
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
+          )}
           <Button type="submit" disabled={isPending}>
             {isPending ? "Saving..." : raffle ? "Save raffle" : "Set up raffle"}
           </Button>
@@ -155,8 +183,66 @@ function RaffleSalesForm({ eventId, raffle, onSaved }: { eventId: string; raffle
   );
 }
 
-function WinnerForm({ prize, onSaved }: { prize: RafflePrize; onSaved: () => void }) {
-  const winner = prize.raffle_winners[0] ?? null;
+function RaffleSummary({
+  raffle,
+  onEdit,
+  canEdit,
+}: {
+  raffle: Raffle;
+  onEdit: () => void;
+  canEdit: boolean;
+}) {
+  return (
+    <div className="rounded-md border border-[var(--line)] p-4">
+      <FieldGroup>
+        <ReadOnlyField label="Raffle name" htmlFor="raffle-name">
+          {raffle.name || "—"}
+        </ReadOnlyField>
+
+        <Field orientation="responsive">
+          <ReadOnlyField label="Tickets sold" htmlFor="raffle-ticketsSold">
+            {raffle.tickets_sold}
+          </ReadOnlyField>
+          <ReadOnlyField label="Ticket price" htmlFor="raffle-ticketPrice">
+            {formatMoney(raffle.ticket_price)}
+          </ReadOnlyField>
+        </Field>
+
+        <Field orientation="responsive">
+          <ReadOnlyField label="Revenue" htmlFor="raffle-revenue">
+            {formatMoney(raffle.revenue_amount)}
+          </ReadOnlyField>
+          <ReadOnlyField label="Drawing date" htmlFor="raffle-drawingDate">
+            {formatDate(raffle.drawing_date)}
+          </ReadOnlyField>
+        </Field>
+
+        <ReadOnlyField label="Notes" htmlFor="raffle-notes">
+          {raffle.notes || "—"}
+        </ReadOnlyField>
+      </FieldGroup>
+
+      {canEdit && (
+        <div className="mt-3 flex justify-end">
+          <Button type="button" variant="ghost" size="icon-sm" aria-label="Edit raffle" onClick={onEdit}>
+            <Pencil />
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WinnerForm({
+  prize,
+  onSaved,
+  onCancel,
+}: {
+  prize: RafflePrize;
+  onSaved: () => void;
+  onCancel: () => void;
+}) {
+  const winner = prize.raffle_winners;
   const [winnerName, setWinnerName] = useState(winner?.winner_name ?? "");
   const [winnerContact, setWinnerContact] = useState(winner?.winner_contact ?? "");
   const [status, setStatus] = useState(winner?.distribution_status ?? "pending");
@@ -212,7 +298,7 @@ function WinnerForm({ prize, onSaved }: { prize: RafflePrize; onSaved: () => voi
             <Select value={status} onValueChange={(value) => setStatus(value ?? "pending")}>
               <SelectTrigger id={`winner-status-${prize.id}`} className="w-full">
                 <SelectValue placeholder="Select status">
-                  {(value: string) => DISTRIBUTION_STATUSES.find((option) => option.value === value)?.label ?? "Select status"}
+                  {(value: string) => DISTRIBUTION_STATUS_LABELS[value] ?? "Select status"}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -241,7 +327,10 @@ function WinnerForm({ prize, onSaved }: { prize: RafflePrize; onSaved: () => voi
           </Alert>
         )}
 
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={onCancel}>
+            Cancel
+          </Button>
           <Button type="submit" size="sm" disabled={isPending}>
             {isPending ? "Saving..." : "Save winner"}
           </Button>
@@ -251,7 +340,89 @@ function WinnerForm({ prize, onSaved }: { prize: RafflePrize; onSaved: () => voi
   );
 }
 
-function AddPrizeForm({ raffleId, onSaved }: { raffleId: string; onSaved: () => void }) {
+function WinnerSummary({
+  winner,
+  onEdit,
+  canEdit,
+}: {
+  winner: RaffleWinner;
+  onEdit: () => void;
+  canEdit: boolean;
+}) {
+  return (
+    <div className="mt-3 rounded-md bg-muted/40 p-3">
+      <FieldGroup>
+        <Field orientation="responsive">
+          <ReadOnlyField label="Winner name" htmlFor={`winner-name-view-${winner.id}`}>
+            {winner.winner_name || "—"}
+          </ReadOnlyField>
+          <ReadOnlyField label="Winner contact" htmlFor={`winner-contact-view-${winner.id}`}>
+            {winner.winner_contact || "—"}
+          </ReadOnlyField>
+        </Field>
+        <Field orientation="responsive">
+          <ReadOnlyField label="Distribution status" htmlFor={`winner-status-view-${winner.id}`}>
+            {DISTRIBUTION_STATUS_LABELS[winner.distribution_status] ?? winner.distribution_status}
+          </ReadOnlyField>
+          <ReadOnlyField label="Distributed on" htmlFor={`winner-distributedAt-view-${winner.id}`}>
+            {formatDate(winner.distributed_at)}
+          </ReadOnlyField>
+        </Field>
+      </FieldGroup>
+      {canEdit && (
+        <div className="mt-2 flex justify-end">
+          <Button type="button" variant="ghost" size="icon-sm" aria-label="Edit winner" onClick={onEdit}>
+            <Pencil />
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PrizeWinnerSection({
+  prize,
+  editing,
+  canEdit,
+  onEdit,
+  onSaved,
+  onCancel,
+}: {
+  prize: RafflePrize;
+  editing: boolean;
+  canEdit: boolean;
+  onEdit: () => void;
+  onSaved: () => void;
+  onCancel: () => void;
+}) {
+  const winner = prize.raffle_winners;
+
+  if (editing) {
+    return <WinnerForm prize={prize} onSaved={onSaved} onCancel={onCancel} />;
+  }
+
+  if (!winner) {
+    return canEdit ? (
+      <div className="mt-3">
+        <Button type="button" variant="outline" size="sm" onClick={onEdit}>
+          + Record winner
+        </Button>
+      </div>
+    ) : null;
+  }
+
+  return <WinnerSummary winner={winner} onEdit={onEdit} canEdit={canEdit} />;
+}
+
+function AddPrizeForm({
+  raffleId,
+  onSaved,
+  onCancel,
+}: {
+  raffleId: string;
+  onSaved: () => void;
+  onCancel: () => void;
+}) {
   const [prizeName, setPrizeName] = useState("");
   const [donorName, setDonorName] = useState("");
   const [estimatedValue, setEstimatedValue] = useState("");
@@ -275,10 +446,6 @@ function AddPrizeForm({ raffleId, onSaved }: { raffleId: string; onSaved: () => 
         setError(result.error);
         return;
       }
-      setPrizeName("");
-      setDonorName("");
-      setEstimatedValue("");
-      setNotes("");
       onSaved();
     });
   }
@@ -320,7 +487,10 @@ function AddPrizeForm({ raffleId, onSaved }: { raffleId: string; onSaved: () => 
           </Alert>
         )}
 
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
           <Button type="submit" disabled={isPending}>
             {isPending ? "Saving..." : "Add prize"}
           </Button>
@@ -330,11 +500,33 @@ function AddPrizeForm({ raffleId, onSaved }: { raffleId: string; onSaved: () => 
   );
 }
 
-export function RaffleTab({ eventId, active }: { eventId: string; active: boolean }) {
+export function RaffleTab({
+  eventId,
+  active,
+  mode,
+}: {
+  eventId: string;
+  active: boolean;
+  mode: "view" | "edit";
+}) {
   const router = useRouter();
   const [raffle, setRaffle] = useState<Raffle | null | undefined>(undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isDeleting, startDeleteTransition] = useTransition();
+  const [editingSales, setEditingSales] = useState(false);
+  const [editingWinnerId, setEditingWinnerId] = useState<string | null>(null);
+  const [showAddPrize, setShowAddPrize] = useState(false);
+  const [prevMode, setPrevMode] = useState(mode);
+  const canEdit = mode === "edit";
+
+  if (mode !== prevMode) {
+    setPrevMode(mode);
+    if (mode === "view") {
+      setEditingSales(false);
+      setEditingWinnerId(null);
+      setShowAddPrize(false);
+    }
+  }
 
   function refresh() {
     getEventRaffleAction(eventId).then((result) => {
@@ -384,7 +576,30 @@ export function RaffleTab({ eventId, active }: { eventId: string; active: boolea
         <p className="app-muted text-sm">Loading raffle...</p>
       ) : (
         <>
-          <RaffleSalesForm eventId={eventId} raffle={raffle} onSaved={refresh} />
+          {editingSales ? (
+            <RaffleSalesForm
+              eventId={eventId}
+              raffle={raffle}
+              onSaved={() => {
+                setEditingSales(false);
+                refresh();
+              }}
+              onCancel={() => setEditingSales(false)}
+            />
+          ) : raffle ? (
+            <RaffleSummary raffle={raffle} onEdit={() => setEditingSales(true)} canEdit={canEdit} />
+          ) : (
+            <div className="flex flex-col gap-3">
+              <p className="app-muted text-sm">No raffle set up yet.</p>
+              {canEdit && (
+                <div>
+                  <Button type="button" variant="outline" onClick={() => setEditingSales(true)}>
+                    + Set up raffle
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
 
           {raffle && (
             <div className="flex flex-col gap-3">
@@ -402,21 +617,49 @@ export function RaffleTab({ eventId, active }: { eventId: string; active: boolea
                         {formatMoney(prize.estimated_value)}
                       </p>
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      disabled={isDeleting}
-                      onClick={() => handleDeletePrize(prize.id)}
-                    >
-                      Remove
-                    </Button>
+                    {canEdit && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={isDeleting}
+                        onClick={() => handleDeletePrize(prize.id)}
+                      >
+                        Remove
+                      </Button>
+                    )}
                   </div>
-                  <WinnerForm prize={prize} onSaved={refresh} />
+                  <PrizeWinnerSection
+                    prize={prize}
+                    editing={editingWinnerId === prize.id}
+                    canEdit={canEdit}
+                    onEdit={() => setEditingWinnerId(prize.id)}
+                    onSaved={() => {
+                      setEditingWinnerId(null);
+                      refresh();
+                    }}
+                    onCancel={() => setEditingWinnerId(null)}
+                  />
                 </div>
               ))}
 
-              <AddPrizeForm raffleId={raffle.id} onSaved={refresh} />
+              {canEdit &&
+                (showAddPrize ? (
+                  <AddPrizeForm
+                    raffleId={raffle.id}
+                    onSaved={() => {
+                      setShowAddPrize(false);
+                      refresh();
+                    }}
+                    onCancel={() => setShowAddPrize(false)}
+                  />
+                ) : (
+                  <div>
+                    <Button type="button" variant="outline" onClick={() => setShowAddPrize(true)}>
+                      + Add prize
+                    </Button>
+                  </div>
+                ))}
             </div>
           )}
         </>

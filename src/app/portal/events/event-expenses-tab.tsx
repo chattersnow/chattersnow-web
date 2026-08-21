@@ -12,10 +12,12 @@ export function EventExpensesTab({
   eventId,
   eventName,
   active,
+  mode,
 }: {
   eventId: string;
   eventName: string;
   active: boolean;
+  mode: "view" | "edit";
 }) {
   const [expenses, setExpenses] = useState<ExpenseRow[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -47,13 +49,15 @@ export function EventExpensesTab({
         </Alert>
       )}
 
-      <NewExpenseDialog
-        events={eventOptions}
-        defaultEventId={eventId}
-        lockEventSelection
-        triggerLabel="Add expense"
-        onSaved={refresh}
-      />
+      {mode === "edit" && (
+        <NewExpenseDialog
+          events={eventOptions}
+          defaultEventId={eventId}
+          lockEventSelection
+          triggerLabel="Add expense"
+          onSaved={refresh}
+        />
+      )}
 
       {expenses === null ? (
         <p className="app-muted text-sm">Loading expenses...</p>

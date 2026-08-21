@@ -1,9 +1,11 @@
 "use client";
 
-import { FormEvent, useEffect, useState, useTransition } from "react";
+import { FormEvent, Ref, useEffect, useImperativeHandle, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateEventAction } from "./actions";
 import type { EventRow } from "./event-badges";
+import { StatusBadge, VisibilityBadge } from "./event-badges";
+import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -25,6 +27,16 @@ const STATUSES = [
   { value: "published", label: "Published" },
 ];
 
+const viewDateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+function formatDatetimeLocal(value: string) {
+  if (!value) return "—";
+  return viewDateFormatter.format(new Date(value));
+}
+
 function toDatetimeLocalValue(iso: string | null) {
   if (!iso) return "";
   const date = new Date(iso);
@@ -44,16 +56,33 @@ function formStateFor(event: EventRow) {
   };
 }
 
+type FormState = ReturnType<typeof formStateFor>;
+
+function isDirty(form: FormState, event: EventRow) {
+  const baseline = formStateFor(event);
+  return (Object.keys(baseline) as (keyof FormState)[]).some((key) => form[key] !== baseline[key]);
+}
+
+export type OverviewTabHandle = {
+  discard: () => void;
+};
+
 export function OverviewTab({
   event,
   formId,
+  mode,
   onSaved,
   onPendingChange,
+  onDirtyChange,
+  ref,
 }: {
   event: EventRow;
   formId: string;
+  mode: "view" | "edit";
   onSaved: () => void;
   onPendingChange?: (pending: boolean) => void;
+  onDirtyChange?: (dirty: boolean) => void;
+  ref?: Ref<OverviewTabHandle>;
 }) {
   const router = useRouter();
   const [form, setForm] = useState(() => formStateFor(event));
@@ -64,10 +93,18 @@ export function OverviewTab({
     onPendingChange?.(isPending);
   }, [isPending, onPendingChange]);
 
-  function update<K extends keyof ReturnType<typeof formStateFor>>(
-    key: K,
-    value: ReturnType<typeof formStateFor>[K]
-  ) {
+  useEffect(() => {
+    onDirtyChange?.(isDirty(form, event));
+  }, [form, event, onDirtyChange]);
+
+  useImperativeHandle(ref, () => ({
+    discard: () => {
+      setError(null);
+      setForm(formStateFor(event));
+    },
+  }));
+
+  function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -93,6 +130,48 @@ export function OverviewTab({
       router.refresh();
       onSaved();
     });
+  }
+
+  if (mode === "view") {
+    return (
+      <FieldGroup>
+        <ReadOnlyField label="Event name" htmlFor="details-name">
+          {form.name}
+        </ReadOnlyField>
+
+        <ReadOnlyField label="Location" htmlFor="details-location">
+          {form.location || "—"}
+        </ReadOnlyField>
+
+        <Field orientation="responsive">
+          <ReadOnlyField label="Starts" htmlFor="details-startsAt">
+            {formatDatetimeLocal(form.startsAt)}
+          </ReadOnlyField>
+          <ReadOnlyField label="Ends" htmlFor="details-endsAt">
+            {formatDatetimeLocal(form.endsAt)}
+          </ReadOnlyField>
+        </Field>
+
+        <ReadOnlyField label="Timezone" htmlFor="details-timezone">
+          {form.timezone}
+        </ReadOnlyField>
+
+        <Field orientation="responsive">
+          <Field>
+            <FieldLabel htmlFor="details-visibility">Visibility</FieldLabel>
+            <div id="details-visibility">
+              <VisibilityBadge visibility={form.visibility} />
+            </div>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="details-status">Status</FieldLabel>
+            <div id="details-status">
+              <StatusBadge status={form.status} />
+            </div>
+          </Field>
+        </Field>
+      </FieldGroup>
+    );
   }
 
   return (

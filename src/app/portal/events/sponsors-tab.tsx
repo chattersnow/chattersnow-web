@@ -229,7 +229,15 @@ function SponsorForm({
   );
 }
 
-export function SponsorsTab({ eventId, active }: { eventId: string; active: boolean }) {
+export function SponsorsTab({
+  eventId,
+  active,
+  mode,
+}: {
+  eventId: string;
+  active: boolean;
+  mode: "view" | "edit";
+}) {
   const router = useRouter();
   const [sponsors, setSponsors] = useState<EventSponsor[] | null>(null);
   const [people, setPeople] = useState<PersonListItem[]>([]);
@@ -237,6 +245,15 @@ export function SponsorsTab({ eventId, active }: { eventId: string; active: bool
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isDeleting, startDeleteTransition] = useTransition();
+  const [prevMode, setPrevMode] = useState(mode);
+
+  if (mode !== prevMode) {
+    setPrevMode(mode);
+    if (mode === "view") {
+      setShowAdd(false);
+      setEditingId(null);
+    }
+  }
 
   function load() {
     listEventSponsorsAction(eventId).then((result) => {
@@ -329,25 +346,29 @@ export function SponsorsTab({ eventId, active }: { eventId: string; active: bool
                   <TableCell>{formatValue(sponsor.contribution_value)}</TableCell>
                   <TableCell className="app-muted">{sponsor.is_public ? "Yes" : "No"}</TableCell>
                   <TableCell className="text-right whitespace-nowrap">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Edit sponsor"
-                      onClick={() => setEditingId(sponsor.id)}
-                    >
-                      <Pencil />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Remove sponsor"
-                      disabled={isDeleting}
-                      onClick={() => handleDelete(sponsor.id)}
-                    >
-                      <Trash2 />
-                    </Button>
+                    {mode === "edit" && (
+                      <>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Edit sponsor"
+                          onClick={() => setEditingId(sponsor.id)}
+                        >
+                          <Pencil />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Remove sponsor"
+                          disabled={isDeleting}
+                          onClick={() => handleDelete(sponsor.id)}
+                        >
+                          <Trash2 />
+                        </Button>
+                      </>
+                    )}
                   </TableCell>
                 </TableRow>
               )
@@ -356,23 +377,24 @@ export function SponsorsTab({ eventId, active }: { eventId: string; active: bool
         </Table>
       )}
 
-      {showAdd ? (
-        <SponsorForm
-          initial={emptySponsorForm()}
-          submitLabel="Add sponsor"
-          onSubmit={(formData, personId) => createEventSponsorAction(eventId, personId!, formData)}
-          onCancel={() => {
-            setShowAdd(false);
-            refresh();
-          }}
-          people={people}
-          onPersonCreated={handlePersonCreated}
-        />
-      ) : (
-        <Button type="button" variant="outline" onClick={() => setShowAdd(true)}>
-          + Add sponsor
-        </Button>
-      )}
+      {mode === "edit" &&
+        (showAdd ? (
+          <SponsorForm
+            initial={emptySponsorForm()}
+            submitLabel="Add sponsor"
+            onSubmit={(formData, personId) => createEventSponsorAction(eventId, personId!, formData)}
+            onCancel={() => {
+              setShowAdd(false);
+              refresh();
+            }}
+            people={people}
+            onPersonCreated={handlePersonCreated}
+          />
+        ) : (
+          <Button type="button" variant="outline" onClick={() => setShowAdd(true)}>
+            + Add sponsor
+          </Button>
+        ))}
     </div>
   );
 }

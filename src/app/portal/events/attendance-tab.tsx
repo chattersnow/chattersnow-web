@@ -2,16 +2,25 @@
 
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Pencil } from "lucide-react";
 import { updateEventAttendanceAction } from "./actions";
 import type { EventRow } from "./event-badges";
+import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { DialogFooter } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
-export function AttendanceTab({ event }: { event: EventRow }) {
+function AttendanceForm({
+  event,
+  onSaved,
+  onCancel,
+}: {
+  event: EventRow;
+  onSaved: () => void;
+  onCancel: () => void;
+}) {
   const router = useRouter();
   const [count, setCount] = useState(event.attendance_count?.toString() ?? "");
   const [notes, setNotes] = useState(event.attendance_notes ?? "");
@@ -33,11 +42,12 @@ export function AttendanceTab({ event }: { event: EventRow }) {
         return;
       }
       router.refresh();
+      onSaved();
     });
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} className="rounded-md border border-[var(--line)] p-4">
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="attendance-count">Attendance headcount</FieldLabel>
@@ -67,13 +77,66 @@ export function AttendanceTab({ event }: { event: EventRow }) {
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
-      </FieldGroup>
 
-      <DialogFooter>
-        <Button type="submit" disabled={isPending}>
-          {isPending ? "Saving..." : "Save attendance"}
-        </Button>
-      </DialogFooter>
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? "Saving..." : "Save attendance"}
+          </Button>
+        </div>
+      </FieldGroup>
     </form>
+  );
+}
+
+export function AttendanceTab({ event, mode }: { event: EventRow; mode: "view" | "edit" }) {
+  const [editing, setEditing] = useState(false);
+  const [prevMode, setPrevMode] = useState(mode);
+  const hasAttendance = event.attendance_count !== null || Boolean(event.attendance_notes);
+
+  if (mode !== prevMode) {
+    setPrevMode(mode);
+    if (mode === "view") setEditing(false);
+  }
+
+  if (editing) {
+    return <AttendanceForm event={event} onSaved={() => setEditing(false)} onCancel={() => setEditing(false)} />;
+  }
+
+  if (!hasAttendance) {
+    return (
+      <div className="flex flex-col gap-3">
+        <p className="app-muted text-sm">No attendance recorded yet.</p>
+        {mode === "edit" && (
+          <div>
+            <Button type="button" variant="outline" onClick={() => setEditing(true)}>
+              + Record attendance
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <FieldGroup>
+        <ReadOnlyField label="Attendance headcount" htmlFor="attendance-count">
+          {event.attendance_count ?? "—"}
+        </ReadOnlyField>
+        <ReadOnlyField label="Notes" htmlFor="attendance-notes">
+          {event.attendance_notes || "—"}
+        </ReadOnlyField>
+      </FieldGroup>
+      {mode === "edit" && (
+        <div>
+          <Button type="button" variant="ghost" size="icon-sm" aria-label="Edit attendance" onClick={() => setEditing(true)}>
+            <Pencil />
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }

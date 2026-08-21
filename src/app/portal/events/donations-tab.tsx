@@ -16,7 +16,15 @@ function formatValue(value: number | string | null) {
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
 
-export function DonationsTab({ eventId, active }: { eventId: string; active: boolean }) {
+export function DonationsTab({
+  eventId,
+  active,
+  mode,
+}: {
+  eventId: string;
+  active: boolean;
+  mode: "view" | "edit";
+}) {
   const [donations, setDonations] = useState<EventDonationRow[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -53,11 +61,13 @@ export function DonationsTab({ eventId, active }: { eventId: string; active: boo
         </Alert>
       )}
 
-      <AddDonationModal
-        triggerLabel="Record donation for this event"
-        eventId={eventId}
-        onSaved={refresh}
-      />
+      {mode === "edit" && (
+        <AddDonationModal
+          triggerLabel="Record donation for this event"
+          eventId={eventId}
+          onSaved={refresh}
+        />
+      )}
 
       {donations === null ? (
         <p className="app-muted text-sm">Loading donations...</p>

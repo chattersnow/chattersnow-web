@@ -31,12 +31,26 @@ function nowLocalValue() {
   return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
 }
 
-export function DistributionsTab({ eventId, active }: { eventId: string; active: boolean }) {
+export function DistributionsTab({
+  eventId,
+  active,
+  mode,
+}: {
+  eventId: string;
+  active: boolean;
+  mode: "view" | "edit";
+}) {
   const router = useRouter();
   const [distributions, setDistributions] = useState<EventDistributionRow[] | null>(null);
   const [availableItems, setAvailableItems] = useState<{ id: string; description: string; type: string }[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [prevMode, setPrevMode] = useState(mode);
+
+  if (mode !== prevMode) {
+    setPrevMode(mode);
+    if (mode === "view") setShowAdd(false);
+  }
 
   const [inventoryItemId, setInventoryItemId] = useState("");
   const [quantity, setQuantity] = useState("1");
@@ -132,7 +146,8 @@ export function DistributionsTab({ eventId, active }: { eventId: string; active:
         </Table>
       )}
 
-      {showAdd ? (
+      {mode === "edit" &&
+        (showAdd ? (
         <form onSubmit={handleSubmit} className="rounded-md border border-[var(--line)] p-4">
           <FieldGroup>
             <Field>
@@ -209,11 +224,11 @@ export function DistributionsTab({ eventId, active }: { eventId: string; active:
             </div>
           </FieldGroup>
         </form>
-      ) : (
-        <Button type="button" variant="outline" onClick={() => setShowAdd(true)}>
-          + Record distribution
-        </Button>
-      )}
+        ) : (
+          <Button type="button" variant="outline" onClick={() => setShowAdd(true)}>
+            + Record distribution
+          </Button>
+        ))}
     </div>
   );
 }

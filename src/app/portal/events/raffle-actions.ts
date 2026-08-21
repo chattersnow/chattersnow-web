@@ -20,7 +20,7 @@ export type RafflePrize = {
   donor_name: string | null;
   estimated_value: number | string | null;
   notes: string | null;
-  raffle_winners: RaffleWinner[];
+  raffle_winners: RaffleWinner | null;
 };
 
 export type Raffle = {
