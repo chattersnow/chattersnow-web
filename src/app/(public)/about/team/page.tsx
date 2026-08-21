@@ -1,27 +1,44 @@
 import type { Metadata } from "next";
+import { UserRound } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = {
   title: "Meet the Team | Chatter Snow",
 };
 
+const TEAM = [
+  { name: "Sofie Chavez" },
+  { name: "Cass Lainez" },
+  { name: "Rickie Cruz" },
+];
+
 export default function TeamPage() {
   return (
-    <main className="app-shell px-6 py-8 sm:px-10">
-      <div className="mx-auto max-w-6xl">
-        <header className="border-b border-[var(--line)] pb-6">
-          <p className="app-eyebrow">About us</p>
-          <h1 className="brand-display mt-2 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-            Meet the team
-          </h1>
-          <p className="app-muted mt-2 text-sm">
-            Staff and leadership profiles are on their way.
-          </p>
-        </header>
+    <div>
+      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+        Meet the team
+      </h1>
+      <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
+        Full bios are on their way.
+      </p>
 
-        <div className="mt-10">
-          <p className="app-muted text-sm">This page is coming soon.</p>
-        </div>
+      <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {TEAM.map((member) => (
+          <Card key={member.name}>
+            <CardHeader>
+              <div className="flex aspect-square w-full items-center justify-center rounded-lg bg-muted ring-1 ring-foreground/10">
+                <UserRound className="size-12 text-muted-foreground/50" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CardTitle>{member.name}</CardTitle>
+              <p className="app-muted mt-2 text-sm leading-relaxed">
+                Bio coming soon.
+              </p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
-    </main>
+    </div>
   );
 }

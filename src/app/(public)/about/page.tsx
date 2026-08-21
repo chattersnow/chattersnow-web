@@ -1,35 +1,111 @@
-import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "About Us | Chatter Snow",
 };
 
+const MISSION_POINTS = [
+  "Building community through inclusive ski and snowboard events",
+  "Improving access through gear donations, drives, and swaps",
+  "Supporting new riders through mentorship and on-snow guidance",
+  "Making riding more affordable through mountain and community partnerships",
+  "Creating connection both on the mountain and beyond it",
+];
+
 export default function AboutPage() {
   return (
-    <main className="app-shell px-6 py-8 sm:px-10">
-      <div className="mx-auto max-w-6xl">
-        <header className="border-b border-[var(--line)] pb-6">
-          <p className="app-eyebrow">About us</p>
-          <h1 className="brand-display mt-2 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-            Our mission
-          </h1>
-          <p className="app-muted mt-2 text-sm">
-            Chatter Snow&apos;s story, mission, and programs are on their way.
+    <div className="space-y-12">
+      <section>
+        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          About Chatter
+        </h1>
+        <div className="app-muted mt-4 max-w-3xl space-y-4 text-sm leading-relaxed sm:text-base">
+          <p>
+            Chatter is a queer ski and snowboard community on the East Coast
+            that brings LGBTQ+ riders together both on and off the mountain.
+            What started as a small group of friends has grown into a
+            community hosting indoor and mountain meetups, collaborating with
+            other organizations, and creating opportunities for queer skiers
+            and snowboarders to get involved regardless of experience or
+            budget.
           </p>
-        </header>
-
-        <div className="mt-10">
-          <p className="app-muted text-sm">
-            This page is coming soon. In the meantime, meet the people behind
-            Chatter Snow on the{" "}
-            <Link href="/about/team" className="text-[var(--purple)] underline underline-offset-4">
-              team page
-            </Link>
-            .
+          <p>
+            At its core, Chatter is about making snow sports more accessible
+            and building community around them. That means more than just
+            organizing group rides. Chatter provides gear through donations
+            and drives, facilitates gear swaps, connects newer riders with
+            on-snow mentorship, and works with mountains and partners to make
+            events more affordable.
           </p>
         </div>
-      </div>
-    </main>
+      </section>
+
+      <section>
+        <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
+          Our Story
+        </h2>
+        <div className="app-muted mt-4 max-w-3xl space-y-4 text-sm leading-relaxed sm:text-base">
+          <p>
+            Chatter started three summers ago when a group of friends wanted
+            to create a space where queer skiers and snowboarders could find
+            each other, ride together, and feel like they belonged on the
+            mountain.
+          </p>
+          <p>
+            Since then, that idea has grown into an East Coast community.
+            We&apos;ve brought people together through indoor snow sessions,
+            mountain meetups, park days, collaborations, and events with
+            partner organizations. Our community is largely centered around
+            the NYC area, but we&apos;re continuing to grow our reach across
+            the East Coast.
+          </p>
+          <p>
+            As we&apos;ve grown, we&apos;ve realized that simply creating
+            opportunities to ride together isn&apos;t enough. Snow sports can
+            be expensive and intimidating to get into, especially for someone
+            who doesn&apos;t already have the equipment, knowledge, or
+            community around them.
+          </p>
+          <p>That&apos;s where Chatter&apos;s bigger purpose comes in.</p>
+          <p>
+            We&apos;re working to make skiing and snowboarding more accessible
+            to LGBTQ+ people by helping remove some of the financial and
+            social barriers that keep people off the mountain. Through gear
+            donations and swaps, beginner mentorship, affordable group
+            events, and partnerships with mountains and other organizations,
+            we&apos;re building a community where people can get into snow
+            sports, improve their skills, and find people to ride with.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
+          Our Mission
+        </h2>
+        <div className="app-muted mt-4 max-w-3xl space-y-4 text-sm leading-relaxed sm:text-base">
+          <p>
+            Bringing together LGBTQ+ skiers and snowboarders on and off the
+            mountain while creating inclusive, accessible spaces for everyone
+            on the East Coast.
+          </p>
+          <p>
+            We believe snow sports should be something people can participate
+            in regardless of their experience, background, or budget. Chatter
+            works to make that possible by:
+          </p>
+        </div>
+        <ul className="app-muted mt-4 max-w-3xl list-disc space-y-2 pl-5 text-sm leading-relaxed sm:text-base">
+          {MISSION_POINTS.map((point) => (
+            <li key={point}>{point}</li>
+          ))}
+        </ul>
+        <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
+          We&apos;re not just creating a place to ride. We&apos;re building a
+          community that makes it easier for queer people to get there in the
+          first place.
+        </p>
+      </section>
+    </div>
   );
 }
