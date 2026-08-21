@@ -63,7 +63,7 @@ export async function createExpenseAction(formData: FormData): Promise<ExpenseAc
     return { error: "Could not save the expense. Please try again." };
   }
 
-  revalidatePath("/portal/expenses");
+  revalidatePath("/portal/finance/expenses");
   revalidatePath("/portal/events");
   return { success: true };
 }
@@ -88,7 +88,7 @@ export async function updateExpenseAction(
     return { error: "Could not update the expense. Please try again." };
   }
 
-  revalidatePath("/portal/expenses");
+  revalidatePath("/portal/finance/expenses");
   revalidatePath("/portal/events");
   return { success: true };
 }

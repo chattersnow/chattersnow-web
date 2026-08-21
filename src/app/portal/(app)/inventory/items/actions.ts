@@ -70,6 +70,6 @@ export async function updateInventoryItemAction(
     return { error: "Could not save the item. Please try again." };
   }
 
-  revalidatePath("/portal/inventory");
+  revalidatePath("/portal/inventory/items");
   return { success: true };
 }

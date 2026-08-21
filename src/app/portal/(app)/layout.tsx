@@ -15,6 +15,7 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { LogoutButton } from "./logout-button";
 import { PortalNav } from "./portal-nav";
+import { SidebarQuickActions } from "./sidebar-quick-actions";
 
 export default async function PortalAppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createSupabaseServerClient();
@@ -49,6 +50,7 @@ export default async function PortalAppLayout({ children }: { children: React.Re
             </Link>
           </SidebarHeader>
           <SidebarContent>
+            <SidebarQuickActions />
             <PortalNav />
           </SidebarContent>
           <SidebarFooter>

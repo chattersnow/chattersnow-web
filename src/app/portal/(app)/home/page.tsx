@@ -1,7 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { NewEventDialog } from "../events/new-event-dialog";
-import { AddDonationModal } from "./add-donation-modal";
 
 export default async function PortalHomePage() {
   const supabase = await createSupabaseServerClient();
@@ -52,9 +50,8 @@ export default async function PortalHomePage() {
       <p className="app-muted text-sm font-semibold uppercase tracking-[0.16em]">Overview</p>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <CardHeader>
             <CardTitle className="app-muted text-sm font-semibold">Upcoming events</CardTitle>
-            <NewEventDialog />
           </CardHeader>
           <CardContent>
             <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
@@ -77,11 +74,10 @@ export default async function PortalHomePage() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <CardHeader>
             <CardTitle className="app-muted text-sm font-semibold">
               Donations this month
             </CardTitle>
-            <AddDonationModal />
           </CardHeader>
           <CardContent>
             <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">

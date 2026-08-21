@@ -1,4 +1,3 @@
-import { GovernanceTabs } from "../governance-tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function MeetingsPage() {
@@ -7,8 +6,6 @@ export default function MeetingsPage() {
       <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
         Meetings
       </h1>
-
-      <GovernanceTabs />
 
       <div className="mt-6">
         <Card>

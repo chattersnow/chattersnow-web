@@ -177,7 +177,11 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
             Filter
           </Button>
           {hasActiveFilters && (
-            <Button variant="ghost" render={<Link href="/portal/events" />}>
+            <Button
+              variant="ghost"
+              nativeButton={false}
+              render={<Link href="/portal/events" />}
+            >
               Clear
             </Button>
           )}

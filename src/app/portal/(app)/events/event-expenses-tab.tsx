@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { listEventExpensesAction } from "../expenses/actions";
-import { EditExpenseModal } from "../expenses/edit-expense-modal";
-import { NewExpenseDialog } from "../expenses/new-expense-dialog";
-import { formatAmount, formatExpenseDate, type EventOption, type ExpenseRow } from "../expenses/expenses-shared";
+import { listEventExpensesAction } from "../finance/expenses/actions";
+import { EditExpenseModal } from "../finance/expenses/edit-expense-modal";
+import { NewExpenseDialog } from "../finance/expenses/new-expense-dialog";
+import { formatAmount, formatExpenseDate, type EventOption, type ExpenseRow } from "../finance/expenses/expenses-shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 

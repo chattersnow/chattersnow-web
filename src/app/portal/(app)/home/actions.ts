@@ -95,7 +95,7 @@ export async function createDonationAction(
   }
 
   revalidatePath("/portal/home");
-  revalidatePath("/portal/inventory");
+  revalidatePath("/portal/inventory/items");
   revalidatePath("/portal/events");
   return { success: true };
 }

@@ -1,10 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function PoliciesPage() {
+export default function FinancialReportsPage() {
   return (
     <>
       <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-        Policies
+        Financial Reports
       </h1>
 
       <div className="mt-6">
@@ -13,8 +13,8 @@ export default function PoliciesPage() {
             <CardTitle>Coming soon</CardTitle>
           </CardHeader>
           <CardContent className="app-muted text-sm">
-            This area will list named organizational policies (e.g. whistleblower,
-            document retention), each with a category, effective date, and version.
+            This area will provide summary financial reports covering income, expenses, and
+            donations across a selected period.
           </CardContent>
         </Card>
       </div>

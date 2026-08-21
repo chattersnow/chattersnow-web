@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, LayoutGrid, List } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { AddDonationModal } from "../home/add-donation-modal";
 import {
   Select,
   SelectContent,
@@ -114,7 +113,6 @@ export function InventoryTable({ items }: { items: InventoryItem[] }) {
   if (items.length === 0) {
     return (
       <div className="space-y-4">
-        <AddDonationModal triggerLabel="Add item" />
         <Card>
           <CardContent className="px-0">
             <p className="app-muted px-4 py-6 text-sm">No inventory items yet.</p>
@@ -126,9 +124,7 @@ export function InventoryTable({ items }: { items: InventoryItem[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <AddDonationModal triggerLabel="Add item" />
-
+      <div className="flex flex-wrap items-end justify-end gap-3">
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1">
             <label

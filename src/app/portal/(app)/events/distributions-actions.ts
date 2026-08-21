@@ -88,7 +88,7 @@ export async function recordEventDistributionAction(
     return { error: "Could not record the distribution. Please try again." };
   }
 
-  revalidatePath("/portal/inventory");
+  revalidatePath("/portal/inventory/items");
   revalidatePath("/portal/events");
   return { success: true };
 }
