@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { PublicTabs } from "./public-tabs";
+import { SiteNav } from "./site-nav";
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -18,7 +18,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
               priority
             />
           </Link>
-          <PublicTabs />
+          <SiteNav />
         </div>
       </header>
       {children}
