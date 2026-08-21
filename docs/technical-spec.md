@@ -144,9 +144,36 @@ Future event capabilities may include registration status, waitlists, confirmati
 
 Users shall authenticate through Supabase Auth using Google OAuth. The application shall verify the authenticated user's authorization before rendering or changing portal data.
 
-The initial portal role is `admin`. Admin users may access the dashboard, events, expenses, and inventory workflows. Additional roles and narrower permissions may be introduced when operational needs are confirmed.
+Five portal roles are defined:
 
-**Current implementation gap:** no role model exists yet. Every portal table's RLS policy grants full access to any authenticated user (`auth.uid() is not null`), and the portal layout only checks that a session exists — it does not check a role. Introducing `roles`/`user_roles` and rewriting these blanket policies is required before the portal can safely support non-admin staff or volunteers.
+- **`admin`** — full access to every section, including Administration (users/permissions/settings/audit log).
+- **`event_coordinator`** — manages Events end-to-end (details, sponsors, raffle, attendance, event-level expenses); view-only on People and Volunteers participation; no access to org-wide Finance, Inventory, Governance, or Administration.
+- **`finance`** — manages the Finance section (donations, expenses, reimbursements, reports); view-only on Events (expenses/sponsor amounts, for reconciliation), Inventory reports (valuation), and People (donor contacts); no Governance or Administration access.
+- **`board`** — manages the Governance section (board members, meetings, bylaws, policies, conflict of interest, annual requirements); view-only on Finance reports and the dashboard for oversight; no other section access.
+- **`volunteer`** — views events and signs up for future events, with no visibility into event financial data (no expenses tab, no sponsor amounts); creates inventory donation-intake records and edits distribution/gear-checkout records, but has no access to Inventory reports (valuation); views own Volunteers participation/hours; no access to Finance, People, Governance, or Administration.
+
+A user may hold more than one role. The full page-by-page breakdown is the entitlement matrix below.
+
+#### Entitlement matrix
+
+| Section / page | `admin` | `event_coordinator` | `finance` | `board` | `volunteer` |
+| --- | --- | --- | --- | --- | --- |
+| Dashboard (Home) | Manage | View (event tiles) | View (financial tiles) | View (summary tiles) | View (own activity) |
+| Events — details, sponsors, raffle, attendance | Manage | Manage | View | None | View + sign up¹ |
+| Events — event-level expenses | Manage | Manage | View | None | None |
+| Inventory — items, donations (intake), distribution | Manage | None | None | None | Add donations + edit distribution² |
+| Inventory — reports (valuation) | Manage | None | View | None | None |
+| Finance — donations, expenses, reimbursements, reports | Manage | None | Manage | View (reports only) | None |
+| People directory | Manage | View | View | None | None |
+| Volunteers — roles (role-type definitions) | Manage | View | None | None | View |
+| Volunteers — participation | Manage | View | None | None | View/log own |
+| Governance — all pages | Manage | None | None | Manage | None |
+| Administration — users, permissions, settings, audit log | Manage | None | None | None | None |
+
+¹ Volunteers never see event financial data (expenses, sponsor amounts); event sign-up depends on the not-yet-built event-registration tables noted in §3.
+² Volunteers do not get Inventory reports since those surface dollar valuations.
+
+**Current implementation gap:** no role model exists yet. Every portal table's RLS policy grants full access to any authenticated user (`auth.uid() is not null`), and the portal layout only checks that a session exists — it does not check a role. Introducing `roles`/`user_roles` and rewriting these blanket policies to match the entitlement matrix above is required before the portal can safely support non-admin staff or volunteers.
 
 ### 5.4 Inventory and donation management
 
@@ -287,7 +314,7 @@ Authorized users shall be able to manage nonprofit governance records:
 
 The content of an individual governance record (a policy's text, a set of minutes, a signed bylaws amendment, etc.) is not required to take one fixed form. A record may hold an uploaded file attachment, an external link (e.g. to a shared drive), a free-text body, or any combination of the three, so staff can start with a quick note or link and attach a scanned/signed file later without changing record type. See `file_attachments` in §6.
 
-Governance records contain sensitive organizational and personal information and must not be public. Access should be limited to the `admin` role initially, with a narrower dedicated role (e.g. `board`) introduced later if needed.
+Governance records contain sensitive organizational and personal information and must not be public. Access is limited to the `admin` and `board` roles — see the entitlement matrix in §5.3.
 
 ### 5.13 Open questions
 
@@ -304,7 +331,7 @@ The following is a logical model, not a final migration. IDs should be UUIDs and
 Not yet implemented — currently every RLS policy grants full access to any authenticated user (see §5.3).
 
 - `profiles`: application profile linked one-to-one with `auth.users`
-- `roles`: named roles
+- `roles`: named roles — the role set (`admin`, `event_coordinator`, `finance`, `board`, `volunteer`) and their per-page entitlements are defined in §5.3; schema/columns and RLS-policy rewrites are a follow-up implementation task
 - `user_roles`: user-to-role assignments
 
 ### Public and events
