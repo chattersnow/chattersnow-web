@@ -17,19 +17,14 @@ export default async function GearsPage() {
   return (
     <main className="app-shell px-6 py-8 sm:px-10">
       <div className="mx-auto max-w-6xl">
-        <header className="flex items-center gap-3 border-b border-[var(--line)] pb-6">
-          <div className="min-w-0">
-            <p className="app-muted text-xs font-semibold uppercase tracking-[0.16em]">
-              Available gear
-            </p>
-            <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-              Gear library
-            </h1>
-            <p className="app-muted mt-1 text-sm">
-              Browse gear currently available to Chatter Snow members.
-            </p>
-          </div>
-        </header>
+        <section>
+          <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+            Gear library
+          </h1>
+          <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
+            Browse gear currently available to Chatter Snow members.
+          </p>
+        </section>
 
         <div className="mt-10">
           <GearCatalog items={items ?? []} />

@@ -1,9 +1,12 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUserRoles, hasAnyRole } from "@/lib/auth/roles";
 import { PeopleTable } from "./people-table";
 import type { PersonRow } from "./people-shared";
 
 export default async function PeoplePage() {
   const supabase = await createSupabaseServerClient();
+  const roles = await getCurrentUserRoles(supabase);
+  const canManage = hasAnyRole(roles, ["admin"]);
 
   const { data: people } = await supabase
     .from("people")
@@ -17,7 +20,7 @@ export default async function PeoplePage() {
       </h1>
 
       <div className="mt-6">
-        <PeopleTable people={(people ?? []) as PersonRow[]} />
+        <PeopleTable people={(people ?? []) as PersonRow[]} canManage={canManage} />
       </div>
     </>
   );

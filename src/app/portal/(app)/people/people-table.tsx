@@ -17,7 +17,7 @@ import { ROLE_OPTIONS, rolesFor, type PersonRow, type RoleKey } from "./people-s
 
 const FILTER_ALL = "all";
 
-export function PeopleTable({ people }: { people: PersonRow[] }) {
+export function PeopleTable({ people, canManage }: { people: PersonRow[]; canManage: boolean }) {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<RoleKey | typeof FILTER_ALL>(FILTER_ALL);
 
@@ -40,7 +40,7 @@ export function PeopleTable({ people }: { people: PersonRow[] }) {
   if (people.length === 0) {
     return (
       <div className="space-y-4">
-        <NewPersonDialog />
+        {canManage && <NewPersonDialog />}
         <Card>
           <CardContent className="px-0">
             <p className="app-muted px-4 py-6 text-sm">No people added yet.</p>
@@ -53,7 +53,7 @@ export function PeopleTable({ people }: { people: PersonRow[] }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <NewPersonDialog />
+        {canManage && <NewPersonDialog />}
 
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1">
@@ -127,9 +127,7 @@ export function PeopleTable({ people }: { people: PersonRow[] }) {
                     <TableCell className="app-muted">{rolesFor(person).join(", ") || "—"}</TableCell>
                     <TableCell className="app-muted">{person.email ?? "—"}</TableCell>
                     <TableCell className="app-muted">{person.phone ?? "—"}</TableCell>
-                    <TableCell>
-                      <EditPersonModal person={person} />
-                    </TableCell>
+                    <TableCell>{canManage && <EditPersonModal person={person} />}</TableCell>
                   </TableRow>
                 ))
               )}

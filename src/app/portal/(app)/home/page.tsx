@@ -1,8 +1,13 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUserRoles, hasAnyRole } from "@/lib/auth/roles";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function PortalHomePage() {
   const supabase = await createSupabaseServerClient();
+  const roles = await getCurrentUserRoles(supabase);
+  const canSeeEventsTile = hasAnyRole(roles, ["admin", "event_coordinator", "board"]);
+  const canSeeInventoryTile = hasAnyRole(roles, ["admin", "board"]);
+  const canSeeFinancialTiles = hasAnyRole(roles, ["admin", "finance", "board"]);
 
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
@@ -45,62 +50,82 @@ export default async function PortalHomePage() {
     currency: "USD",
   });
 
+  const anyTileVisible = canSeeEventsTile || canSeeInventoryTile || canSeeFinancialTiles;
+
   return (
     <section>
       <p className="app-muted text-sm font-semibold uppercase tracking-[0.16em]">Overview</p>
-      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="app-muted text-sm font-semibold">Upcoming events</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
-              {upcomingEvents ?? 0}
-            </p>
-            <p className="app-muted mt-2 text-sm">Events will appear here</p>
-          </CardContent>
-        </Card>
+      {anyTileVisible ? (
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {canSeeEventsTile && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="app-muted text-sm font-semibold">Upcoming events</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
+                  {upcomingEvents ?? 0}
+                </p>
+                <p className="app-muted mt-2 text-sm">Events will appear here</p>
+              </CardContent>
+            </Card>
+          )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="app-muted text-sm font-semibold">Gear available</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
-              {gearAvailable ?? 0}
-            </p>
-            <p className="app-muted mt-2 text-sm">From recorded donations</p>
-          </CardContent>
-        </Card>
+          {canSeeInventoryTile && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="app-muted text-sm font-semibold">Gear available</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
+                  {gearAvailable ?? 0}
+                </p>
+                <p className="app-muted mt-2 text-sm">From recorded donations</p>
+              </CardContent>
+            </Card>
+          )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="app-muted text-sm font-semibold">
-              Donations this month
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
-              {donationsThisMonth ?? 0}
-            </p>
-            <p className="app-muted mt-2 text-sm">Donations recorded this month</p>
-          </CardContent>
-        </Card>
+          {canSeeFinancialTiles && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="app-muted text-sm font-semibold">
+                  Donations this month
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
+                  {donationsThisMonth ?? 0}
+                </p>
+                <p className="app-muted mt-2 text-sm">Donations recorded this month</p>
+              </CardContent>
+            </Card>
+          )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="app-muted text-sm font-semibold">Expenses</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
-              {currencyFormatter.format(sumAmounts(expensesThisMonth))}
-            </p>
-            <p className="app-muted mt-2 text-sm">
-              This month · {currencyFormatter.format(sumAmounts(expensesThisYear))} this year
+          {canSeeFinancialTiles && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="app-muted text-sm font-semibold">Expenses</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
+                  {currencyFormatter.format(sumAmounts(expensesThisMonth))}
+                </p>
+                <p className="app-muted mt-2 text-sm">
+                  This month · {currencyFormatter.format(sumAmounts(expensesThisYear))} this year
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      ) : (
+        <Card className="mt-4">
+          <CardContent className="pt-6">
+            <p className="app-muted text-sm">
+              Your activity summary will appear here as volunteer participation tracking is added.
             </p>
           </CardContent>
         </Card>
-      </div>
+      )}
     </section>
   );
 }

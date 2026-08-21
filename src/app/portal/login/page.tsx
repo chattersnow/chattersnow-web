@@ -15,12 +15,14 @@ export default function PortalLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(() =>
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("error") === "oauth_failed"
-      ? "Google sign-in failed. Please try again."
-      : null,
-  );
+  const [error, setError] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    const reason = new URLSearchParams(window.location.search).get("error");
+    if (reason === "oauth_failed") return "Google sign-in failed. Please try again.";
+    if (reason === "no_access")
+      return "Your account is signed in but hasn't been granted portal access yet. Contact an administrator.";
+    return null;
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
 

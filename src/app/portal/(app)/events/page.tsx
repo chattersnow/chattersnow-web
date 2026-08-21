@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUserRoles, hasAnyRole } from "@/lib/auth/roles";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -45,6 +46,8 @@ const COLUMNS: { key: SortColumn; label: string }[] = [
 
 export default async function EventsPage({ searchParams }: EventsPageProps) {
   const supabase = await createSupabaseServerClient();
+  const roles = await getCurrentUserRoles(supabase);
+  const canManage = hasAnyRole(roles, ["admin", "event_coordinator"]);
 
   const params = await searchParams;
   const raw = (key: string) => {
@@ -129,7 +132,7 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
       </h1>
 
       <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
-        <NewEventDialog />
+        {canManage ? <NewEventDialog /> : <div />}
 
         <form method="get" className="flex flex-wrap items-end gap-3">
           <input type="hidden" name="sort" value={sort} />
