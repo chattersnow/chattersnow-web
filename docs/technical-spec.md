@@ -3,8 +3,8 @@
 ## Technical Specification
 
 - **Status:** Draft for team review
-- **Version:** 0.2
-- **Date:** 2026-08-20
+- **Version:** 0.3
+- **Date:** 2026-08-21
 - **Owner:** Chatter Snow
 - **Repository:** `chattersnow-web`
 - **Canonical domain:** `https://chattersnow.org`
@@ -35,7 +35,7 @@ The public site must remain useful without an account. Operational data must req
 - A public view of the internal inventory record (donor/donation linkage, face value, internal notes, status, or movement history). A curated, read-only public catalog of currently available gear is in scope — see §4 and §5.4.
 - Automated calendar synchronization.
 - Waitlists, capacity automation, confirmation emails, or event photo galleries unless prioritized separately.
-- Raffles, volunteer management, attendance tracking, and full accounting software unless prioritized separately.
+- Volunteer management and full accounting software unless prioritized separately. (Raffle recording and event attendance headcounts, listed as future capabilities in earlier drafts, are now implemented — see §5.5 and §5.8.)
 
 ## 3. Technology and Deployment
 
@@ -53,7 +53,11 @@ The public site must remain useful without an account. Operational data must req
 | DNS and domain | Cloudflare DNS; Vercel manages application deployment and domain integration |
 | Local development | Next.js development server and Supabase local stack |
 
-The repository started as a minimal Next.js application and is being built out incrementally. Supabase Auth, Storage, and API services are enabled in `supabase/config.toml`. Schema exists as ordered migrations under `supabase/migrations/` for the shared `people` directory (donors, sponsors, volunteers), donations, inventory items/movements, events, event sponsors, event expenses, raffles, and the public gear catalog view; roles/permissions, event registrations, and the audit log remain to be implemented.
+The repository started as a minimal Next.js application and has since been built out well past the original "coming soon" skeleton, though unevenly across areas. Supabase Auth, Storage, and API services are enabled in `supabase/config.toml`. Schema exists as ordered migrations under `supabase/migrations/` for the shared `people` directory (donors, sponsors, volunteers), donations, inventory items/movements, events, event sponsors, event expenses, event attendance (a simple event-level headcount, not per-attendee), and raffles/raffle prizes/raffle winners, plus the `public_gear_catalog` view; roles/permissions, an audit log, governance records, and event registrations have no backing tables yet.
+
+Authorization is not yet role-based: every table's RLS policy is a single blanket "authenticated full access" grant (`using (auth.uid() is not null)`), so any signed-in Supabase user currently has full read/write access to all portal data — there is no `roles`/`user_roles`/`profiles` table and no per-role restriction anywhere in the app (`src/app/portal/(app)/layout.tsx` only checks that a user is signed in). The `admin` role described in §5.3 is aspirational, not enforced.
+
+The portal's sidebar nav already links to Governance, Volunteers, and Administration sections (`src/app/portal/(app)/governance/*`, `volunteers/*`, `administration/*`), but every page under them is a static "Coming soon" placeholder with no data fetching, no server actions, and no backing tables — they are UI scaffolding only. The public site's Home and Contact pages (`src/app/(public)/home`, `src/app/(public)/contact`) and the Events list (`src/app/(public)/events`) are likewise still placeholders, so public event browsing/registration (§5.2) and the contact form (§5.1) are not yet implemented, unlike About Us and Gears, which are fully built against real data.
 
 ### Environment configuration
 
@@ -92,7 +96,7 @@ The authenticated admin portal supports:
 - Donation and inventory management
 - Expense management
 
-Raffles, volunteers, attendance, and expanded reporting are planned capabilities and are not required for the initial portal.
+Raffle recording (prizes, winners, ticket totals) and event attendance headcounts are implemented as part of event management. Volunteers, governance record-keeping, user roles/permissions, an audit log, and expanded reporting remain planned capabilities, are not required for the initial portal, and currently have placeholder pages with no backing tables.
 
 ## 5. Functional Requirements
 
@@ -141,6 +145,8 @@ Future event capabilities may include registration status, waitlists, confirmati
 Users shall authenticate through Supabase Auth using Google OAuth. The application shall verify the authenticated user's authorization before rendering or changing portal data.
 
 The initial portal role is `admin`. Admin users may access the dashboard, events, expenses, and inventory workflows. Additional roles and narrower permissions may be introduced when operational needs are confirmed.
+
+**Current implementation gap:** no role model exists yet. Every portal table's RLS policy grants full access to any authenticated user (`auth.uid() is not null`), and the portal layout only checks that a session exists — it does not check a role. Introducing `roles`/`user_roles` and rewriting these blanket policies is required before the portal can safely support non-admin staff or volunteers.
 
 ### 5.4 Inventory and donation management
 
@@ -193,7 +199,7 @@ Authorized users shall be able to create and manage events, including:
 - Raffle sales
 - Public/private visibility and publication status
 
-The event record should support a public/private boundary so internal planning details do not become public accidentally. Registration, attendance, volunteers, and inventory distributions may be added as later capabilities.
+The event record should support a public/private boundary so internal planning details do not become public accidentally. Registration, volunteers, and inventory distributions may be added as later capabilities. Attendance is implemented as a simple event-level headcount (`attendance_count`, `attendance_notes`) rather than per-attendee records — a deliberate product decision, not a placeholder.
 
 #### Sponsor and partner selection
 
@@ -225,18 +231,9 @@ The initial inventory workflow is the primary way administrators manage donated 
 
 ### 5.8 Raffles
 
-Raffles are a planned capability and may be delivered after the initial release. The model should support:
+Raffle recording is implemented for the initial release: authorized users can record, per event, tickets sold and revenue, prizes (name, prize donor as free text, estimated value), and winners (name, contact, distribution status/date, drawing date), via the event editor's Raffle tab (`raffles`, `raffle_prizes`, `raffle_winners` tables). This is a manual recording tool only — there is no public ticket-purchase flow, and the prize donor field is not yet linked to the `people` directory the way event sponsors are.
 
-- Raffle associated with an event
-- Tickets sold and revenue
-- Prizes
-- Prize donor
-- Prize item and estimated value
-- Winner
-- Drawing date
-- Prize distribution status/date
-
-The implementation must be reviewed for applicable legal, tax, and jurisdictional requirements before enabling public ticket sales.
+Public online ticket sales remain out of scope and must be reviewed for applicable legal, tax, and jurisdictional requirements before being enabled.
 
 ### 5.9 People directory
 
@@ -304,6 +301,8 @@ The following is a logical model, not a final migration. IDs should be UUIDs and
 
 ### Identity and access
 
+Not yet implemented — currently every RLS policy grants full access to any authenticated user (see §5.3).
+
 - `profiles`: application profile linked one-to-one with `auth.users`
 - `roles`: named roles
 - `user_roles`: user-to-role assignments
@@ -328,12 +327,14 @@ The following is a logical model, not a final migration. IDs should be UUIDs and
 
 ### Finance and raffles
 
-- `event_revenue`
-- `event_expenses`
-- `file_attachments`
-- `raffles`, `raffle_prizes`, and `raffle_winners`: planned future capability
+- `event_revenue`: not yet implemented
+- `event_expenses`: implemented, with an optional `event_id` (nullable — expenses may or may not be tied to an event)
+- `file_attachments`: not yet implemented
+- `raffles`, `raffle_prizes`, and `raffle_winners`: implemented (see §5.8); `raffle_prizes.donor_name` is free text, not a `people` foreign key
 
 ### Governance
+
+Not yet implemented — the portal's Governance nav section renders placeholder pages only; none of the tables below exist in migrations.
 
 - `board_members`: links a `people` record with role/title, term start/end, and active status
 - `governance_meetings`: date, type (board, committee, annual, other), status; associated `governance_meeting_attendees` link table to `people`
@@ -366,27 +367,28 @@ Foreign keys should enforce relationships. Monetary amounts should use a fixed-p
 
 ## 8. Application Structure
 
-Use the Next.js App Router with route groups that make the public/portal boundary visible in the codebase:
+Use the Next.js App Router with route groups that make the public/portal boundary visible in the codebase. The actual tree (current, differs slightly from the original proposal — the portal lives under `/portal/(app)/` rather than a top-level `(portal)` group):
 
 ```text
 src/app/
   (public)/
-    page.tsx                   # home
-    about/
-      page.tsx                 # about us
-      team/                    # meet the team
-    events/                    # list view; calendar view is a future option
-    gears/                     # public gear availability catalog
-    contact/                   # contact form (sends email) + email/socials
-  (portal)/
-    portal/
-      page.tsx                 # admin dashboard
-      events/
+    home/                       # public landing page (placeholder)
+    about/                      # about us, team, programs, donations, volunteer
+    events/                     # placeholder — no listing/detail/registration yet
+    gears/                      # public gear availability catalog — implemented
+    contact/                    # placeholder — no form/email yet
+  portal/
+    login/
+    (app)/                      # authenticated portal shell (sidebar layout)
+      home/                     # admin dashboard
+      events/                   # events, sponsors, expenses tab, raffle tab, attendance tab
       inventory/
-      expenses/
-      governance/
+      finance/                  # expenses, donations, reimbursements, reports
+      people/                   # shared donor/sponsor/volunteer directory
+      governance/                # placeholder — no backing tables
+      volunteers/                # placeholder — no backing tables
+      administration/            # placeholder — no backing tables, no roles
   auth/
-  api/
 ```
 
 The exact route structure may evolve, but authenticated portal layouts must verify the session and authorization before rendering protected data. Use server components for read-heavy pages where practical and keep service-role operations server-only.
@@ -472,7 +474,7 @@ The initial release is ready when:
 | Public exposure of internal inventory or donor data | Private-by-default tables/storage and RLS tests |
 | Inventory counts lose their history | Append-only movement records and controlled correction workflow |
 | Financial records are mistaken for formal accounting | Define reporting scope and reconcile with the organization's accounting process |
-| Roles become too broad | Create a permission matrix and review access with real operators before launch |
+| No roles exist yet — every authenticated user currently has full portal access | Introduce `roles`/`user_roles`, replace blanket "authenticated full access" RLS policies with role-scoped ones, and review access with real operators before launch |
 | Registration creates privacy or capacity problems | Start with minimal fields and add capacity/confirmation rules explicitly |
 | Raffle functionality creates compliance exposure | Complete legal review before enabling ticket sales |
 | Production and preview environments share data accidentally | Separate environment variables and Supabase projects or strict project policies |
