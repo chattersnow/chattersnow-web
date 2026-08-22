@@ -23,7 +23,7 @@ function isSortColumn(value: string | undefined): value is SortColumn {
   return !!value && (SORTABLE_COLUMNS as readonly string[]).includes(value);
 }
 
-const STATUS_VALUES = ["draft", "published"] as const;
+const STATUS_VALUES = ["draft", "published", "completed", "cancelled", "archived"] as const;
 const VISIBILITY_VALUES = ["public", "private"] as const;
 const WHEN_VALUES = ["upcoming", "past"] as const;
 
@@ -81,7 +81,7 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
   let query = supabase
     .from("events")
     .select(
-      "id, name, location, starts_at, ends_at, timezone, visibility, status, attendance_count, attendance_notes"
+      "id, name, location, starts_at, ends_at, timezone, visibility, status, attendance_count, attendance_notes, description, event_type, venue, capacity, registration_enabled, registration_deadline, budget_amount, event_lead_id, report_status, report_summary, lessons_learned, feedback_notes, content_notes, report_submitted_at, report_submitted_by"
     )
     .order(sort, { ascending: dir === "asc" })
     .order("id", { ascending: true });
@@ -157,6 +157,9 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
               <option value="all">All statuses</option>
               <option value="draft">Draft</option>
               <option value="published">Published</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="archived">Archived</option>
             </select>
           </div>
 

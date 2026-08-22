@@ -1,15 +1,21 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { ArrowLeft, Eye, Pencil } from "lucide-react";
-import type { EventRow } from "./event-badges";
+import type { EventRow, PhaseStatus } from "./event-badges";
+import { PhaseStatusBadge } from "./event-badges";
 import { OverviewTab, type OverviewTabHandle } from "./overview-tab";
-import { AttendanceTab } from "./attendance-tab";
+import { PlanningTab, type PlanningTabHandle } from "./planning-tab";
+import { LogisticsTab, type LogisticsTabHandle } from "./logistics-tab";
+import { VolunteersTab } from "./volunteers-tab";
 import { SponsorsTab } from "./sponsors-tab";
+import { AttendanceTab } from "./attendance-tab";
 import { DonationsTab } from "./donations-tab";
 import { DistributionsTab } from "./distributions-tab";
+import { IncidentsTab } from "./incidents-tab";
 import { EventExpensesTab } from "./event-expenses-tab";
 import { GiveawayTab } from "./giveaway-tab";
+import { ReportTab, type ReportTabHandle } from "./report-tab";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,32 +38,125 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 
-const OVERVIEW_FORM_ID_PREFIX = "event-overview-form";
+const FORM_ID_PREFIX = "event-details-form";
 
 type TabValue =
   | "overview"
+  | "planning"
+  | "logistics"
+  | "volunteers"
   | "sponsors"
   | "attendance"
-  | "donations"
   | "distributions"
+  | "incidents"
+  | "giveaway"
   | "expenses"
-  | "giveaway";
+  | "report"
+  | "donations";
+
+// Tabs whose form submits through the sheet's shared footer Save button
+// (formId + dirty/discard tracking); everything else manages its own
+// inline add/edit/delete affordances, same as the pre-workflow tabs did.
+const FORM_TABS = new Set<TabValue>(["overview", "planning", "logistics", "report"]);
 
 type Mode = "view" | "edit";
+
+type PhaseKey = "basic" | "planning" | "during" | "after";
+
+const PHASES: { key: PhaseKey; label: string; tabs: { value: TabValue; label: string }[] }[] = [
+  { key: "basic", label: "Basic", tabs: [{ value: "overview", label: "Overview" }] },
+  {
+    key: "planning",
+    label: "Planning",
+    tabs: [
+      { value: "planning", label: "Planning" },
+      { value: "logistics", label: "Logistics" },
+      { value: "volunteers", label: "Volunteers" },
+      { value: "sponsors", label: "Sponsors" },
+    ],
+  },
+  {
+    key: "during",
+    label: "During",
+    tabs: [
+      { value: "attendance", label: "Attendance" },
+      { value: "distributions", label: "Distributions" },
+      { value: "incidents", label: "Incidents" },
+      { value: "giveaway", label: "Giveaway" },
+    ],
+  },
+  {
+    key: "after",
+    label: "After",
+    tabs: [
+      { value: "expenses", label: "Expenses" },
+      { value: "report", label: "Report" },
+      { value: "donations", label: "Donations" },
+    ],
+  },
+];
+
+function phaseForTab(tab: TabValue): PhaseKey {
+  return PHASES.find((phase) => phase.tabs.some((t) => t.value === tab))!.key;
+}
+
+function planningStatus(event: EventRow): PhaseStatus {
+  const signals = [event.event_lead_id, event.capacity, event.budget_amount];
+  const present = signals.filter((value) => value !== null && value !== undefined).length;
+  if (present === 0) return "not_started";
+  if (present === signals.length) return "done";
+  return "in_progress";
+}
+
+function duringStatus(event: EventRow): PhaseStatus {
+  if (event.attendance_count !== null) return "done";
+  return new Date(event.starts_at) <= new Date() ? "in_progress" : "not_started";
+}
+
+function afterStatus(event: EventRow): PhaseStatus {
+  return event.report_status === "submitted" ? "done" : event.report_status === "in_progress" ? "in_progress" : "not_started";
+}
+
+function phaseStatus(key: PhaseKey, event: EventRow): PhaseStatus | null {
+  if (key === "planning") return planningStatus(event);
+  if (key === "during") return duringStatus(event);
+  if (key === "after") return afterStatus(event);
+  return null;
+}
 
 export function EventDetailsDialog({ event }: { event: EventRow }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<TabValue>("overview");
   const [mode, setMode] = useState<Mode>("view");
-  const [overviewPending, setOverviewPending] = useState(false);
-  const [overviewDirty, setOverviewDirty] = useState(false);
+  const [pending, setPending] = useState<Partial<Record<TabValue, boolean>>>({});
+  const [dirty, setDirty] = useState<Partial<Record<TabValue, boolean>>>({});
   const [discardTarget, setDiscardTarget] = useState<"toggle" | "close" | null>(null);
   const overviewTabRef = useRef<OverviewTabHandle>(null);
-  const overviewFormId = `${OVERVIEW_FORM_ID_PREFIX}-${event.id}`;
+  const planningTabRef = useRef<PlanningTabHandle>(null);
+  const logisticsTabRef = useRef<LogisticsTabHandle>(null);
+  const reportTabRef = useRef<ReportTabHandle>(null);
+
+  const anyDirty = Object.values(dirty).some(Boolean);
+
+  // Stable per-tab callbacks — the child tabs use these as effect
+  // dependencies, so a new function identity every render (as an inline
+  // arrow prop would be) re-fires those effects every render and loops.
+  const onOverviewPending = useCallback((value: boolean) => setPending((prev) => ({ ...prev, overview: value })), []);
+  const onOverviewDirty = useCallback((value: boolean) => setDirty((prev) => ({ ...prev, overview: value })), []);
+  const onPlanningPending = useCallback((value: boolean) => setPending((prev) => ({ ...prev, planning: value })), []);
+  const onPlanningDirty = useCallback((value: boolean) => setDirty((prev) => ({ ...prev, planning: value })), []);
+  const onLogisticsPending = useCallback(
+    (value: boolean) => setPending((prev) => ({ ...prev, logistics: value })),
+    []
+  );
+  const onLogisticsDirty = useCallback((value: boolean) => setDirty((prev) => ({ ...prev, logistics: value })), []);
+  const onReportPending = useCallback((value: boolean) => setPending((prev) => ({ ...prev, report: value })), []);
+  const onReportDirty = useCallback((value: boolean) => setDirty((prev) => ({ ...prev, report: value })), []);
 
   function handleOpenChange(nextOpen: boolean) {
-    if (!nextOpen && mode === "edit" && overviewDirty) {
+    if (!nextOpen && mode === "edit" && anyDirty) {
       setDiscardTarget("close");
       return;
     }
@@ -69,7 +168,7 @@ export function EventDetailsDialog({ event }: { event: EventRow }) {
   }
 
   function requestExitEditMode() {
-    if (overviewDirty) {
+    if (anyDirty) {
       setDiscardTarget("toggle");
       return;
     }
@@ -78,11 +177,21 @@ export function EventDetailsDialog({ event }: { event: EventRow }) {
 
   function confirmDiscard() {
     overviewTabRef.current?.discard();
+    planningTabRef.current?.discard();
+    logisticsTabRef.current?.discard();
+    reportTabRef.current?.discard();
     setMode("view");
     if (discardTarget === "close") {
       setOpen(false);
     }
     setDiscardTarget(null);
+  }
+
+  const activePhase = PHASES.find((phase) => phase.key === phaseForTab(tab))!;
+
+  function selectPhase(key: PhaseKey) {
+    const phase = PHASES.find((p) => p.key === key)!;
+    setTab(phase.tabs[0].value);
   }
 
   return (
@@ -117,28 +226,75 @@ export function EventDetailsDialog({ event }: { event: EventRow }) {
             )}
           </SheetHeader>
 
+          <div className="flex flex-wrap gap-2 border-b border-[var(--line)] px-4 pb-3">
+            {PHASES.map((phase) => {
+              const isActive = phase.key === activePhase.key;
+              const status = phaseStatus(phase.key, event);
+              return (
+                <button
+                  key={phase.key}
+                  type="button"
+                  onClick={() => selectPhase(phase.key)}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors",
+                    isActive
+                      ? "border-[var(--purple-deep)] bg-[var(--purple-soft)] text-foreground"
+                      : "border-transparent text-muted-foreground hover:bg-[var(--purple-soft)]/50"
+                  )}
+                >
+                  {phase.label}
+                  {status && <PhaseStatusBadge status={status} />}
+                </button>
+              );
+            })}
+          </div>
+
           <div className="flex-1 overflow-y-auto px-4 pb-4">
             <Tabs value={tab} onValueChange={(value) => setTab(value as TabValue)} className="mt-2">
               <TabsList variant="line" className="flex-wrap">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="sponsors">Sponsors</TabsTrigger>
-                <TabsTrigger value="attendance">Attendance</TabsTrigger>
-                <TabsTrigger value="donations">Donations</TabsTrigger>
-                <TabsTrigger value="distributions">Distributions</TabsTrigger>
-                <TabsTrigger value="expenses">Expenses</TabsTrigger>
-                <TabsTrigger value="giveaway">Giveaway</TabsTrigger>
+                {activePhase.tabs.map((t) => (
+                  <TabsTrigger key={t.value} value={t.value}>
+                    {t.label}
+                  </TabsTrigger>
+                ))}
               </TabsList>
 
               <TabsContent value="overview" className="mt-4">
                 <OverviewTab
                   ref={overviewTabRef}
                   event={event}
-                  formId={overviewFormId}
+                  formId={`${FORM_ID_PREFIX}-overview-${event.id}`}
                   mode={mode}
                   onSaved={() => setMode("view")}
-                  onPendingChange={setOverviewPending}
-                  onDirtyChange={setOverviewDirty}
+                  onPendingChange={onOverviewPending}
+                  onDirtyChange={onOverviewDirty}
                 />
+              </TabsContent>
+              <TabsContent value="planning" className="mt-4">
+                <PlanningTab
+                  ref={planningTabRef}
+                  event={event}
+                  formId={`${FORM_ID_PREFIX}-planning-${event.id}`}
+                  mode={mode}
+                  onSaved={() => setMode("view")}
+                  onPendingChange={onPlanningPending}
+                  onDirtyChange={onPlanningDirty}
+                />
+              </TabsContent>
+              <TabsContent value="logistics" className="mt-4">
+                <LogisticsTab
+                  ref={logisticsTabRef}
+                  eventId={event.id}
+                  formId={`${FORM_ID_PREFIX}-logistics-${event.id}`}
+                  active={tab === "logistics"}
+                  mode={mode}
+                  onSaved={() => setMode("view")}
+                  onPendingChange={onLogisticsPending}
+                  onDirtyChange={onLogisticsDirty}
+                />
+              </TabsContent>
+              <TabsContent value="volunteers" className="mt-4">
+                <VolunteersTab eventId={event.id} active={tab === "volunteers"} mode={mode} />
               </TabsContent>
               <TabsContent value="sponsors" className="mt-4">
                 <SponsorsTab eventId={event.id} active={tab === "sponsors"} mode={mode} />
@@ -146,25 +302,39 @@ export function EventDetailsDialog({ event }: { event: EventRow }) {
               <TabsContent value="attendance" className="mt-4">
                 <AttendanceTab event={event} mode={mode} />
               </TabsContent>
-              <TabsContent value="donations" className="mt-4">
-                <DonationsTab eventId={event.id} active={tab === "donations"} mode={mode} />
-              </TabsContent>
               <TabsContent value="distributions" className="mt-4">
                 <DistributionsTab eventId={event.id} active={tab === "distributions"} mode={mode} />
               </TabsContent>
-              <TabsContent value="expenses" className="mt-4">
-                <EventExpensesTab eventId={event.id} eventName={event.name} active={tab === "expenses"} mode={mode} />
+              <TabsContent value="incidents" className="mt-4">
+                <IncidentsTab eventId={event.id} active={tab === "incidents"} mode={mode} />
               </TabsContent>
               <TabsContent value="giveaway" className="mt-4">
                 <GiveawayTab eventId={event.id} active={tab === "giveaway"} mode={mode} />
               </TabsContent>
+              <TabsContent value="expenses" className="mt-4">
+                <EventExpensesTab eventId={event.id} eventName={event.name} active={tab === "expenses"} mode={mode} />
+              </TabsContent>
+              <TabsContent value="report" className="mt-4">
+                <ReportTab
+                  ref={reportTabRef}
+                  event={event}
+                  formId={`${FORM_ID_PREFIX}-report-${event.id}`}
+                  mode={mode}
+                  onSaved={() => setMode("view")}
+                  onPendingChange={onReportPending}
+                  onDirtyChange={onReportDirty}
+                />
+              </TabsContent>
+              <TabsContent value="donations" className="mt-4">
+                <DonationsTab eventId={event.id} active={tab === "donations"} mode={mode} />
+              </TabsContent>
             </Tabs>
           </div>
 
-          {tab === "overview" && mode === "edit" && (
+          {FORM_TABS.has(tab) && mode === "edit" && (
             <SheetFooter className="flex-row justify-end border-t bg-muted/50">
-              <Button type="submit" form={overviewFormId} disabled={overviewPending}>
-                {overviewPending ? "Saving..." : "Save changes"}
+              <Button type="submit" form={`${FORM_ID_PREFIX}-${tab}-${event.id}`} disabled={pending[tab]}>
+                {pending[tab] ? "Saving..." : "Save changes"}
               </Button>
             </SheetFooter>
           )}

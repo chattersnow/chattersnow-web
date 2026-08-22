@@ -20,6 +20,8 @@ export type EventSponsor = {
   contribution_value: number | string | null;
   is_public: boolean;
   notes: string | null;
+  follow_up_status: string;
+  follow_up_notes: string | null;
   person: EventSponsorPerson;
 };
 
@@ -32,7 +34,7 @@ export async function listEventSponsorsAction(
   const { data, error } = await supabase
     .from("event_sponsors")
     .select(
-      "id, event_id, person_id, support_type, in_kind_description, contribution_value, is_public, notes, person:people(id, name, email, phone)"
+      "id, event_id, person_id, support_type, in_kind_description, contribution_value, is_public, notes, follow_up_status, follow_up_notes, person:people(id, name, email, phone)"
     )
     .eq("event_id", eventId);
 

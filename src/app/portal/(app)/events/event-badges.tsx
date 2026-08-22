@@ -12,16 +12,46 @@ export type EventRow = {
   status: string;
   attendance_count: number | null;
   attendance_notes: string | null;
+  description: string | null;
+  event_type: string | null;
+  venue: string | null;
+  capacity: number | null;
+  registration_enabled: boolean;
+  registration_deadline: string | null;
+  budget_amount: number | string | null;
+  event_lead_id: string | null;
+  report_status: string;
+  report_summary: string | null;
+  lessons_learned: string | null;
+  feedback_notes: string | null;
+  content_notes: string | null;
+  report_submitted_at: string | null;
+  report_submitted_by: string | null;
 };
 
 const STATUS_STYLES: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
   published: "bg-primary/10 text-primary",
+  completed: "bg-secondary text-secondary-foreground",
+  cancelled: "bg-destructive/10 text-destructive",
+  archived: "bg-muted text-muted-foreground",
 };
 
 const VISIBILITY_STYLES: Record<string, string> = {
   private: "bg-muted text-muted-foreground",
   public: "bg-secondary text-secondary-foreground",
+};
+
+const REPORT_STATUS_STYLES: Record<string, string> = {
+  not_started: "bg-muted text-muted-foreground",
+  in_progress: "bg-primary/10 text-primary",
+  submitted: "bg-secondary text-secondary-foreground",
+};
+
+const REPORT_STATUS_LABELS: Record<string, string> = {
+  not_started: "Not started",
+  in_progress: "In progress",
+  submitted: "Submitted",
 };
 
 function Pill({ className, children }: { className?: string; children: ReactNode }) {
@@ -51,4 +81,40 @@ export function VisibilityBadge({ visibility }: { visibility: string }) {
       {visibility}
     </Pill>
   );
+}
+
+export function ReportStatusBadge({ status }: { status: string }) {
+  return (
+    <Pill className={REPORT_STATUS_STYLES[status] ?? "bg-muted text-muted-foreground"}>
+      {REPORT_STATUS_LABELS[status] ?? status}
+    </Pill>
+  );
+}
+
+export type PhaseStatus = "not_started" | "in_progress" | "done";
+
+const PHASE_STATUS_STYLES: Record<PhaseStatus, string> = {
+  not_started: "bg-muted text-muted-foreground",
+  in_progress: "bg-primary/10 text-primary",
+  done: "bg-secondary text-secondary-foreground",
+};
+
+const PHASE_STATUS_LABELS: Record<PhaseStatus, string> = {
+  not_started: "Not started",
+  in_progress: "In progress",
+  done: "Done",
+};
+
+export function PhaseStatusBadge({ status }: { status: PhaseStatus }) {
+  return <Pill className={PHASE_STATUS_STYLES[status]}>{PHASE_STATUS_LABELS[status]}</Pill>;
+}
+
+const SEVERITY_STYLES: Record<string, string> = {
+  minor: "bg-muted text-muted-foreground",
+  moderate: "bg-primary/10 text-primary",
+  serious: "bg-destructive/10 text-destructive",
+};
+
+export function SeverityBadge({ severity }: { severity: string }) {
+  return <Pill className={SEVERITY_STYLES[severity] ?? "bg-muted text-muted-foreground"}>{severity}</Pill>;
 }

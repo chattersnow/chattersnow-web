@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -37,7 +38,10 @@ const STATUSES = [
 function getInitialFormState() {
   return {
     name: "",
+    description: "",
+    eventType: "",
     location: "",
+    venue: "",
     startsAt: "",
     endsAt: "",
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -74,7 +78,10 @@ export function NewEventDialog() {
 
     const formData = new FormData();
     formData.set("name", form.name);
+    formData.set("description", form.description);
+    formData.set("eventType", form.eventType);
     formData.set("location", form.location);
+    formData.set("venue", form.venue);
     formData.set("startsAt", form.startsAt);
     formData.set("endsAt", form.endsAt);
     formData.set("timezone", form.timezone);
@@ -118,6 +125,35 @@ export function NewEventDialog() {
                 value={form.name}
                 onChange={(event) => update("name", event.target.value)}
               />
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="description">Description</FieldLabel>
+              <Textarea
+                id="description"
+                value={form.description}
+                onChange={(event) => update("description", event.target.value)}
+              />
+            </Field>
+
+            <Field orientation="responsive">
+              <Field>
+                <FieldLabel htmlFor="eventType">Event type</FieldLabel>
+                <Input
+                  id="eventType"
+                  placeholder="e.g. Access Day"
+                  value={form.eventType}
+                  onChange={(event) => update("eventType", event.target.value)}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="venue">Venue / mountain</FieldLabel>
+                <Input
+                  id="venue"
+                  value={form.venue}
+                  onChange={(event) => update("venue", event.target.value)}
+                />
+              </Field>
             </Field>
 
             <Field>

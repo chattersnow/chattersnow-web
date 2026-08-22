@@ -9,6 +9,7 @@ import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -25,6 +26,9 @@ const VISIBILITIES = [
 const STATUSES = [
   { value: "draft", label: "Draft" },
   { value: "published", label: "Published" },
+  { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
+  { value: "archived", label: "Archived" },
 ];
 
 const viewDateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -47,7 +51,10 @@ function toDatetimeLocalValue(iso: string | null) {
 function formStateFor(event: EventRow) {
   return {
     name: event.name,
+    description: event.description ?? "",
+    eventType: event.event_type ?? "",
     location: event.location ?? "",
+    venue: event.venue ?? "",
     startsAt: toDatetimeLocalValue(event.starts_at),
     endsAt: toDatetimeLocalValue(event.ends_at),
     timezone: event.timezone,
@@ -114,7 +121,10 @@ export function OverviewTab({
 
     const formData = new FormData();
     formData.set("name", form.name);
+    formData.set("description", form.description);
+    formData.set("eventType", form.eventType);
     formData.set("location", form.location);
+    formData.set("venue", form.venue);
     formData.set("startsAt", form.startsAt);
     formData.set("endsAt", form.endsAt);
     formData.set("timezone", form.timezone);
@@ -138,6 +148,19 @@ export function OverviewTab({
         <ReadOnlyField label="Event name" htmlFor="details-name">
           {form.name}
         </ReadOnlyField>
+
+        <ReadOnlyField label="Description" htmlFor="details-description">
+          {form.description || "—"}
+        </ReadOnlyField>
+
+        <Field orientation="responsive">
+          <ReadOnlyField label="Event type" htmlFor="details-eventType">
+            {form.eventType || "—"}
+          </ReadOnlyField>
+          <ReadOnlyField label="Venue / mountain" htmlFor="details-venue">
+            {form.venue || "—"}
+          </ReadOnlyField>
+        </Field>
 
         <ReadOnlyField label="Location" htmlFor="details-location">
           {form.location || "—"}
@@ -185,6 +208,35 @@ export function OverviewTab({
             value={form.name}
             onChange={(changeEvent) => update("name", changeEvent.target.value)}
           />
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="details-description">Description</FieldLabel>
+          <Textarea
+            id="details-description"
+            value={form.description}
+            onChange={(changeEvent) => update("description", changeEvent.target.value)}
+          />
+        </Field>
+
+        <Field orientation="responsive">
+          <Field>
+            <FieldLabel htmlFor="details-eventType">Event type</FieldLabel>
+            <Input
+              id="details-eventType"
+              placeholder="e.g. Access Day, Gear Exchange, Community Ride"
+              value={form.eventType}
+              onChange={(changeEvent) => update("eventType", changeEvent.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="details-venue">Venue / mountain</FieldLabel>
+            <Input
+              id="details-venue"
+              value={form.venue}
+              onChange={(changeEvent) => update("venue", changeEvent.target.value)}
+            />
+          </Field>
         </Field>
 
         <Field>

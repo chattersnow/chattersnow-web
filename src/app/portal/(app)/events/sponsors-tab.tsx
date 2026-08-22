@@ -36,6 +36,12 @@ const SUPPORT_TYPES = [
   { value: "other", label: "Other" },
 ];
 
+const FOLLOW_UP_STATUSES = [
+  { value: "not_started", label: "Not started" },
+  { value: "in_progress", label: "In progress" },
+  { value: "done", label: "Done" },
+];
+
 const currencyFormatter = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 
 function formatValue(value: number | string | null) {
@@ -50,6 +56,8 @@ type SponsorFormState = {
   contributionValue: string;
   isPublic: boolean;
   notes: string;
+  followUpStatus: string;
+  followUpNotes: string;
 };
 
 function emptySponsorForm(): SponsorFormState {
@@ -59,6 +67,8 @@ function emptySponsorForm(): SponsorFormState {
     contributionValue: "",
     isPublic: false,
     notes: "",
+    followUpStatus: "not_started",
+    followUpNotes: "",
   };
 }
 
@@ -69,6 +79,8 @@ function formStateFor(sponsor: EventSponsor): SponsorFormState {
     contributionValue: sponsor.contribution_value === null ? "" : String(sponsor.contribution_value),
     isPublic: sponsor.is_public,
     notes: sponsor.notes ?? "",
+    followUpStatus: sponsor.follow_up_status,
+    followUpNotes: sponsor.follow_up_notes ?? "",
   };
 }
 
@@ -114,6 +126,8 @@ function SponsorForm({
     formData.set("contributionValue", form.contributionValue);
     formData.set("isPublic", form.isPublic ? "on" : "off");
     formData.set("notes", form.notes);
+    formData.set("followUpStatus", form.followUpStatus);
+    formData.set("followUpNotes", form.followUpNotes);
 
     startTransition(async () => {
       const result = await onSubmit(formData, selectedPerson?.id ?? null);
@@ -205,6 +219,38 @@ function SponsorForm({
             id="sponsor-notes"
             value={form.notes}
             onChange={(event) => update("notes", event.target.value)}
+          />
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="sponsor-followUpStatus">Partner follow-up</FieldLabel>
+          <Select
+            value={form.followUpStatus}
+            onValueChange={(value) => update("followUpStatus", value ?? "not_started")}
+          >
+            <SelectTrigger id="sponsor-followUpStatus" className="w-full">
+              <SelectValue placeholder="Select follow-up status">
+                {(value: string) =>
+                  FOLLOW_UP_STATUSES.find((option) => option.value === value)?.label ?? "Select follow-up status"
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {FOLLOW_UP_STATUSES.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="sponsor-followUpNotes">Follow-up notes</FieldLabel>
+          <Textarea
+            id="sponsor-followUpNotes"
+            value={form.followUpNotes}
+            onChange={(event) => update("followUpNotes", event.target.value)}
           />
         </Field>
 

@@ -1,11 +1,14 @@
 export type ParseResult<T> = { data: T } | { error: string };
 
 const VISIBILITIES = ["public", "private"] as const;
-const STATUSES = ["draft", "published"] as const;
+const STATUSES = ["draft", "published", "completed", "cancelled", "archived"] as const;
 
 export type EventFormData = {
   name: string;
+  description: string | null;
+  eventType: string | null;
   location: string | null;
+  venue: string | null;
   startsAt: string;
   endsAt: string | null;
   timezone: string;
@@ -15,7 +18,10 @@ export type EventFormData = {
 
 export function parseEventForm(formData: FormData): ParseResult<EventFormData> {
   const name = String(formData.get("name") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
+  const eventType = String(formData.get("eventType") ?? "").trim();
   const location = String(formData.get("location") ?? "").trim();
+  const venue = String(formData.get("venue") ?? "").trim();
   const startsAt = String(formData.get("startsAt") ?? "");
   const endsAt = String(formData.get("endsAt") ?? "");
   const timezone = String(formData.get("timezone") ?? "").trim();
@@ -41,12 +47,83 @@ export function parseEventForm(formData: FormData): ParseResult<EventFormData> {
   return {
     data: {
       name,
+      description: description || null,
+      eventType: eventType || null,
       location: location || null,
+      venue: venue || null,
       startsAt: startsAtIso,
       endsAt: endsAtIso,
       timezone,
       visibility: visibility as (typeof VISIBILITIES)[number],
       status: status as (typeof STATUSES)[number],
+    },
+  };
+}
+
+export type EventPlanningFormData = {
+  eventLeadId: string | null;
+  capacity: number | null;
+  registrationEnabled: boolean;
+  registrationDeadline: string | null;
+  budgetAmount: number | null;
+};
+
+export function parseEventPlanningForm(formData: FormData): ParseResult<EventPlanningFormData> {
+  const eventLeadId = String(formData.get("eventLeadId") ?? "").trim();
+  const capacityRaw = String(formData.get("capacity") ?? "").trim();
+  const registrationEnabled =
+    formData.get("registrationEnabled") === "on" || formData.get("registrationEnabled") === "true";
+  const registrationDeadline = String(formData.get("registrationDeadline") ?? "");
+  const budgetAmountRaw = String(formData.get("budgetAmount") ?? "").trim();
+
+  let capacity: number | null = null;
+  if (capacityRaw) {
+    const parsed = Number(capacityRaw);
+    if (!Number.isInteger(parsed) || parsed < 0) {
+      return { error: "Capacity must be a whole number of 0 or more." };
+    }
+    capacity = parsed;
+  }
+
+  let budgetAmount: number | null = null;
+  if (budgetAmountRaw) {
+    const parsed = Number(budgetAmountRaw);
+    if (Number.isNaN(parsed) || parsed < 0) {
+      return { error: "Budget must be a positive number." };
+    }
+    budgetAmount = parsed;
+  }
+
+  return {
+    data: {
+      eventLeadId: eventLeadId || null,
+      capacity,
+      registrationEnabled,
+      registrationDeadline: registrationDeadline ? new Date(registrationDeadline).toISOString() : null,
+      budgetAmount,
+    },
+  };
+}
+
+export type EventReportFormData = {
+  feedbackNotes: string | null;
+  contentNotes: string | null;
+  lessonsLearned: string | null;
+  reportSummary: string | null;
+};
+
+export function parseEventReportForm(formData: FormData): ParseResult<EventReportFormData> {
+  const feedbackNotes = String(formData.get("feedbackNotes") ?? "").trim();
+  const contentNotes = String(formData.get("contentNotes") ?? "").trim();
+  const lessonsLearned = String(formData.get("lessonsLearned") ?? "").trim();
+  const reportSummary = String(formData.get("reportSummary") ?? "").trim();
+
+  return {
+    data: {
+      feedbackNotes: feedbackNotes || null,
+      contentNotes: contentNotes || null,
+      lessonsLearned: lessonsLearned || null,
+      reportSummary: reportSummary || null,
     },
   };
 }

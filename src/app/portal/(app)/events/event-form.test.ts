@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { parseEventAttendanceForm, parseEventForm } from "./event-form";
+import {
+  parseEventAttendanceForm,
+  parseEventForm,
+  parseEventPlanningForm,
+  parseEventReportForm,
+} from "./event-form";
 
 function formData(fields: Record<string, string>) {
   const fd = new FormData();
@@ -47,9 +52,16 @@ describe("parseEventForm", () => {
   });
 
   test("rejects an invalid status", () => {
-    expect(parseEventForm(formData({ ...validFields, status: "archived" }))).toEqual({
+    expect(parseEventForm(formData({ ...validFields, status: "unknown" }))).toEqual({
       error: "Select a valid status.",
     });
+  });
+
+  test("accepts the widened lifecycle statuses", () => {
+    for (const status of ["draft", "published", "completed", "cancelled", "archived"] as const) {
+      const result = parseEventForm(formData({ ...validFields, status }));
+      expect("data" in result && result.data.status).toBe(status);
+    }
   });
 
   test("rejects an end time before the start time", () => {
@@ -89,6 +101,62 @@ describe("parseEventAttendanceForm", () => {
   test("parses a valid attendance count", () => {
     expect(parseEventAttendanceForm(formData({ attendanceCount: "42", attendanceNotes: "Great turnout" }))).toEqual({
       data: { attendanceCount: 42, attendanceNotes: "Great turnout" },
+    });
+  });
+});
+
+describe("parseEventPlanningForm", () => {
+  test("allows all-empty planning fields", () => {
+    expect(parseEventPlanningForm(formData({}))).toEqual({
+      data: {
+        eventLeadId: null,
+        capacity: null,
+        registrationEnabled: false,
+        registrationDeadline: null,
+        budgetAmount: null,
+      },
+    });
+  });
+
+  test("rejects a negative capacity", () => {
+    expect(parseEventPlanningForm(formData({ capacity: "-5" }))).toEqual({
+      error: "Capacity must be a whole number of 0 or more.",
+    });
+  });
+
+  test("rejects a negative budget", () => {
+    expect(parseEventPlanningForm(formData({ budgetAmount: "-100" }))).toEqual({
+      error: "Budget must be a positive number.",
+    });
+  });
+
+  test("parses valid planning fields", () => {
+    const result = parseEventPlanningForm(
+      formData({ capacity: "50", registrationEnabled: "on", budgetAmount: "1200.50" })
+    );
+    expect("data" in result && result.data.capacity).toBe(50);
+    expect("data" in result && result.data.registrationEnabled).toBe(true);
+    expect("data" in result && result.data.budgetAmount).toBe(1200.5);
+  });
+});
+
+describe("parseEventReportForm", () => {
+  test("allows all-empty report fields", () => {
+    expect(parseEventReportForm(formData({}))).toEqual({
+      data: { feedbackNotes: null, contentNotes: null, lessonsLearned: null, reportSummary: null },
+    });
+  });
+
+  test("parses report fields", () => {
+    expect(
+      parseEventReportForm(formData({ lessonsLearned: "Start setup earlier next time" }))
+    ).toEqual({
+      data: {
+        feedbackNotes: null,
+        contentNotes: null,
+        lessonsLearned: "Start setup earlier next time",
+        reportSummary: null,
+      },
     });
   });
 });

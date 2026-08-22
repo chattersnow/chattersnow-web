@@ -52,7 +52,23 @@ describe("parseSponsorForm", () => {
         contribution_value: 500,
         is_public: true,
         notes: "Annual sponsor",
+        follow_up_status: "not_started",
+        follow_up_notes: null,
       },
     });
+  });
+
+  test("rejects an invalid follow-up status", () => {
+    expect(
+      parseSponsorForm(formData({ supportType: "cash", followUpStatus: "later" }))
+    ).toEqual({ error: "Select a valid follow-up status." });
+  });
+
+  test("parses follow-up fields", () => {
+    const result = parseSponsorForm(
+      formData({ supportType: "cash", followUpStatus: "done", followUpNotes: "Sent thank-you" })
+    );
+    expect("data" in result && result.data.follow_up_status).toBe("done");
+    expect("data" in result && result.data.follow_up_notes).toBe("Sent thank-you");
   });
 });
