@@ -84,7 +84,7 @@ declare
   v_item2 uuid;
   v_item3 uuid;
   v_item4 uuid;
-  v_raffle_id uuid;
+  v_giveaway_id uuid;
   v_prize1 uuid;
   v_prize2 uuid;
 begin
@@ -190,22 +190,22 @@ begin
   insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, created_by)
   values (v_item4, 'received', 1, 'Donation intake', v_admin_id);
 
-  -- Raffle for the past event: two prizes, one claimed winner.
-  insert into public.raffles (event_id, name, tickets_sold, ticket_price, revenue_amount, drawing_date, created_by)
-  values (v_event_past, 'Trailhead Cleanup Raffle', 142, 5.00, 710.00, now() - interval '40 days', v_admin_id)
-  returning id into v_raffle_id;
+  -- Giveaway for the past event: two prizes, one claimed winner.
+  insert into public.giveaways (event_id, name, tickets_sold, ticket_price, revenue_amount, drawing_date, created_by)
+  values (v_event_past, 'Trailhead Cleanup Giveaway', 142, 5.00, 710.00, now() - interval '40 days', v_admin_id)
+  returning id into v_giveaway_id;
 
-  insert into public.raffle_prizes (raffle_id, prize_name, donor_name, estimated_value, created_by)
-  values (v_raffle_id, 'Weekend cabin stay', 'Summit Outdoor Co.', 400.00, v_admin_id)
+  insert into public.giveaway_prizes (giveaway_id, prize_name, donor_name, estimated_value, created_by)
+  values (v_giveaway_id, 'Weekend cabin stay', 'Summit Outdoor Co.', 400.00, v_admin_id)
   returning id into v_prize1;
 
-  insert into public.raffle_prizes (raffle_id, prize_name, donor_name, estimated_value, created_by)
-  values (v_raffle_id, 'Gift basket', 'Local Roasters Coffee', 60.00, v_admin_id)
+  insert into public.giveaway_prizes (giveaway_id, prize_name, donor_name, estimated_value, created_by)
+  values (v_giveaway_id, 'Gift basket', 'Local Roasters Coffee', 60.00, v_admin_id)
   returning id into v_prize2;
 
-  insert into public.raffle_winners (raffle_prize_id, winner_name, winner_contact, distribution_status, distributed_at, created_by)
+  insert into public.giveaway_winners (giveaway_prize_id, winner_name, winner_contact, distribution_status, distributed_at, created_by)
   values (v_prize1, 'M. Alvarez', '555-0199', 'distributed', now() - interval '38 days', v_admin_id);
 
-  insert into public.raffle_winners (raffle_prize_id, winner_name, distribution_status, created_by)
+  insert into public.giveaway_winners (giveaway_prize_id, winner_name, distribution_status, created_by)
   values (v_prize2, 'T. Nguyen', 'pending', v_admin_id);
 end $$;

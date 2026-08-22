@@ -103,7 +103,7 @@ export function NewEventDialog() {
         <DialogHeader>
           <DialogTitle>Create event</DialogTitle>
           <DialogDescription>
-            Basic event details — expenses, sponsors, and raffles are added
+            Basic event details — expenses, sponsors, and giveaways are added
             separately.
           </DialogDescription>
         </DialogHeader>

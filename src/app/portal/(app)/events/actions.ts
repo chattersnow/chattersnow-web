@@ -2,11 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { parseEventAttendanceForm, parseEventForm } from "./event-form";
 
 export type CreateEventResult = { error: string } | { success: true };
-
-const VISIBILITIES = ["public", "private"] as const;
-const STATUSES = ["draft", "published"] as const;
 
 export async function createEventAction(formData: FormData): Promise<CreateEventResult> {
   const supabase = await createSupabaseServerClient();
@@ -17,35 +15,15 @@ export async function createEventAction(formData: FormData): Promise<CreateEvent
     return { error: "You must be signed in to create an event." };
   }
 
-  const name = String(formData.get("name") ?? "").trim();
-  const location = String(formData.get("location") ?? "").trim();
-  const startsAt = String(formData.get("startsAt") ?? "");
-  const endsAt = String(formData.get("endsAt") ?? "");
-  const timezone = String(formData.get("timezone") ?? "").trim();
-  const visibility = String(formData.get("visibility") ?? "");
-  const status = String(formData.get("status") ?? "");
-
-  if (!name) return { error: "Event name is required." };
-  if (!startsAt) return { error: "Start date and time are required." };
-  if (!timezone) return { error: "Timezone is required." };
-  if (!VISIBILITIES.includes(visibility as (typeof VISIBILITIES)[number])) {
-    return { error: "Select a valid visibility." };
-  }
-  if (!STATUSES.includes(status as (typeof STATUSES)[number])) {
-    return { error: "Select a valid status." };
-  }
-
-  const startsAtIso = new Date(startsAt).toISOString();
-  const endsAtIso = endsAt ? new Date(endsAt).toISOString() : null;
-  if (endsAtIso && endsAtIso < startsAtIso) {
-    return { error: "End time must be after the start time." };
-  }
+  const parsed = parseEventForm(formData);
+  if ("error" in parsed) return parsed;
+  const { name, location, startsAt, endsAt, timezone, visibility, status } = parsed.data;
 
   const { error } = await supabase.from("events").insert({
     name,
-    location: location || null,
-    starts_at: startsAtIso,
-    ends_at: endsAtIso,
+    location,
+    starts_at: startsAt,
+    ends_at: endsAt,
     timezone,
     visibility,
     status,
@@ -72,23 +50,15 @@ export async function updateEventAttendanceAction(
     return { error: "You must be signed in to update attendance." };
   }
 
-  const countRaw = String(formData.get("attendanceCount") ?? "").trim();
-  const notes = String(formData.get("attendanceNotes") ?? "").trim();
-
-  let attendanceCount: number | null = null;
-  if (countRaw) {
-    const parsed = Number(countRaw);
-    if (!Number.isInteger(parsed) || parsed < 0) {
-      return { error: "Attendance must be a whole number of 0 or more." };
-    }
-    attendanceCount = parsed;
-  }
+  const parsed = parseEventAttendanceForm(formData);
+  if ("error" in parsed) return parsed;
+  const { attendanceCount, attendanceNotes } = parsed.data;
 
   const { error } = await supabase
     .from("events")
     .update({
       attendance_count: attendanceCount,
-      attendance_notes: notes || null,
+      attendance_notes: attendanceNotes,
     })
     .eq("id", id);
 
@@ -113,37 +83,17 @@ export async function updateEventAction(
     return { error: "You must be signed in to update an event." };
   }
 
-  const name = String(formData.get("name") ?? "").trim();
-  const location = String(formData.get("location") ?? "").trim();
-  const startsAt = String(formData.get("startsAt") ?? "");
-  const endsAt = String(formData.get("endsAt") ?? "");
-  const timezone = String(formData.get("timezone") ?? "").trim();
-  const visibility = String(formData.get("visibility") ?? "");
-  const status = String(formData.get("status") ?? "");
-
-  if (!name) return { error: "Event name is required." };
-  if (!startsAt) return { error: "Start date and time are required." };
-  if (!timezone) return { error: "Timezone is required." };
-  if (!VISIBILITIES.includes(visibility as (typeof VISIBILITIES)[number])) {
-    return { error: "Select a valid visibility." };
-  }
-  if (!STATUSES.includes(status as (typeof STATUSES)[number])) {
-    return { error: "Select a valid status." };
-  }
-
-  const startsAtIso = new Date(startsAt).toISOString();
-  const endsAtIso = endsAt ? new Date(endsAt).toISOString() : null;
-  if (endsAtIso && endsAtIso < startsAtIso) {
-    return { error: "End time must be after the start time." };
-  }
+  const parsed = parseEventForm(formData);
+  if ("error" in parsed) return parsed;
+  const { name, location, startsAt, endsAt, timezone, visibility, status } = parsed.data;
 
   const { error } = await supabase
     .from("events")
     .update({
       name,
-      location: location || null,
-      starts_at: startsAtIso,
-      ends_at: endsAtIso,
+      location,
+      starts_at: startsAt,
+      ends_at: endsAt,
       timezone,
       visibility,
       status,

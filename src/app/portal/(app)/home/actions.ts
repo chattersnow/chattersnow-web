@@ -2,32 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { parseDonationInput, type CreateDonationInput, type DonationItemInput } from "./donation-form";
 
-export type DonationItemInput = {
-  description: string;
-  size?: string;
-  type: string;
-  gender?: string;
-  condition: string;
-  faceValue?: number | null;
-  notes?: string;
-};
-
-export type CreateDonationInput = {
-  isAnonymous: boolean;
-  donorName: string;
-  donorEmail?: string;
-  donorPhone?: string;
-  sourceType: string;
-  donorNotes?: string;
-  items: DonationItemInput[];
-  eventId?: string;
-};
+export type { CreateDonationInput, DonationItemInput };
 
 export type CreateDonationResult = { error: string } | { success: true };
-
-const SOURCE_TYPES = ["individual", "brand", "organization", "event", "other"] as const;
-const CONDITIONS = ["new", "like_new", "good", "fair", "poor"] as const;
 
 export async function createDonationAction(
   input: CreateDonationInput
@@ -40,55 +19,10 @@ export async function createDonationAction(
     return { error: "You must be signed in to record a donation." };
   }
 
-  const donorName = input.donorName.trim();
-  if (!input.isAnonymous && !donorName) {
-    return { error: "Donor name is required unless the donation is anonymous." };
-  }
-  if (!SOURCE_TYPES.includes(input.sourceType as (typeof SOURCE_TYPES)[number])) {
-    return { error: "Select a valid donor source." };
-  }
-  if (!input.items.length) {
-    return { error: "Add at least one item to the donation." };
-  }
+  const parsed = parseDonationInput(input);
+  if ("error" in parsed) return parsed;
 
-  for (let i = 0; i < input.items.length; i++) {
-    const item = input.items[i];
-    const label = `Item ${i + 1}`;
-    if (!item.description.trim()) {
-      return { error: `${label}: description is required.` };
-    }
-    if (!item.type.trim()) {
-      return { error: `${label}: type is required.` };
-    }
-    if (!CONDITIONS.includes(item.condition as (typeof CONDITIONS)[number])) {
-      return { error: `${label}: select a valid condition.` };
-    }
-    if (
-      item.faceValue != null &&
-      (Number.isNaN(item.faceValue) || item.faceValue < 0)
-    ) {
-      return { error: `${label}: face value must be a positive number.` };
-    }
-  }
-
-  const { error } = await supabase.rpc("create_donation_with_items", {
-    p_donor_name: input.isAnonymous ? null : donorName,
-    p_donor_is_anonymous: input.isAnonymous,
-    p_donor_source_type: input.sourceType,
-    p_donor_email: input.donorEmail?.trim() || null,
-    p_donor_phone: input.donorPhone?.trim() || null,
-    p_donor_notes: input.donorNotes?.trim() || null,
-    p_items: input.items.map((item) => ({
-      description: item.description.trim(),
-      size: item.size?.trim() || null,
-      type: item.type.trim(),
-      gender: item.gender || null,
-      condition: item.condition,
-      face_value: item.faceValue ?? null,
-      notes: item.notes?.trim() || null,
-    })),
-    p_event_id: input.eventId ?? null,
-  });
+  const { error } = await supabase.rpc("create_donation_with_items", parsed.data);
 
   if (error) {
     return { error: "Could not save the donation. Please try again." };

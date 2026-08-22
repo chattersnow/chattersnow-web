@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { PORTAL_ROLES, type PortalRole } from "@/lib/auth/roles";
+import { isPortalRole, type PortalRole } from "@/lib/auth/roles";
 
 export type PortalUser = {
   user_id: string;
@@ -19,10 +19,6 @@ export async function listUsersAction(): Promise<{ data: PortalUser[] } | { erro
     return { error: "Could not load users. Please try again." };
   }
   return { data: (data ?? []) as PortalUser[] };
-}
-
-function isPortalRole(value: string): value is PortalRole {
-  return (PORTAL_ROLES as readonly string[]).includes(value);
 }
 
 export async function assignRoleAction(

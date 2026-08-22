@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { parseDistributionForm } from "./distribution-form";
 
 export type EventDistributionRow = {
   id: string;
@@ -58,28 +59,15 @@ export async function recordEventDistributionAction(
     return { error: "You must be signed in to record a distribution." };
   }
 
-  const inventoryItemId = String(formData.get("inventoryItemId") ?? "").trim();
-  const quantityRaw = String(formData.get("quantity") ?? "1").trim();
-  const reason = String(formData.get("reason") ?? "").trim();
-  const occurredAtRaw = String(formData.get("occurredAt") ?? "").trim();
-  const markDistributed = formData.get("markDistributed") !== "off";
-
-  if (!inventoryItemId) {
-    return { error: "Select an inventory item." };
-  }
-
-  const quantity = Number(quantityRaw);
-  if (!Number.isInteger(quantity) || quantity <= 0) {
-    return { error: "Quantity must be a whole number greater than zero." };
-  }
-
-  const occurredAt = occurredAtRaw ? new Date(occurredAtRaw).toISOString() : new Date().toISOString();
+  const parsed = parseDistributionForm(formData);
+  if ("error" in parsed) return parsed;
+  const { inventoryItemId, quantity, reason, occurredAt, markDistributed } = parsed.data;
 
   const { error } = await supabase.rpc("record_event_distribution", {
     p_inventory_item_id: inventoryItemId,
     p_event_id: eventId,
     p_quantity: quantity,
-    p_reason: reason || null,
+    p_reason: reason,
     p_occurred_at: occurredAt,
     p_mark_item_distributed: markDistributed,
   });

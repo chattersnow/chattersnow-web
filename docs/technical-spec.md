@@ -35,7 +35,7 @@ The public site must remain useful without an account. Operational data must req
 - A public view of the internal inventory record (donor/donation linkage, face value, internal notes, status, or movement history). A curated, read-only public catalog of currently available gear is in scope — see §4 and §5.4.
 - Automated calendar synchronization.
 - Waitlists, capacity automation, confirmation emails, or event photo galleries unless prioritized separately.
-- Volunteer management and full accounting software unless prioritized separately. (Raffle recording and event attendance headcounts, listed as future capabilities in earlier drafts, are now implemented — see §5.5 and §5.8.)
+- Volunteer management and full accounting software unless prioritized separately. (Giveaway recording and event attendance headcounts, listed as future capabilities in earlier drafts, are now implemented — see §5.5 and §5.8.)
 
 ## 3. Technology and Deployment
 
@@ -53,7 +53,7 @@ The public site must remain useful without an account. Operational data must req
 | DNS and domain | Cloudflare DNS; Vercel manages application deployment and domain integration |
 | Local development | Next.js development server and Supabase local stack |
 
-The repository started as a minimal Next.js application and has since been built out well past the original "coming soon" skeleton, though unevenly across areas. Supabase Auth, Storage, and API services are enabled in `supabase/config.toml`. Schema exists as ordered migrations under `supabase/migrations/` for the shared `people` directory (donors, sponsors, volunteers), donations, inventory items/movements, events, event sponsors, event expenses, event attendance (a simple event-level headcount, not per-attendee), raffles/raffle prizes/raffle winners, and `roles`/`user_roles`, plus the `public_gear_catalog` view; an audit log, governance records, and event registrations have no backing tables yet. `supabase/seed.sql` populates a local dev database with one test account per role (plus a multi-role and a no-role account, all `@example.test`) and sample operational data, so the role matrix and every workflow below can be exercised locally without touching production.
+The repository started as a minimal Next.js application and has since been built out well past the original "coming soon" skeleton, though unevenly across areas. Supabase Auth, Storage, and API services are enabled in `supabase/config.toml`. Schema exists as ordered migrations under `supabase/migrations/` for the shared `people` directory (donors, sponsors, volunteers), donations, inventory items/movements, events, event sponsors, event expenses, event attendance (a simple event-level headcount, not per-attendee), giveaways/giveaway prizes/giveaway winners, and `roles`/`user_roles`, plus the `public_gear_catalog` view; an audit log, governance records, and event registrations have no backing tables yet. `supabase/seed.sql` populates a local dev database with one test account per role (plus a multi-role and a no-role account, all `@example.test`) and sample operational data, so the role matrix and every workflow below can be exercised locally without touching production.
 
 Authorization is now role-based: `roles`/`user_roles` tables plus `has_role()`/`is_admin()`/`my_roles()` security-definer helper functions back per-table RLS policies that match the entitlement matrix in §5.3, and the two cross-cutting workflow RPCs (`create_donation_with_items`, `record_event_distribution`) are `security definer` with explicit role checks so they work for roles like `volunteer` that only hold `insert` grants on the underlying tables. On the app side, `src/lib/auth/roles.ts` exposes `getCurrentUserRoles`/`requireAnyRole`; the portal layout redirects an authenticated-but-unprovisioned user (zero roles) to a "no access" login state, every section has its own `layout.tsx` calling `requireAnyRole` server-side (not just nav hiding), and `portal-nav.tsx`/`sidebar-quick-actions.tsx` filter what's shown per role. The five roles are still fixed at the database level (`roles.name` is check-constrained to the five in §5.3) and the matrix is still hardcoded into RLS policies and route guards rather than being data-driven — see "what's next" below and in §5.3.
 
@@ -100,7 +100,7 @@ The authenticated admin portal supports:
 - Donation and inventory management
 - Expense management
 
-Raffle recording (prizes, winners, ticket totals) and event attendance headcounts are implemented as part of event management. Role-based access control (§5.3) is implemented, including Administration > Users for assigning roles to accounts. Volunteers, governance record-keeping, admin-configurable permissions/custom roles, an audit log, and expanded reporting remain planned capabilities, are not required for the initial portal, and currently have placeholder pages with no backing tables.
+Giveaway recording (prizes, winners, ticket totals) and event attendance headcounts are implemented as part of event management. Role-based access control (§5.3) is implemented, including Administration > Users for assigning roles to accounts. Volunteers, governance record-keeping, admin-configurable permissions/custom roles, an audit log, and expanded reporting remain planned capabilities, are not required for the initial portal, and currently have placeholder pages with no backing tables.
 
 ## 5. Functional Requirements
 
@@ -159,7 +159,7 @@ Users shall authenticate through Supabase Auth using Google OAuth. The applicati
 Five portal roles are defined:
 
 - **`admin`** — full access to every section, including Administration (users/permissions/settings/audit log).
-- **`event_coordinator`** — manages Events end-to-end (details, sponsors, raffle, attendance, event-level expenses); view-only on People and Volunteers participation; no access to org-wide Finance, Inventory, Governance, or Administration.
+- **`event_coordinator`** — manages Events end-to-end (details, sponsors, giveaway, attendance, event-level expenses); view-only on People and Volunteers participation; no access to org-wide Finance, Inventory, Governance, or Administration.
 - **`finance`** — manages the Finance section (donations, expenses, reimbursements, reports); view-only on Events (expenses/sponsor amounts, for reconciliation), Inventory reports (valuation), and People (donor contacts); no Governance or Administration access.
 - **`board`** — manages the Governance section (board members, meetings, bylaws, policies, conflict of interest, annual requirements); view-only on Finance reports and the dashboard for oversight; no other section access.
 - **`volunteer`** — views events and signs up for future events, with no visibility into event financial data (no expenses tab, no sponsor amounts); creates inventory donation-intake records and edits distribution/gear-checkout records, but has no access to Inventory reports (valuation); views own Volunteers participation/hours; no access to Finance, People, Governance, or Administration.
@@ -171,7 +171,7 @@ A user may hold more than one role. The full page-by-page breakdown is the entit
 | Section / page | `admin` | `event_coordinator` | `finance` | `board` | `volunteer` |
 | --- | --- | --- | --- | --- | --- |
 | Dashboard (Home) | Manage | View (event tiles) | View (financial tiles) | View (summary tiles) | View (own activity) |
-| Events — details, sponsors, raffle, attendance | Manage | Manage | View | None | View + sign up¹ |
+| Events — details, sponsors, giveaway, attendance | Manage | Manage | View | None | View + sign up¹ |
 | Events — event-level expenses | Manage | Manage | View | None | None |
 | Inventory — items, donations (intake), distribution | Manage | None | None | None | Add donations + edit distribution² |
 | Inventory — reports (valuation) | Manage | None | View | None | None |
@@ -237,7 +237,7 @@ Authorized users shall be able to create and manage events, including:
 - Date and time, including timezone
 - Sponsors
 - Associated expenses
-- Raffle sales
+- Giveaway sales
 - Public/private visibility and publication status
 
 The event record should support a public/private boundary so internal planning details do not become public accidentally. Registration, volunteers, and inventory distributions may be added as later capabilities. Attendance is implemented as a simple event-level headcount (`attendance_count`, `attendance_notes`) rather than per-attendee records — a deliberate product decision, not a placeholder.
@@ -270,9 +270,9 @@ Receipts should be stored in a private Supabase Storage bucket. Expense records 
 
 The initial inventory workflow is the primary way administrators manage donated gear. Donation records should retain donor and donation context where needed, while inventory records retain the item-level details. Donor personal information must be restricted to authorized users with a legitimate operational need.
 
-### 5.8 Raffles
+### 5.8 Giveaways
 
-Raffle recording is implemented for the initial release: authorized users can record, per event, tickets sold and revenue, prizes (name, prize donor as free text, estimated value), and winners (name, contact, distribution status/date, drawing date), via the event editor's Raffle tab (`raffles`, `raffle_prizes`, `raffle_winners` tables). This is a manual recording tool only — there is no public ticket-purchase flow, and the prize donor field is not yet linked to the `people` directory the way event sponsors are.
+Giveaway recording is implemented for the initial release: authorized users can record, per event, tickets sold and revenue, prizes (name, prize donor as free text, estimated value), and winners (name, contact, distribution status/date, drawing date), via the event editor's Giveaway tab (`giveaways`, `giveaway_prizes`, `giveaway_winners` tables). This is a manual recording tool only — there is no public ticket-purchase flow, and the prize donor field is not yet linked to the `people` directory the way event sponsors are.
 
 Public online ticket sales remain out of scope and must be reviewed for applicable legal, tax, and jurisdictional requirements before being enabled.
 
@@ -294,7 +294,7 @@ The initial admin dashboard shall summarize:
 - Inventory by status and type
 - Donation inventory totals
 - Expenses for a selected period
-- Raffle sales associated with events
+- Giveaway sales associated with events
 
 Dashboard values should be derived from stored records and clearly indicate the relevant date range. Expanded reports may later include filters, exports, and pending tasks.
 
@@ -307,7 +307,7 @@ The system shall preserve who changed what and when for material operational rec
 - Distribution records
 - Events
 - Income and expenses
-- Raffles
+- Giveaways
 - User role changes
 
 Audit history should be append-only for normal application users. At minimum, store actor, action, entity type, entity ID, timestamp, and a structured before/after or change payload. Audit data must be visible only to authorized roles.
@@ -334,7 +334,7 @@ Governance records contain sensitive organizational and personal information and
 
 - **Volunteer-facing donation/distribution recording**: recording a donation or distribution from an event should be quick and easy for a volunteer to reach in the field, not just from the main inventory workflow.
 - **Quick edit from the events list**: editing a donation/distribution via the events list may only need to collect a number and notes tied to the event, rather than the full inventory workflow.
-- **Raffle prizes drawn from in-kind donations**: when a donated item is used as a raffle prize, decide whether it should still follow the standard in-kind donation/inventory process (receipt, status, movement) or a separate raffle-specific path.
+- **Giveaway prizes drawn from in-kind donations**: when a donated item is used as a giveaway prize, decide whether it should still follow the standard in-kind donation/inventory process (receipt, status, movement) or a separate giveaway-specific path.
 
 ## 6. Proposed Data Model
 
@@ -370,12 +370,12 @@ Planned next: a `resources` + `role_permissions` (role × resource → none/view
 - `inventory_photos`
 - `distribution_recipients`: protected recipient records, if needed
 
-### Finance and raffles
+### Finance and giveaways
 
 - `event_revenue`: not yet implemented
 - `event_expenses`: implemented, with an optional `event_id` (nullable — expenses may or may not be tied to an event)
 - `file_attachments`: not yet implemented
-- `raffles`, `raffle_prizes`, and `raffle_winners`: implemented (see §5.8); `raffle_prizes.donor_name` is free text, not a `people` foreign key
+- `giveaways`, `giveaway_prizes`, and `giveaway_winners`: implemented (see §5.8); `giveaway_prizes.donor_name` is free text, not a `people` foreign key
 
 ### Governance
 
@@ -426,7 +426,7 @@ src/app/
     login/
     (app)/                      # authenticated portal shell (sidebar layout)
       home/                     # admin dashboard
-      events/                   # events, sponsors, expenses tab, raffle tab, attendance tab
+      events/                   # events, sponsors, expenses tab, giveaway tab, attendance tab
       inventory/
       finance/                  # expenses, donations, reimbursements, reports
       people/                   # shared donor/sponsor/volunteer directory
@@ -521,7 +521,7 @@ The initial release is ready when:
 | Financial records are mistaken for formal accounting | Define reporting scope and reconcile with the organization's accounting process |
 | No roles exist yet — every authenticated user currently has full portal access | Introduce `roles`/`user_roles`, replace blanket "authenticated full access" RLS policies with role-scoped ones, and review access with real operators before launch |
 | Registration creates privacy or capacity problems | Start with minimal fields and add capacity/confirmation rules explicitly |
-| Raffle functionality creates compliance exposure | Complete legal review before enabling ticket sales |
+| Giveaway functionality creates compliance exposure | Complete legal review before enabling ticket sales |
 | Production and preview environments share data accidentally | Separate environment variables and Supabase projects or strict project policies |
 
 ## 15. Success Measures

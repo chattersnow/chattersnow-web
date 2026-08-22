@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { parsePersonForm } from "./person-form";
 
 export type PersonActionResult =
   | { error: string }
@@ -15,43 +16,6 @@ export type PersonListItem = {
   is_sponsor: boolean;
 };
 
-type PersonValues = {
-  name: string;
-  email: string | null;
-  phone: string | null;
-  notes: string | null;
-  is_donor: boolean;
-  is_sponsor: boolean;
-  is_volunteer: boolean;
-};
-
-function readPersonForm(formData: FormData): { error: string } | { values: PersonValues } {
-  const name = String(formData.get("name") ?? "").trim();
-  const email = String(formData.get("email") ?? "").trim();
-  const phone = String(formData.get("phone") ?? "").trim();
-  const notes = String(formData.get("notes") ?? "").trim();
-  const is_donor = formData.get("isDonor") === "true";
-  const is_sponsor = formData.get("isSponsor") === "true";
-  const is_volunteer = formData.get("isVolunteer") === "true";
-
-  if (!name) return { error: "Name is required." } as const;
-  if (!is_donor && !is_sponsor && !is_volunteer) {
-    return { error: "Select at least one role." } as const;
-  }
-
-  return {
-    values: {
-      name,
-      email: email || null,
-      phone: phone || null,
-      notes: notes || null,
-      is_donor,
-      is_sponsor,
-      is_volunteer,
-    },
-  } as const;
-}
-
 export async function createPersonAction(formData: FormData): Promise<PersonActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -61,12 +25,12 @@ export async function createPersonAction(formData: FormData): Promise<PersonActi
     return { error: "You must be signed in to add a person." };
   }
 
-  const parsed = readPersonForm(formData);
+  const parsed = parsePersonForm(formData);
   if ("error" in parsed) return parsed;
 
   const { data, error } = await supabase
     .from("people")
-    .insert({ ...parsed.values, is_anonymous: false, source_type: "other" })
+    .insert({ ...parsed.data, is_anonymous: false, source_type: "other" })
     .select("id, name, email, phone")
     .single();
   if (error) {
@@ -102,10 +66,10 @@ export async function updatePersonAction(
     return { error: "You must be signed in to update this person." };
   }
 
-  const parsed = readPersonForm(formData);
+  const parsed = parsePersonForm(formData);
   if ("error" in parsed) return parsed;
 
-  const { error } = await supabase.from("people").update(parsed.values).eq("id", id);
+  const { error } = await supabase.from("people").update(parsed.data).eq("id", id);
   if (error) {
     return { error: "Could not update this person. Please try again." };
   }

@@ -5,6 +5,10 @@ export const PORTAL_ROLES = ["admin", "event_coordinator", "finance", "board", "
 
 export type PortalRole = (typeof PORTAL_ROLES)[number];
 
+export function isPortalRole(value: string): value is PortalRole {
+  return (PORTAL_ROLES as readonly string[]).includes(value);
+}
+
 export async function getCurrentUserRoles(supabase: SupabaseClient): Promise<PortalRole[]> {
   const { data } = await supabase.rpc("my_roles");
   return (data ?? []) as PortalRole[];

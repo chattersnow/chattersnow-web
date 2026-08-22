@@ -4,15 +4,15 @@ import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
 import {
-  createRafflePrizeAction,
-  deleteRafflePrizeAction,
-  getEventRaffleAction,
-  upsertEventRaffleAction,
-  upsertRaffleWinnerAction,
-  type Raffle,
-  type RafflePrize,
-  type RaffleWinner,
-} from "./raffle-actions";
+  createGiveawayPrizeAction,
+  deleteGiveawayPrizeAction,
+  getEventGiveawayAction,
+  upsertEventGiveawayAction,
+  upsertGiveawayWinnerAction,
+  type Giveaway,
+  type GiveawayPrize,
+  type GiveawayWinner,
+} from "./giveaway-actions";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -57,25 +57,25 @@ const DISTRIBUTION_STATUS_LABELS: Record<string, string> = Object.fromEntries(
   DISTRIBUTION_STATUSES.map((option) => [option.value, option.label])
 );
 
-function RaffleSalesForm({
+function GiveawaySalesForm({
   eventId,
-  raffle,
+  giveaway,
   onSaved,
   onCancel,
 }: {
   eventId: string;
-  raffle: Raffle | null;
+  giveaway: Giveaway | null;
   onSaved: () => void;
   onCancel?: () => void;
 }) {
-  const [name, setName] = useState(raffle?.name ?? "");
-  const [ticketsSold, setTicketsSold] = useState(String(raffle?.tickets_sold ?? 0));
+  const [name, setName] = useState(giveaway?.name ?? "");
+  const [ticketsSold, setTicketsSold] = useState(String(giveaway?.tickets_sold ?? 0));
   const [ticketPrice, setTicketPrice] = useState(
-    raffle?.ticket_price === null || raffle?.ticket_price === undefined ? "" : String(raffle.ticket_price)
+    giveaway?.ticket_price === null || giveaway?.ticket_price === undefined ? "" : String(giveaway.ticket_price)
   );
-  const [revenueAmount, setRevenueAmount] = useState(String(raffle?.revenue_amount ?? 0));
-  const [drawingDate, setDrawingDate] = useState(toDateInputValue(raffle?.drawing_date ?? null));
-  const [notes, setNotes] = useState(raffle?.notes ?? "");
+  const [revenueAmount, setRevenueAmount] = useState(String(giveaway?.revenue_amount ?? 0));
+  const [drawingDate, setDrawingDate] = useState(toDateInputValue(giveaway?.drawing_date ?? null));
+  const [notes, setNotes] = useState(giveaway?.notes ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -92,7 +92,7 @@ function RaffleSalesForm({
     formData.set("notes", notes);
 
     startTransition(async () => {
-      const result = await upsertEventRaffleAction(eventId, formData);
+      const result = await upsertEventGiveawayAction(eventId, formData);
       if ("error" in result) {
         setError(result.error);
         return;
@@ -105,15 +105,15 @@ function RaffleSalesForm({
     <form onSubmit={handleSubmit} className="rounded-md border border-[var(--line)] p-4">
       <FieldGroup>
         <Field>
-          <FieldLabel htmlFor="raffle-name">Raffle name</FieldLabel>
-          <Input id="raffle-name" value={name} onChange={(e) => setName(e.target.value)} />
+          <FieldLabel htmlFor="giveaway-name">Giveaway name</FieldLabel>
+          <Input id="giveaway-name" value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
 
         <Field orientation="responsive">
           <Field>
-            <FieldLabel htmlFor="raffle-ticketsSold">Tickets sold</FieldLabel>
+            <FieldLabel htmlFor="giveaway-ticketsSold">Tickets sold</FieldLabel>
             <Input
-              id="raffle-ticketsSold"
+              id="giveaway-ticketsSold"
               type="number"
               min={0}
               step={1}
@@ -122,9 +122,9 @@ function RaffleSalesForm({
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="raffle-ticketPrice">Ticket price ($)</FieldLabel>
+            <FieldLabel htmlFor="giveaway-ticketPrice">Ticket price ($)</FieldLabel>
             <Input
-              id="raffle-ticketPrice"
+              id="giveaway-ticketPrice"
               type="number"
               min="0"
               step="0.01"
@@ -136,9 +136,9 @@ function RaffleSalesForm({
 
         <Field orientation="responsive">
           <Field>
-            <FieldLabel htmlFor="raffle-revenue">Revenue ($)</FieldLabel>
+            <FieldLabel htmlFor="giveaway-revenue">Revenue ($)</FieldLabel>
             <Input
-              id="raffle-revenue"
+              id="giveaway-revenue"
               type="number"
               min="0"
               step="0.01"
@@ -147,9 +147,9 @@ function RaffleSalesForm({
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="raffle-drawingDate">Drawing date</FieldLabel>
+            <FieldLabel htmlFor="giveaway-drawingDate">Drawing date</FieldLabel>
             <Input
-              id="raffle-drawingDate"
+              id="giveaway-drawingDate"
               type="date"
               value={drawingDate}
               onChange={(e) => setDrawingDate(e.target.value)}
@@ -158,8 +158,8 @@ function RaffleSalesForm({
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="raffle-notes">Notes</FieldLabel>
-          <Textarea id="raffle-notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          <FieldLabel htmlFor="giveaway-notes">Notes</FieldLabel>
+          <Textarea id="giveaway-notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
         </Field>
 
         {error && (
@@ -175,7 +175,7 @@ function RaffleSalesForm({
             </Button>
           )}
           <Button type="submit" disabled={isPending}>
-            {isPending ? "Saving..." : raffle ? "Save raffle" : "Set up raffle"}
+            {isPending ? "Saving..." : giveaway ? "Save giveaway" : "Set up giveaway"}
           </Button>
         </div>
       </FieldGroup>
@@ -183,48 +183,48 @@ function RaffleSalesForm({
   );
 }
 
-function RaffleSummary({
-  raffle,
+function GiveawaySummary({
+  giveaway,
   onEdit,
   canEdit,
 }: {
-  raffle: Raffle;
+  giveaway: Giveaway;
   onEdit: () => void;
   canEdit: boolean;
 }) {
   return (
     <div className="rounded-md border border-[var(--line)] p-4">
       <FieldGroup>
-        <ReadOnlyField label="Raffle name" htmlFor="raffle-name">
-          {raffle.name || "—"}
+        <ReadOnlyField label="Giveaway name" htmlFor="giveaway-name">
+          {giveaway.name || "—"}
         </ReadOnlyField>
 
         <Field orientation="responsive">
-          <ReadOnlyField label="Tickets sold" htmlFor="raffle-ticketsSold">
-            {raffle.tickets_sold}
+          <ReadOnlyField label="Tickets sold" htmlFor="giveaway-ticketsSold">
+            {giveaway.tickets_sold}
           </ReadOnlyField>
-          <ReadOnlyField label="Ticket price" htmlFor="raffle-ticketPrice">
-            {formatMoney(raffle.ticket_price)}
+          <ReadOnlyField label="Ticket price" htmlFor="giveaway-ticketPrice">
+            {formatMoney(giveaway.ticket_price)}
           </ReadOnlyField>
         </Field>
 
         <Field orientation="responsive">
-          <ReadOnlyField label="Revenue" htmlFor="raffle-revenue">
-            {formatMoney(raffle.revenue_amount)}
+          <ReadOnlyField label="Revenue" htmlFor="giveaway-revenue">
+            {formatMoney(giveaway.revenue_amount)}
           </ReadOnlyField>
-          <ReadOnlyField label="Drawing date" htmlFor="raffle-drawingDate">
-            {formatDate(raffle.drawing_date)}
+          <ReadOnlyField label="Drawing date" htmlFor="giveaway-drawingDate">
+            {formatDate(giveaway.drawing_date)}
           </ReadOnlyField>
         </Field>
 
-        <ReadOnlyField label="Notes" htmlFor="raffle-notes">
-          {raffle.notes || "—"}
+        <ReadOnlyField label="Notes" htmlFor="giveaway-notes">
+          {giveaway.notes || "—"}
         </ReadOnlyField>
       </FieldGroup>
 
       {canEdit && (
         <div className="mt-3 flex justify-end">
-          <Button type="button" variant="ghost" size="icon-sm" aria-label="Edit raffle" onClick={onEdit}>
+          <Button type="button" variant="ghost" size="icon-sm" aria-label="Edit giveaway" onClick={onEdit}>
             <Pencil />
           </Button>
         </div>
@@ -238,11 +238,11 @@ function WinnerForm({
   onSaved,
   onCancel,
 }: {
-  prize: RafflePrize;
+  prize: GiveawayPrize;
   onSaved: () => void;
   onCancel: () => void;
 }) {
-  const winner = prize.raffle_winners;
+  const winner = prize.giveaway_winners;
   const [winnerName, setWinnerName] = useState(winner?.winner_name ?? "");
   const [winnerContact, setWinnerContact] = useState(winner?.winner_contact ?? "");
   const [status, setStatus] = useState(winner?.distribution_status ?? "pending");
@@ -261,7 +261,7 @@ function WinnerForm({
     formData.set("distributedAt", distributedAt);
 
     startTransition(async () => {
-      const result = await upsertRaffleWinnerAction(prize.id, formData);
+      const result = await upsertGiveawayWinnerAction(prize.id, formData);
       if ("error" in result) {
         setError(result.error);
         return;
@@ -345,7 +345,7 @@ function WinnerSummary({
   onEdit,
   canEdit,
 }: {
-  winner: RaffleWinner;
+  winner: GiveawayWinner;
   onEdit: () => void;
   canEdit: boolean;
 }) {
@@ -388,14 +388,14 @@ function PrizeWinnerSection({
   onSaved,
   onCancel,
 }: {
-  prize: RafflePrize;
+  prize: GiveawayPrize;
   editing: boolean;
   canEdit: boolean;
   onEdit: () => void;
   onSaved: () => void;
   onCancel: () => void;
 }) {
-  const winner = prize.raffle_winners;
+  const winner = prize.giveaway_winners;
 
   if (editing) {
     return <WinnerForm prize={prize} onSaved={onSaved} onCancel={onCancel} />;
@@ -415,11 +415,11 @@ function PrizeWinnerSection({
 }
 
 function AddPrizeForm({
-  raffleId,
+  giveawayId,
   onSaved,
   onCancel,
 }: {
-  raffleId: string;
+  giveawayId: string;
   onSaved: () => void;
   onCancel: () => void;
 }) {
@@ -441,7 +441,7 @@ function AddPrizeForm({
     formData.set("notes", notes);
 
     startTransition(async () => {
-      const result = await createRafflePrizeAction(raffleId, formData);
+      const result = await createGiveawayPrizeAction(giveawayId, formData);
       if ("error" in result) {
         setError(result.error);
         return;
@@ -500,7 +500,7 @@ function AddPrizeForm({
   );
 }
 
-export function RaffleTab({
+export function GiveawayTab({
   eventId,
   active,
   mode,
@@ -510,7 +510,7 @@ export function RaffleTab({
   mode: "view" | "edit";
 }) {
   const router = useRouter();
-  const [raffle, setRaffle] = useState<Raffle | null | undefined>(undefined);
+  const [giveaway, setGiveaway] = useState<Giveaway | null | undefined>(undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isDeleting, startDeleteTransition] = useTransition();
   const [editingSales, setEditingSales] = useState(false);
@@ -529,12 +529,12 @@ export function RaffleTab({
   }
 
   function refresh() {
-    getEventRaffleAction(eventId).then((result) => {
+    getEventGiveawayAction(eventId).then((result) => {
       if ("error" in result) {
         setLoadError(result.error);
       } else {
         setLoadError(null);
-        setRaffle(result.data);
+        setGiveaway(result.data);
       }
     });
     router.refresh();
@@ -542,19 +542,19 @@ export function RaffleTab({
 
   useEffect(() => {
     if (!active) return;
-    getEventRaffleAction(eventId).then((result) => {
+    getEventGiveawayAction(eventId).then((result) => {
       if ("error" in result) {
         setLoadError(result.error);
       } else {
         setLoadError(null);
-        setRaffle(result.data);
+        setGiveaway(result.data);
       }
     });
   }, [active, eventId]);
 
   function handleDeletePrize(id: string) {
     startDeleteTransition(async () => {
-      await deleteRafflePrizeAction(id);
+      await deleteGiveawayPrizeAction(id);
       refresh();
     });
   }
@@ -562,7 +562,7 @@ export function RaffleTab({
   return (
     <div className="flex flex-col gap-4">
       <p className="app-muted text-xs">
-        This tab only records raffle results. Public-facing ticket sales require a legal, tax, and
+        This tab only records giveaway results. Public-facing ticket sales require a legal, tax, and
         jurisdictional review before being enabled.
       </p>
 
@@ -572,42 +572,42 @@ export function RaffleTab({
         </Alert>
       )}
 
-      {raffle === undefined ? (
-        <p className="app-muted text-sm">Loading raffle...</p>
+      {giveaway === undefined ? (
+        <p className="app-muted text-sm">Loading giveaway...</p>
       ) : (
         <>
           {editingSales ? (
-            <RaffleSalesForm
+            <GiveawaySalesForm
               eventId={eventId}
-              raffle={raffle}
+              giveaway={giveaway}
               onSaved={() => {
                 setEditingSales(false);
                 refresh();
               }}
               onCancel={() => setEditingSales(false)}
             />
-          ) : raffle ? (
-            <RaffleSummary raffle={raffle} onEdit={() => setEditingSales(true)} canEdit={canEdit} />
+          ) : giveaway ? (
+            <GiveawaySummary giveaway={giveaway} onEdit={() => setEditingSales(true)} canEdit={canEdit} />
           ) : (
             <div className="flex flex-col gap-3">
-              <p className="app-muted text-sm">No raffle set up yet.</p>
+              <p className="app-muted text-sm">No giveaway set up yet.</p>
               {canEdit && (
                 <div>
                   <Button type="button" variant="outline" onClick={() => setEditingSales(true)}>
-                    + Set up raffle
+                    + Set up giveaway
                   </Button>
                 </div>
               )}
             </div>
           )}
 
-          {raffle && (
+          {giveaway && (
             <div className="flex flex-col gap-3">
               <h4 className="text-sm font-semibold">Prizes</h4>
-              {raffle.raffle_prizes.length === 0 && (
+              {giveaway.giveaway_prizes.length === 0 && (
                 <p className="app-muted text-sm">No prizes added yet.</p>
               )}
-              {raffle.raffle_prizes.map((prize) => (
+              {giveaway.giveaway_prizes.map((prize) => (
                 <div key={prize.id} className="rounded-md border border-[var(--line)] p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -646,7 +646,7 @@ export function RaffleTab({
               {canEdit &&
                 (showAddPrize ? (
                   <AddPrizeForm
-                    raffleId={raffle.id}
+                    giveawayId={giveaway.id}
                     onSaved={() => {
                       setShowAddPrize(false);
                       refresh();

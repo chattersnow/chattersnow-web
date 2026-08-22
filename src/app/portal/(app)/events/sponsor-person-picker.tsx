@@ -9,6 +9,7 @@ import {
   type PersonFormState,
 } from "../people/person-form-fields";
 import type { PersonListItem } from "../people/actions";
+import { filterPeople } from "./person-search";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
@@ -66,14 +67,8 @@ export function SponsorPersonPicker({
     );
   }
 
-  const normalizedQuery = query.trim().toLowerCase();
-  const matches = normalizedQuery
-    ? people.filter(
-        (person) =>
-          (person.name ?? "").toLowerCase().includes(normalizedQuery) ||
-          (person.email ?? "").toLowerCase().includes(normalizedQuery)
-      )
-    : [];
+  const normalizedQuery = query.trim();
+  const matches = filterPeople(people, query);
 
   function handleCreateSubmit() {
     setCreateError(null);

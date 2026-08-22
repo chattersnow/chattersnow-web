@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { parseSponsorForm } from "./sponsor-form";
 
 export type EventSponsorPerson = {
   id: string;
@@ -24,8 +25,6 @@ export type EventSponsor = {
 
 export type SponsorActionResult = { error: string } | { success: true };
 
-const SUPPORT_TYPES = ["cash", "in_kind", "both", "other"] as const;
-
 export async function listEventSponsorsAction(
   eventId: string
 ): Promise<{ data: EventSponsor[] } | { error: string }> {
@@ -41,45 +40,6 @@ export async function listEventSponsorsAction(
     return { error: "Could not load sponsors. Please try again." };
   }
   return { data: (data ?? []) as unknown as EventSponsor[] };
-}
-
-type SponsorValues = {
-  support_type: string;
-  in_kind_description: string | null;
-  contribution_value: number | null;
-  is_public: boolean;
-  notes: string | null;
-};
-
-function readSponsorForm(formData: FormData): { error: string } | { values: SponsorValues } {
-  const supportType = String(formData.get("supportType") ?? "in_kind");
-  const inKindDescription = String(formData.get("inKindDescription") ?? "").trim();
-  const contributionValueRaw = String(formData.get("contributionValue") ?? "").trim();
-  const isPublic = formData.get("isPublic") === "on" || formData.get("isPublic") === "true";
-  const notes = String(formData.get("notes") ?? "").trim();
-
-  if (!SUPPORT_TYPES.includes(supportType as (typeof SUPPORT_TYPES)[number])) {
-    return { error: "Select a valid support type." } as const;
-  }
-
-  let contributionValue: number | null = null;
-  if (contributionValueRaw) {
-    const parsed = Number(contributionValueRaw);
-    if (Number.isNaN(parsed) || parsed < 0) {
-      return { error: "Contribution value must be a positive number." } as const;
-    }
-    contributionValue = parsed;
-  }
-
-  return {
-    values: {
-      support_type: supportType,
-      in_kind_description: inKindDescription || null,
-      contribution_value: contributionValue,
-      is_public: isPublic,
-      notes: notes || null,
-    },
-  } as const;
 }
 
 export async function createEventSponsorAction(
@@ -99,12 +59,12 @@ export async function createEventSponsorAction(
     return { error: "Select or create a person to link." };
   }
 
-  const parsed = readSponsorForm(formData);
+  const parsed = parseSponsorForm(formData);
   if ("error" in parsed) return parsed;
 
   const { error } = await supabase
     .from("event_sponsors")
-    .insert({ event_id: eventId, person_id: personId, ...parsed.values });
+    .insert({ event_id: eventId, person_id: personId, ...parsed.data });
 
   if (error) {
     if (error.code === "23505") {
@@ -131,10 +91,10 @@ export async function updateEventSponsorAction(
     return { error: "You must be signed in to update a sponsor." };
   }
 
-  const parsed = readSponsorForm(formData);
+  const parsed = parseSponsorForm(formData);
   if ("error" in parsed) return parsed;
 
-  const { error } = await supabase.from("event_sponsors").update(parsed.values).eq("id", id);
+  const { error } = await supabase.from("event_sponsors").update(parsed.data).eq("id", id);
 
   if (error) {
     return { error: "Could not update the sponsor. Please try again." };

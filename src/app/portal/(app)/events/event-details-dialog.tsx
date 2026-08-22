@@ -9,7 +9,7 @@ import { SponsorsTab } from "./sponsors-tab";
 import { DonationsTab } from "./donations-tab";
 import { DistributionsTab } from "./distributions-tab";
 import { EventExpensesTab } from "./event-expenses-tab";
-import { RaffleTab } from "./raffle-tab";
+import { GiveawayTab } from "./giveaway-tab";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,7 +42,7 @@ type TabValue =
   | "donations"
   | "distributions"
   | "expenses"
-  | "raffle";
+  | "giveaway";
 
 type Mode = "view" | "edit";
 
@@ -126,7 +126,7 @@ export function EventDetailsDialog({ event }: { event: EventRow }) {
                 <TabsTrigger value="donations">Donations</TabsTrigger>
                 <TabsTrigger value="distributions">Distributions</TabsTrigger>
                 <TabsTrigger value="expenses">Expenses</TabsTrigger>
-                <TabsTrigger value="raffle">Raffle</TabsTrigger>
+                <TabsTrigger value="giveaway">Giveaway</TabsTrigger>
               </TabsList>
 
               <TabsContent value="overview" className="mt-4">
@@ -155,8 +155,8 @@ export function EventDetailsDialog({ event }: { event: EventRow }) {
               <TabsContent value="expenses" className="mt-4">
                 <EventExpensesTab eventId={event.id} eventName={event.name} active={tab === "expenses"} mode={mode} />
               </TabsContent>
-              <TabsContent value="raffle" className="mt-4">
-                <RaffleTab eventId={event.id} active={tab === "raffle"} mode={mode} />
+              <TabsContent value="giveaway" className="mt-4">
+                <GiveawayTab eventId={event.id} active={tab === "giveaway"} mode={mode} />
               </TabsContent>
             </Tabs>
           </div>
