@@ -43,3 +43,6 @@ next-env.d.ts
 
 # scripts
 scripts
+
+# supabase data backups (may contain live secrets, never commit)
+supabase/backups/
