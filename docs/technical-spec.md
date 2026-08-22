@@ -3,8 +3,8 @@
 ## Technical Specification
 
 - **Status:** Draft for team review
-- **Version:** 0.4
-- **Date:** 2026-08-21
+- **Version:** 0.5
+- **Date:** 2026-08-22
 - **Owner:** Chatter Snow
 - **Repository:** `chattersnow-web`
 - **Canonical domain:** `https://chattersnow.org`
@@ -35,7 +35,8 @@ The public site must remain useful without an account. Operational data must req
 - A public view of the internal inventory record (donor/donation linkage, face value, internal notes, status, or movement history). A curated, read-only public catalog of currently available gear is in scope — see §4 and §5.4.
 - Automated calendar synchronization.
 - Waitlists, capacity automation, confirmation emails, or event photo galleries unless prioritized separately.
-- Volunteer management and full accounting software unless prioritized separately. (Giveaway recording and event attendance headcounts, listed as future capabilities in earlier drafts, are now implemented — see §5.5 and §5.8.)
+
+(Giveaway recording and event attendance headcounts, listed as future capabilities in earlier drafts, are now implemented — see §5.5 and §5.8. Volunteer management, previously listed here as a non-goal, is now specified — see §5.17.)
 
 ## 3. Technology and Deployment
 
@@ -173,9 +174,12 @@ A user may hold more than one role. The full page-by-page breakdown is the entit
 | Dashboard (Home) | Manage | View (event tiles) | View (financial tiles) | View (summary tiles) | View (own activity) |
 | Events — details, sponsors, giveaway, attendance | Manage | Manage | View | None | View + sign up¹ |
 | Events — event-level expenses | Manage | Manage | View | None | None |
+| Programs | Manage | Manage | View | View | View |
+| Impact tracking / reports | Manage | View | View | View | None |
 | Inventory — items, donations (intake), distribution | Manage | None | None | None | Add donations + edit distribution² |
 | Inventory — reports (valuation) | Manage | None | View | None | None |
 | Finance — donations, expenses, reimbursements, reports | Manage | None | Manage | View (reports only) | None |
+| Finance — approvals | Manage | None | Submit³ | Manage | None |
 | People directory | Manage | View | View | None | None |
 | Volunteers — roles (role-type definitions) | Manage | View | None | None | View |
 | Volunteers — participation | Manage | View | None | None | View/log own |
@@ -184,6 +188,7 @@ A user may hold more than one role. The full page-by-page breakdown is the entit
 
 ¹ Volunteers never see event financial data (expenses, sponsor amounts); event sign-up depends on the not-yet-built event-registration tables noted in §3.
 ² Volunteers do not get Inventory reports since those surface dollar valuations.
+³ `finance` may create and edit expense/reimbursement records and mark them submitted, but cannot approve its own submissions — see §5.16.
 
 **Implemented:** `roles`/`user_roles` tables and per-table RLS policies enforcing the matrix above, plus server-side route guards (`requireAnyRole` in each section's `layout.tsx`) and nav filtering so unauthorized sections are neither reachable by URL nor shown in the sidebar. Administration > Users lets an admin assign/revoke roles per account; see §6.
 
@@ -336,6 +341,81 @@ Governance records contain sensitive organizational and personal information and
 - **Quick edit from the events list**: editing a donation/distribution via the events list may only need to collect a number and notes tied to the event, rather than the full inventory workflow.
 - **Giveaway prizes drawn from in-kind donations**: when a donated item is used as a giveaway prize, decide whether it should still follow the standard in-kind donation/inventory process (receipt, status, movement) or a separate giveaway-specific path.
 
+### 5.14 Program management
+
+Authorized users shall be able to define and manage programs — the named, repeatable initiatives events belong to (e.g. Chatter Snow Access Days, Chatter Gear Exchange, Chatter Community Rides), rather than treating every event as freestanding. A program record shall support:
+
+- Name
+- Description
+- Status: active, pilot, or retired
+
+Each event may optionally be tagged to a program (`events.program_id`, nullable so existing and one-off events remain valid without a program). This is the schema shape `planning/ideas/RUNNING_PROGRAMS.md` calls for — **Programs → Events**, with everything else (expenses, donations, volunteers, impact) continuing to hang off the event as it already does.
+
+**Not yet implemented.** No `programs` table or `program_id` column exists yet; the public site's `/about/programs` page is static content, not driven by this table.
+
+### 5.15 Impact tracking and reporting
+
+The system shall produce grant- and board-ready impact summaries by rolling up existing operational data rather than requiring separate manual entry, per `RUNNING_PROGRAMS.md`'s "rolls up automatically" model:
+
+- Per-event and per-program participation: total participants, first-time participants, first-time skiers/snowboarders, beginners, volunteers.
+- Financial assistance provided: subsidized tickets/rentals/transportation, dollar total.
+- Equipment loaned/distributed, drawn from `inventory_movements`.
+- Volunteer hours contributed, once §5.17 is implemented.
+- Optional qualitative outcomes from a short post-event survey (see `event_impact_notes` in §6), matching the five-question model in `RUNNING_PROGRAMS.md`.
+- A season/program report that rolls individual event reports up to the level shown in `RUNNING_PROGRAMS.md`'s "2026–27 Chatter Snow Access Program" example table.
+
+This is reporting over existing records (events, donations, expenses, inventory movements) plus the small amount of new impact-specific data noted above — not a parallel system duplicating what's already recorded elsewhere.
+
+**Not yet implemented.** No impact rollup views/queries, no `event_impact_notes` table, and no season/program report UI exist yet.
+
+### 5.16 Financial controls and approval workflow
+
+Consistent with the segregation-of-duties model in `planning/governance/roles-and-responsibilities.md` (no single person controls request → approval → payment → accounting), expense and reimbursement records shall carry an approval state distinct from who recorded them:
+
+- `submitted` — recorded by `finance` (or, for event-level expenses, `event_coordinator`), not yet approved.
+- `approved` or `rejected` — set by a user other than the submitter, holding `admin` or `board`.
+- `paid` — payment has been made against an approved record.
+
+Routine, in-budget expenses may be self-approved by `finance`; expenses above a threshold require a second approval from `admin` or `board`; unbudgeted expenses above that threshold require Board approval. **The dollar thresholds themselves are an open decision** (see `roles-and-responsibilities.md` and issue #13 — not yet recorded in `planning/decisions/`); this section specifies the mechanism, not the specific amounts, so the workflow can be built before the thresholds are finalized and the values tightened later without a schema change.
+
+**Not yet implemented.** `event_expenses` has no approval state — any `finance` or `event_coordinator` user can currently record an expense and it is immediately treated as final.
+
+### 5.17 Volunteer management
+
+Authorized users shall be able to track volunteer participation, per the "Volunteers — roles"/"participation" rows already named in the entitlement matrix (§5.3) and the reporting need described in `planning/drafts/BUSINESS_PLAN.md` §10–§11:
+
+- A catalog of volunteer role types (e.g. Ride Buddy, Event Setup, Basecamp Staffing) that events can be tagged with.
+- Volunteer profiles, reusing the existing `people` directory and its `is_volunteer` flag rather than a separate contact record.
+- Hours logging: person, optional event, date, hours, role type, and who logged the entry. The `volunteer` role may log and view their own hours; `admin` and `event_coordinator` may view all.
+
+Volunteer hours feed the Impact Tracking rollups in §5.15 (e.g. "290 volunteer hours" in a season report).
+
+**Not yet implemented.** `volunteers/roles` and `volunteers/participation` are static placeholder pages with no backing tables.
+
+### 5.18 Reimbursements
+
+Authorized users shall be able to request reimbursement for money personally spent on behalf of the organization, separately from organization-paid expenses:
+
+- Requesting person
+- Amount and description
+- Receipt
+- Optional associated event
+
+Reimbursements go through the same approval workflow as §5.16 (submitted → approved/rejected → paid) rather than a separate one, since the underlying control question — who may approve spend — is the same.
+
+**Not yet implemented.** `finance/reimbursements` is a static placeholder page with no backing table.
+
+### 5.19 Inventory valuation reporting
+
+Authorized users (`admin`, and `finance`/`board` for view-only oversight per §5.3) shall be able to view a valuation report over existing inventory data:
+
+- Total face value of on-hand inventory, by type and status.
+- Value donated and value distributed over a selected period, derived from `inventory_movements`.
+
+This is a reporting view over `inventory_items` and `inventory_movements` — no new tables are required.
+
+**Not yet implemented.** `inventory/reports` is a static placeholder page.
+
 ## 6. Proposed Data Model
 
 The following is a logical model, not a final migration. IDs should be UUIDs and all material records should include `created_at`, `updated_at`, and the creating/updating user where appropriate.
@@ -359,6 +439,16 @@ Planned next: a `resources` + `role_permissions` (role × resource → none/view
 - `event_sponsors`: links an event to a `people` record via `person_id` (one row per event/person pair), plus per-event sponsorship details — support type, in-kind description, contribution value, public visibility, notes. Sponsor/partner name and contact info are not duplicated here; they live on the linked `people` row.
 - `event_registrations`: optional future capability
 
+### Programs and impact
+
+Not yet implemented — see §5.14 and §5.15.
+
+- `programs`: name, description, status (active/pilot/retired)
+- `events.program_id`: nullable FK from `events` to `programs`, so existing and one-off events remain valid without a program
+- `event_impact_notes`: optional per-event qualitative outcomes (e.g. the five-question post-event survey described in `RUNNING_PROGRAMS.md`), linked to `events`
+
+Impact rollups themselves (per-event, per-program, and season reports) are computed views/queries over these tables plus `donations`, `event_expenses`, `inventory_movements`, and `volunteer_hours` — not separately stored data.
+
 ### Inventory and donations
 
 - `people`: shared directory of donors, sponsors, and volunteers (name, email, phone, notes, `is_donor`/`is_sponsor`/`is_volunteer` flags), so the same contact can be reused across roles instead of being duplicated per context
@@ -370,10 +460,18 @@ Planned next: a `resources` + `role_permissions` (role × resource → none/view
 - `inventory_photos`
 - `distribution_recipients`: protected recipient records, if needed
 
+### Volunteers
+
+Not yet implemented — see §5.17.
+
+- `volunteer_role_types`: catalog of role-type definitions (e.g. Ride Buddy, Event Setup, Basecamp Staffing) — named to avoid colliding with the existing RBAC `roles` table in "Identity and access" above, which is a different concept (portal permissions, not volunteer job types)
+- `volunteer_hours`: `person_id` (→ `people`), optional `event_id`, date, hours, `volunteer_role_type_id`, and the user who logged the entry
+
 ### Finance and giveaways
 
 - `event_revenue`: not yet implemented
-- `event_expenses`: implemented, with an optional `event_id` (nullable — expenses may or may not be tied to an event)
+- `event_expenses`: implemented, with an optional `event_id` (nullable — expenses may or may not be tied to an event). **Not yet implemented:** an approval state (`status`: submitted/approved/rejected/paid), `submitted_by`, `approved_by`, `approved_at` — see §5.16.
+- `reimbursements`: not yet implemented — requester `person_id`, amount, description, receipt, optional `event_id`, and the same approval state as `event_expenses` (see §5.16, §5.18)
 - `file_attachments`: not yet implemented
 - `giveaways`, `giveaway_prizes`, and `giveaway_winners`: implemented (see §5.8); `giveaway_prizes.donor_name` is free text, not a `people` foreign key
 
