@@ -3,7 +3,7 @@
 ## Technical Specification
 
 - **Status:** Draft for team review
-- **Version:** 0.3
+- **Version:** 0.4
 - **Date:** 2026-08-21
 - **Owner:** Chatter Snow
 - **Repository:** `chattersnow-web`
@@ -53,11 +53,11 @@ The public site must remain useful without an account. Operational data must req
 | DNS and domain | Cloudflare DNS; Vercel manages application deployment and domain integration |
 | Local development | Next.js development server and Supabase local stack |
 
-The repository started as a minimal Next.js application and has since been built out well past the original "coming soon" skeleton, though unevenly across areas. Supabase Auth, Storage, and API services are enabled in `supabase/config.toml`. Schema exists as ordered migrations under `supabase/migrations/` for the shared `people` directory (donors, sponsors, volunteers), donations, inventory items/movements, events, event sponsors, event expenses, event attendance (a simple event-level headcount, not per-attendee), and raffles/raffle prizes/raffle winners, plus the `public_gear_catalog` view; roles/permissions, an audit log, governance records, and event registrations have no backing tables yet.
+The repository started as a minimal Next.js application and has since been built out well past the original "coming soon" skeleton, though unevenly across areas. Supabase Auth, Storage, and API services are enabled in `supabase/config.toml`. Schema exists as ordered migrations under `supabase/migrations/` for the shared `people` directory (donors, sponsors, volunteers), donations, inventory items/movements, events, event sponsors, event expenses, event attendance (a simple event-level headcount, not per-attendee), raffles/raffle prizes/raffle winners, and `roles`/`user_roles`, plus the `public_gear_catalog` view; an audit log, governance records, and event registrations have no backing tables yet. `supabase/seed.sql` populates a local dev database with one test account per role (plus a multi-role and a no-role account, all `@example.test`) and sample operational data, so the role matrix and every workflow below can be exercised locally without touching production.
 
-Authorization is not yet role-based: every table's RLS policy is a single blanket "authenticated full access" grant (`using (auth.uid() is not null)`), so any signed-in Supabase user currently has full read/write access to all portal data — there is no `roles`/`user_roles`/`profiles` table and no per-role restriction anywhere in the app (`src/app/portal/(app)/layout.tsx` only checks that a user is signed in). The `admin` role described in §5.3 is aspirational, not enforced.
+Authorization is now role-based: `roles`/`user_roles` tables plus `has_role()`/`is_admin()`/`my_roles()` security-definer helper functions back per-table RLS policies that match the entitlement matrix in §5.3, and the two cross-cutting workflow RPCs (`create_donation_with_items`, `record_event_distribution`) are `security definer` with explicit role checks so they work for roles like `volunteer` that only hold `insert` grants on the underlying tables. On the app side, `src/lib/auth/roles.ts` exposes `getCurrentUserRoles`/`requireAnyRole`; the portal layout redirects an authenticated-but-unprovisioned user (zero roles) to a "no access" login state, every section has its own `layout.tsx` calling `requireAnyRole` server-side (not just nav hiding), and `portal-nav.tsx`/`sidebar-quick-actions.tsx` filter what's shown per role. The five roles are still fixed at the database level (`roles.name` is check-constrained to the five in §5.3) and the matrix is still hardcoded into RLS policies and route guards rather than being data-driven — see "what's next" below and in §5.3.
 
-The portal's sidebar nav already links to Governance, Volunteers, and Administration sections (`src/app/portal/(app)/governance/*`, `volunteers/*`, `administration/*`), but every page under them is a static "Coming soon" placeholder with no data fetching, no server actions, and no backing tables — they are UI scaffolding only. The public site's Home and Contact pages (`src/app/(public)/home`, `src/app/(public)/contact`) and the Events list (`src/app/(public)/events`) are likewise still placeholders, so public event browsing/registration (§5.2) and the contact form (§5.1) are not yet implemented, unlike About Us and Gears, which are fully built against real data.
+The portal's sidebar nav already links to Governance, Volunteers, and Administration sections (`src/app/portal/(app)/governance/*`, `volunteers/*`, `administration/*`). Administration > Users is implemented — it lists every portal account (via a `security definer` `list_portal_users` RPC, since `auth.users` isn't otherwise exposed) and lets an admin assign/revoke roles per user directly against `user_roles`. Administration > Permissions/System settings/Audit log, all of Governance and Volunteers, are still static "Coming soon" placeholders with no data fetching, no server actions, and no backing tables. The public site's Home page (`src/app/(public)/home`) is likewise still a placeholder, so the public marketing homepage (§5.1) is not yet implemented; Contact (§5.1) and the Events list (§5.2) now have working forms/listings, alongside About Us and Gears.
 
 ### Environment configuration
 
@@ -87,6 +87,10 @@ Public routes may expose approved content and explicitly public records. The pub
 
 Public routes must not expose donor contact details, private event data, internal notes, financial records, the internal inventory record (donation linkage, face value, notes, status, or movement history), individual recipient information, or inventory history. The gear availability catalog above is the sole approved exception, and only through its curated field list.
 
+**Implemented:** Gears (`/gears`) and Contact Us (`/contact`, form + published email/social) are fully built. Events (`/events`) lists upcoming/past events from Supabase but has no detail page or registration yet. About Us (`/about`) has real mission/story copy and has grown beyond the original team-only sub-page into four sub-pages: `/about/team` (roster, bios still "coming soon"), `/about/programs` (Access/Progression/Community pillars, six named programs), `/about/volunteer` (three volunteer opportunities), and `/about/donations` (in-kind donation info; monetary donations is a placeholder). Home (`/home`) is still the original placeholder — logo and "coming soon" only, none of the content below is live yet.
+
+**What's next:** build out Home with a mission summary, the next upcoming event, and Join/Get Involved/Donate CTAs. Add event detail pages and registration (§5.2, §9). Replace the monetary-donations placeholder with a real giving path, and add sponsorship/partnership content (currently absent). Write real team bios and an explicit values section. Consider promoting Programs and a consolidated Get Involved page to top-level nav instead of About Us sub-pages, since their content now stands on its own — this would also mean updating this section's five-item IA list, which does not currently name them.
+
 ### Operations portal
 
 The authenticated admin portal supports:
@@ -96,7 +100,7 @@ The authenticated admin portal supports:
 - Donation and inventory management
 - Expense management
 
-Raffle recording (prizes, winners, ticket totals) and event attendance headcounts are implemented as part of event management. Volunteers, governance record-keeping, user roles/permissions, an audit log, and expanded reporting remain planned capabilities, are not required for the initial portal, and currently have placeholder pages with no backing tables.
+Raffle recording (prizes, winners, ticket totals) and event attendance headcounts are implemented as part of event management. Role-based access control (§5.3) is implemented, including Administration > Users for assigning roles to accounts. Volunteers, governance record-keeping, admin-configurable permissions/custom roles, an audit log, and expanded reporting remain planned capabilities, are not required for the initial portal, and currently have placeholder pages with no backing tables.
 
 ## 5. Functional Requirements
 
@@ -173,7 +177,9 @@ A user may hold more than one role. The full page-by-page breakdown is the entit
 ¹ Volunteers never see event financial data (expenses, sponsor amounts); event sign-up depends on the not-yet-built event-registration tables noted in §3.
 ² Volunteers do not get Inventory reports since those surface dollar valuations.
 
-**Current implementation gap:** no role model exists yet. Every portal table's RLS policy grants full access to any authenticated user (`auth.uid() is not null`), and the portal layout only checks that a session exists — it does not check a role. Introducing `roles`/`user_roles` and rewriting these blanket policies to match the entitlement matrix above is required before the portal can safely support non-admin staff or volunteers.
+**Implemented:** `roles`/`user_roles` tables and per-table RLS policies enforcing the matrix above, plus server-side route guards (`requireAnyRole` in each section's `layout.tsx`) and nav filtering so unauthorized sections are neither reachable by URL nor shown in the sidebar. Administration > Users lets an admin assign/revoke roles per account; see §6.
+
+**What's next:** the matrix above and the five roles it lists are still hardcoded — RLS policies check `has_role('admin') or has_role('event_coordinator') or ...` directly, and route guards pass the same fixed role arrays. Administration > Permissions is planned to make this data-driven: a `role_permissions` table (role × resource → none/view/manage) that RLS and route guards consult instead of hardcoded role names, an admin UI to edit that matrix per role, and support for creating new roles beyond the initial five. Because route/nav gating would need to read the same data (a new role only granted DB access but not surfaced in the app would be a broken experience), this is a full-stack change, not just a new admin page.
 
 ### 5.4 Inventory and donation management
 
@@ -328,11 +334,15 @@ The following is a logical model, not a final migration. IDs should be UUIDs and
 
 ### Identity and access
 
-Not yet implemented — currently every RLS policy grants full access to any authenticated user (see §5.3).
+Implemented (see §5.3):
 
-- `profiles`: application profile linked one-to-one with `auth.users`
-- `roles`: named roles — the role set (`admin`, `event_coordinator`, `finance`, `board`, `volunteer`) and their per-page entitlements are defined in §5.3; schema/columns and RLS-policy rewrites are a follow-up implementation task
-- `user_roles`: user-to-role assignments
+- `roles`: named roles — currently check-constrained to the fixed set `admin`, `event_coordinator`, `finance`, `board`, `volunteer` defined in §5.3, with `description`
+- `user_roles`: user-to-role assignments (`user_id`, `role_id`, `unique(user_id, role_id)`), RLS-restricted so a user can only read their own rows and only `admin` can write any
+- `has_role(text)`, `is_admin()`, `my_roles()`: `security definer` SQL helper functions used by both RLS policies and the app (`my_roles` backs `getCurrentUserRoles` client-side) to check the calling user's own roles without recursive-policy issues
+- `list_portal_users()`: a `security definer` RPC used only by Administration > Users to list `auth.users` (email, roles, created_at) for admins, since `auth.users` isn't otherwise exposed via the API
+- `profiles`: still not implemented — not yet needed, since `list_portal_users()` reads email directly from `auth.users`
+
+Planned next: a `resources` + `role_permissions` (role × resource → none/view/manage) pair of tables so the entitlement matrix becomes data the Administration > Permissions page can edit, rather than hardcoded role-name checks in RLS policies and route guards — see "what's next" in §5.3. This would also let `roles.name` drop its fixed check constraint so new roles can be created.
 
 ### Public and events
 
