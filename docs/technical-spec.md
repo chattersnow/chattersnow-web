@@ -117,6 +117,10 @@ The site shall allow visitors to:
 
 Content management is not required to be self-service in the first release. The initial implementation may use repository-managed content, while the data model should leave room for a future CMS or admin-managed content. The contact form is a public write path: it must be rate-limited, validated server-side, and must not create or expose any authenticated-only record.
 
+**Implemented:** About Us (mission/story), team roster (bios pending), programs (`/about/programs`), volunteer opportunities (`/about/volunteer`), in-kind donation info (`/about/donations`), and a working contact form (`/contact`) with published email addresses and an Instagram link.
+
+**What's next:** Home page content (mission summary, upcoming event highlight, Join/Get Involved/Donate CTAs — see §4); real leadership bios and an explicit values section on About Us; a real monetary-donation path (currently a "coming soon" stub) and sponsorship/partnership content, neither of which exists yet.
+
 ### 5.2 Public events
 
 The site shall allow visitors to:
@@ -129,6 +133,10 @@ The site shall allow visitors to:
 - Register when registration is enabled.
 
 Events are presented as a list in the initial release. A calendar view is a possible future enhancement, pending research into a suitable approach; the data model should not preclude it.
+
+**Implemented:** `/events` lists upcoming and past events read live from Supabase (`public_events`).
+
+**What's next:** event detail pages, sponsor/partner display on those detail pages (once marked public), and public registration — the `event_registrations` table in §6 does not exist yet.
 
 An event must support these fields:
 
@@ -410,10 +418,10 @@ Use the Next.js App Router with route groups that make the public/portal boundar
 src/app/
   (public)/
     home/                       # public landing page (placeholder)
-    about/                      # about us, team, programs, donations, volunteer
-    events/                     # placeholder — no listing/detail/registration yet
+    about/                      # about us, team, programs, donations, volunteer — implemented
+    events/                     # upcoming/past list implemented; no detail page or registration yet
     gears/                      # public gear availability catalog — implemented
-    contact/                    # placeholder — no form/email yet
+    contact/                    # form + published email/social — implemented
   portal/
     login/
     (app)/                      # authenticated portal shell (sidebar layout)
