@@ -3,7 +3,7 @@
 ## Technical Specification
 
 - **Status:** Draft for team review
-- **Version:** 0.5
+- **Version:** 0.6
 - **Date:** 2026-08-22
 - **Owner:** Chatter Snow
 - **Repository:** `chattersnow-web`
@@ -633,3 +633,57 @@ After launch, the team should evaluate:
 - Completeness of event revenue and expense records.
 - Number and severity of unauthorized access attempts or policy violations.
 - Staff and volunteer feedback on portal usability.
+
+## 16. Addendum: Gaps From Role Review (2026-08-22)
+
+A review against the Director of Operations and Bookkeeping/Finance Administration responsibilities in `planning/governance/roles-and-responsibilities.md` found four operational needs with no corresponding requirement anywhere above — distinct from the sections already marked "not yet implemented" (volunteers, registration, reimbursements, approvals, impact tracking), which at least exist as planned work. These four have never been specified.
+
+### 16.1 Incident / problem documentation
+
+The roles doc calls for "how incidents/problems are documented" as an internal process Operations must establish; no part of this spec gives it a data shape.
+
+The system shall let authorized users record an operational incident (e.g. damaged gear at an event, a safety issue, a lost item, a volunteer no-show) with:
+
+- Description and category
+- Date
+- Optional related event
+- Optional related inventory item
+- Severity
+- Status: open or resolved, with resolution notes
+- Reporting user
+
+**Data model:** `incident_reports` — `id`, `description`, `category`, `severity`, `event_id` (nullable FK), `inventory_item_id` (nullable FK), `status`, `resolution_notes`, `reported_by`, `created_at`, `updated_at`.
+
+**Access:** `admin` and `event_coordinator` manage; `volunteer` may submit (view/edit own) per the pattern already used for volunteer-submitted inventory records in §5.3.
+
+**Not yet implemented.**
+
+### 16.2 Inventory storage locations
+
+The roles doc lists "storage locations" under Director of Operations inventory duties. §5.4 and §6 give `inventory_items` no location field — the current model has no way to record where a physical item actually is.
+
+The system shall let authorized users define named storage locations (e.g. a storage unit, an event trailer, a volunteer's garage) and assign each inventory item to one.
+
+**Data model:** `storage_locations` — `id`, `name`, `description`, `notes`. `inventory_items.location_id` — nullable FK to `storage_locations`. A location change should be recorded as a movement (extending the `inventory_movements` movement-type set in §5.4) so relocation history isn't lost, consistent with the append-only pattern already used for stock changes.
+
+**Not yet implemented.**
+
+### 16.3 Low-stock identification
+
+The roles doc lists "identifying low-stock items" under Director of Operations inventory duties. Neither the inventory valuation reporting in §5.19 nor any other section surfaces stock levels against a threshold — only total value.
+
+The system shall flag inventory item types whose current available quantity has fallen below a defined threshold, surfaced on the dashboard (§5.10) and/or the inventory reports page (§5.19).
+
+**Data model:** a `low_stock_threshold` column (nullable, per item type/category) plus a computed view comparing current available quantity (derived from `inventory_movements` per §5.4) against that threshold. No new transactional tables required.
+
+**Not yet implemented.**
+
+### 16.4 Donated vs. purchased inventory tracking
+
+The roles doc lists "tracking donated vs. purchased items" under Director of Operations inventory duties. §6 describes `inventory_items` as "donation-managed inventory records" fed from `donation_items` — there's no path for inventory the organization buys directly rather than receives as a donation, so the two can't currently be distinguished in reporting.
+
+The system shall record each inventory item's acquisition type (donated vs. purchased vs. other) independent of whether a `donation`/`donation_items` record exists, and let valuation/impact reporting (§5.15, §5.19) break totals out by acquisition type.
+
+**Data model:** `inventory_items.acquisition_type` (donated/purchased/other). A purchased item is created via a direct inventory receipt movement (§5.4) with no donor linkage, rather than through the donation workflow; if a purchase has an associated expense record (§5.6), link `inventory_items` to the originating `event_expenses` row so the item's cost basis is traceable.
+
+**Not yet implemented.**
