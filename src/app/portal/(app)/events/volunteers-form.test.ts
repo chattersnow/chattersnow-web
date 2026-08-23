@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseVolunteerForm, parseVolunteerHoursForm } from "./volunteers-form";
+import { parseVolunteerForm, parseEventVolunteerHoursForm } from "./volunteers-form";
 
 function formData(fields: Record<string, string>) {
   const fd = new FormData();
@@ -19,27 +19,27 @@ describe("parseVolunteerForm", () => {
   });
 });
 
-describe("parseVolunteerHoursForm", () => {
+describe("parseEventVolunteerHoursForm", () => {
   test("requires hours", () => {
-    expect(parseVolunteerHoursForm(formData({ loggedDate: "2026-01-05" }))).toEqual({
+    expect(parseEventVolunteerHoursForm(formData({ loggedDate: "2026-01-05" }))).toEqual({
       error: "Hours must be a positive number.",
     });
   });
 
   test("rejects zero or negative hours", () => {
-    expect(parseVolunteerHoursForm(formData({ hours: "0", loggedDate: "2026-01-05" }))).toEqual({
+    expect(parseEventVolunteerHoursForm(formData({ hours: "0", loggedDate: "2026-01-05" }))).toEqual({
       error: "Hours must be a positive number.",
     });
   });
 
   test("requires a date", () => {
-    expect(parseVolunteerHoursForm(formData({ hours: "3" }))).toEqual({
+    expect(parseEventVolunteerHoursForm(formData({ hours: "3" }))).toEqual({
       error: "Date is required.",
     });
   });
 
   test("parses valid input", () => {
-    const result = parseVolunteerHoursForm(formData({ hours: "4.5", loggedDate: "2026-01-05", notes: "Setup crew" }));
+    const result = parseEventVolunteerHoursForm(formData({ hours: "4.5", loggedDate: "2026-01-05", notes: "Setup crew" }));
     expect("data" in result && result.data.hours).toBe(4.5);
     expect("data" in result && result.data.loggedDate).toBe("2026-01-05");
     expect("data" in result && result.data.notes).toBe("Setup crew");
