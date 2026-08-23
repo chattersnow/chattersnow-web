@@ -12,6 +12,29 @@ const MISSION_POINTS = [
   "Creating connection both on the mountain and beyond it",
 ];
 
+const VALUES = [
+  {
+    name: "Inclusion",
+    description:
+      "Every rider is welcome regardless of experience, background, or budget.",
+  },
+  {
+    name: "Access",
+    description:
+      "We work to remove the financial and social barriers that keep people off the mountain.",
+  },
+  {
+    name: "Community",
+    description:
+      "We're building relationships that last beyond a single event or season.",
+  },
+  {
+    name: "Mentorship",
+    description:
+      "Experienced riders show up for newer ones so no one has to figure it out alone.",
+  },
+];
+
 export default function AboutPage() {
   return (
     <div className="space-y-12">
@@ -105,6 +128,42 @@ export default function AboutPage() {
           community that makes it easier for queer people to get there in the
           first place.
         </p>
+      </section>
+
+      <section>
+        <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
+          Our Values
+        </h2>
+        <ul className="app-muted mt-4 max-w-3xl list-disc space-y-2 pl-5 text-sm leading-relaxed sm:text-base">
+          {VALUES.map((value) => (
+            <li key={value.name}>
+              <span className="text-foreground font-medium">{value.name}.</span>{" "}
+              {value.description}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section>
+        <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
+          Why LGBTQ+ snow sports
+        </h2>
+        <div className="app-muted mt-4 max-w-3xl space-y-4 text-sm leading-relaxed sm:text-base">
+          <p>
+            Ski towns and mountain culture haven&apos;t always felt welcoming
+            to queer and trans people, and the cost of entry, gear, lift
+            tickets, lessons, travel can make snow sports feel out of reach
+            before someone even gets to the mountain.
+          </p>
+          <p>
+            A dedicated LGBTQ+ space changes that. It gives people a lower-
+            pressure way to try skiing or snowboarding for the first time,
+            surrounded by others who understand what it&apos;s like to walk
+            into a lodge or a lift line without knowing if they&apos;ll be
+            accepted. It also means there&apos;s a community to come back to
+            season after season, not just a single event.
+          </p>
+        </div>
       </section>
     </div>
   );

@@ -21,25 +21,36 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-const HOME_LINK = { label: "Home", href: "/home" } as const;
+type NavLink = { label: string; href: string };
+type NavGroup =
+  | { label: string; href: string; links?: undefined }
+  | { label: string; href?: undefined; links: readonly NavLink[] };
 
-const ABOUT_LINKS = [
-  { label: "Our Mission", href: "/about" },
-  { label: "Meet the Team", href: "/about/team" },
-  { label: "Programs", href: "/about/programs" },
-  { label: "Volunteer", href: "/about/volunteer" },
-  { label: "Donate", href: "/about/donations" },
-] as const;
-
-const TRAILING_LINKS = [
+const NAV_GROUPS: readonly NavGroup[] = [
+  { label: "Home", href: "/home" },
+  {
+    label: "About",
+    links: [
+      { label: "Our Story", href: "/about" },
+      { label: "Meet the Team", href: "/about/team" },
+    ],
+  },
   { label: "Events", href: "/events" },
-  { label: "Gears", href: "/gears" },
-  { label: "Contact Us", href: "/contact" },
+  { label: "Programs", href: "/programs" },
+  { label: "Gear", href: "/gears" },
+  { label: "Get Involved", href: "/get-involved" },
+  { label: "Support", href: "/support" },
+  { label: "Contact", href: "/contact" },
 ] as const;
 
 function isActive(pathname: string, href: string) {
   if (href === "/home") return pathname === "/home";
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function isGroupActive(pathname: string, group: NavGroup) {
+  if (!group.links) return isActive(pathname, group.href);
+  return group.links.some((link) => isActive(pathname, link.href));
 }
 
 function MobileNavLink({
@@ -64,7 +75,6 @@ function MobileNavLink({
 
 export function SiteNav() {
   const pathname = usePathname();
-  const aboutActive = pathname.startsWith("/about");
   const [mobileOpen, setMobileOpen] = useState(false);
   const closeMobile = () => setMobileOpen(false);
 
@@ -73,46 +83,41 @@ export function SiteNav() {
       <nav className="hidden sm:block">
         <NavigationMenu>
           <NavigationMenuList>
-            <NavigationMenuItem>
-              <NavigationMenuLink
-                render={<Link href={HOME_LINK.href} />}
-                active={isActive(pathname, HOME_LINK.href)}
-              >
-                {HOME_LINK.label}
-              </NavigationMenuLink>
-            </NavigationMenuItem>
-
-            <NavigationMenuItem>
-              <NavigationMenuTrigger data-active={aboutActive || undefined}>
-                About Us
-              </NavigationMenuTrigger>
-              <NavigationMenuContent>
-                <ul className="grid w-48 gap-1">
-                  {ABOUT_LINKS.map((link) => (
-                    <li key={link.href}>
-                      <NavigationMenuLink
-                        render={<Link href={link.href} />}
-                        active={pathname === link.href}
-                        closeOnClick
-                      >
-                        {link.label}
-                      </NavigationMenuLink>
-                    </li>
-                  ))}
-                </ul>
-              </NavigationMenuContent>
-            </NavigationMenuItem>
-
-            {TRAILING_LINKS.map((link) => (
-              <NavigationMenuItem key={link.href}>
-                <NavigationMenuLink
-                  render={<Link href={link.href} />}
-                  active={isActive(pathname, link.href)}
-                >
-                  {link.label}
-                </NavigationMenuLink>
-              </NavigationMenuItem>
-            ))}
+            {NAV_GROUPS.map((group) =>
+              !group.links ? (
+                <NavigationMenuItem key={group.label}>
+                  <NavigationMenuLink
+                    render={<Link href={group.href} />}
+                    active={isActive(pathname, group.href)}
+                  >
+                    {group.label}
+                  </NavigationMenuLink>
+                </NavigationMenuItem>
+              ) : (
+                <NavigationMenuItem key={group.label}>
+                  <NavigationMenuTrigger
+                    data-active={isGroupActive(pathname, group) || undefined}
+                  >
+                    {group.label}
+                  </NavigationMenuTrigger>
+                  <NavigationMenuContent>
+                    <ul className="grid w-48 gap-1">
+                      {group.links.map((link) => (
+                        <li key={link.href}>
+                          <NavigationMenuLink
+                            render={<Link href={link.href} />}
+                            active={pathname === link.href}
+                            closeOnClick
+                          >
+                            {link.label}
+                          </NavigationMenuLink>
+                        </li>
+                      ))}
+                    </ul>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
+              )
+            )}
           </NavigationMenuList>
         </NavigationMenu>
       </nav>
@@ -129,24 +134,22 @@ export function SiteNav() {
             <SheetTitle>Menu</SheetTitle>
           </SheetHeader>
           <nav className="flex flex-col gap-1 px-4 pb-4">
-            <MobileNavLink href={HOME_LINK.href} onNavigate={closeMobile}>
-              {HOME_LINK.label}
-            </MobileNavLink>
-
-            <p className="app-eyebrow px-2 pt-4">About us</p>
-            {ABOUT_LINKS.map((link) => (
-              <MobileNavLink key={link.href} href={link.href} onNavigate={closeMobile}>
-                {link.label}
-              </MobileNavLink>
-            ))}
-
-            <div className="mt-2 flex flex-col gap-1 border-t border-[var(--line)] pt-3">
-              {TRAILING_LINKS.map((link) => (
-                <MobileNavLink key={link.href} href={link.href} onNavigate={closeMobile}>
-                  {link.label}
+            {NAV_GROUPS.map((group) =>
+              !group.links ? (
+                <MobileNavLink key={group.label} href={group.href} onNavigate={closeMobile}>
+                  {group.label}
                 </MobileNavLink>
-              ))}
-            </div>
+              ) : (
+                <div key={group.label} className="flex flex-col gap-1">
+                  <p className="app-eyebrow px-2 pt-4">{group.label}</p>
+                  {group.links.map((link) => (
+                    <MobileNavLink key={link.href} href={link.href} onNavigate={closeMobile}>
+                      {link.label}
+                    </MobileNavLink>
+                  ))}
+                </div>
+              )
+            )}
           </nav>
         </SheetContent>
       </Sheet>
