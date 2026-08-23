@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { ContactForm } from "./contact-form";
 
@@ -24,7 +25,9 @@ export default function ContactPage() {
           <section className="grid grid-cols-1 gap-8 lg:grid-cols-2">
             <Card>
               <CardContent>
-                <ContactForm />
+                <Suspense fallback={null}>
+                  <ContactForm />
+                </Suspense>
               </CardContent>
             </Card>
 
