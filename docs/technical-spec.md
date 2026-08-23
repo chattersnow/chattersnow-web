@@ -287,9 +287,14 @@ A person's record in the People directory (`/portal/people`) shall show that ind
 
 - Donations given, if `is_donor`
 - Events sponsored and sponsorship details (support type, in-kind description, contribution value), if `is_sponsor`
-- Volunteer activity, if `is_volunteer`, once volunteer tracking exists
+- Volunteer activity (role types, logged hours), if `is_volunteer`
+- Staff assignments across events, if `is_staff`
 
-This view should read from the existing donation, event-sponsor, and (future) volunteer records rather than duplicating that history onto the `people` row.
+This view should read from the existing donation, event-sponsor, event-volunteer, and event-staff records rather than duplicating that history onto the `people` row.
+
+A person may also be tagged `is_staff` — someone who works events in a paid or formally-scheduled capacity, as distinct from `is_volunteer`. Staff are drawn from the same `people` directory (a person can be both staff and a volunteer) and are assigned to individual events the same way sponsors and volunteers are: a Staff tab on the event editor links `people` rows to the event via `event_staff`, with an optional role/title and notes per assignment. Managing event staff requires the same permission as managing the rest of the event (§5.3).
+
+**Not yet implemented.** No `is_staff` column or `event_staff` table exists yet; see §6.
 
 ### 5.10 Dashboard and reporting
 
@@ -353,7 +358,11 @@ Authorized users shall be able to define and manage programs — the named, repe
 
 Each event may optionally be tagged to a program (`events.program_id`, nullable so existing and one-off events remain valid without a program). This is the schema shape `planning/ideas/RUNNING_PROGRAMS.md` calls for — **Programs → Events**, with everything else (expenses, donations, volunteers, impact) continuing to hang off the event as it already does.
 
-**Not yet implemented.** No `programs` table or `program_id` column exists yet; the public site's `/about/programs` page is static content, not driven by this table.
+**Implemented** (issue #45): `programs` (name, description, status) and `events.program_id` exist, with `/portal/programs` for CRUD, gated by the `programs` resource per the entitlement matrix in §5.3. A program's own record therefore currently offers name, description, and status; everything else about a program — its events, and everything that hangs off those events (expenses, donations, sponsors, giveaways, inventory movements, volunteer/staff assignments) — has to be read via `events.program_id`, not from the `programs` row itself. The `/portal/programs` view/edit flow uses the same Dialog-based pattern as `volunteers/roles`; see the Sheet-based convention note in §8 for the pending cleanup.
+
+**Not yet implemented — events-on-a-program report.** There is no view listing the events tagged to a given program (e.g. from the Programs page or a program detail view); a user currently has to open each event and check its Overview tab to see whether it belongs to a given program. This is a smaller, more basic ask than the full season/program impact rollup in §5.15 (issue #48), which aggregates participation/financial/hours metrics rather than simply listing member events.
+
+The public site's `/about/programs` page is still static content, not driven by this table (issue #46).
 
 ### 5.15 Impact tracking and reporting
 
@@ -392,7 +401,9 @@ Authorized users shall be able to track volunteer participation, per the "Volunt
 
 Volunteer hours feed the Impact Tracking rollups in §5.15 (e.g. "290 volunteer hours" in a season report).
 
-**Not yet implemented.** `volunteers/roles` and `volunteers/participation` are static placeholder pages with no backing tables.
+**Implemented** (issues #49/#50): `volunteer_role_types` and `volunteer_hours` back `/portal/volunteers/roles` and `/portal/volunteers/participation`, gated by the `volunteers` resource per §5.3. The role-type view/edit flow (`role-type-details-dialog.tsx`) still uses the Dialog-based pattern rather than the Sheet-based pattern used elsewhere for viewing/editing an existing record (people, inventory, expenses, events) — see the convention note in §8; this should be brought in line the same way as the Programs page (§5.14).
+
+**Not yet implemented — public volunteer opportunities.** The public `/get-involved` page's "Volunteer" section is a hardcoded list of three opportunities (`OPPORTUNITIES` array in `get-involved/page.tsx`), unrelated to `volunteer_role_types`. It should instead be fed from the same role-type catalog staff maintain in the portal, so a new role type shows up publicly without a code change. This needs: (a) a way to mark a role type public-facing (an `is_public` flag, plus whatever short public-facing copy/icon is needed — `volunteer_role_types` currently has only `name`/`description`, no icon), and (b) a curated public read path (a view granted to `anon`, following the same pattern as `public_gear_catalog` and `public_events` — not a relaxed policy on the base table, since `volunteer_role_types` RLS is otherwise `volunteers`-permission-gated).
 
 ### 5.18 Reimbursements
 
@@ -449,21 +460,21 @@ Implemented for the tables listed below (see §5.11, issue #18):
 - `pages` or repository content: approved public content
 - `events`
 - `event_sponsors`: links an event to a `people` record via `person_id` (one row per event/person pair), plus per-event sponsorship details — support type, in-kind description, contribution value, public visibility, notes. Sponsor/partner name and contact info are not duplicated here; they live on the linked `people` row.
+- `event_volunteers`: links an event to a `people` record via `person_id`, with an optional free-text `role` and notes; a lightweight, event-scoped sign-up list (predates the fuller `volunteer_role_types`/`volunteer_hours` catalog in "Volunteers" below).
+- `event_staff`: not yet implemented — see §5.9; mirrors `event_volunteers` (`event_id`, `person_id`, optional role/title, notes, unique per event/person pair) for people tagged `is_staff`.
 - `event_registrations`: optional future capability
 
 ### Programs and impact
 
-Not yet implemented — see §5.14 and §5.15.
+- `programs`: **implemented** (issue #45) — name, description, status (active/pilot/retired)
+- `events.program_id`: **implemented** — nullable FK from `events` to `programs`, so existing and one-off events remain valid without a program
+- `event_impact_notes`: not yet implemented — optional per-event qualitative outcomes (e.g. the five-question post-event survey described in `RUNNING_PROGRAMS.md`), linked to `events`
 
-- `programs`: name, description, status (active/pilot/retired)
-- `events.program_id`: nullable FK from `events` to `programs`, so existing and one-off events remain valid without a program
-- `event_impact_notes`: optional per-event qualitative outcomes (e.g. the five-question post-event survey described in `RUNNING_PROGRAMS.md`), linked to `events`
-
-Impact rollups themselves (per-event, per-program, and season reports) are computed views/queries over these tables plus `donations`, `event_expenses`, `inventory_movements`, and `volunteer_hours` — not separately stored data.
+Impact rollups themselves (per-event, per-program, and season reports, including a basic list of events tagged to a program — see §5.14) are computed views/queries over these tables plus `donations`, `event_expenses`, `inventory_movements`, and `volunteer_hours` — not separately stored data. None of these rollup views/queries exist yet.
 
 ### Inventory and donations
 
-- `people`: shared directory of donors, sponsors, and volunteers (name, email, phone, notes, `is_donor`/`is_sponsor`/`is_volunteer` flags), so the same contact can be reused across roles instead of being duplicated per context
+- `people`: shared directory of donors, sponsors, volunteers, and staff (name, email, phone, notes, `is_donor`/`is_sponsor`/`is_volunteer` flags), so the same contact can be reused across roles instead of being duplicated per context. `is_staff`: not yet implemented — see §5.9.
 - `donations`
 - `donation_items`
 - `inventory_items`: donation-managed inventory records with description, size, type, gender, condition, face value, photo, and status
@@ -474,10 +485,11 @@ Impact rollups themselves (per-event, per-program, and season reports) are compu
 
 ### Volunteers
 
-Not yet implemented — see §5.17.
+**Implemented** (issues #49/#50) — see §5.17.
 
-- `volunteer_role_types`: catalog of role-type definitions (e.g. Ride Buddy, Event Setup, Basecamp Staffing) — named to avoid colliding with the existing RBAC `roles` table in "Identity and access" above, which is a different concept (portal permissions, not volunteer job types)
+- `volunteer_role_types`: catalog of role-type definitions (e.g. Ride Buddy, Event Setup, Basecamp Staffing) — named to avoid colliding with the existing RBAC `roles` table in "Identity and access" above, which is a different concept (portal permissions, not volunteer job types). Currently `name`/`description` only.
 - `volunteer_hours`: `person_id` (→ `people`), optional `event_id`, date, hours, `volunteer_role_type_id`, and the user who logged the entry
+- Not yet implemented: a public-facing flag/copy on `volunteer_role_types` and a curated `public_volunteer_role_types` view granted to `anon`, to back the public `/get-involved` volunteer opportunities section — see §5.17.
 
 ### Finance and giveaways
 
@@ -539,13 +551,16 @@ src/app/
       inventory/
       finance/                  # expenses, donations, reimbursements, reports
       people/                   # shared donor/sponsor/volunteer directory
+      programs/                  # program CRUD — implemented (issue #45)
       governance/                # placeholder — no backing tables
-      volunteers/                # placeholder — no backing tables
+      volunteers/                # role types + hours logging — implemented (issues #49/#50)
       administration/            # users, permissions, audit log implemented; system settings placeholder
   auth/
 ```
 
 The exact route structure may evolve, but authenticated portal layouts must verify the session and authorization before rendering protected data. Use server components for read-heavy pages where practical and keep service-role operations server-only.
+
+**UI convention — view/edit vs. create:** creating a new record uses a `Dialog` (a centered, small-form modal — e.g. `new-person-dialog.tsx`, `new-program-dialog.tsx`, `new-event-dialog.tsx`); viewing/editing an existing record uses a `Sheet` (a side panel, which scales better to a record's full detail and, for events, multiple tabs — e.g. `edit-person-modal.tsx`, `edit-inventory-modal.tsx`, `edit-expense-modal.tsx`, `event-details-dialog.tsx` despite its filename). `programs/program-details-dialog.tsx` and `volunteers/roles/role-type-details-dialog.tsx` still use the older Dialog-based view/edit pattern and should be converted to match.
 
 Supabase database changes should be implemented as ordered migrations under `supabase/migrations/`. Seed data should be safe for local development and must not contain real donor or recipient information.
 

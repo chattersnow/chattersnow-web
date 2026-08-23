@@ -9,6 +9,7 @@ import {
   type PersonFormState,
 } from "../people/person-form-fields";
 import type { PersonListItem } from "../people/actions";
+import type { RoleKey } from "../people/people-shared";
 import { filterPeople } from "./person-search";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -22,15 +23,17 @@ export function SponsorPersonPicker({
   selected,
   onSelect,
   onPersonCreated,
+  newPersonRole = "is_sponsor",
 }: {
   people: PersonListItem[];
   selected: PickedPerson | null;
   onSelect: (person: PickedPerson | null) => void;
   onPersonCreated: (person: PickedPerson) => void;
+  newPersonRole?: RoleKey;
 }) {
   const [query, setQuery] = useState("");
   const [showCreate, setShowCreate] = useState(false);
-  const [createForm, setCreateForm] = useState<PersonFormState>(() => emptyPersonForm("is_sponsor"));
+  const [createForm, setCreateForm] = useState<PersonFormState>(() => emptyPersonForm(newPersonRole));
   const [createError, setCreateError] = useState<string | null>(null);
   const [isCreating, startCreateTransition] = useTransition();
 
@@ -41,7 +44,7 @@ export function SponsorPersonPicker({
   function reset() {
     setQuery("");
     setShowCreate(false);
-    setCreateForm(emptyPersonForm("is_sponsor"));
+    setCreateForm(emptyPersonForm(newPersonRole));
     setCreateError(null);
   }
 
