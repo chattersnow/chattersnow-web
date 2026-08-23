@@ -23,6 +23,7 @@ const TABLE_VALUES = [
   "inventory_movements",
   "event_expenses",
   "user_roles",
+  "app_settings",
 ] as const;
 
 const ACTION_VALUES = ["insert", "update", "delete"] as const;

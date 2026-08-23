@@ -147,11 +147,11 @@ begin
   );
 
   -- Event expenses: one tied to the past event, one general/untied.
-  insert into public.event_expenses (event_id, description, expense_date, amount, currency, notes, created_by)
-  values (v_event_past, 'Trail signage and supplies', current_date - 40, 86.42, 'USD', null, v_admin_id);
+  insert into public.event_expenses (event_id, description, expense_date, amount, currency, notes, created_by, submitted_by)
+  values (v_event_past, 'Trail signage and supplies', current_date - 40, 86.42, 'USD', null, v_admin_id, v_admin_id);
 
-  insert into public.event_expenses (event_id, description, expense_date, amount, currency, notes, created_by)
-  values (null, 'Storage unit rental — October', current_date - 10, 120.00, 'USD', 'Monthly inventory storage.', v_admin_id);
+  insert into public.event_expenses (event_id, description, expense_date, amount, currency, notes, created_by, submitted_by)
+  values (null, 'Storage unit rental — October', current_date - 10, 120.00, 'USD', 'Monthly inventory storage.', v_admin_id, v_admin_id);
 
   -- Donations with items, plus receipt movements, tied to the upcoming event.
   insert into public.donations (donor_id, event_id, notes, created_by)

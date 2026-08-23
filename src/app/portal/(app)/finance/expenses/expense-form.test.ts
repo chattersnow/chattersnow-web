@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseExpenseForm } from "./expense-form";
+import { parseExpenseForm, parseRejectReason } from "./expense-form";
 
 function formData(fields: Record<string, string>) {
   const fd = new FormData();
@@ -56,5 +56,19 @@ describe("parseExpenseForm", () => {
         notes: "Reimbursed",
       },
     });
+  });
+});
+
+describe("parseRejectReason", () => {
+  test("requires a reason", () => {
+    expect(parseRejectReason("")).toEqual({ error: "A rejection reason is required." });
+  });
+
+  test("rejects a whitespace-only reason", () => {
+    expect(parseRejectReason("   ")).toEqual({ error: "A rejection reason is required." });
+  });
+
+  test("trims a valid reason", () => {
+    expect(parseRejectReason("  Missing receipt  ")).toEqual({ data: "Missing receipt" });
   });
 });
