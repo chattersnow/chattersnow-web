@@ -1,13 +1,46 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserRoles, hasAnyRole } from "@/lib/auth/roles";
+import { getCurrentUserPermissions, hasPermission, hasAnyPermission } from "@/lib/auth/permissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatTile, ComingSoonTile } from "./stat-tile";
+import { getUpcomingSummary, getFinancialSummary, getInventorySummary } from "./queries";
+import { listRecentDonationsAction } from "./actions";
+
+const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" });
+
+const currencyFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+});
+
+function SectionLabel({ children }: { children: string }) {
+  return (
+    <h2 className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">{children}</h2>
+  );
+}
 
 export default async function PortalHomePage() {
   const supabase = await createSupabaseServerClient();
-  const roles = await getCurrentUserRoles(supabase);
-  const canSeeEventsTile = hasAnyRole(roles, ["admin", "event_coordinator", "board"]);
-  const canSeeInventoryTile = hasAnyRole(roles, ["admin", "board"]);
-  const canSeeFinancialTiles = hasAnyRole(roles, ["admin", "finance", "board"]);
+  const permissions = await getCurrentUserPermissions(supabase);
+
+  const canSeeUpcoming = hasPermission(permissions, "events", "view");
+  const canSeeFinancial = hasAnyPermission(permissions, [
+    { resource: "finance", level: "manage" },
+    { resource: "finance_reports", level: "view" },
+  ]);
+  // Individual widgets are RLS-backed by narrower resources than the section
+  // gate above (e.g. board has finance_reports:view but not event_expenses or
+  // events), so each live-data widget checks its own resource or it would
+  // render a misleading zero instead of just not appearing.
+  const canSeeExpenses = hasPermission(permissions, "event_expenses", "view");
+  const canSeeEventBudgets = canSeeUpcoming;
+  const canSeeRecentDonations = hasPermission(permissions, "finance", "view");
+  const canSeeInventory = hasAnyPermission(permissions, [
+    { resource: "inventory", level: "manage" },
+    { resource: "inventory_reports", level: "view" },
+  ]);
+  const canSeeOrganization = hasPermission(permissions, "governance", "manage");
+
+  const anySectionVisible = canSeeUpcoming || canSeeFinancial || canSeeInventory || canSeeOrganization;
 
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
@@ -19,105 +52,23 @@ export default async function PortalHomePage() {
   const startOfMonthDate = startOfMonth.toISOString().slice(0, 10);
   const startOfYearDate = startOfYear.toISOString().slice(0, 10);
 
-  const [
-    { count: gearAvailable },
-    { count: donationsThisMonth },
-    { count: upcomingEvents },
-    { data: expensesThisYear },
-    { data: expensesThisMonth },
-  ] = await Promise.all([
-    supabase
-      .from("inventory_items")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "available"),
-    supabase
-      .from("donations")
-      .select("*", { count: "exact", head: true })
-      .gte("created_at", startOfMonth.toISOString()),
-    supabase
-      .from("events")
-      .select("*", { count: "exact", head: true })
-      .gte("starts_at", nowIso),
-    supabase.from("event_expenses").select("amount").gte("expense_date", startOfYearDate),
-    supabase.from("event_expenses").select("amount").gte("expense_date", startOfMonthDate),
+  const [upcoming, financial, inventory, recentDonationsResult] = await Promise.all([
+    canSeeUpcoming ? getUpcomingSummary(supabase, nowIso) : Promise.resolve(null),
+    canSeeFinancial
+      ? getFinancialSummary(supabase, startOfMonthDate, startOfYearDate, nowIso)
+      : Promise.resolve(null),
+    canSeeInventory ? getInventorySummary(supabase) : Promise.resolve(null),
+    canSeeInventory && canSeeRecentDonations ? listRecentDonationsAction(5) : Promise.resolve(null),
   ]);
 
-  const sumAmounts = (rows: { amount: number }[] | null) =>
-    (rows ?? []).reduce((total, row) => total + row.amount, 0);
-
-  const currencyFormatter = new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  });
-
-  const anyTileVisible = canSeeEventsTile || canSeeInventoryTile || canSeeFinancialTiles;
+  const recentDonations =
+    recentDonationsResult && "data" in recentDonationsResult ? recentDonationsResult.data : [];
 
   return (
     <section>
       <p className="app-muted text-sm font-semibold uppercase tracking-[0.16em]">Overview</p>
-      {anyTileVisible ? (
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {canSeeEventsTile && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="app-muted text-sm font-semibold">Upcoming events</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
-                  {upcomingEvents ?? 0}
-                </p>
-                <p className="app-muted mt-2 text-sm">Events will appear here</p>
-              </CardContent>
-            </Card>
-          )}
 
-          {canSeeInventoryTile && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="app-muted text-sm font-semibold">Gear available</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
-                  {gearAvailable ?? 0}
-                </p>
-                <p className="app-muted mt-2 text-sm">From recorded donations</p>
-              </CardContent>
-            </Card>
-          )}
-
-          {canSeeFinancialTiles && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="app-muted text-sm font-semibold">
-                  Donations this month
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
-                  {donationsThisMonth ?? 0}
-                </p>
-                <p className="app-muted mt-2 text-sm">Donations recorded this month</p>
-              </CardContent>
-            </Card>
-          )}
-
-          {canSeeFinancialTiles && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="app-muted text-sm font-semibold">Expenses</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
-                  {currencyFormatter.format(sumAmounts(expensesThisMonth))}
-                </p>
-                <p className="app-muted mt-2 text-sm">
-                  This month · {currencyFormatter.format(sumAmounts(expensesThisYear))} this year
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      ) : (
+      {!anySectionVisible && (
         <Card className="mt-4">
           <CardContent className="pt-6">
             <p className="app-muted text-sm">
@@ -125,6 +76,139 @@ export default async function PortalHomePage() {
             </p>
           </CardContent>
         </Card>
+      )}
+
+      {canSeeUpcoming && upcoming && (
+        <div className="mt-6">
+          <SectionLabel>Upcoming</SectionLabel>
+          <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatTile
+              label="Next event"
+              value={upcoming.nextEvent ? upcoming.nextEvent.name : "—"}
+              caption={
+                upcoming.nextEvent
+                  ? `${dateFormatter.format(new Date(upcoming.nextEvent.starts_at))}${
+                      upcoming.nextEvent.location ? ` · ${upcoming.nextEvent.location}` : ""
+                    }`
+                  : "No upcoming events"
+              }
+            />
+            <StatTile
+              label="Registrations"
+              value={upcoming.registrationCount}
+              caption="For upcoming events"
+            />
+            <StatTile
+              label="Volunteers"
+              value={upcoming.volunteerCount}
+              caption="Assigned to upcoming events"
+            />
+            <StatTile
+              label="Partners"
+              value={upcoming.partnerCount}
+              caption="Sponsoring upcoming events"
+            />
+            <ComingSoonTile
+              label="Outstanding tasks"
+              description="Event checklists and tasks aren't tracked yet."
+            />
+          </div>
+        </div>
+      )}
+
+      {canSeeFinancial && financial && (
+        <div className="mt-6">
+          <SectionLabel>Financial</SectionLabel>
+          <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <ComingSoonTile
+              label="Cash position & monthly income"
+              description="Only in-kind donations are tracked today; monetary donation tracking isn't built yet."
+            />
+            {canSeeExpenses && (
+              <StatTile
+                label="Expenses"
+                value={currencyFormatter.format(financial.expensesThisMonth)}
+                caption={`This month · ${currencyFormatter.format(financial.expensesThisYear)} this year`}
+              />
+            )}
+            <ComingSoonTile
+              label="Outstanding reimbursements"
+              description="Reimbursement tracking is planned in issue #51."
+            />
+            {canSeeEventBudgets && (
+              <StatTile
+                label="Event budgets"
+                value={currencyFormatter.format(financial.eventBudgetTotal)}
+                caption="Published, upcoming events"
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {canSeeInventory && inventory && (
+        <div className="mt-6">
+          <SectionLabel>Inventory</SectionLabel>
+          <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatTile label="Total items" value={inventory.totalItems} />
+            <StatTile label="Available" value={inventory.itemsAvailable} />
+            <StatTile label="Distributed" value={inventory.itemsDistributed} />
+            <StatTile
+              label="Needing attention"
+              value={inventory.itemsNeedingAttention}
+              caption="Damaged or lost"
+            />
+          </div>
+          {canSeeRecentDonations && (
+            <Card className="mt-4">
+              <CardHeader>
+                <CardTitle className="app-muted text-sm font-semibold">
+                  Recent donations
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {recentDonations.length === 0 ? (
+                  <p className="app-muted text-sm">No donations recorded yet.</p>
+                ) : (
+                  <ul className="divide-border divide-y">
+                    {recentDonations.map((donation) => (
+                      <li
+                        key={donation.id}
+                        className="flex items-center justify-between py-2 text-sm"
+                      >
+                        <span>
+                          {donation.donor?.is_anonymous || !donation.donor?.name
+                            ? "Anonymous"
+                            : donation.donor.name}
+                        </span>
+                        <span className="app-muted">
+                          {dateFormatter.format(new Date(donation.donated_at))} ·{" "}
+                          {donation.inventory_items.length} item
+                          {donation.inventory_items.length === 1 ? "" : "s"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {canSeeOrganization && (
+        <div className="mt-6">
+          <SectionLabel>Organization</SectionLabel>
+          <Card className="mt-3">
+            <CardHeader>
+              <CardTitle>Coming soon</CardTitle>
+            </CardHeader>
+            <CardContent className="app-muted text-sm">
+              This area will surface organization-wide health: upcoming compliance deadlines,
+              partnership opportunities, grant deadlines, and governance tasks.
+            </CardContent>
+          </Card>
+        </div>
       )}
     </section>
   );
