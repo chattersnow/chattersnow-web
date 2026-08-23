@@ -9,6 +9,7 @@ import {
   HandHeart,
   Landmark,
   LayoutDashboard,
+  Layers,
   Package,
   Scale,
   ShieldCheck,
@@ -58,6 +59,13 @@ const NAV_ITEMS: readonly NavItem[] = [
     href: "/portal/events",
     icon: CalendarDays,
     access: [{ resource: "events", level: "view" }],
+  },
+  {
+    value: "programs",
+    label: "Programs",
+    href: "/portal/programs",
+    icon: Layers,
+    access: [{ resource: "programs", level: "view" }],
   },
   {
     value: "inventory",

@@ -64,6 +64,16 @@ describe("parseEventForm", () => {
     }
   });
 
+  test("program is optional", () => {
+    const result = parseEventForm(formData(validFields));
+    expect("data" in result && result.data.programId).toBeNull();
+  });
+
+  test("carries a selected program", () => {
+    const result = parseEventForm(formData({ ...validFields, programId: "11111111-1111-1111-1111-111111111111" }));
+    expect("data" in result && result.data.programId).toBe("11111111-1111-1111-1111-111111111111");
+  });
+
   test("rejects an end time before the start time", () => {
     const result = parseEventForm(
       formData({ ...validFields, endsAt: "2026-12-01T09:00" })

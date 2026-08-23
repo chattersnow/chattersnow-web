@@ -22,7 +22,7 @@ export async function createEventAction(formData: FormData): Promise<CreateEvent
 
   const parsed = parseEventForm(formData);
   if ("error" in parsed) return parsed;
-  const { name, description, eventType, location, venue, startsAt, endsAt, timezone, visibility, status } =
+  const { name, description, eventType, location, venue, startsAt, endsAt, timezone, visibility, status, programId } =
     parsed.data;
 
   const { error } = await supabase.from("events").insert({
@@ -36,6 +36,7 @@ export async function createEventAction(formData: FormData): Promise<CreateEvent
     timezone,
     visibility,
     status,
+    program_id: programId,
   });
 
   if (error) {
@@ -94,7 +95,7 @@ export async function updateEventAction(
 
   const parsed = parseEventForm(formData);
   if ("error" in parsed) return parsed;
-  const { name, description, eventType, location, venue, startsAt, endsAt, timezone, visibility, status } =
+  const { name, description, eventType, location, venue, startsAt, endsAt, timezone, visibility, status, programId } =
     parsed.data;
 
   const { error } = await supabase
@@ -110,6 +111,7 @@ export async function updateEventAction(
       timezone,
       visibility,
       status,
+      program_id: programId,
     })
     .eq("id", id);
 

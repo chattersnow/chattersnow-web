@@ -27,6 +27,7 @@ export type EventRow = {
   content_notes: string | null;
   report_submitted_at: string | null;
   report_submitted_by: string | null;
+  program_id: string | null;
 };
 
 const STATUS_STYLES: Record<string, string> = {
