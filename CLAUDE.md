@@ -21,6 +21,13 @@ bun run lint    # eslint (flat config, eslint-config-next core-web-vitals + type
 
 There is no test suite configured yet. TypeScript is checked via `next build` / editor tooling, not a standalone `tsc` script.
 
+## Ticket workflow
+
+Issues are tracked on the `ChatterWeb` GitHub Project (owner `chattersnow`, project number `1`) via its `Status` field. Keep status in sync with `gh project item-edit`:
+
+- When starting work on a ticket (e.g. creating/checking out its branch), move the linked issue's `Status` to `In progress`.
+- When a PR for that ticket is opened, move it to `In review`.
+
 ## Architecture
 
 - **Stack**: Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4 (via `@tailwindcss/postcss`), Supabase (Postgres + Auth + Storage). The React Compiler is enabled (`next.config.ts` → `reactCompiler: true`).
