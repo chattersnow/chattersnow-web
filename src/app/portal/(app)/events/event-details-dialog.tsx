@@ -11,6 +11,7 @@ import { LogisticsTab, type LogisticsTabHandle } from "./logistics-tab";
 import { VolunteersTab } from "./volunteers-tab";
 import { SponsorsTab } from "./sponsors-tab";
 import { AttendanceTab } from "./attendance-tab";
+import { RegistrantsTab } from "./registrants-tab";
 import { DonationsTab } from "./donations-tab";
 import { DistributionsTab } from "./distributions-tab";
 import { IncidentsTab } from "./incidents-tab";
@@ -50,6 +51,7 @@ type TabValue =
   | "volunteers"
   | "sponsors"
   | "attendance"
+  | "registrants"
   | "distributions"
   | "incidents"
   | "giveaway"
@@ -83,6 +85,7 @@ const PHASES: { key: PhaseKey; label: string; tabs: { value: TabValue; label: st
     label: "During",
     tabs: [
       { value: "attendance", label: "Attendance" },
+      { value: "registrants", label: "Registrants" },
       { value: "distributions", label: "Distributions" },
       { value: "incidents", label: "Incidents" },
       { value: "giveaway", label: "Giveaway" },
@@ -303,6 +306,9 @@ export function EventDetailsDialog({ event, programs }: { event: EventRow; progr
               </TabsContent>
               <TabsContent value="attendance" className="mt-4">
                 <AttendanceTab event={event} mode={mode} />
+              </TabsContent>
+              <TabsContent value="registrants" className="mt-4">
+                <RegistrantsTab eventId={event.id} capacity={event.capacity} active={tab === "registrants"} />
               </TabsContent>
               <TabsContent value="distributions" className="mt-4">
                 <DistributionsTab eventId={event.id} active={tab === "distributions"} mode={mode} />

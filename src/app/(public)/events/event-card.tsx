@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 
 export type PublicEvent = {
@@ -16,18 +17,20 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 
 export function EventCard({ event }: { event: PublicEvent }) {
   return (
-    <Card>
-      <CardContent className="space-y-1">
-        <p className="text-sm font-medium">{event.name}</p>
-        <p className="app-muted text-xs">
-          {dateFormatter.format(new Date(event.starts_at))}
-          {event.ends_at &&
-            ` – ${dateFormatter.format(new Date(event.ends_at))}`}
-        </p>
-        {event.location && (
-          <p className="text-xs text-muted-foreground">{event.location}</p>
-        )}
-      </CardContent>
-    </Card>
+    <Link href={`/events/${event.id}`} className="block">
+      <Card className="transition-colors hover:border-[var(--purple-deep)]">
+        <CardContent className="space-y-1">
+          <p className="text-sm font-medium">{event.name}</p>
+          <p className="app-muted text-xs">
+            {dateFormatter.format(new Date(event.starts_at))}
+            {event.ends_at &&
+              ` – ${dateFormatter.format(new Date(event.ends_at))}`}
+          </p>
+          {event.location && (
+            <p className="text-xs text-muted-foreground">{event.location}</p>
+          )}
+        </CardContent>
+      </Card>
+    </Link>
   );
 }
