@@ -3,6 +3,7 @@
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createEventAction } from "./actions";
+import type { Program } from "../programs/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,10 +48,11 @@ function getInitialFormState() {
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     visibility: "private",
     status: "draft",
+    programId: "",
   };
 }
 
-export function NewEventDialog() {
+export function NewEventDialog({ programs = [] }: { programs?: Program[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(getInitialFormState);
@@ -87,6 +89,7 @@ export function NewEventDialog() {
     formData.set("timezone", form.timezone);
     formData.set("visibility", form.visibility);
     formData.set("status", form.status);
+    formData.set("programId", form.programId);
 
     startTransition(async () => {
       const result = await createEventAction(formData);
@@ -134,6 +137,30 @@ export function NewEventDialog() {
                 value={form.description}
                 onChange={(event) => update("description", event.target.value)}
               />
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="programId">Program</FieldLabel>
+              <Select
+                value={form.programId || "none"}
+                onValueChange={(value) => update("programId", value === "none" ? "" : (value ?? ""))}
+              >
+                <SelectTrigger id="programId" className="w-full">
+                  <SelectValue placeholder="No program">
+                    {(value: string) =>
+                      value && value !== "none" ? (programs.find((program) => program.id === value)?.name ?? "No program") : "No program"
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No program</SelectItem>
+                  {programs.map((program) => (
+                    <SelectItem key={program.id} value={program.id}>
+                      {program.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
 
             <Field orientation="responsive">

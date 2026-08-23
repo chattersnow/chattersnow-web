@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { ArrowLeft, Eye, Pencil } from "lucide-react";
+import type { Program } from "../programs/actions";
 import type { EventRow, PhaseStatus } from "./event-badges";
 import { PhaseStatusBadge } from "./event-badges";
 import { OverviewTab, type OverviewTabHandle } from "./overview-tab";
@@ -126,7 +127,7 @@ function phaseStatus(key: PhaseKey, event: EventRow): PhaseStatus | null {
   return null;
 }
 
-export function EventDetailsDialog({ event }: { event: EventRow }) {
+export function EventDetailsDialog({ event, programs }: { event: EventRow; programs: Program[] }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<TabValue>("overview");
   const [mode, setMode] = useState<Mode>("view");
@@ -263,6 +264,7 @@ export function EventDetailsDialog({ event }: { event: EventRow }) {
                 <OverviewTab
                   ref={overviewTabRef}
                   event={event}
+                  programs={programs}
                   formId={`${FORM_ID_PREFIX}-overview-${event.id}`}
                   mode={mode}
                   onSaved={() => setMode("view")}

@@ -14,6 +14,7 @@ export type EventFormData = {
   timezone: string;
   visibility: (typeof VISIBILITIES)[number];
   status: (typeof STATUSES)[number];
+  programId: string | null;
 };
 
 export function parseEventForm(formData: FormData): ParseResult<EventFormData> {
@@ -27,6 +28,7 @@ export function parseEventForm(formData: FormData): ParseResult<EventFormData> {
   const timezone = String(formData.get("timezone") ?? "").trim();
   const visibility = String(formData.get("visibility") ?? "");
   const status = String(formData.get("status") ?? "");
+  const programId = String(formData.get("programId") ?? "").trim();
 
   if (!name) return { error: "Event name is required." };
   if (!startsAt) return { error: "Start date and time are required." };
@@ -56,6 +58,7 @@ export function parseEventForm(formData: FormData): ParseResult<EventFormData> {
       timezone,
       visibility: visibility as (typeof VISIBILITIES)[number],
       status: status as (typeof STATUSES)[number],
+      programId: programId || null,
     },
   };
 }

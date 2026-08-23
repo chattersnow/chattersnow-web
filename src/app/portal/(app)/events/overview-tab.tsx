@@ -3,6 +3,7 @@
 import { FormEvent, Ref, useEffect, useImperativeHandle, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateEventAction } from "./actions";
+import type { Program } from "../programs/actions";
 import type { EventRow } from "./event-badges";
 import { StatusBadge, VisibilityBadge } from "./event-badges";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
@@ -60,6 +61,7 @@ function formStateFor(event: EventRow) {
     timezone: event.timezone,
     visibility: event.visibility,
     status: event.status,
+    programId: event.program_id ?? "",
   };
 }
 
@@ -76,6 +78,7 @@ export type OverviewTabHandle = {
 
 export function OverviewTab({
   event,
+  programs,
   formId,
   mode,
   onSaved,
@@ -84,6 +87,7 @@ export function OverviewTab({
   ref,
 }: {
   event: EventRow;
+  programs: Program[];
   formId: string;
   mode: "view" | "edit";
   onSaved: () => void;
@@ -130,6 +134,7 @@ export function OverviewTab({
     formData.set("timezone", form.timezone);
     formData.set("visibility", form.visibility);
     formData.set("status", form.status);
+    formData.set("programId", form.programId);
 
     startTransition(async () => {
       const result = await updateEventAction(event.id, formData);
@@ -142,6 +147,8 @@ export function OverviewTab({
     });
   }
 
+  const programName = programs.find((program) => program.id === form.programId)?.name;
+
   if (mode === "view") {
     return (
       <FieldGroup>
@@ -151,6 +158,10 @@ export function OverviewTab({
 
         <ReadOnlyField label="Description" htmlFor="details-description">
           {form.description || "—"}
+        </ReadOnlyField>
+
+        <ReadOnlyField label="Program" htmlFor="details-programId">
+          {programName ?? "—"}
         </ReadOnlyField>
 
         <Field orientation="responsive">
@@ -217,6 +228,30 @@ export function OverviewTab({
             value={form.description}
             onChange={(changeEvent) => update("description", changeEvent.target.value)}
           />
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="details-programId">Program</FieldLabel>
+          <Select
+            value={form.programId || "none"}
+            onValueChange={(value) => update("programId", value === "none" ? "" : (value ?? ""))}
+          >
+            <SelectTrigger id="details-programId" className="w-full">
+              <SelectValue placeholder="No program">
+                {(value: string) =>
+                  value && value !== "none" ? (programs.find((program) => program.id === value)?.name ?? "No program") : "No program"
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No program</SelectItem>
+              {programs.map((program) => (
+                <SelectItem key={program.id} value={program.id}>
+                  {program.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </Field>
 
         <Field orientation="responsive">
