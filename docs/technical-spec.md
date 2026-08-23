@@ -54,11 +54,11 @@ The public site must remain useful without an account. Operational data must req
 | DNS and domain | Cloudflare DNS; Vercel manages application deployment and domain integration |
 | Local development | Next.js development server and Supabase local stack |
 
-The repository started as a minimal Next.js application and has since been built out well past the original "coming soon" skeleton, though unevenly across areas. Supabase Auth, Storage, and API services are enabled in `supabase/config.toml`. Schema exists as ordered migrations under `supabase/migrations/` for the shared `people` directory (donors, sponsors, volunteers), donations, inventory items/movements, events, event sponsors, event expenses, event attendance (a simple event-level headcount, not per-attendee), giveaways/giveaway prizes/giveaway winners, and `roles`/`user_roles`, plus the `public_gear_catalog` view; an audit log, governance records, and event registrations have no backing tables yet. `supabase/seed.sql` populates a local dev database with one test account per role (plus a multi-role and a no-role account, all `@example.test`) and sample operational data, so the role matrix and every workflow below can be exercised locally without touching production.
+The repository started as a minimal Next.js application and has since been built out well past the original "coming soon" skeleton, though unevenly across areas. Supabase Auth, Storage, and API services are enabled in `supabase/config.toml`. Schema exists as ordered migrations under `supabase/migrations/` for the shared `people` directory (donors, sponsors, volunteers), donations, inventory items/movements, events, event sponsors, event expenses, event attendance (a simple event-level headcount, not per-attendee), giveaways/giveaway prizes/giveaway winners, `roles`/`user_roles`, and an append-only `audit_log`, plus the `public_gear_catalog` view; governance records and event registrations have no backing tables yet. `supabase/seed.sql` populates a local dev database with one test account per role (plus a multi-role and a no-role account, all `@example.test`) and sample operational data, so the role matrix and every workflow below can be exercised locally without touching production.
 
 Authorization is now role-based: `roles`/`user_roles` tables plus `has_role()`/`is_admin()`/`my_roles()` security-definer helper functions back per-table RLS policies that match the entitlement matrix in §5.3, and the two cross-cutting workflow RPCs (`create_donation_with_items`, `record_event_distribution`) are `security definer` with explicit role checks so they work for roles like `volunteer` that only hold `insert` grants on the underlying tables. On the app side, `src/lib/auth/roles.ts` exposes `getCurrentUserRoles`/`requireAnyRole`; the portal layout redirects an authenticated-but-unprovisioned user (zero roles) to a "no access" login state, every section has its own `layout.tsx` calling `requireAnyRole` server-side (not just nav hiding), and `portal-nav.tsx`/`sidebar-quick-actions.tsx` filter what's shown per role. The five roles are still fixed at the database level (`roles.name` is check-constrained to the five in §5.3) and the matrix is still hardcoded into RLS policies and route guards rather than being data-driven — see "what's next" below and in §5.3.
 
-The portal's sidebar nav already links to Governance, Volunteers, and Administration sections (`src/app/portal/(app)/governance/*`, `volunteers/*`, `administration/*`). Administration > Users is implemented — it lists every portal account (via a `security definer` `list_portal_users` RPC, since `auth.users` isn't otherwise exposed) and lets an admin assign/revoke roles per user directly against `user_roles`. Administration > Permissions/System settings/Audit log, all of Governance and Volunteers, are still static "Coming soon" placeholders with no data fetching, no server actions, and no backing tables. The public site's Home page (`src/app/(public)/home`) is likewise still a placeholder, so the public marketing homepage (§5.1) is not yet implemented; Contact (§5.1) and the Events list (§5.2) now have working forms/listings, alongside About Us and Gears.
+The portal's sidebar nav already links to Governance, Volunteers, and Administration sections (`src/app/portal/(app)/governance/*`, `volunteers/*`, `administration/*`). Administration > Users is implemented — it lists every portal account (via a `security definer` `list_portal_users` RPC, since `auth.users` isn't otherwise exposed) and lets an admin assign/revoke roles per user directly against `user_roles`. Administration > Audit log (issue #18) is also implemented: a URL-filtered, server-paginated view over the `audit_log` table (see §5.11, §6) with a before/after diff drawer per entry. Administration > Permissions/System settings, all of Governance and Volunteers, are still static "Coming soon" placeholders with no data fetching, no server actions, and no backing tables. The public site's Home page (`src/app/(public)/home`) is likewise still a placeholder, so the public marketing homepage (§5.1) is not yet implemented; Contact (§5.1) and the Events list (§5.2) now have working forms/listings, alongside About Us and Gears.
 
 ### Environment configuration
 
@@ -101,7 +101,7 @@ The authenticated admin portal supports:
 - Donation and inventory management
 - Expense management
 
-Giveaway recording (prizes, winners, ticket totals) and event attendance headcounts are implemented as part of event management. Role-based access control (§5.3) is implemented, including Administration > Users for assigning roles to accounts. Volunteers, governance record-keeping, admin-configurable permissions/custom roles, an audit log, and expanded reporting remain planned capabilities, are not required for the initial portal, and currently have placeholder pages with no backing tables.
+Giveaway recording (prizes, winners, ticket totals) and event attendance headcounts are implemented as part of event management. Role-based access control (§5.3) is implemented, including Administration > Users for assigning roles to accounts. An audit log (§5.11) is implemented for donations, inventory items/movements, event expenses, and user role changes; events and giveaways are not yet covered. Volunteers, governance record-keeping, admin-configurable permissions/custom roles, and expanded reporting remain planned capabilities, are not required for the initial portal, and currently have placeholder pages with no backing tables.
 
 ## 5. Functional Requirements
 
@@ -317,6 +317,8 @@ The system shall preserve who changed what and when for material operational rec
 
 Audit history should be append-only for normal application users. At minimum, store actor, action, entity type, entity ID, timestamp, and a structured before/after or change payload. Audit data must be visible only to authorized roles.
 
+**Implemented for donations, inventory items/movements, event expenses, and user role changes** (issue #18); events and giveaways are not yet covered. A generic `security definer` Postgres trigger (`audit_log_row()`) fires `AFTER INSERT OR UPDATE OR DELETE` on the covered tables and writes actor (`auth.uid()`), action, table name, record ID, timestamp, and full before/after `jsonb` row snapshots to `audit_log` — chosen over application-level writes scattered across each mutating RPC/server action so coverage can't be silently skipped by a write path that forgets to log. RLS restricts reads to `has_permission('administration', 'manage')`; no insert/update/delete policy exists for any role, so the table is append-only in practice, not just by convention. See §6 for the schema and Administration > Audit log for the browsing UI (filter by table/action/actor/date, sort, paginate, and view a before/after diff per entry).
+
 ### 5.12 Governance
 
 Authorized users shall be able to manage nonprofit governance records:
@@ -433,6 +435,15 @@ Implemented (see §5.3):
 - `role_permissions`: role × resource → none/view/manage (`role_id`, `resource_id`, `level`, `unique(role_id, resource_id)`), RLS-restricted the same way as `user_roles`
 - `has_permission(resource_key, min_level)`: `security definer` helper used by RLS policies, secured RPCs, and the app (via the `my_permissions()` RPC) to check the calling user's effective permission level for a resource across all their roles; `is_admin()` is now defined in terms of it (`has_permission('administration', 'manage')`) rather than hardcoding the `admin` role name
 
+### Audit log
+
+Implemented for the tables listed below (see §5.11, issue #18):
+
+- `audit_log`: `id`, `table_name` (check-constrained to the audited table set), `record_id`, `action` (`insert`/`update`/`delete`), `actor_id` (nullable FK → `auth.users`, null for non-request-scoped writes), `occurred_at`, `old_data`/`new_data` (full-row `jsonb` snapshots; no precomputed diff column — diffing two small `jsonb` objects is computed on read instead)
+- `audit_log_row()`: a generic `security definer` `plpgsql` trigger function (`to_jsonb(OLD)`/`to_jsonb(NEW)` keyed on `TG_TABLE_NAME`/`TG_OP`) fired `AFTER INSERT OR UPDATE OR DELETE` on `donations`, `inventory_items`, `inventory_movements`, `event_expenses`, and `user_roles`
+- RLS: select-only, restricted to `has_permission('administration', 'manage')`; no insert/update/delete policy exists for any role, so writes only ever happen through the trigger
+- Not yet covered: `events`, `giveaways`/`giveaway_prizes`/`giveaway_winners` — named in §5.11's requirement but out of scope for the v1 build; adding a table later only needs a new `create trigger` statement plus widening the `table_name` check constraint, not a new function
+
 ### Public and events
 
 - `pages` or repository content: approved public content
@@ -489,7 +500,6 @@ Not yet implemented — the portal's Governance nav section renders placeholder 
 - `policies`: name, category, effective date, version
 - `conflict_of_interest_disclosures`: linked to a `people`/`board_members` record, disclosure period, on-file date, notes
 - `annual_requirements`: name, due date, completed-at, responsible `people` record
-- `audit_log`
 
 `agendas`, `minutes`, `resolutions`, `bylaws`, `policies`, `conflict_of_interest_disclosures`, and `annual_requirements` each hold their substantive content via nullable `file_attachment_id` (→ `file_attachments`), `external_link`, and `body_text` columns, populated in any combination per §5.11.
 
@@ -531,7 +541,7 @@ src/app/
       people/                   # shared donor/sponsor/volunteer directory
       governance/                # placeholder — no backing tables
       volunteers/                # placeholder — no backing tables
-      administration/            # placeholder — no backing tables, no roles
+      administration/            # users, permissions, audit log implemented; system settings placeholder
   auth/
 ```
 
