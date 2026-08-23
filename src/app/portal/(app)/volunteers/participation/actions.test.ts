@@ -1,4 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
+import type { VolunteerHoursEntry } from "./actions";
 
 const revalidatePathMock = mock(() => {});
 mock.module("next/cache", () => ({ revalidatePath: revalidatePathMock }));
@@ -117,7 +118,7 @@ describe("deleteVolunteerHoursAction", () => {
 
 describe("listVolunteerHoursAction", () => {
   test("returns entries on success", async () => {
-    const rows = [{ id: "1", hours: 2 }];
+    const rows = [{ id: "1", hours: 2 }] as unknown as VolunteerHoursEntry[];
     currentSupabase = fakeSupabase({ result: { data: rows, error: null } }).client;
     expect(await listVolunteerHoursAction()).toEqual({ data: rows });
   });
