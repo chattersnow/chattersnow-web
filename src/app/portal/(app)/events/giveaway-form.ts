@@ -49,14 +49,12 @@ export function parseGiveawayForm(formData: FormData): ParseResult<GiveawayFormD
 
 export type GiveawayPrizeFormData = {
   prizeName: string;
-  donorName: string | null;
   estimatedValue: number | null;
   notes: string | null;
 };
 
 export function parseGiveawayPrizeForm(formData: FormData): ParseResult<GiveawayPrizeFormData> {
   const prizeName = String(formData.get("prizeName") ?? "").trim();
-  const donorName = String(formData.get("donorName") ?? "").trim();
   const estimatedValueRaw = String(formData.get("estimatedValue") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim();
 
@@ -73,7 +71,6 @@ export function parseGiveawayPrizeForm(formData: FormData): ParseResult<Giveaway
   return {
     data: {
       prizeName,
-      donorName: donorName || null,
       estimatedValue,
       notes: notes || null,
     },

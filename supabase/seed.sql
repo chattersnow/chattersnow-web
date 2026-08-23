@@ -75,6 +75,7 @@ declare
   v_person_donor2 uuid;
   v_person_sponsor uuid;
   v_person_volunteer uuid;
+  v_person_local_roasters uuid;
   v_event_upcoming uuid;
   v_event_past uuid;
   v_event_draft uuid;
@@ -106,6 +107,10 @@ begin
   insert into public.people (name, is_anonymous, source_type, email, phone, notes, is_volunteer, created_by)
   values ('Priya Natarajan', false, 'individual', 'priya.n@example.test', '555-0104', null, true, v_admin_id)
   returning id into v_person_volunteer;
+
+  insert into public.people (name, is_anonymous, source_type, is_donor, created_by)
+  values ('Local Roasters Coffee', false, 'brand', true, v_admin_id)
+  returning id into v_person_local_roasters;
 
   -- Events: one upcoming/published/public, one past/published/public with
   -- attendance recorded, one draft/private.
@@ -195,12 +200,12 @@ begin
   values (v_event_past, 'Trailhead Cleanup Giveaway', 142, 5.00, 710.00, now() - interval '40 days', v_admin_id)
   returning id into v_giveaway_id;
 
-  insert into public.giveaway_prizes (giveaway_id, prize_name, donor_name, estimated_value, created_by)
-  values (v_giveaway_id, 'Weekend cabin stay', 'Summit Outdoor Co.', 400.00, v_admin_id)
+  insert into public.giveaway_prizes (giveaway_id, prize_name, donor_person_id, estimated_value, created_by)
+  values (v_giveaway_id, 'Weekend cabin stay', v_person_sponsor, 400.00, v_admin_id)
   returning id into v_prize1;
 
-  insert into public.giveaway_prizes (giveaway_id, prize_name, donor_name, estimated_value, created_by)
-  values (v_giveaway_id, 'Gift basket', 'Local Roasters Coffee', 60.00, v_admin_id)
+  insert into public.giveaway_prizes (giveaway_id, prize_name, donor_person_id, estimated_value, created_by)
+  values (v_giveaway_id, 'Gift basket', v_person_local_roasters, 60.00, v_admin_id)
   returning id into v_prize2;
 
   insert into public.giveaway_winners (giveaway_prize_id, winner_name, winner_contact, distribution_status, distributed_at, created_by)
