@@ -76,3 +76,24 @@ export async function listEventDonationsAction(
   }
   return { data: (data ?? []) as unknown as EventDonationRow[] };
 }
+
+export async function listRecentDonationsAction(
+  limit: number
+): Promise<{ data: EventDonationRow[] } | { error: string }> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "finance", "view");
+  if (permissionError) return permissionError;
+
+  const { data, error } = await supabase
+    .from("donations")
+    .select(
+      "id, donated_at, notes, donor:people(name, is_anonymous), inventory_items(id, description, type, size, condition, face_value, status)"
+    )
+    .order("donated_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    return { error: "Could not load recent donations. Please try again." };
+  }
+  return { data: (data ?? []) as unknown as EventDonationRow[] };
+}
