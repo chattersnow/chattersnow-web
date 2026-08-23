@@ -40,7 +40,7 @@ export default async function GearsPage() {
           </div>
         </section>
 
-        <section>
+        <section id="how-it-works">
           <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
             How the gear program works
           </h2>
@@ -52,7 +52,7 @@ export default async function GearsPage() {
           </p>
         </section>
 
-        <section>
+        <section id="request">
           <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
             Request gear
           </h2>

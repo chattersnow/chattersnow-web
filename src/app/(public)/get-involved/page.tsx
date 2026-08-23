@@ -90,7 +90,7 @@ export default function GetInvolvedPage() {
           </div>
         </section>
 
-        <section>
+        <section id="partner">
           <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
             Become a partner
           </h2>
@@ -138,7 +138,7 @@ export default function GetInvolvedPage() {
           </p>
         </section>
 
-        <section>
+        <section id="community">
           <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
             Join the community
           </h2>

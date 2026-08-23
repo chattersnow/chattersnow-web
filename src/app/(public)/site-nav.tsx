@@ -32,14 +32,43 @@ const NAV_GROUPS: readonly NavGroup[] = [
     label: "About",
     links: [
       { label: "Our Story", href: "/about" },
+      { label: "Mission", href: "/about#mission" },
+      { label: "Values", href: "/about#values" },
       { label: "Meet the Team", href: "/about/team" },
+      { label: "Why LGBTQ+ Snow Sports", href: "/about#why-lgbtq" },
     ],
   },
   { label: "Events", href: "/events" },
   { label: "Programs", href: "/programs" },
-  { label: "Gear", href: "/gears" },
-  { label: "Get Involved", href: "/get-involved" },
-  { label: "Support", href: "/support" },
+  {
+    label: "Gear",
+    links: [
+      { label: "Gear Library", href: "/gears" },
+      { label: "How It Works", href: "/gears#how-it-works" },
+      { label: "Request Gear", href: "/gears#request" },
+      { label: "Donate Gear", href: "/gears#donate" },
+      { label: "Gear Drives", href: "/gears#gear-drives" },
+    ],
+  },
+  {
+    label: "Get Involved",
+    links: [
+      { label: "Attend", href: "/get-involved" },
+      { label: "Volunteer", href: "/get-involved#volunteer" },
+      { label: "Become a Partner", href: "/get-involved#partner" },
+      { label: "Sponsor Chatter", href: "/support#sponsorship" },
+      { label: "Donate Gear", href: "/gears#donate" },
+      { label: "Join the Community", href: "/get-involved#community" },
+    ],
+  },
+  {
+    label: "Support",
+    links: [
+      { label: "Donations", href: "/support" },
+      { label: "Sponsorship", href: "/support#sponsorship" },
+      { label: "In-Kind Donations", href: "/support#in-kind" },
+    ],
+  },
   { label: "Contact", href: "/contact" },
 ] as const;
 
@@ -67,6 +96,26 @@ function MobileNavLink({
       href={href}
       onClick={onNavigate}
       className="rounded-lg px-2 py-2 text-sm font-medium hover:bg-muted"
+    >
+      {children}
+    </Link>
+  );
+}
+
+function MobileSubNavLink({
+  href,
+  onNavigate,
+  children,
+}: {
+  href: string;
+  onNavigate: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onNavigate}
+      className="rounded-lg py-1.5 pl-6 pr-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
     >
       {children}
     </Link>
@@ -133,19 +182,19 @@ export function SiteNav() {
           <SheetHeader>
             <SheetTitle>Menu</SheetTitle>
           </SheetHeader>
-          <nav className="flex flex-col gap-1 px-4 pb-4">
+          <nav className="flex flex-col gap-2 px-4 pb-4">
             {NAV_GROUPS.map((group) =>
               !group.links ? (
                 <MobileNavLink key={group.label} href={group.href} onNavigate={closeMobile}>
                   {group.label}
                 </MobileNavLink>
               ) : (
-                <div key={group.label} className="flex flex-col gap-1">
-                  <p className="app-eyebrow px-2 pt-4">{group.label}</p>
+                <div key={group.label} className="flex flex-col gap-0.5">
+                  <p className="app-eyebrow px-2">{group.label}</p>
                   {group.links.map((link) => (
-                    <MobileNavLink key={link.href} href={link.href} onNavigate={closeMobile}>
+                    <MobileSubNavLink key={link.href} href={link.href} onNavigate={closeMobile}>
                       {link.label}
-                    </MobileNavLink>
+                    </MobileSubNavLink>
                   ))}
                 </div>
               )

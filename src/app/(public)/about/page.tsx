@@ -102,7 +102,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section>
+      <section id="mission">
         <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
           Our Mission
         </h2>
@@ -130,7 +130,7 @@ export default function AboutPage() {
         </p>
       </section>
 
-      <section>
+      <section id="values">
         <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
           Our Values
         </h2>
@@ -144,7 +144,7 @@ export default function AboutPage() {
         </ul>
       </section>
 
-      <section>
+      <section id="why-lgbtq">
         <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
           Why LGBTQ+ snow sports
         </h2>

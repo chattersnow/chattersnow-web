@@ -63,7 +63,7 @@ export default function SupportPage() {
           </Button>
         </section>
 
-        <section>
+        <section id="in-kind">
           <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
             In-kind donations
           </h2>
