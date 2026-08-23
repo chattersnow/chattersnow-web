@@ -3,7 +3,6 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserRoles } from "@/lib/auth/roles";
 import { getCurrentUserPermissions } from "@/lib/auth/permissions";
 import {
   Sidebar,
@@ -29,11 +28,10 @@ export default async function PortalAppLayout({ children }: { children: React.Re
     redirect("/portal/login");
   }
 
-  const roles = await getCurrentUserRoles(supabase);
-  if (roles.length === 0) {
+  const permissions = await getCurrentUserPermissions(supabase);
+  if (!Object.values(permissions).some((level) => level !== "none")) {
     redirect("/portal/login?error=no_access");
   }
-  const permissions = await getCurrentUserPermissions(supabase);
 
   const cookieStore = await cookies();
   const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false";
