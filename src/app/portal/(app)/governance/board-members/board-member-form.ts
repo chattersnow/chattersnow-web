@@ -12,7 +12,7 @@ export function parseBoardMemberForm(formData: FormData): ParseResult<BoardMembe
   const roleTitle = String(formData.get("roleTitle") ?? "").trim();
   const termStart = String(formData.get("termStart") ?? "").trim();
   const termEnd = String(formData.get("termEnd") ?? "").trim();
-  const isActive = formData.get("isActive") === "true";
+  const isActive = formData.get("isActive") === "on" || formData.get("isActive") === "true";
   const notes = String(formData.get("notes") ?? "").trim();
 
   if (!roleTitle) return { error: "Role/title is required." };

@@ -49,6 +49,13 @@ describe("parseBoardMemberForm", () => {
     });
   });
 
+  test("accepts a native checkbox value of \"on\"", () => {
+    const result = parseBoardMemberForm(
+      formData({ roleTitle: "Secretary", termStart: "2026-01-01", isActive: "on" })
+    );
+    expect("data" in result && result.data.is_active).toBe(true);
+  });
+
   test("defaults optional fields to null/false", () => {
     const result = parseBoardMemberForm(formData({ roleTitle: "Board Member", termStart: "2026-01-01" }));
     expect(result).toEqual({
