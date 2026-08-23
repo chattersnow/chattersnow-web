@@ -15,12 +15,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { formatRoleLabel } from "@/lib/format";
 import { assignRoleAction, revokeRoleAction, type PortalUser, type PortalRoleOption } from "./actions";
-
-function formatRoleLabel(name: string): string {
-  const spaced = name.replace(/_/g, " ");
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
-}
 
 export function UsersTable({
   users,
