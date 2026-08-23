@@ -3,8 +3,8 @@
 ## Technical Specification
 
 - **Status:** Draft for team review
-- **Version:** 0.6
-- **Date:** 2026-08-22
+- **Version:** 0.7
+- **Date:** 2026-08-23
 - **Owner:** Chatter Snow
 - **Repository:** `chattersnow-web`
 - **Canonical domain:** `https://chattersnow.org`
@@ -90,7 +90,7 @@ Public routes must not expose donor contact details, private event data, interna
 
 **Implemented:** Gears (`/gears`) and Contact Us (`/contact`, form + published email/social) are fully built. Events (`/events`) lists upcoming/past events from Supabase but has no detail page or registration yet. About Us (`/about`) has real mission/story copy and has grown beyond the original team-only sub-page into four sub-pages: `/about/team` (roster, bios still "coming soon"), `/about/programs` (Access/Progression/Community pillars, six named programs), `/about/volunteer` (three volunteer opportunities), and `/about/donations` (in-kind donation info; monetary donations is a placeholder). Home (`/home`) is built: mission summary, Join/Get Involved/Donate CTAs, and an upcoming-event highlight.
 
-**What's next:** Add event detail pages and registration (§5.2, §9). Replace the monetary-donations placeholder with a real giving path, and add sponsorship/partnership content (currently absent). Write real team bios and an explicit values section. Consider promoting Programs and a consolidated Get Involved page to top-level nav instead of About Us sub-pages, since their content now stands on its own — this would also mean updating this section's five-item IA list, which does not currently name them.
+**What's next:** Add event detail pages and registration (§5.2, §9). Replace the monetary-donations placeholder with a real giving path, and add sponsorship/partnership content (currently absent). Write real team bios and an explicit values section. Consider promoting Programs and a consolidated Get Involved page to top-level nav instead of About Us sub-pages, since their content now stands on its own — this would also mean updating this section's five-item IA list, which does not currently name them. A sixth public surface, the Community Calendar, is specified in §5.20 but not yet built or added to this IA list.
 
 ### Operations portal
 
@@ -101,7 +101,7 @@ The authenticated admin portal supports:
 - Donation and inventory management
 - Expense management
 
-Giveaway recording (prizes, winners, ticket totals) and event attendance headcounts are implemented as part of event management. Role-based access control (§5.3) is implemented, including Administration > Users for assigning roles to accounts. An audit log (§5.11) is implemented for donations, inventory items/movements, event expenses, and user role changes; events and giveaways are not yet covered. Volunteers, governance record-keeping, admin-configurable permissions/custom roles, and expanded reporting remain planned capabilities, are not required for the initial portal, and currently have placeholder pages with no backing tables.
+Giveaway recording (prizes, winners, ticket totals) and event attendance headcounts are implemented as part of event management. Role-based access control (§5.3) is implemented, including Administration > Users for assigning roles to accounts. An audit log (§5.11) is implemented for donations, inventory items/movements, event expenses, and user role changes; events and giveaways are not yet covered. Volunteers, governance record-keeping, admin-configurable permissions/custom roles, expanded reporting, and the content and community calendar (§5.20) remain planned capabilities, are not required for the initial portal, and currently have placeholder pages or no pages at all, with no backing tables.
 
 ## 5. Functional Requirements
 
@@ -429,6 +429,29 @@ This is a reporting view over `inventory_items` and `inventory_movements` — no
 
 **Not yet implemented.** `inventory/reports` is a static placeholder page.
 
+### 5.20 Content and community calendar
+
+A Chatter-specific planning and approval workflow connecting LGBTQ+ community observances, winter/outdoor sports moments, heritage and social-justice dates, Chatter events, partner opportunities, and campaigns to practical content work — not a full social-media publishing suite, and not a replacement for event registration, email marketing, or a CRM. It should help the team decide what's coming up, what's relevant enough to acknowledge, who owns any resulting content and by when, and what has been approved, scheduled, published, or intentionally skipped.
+
+The underlying calendar item model must be generic enough to support future programs, not just this feature. A calendar item has: title, item type (Chatter event, partner/co-hosted event, community observance, heritage/social-justice moment, winter/outdoor sports moment, content campaign, fundraiser/donation drive, partner opportunity, or content opportunity), start/end date, recurrence or annual-observance rule, time zone, summary, priority tier, calendar status, public visibility, owner, related programs, tags/categories, related items, and audit timestamps.
+
+Two independent state machines apply per item:
+
+- **Priority tier** — Tier 1 (Chatter should usually acknowledge or plan around this; target ~15–20/year), Tier 2 (consider when relevant to current programs/capacity/context), or Tier 3 (internal reference/content-bank only, no publication obligation). An admin can change an item's tier and must record a rationale; Tier 1 never auto-creates a publish task without a human decision.
+- **Calendar status** (idea/active/complete/archived) is distinct from **content status** (not planned/idea/draft/in review/changes requested/approved/scheduled/published/skipped), since planning a moment and producing content for it are separate concerns. Every status change records the actor and timestamp; a skipped item records a reason.
+
+Categories (LGBTQ+ community; winter and outdoor sports; community and social justice; Chatter events; campaigns and fundraising; partner opportunities) are labels layered on top of item type and priority, not a substitute for either.
+
+**Public surface:** a Community Calendar (month/list view, filterable by month and public category) showing published Chatter events and selected public community moments — never the full internal calendar, and never internal owners, draft copy, review notes, or unpublished assets. A public item can be informational without implying Chatter hosts or owns the observance, and must degrade gracefully for long titles, missing images, date ranges, and no-match filters.
+
+**Portal surface:** month/list/agenda calendar views with the same filter set as the item model above; item CRUD (create/edit/duplicate/archive/restore) with date validation and recurrence-overlap warnings; a content-opportunity brief per planned item (what the moment is, the Chatter connection, recommended formats/channels/CTA, related program/event, owner, reviewer, draft/review/publish due dates) with lead-time defaults that calculate draft/review/publish dates from a target publish date (e.g. a 21-day lead time on a March 31 item defaults to a March 17 draft date, March 24 review date); a small starter template library (community spotlight, awareness/community moment, partner spotlight) that prefills brief structure without auto-publishing; "my work" queues with overdue and Tier-1-no-decision warnings; admin-configurable, editable (never automatic) related-program suggestions; and full audit history (who changed what, approvals, publish/skip decisions) that survives archiving, following the existing `audit_log` pattern in §5.11/§6.
+
+Editorial guardrails apply throughout: community stories require explicit, recorded permission before publication; sensitive topics (e.g. HIV/AIDS remembrance, Transgender Day of Remembrance) require human review with appropriate tone; content should avoid tokenism and generic hashtag-driven posts; and internal notes must never carry sensitive personal data or confidential case details.
+
+The first-year seed is a curated Tier 1/Tier 2 set (see the planning doc's suggested list), not an exhaustive third-party awareness-day database, and requires operations and community-lead sign-off before import; each date is stored with its source, region, and any year-specific exceptions.
+
+**Not yet implemented.** No tables, routes, or portal pages exist yet. Full requirements: `planning/ideas/content_community_calendar.md`. Delivery is planned in three phases — (1) calendar foundation: item model, categories/tiers/statuses/owners/visibility/recurrence/audit fields, portal CRUD, public list; (2) content workflow: opportunities, templates, assignment/review, my-work/overdue/history; (3) program intelligence: configurable program suggestions, related-item recommendations, annual reporting, optional iCal export — tracked as issue #102 and its sub-issues. Several open questions (which roles approve public content; which channels the first brief targets; whether public community moments get detail pages; who owns the annual observance list; notification channel; iCal export phase) are unresolved and tracked in #114.
+
 ## 6. Proposed Data Model
 
 The following is a logical model, not a final migration. IDs should be UUIDs and all material records should include `created_at`, `updated_at`, and the creating/updating user where appropriate.
@@ -514,6 +537,17 @@ Not yet implemented — the portal's Governance nav section renders placeholder 
 - `annual_requirements`: name, due date, completed-at, responsible `people` record
 
 `agendas`, `minutes`, `resolutions`, `bylaws`, `policies`, `conflict_of_interest_disclosures`, and `annual_requirements` each hold their substantive content via nullable `file_attachment_id` (→ `file_attachments`), `external_link`, and `body_text` columns, populated in any combination per §5.11.
+
+### Content and community calendar
+
+Not yet implemented — see §5.20 and issue #102.
+
+- `calendar_items`: title, item type, `starts_at`/`ends_at`, recurrence/annual-observance rule, time zone, summary, priority tier + rationale, calendar status (idea/active/complete/archived), public visibility (public/internal/unlisted draft), owner (→ `auth.users` or `people`, TBD during implementation), tags/categories, created/updated timestamps. Self-referencing `calendar_item_links` (or a simple array/join table) for related items.
+- `calendar_item_programs`: links a `calendar_items` row to one or more `programs` rows.
+- `content_opportunities`: one-to-one (or one-to-many, if an item can spawn multiple pieces of content) with a `calendar_items` row planned for content — content status (not planned/idea/draft/in review/changes requested/approved/scheduled/published/skipped, with skip reason), Chatter connection, recommended formats/channels/CTA, owner, reviewer, draft/review/publish due dates, lead-time default.
+- `content_templates`: name, item-type applicability, field schema for the starter library (community spotlight, awareness/community moment, partner spotlight); versioned so editing a template doesn't alter records already built from it.
+- `content_permissions`: consent record for a community-spotlight-type item — permitted use, usage limits, on-file date; required before such an item can move to "approved."
+- Audit coverage extends the existing `audit_log` pattern (§5.11) to `calendar_items` and `content_opportunities` rather than introducing a parallel history mechanism.
 
 Foreign keys should enforce relationships. Monetary amounts should use a fixed-precision numeric type, not floating-point values. Dates should be stored with timezone-aware timestamps; event display timezone is an event or organization configuration decision.
 
