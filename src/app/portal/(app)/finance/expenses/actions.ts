@@ -10,12 +10,6 @@ export type ExpenseActionResult = { error: string } | { success: true };
 
 export async function createExpenseAction(formData: FormData): Promise<ExpenseActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to record an expense." };
-  }
   const permissionError = await checkPermission(supabase, "event_expenses", "manage");
   if (permissionError) return permissionError;
 
@@ -37,12 +31,6 @@ export async function updateExpenseAction(
   formData: FormData
 ): Promise<ExpenseActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to update an expense." };
-  }
   const permissionError = await checkPermission(supabase, "event_expenses", "manage");
   if (permissionError) return permissionError;
 
