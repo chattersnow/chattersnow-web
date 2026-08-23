@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { parseVolunteerForm, parseVolunteerHoursForm } from "./volunteers-form";
+import { parseVolunteerForm, parseEventVolunteerHoursForm } from "./volunteers-form";
 import { checkPermission, checkAnyPermission } from "@/lib/auth/permissions";
 
 export type EventVolunteerPerson = {
@@ -147,7 +147,7 @@ export async function createEventVolunteerHoursAction(
     return { error: "Select or create a person to log hours for." };
   }
 
-  const parsed = parseVolunteerHoursForm(formData);
+  const parsed = parseEventVolunteerHoursForm(formData);
   if ("error" in parsed) return parsed;
   const { hours, loggedDate, notes } = parsed.data;
 

@@ -1,6 +1,6 @@
 export type ParseResult<T> = { data: T } | { error: string };
 
-export type VolunteerHoursFormData = {
+export type ParticipationHoursFormData = {
   eventId: string | null;
   volunteerRoleTypeId: string | null;
   hours: number;
@@ -8,7 +8,7 @@ export type VolunteerHoursFormData = {
   notes: string | null;
 };
 
-export function parseVolunteerHoursForm(formData: FormData): ParseResult<VolunteerHoursFormData> {
+export function parseParticipationHoursForm(formData: FormData): ParseResult<ParticipationHoursFormData> {
   const eventId = String(formData.get("eventId") ?? "").trim();
   const volunteerRoleTypeId = String(formData.get("volunteerRoleTypeId") ?? "").trim();
   const hoursRaw = String(formData.get("hours") ?? "").trim();
