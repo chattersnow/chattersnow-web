@@ -30,31 +30,6 @@ export async function listRolesAction(): Promise<{ data: PortalRoleOption[] } | 
   return { data: (data ?? []) as PortalRoleOption[] };
 }
 
-export async function createRoleAction(
-  name: string,
-  description: string,
-): Promise<{ error: string } | { success: true }> {
-  const trimmedName = name.trim();
-  if (!trimmedName) {
-    return { error: "Role name is required." };
-  }
-
-  const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "administration", "manage");
-  if (permissionError) return permissionError;
-
-  const { error } = await supabase
-    .from("roles")
-    .insert({ name: trimmedName, description: description.trim() || null });
-  if (error) {
-    return { error: error.message.includes("duplicate") ? "A role with that name already exists." : "Could not create role. Please try again." };
-  }
-
-  revalidatePath("/portal/administration/users");
-  revalidatePath("/portal/administration/permissions");
-  return { success: true };
-}
-
 export async function listUsersAction(): Promise<{ data: PortalUser[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
   const permissionError = await checkPermission(supabase, "administration", "manage");
