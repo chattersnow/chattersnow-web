@@ -1,8 +1,11 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requireAnyRole } from "@/lib/auth/roles";
+import { requireAnyPermission } from "@/lib/auth/permissions";
 
 export default async function FinanceLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createSupabaseServerClient();
-  await requireAnyRole(supabase, ["admin", "finance", "board"]);
+  await requireAnyPermission(supabase, [
+    { resource: "finance", level: "view" },
+    { resource: "finance_reports", level: "view" },
+  ]);
   return children;
 }

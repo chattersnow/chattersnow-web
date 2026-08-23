@@ -1,12 +1,12 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserRoles, hasAnyRole } from "@/lib/auth/roles";
+import { getCurrentUserPermissions, hasPermission } from "@/lib/auth/permissions";
 import { PeopleTable } from "./people-table";
 import type { PersonRow } from "./people-shared";
 
 export default async function PeoplePage() {
   const supabase = await createSupabaseServerClient();
-  const roles = await getCurrentUserRoles(supabase);
-  const canManage = hasAnyRole(roles, ["admin"]);
+  const permissions = await getCurrentUserPermissions(supabase);
+  const canManage = hasPermission(permissions, "people", "manage");
 
   const { data: people } = await supabase
     .from("people")

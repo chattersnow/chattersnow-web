@@ -190,9 +190,9 @@ A user may hold more than one role. The full page-by-page breakdown is the entit
 ² Volunteers do not get Inventory reports since those surface dollar valuations.
 ³ `finance` may create and edit expense/reimbursement records and mark them submitted, but cannot approve its own submissions — see §5.16.
 
-**Implemented:** `roles`/`user_roles` tables and per-table RLS policies enforcing the matrix above, plus server-side route guards (`requireAnyRole` in each section's `layout.tsx`) and nav filtering so unauthorized sections are neither reachable by URL nor shown in the sidebar. Administration > Users lets an admin assign/revoke roles per account; see §6.
+**Implemented:** `roles`/`user_roles` tables, plus a data-driven `resources`/`role_permissions` matrix (role × resource → none/view/manage) that RLS policies and route guards consult via `has_permission()` instead of hardcoded role names — see §6. Route guards (`requirePermission`/`requireAnyPermission` in each section's `layout.tsx`) and nav filtering (`portal-nav.tsx`) both read the same permission map, so unauthorized sections are neither reachable by URL nor shown in the sidebar, and a permission change takes effect immediately without a deploy. Administration > Users lets an admin assign/revoke roles per account, and Administration > Permissions lets an admin edit the matrix and create new roles beyond the initial five (the `roles.name` check constraint has been dropped). A new role starts with no permissions on any resource until explicitly granted.
 
-**What's next:** the matrix above and the five roles it lists are still hardcoded — RLS policies check `has_role('admin') or has_role('event_coordinator') or ...` directly, and route guards pass the same fixed role arrays. Administration > Permissions is planned to make this data-driven: a `role_permissions` table (role × resource → none/view/manage) that RLS and route guards consult instead of hardcoded role names, an admin UI to edit that matrix per role, and support for creating new roles beyond the initial five. Because route/nav gating would need to read the same data (a new role only granted DB access but not surfaced in the app would be a broken experience), this is a full-stack change, not just a new admin page.
+Resource granularity mostly matches the matrix rows above, with a few narrow "Workflow" resources (`people_intake`, `inventory_intake`, `volunteer_hours_logging`) added to express existing per-verb carve-outs — e.g. a volunteer can record a donation-intake/distribution transaction or create an inline contact from an event/donation form without gaining full People-directory or Inventory-reports access — that a flat view/manage split per matrix row can't otherwise represent without widening those roles' read access.
 
 ### 5.4 Inventory and donation management
 
@@ -429,8 +429,9 @@ Implemented (see §5.3):
 - `has_role(text)`, `is_admin()`, `my_roles()`: `security definer` SQL helper functions used by both RLS policies and the app (`my_roles` backs `getCurrentUserRoles` client-side) to check the calling user's own roles without recursive-policy issues
 - `list_portal_users()`: a `security definer` RPC used only by Administration > Users to list `auth.users` (email, roles, created_at) for admins, since `auth.users` isn't otherwise exposed via the API
 - `profiles`: still not implemented — not yet needed, since `list_portal_users()` reads email directly from `auth.users`
-
-Planned next: a `resources` + `role_permissions` (role × resource → none/view/manage) pair of tables so the entitlement matrix becomes data the Administration > Permissions page can edit, rather than hardcoded role-name checks in RLS policies and route guards — see "what's next" in §5.3. This would also let `roles.name` drop its fixed check constraint so new roles can be created.
+- `resources`: catalog of permissionable resources (`key`, `section`, `label`, `description`, `sort_order`) edited via Administration > Permissions
+- `role_permissions`: role × resource → none/view/manage (`role_id`, `resource_id`, `level`, `unique(role_id, resource_id)`), RLS-restricted the same way as `user_roles`
+- `has_permission(resource_key, min_level)`: `security definer` helper used by RLS policies, secured RPCs, and the app (via the `my_permissions()` RPC) to check the calling user's effective permission level for a resource across all their roles; `is_admin()` is now defined in terms of it (`has_permission('administration', 'manage')`) rather than hardcoding the `admin` role name
 
 ### Public and events
 

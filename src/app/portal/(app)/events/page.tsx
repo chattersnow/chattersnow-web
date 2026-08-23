@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserRoles, hasAnyRole } from "@/lib/auth/roles";
+import { getCurrentUserPermissions, hasPermission } from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -46,8 +46,8 @@ const COLUMNS: { key: SortColumn; label: string }[] = [
 
 export default async function EventsPage({ searchParams }: EventsPageProps) {
   const supabase = await createSupabaseServerClient();
-  const roles = await getCurrentUserRoles(supabase);
-  const canManage = hasAnyRole(roles, ["admin", "event_coordinator"]);
+  const permissions = await getCurrentUserPermissions(supabase);
+  const canManage = hasPermission(permissions, "events", "manage");
 
   const params = await searchParams;
   const raw = (key: string) => {

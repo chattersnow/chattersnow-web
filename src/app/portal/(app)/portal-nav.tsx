@@ -25,13 +25,13 @@ import {
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { TabNavOverlay } from "./tab-nav-overlay";
-import type { PortalRole } from "@/lib/auth/roles";
+import { hasAnyPermission, type PermissionCheck, type PermissionMap } from "@/lib/auth/permissions";
 
 type NavSubItem = {
   value: string;
   label: string;
   href: string;
-  allowedRoles: readonly PortalRole[];
+  access: readonly PermissionCheck[];
 };
 
 type NavItem = {
@@ -40,11 +40,10 @@ type NavItem = {
   href: string;
   icon: typeof LayoutDashboard;
   basePath?: string;
-  allowedRoles: readonly PortalRole[];
+  /** Omit for items always visible regardless of permissions (e.g. Overview). */
+  access?: readonly PermissionCheck[];
   subItems?: readonly NavSubItem[];
 };
-
-const ALL_ROLES: readonly PortalRole[] = ["admin", "event_coordinator", "finance", "board", "volunteer"];
 
 const NAV_ITEMS: readonly NavItem[] = [
   {
@@ -52,14 +51,13 @@ const NAV_ITEMS: readonly NavItem[] = [
     label: "Overview",
     href: "/portal/home",
     icon: LayoutDashboard,
-    allowedRoles: ALL_ROLES,
   },
   {
     value: "events",
     label: "Events",
     href: "/portal/events",
     icon: CalendarDays,
-    allowedRoles: ["admin", "event_coordinator", "finance", "volunteer"],
+    access: [{ resource: "events", level: "view" }],
   },
   {
     value: "inventory",
@@ -67,26 +65,36 @@ const NAV_ITEMS: readonly NavItem[] = [
     href: "/portal/inventory/items",
     icon: Package,
     basePath: "/portal/inventory",
-    allowedRoles: ["admin", "finance", "volunteer"],
     subItems: [
-      { value: "items", label: "Items", href: "/portal/inventory/items", allowedRoles: ["admin"] },
+      {
+        value: "items",
+        label: "Items",
+        href: "/portal/inventory/items",
+        access: [{ resource: "inventory", level: "view" }],
+      },
       {
         value: "donations",
         label: "Donations",
         href: "/portal/inventory/donations",
-        allowedRoles: ["admin", "volunteer"],
+        access: [
+          { resource: "inventory", level: "view" },
+          { resource: "inventory_intake", level: "manage" },
+        ],
       },
       {
         value: "distribution",
         label: "Distribution",
         href: "/portal/inventory/distribution",
-        allowedRoles: ["admin", "volunteer"],
+        access: [
+          { resource: "inventory", level: "view" },
+          { resource: "inventory_intake", level: "manage" },
+        ],
       },
       {
         value: "reports",
         label: "Inventory Reports",
         href: "/portal/inventory/reports",
-        allowedRoles: ["admin", "finance"],
+        access: [{ resource: "inventory_reports", level: "view" }],
       },
     ],
   },
@@ -96,19 +104,18 @@ const NAV_ITEMS: readonly NavItem[] = [
     href: "/portal/volunteers/roles",
     icon: HandHeart,
     basePath: "/portal/volunteers",
-    allowedRoles: ["admin", "event_coordinator", "volunteer"],
     subItems: [
       {
         value: "roles",
         label: "Roles",
         href: "/portal/volunteers/roles",
-        allowedRoles: ["admin", "event_coordinator", "volunteer"],
+        access: [{ resource: "volunteers", level: "view" }],
       },
       {
         value: "participation",
         label: "Participation",
         href: "/portal/volunteers/participation",
-        allowedRoles: ["admin", "event_coordinator", "volunteer"],
+        access: [{ resource: "volunteers", level: "view" }],
       },
     ],
   },
@@ -118,31 +125,30 @@ const NAV_ITEMS: readonly NavItem[] = [
     href: "/portal/finance/expenses",
     icon: Landmark,
     basePath: "/portal/finance",
-    allowedRoles: ["admin", "finance", "board"],
     subItems: [
       {
         value: "expenses",
         label: "Expenses",
         href: "/portal/finance/expenses",
-        allowedRoles: ["admin", "finance"],
+        access: [{ resource: "finance", level: "manage" }],
       },
       {
         value: "donations",
         label: "Donations",
         href: "/portal/finance/donations",
-        allowedRoles: ["admin", "finance"],
+        access: [{ resource: "finance", level: "manage" }],
       },
       {
         value: "reimbursements",
         label: "Reimbursements",
         href: "/portal/finance/reimbursements",
-        allowedRoles: ["admin", "finance"],
+        access: [{ resource: "finance", level: "manage" }],
       },
       {
         value: "reports",
         label: "Financial Reports",
         href: "/portal/finance/reports",
-        allowedRoles: ["admin", "finance", "board"],
+        access: [{ resource: "finance_reports", level: "view" }],
       },
     ],
   },
@@ -151,7 +157,7 @@ const NAV_ITEMS: readonly NavItem[] = [
     label: "People",
     href: "/portal/people",
     icon: Users,
-    allowedRoles: ["admin", "event_coordinator", "finance"],
+    access: [{ resource: "people", level: "view" }],
   },
   {
     value: "governance",
@@ -159,43 +165,42 @@ const NAV_ITEMS: readonly NavItem[] = [
     href: "/portal/governance/board-members",
     icon: Scale,
     basePath: "/portal/governance",
-    allowedRoles: ["admin", "board"],
     subItems: [
       {
         value: "board-members",
         label: "Board Members",
         href: "/portal/governance/board-members",
-        allowedRoles: ["admin", "board"],
+        access: [{ resource: "governance", level: "manage" }],
       },
       {
         value: "meetings",
         label: "Meetings",
         href: "/portal/governance/meetings",
-        allowedRoles: ["admin", "board"],
+        access: [{ resource: "governance", level: "manage" }],
       },
       {
         value: "bylaws",
         label: "Bylaws",
         href: "/portal/governance/bylaws",
-        allowedRoles: ["admin", "board"],
+        access: [{ resource: "governance", level: "manage" }],
       },
       {
         value: "policies",
         label: "Policies",
         href: "/portal/governance/policies",
-        allowedRoles: ["admin", "board"],
+        access: [{ resource: "governance", level: "manage" }],
       },
       {
         value: "conflict-of-interest",
         label: "Conflict of Interest",
         href: "/portal/governance/conflict-of-interest",
-        allowedRoles: ["admin", "board"],
+        access: [{ resource: "governance", level: "manage" }],
       },
       {
         value: "annual-requirements",
         label: "Annual Requirements",
         href: "/portal/governance/annual-requirements",
-        allowedRoles: ["admin", "board"],
+        access: [{ resource: "governance", level: "manage" }],
       },
     ],
   },
@@ -205,31 +210,30 @@ const NAV_ITEMS: readonly NavItem[] = [
     href: "/portal/administration/users",
     icon: ShieldCheck,
     basePath: "/portal/administration",
-    allowedRoles: ["admin"],
     subItems: [
       {
         value: "users",
         label: "Users",
         href: "/portal/administration/users",
-        allowedRoles: ["admin"],
+        access: [{ resource: "administration", level: "manage" }],
       },
       {
         value: "permissions",
         label: "Permissions",
         href: "/portal/administration/permissions",
-        allowedRoles: ["admin"],
+        access: [{ resource: "administration", level: "manage" }],
       },
       {
         value: "system-settings",
         label: "System Settings",
         href: "/portal/administration/system-settings",
-        allowedRoles: ["admin"],
+        access: [{ resource: "administration", level: "manage" }],
       },
       {
         value: "audit-log",
         label: "Audit Log",
         href: "/portal/administration/audit-log",
-        allowedRoles: ["admin"],
+        access: [{ resource: "administration", level: "manage" }],
       },
     ],
   },
@@ -256,7 +260,7 @@ function activeSubItemFor(pathname: string, item: NavItem): string | undefined {
   return best?.value;
 }
 
-export function PortalNav({ roles }: { roles: readonly PortalRole[] }) {
+export function PortalNav({ permissions }: { permissions: PermissionMap }) {
   const pathname = usePathname();
   const router = useRouter();
   const { state: sidebarState } = useSidebar();
@@ -276,14 +280,16 @@ export function PortalNav({ roles }: { roles: readonly PortalRole[] }) {
     setOpenSections((prev) => ({ ...prev, [value]: !prev[value] }));
   }
 
-  const visibleItems = NAV_ITEMS.filter((item) => item.allowedRoles.some((r) => roles.includes(r)))
-    .map((item) => {
-      const subItems = item.subItems?.filter((sub) => sub.allowedRoles.some((r) => roles.includes(r)));
-      const href = subItems && subItems.length > 0 && !subItems.some((s) => s.href === item.href)
-        ? subItems[0].href
-        : item.href;
-      return { ...item, href, subItems: subItems && subItems.length > 0 ? subItems : undefined };
-    });
+  const visibleItems = NAV_ITEMS.filter((item) => {
+    if (item.subItems) return item.subItems.some((sub) => hasAnyPermission(permissions, sub.access));
+    return !item.access || hasAnyPermission(permissions, item.access);
+  }).map((item) => {
+    const subItems = item.subItems?.filter((sub) => hasAnyPermission(permissions, sub.access));
+    const href = subItems && subItems.length > 0 && !subItems.some((s) => s.href === item.href)
+      ? subItems[0].href
+      : item.href;
+    return { ...item, href, subItems: subItems && subItems.length > 0 ? subItems : undefined };
+  });
 
   return (
     <SidebarMenu>

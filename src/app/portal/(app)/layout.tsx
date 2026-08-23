@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRoles } from "@/lib/auth/roles";
+import { getCurrentUserPermissions } from "@/lib/auth/permissions";
 import {
   Sidebar,
   SidebarContent,
@@ -32,6 +33,7 @@ export default async function PortalAppLayout({ children }: { children: React.Re
   if (roles.length === 0) {
     redirect("/portal/login?error=no_access");
   }
+  const permissions = await getCurrentUserPermissions(supabase);
 
   const cookieStore = await cookies();
   const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false";
@@ -56,8 +58,8 @@ export default async function PortalAppLayout({ children }: { children: React.Re
             </Link>
           </SidebarHeader>
           <SidebarContent>
-            <SidebarQuickActions roles={roles} />
-            <PortalNav roles={roles} />
+            <SidebarQuickActions permissions={permissions} />
+            <PortalNav permissions={permissions} />
           </SidebarContent>
           <SidebarFooter>
             <LogoutButton className="w-full justify-start group-data-[collapsible=icon]:justify-center" />

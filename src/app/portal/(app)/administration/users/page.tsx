@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { UsersTable } from "./users-table";
-import { listUsersAction } from "./actions";
+import { listUsersAction, listRolesAction } from "./actions";
 
 export default async function UsersPage() {
   const supabase = await createSupabaseServerClient();
@@ -9,7 +9,8 @@ export default async function UsersPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const result = await listUsersAction();
+  const [result, rolesResult] = await Promise.all([listUsersAction(), listRolesAction()]);
+  const availableRoles = "data" in rolesResult ? rolesResult.data : [];
 
   return (
     <>
@@ -23,7 +24,11 @@ export default async function UsersPage() {
             <CardContent className="app-muted text-sm">{result.error}</CardContent>
           </Card>
         ) : (
-          <UsersTable users={result.data} currentUserId={user?.id ?? null} />
+          <UsersTable
+            users={result.data}
+            currentUserId={user?.id ?? null}
+            availableRoles={availableRoles}
+          />
         )}
       </div>
     </>
