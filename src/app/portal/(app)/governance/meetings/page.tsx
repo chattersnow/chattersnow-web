@@ -1,6 +1,18 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUserPermissions, hasPermission } from "@/lib/auth/permissions";
+import { MeetingsTable } from "./meetings-table";
+import type { MeetingRow } from "./meeting-badges";
 
-export default function MeetingsPage() {
+export default async function MeetingsPage() {
+  const supabase = await createSupabaseServerClient();
+  const permissions = await getCurrentUserPermissions(supabase);
+  const canManage = hasPermission(permissions, "governance", "manage");
+
+  const { data: meetings } = await supabase
+    .from("governance_meetings")
+    .select("id, meeting_date, meeting_type, status, location, notes")
+    .order("meeting_date", { ascending: false });
+
   return (
     <>
       <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
@@ -8,16 +20,7 @@ export default function MeetingsPage() {
       </h1>
 
       <div className="mt-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Coming soon</CardTitle>
-          </CardHeader>
-          <CardContent className="app-muted text-sm">
-            This area will list board and committee meetings with date, type, and
-            attendees. Each meeting&apos;s Agenda, Minutes, and Resolutions will live
-            as detail-view tabs on that meeting, not as separate top-level pages.
-          </CardContent>
-        </Card>
+        <MeetingsTable meetings={(meetings ?? []) as MeetingRow[]} canManage={canManage} />
       </div>
     </>
   );

@@ -1,0 +1,21 @@
+export type ParseResult<T> = { data: T } | { error: string };
+
+export type ContentFormData = {
+  external_link: string | null;
+  body_text: string | null;
+};
+
+// Shared by agenda and minutes: both are a single flexible-content record
+// per meeting (external link and/or free text; file uploads are out of
+// scope, see docs/technical-spec.md §6 and issue #34).
+export function parseContentForm(formData: FormData): ParseResult<ContentFormData> {
+  const externalLink = String(formData.get("externalLink") ?? "").trim();
+  const bodyText = String(formData.get("bodyText") ?? "").trim();
+
+  return {
+    data: {
+      external_link: externalLink || null,
+      body_text: bodyText || null,
+    },
+  };
+}
