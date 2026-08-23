@@ -28,9 +28,15 @@ class QueryStub {
 function fakeSupabase({
   user = { id: "u1" },
   result = { error: null },
-}: { user?: { id: string } | null; result?: { data?: unknown; error?: unknown } } = {}) {
+  permissionRows = [{ resource_key: "volunteers", level: "manage" }],
+}: {
+  user?: { id: string } | null;
+  result?: { data?: unknown; error?: unknown };
+  permissionRows?: { resource_key: string; level: string }[];
+} = {}) {
   const from = mock(() => new QueryStub(result));
-  return { client: { auth: { getUser: async () => ({ data: { user } }) }, from }, from };
+  const rpc = mock(async () => ({ data: permissionRows }));
+  return { client: { auth: { getUser: async () => ({ data: { user } }) }, from, rpc }, from, rpc };
 }
 
 let currentSupabase: ReturnType<typeof fakeSupabase>["client"];
@@ -88,6 +94,14 @@ describe("createRoleTypeAction", () => {
     const result = await createRoleTypeAction(formData({ name: "Ride Buddy" }));
     expect(result).toEqual({ error: "Could not create the role type. Please try again." });
   });
+
+  test("denies a user without volunteers:manage", async () => {
+    const { client, from } = fakeSupabase({ permissionRows: [] });
+    currentSupabase = client;
+    const result = await createRoleTypeAction(formData({ name: "Ride Buddy" }));
+    expect(result).toEqual({ error: "You don't have permission to perform this action." });
+    expect(from).not.toHaveBeenCalled();
+  });
 });
 
 describe("updateRoleTypeAction", () => {
@@ -113,6 +127,14 @@ describe("updateRoleTypeAction", () => {
     const result = await updateRoleTypeAction("id-1", formData({ name: "Ride Buddy" }));
     expect(result).toEqual({ error: "A role type with this name already exists." });
   });
+
+  test("denies a user without volunteers:manage", async () => {
+    const { client, from } = fakeSupabase({ permissionRows: [] });
+    currentSupabase = client;
+    const result = await updateRoleTypeAction("id-1", formData({ name: "Ride Buddy" }));
+    expect(result).toEqual({ error: "You don't have permission to perform this action." });
+    expect(from).not.toHaveBeenCalled();
+  });
 });
 
 describe("listRoleTypesAction", () => {
@@ -126,6 +148,13 @@ describe("listRoleTypesAction", () => {
     currentSupabase = fakeSupabase({ result: { data: null, error: { code: "500" } } }).client;
     expect(await listRoleTypesAction()).toEqual({
       error: "Could not load role types. Please try again.",
+    });
+  });
+
+  test("denies a user without volunteers:view", async () => {
+    currentSupabase = fakeSupabase({ permissionRows: [] }).client;
+    expect(await listRoleTypesAction()).toEqual({
+      error: "You don't have permission to perform this action.",
     });
   });
 });

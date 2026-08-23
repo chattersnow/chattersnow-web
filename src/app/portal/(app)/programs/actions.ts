@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseProgramForm } from "./program-form";
+import { checkPermission } from "@/lib/auth/permissions";
 
 export type ProgramActionResult = { error: string } | { success: true };
 
@@ -18,6 +19,8 @@ export async function createProgramAction(formData: FormData): Promise<ProgramAc
   if (!user) {
     return { error: "You must be signed in to create a program." };
   }
+  const permissionError = await checkPermission(supabase, "programs", "manage");
+  if (permissionError) return permissionError;
 
   const parsed = parseProgramForm(formData);
   if ("error" in parsed) return parsed;
@@ -45,6 +48,8 @@ export async function updateProgramAction(
   if (!user) {
     return { error: "You must be signed in to update a program." };
   }
+  const permissionError = await checkPermission(supabase, "programs", "manage");
+  if (permissionError) return permissionError;
 
   const parsed = parseProgramForm(formData);
   if ("error" in parsed) return parsed;
@@ -68,6 +73,9 @@ export type Program = { id: string; name: string; status: string };
 
 export async function listProgramsAction(): Promise<{ data: Program[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "programs", "view");
+  if (permissionError) return permissionError;
+
   const { data, error } = await supabase
     .from("programs")
     .select("id, name, status")

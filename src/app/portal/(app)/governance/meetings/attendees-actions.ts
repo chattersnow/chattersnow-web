@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { checkPermission } from "@/lib/auth/permissions";
 
 export type MeetingAttendeePerson = {
   id: string;
@@ -24,6 +25,9 @@ export async function listMeetingAttendeesAction(
   meetingId: string
 ): Promise<{ data: MeetingAttendee[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "governance", "manage");
+  if (permissionError) return permissionError;
+
   const { data, error } = await supabase
     .from("governance_meeting_attendees")
     .select("id, meeting_id, person_id, attended, person:people(id, name, email, phone)")
@@ -47,6 +51,8 @@ export async function createMeetingAttendeeAction(
   if (!user) {
     return { error: "You must be signed in to add an attendee." };
   }
+  const permissionError = await checkPermission(supabase, "governance", "manage");
+  if (permissionError) return permissionError;
   if (!personId) {
     return { error: "Select or create a person to add." };
   }
@@ -77,6 +83,8 @@ export async function updateMeetingAttendeeAction(
   if (!user) {
     return { error: "You must be signed in to update an attendee." };
   }
+  const permissionError = await checkPermission(supabase, "governance", "manage");
+  if (permissionError) return permissionError;
 
   const { error } = await supabase.from("governance_meeting_attendees").update({ attended }).eq("id", id);
 
@@ -96,6 +104,8 @@ export async function deleteMeetingAttendeeAction(id: string): Promise<AttendeeA
   if (!user) {
     return { error: "You must be signed in to remove an attendee." };
   }
+  const permissionError = await checkPermission(supabase, "governance", "manage");
+  if (permissionError) return permissionError;
 
   const { error } = await supabase.from("governance_meeting_attendees").delete().eq("id", id);
 

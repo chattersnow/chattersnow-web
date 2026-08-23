@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseContentForm } from "./content-form";
+import { checkPermission } from "@/lib/auth/permissions";
 
 export type Minutes = {
   id: string;
@@ -17,6 +18,9 @@ export async function getMinutesAction(
   meetingId: string
 ): Promise<{ data: Minutes | null } | { error: string }> {
   const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "governance", "manage");
+  if (permissionError) return permissionError;
+
   const { data, error } = await supabase
     .from("minutes")
     .select("id, meeting_id, external_link, body_text")
@@ -40,6 +44,8 @@ export async function upsertMinutesAction(
   if (!user) {
     return { error: "You must be signed in to update the minutes." };
   }
+  const permissionError = await checkPermission(supabase, "governance", "manage");
+  if (permissionError) return permissionError;
 
   const parsed = parseContentForm(formData);
   if ("error" in parsed) return parsed;

@@ -29,9 +29,18 @@ class QueryStub {
 function fakeSupabase({
   user = { id: "u1" },
   result = { error: null },
-}: { user?: { id: string } | null; result?: { data?: unknown; error?: unknown } } = {}) {
+  permissionRows = [
+    { resource_key: "volunteers", level: "manage" },
+    { resource_key: "volunteer_hours_logging", level: "manage" },
+  ],
+}: {
+  user?: { id: string } | null;
+  result?: { data?: unknown; error?: unknown };
+  permissionRows?: { resource_key: string; level: string }[];
+} = {}) {
   const from = mock(() => new QueryStub(result));
-  return { client: { auth: { getUser: async () => ({ data: { user } }) }, from }, from };
+  const rpc = mock(async () => ({ data: permissionRows }));
+  return { client: { auth: { getUser: async () => ({ data: { user } }) }, from, rpc }, from, rpc };
 }
 
 let currentSupabase: ReturnType<typeof fakeSupabase>["client"];
@@ -90,6 +99,25 @@ describe("createVolunteerHoursAction", () => {
     const result = await createVolunteerHoursAction("p1", formData(validFields));
     expect(result).toEqual({ error: "Could not log hours. Please try again." });
   });
+
+  test("denies a user with neither volunteers:manage nor volunteer_hours_logging:manage", async () => {
+    const { client, from } = fakeSupabase({ permissionRows: [] });
+    currentSupabase = client;
+    const result = await createVolunteerHoursAction("p1", formData(validFields));
+    expect(result).toEqual({ error: "You don't have permission to perform this action." });
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  test("allows a self-logger with only volunteer_hours_logging:manage", async () => {
+    revalidatePathMock.mockClear();
+    const { client, from } = fakeSupabase({
+      permissionRows: [{ resource_key: "volunteer_hours_logging", level: "manage" }],
+    });
+    currentSupabase = client;
+    const result = await createVolunteerHoursAction("p1", formData(validFields));
+    expect(result).toEqual({ success: true });
+    expect(from).toHaveBeenCalledWith("volunteer_hours");
+  });
 });
 
 describe("deleteVolunteerHoursAction", () => {
@@ -97,6 +125,16 @@ describe("deleteVolunteerHoursAction", () => {
     currentSupabase = fakeSupabase({ user: null }).client;
     const result = await deleteVolunteerHoursAction("entry-1");
     expect(result).toEqual({ error: "You must be signed in to remove a logged hours entry." });
+  });
+
+  test("denies a self-logger with only volunteer_hours_logging:manage", async () => {
+    const { client, from } = fakeSupabase({
+      permissionRows: [{ resource_key: "volunteer_hours_logging", level: "manage" }],
+    });
+    currentSupabase = client;
+    const result = await deleteVolunteerHoursAction("entry-1");
+    expect(result).toEqual({ error: "You don't have permission to perform this action." });
+    expect(from).not.toHaveBeenCalled();
   });
 
   test("deletes and revalidates on success", async () => {
@@ -129,6 +167,13 @@ describe("listVolunteerHoursAction", () => {
       error: "Could not load volunteer hours. Please try again.",
     });
   });
+
+  test("denies a user without volunteers:view", async () => {
+    currentSupabase = fakeSupabase({ permissionRows: [] }).client;
+    expect(await listVolunteerHoursAction()).toEqual({
+      error: "You don't have permission to perform this action.",
+    });
+  });
 });
 
 describe("listEventOptionsAction", () => {
@@ -142,6 +187,13 @@ describe("listEventOptionsAction", () => {
     currentSupabase = fakeSupabase({ result: { data: null, error: { code: "500" } } }).client;
     expect(await listEventOptionsAction()).toEqual({
       error: "Could not load events. Please try again.",
+    });
+  });
+
+  test("denies a user without volunteers:view", async () => {
+    currentSupabase = fakeSupabase({ permissionRows: [] }).client;
+    expect(await listEventOptionsAction()).toEqual({
+      error: "You don't have permission to perform this action.",
     });
   });
 });

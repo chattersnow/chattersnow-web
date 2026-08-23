@@ -2,12 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { checkPermission } from "@/lib/auth/permissions";
 
 export type SettingActionResult = { error: string } | { success: true };
 
 /** Generic upsert, reusable for any future app_settings key without a new migration. */
 export async function updateAppSettingAction(key: string, value: unknown): Promise<SettingActionResult> {
   const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "system_settings", "manage");
+  if (permissionError) return permissionError;
+
   const { error } = await supabase.from("app_settings").upsert({ key, value }, { onConflict: "key" });
   if (error) {
     return { error: "Could not save this setting. Please try again." };

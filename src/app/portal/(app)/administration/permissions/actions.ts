@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { PERMISSION_LEVELS, type PermissionLevel } from "@/lib/auth/permissions";
+import { PERMISSION_LEVELS, checkPermission, type PermissionLevel } from "@/lib/auth/permissions";
 
 function isPermissionLevel(value: string): value is PermissionLevel {
   return (PERMISSION_LEVELS as readonly string[]).includes(value);
@@ -18,6 +18,9 @@ export async function updateRolePermissionAction(
   }
 
   const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "administration", "manage");
+  if (permissionError) return permissionError;
+
   const { error } = await supabase
     .from("role_permissions")
     .upsert(

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseSponsorForm } from "./sponsor-form";
+import { checkPermission } from "@/lib/auth/permissions";
 
 export type EventSponsorPerson = {
   id: string;
@@ -31,6 +32,9 @@ export async function listEventSponsorsAction(
   eventId: string
 ): Promise<{ data: EventSponsor[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "events", "view");
+  if (permissionError) return permissionError;
+
   const { data, error } = await supabase
     .from("event_sponsors")
     .select(
@@ -56,6 +60,8 @@ export async function createEventSponsorAction(
   if (!user) {
     return { error: "You must be signed in to add a sponsor." };
   }
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
 
   if (!personId) {
     return { error: "Select or create a person to link." };
@@ -92,6 +98,8 @@ export async function updateEventSponsorAction(
   if (!user) {
     return { error: "You must be signed in to update a sponsor." };
   }
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
 
   const parsed = parseSponsorForm(formData);
   if ("error" in parsed) return parsed;
@@ -114,6 +122,8 @@ export async function deleteEventSponsorAction(id: string): Promise<SponsorActio
   if (!user) {
     return { error: "You must be signed in to remove a sponsor." };
   }
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
 
   const { error } = await supabase.from("event_sponsors").delete().eq("id", id);
 

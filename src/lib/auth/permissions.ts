@@ -57,3 +57,31 @@ export async function requirePermission(
 ): Promise<PermissionMap> {
   return requireAnyPermission(supabase, [{ resource, level }]);
 }
+
+export type PermissionDenied = { error: string };
+
+const DEFAULT_DENIED_MESSAGE = "You don't have permission to perform this action.";
+
+/**
+ * Server Action variant of requireAnyPermission: returns { error } instead of
+ * redirecting, since a Server Action must surface a failure as an inline
+ * result the client can show, not a navigation. Returns null when the check
+ * passes.
+ */
+export async function checkAnyPermission(
+  supabase: SupabaseClient,
+  checks: readonly PermissionCheck[],
+  message: string = DEFAULT_DENIED_MESSAGE,
+): Promise<PermissionDenied | null> {
+  const permissions = await getCurrentUserPermissions(supabase);
+  return hasAnyPermission(permissions, checks) ? null : { error: message };
+}
+
+export async function checkPermission(
+  supabase: SupabaseClient,
+  resource: string,
+  level: PermissionLevel = "view",
+  message?: string,
+): Promise<PermissionDenied | null> {
+  return checkAnyPermission(supabase, [{ resource, level }], message);
+}

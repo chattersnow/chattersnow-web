@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { EXPENSE_COLUMNS, getExpenseApprovalContext, type ExpenseApprovalContext, type ExpenseRow } from "./expenses-shared";
 import { parseExpenseForm, parseRejectReason } from "./expense-form";
+import { checkPermission, checkAnyPermission } from "@/lib/auth/permissions";
 
 export type ExpenseActionResult = { error: string } | { success: true };
 
@@ -15,6 +16,8 @@ export async function createExpenseAction(formData: FormData): Promise<ExpenseAc
   if (!user) {
     return { error: "You must be signed in to record an expense." };
   }
+  const permissionError = await checkPermission(supabase, "event_expenses", "manage");
+  if (permissionError) return permissionError;
 
   const parsed = parseExpenseForm(formData);
   if ("error" in parsed) return parsed;
@@ -40,6 +43,8 @@ export async function updateExpenseAction(
   if (!user) {
     return { error: "You must be signed in to update an expense." };
   }
+  const permissionError = await checkPermission(supabase, "event_expenses", "manage");
+  if (permissionError) return permissionError;
 
   const parsed = parseExpenseForm(formData);
   if ("error" in parsed) return parsed;
@@ -58,6 +63,9 @@ export async function listEventExpensesAction(
   eventId: string
 ): Promise<{ data: ExpenseRow[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "event_expenses", "view");
+  if (permissionError) return permissionError;
+
   const { data, error } = await supabase
     .from("event_expenses")
     .select(EXPENSE_COLUMNS)
@@ -82,6 +90,12 @@ function revalidateExpensePaths() {
 
 export async function approveExpenseAction(id: string): Promise<ExpenseActionResult> {
   const supabase = await createSupabaseServerClient();
+  const permissionError = await checkAnyPermission(supabase, [
+    { resource: "finance_approvals", level: "manage" },
+    { resource: "finance_self_approval", level: "manage" },
+  ]);
+  if (permissionError) return permissionError;
+
   const { error } = await supabase.rpc("approve_event_expense", { p_id: id });
   if (error) {
     return { error: error.message };
@@ -95,6 +109,9 @@ export async function rejectExpenseAction(id: string, reason: string): Promise<E
   if ("error" in parsed) return parsed;
 
   const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "finance_approvals", "manage");
+  if (permissionError) return permissionError;
+
   const { error } = await supabase.rpc("reject_event_expense", { p_id: id, p_reason: parsed.data });
   if (error) {
     return { error: error.message };
@@ -105,6 +122,9 @@ export async function rejectExpenseAction(id: string, reason: string): Promise<E
 
 export async function markExpensePaidAction(id: string): Promise<ExpenseActionResult> {
   const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "finance", "manage");
+  if (permissionError) return permissionError;
+
   const { error } = await supabase.rpc("mark_event_expense_paid", { p_id: id });
   if (error) {
     return { error: error.message };

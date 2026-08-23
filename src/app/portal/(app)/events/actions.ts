@@ -8,6 +8,7 @@ import {
   parseEventPlanningForm,
   parseEventReportForm,
 } from "./event-form";
+import { checkPermission } from "@/lib/auth/permissions";
 
 export type CreateEventResult = { error: string } | { success: true };
 
@@ -19,6 +20,8 @@ export async function createEventAction(formData: FormData): Promise<CreateEvent
   if (!user) {
     return { error: "You must be signed in to create an event." };
   }
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
 
   const parsed = parseEventForm(formData);
   if ("error" in parsed) return parsed;
@@ -59,6 +62,8 @@ export async function updateEventAttendanceAction(
   if (!user) {
     return { error: "You must be signed in to update attendance." };
   }
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
 
   const parsed = parseEventAttendanceForm(formData);
   if ("error" in parsed) return parsed;
@@ -92,6 +97,8 @@ export async function updateEventAction(
   if (!user) {
     return { error: "You must be signed in to update an event." };
   }
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
 
   const parsed = parseEventForm(formData);
   if ("error" in parsed) return parsed;
@@ -135,6 +142,8 @@ export async function updateEventPlanningAction(
   if (!user) {
     return { error: "You must be signed in to update planning details." };
   }
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
 
   const parsed = parseEventPlanningForm(formData);
   if ("error" in parsed) return parsed;
@@ -164,6 +173,9 @@ export type EventLead = { user_id: string; email: string | null };
 
 export async function listEventLeadsAction(): Promise<{ data: EventLead[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
+
   const { data, error } = await supabase.rpc("list_event_leads");
 
   if (error) {
@@ -183,6 +195,8 @@ export async function updateEventReportAction(
   if (!user) {
     return { error: "You must be signed in to update the event report." };
   }
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
 
   const parsed = parseEventReportForm(formData);
   if ("error" in parsed) return parsed;
@@ -218,6 +232,8 @@ export async function submitEventReportAction(id: string): Promise<CreateEventRe
   if (!user) {
     return { error: "You must be signed in to submit the event report." };
   }
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
 
   const { error } = await supabase
     .from("events")
