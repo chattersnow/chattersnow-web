@@ -75,6 +75,7 @@ function AddVolunteerForm({
             selected={selectedPerson}
             onSelect={setSelectedPerson}
             onPersonCreated={onPersonCreated}
+            newPersonRole="is_volunteer"
           />
         </Field>
 
@@ -165,6 +166,7 @@ function AddHoursForm({
             selected={selectedPerson}
             onSelect={setSelectedPerson}
             onPersonCreated={onPersonCreated}
+            newPersonRole="is_volunteer"
           />
         </Field>
 

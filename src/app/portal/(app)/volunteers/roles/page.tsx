@@ -1,23 +1,71 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUserPermissions, hasPermission } from "@/lib/auth/permissions";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { NewRoleTypeDialog } from "./new-role-type-dialog";
+import { RoleTypeDetailsDialog, type RoleTypeRow } from "./role-type-details-dialog";
 
-export default function VolunteerRolesPage() {
+export default async function VolunteerRolesPage() {
+  const supabase = await createSupabaseServerClient();
+  const permissions = await getCurrentUserPermissions(supabase);
+  const canManage = hasPermission(permissions, "volunteers", "manage");
+
+  const { data: roleTypes, error } = await supabase
+    .from("volunteer_role_types")
+    .select("id, name, description")
+    .order("name", { ascending: true });
+
   return (
     <>
       <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
         Roles
       </h1>
+      <p className="app-muted mt-2 max-w-2xl text-sm">
+        Named volunteer job types (e.g. Ride Buddy, Event Setup, Basecamp Staffing) that events
+        and logged hours can be tagged with.
+      </p>
 
-      <div className="mt-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Coming soon</CardTitle>
-          </CardHeader>
-          <CardContent className="app-muted text-sm">
-            This area will define volunteer role types and their responsibilities, available
-            for assignment across events and programs.
-          </CardContent>
-        </Card>
-      </div>
+      <div className="mt-6 flex justify-end">{canManage ? <NewRoleTypeDialog /> : null}</div>
+
+      <Card className="mt-6">
+        <CardContent className="px-0">
+          {error ? (
+            <p className="app-muted px-4 py-6 text-sm">Could not load role types. Please try again.</p>
+          ) : !roleTypes || roleTypes.length === 0 ? (
+            <p className="app-muted px-4 py-6 text-sm">No role types yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="w-px" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(roleTypes as RoleTypeRow[]).map((roleType) => (
+                  <TableRow key={roleType.id}>
+                    <TableCell className="font-medium">{roleType.name}</TableCell>
+                    <TableCell className="app-muted max-w-sm truncate">
+                      {roleType.description || "—"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <RoleTypeDetailsDialog roleType={roleType} canManage={canManage} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </>
   );
 }
