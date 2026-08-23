@@ -1,8 +1,8 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requireAnyRole } from "@/lib/auth/roles";
+import { requirePermission } from "@/lib/auth/permissions";
 
 export default async function VolunteersLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createSupabaseServerClient();
-  await requireAnyRole(supabase, ["admin", "event_coordinator", "volunteer"]);
+  await requirePermission(supabase, "volunteers", "view");
   return children;
 }

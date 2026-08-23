@@ -1,6 +1,22 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { Card, CardContent } from "@/components/ui/card";
+import { PermissionsMatrix } from "./permissions-matrix";
 
-export default function PermissionsPage() {
+export default async function PermissionsPage() {
+  const supabase = await createSupabaseServerClient();
+
+  const [{ data: roles, error: rolesError }, { data: resources, error: resourcesError }, { data: rolePermissions, error: rolePermissionsError }] =
+    await Promise.all([
+      supabase.from("roles").select("id, name, description").order("name"),
+      supabase
+        .from("resources")
+        .select("id, key, section, label, description, sort_order")
+        .order("sort_order"),
+      supabase.from("role_permissions").select("role_id, resource_id, level"),
+    ]);
+
+  const error = rolesError || resourcesError || rolePermissionsError;
+
   return (
     <>
       <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
@@ -8,15 +24,19 @@ export default function PermissionsPage() {
       </h1>
 
       <div className="mt-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Coming soon</CardTitle>
-          </CardHeader>
-          <CardContent className="app-muted text-sm">
-            This area will manage role-based access permissions controlling what each portal
-            user can view and edit.
-          </CardContent>
-        </Card>
+        {error ? (
+          <Card>
+            <CardContent className="app-muted text-sm">
+              Could not load the permissions matrix. Please try again.
+            </CardContent>
+          </Card>
+        ) : (
+          <PermissionsMatrix
+            roles={roles ?? []}
+            resources={resources ?? []}
+            rolePermissions={rolePermissions ?? []}
+          />
+        )}
       </div>
     </>
   );

@@ -1,8 +1,8 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requireAnyRole } from "@/lib/auth/roles";
+import { requirePermission } from "@/lib/auth/permissions";
 
 export default async function GovernanceLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createSupabaseServerClient();
-  await requireAnyRole(supabase, ["admin", "board"]);
+  await requirePermission(supabase, "governance", "manage");
   return children;
 }

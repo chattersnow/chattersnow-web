@@ -15,29 +15,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PORTAL_ROLES, type PortalRole } from "@/lib/auth/roles";
-import { assignRoleAction, revokeRoleAction, type PortalUser } from "./actions";
+import { assignRoleAction, revokeRoleAction, type PortalUser, type PortalRoleOption } from "./actions";
 
-const ROLE_LABELS: Record<PortalRole, string> = {
-  admin: "Admin",
-  event_coordinator: "Event coordinator",
-  finance: "Finance",
-  board: "Board",
-  volunteer: "Volunteer",
-};
+function formatRoleLabel(name: string): string {
+  const spaced = name.replace(/_/g, " ");
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
 
 export function UsersTable({
   users,
   currentUserId,
+  availableRoles,
 }: {
   users: PortalUser[];
   currentUserId: string | null;
+  availableRoles: PortalRoleOption[];
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [addingFor, setAddingFor] = useState<string | null>(null);
-  const [pendingRole, setPendingRole] = useState<PortalRole | "">("");
+  const [pendingRole, setPendingRole] = useState<string>("");
 
   function runAction(promise: Promise<{ error: string } | { success: true }>) {
     setError(null);
@@ -83,8 +81,8 @@ export function UsersTable({
             </TableHeader>
             <TableBody>
               {users.map((portalUser) => {
-                const availableRoles = PORTAL_ROLES.filter(
-                  (role) => !portalUser.roles.includes(role),
+                const assignableRoles = availableRoles.filter(
+                  (role) => !portalUser.roles.includes(role.name),
                 );
                 const isSelf = portalUser.user_id === currentUserId;
 
@@ -100,7 +98,7 @@ export function UsersTable({
                             const lockedSelfAdmin = isSelf && role === "admin";
                             return (
                               <Badge key={role} variant="secondary" className="gap-1 pr-1">
-                                {ROLE_LABELS[role]}
+                                {formatRoleLabel(role)}
                                 <button
                                   type="button"
                                   disabled={isPending || lockedSelfAdmin}
@@ -111,7 +109,7 @@ export function UsersTable({
                                   className="rounded-full p-0.5 hover:bg-black/10 disabled:pointer-events-none disabled:opacity-40 dark:hover:bg-white/10"
                                 >
                                   <X className="size-3" />
-                                  <span className="sr-only">Remove {ROLE_LABELS[role]}</span>
+                                  <span className="sr-only">Remove {formatRoleLabel(role)}</span>
                                 </button>
                               </Badge>
                             );
@@ -124,15 +122,15 @@ export function UsersTable({
                         <div className="flex items-center gap-2">
                           <Select
                             value={pendingRole}
-                            onValueChange={(value) => setPendingRole(value as PortalRole)}
+                            onValueChange={(value) => setPendingRole(value ?? "")}
                           >
                             <SelectTrigger className="h-8 w-40">
                               <SelectValue placeholder="Role" />
                             </SelectTrigger>
                             <SelectContent>
-                              {availableRoles.map((role) => (
-                                <SelectItem key={role} value={role}>
-                                  {ROLE_LABELS[role]}
+                              {assignableRoles.map((role) => (
+                                <SelectItem key={role.id} value={role.name}>
+                                  {formatRoleLabel(role.name)}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -165,7 +163,7 @@ export function UsersTable({
                           type="button"
                           size="sm"
                           variant="outline"
-                          disabled={availableRoles.length === 0}
+                          disabled={assignableRoles.length === 0}
                           onClick={() => {
                             setAddingFor(portalUser.user_id);
                             setPendingRole("");
