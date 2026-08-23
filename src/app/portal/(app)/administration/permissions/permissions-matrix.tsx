@@ -2,6 +2,7 @@
 
 import { Fragment, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -80,6 +81,7 @@ export function PermissionsMatrix({
   const [isSaving, startSaveTransition] = useTransition();
   const [pendingEdits, setPendingEdits] = useState<Map<string, PermissionLevel>>(new Map());
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   const levelByCell = useMemo(() => {
     const map = new Map<string, string>();
@@ -111,6 +113,18 @@ export function PermissionsMatrix({
   function handleLevelChange(roleId: string, resourceId: string, level: PermissionLevel) {
     const cellKey = `${roleId}:${resourceId}`;
     setPendingEdits((prev) => new Map(prev).set(cellKey, level));
+  }
+
+  function toggleSection(section: string) {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(section)) {
+        next.delete(section);
+      } else {
+        next.add(section);
+      }
+      return next;
+    });
   }
 
   function handleDiscard() {
@@ -193,51 +207,63 @@ export function PermissionsMatrix({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sections.map(([section, sectionResources]) => (
-                <Fragment key={section}>
-                  <TableRow className="bg-[var(--muted)]/40 hover:bg-[var(--muted)]/40">
-                    <TableCell className="sticky left-0 z-10 bg-[var(--muted)] app-muted text-xs font-semibold uppercase tracking-[0.1em]">
-                      {section}
-                    </TableCell>
-                    <TableCell colSpan={roles.length} className="bg-[var(--muted)]/40" />
-                  </TableRow>
-                  {sectionResources.map((resource) => (
-                    <TableRow key={resource.id}>
-                      <TableCell className="sticky left-0 z-10 bg-card">
-                        <div className="font-medium">{resource.label}</div>
-                        {resource.description && (
-                          <div className="app-muted text-xs">{resource.description}</div>
-                        )}
+              {sections.map(([section, sectionResources]) => {
+                const collapsed = collapsedSections.has(section);
+                return (
+                  <Fragment key={section}>
+                    <TableRow className="bg-[var(--muted)]/40 hover:bg-[var(--muted)]/40">
+                      <TableCell className="sticky left-0 z-10 bg-[var(--muted)]">
+                        <button
+                          type="button"
+                          onClick={() => toggleSection(section)}
+                          aria-expanded={!collapsed}
+                          className="flex items-center gap-1.5 app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+                        >
+                          {collapsed ? <ChevronRight className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+                          {section}
+                        </button>
                       </TableCell>
-                      {roles.map((role) => {
-                        const cellKey = `${role.id}:${resource.id}`;
-                        const level = pendingEdits.get(cellKey) ?? toPermissionLevel(levelByCell.get(cellKey));
-                        return (
-                          <TableCell key={role.id}>
-                            <Select
-                              value={level}
-                              onValueChange={(value) =>
-                                value && handleLevelChange(role.id, resource.id, value as PermissionLevel)
-                              }
-                            >
-                              <SelectTrigger className="h-8 w-28" disabled={isSaving}>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {PERMISSION_LEVELS.map((l) => (
-                                  <SelectItem key={l} value={l}>
-                                    {LEVEL_LABELS[l]}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                        );
-                      })}
+                      <TableCell colSpan={roles.length} className="bg-[var(--muted)]/40" />
                     </TableRow>
-                  ))}
-                </Fragment>
-              ))}
+                    {!collapsed &&
+                      sectionResources.map((resource) => (
+                        <TableRow key={resource.id}>
+                          <TableCell className="sticky left-0 z-10 bg-card">
+                            <div className="font-medium">{resource.label}</div>
+                            {resource.description && (
+                              <div className="app-muted text-xs">{resource.description}</div>
+                            )}
+                          </TableCell>
+                          {roles.map((role) => {
+                            const cellKey = `${role.id}:${resource.id}`;
+                            const level = pendingEdits.get(cellKey) ?? toPermissionLevel(levelByCell.get(cellKey));
+                            return (
+                              <TableCell key={role.id}>
+                                <Select
+                                  value={level}
+                                  onValueChange={(value) =>
+                                    value && handleLevelChange(role.id, resource.id, value as PermissionLevel)
+                                  }
+                                >
+                                  <SelectTrigger className="h-8 w-28" disabled={isSaving}>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {PERMISSION_LEVELS.map((l) => (
+                                      <SelectItem key={l} value={l}>
+                                        {LEVEL_LABELS[l]}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
+                            );
+                          })}
+                        </TableRow>
+                      ))}
+                  </Fragment>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>
