@@ -18,6 +18,7 @@ import { IncidentsTab } from "./incidents-tab";
 import { EventExpensesTab } from "./event-expenses-tab";
 import { GiveawayTab } from "./giveaway-tab";
 import { ReportTab, type ReportTabHandle } from "./report-tab";
+import { ImpactTab, type ImpactTabHandle } from "./impact-tab";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -57,12 +58,13 @@ type TabValue =
   | "giveaway"
   | "expenses"
   | "report"
+  | "impact"
   | "donations";
 
 // Tabs whose form submits through the sheet's shared footer Save button
 // (formId + dirty/discard tracking); everything else manages its own
 // inline add/edit/delete affordances, same as the pre-workflow tabs did.
-const FORM_TABS = new Set<TabValue>(["overview", "planning", "logistics", "report"]);
+const FORM_TABS = new Set<TabValue>(["overview", "planning", "logistics", "report", "impact"]);
 
 type Mode = "view" | "edit";
 
@@ -97,6 +99,7 @@ const PHASES: { key: PhaseKey; label: string; tabs: { value: TabValue; label: st
     tabs: [
       { value: "expenses", label: "Expenses" },
       { value: "report", label: "Report" },
+      { value: "impact", label: "Impact" },
       { value: "donations", label: "Donations" },
     ],
   },
@@ -141,6 +144,7 @@ export function EventDetailsDialog({ event, programs }: { event: EventRow; progr
   const planningTabRef = useRef<PlanningTabHandle>(null);
   const logisticsTabRef = useRef<LogisticsTabHandle>(null);
   const reportTabRef = useRef<ReportTabHandle>(null);
+  const impactTabRef = useRef<ImpactTabHandle>(null);
 
   const anyDirty = Object.values(dirty).some(Boolean);
 
@@ -158,6 +162,8 @@ export function EventDetailsDialog({ event, programs }: { event: EventRow; progr
   const onLogisticsDirty = useCallback((value: boolean) => setDirty((prev) => ({ ...prev, logistics: value })), []);
   const onReportPending = useCallback((value: boolean) => setPending((prev) => ({ ...prev, report: value })), []);
   const onReportDirty = useCallback((value: boolean) => setDirty((prev) => ({ ...prev, report: value })), []);
+  const onImpactPending = useCallback((value: boolean) => setPending((prev) => ({ ...prev, impact: value })), []);
+  const onImpactDirty = useCallback((value: boolean) => setDirty((prev) => ({ ...prev, impact: value })), []);
 
   function handleOpenChange(nextOpen: boolean) {
     if (!nextOpen && mode === "edit" && anyDirty) {
@@ -184,6 +190,7 @@ export function EventDetailsDialog({ event, programs }: { event: EventRow; progr
     planningTabRef.current?.discard();
     logisticsTabRef.current?.discard();
     reportTabRef.current?.discard();
+    impactTabRef.current?.discard();
     setMode("view");
     if (discardTarget === "close") {
       setOpen(false);
@@ -331,6 +338,18 @@ export function EventDetailsDialog({ event, programs }: { event: EventRow; progr
                   onSaved={() => setMode("view")}
                   onPendingChange={onReportPending}
                   onDirtyChange={onReportDirty}
+                />
+              </TabsContent>
+              <TabsContent value="impact" className="mt-4">
+                <ImpactTab
+                  ref={impactTabRef}
+                  eventId={event.id}
+                  formId={`${FORM_ID_PREFIX}-impact-${event.id}`}
+                  active={tab === "impact"}
+                  mode={mode}
+                  onSaved={() => setMode("view")}
+                  onPendingChange={onImpactPending}
+                  onDirtyChange={onImpactDirty}
                 />
               </TabsContent>
               <TabsContent value="donations" className="mt-4">
