@@ -13,6 +13,8 @@ import {
   type GiveawayPrize,
   type GiveawayWinner,
 } from "./giveaway-actions";
+import { SponsorPersonPicker, type PickedPerson } from "./sponsor-person-picker";
+import { listPeopleAction, type PersonListItem } from "../people/actions";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -416,15 +418,19 @@ function PrizeWinnerSection({
 
 function AddPrizeForm({
   giveawayId,
+  people,
+  onPersonCreated,
   onSaved,
   onCancel,
 }: {
   giveawayId: string;
+  people: PersonListItem[];
+  onPersonCreated: (person: PickedPerson) => void;
   onSaved: () => void;
   onCancel: () => void;
 }) {
   const [prizeName, setPrizeName] = useState("");
-  const [donorName, setDonorName] = useState("");
+  const [selectedDonor, setSelectedDonor] = useState<PickedPerson | null>(null);
   const [estimatedValue, setEstimatedValue] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -436,12 +442,11 @@ function AddPrizeForm({
 
     const formData = new FormData();
     formData.set("prizeName", prizeName);
-    formData.set("donorName", donorName);
     formData.set("estimatedValue", estimatedValue);
     formData.set("notes", notes);
 
     startTransition(async () => {
-      const result = await createGiveawayPrizeAction(giveawayId, formData);
+      const result = await createGiveawayPrizeAction(giveawayId, selectedDonor?.id ?? null, formData);
       if ("error" in result) {
         setError(result.error);
         return;
@@ -453,15 +458,20 @@ function AddPrizeForm({
   return (
     <form onSubmit={handleSubmit} className="rounded-md border border-[var(--line)] p-4">
       <FieldGroup>
-        <Field orientation="responsive">
-          <Field>
-            <FieldLabel htmlFor="prize-name">Prize name</FieldLabel>
-            <Input id="prize-name" required value={prizeName} onChange={(e) => setPrizeName(e.target.value)} />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="prize-donor">Prize donor</FieldLabel>
-            <Input id="prize-donor" value={donorName} onChange={(e) => setDonorName(e.target.value)} />
-          </Field>
+        <Field>
+          <FieldLabel htmlFor="prize-name">Prize name</FieldLabel>
+          <Input id="prize-name" required value={prizeName} onChange={(e) => setPrizeName(e.target.value)} />
+        </Field>
+
+        <Field>
+          <FieldLabel>Prize donor</FieldLabel>
+          <SponsorPersonPicker
+            people={people}
+            selected={selectedDonor}
+            onSelect={setSelectedDonor}
+            onPersonCreated={onPersonCreated}
+            newPersonRole="is_donor"
+          />
         </Field>
 
         <Field>
@@ -511,6 +521,7 @@ export function GiveawayTab({
 }) {
   const router = useRouter();
   const [giveaway, setGiveaway] = useState<Giveaway | null | undefined>(undefined);
+  const [people, setPeople] = useState<PersonListItem[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isDeleting, startDeleteTransition] = useTransition();
   const [editingSales, setEditingSales] = useState(false);
@@ -528,7 +539,7 @@ export function GiveawayTab({
     }
   }
 
-  function refresh() {
+  function load() {
     getEventGiveawayAction(eventId).then((result) => {
       if ("error" in result) {
         setLoadError(result.error);
@@ -537,20 +548,25 @@ export function GiveawayTab({
         setGiveaway(result.data);
       }
     });
+    listPeopleAction().then((result) => {
+      if (!("error" in result)) setPeople(result.data);
+    });
+  }
+
+  function refresh() {
+    load();
     router.refresh();
   }
 
   useEffect(() => {
     if (!active) return;
-    getEventGiveawayAction(eventId).then((result) => {
-      if ("error" in result) {
-        setLoadError(result.error);
-      } else {
-        setLoadError(null);
-        setGiveaway(result.data);
-      }
-    });
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, eventId]);
+
+  function handlePersonCreated(person: PickedPerson) {
+    setPeople((prev) => [...prev, { ...person, is_sponsor: false }]);
+  }
 
   function handleDeletePrize(id: string) {
     startDeleteTransition(async () => {
@@ -613,7 +629,7 @@ export function GiveawayTab({
                     <div>
                       <p className="font-medium">{prize.prize_name}</p>
                       <p className="app-muted text-xs">
-                        {prize.donor_name ? `Donated by ${prize.donor_name} · ` : ""}
+                        {prize.donor?.name ? `Donated by ${prize.donor.name} · ` : ""}
                         {formatMoney(prize.estimated_value)}
                       </p>
                     </div>
@@ -647,6 +663,8 @@ export function GiveawayTab({
                 (showAddPrize ? (
                   <AddPrizeForm
                     giveawayId={giveaway.id}
+                    people={people}
+                    onPersonCreated={handlePersonCreated}
                     onSaved={() => {
                       setShowAddPrize(false);
                       refresh();

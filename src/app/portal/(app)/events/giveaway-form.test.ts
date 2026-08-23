@@ -71,10 +71,10 @@ describe("parseGiveawayPrizeForm", () => {
 
   test("parses valid input", () => {
     const result = parseGiveawayPrizeForm(
-      formData({ prizeName: "Ski pass", donorName: "Acme", estimatedValue: "200" })
+      formData({ prizeName: "Ski pass", estimatedValue: "200" })
     );
     expect(result).toEqual({
-      data: { prizeName: "Ski pass", donorName: "Acme", estimatedValue: 200, notes: null },
+      data: { prizeName: "Ski pass", estimatedValue: 200, notes: null },
     });
   });
 

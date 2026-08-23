@@ -14,11 +14,14 @@ export type GiveawayWinner = {
   notes: string | null;
 };
 
+export type GiveawayPrizeDonor = { id: string; name: string | null; email: string | null; phone: string | null };
+
 export type GiveawayPrize = {
   id: string;
   giveaway_id: string;
   prize_name: string;
-  donor_name: string | null;
+  donor_person_id: string | null;
+  donor: GiveawayPrizeDonor | null;
   estimated_value: number | string | null;
   notes: string | null;
   giveaway_winners: GiveawayWinner | null;
@@ -45,7 +48,7 @@ export async function getEventGiveawayAction(
   const { data, error } = await supabase
     .from("giveaways")
     .select(
-      "id, event_id, name, tickets_sold, ticket_price, revenue_amount, drawing_date, notes, giveaway_prizes(id, giveaway_id, prize_name, donor_name, estimated_value, notes, giveaway_winners(id, giveaway_prize_id, winner_name, winner_contact, distribution_status, distributed_at, notes))"
+      "id, event_id, name, tickets_sold, ticket_price, revenue_amount, drawing_date, notes, giveaway_prizes(id, giveaway_id, prize_name, donor_person_id, donor:people(id, name, email, phone), estimated_value, notes, giveaway_winners(id, giveaway_prize_id, winner_name, winner_contact, distribution_status, distributed_at, notes))"
     )
     .eq("event_id", eventId)
     .maybeSingle();
@@ -95,6 +98,7 @@ export async function upsertEventGiveawayAction(
 
 export async function createGiveawayPrizeAction(
   giveawayId: string,
+  donorPersonId: string | null,
   formData: FormData
 ): Promise<GiveawayActionResult> {
   const supabase = await createSupabaseServerClient();
@@ -107,12 +111,12 @@ export async function createGiveawayPrizeAction(
 
   const parsed = parseGiveawayPrizeForm(formData);
   if ("error" in parsed) return parsed;
-  const { prizeName, donorName, estimatedValue, notes } = parsed.data;
+  const { prizeName, estimatedValue, notes } = parsed.data;
 
   const { error } = await supabase.from("giveaway_prizes").insert({
     giveaway_id: giveawayId,
     prize_name: prizeName,
-    donor_name: donorName,
+    donor_person_id: donorPersonId,
     estimated_value: estimatedValue,
     notes,
   });
