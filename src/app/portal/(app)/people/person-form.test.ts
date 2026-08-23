@@ -25,6 +25,11 @@ describe("parsePersonForm", () => {
     expect("data" in result && result.data.is_volunteer).toBe(true);
   });
 
+  test("accepts a native checkbox value of \"on\"", () => {
+    const result = parsePersonForm(formData({ name: "Jane", isVolunteer: "on" }));
+    expect("data" in result && result.data.is_volunteer).toBe(true);
+  });
+
   test("parses valid input", () => {
     const result = parsePersonForm(
       formData({
