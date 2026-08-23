@@ -8,13 +8,16 @@ function isPermissionLevel(value: string): value is PermissionLevel {
   return (PERMISSION_LEVELS as readonly string[]).includes(value);
 }
 
-export async function updateRolePermissionAction(
-  roleId: string,
-  resourceId: string,
-  level: string,
+export async function updateRolePermissionsAction(
+  updates: { role_id: string; resource_id: string; level: string }[],
 ): Promise<{ error: string } | { success: true }> {
-  if (!isPermissionLevel(level)) {
-    return { error: "Unknown permission level." };
+  if (updates.length === 0) {
+    return { success: true };
+  }
+  for (const update of updates) {
+    if (!isPermissionLevel(update.level)) {
+      return { error: "Unknown permission level." };
+    }
   }
 
   const supabase = await createSupabaseServerClient();
@@ -23,12 +26,9 @@ export async function updateRolePermissionAction(
 
   const { error } = await supabase
     .from("role_permissions")
-    .upsert(
-      { role_id: roleId, resource_id: resourceId, level },
-      { onConflict: "role_id,resource_id" },
-    );
+    .upsert(updates, { onConflict: "role_id,resource_id" });
   if (error) {
-    return { error: "Could not update permission. Please try again." };
+    return { error: "Could not update permissions. Please try again." };
   }
 
   revalidatePath("/portal/administration/permissions");
