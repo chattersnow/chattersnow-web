@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseDistributionForm } from "./distribution-form";
+import { checkAnyPermission } from "@/lib/auth/permissions";
 
 export type EventDistributionRow = {
   id: string;
@@ -18,6 +19,12 @@ export async function listEventDistributionsAction(
   eventId: string
 ): Promise<{ data: EventDistributionRow[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
+  const permissionError = await checkAnyPermission(supabase, [
+    { resource: "inventory", level: "manage" },
+    { resource: "inventory_reports", level: "view" },
+  ]);
+  if (permissionError) return permissionError;
+
   const { data, error } = await supabase
     .from("inventory_movements")
     .select("id, quantity, occurred_at, reason, inventory_item:inventory_items(id, description, type, size)")
@@ -35,6 +42,12 @@ export async function listAvailableInventoryItemsAction(): Promise<
   { data: { id: string; description: string; type: string }[] } | { error: string }
 > {
   const supabase = await createSupabaseServerClient();
+  const permissionError = await checkAnyPermission(supabase, [
+    { resource: "inventory", level: "manage" },
+    { resource: "inventory_reports", level: "view" },
+  ]);
+  if (permissionError) return permissionError;
+
   const { data, error } = await supabase
     .from("inventory_items")
     .select("id, description, type")
@@ -58,6 +71,11 @@ export async function recordEventDistributionAction(
   if (!user) {
     return { error: "You must be signed in to record a distribution." };
   }
+  const permissionError = await checkAnyPermission(supabase, [
+    { resource: "inventory", level: "manage" },
+    { resource: "inventory_intake", level: "manage" },
+  ]);
+  if (permissionError) return permissionError;
 
   const parsed = parseDistributionForm(formData);
   if ("error" in parsed) return parsed;

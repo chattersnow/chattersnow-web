@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parsePersonForm } from "./person-form";
+import { checkPermission, checkAnyPermission } from "@/lib/auth/permissions";
 
 export type PersonActionResult =
   | { error: string }
@@ -24,6 +25,11 @@ export async function createPersonAction(formData: FormData): Promise<PersonActi
   if (!user) {
     return { error: "You must be signed in to add a person." };
   }
+  const permissionError = await checkAnyPermission(supabase, [
+    { resource: "people", level: "manage" },
+    { resource: "people_intake", level: "manage" },
+  ]);
+  if (permissionError) return permissionError;
 
   const parsed = parsePersonForm(formData);
   if ("error" in parsed) return parsed;
@@ -43,6 +49,14 @@ export async function createPersonAction(formData: FormData): Promise<PersonActi
 
 export async function listPeopleAction(): Promise<{ data: PersonListItem[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
+  const permissionError = await checkAnyPermission(supabase, [
+    { resource: "people", level: "view" },
+    { resource: "volunteers", level: "view" },
+    { resource: "events", level: "view" },
+    { resource: "governance", level: "manage" },
+  ]);
+  if (permissionError) return permissionError;
+
   const { data, error } = await supabase
     .from("people")
     .select("id, name, email, phone, is_sponsor")
@@ -65,6 +79,8 @@ export async function updatePersonAction(
   if (!user) {
     return { error: "You must be signed in to update this person." };
   }
+  const permissionError = await checkPermission(supabase, "people", "manage");
+  if (permissionError) return permissionError;
 
   const parsed = parsePersonForm(formData);
   if ("error" in parsed) return parsed;

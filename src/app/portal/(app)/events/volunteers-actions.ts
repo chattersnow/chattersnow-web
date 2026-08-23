@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseVolunteerForm, parseVolunteerHoursForm } from "./volunteers-form";
+import { checkPermission, checkAnyPermission } from "@/lib/auth/permissions";
 
 export type EventVolunteerPerson = {
   id: string;
@@ -26,6 +27,9 @@ export async function listEventVolunteersAction(
   eventId: string
 ): Promise<{ data: EventVolunteer[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "events", "view");
+  if (permissionError) return permissionError;
+
   const { data, error } = await supabase
     .from("event_volunteers")
     .select("id, event_id, person_id, role, notes, person:people(id, name, email, phone)")
@@ -49,6 +53,8 @@ export async function createEventVolunteerAction(
   if (!user) {
     return { error: "You must be signed in to add a volunteer." };
   }
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
   if (!personId) {
     return { error: "Select or create a person to link." };
   }
@@ -79,6 +85,8 @@ export async function deleteEventVolunteerAction(id: string): Promise<VolunteerA
   if (!user) {
     return { error: "You must be signed in to remove a volunteer." };
   }
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
 
   const { error } = await supabase.from("event_volunteers").delete().eq("id", id);
   if (error) {
@@ -103,6 +111,9 @@ export async function listEventVolunteerHoursAction(
   eventId: string
 ): Promise<{ data: EventVolunteerHours[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "event_volunteer_hours", "view");
+  if (permissionError) return permissionError;
+
   const { data, error } = await supabase
     .from("event_volunteer_hours")
     .select("id, event_id, person_id, hours, logged_date, notes, person:people(id, name, email, phone)")
@@ -127,6 +138,11 @@ export async function createEventVolunteerHoursAction(
   if (!user) {
     return { error: "You must be signed in to log hours." };
   }
+  const permissionError = await checkAnyPermission(supabase, [
+    { resource: "event_volunteer_hours", level: "manage" },
+    { resource: "volunteer_hours_logging", level: "manage" },
+  ]);
+  if (permissionError) return permissionError;
   if (!personId) {
     return { error: "Select or create a person to log hours for." };
   }
@@ -155,6 +171,8 @@ export async function deleteEventVolunteerHoursAction(id: string): Promise<Volun
   if (!user) {
     return { error: "You must be signed in to remove a logged hours entry." };
   }
+  const permissionError = await checkPermission(supabase, "event_volunteer_hours", "manage");
+  if (permissionError) return permissionError;
 
   const { error } = await supabase.from("event_volunteer_hours").delete().eq("id", id);
   if (error) {

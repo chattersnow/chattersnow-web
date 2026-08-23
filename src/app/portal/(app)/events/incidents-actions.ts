@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseIncidentForm } from "./incidents-form";
+import { checkPermission } from "@/lib/auth/permissions";
 
 export type EventIncident = {
   id: string;
@@ -19,6 +20,9 @@ export async function listEventIncidentsAction(
   eventId: string
 ): Promise<{ data: EventIncident[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "event_incidents", "view");
+  if (permissionError) return permissionError;
+
   const { data, error } = await supabase
     .from("event_incidents")
     .select("id, event_id, occurred_at, description, severity, people_involved")
@@ -42,6 +46,8 @@ export async function createEventIncidentAction(
   if (!user) {
     return { error: "You must be signed in to log an incident." };
   }
+  const permissionError = await checkPermission(supabase, "event_incidents", "manage");
+  if (permissionError) return permissionError;
 
   const parsed = parseIncidentForm(formData);
   if ("error" in parsed) return parsed;
@@ -64,6 +70,8 @@ export async function deleteEventIncidentAction(id: string): Promise<IncidentAct
   if (!user) {
     return { error: "You must be signed in to remove an incident." };
   }
+  const permissionError = await checkPermission(supabase, "event_incidents", "manage");
+  if (permissionError) return permissionError;
 
   const { error } = await supabase.from("event_incidents").delete().eq("id", id);
   if (error) {

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseDonationInput, type CreateDonationInput, type DonationItemInput } from "./donation-form";
+import { checkPermission, checkAnyPermission } from "@/lib/auth/permissions";
 
 export type { CreateDonationInput, DonationItemInput };
 
@@ -18,6 +19,11 @@ export async function createDonationAction(
   if (!user) {
     return { error: "You must be signed in to record a donation." };
   }
+  const permissionError = await checkAnyPermission(supabase, [
+    { resource: "finance", level: "manage" },
+    { resource: "inventory_intake", level: "manage" },
+  ]);
+  if (permissionError) return permissionError;
 
   const parsed = parseDonationInput(input);
   if ("error" in parsed) return parsed;
@@ -54,6 +60,9 @@ export async function listEventDonationsAction(
   eventId: string
 ): Promise<{ data: EventDonationRow[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "finance", "view");
+  if (permissionError) return permissionError;
+
   const { data, error } = await supabase
     .from("donations")
     .select(

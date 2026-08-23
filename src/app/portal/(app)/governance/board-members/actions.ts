@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseBoardMemberForm } from "./board-member-form";
 import type { BoardMemberRow } from "./board-members-shared";
+import { checkPermission } from "@/lib/auth/permissions";
 
 export type BoardMemberActionResult = { error: string } | { success: true };
 
@@ -18,6 +19,8 @@ export async function createBoardMemberAction(
   if (!user) {
     return { error: "You must be signed in to add a board member." };
   }
+  const permissionError = await checkPermission(supabase, "governance", "manage");
+  if (permissionError) return permissionError;
 
   if (!personId) {
     return { error: "Select or create a person to link." };
@@ -52,6 +55,8 @@ export async function updateBoardMemberAction(
   if (!user) {
     return { error: "You must be signed in to update this board member." };
   }
+  const permissionError = await checkPermission(supabase, "governance", "manage");
+  if (permissionError) return permissionError;
 
   const parsed = parseBoardMemberForm(formData);
   if ("error" in parsed) return parsed;
@@ -71,6 +76,9 @@ export async function updateBoardMemberAction(
 
 export async function listBoardMembersAction(): Promise<{ data: BoardMemberRow[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "governance", "manage");
+  if (permissionError) return permissionError;
+
   const { data, error } = await supabase
     .from("board_members")
     .select(

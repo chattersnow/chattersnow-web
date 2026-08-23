@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseRoleTypeForm } from "./role-type-form";
+import { checkPermission } from "@/lib/auth/permissions";
 
 export type RoleTypeActionResult = { error: string } | { success: true };
 
@@ -18,6 +19,8 @@ export async function createRoleTypeAction(formData: FormData): Promise<RoleType
   if (!user) {
     return { error: "You must be signed in to create a role type." };
   }
+  const permissionError = await checkPermission(supabase, "volunteers", "manage");
+  if (permissionError) return permissionError;
 
   const parsed = parseRoleTypeForm(formData);
   if ("error" in parsed) return parsed;
@@ -43,6 +46,8 @@ export async function updateRoleTypeAction(
   if (!user) {
     return { error: "You must be signed in to update a role type." };
   }
+  const permissionError = await checkPermission(supabase, "volunteers", "manage");
+  if (permissionError) return permissionError;
 
   const parsed = parseRoleTypeForm(formData);
   if ("error" in parsed) return parsed;
@@ -61,6 +66,9 @@ export type RoleType = { id: string; name: string };
 
 export async function listRoleTypesAction(): Promise<{ data: RoleType[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "volunteers", "view");
+  if (permissionError) return permissionError;
+
   const { data, error } = await supabase
     .from("volunteer_role_types")
     .select("id, name")

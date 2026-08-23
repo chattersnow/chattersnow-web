@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseGiveawayForm, parseGiveawayPrizeForm, parseGiveawayWinnerForm } from "./giveaway-form";
+import { checkPermission } from "@/lib/auth/permissions";
 
 export type GiveawayWinner = {
   id: string;
@@ -42,6 +43,9 @@ export async function getEventGiveawayAction(
   eventId: string
 ): Promise<{ data: Giveaway | null } | { error: string }> {
   const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "events", "view");
+  if (permissionError) return permissionError;
+
   const { data, error } = await supabase
     .from("giveaways")
     .select(
@@ -67,6 +71,8 @@ export async function upsertEventGiveawayAction(
   if (!user) {
     return { error: "You must be signed in to update the giveaway." };
   }
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
 
   const parsed = parseGiveawayForm(formData);
   if ("error" in parsed) return parsed;
@@ -104,6 +110,8 @@ export async function createGiveawayPrizeAction(
   if (!user) {
     return { error: "You must be signed in to add a prize." };
   }
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
 
   const parsed = parseGiveawayPrizeForm(formData);
   if ("error" in parsed) return parsed;
@@ -133,6 +141,8 @@ export async function deleteGiveawayPrizeAction(id: string): Promise<GiveawayAct
   if (!user) {
     return { error: "You must be signed in to remove a prize." };
   }
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
 
   const { error } = await supabase.from("giveaway_prizes").delete().eq("id", id);
   if (error) {
@@ -154,6 +164,8 @@ export async function upsertGiveawayWinnerAction(
   if (!user) {
     return { error: "You must be signed in to record a winner." };
   }
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
 
   const parsed = parseGiveawayWinnerForm(formData);
   if ("error" in parsed) return parsed;

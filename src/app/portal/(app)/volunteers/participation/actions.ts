@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseVolunteerHoursForm } from "./hours-form";
+import { checkPermission, checkAnyPermission } from "@/lib/auth/permissions";
 
 export type VolunteerHoursPerson = { id: string; name: string | null };
 export type VolunteerHoursEvent = { id: string; name: string } | null;
@@ -24,6 +25,9 @@ export async function listVolunteerHoursAction(): Promise<
   { data: VolunteerHoursEntry[] } | { error: string }
 > {
   const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "volunteers", "view");
+  if (permissionError) return permissionError;
+
   const { data, error } = await supabase
     .from("volunteer_hours")
     .select(
@@ -48,6 +52,11 @@ export async function createVolunteerHoursAction(
   if (!user) {
     return { error: "You must be signed in to log hours." };
   }
+  const permissionError = await checkAnyPermission(supabase, [
+    { resource: "volunteers", level: "manage" },
+    { resource: "volunteer_hours_logging", level: "manage" },
+  ]);
+  if (permissionError) return permissionError;
   if (!personId) {
     return { error: "Select or create a person to log hours for." };
   }
@@ -81,6 +90,8 @@ export async function deleteVolunteerHoursAction(id: string): Promise<VolunteerH
   if (!user) {
     return { error: "You must be signed in to remove a logged hours entry." };
   }
+  const permissionError = await checkPermission(supabase, "volunteers", "manage");
+  if (permissionError) return permissionError;
 
   const { error } = await supabase.from("volunteer_hours").delete().eq("id", id);
   if (error) {
@@ -95,6 +106,9 @@ export type EventOption = { id: string; name: string };
 
 export async function listEventOptionsAction(): Promise<{ data: EventOption[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "volunteers", "view");
+  if (permissionError) return permissionError;
+
   const { data, error } = await supabase
     .from("events")
     .select("id, name")

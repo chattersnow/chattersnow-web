@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { checkPermission } from "@/lib/auth/permissions";
 
 export type PortalUser = {
   user_id: string;
@@ -18,6 +19,9 @@ export type PortalRoleOption = {
 
 export async function listRolesAction(): Promise<{ data: PortalRoleOption[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "administration", "manage");
+  if (permissionError) return permissionError;
+
   const { data, error } = await supabase.from("roles").select("id, name, description").order("name");
 
   if (error) {
@@ -36,6 +40,9 @@ export async function createRoleAction(
   }
 
   const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "administration", "manage");
+  if (permissionError) return permissionError;
+
   const { error } = await supabase
     .from("roles")
     .insert({ name: trimmedName, description: description.trim() || null });
@@ -50,6 +57,9 @@ export async function createRoleAction(
 
 export async function listUsersAction(): Promise<{ data: PortalUser[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "administration", "manage");
+  if (permissionError) return permissionError;
+
   const { data, error } = await supabase.rpc("list_portal_users");
 
   if (error) {
@@ -69,6 +79,8 @@ export async function assignRoleAction(
   if (!user) {
     return { error: "You must be signed in." };
   }
+  const permissionError = await checkPermission(supabase, "administration", "manage");
+  if (permissionError) return permissionError;
 
   const { data: roleRow, error: roleError } = await supabase
     .from("roles")
@@ -95,6 +107,9 @@ export async function revokeRoleAction(
   role: string,
 ): Promise<{ error: string } | { success: true }> {
   const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "administration", "manage");
+  if (permissionError) return permissionError;
+
   const { data: roleRow, error: roleError } = await supabase
     .from("roles")
     .select("id")
