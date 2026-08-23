@@ -1,12 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { listEventExpensesAction } from "../finance/expenses/actions";
+import { getExpenseApprovalContextAction, listEventExpensesAction } from "../finance/expenses/actions";
 import { EditExpenseModal } from "../finance/expenses/edit-expense-modal";
+import { ExpenseStatusBadge } from "../finance/expenses/expense-badges";
 import { NewExpenseDialog } from "../finance/expenses/new-expense-dialog";
-import { formatAmount, formatExpenseDate, type EventOption, type ExpenseRow } from "../finance/expenses/expenses-shared";
+import {
+  formatAmount,
+  formatExpenseDate,
+  type EventOption,
+  type ExpenseApprovalContext,
+  type ExpenseRow,
+} from "../finance/expenses/expenses-shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
+const EMPTY_APPROVAL_CONTEXT: ExpenseApprovalContext = {
+  userId: null,
+  canApprove: false,
+  canSelfApprove: false,
+  canMarkPaid: false,
+  threshold: null,
+};
 
 export function EventExpensesTab({
   eventId,
@@ -21,6 +36,7 @@ export function EventExpensesTab({
 }) {
   const [expenses, setExpenses] = useState<ExpenseRow[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [approvalContext, setApprovalContext] = useState<ExpenseApprovalContext>(EMPTY_APPROVAL_CONTEXT);
 
   const eventOptions: EventOption[] = [{ id: eventId, name: eventName }];
 
@@ -38,6 +54,7 @@ export function EventExpensesTab({
   useEffect(() => {
     if (!active) return;
     refresh();
+    getExpenseApprovalContextAction().then(setApprovalContext);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, eventId]);
 
@@ -70,6 +87,7 @@ export function EventExpensesTab({
               <TableHead>Description</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Amount</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead className="w-0" />
             </TableRow>
           </TableHeader>
@@ -80,10 +98,14 @@ export function EventExpensesTab({
                 <TableCell className="app-muted">{formatExpenseDate(expense.expense_date)}</TableCell>
                 <TableCell>{formatAmount(expense.amount, expense.currency)}</TableCell>
                 <TableCell>
+                  <ExpenseStatusBadge status={expense.status} />
+                </TableCell>
+                <TableCell>
                   <EditExpenseModal
                     expense={expense}
                     events={eventOptions}
                     lockEventSelection
+                    approvalContext={approvalContext}
                     onSaved={refresh}
                   />
                 </TableCell>

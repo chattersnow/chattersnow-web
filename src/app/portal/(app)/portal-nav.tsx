@@ -138,7 +138,10 @@ const NAV_ITEMS: readonly NavItem[] = [
         value: "expenses",
         label: "Expenses",
         href: "/portal/finance/expenses",
-        access: [{ resource: "finance", level: "manage" }],
+        access: [
+          { resource: "finance", level: "manage" },
+          { resource: "finance_approvals", level: "manage" },
+        ],
       },
       {
         value: "donations",
@@ -235,7 +238,10 @@ const NAV_ITEMS: readonly NavItem[] = [
         value: "system-settings",
         label: "System Settings",
         href: "/portal/administration/system-settings",
-        access: [{ resource: "administration", level: "manage" }],
+        access: [
+          { resource: "administration", level: "manage" },
+          { resource: "system_settings", level: "manage" },
+        ],
       },
       {
         value: "audit-log",

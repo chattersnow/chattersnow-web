@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { ExpenseRow } from "./expenses-shared";
-import { parseExpenseForm } from "./expense-form";
+import { EXPENSE_COLUMNS, getExpenseApprovalContext, type ExpenseApprovalContext, type ExpenseRow } from "./expenses-shared";
+import { parseExpenseForm, parseRejectReason } from "./expense-form";
 
 export type ExpenseActionResult = { error: string } | { success: true };
 
@@ -46,7 +46,7 @@ export async function updateExpenseAction(
 
   const { error } = await supabase.from("event_expenses").update(parsed.data).eq("id", id);
   if (error) {
-    return { error: "Could not update the expense. Please try again." };
+    return { error: "Could not update the expense. It may no longer be editable." };
   }
 
   revalidatePath("/portal/finance/expenses");
@@ -60,9 +60,7 @@ export async function listEventExpensesAction(
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("event_expenses")
-    .select(
-      "id, event_id, description, expense_date, amount, currency, receipt_url, notes, events(name)"
-    )
+    .select(EXPENSE_COLUMNS)
     .eq("event_id", eventId)
     .order("expense_date", { ascending: false });
 
@@ -70,4 +68,47 @@ export async function listEventExpensesAction(
     return { error: "Could not load expenses for this event. Please try again." };
   }
   return { data: (data ?? []) as unknown as ExpenseRow[] };
+}
+
+export async function getExpenseApprovalContextAction(): Promise<ExpenseApprovalContext> {
+  const supabase = await createSupabaseServerClient();
+  return getExpenseApprovalContext(supabase);
+}
+
+function revalidateExpensePaths() {
+  revalidatePath("/portal/finance/expenses");
+  revalidatePath("/portal/events");
+}
+
+export async function approveExpenseAction(id: string): Promise<ExpenseActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.rpc("approve_event_expense", { p_id: id });
+  if (error) {
+    return { error: error.message };
+  }
+  revalidateExpensePaths();
+  return { success: true };
+}
+
+export async function rejectExpenseAction(id: string, reason: string): Promise<ExpenseActionResult> {
+  const parsed = parseRejectReason(reason);
+  if ("error" in parsed) return parsed;
+
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.rpc("reject_event_expense", { p_id: id, p_reason: parsed.data });
+  if (error) {
+    return { error: error.message };
+  }
+  revalidateExpensePaths();
+  return { success: true };
+}
+
+export async function markExpensePaidAction(id: string): Promise<ExpenseActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.rpc("mark_event_expense_paid", { p_id: id });
+  if (error) {
+    return { error: error.message };
+  }
+  revalidateExpensePaths();
+  return { success: true };
 }

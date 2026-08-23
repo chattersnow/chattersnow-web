@@ -13,8 +13,15 @@ import {
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EditExpenseModal } from "./edit-expense-modal";
+import { ExpenseStatusBadge } from "./expense-badges";
 import { NewExpenseDialog } from "./new-expense-dialog";
-import { formatAmount, formatExpenseDate, type EventOption, type ExpenseRow } from "./expenses-shared";
+import {
+  formatAmount,
+  formatExpenseDate,
+  type EventOption,
+  type ExpenseApprovalContext,
+  type ExpenseRow,
+} from "./expenses-shared";
 
 type SortKey = "expense_date" | "description" | "amount";
 
@@ -26,7 +33,15 @@ const SORT_COLUMNS: { key: SortKey; label: string }[] = [
 
 const FILTER_ALL = "all";
 
-export function ExpensesTable({ expenses, events }: { expenses: ExpenseRow[]; events: EventOption[] }) {
+export function ExpensesTable({
+  expenses,
+  events,
+  approvalContext,
+}: {
+  expenses: ExpenseRow[];
+  events: EventOption[];
+  approvalContext: ExpenseApprovalContext;
+}) {
   const [search, setSearch] = useState("");
   const [eventFilter, setEventFilter] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("expense_date");
@@ -151,6 +166,7 @@ export function ExpensesTable({ expenses, events }: { expenses: ExpenseRow[]; ev
                   </TableHead>
                 ))}
                 <TableHead>Event</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead className="w-0">
                   <span className="sr-only">Actions</span>
                 </TableHead>
@@ -159,7 +175,7 @@ export function ExpensesTable({ expenses, events }: { expenses: ExpenseRow[]; ev
             <TableBody>
               {visibleExpenses.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={SORT_COLUMNS.length + 2} className="app-muted text-center">
+                  <TableCell colSpan={SORT_COLUMNS.length + 3} className="app-muted text-center">
                     No expenses match your filters.
                   </TableCell>
                 </TableRow>
@@ -171,7 +187,10 @@ export function ExpensesTable({ expenses, events }: { expenses: ExpenseRow[]; ev
                     <TableCell>{formatAmount(expense.amount, expense.currency)}</TableCell>
                     <TableCell className="app-muted">{expense.events?.name ?? "—"}</TableCell>
                     <TableCell>
-                      <EditExpenseModal expense={expense} events={events} />
+                      <ExpenseStatusBadge status={expense.status} />
+                    </TableCell>
+                    <TableCell>
+                      <EditExpenseModal expense={expense} events={events} approvalContext={approvalContext} />
                     </TableCell>
                   </TableRow>
                 ))

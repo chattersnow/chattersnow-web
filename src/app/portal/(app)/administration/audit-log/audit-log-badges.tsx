@@ -7,6 +7,7 @@ export const TABLE_LABELS: Record<string, string> = {
   inventory_movements: "Inventory movements",
   event_expenses: "Event expenses",
   user_roles: "User roles",
+  app_settings: "App settings",
 };
 
 const ACTION_STYLES: Record<string, string> = {

@@ -1,4 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
+import type { PermissionMap } from "./permissions";
 
 const redirectMock = mock((path: string) => {
   throw new Error(`REDIRECT:${path}`);
@@ -53,7 +54,7 @@ describe("hasPermission", () => {
 
 describe("hasAnyPermission", () => {
   test("true if any check passes", () => {
-    const permissions = { events: "none", finance: "manage" };
+    const permissions: PermissionMap = { events: "none", finance: "manage" };
     expect(
       hasAnyPermission(permissions, [
         { resource: "events", level: "view" },
@@ -63,7 +64,7 @@ describe("hasAnyPermission", () => {
   });
 
   test("false if no checks pass", () => {
-    const permissions = { events: "none" };
+    const permissions: PermissionMap = { events: "none" };
     expect(hasAnyPermission(permissions, [{ resource: "events", level: "view" }])).toBe(false);
   });
 

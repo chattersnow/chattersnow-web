@@ -2,10 +2,19 @@
 
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Eye, Pencil } from "lucide-react";
-import { updateExpenseAction } from "./actions";
+import { ArrowLeft, Banknote, Check, Eye, Pencil, X } from "lucide-react";
+import { approveExpenseAction, markExpensePaidAction, rejectExpenseAction, updateExpenseAction } from "./actions";
+import { ExpenseStatusBadge } from "./expense-badges";
 import { ExpenseFormFields, packExpenseFormData, type ExpenseFormState } from "./expense-form-fields";
-import { formatAmount, formatExpenseDate, type EventOption, type ExpenseRow } from "./expenses-shared";
+import {
+  formatAmount,
+  formatExpenseDate,
+  getExpenseNextStepMessage,
+  isSelfApprovalEligible,
+  type EventOption,
+  type ExpenseApprovalContext,
+  type ExpenseRow,
+} from "./expenses-shared";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,7 +27,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup } from "@/components/ui/field";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import {
   Sheet,
@@ -30,6 +47,9 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
+
+const dateTimeFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" });
 
 function formStateFor(expense: ExpenseRow): ExpenseFormState {
   return {
@@ -52,11 +72,13 @@ export function EditExpenseModal({
   expense,
   events,
   lockEventSelection,
+  approvalContext,
   onSaved,
 }: {
   expense: ExpenseRow;
   events: EventOption[];
   lockEventSelection?: boolean;
+  approvalContext: ExpenseApprovalContext;
   onSaved?: () => void;
 }) {
   const router = useRouter();
@@ -66,8 +88,22 @@ export function EditExpenseModal({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [discardTarget, setDiscardTarget] = useState<"toggle" | "close" | null>(null);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
   const formId = `edit-expense-form-${expense.id}`;
   const dirty = isDirty(form, expense);
+
+  const isSubmitter = approvalContext.userId !== null && approvalContext.userId === expense.submitted_by;
+  const canSelfApproveThis =
+    approvalContext.canSelfApprove &&
+    isSubmitter &&
+    approvalContext.threshold !== null &&
+    isSelfApprovalEligible(expense.amount, approvalContext.threshold);
+  const canApproveOrRejectThis = approvalContext.canApprove && !isSubmitter;
+  const canApprove = expense.status === "submitted" && (canApproveOrRejectThis || canSelfApproveThis);
+  const canReject = expense.status === "submitted" && canApproveOrRejectThis;
+  const canMarkPaid = expense.status === "approved" && approvalContext.canMarkPaid;
+  const canEdit = expense.status === "submitted";
 
   function update<K extends keyof ExpenseFormState>(key: K, value: ExpenseFormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -120,6 +156,48 @@ export function EditExpenseModal({
     });
   }
 
+  function handleApprove() {
+    setError(null);
+    startTransition(async () => {
+      const result = await approveExpenseAction(expense.id);
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+      router.refresh();
+      onSaved?.();
+    });
+  }
+
+  function handleReject(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    startTransition(async () => {
+      const result = await rejectExpenseAction(expense.id, rejectReason);
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+      setRejectDialogOpen(false);
+      setRejectReason("");
+      router.refresh();
+      onSaved?.();
+    });
+  }
+
+  function handleMarkPaid() {
+    setError(null);
+    startTransition(async () => {
+      const result = await markExpensePaidAction(expense.id);
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+      router.refresh();
+      onSaved?.();
+    });
+  }
+
   return (
     <>
       <Sheet open={open} onOpenChange={handleOpenChange}>
@@ -141,20 +219,29 @@ export function EditExpenseModal({
                 {mode === "edit" ? "Update the details for this expense." : "View this expense's details."}
               </SheetDescription>
             </div>
-            {mode === "view" ? (
+            {mode === "view" && canEdit ? (
               <Button type="button" variant="ghost" size="icon-sm" aria-label="Edit expense" onClick={() => setMode("edit")}>
                 <Pencil />
               </Button>
-            ) : (
+            ) : mode === "edit" ? (
               <Button type="button" variant="ghost" size="sm" onClick={requestExitEditMode}>
                 View
               </Button>
-            )}
+            ) : null}
           </SheetHeader>
 
           {mode === "view" ? (
             <div className="flex-1 overflow-y-auto px-4 pb-4">
               <FieldGroup>
+                <Field>
+                  <FieldLabel>Status</FieldLabel>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <ExpenseStatusBadge status={expense.status} />
+                    <span className="app-muted text-sm">
+                      {getExpenseNextStepMessage(expense, approvalContext)}
+                    </span>
+                  </div>
+                </Field>
                 <ReadOnlyField label="Description" htmlFor="edit-expense-description">
                   {expense.description}
                 </ReadOnlyField>
@@ -175,6 +262,35 @@ export function EditExpenseModal({
                 <ReadOnlyField label="Notes" htmlFor="edit-expense-notes">
                   {expense.notes || "—"}
                 </ReadOnlyField>
+
+                {expense.status === "approved" && expense.approved_at && (
+                  <ReadOnlyField label="Approved" htmlFor="edit-expense-approved">
+                    {dateTimeFormatter.format(new Date(expense.approved_at))}
+                  </ReadOnlyField>
+                )}
+                {expense.status === "rejected" && (
+                  <>
+                    {expense.rejected_at && (
+                      <ReadOnlyField label="Rejected" htmlFor="edit-expense-rejected">
+                        {dateTimeFormatter.format(new Date(expense.rejected_at))}
+                      </ReadOnlyField>
+                    )}
+                    <ReadOnlyField label="Rejection reason" htmlFor="edit-expense-rejection-reason">
+                      {expense.rejection_reason || "—"}
+                    </ReadOnlyField>
+                  </>
+                )}
+                {expense.status === "paid" && expense.paid_at && (
+                  <ReadOnlyField label="Paid" htmlFor="edit-expense-paid">
+                    {dateTimeFormatter.format(new Date(expense.paid_at))}
+                  </ReadOnlyField>
+                )}
+
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
               </FieldGroup>
             </div>
           ) : (
@@ -206,6 +322,31 @@ export function EditExpenseModal({
               </Button>
             </SheetFooter>
           )}
+
+          {mode === "view" && (canApprove || canReject || canMarkPaid) && (
+            <SheetFooter className="flex-row justify-end gap-2 border-t bg-muted/50">
+              {canReject && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isPending}
+                  onClick={() => setRejectDialogOpen(true)}
+                >
+                  <X /> Reject
+                </Button>
+              )}
+              {canApprove && (
+                <Button type="button" disabled={isPending} onClick={handleApprove}>
+                  <Check /> {isPending ? "Approving..." : "Approve"}
+                </Button>
+              )}
+              {canMarkPaid && (
+                <Button type="button" disabled={isPending} onClick={handleMarkPaid}>
+                  <Banknote /> {isPending ? "Marking paid..." : "Mark as paid"}
+                </Button>
+              )}
+            </SheetFooter>
+          )}
         </SheetContent>
       </Sheet>
 
@@ -223,6 +364,44 @@ export function EditExpenseModal({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog
+        open={rejectDialogOpen}
+        onOpenChange={(next) => {
+          setRejectDialogOpen(next);
+          if (!next) setRejectReason("");
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reject expense</DialogTitle>
+            <DialogDescription>Explain why this expense is being rejected.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleReject}>
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="reject-expense-reason">Reason</FieldLabel>
+                <Textarea
+                  id="reject-expense-reason"
+                  required
+                  value={rejectReason}
+                  onChange={(event) => setRejectReason(event.target.value)}
+                />
+              </Field>
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+            </FieldGroup>
+            <DialogFooter>
+              <Button type="submit" variant="destructive" disabled={isPending}>
+                {isPending ? "Rejecting..." : "Reject expense"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

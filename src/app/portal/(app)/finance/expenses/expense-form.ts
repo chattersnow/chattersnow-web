@@ -39,3 +39,11 @@ export function parseExpenseForm(formData: FormData): ParseResult<ExpenseFormDat
     },
   };
 }
+
+export function parseRejectReason(reason: string): ParseResult<string> {
+  const trimmed = reason.trim();
+  if (!trimmed) {
+    return { error: "A rejection reason is required." };
+  }
+  return { data: trimmed };
+}
