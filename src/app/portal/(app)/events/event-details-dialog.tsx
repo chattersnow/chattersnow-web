@@ -12,6 +12,7 @@ import { VolunteersTab } from "./volunteers-tab";
 import { SponsorsTab } from "./sponsors-tab";
 import { AttendanceTab } from "./attendance-tab";
 import { RegistrantsTab } from "./registrants-tab";
+import { DiscountCodesTab } from "./discount-codes-tab";
 import { DonationsTab } from "./donations-tab";
 import { DistributionsTab } from "./distributions-tab";
 import { IncidentsTab } from "./incidents-tab";
@@ -53,6 +54,7 @@ type TabValue =
   | "sponsors"
   | "attendance"
   | "registrants"
+  | "discount-codes"
   | "distributions"
   | "incidents"
   | "giveaway"
@@ -102,6 +104,7 @@ const PHASES: {
     tabs: [
       { value: "attendance", label: "Attendance" },
       { value: "registrants", label: "Registrants" },
+      { value: "discount-codes", label: "Discount codes" },
       { value: "distributions", label: "Distributions" },
       { value: "incidents", label: "Incidents" },
       { value: "giveaway", label: "Giveaway" },
@@ -425,6 +428,14 @@ export function EventDetailsDialog({
                   eventId={event.id}
                   capacity={event.capacity}
                   active={tab === "registrants"}
+                  mode={mode}
+                />
+              </TabsContent>
+              <TabsContent value="discount-codes" className="mt-4">
+                <DiscountCodesTab
+                  eventId={event.id}
+                  active={tab === "discount-codes"}
+                  mode={mode}
                 />
               </TabsContent>
               <TabsContent value="distributions" className="mt-4">

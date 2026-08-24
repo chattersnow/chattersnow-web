@@ -136,9 +136,7 @@ The site shall allow visitors to:
 
 Events are presented as a list in the initial release. A calendar view is a possible future enhancement, pending research into a suitable approach; the data model should not preclude it.
 
-**Implemented:** `/events` lists upcoming and past events read live from Supabase (`public_events`).
-
-**What's next:** event detail pages, sponsor/partner display on those detail pages (once marked public), and public registration — the `event_registrations` table in §6 does not exist yet.
+**Implemented:** `/events` lists upcoming and past events read live from Supabase (`public_events`). `/events/[id]` is the event detail page, with a public registration form (when `registration_enabled` and within the registration window) backed by `event_registrations` and the `register_for_event()` RPC (see §6).
 
 An event must support these fields:
 
@@ -488,7 +486,8 @@ Implemented for the tables listed below (see §5.11, issue #18):
 - `event_sponsors`: links an event to a `people` record via `person_id` (one row per event/person pair), plus per-event sponsorship details — support type, in-kind description, contribution value, public visibility, notes. Sponsor/partner name and contact info are not duplicated here; they live on the linked `people` row.
 - `event_volunteers`: links an event to a `people` record via `person_id`, with an optional free-text `role` and notes; a lightweight, event-scoped sign-up list (predates the fuller `volunteer_role_types`/`volunteer_hours` catalog in "Volunteers" below).
 - `event_staff`: not yet implemented — see §5.9; mirrors `event_volunteers` (`event_id`, `person_id`, optional role/title, notes, unique per event/person pair) for people tagged `is_staff`.
-- `event_registrations`: optional future capability
+- `event_registrations`: **implemented** — public registration for an event (name, email, phone, party size, notes), submitted via the anon-callable `register_for_event()` RPC (validates the event is public/published, registration is open, and capacity). Links to a `people` record via `person_id`, resolved-or-created by normalized email inside the RPC (`resolve_or_create_person_by_email()`, since there's no signed-in user to drive a `PersonPicker`); existing rows were backfilled by matching `people.email` where possible. `create_donation_with_items` uses the same helper to resolve an existing `people` row by email instead of always inserting a duplicate. `checked_in_at`: explicit per-registrant check-in (set by staff from the portal, not derived from `events.attendance_count`/`attendance_notes`, which remain a separate manual estimate — see §5.9-adjacent event-day tooling). A walk-in who never pre-registered gets their own `event_registrations` row, created at check-in time via `PersonPicker`, rather than a separate table.
+- `discount_codes`: manual tracking of discount codes a partner/vendor issues for an event (code, description, source) and which registrant each was given to (`registration_id` → `event_registrations.id`, single-use via a unique constraint on `registration_id`, plus a unique `(event_id, lower(code))` index). No payment/pricing integration — redemption happens outside chattersnow-web. No automatic assignment at registration time (needs board input; tracked separately).
 
 ### Programs and impact
 
