@@ -13,7 +13,7 @@ import {
   type EventVolunteer,
   type EventVolunteerHours,
 } from "./volunteers-actions";
-import { SponsorPersonPicker, type PickedPerson } from "./sponsor-person-picker";
+import { PersonPicker, type PickedPerson } from "../people/person-picker";
 import { listPeopleAction, type PersonListItem } from "../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -70,7 +70,7 @@ function AddVolunteerForm({
       <FieldGroup>
         <Field>
           <FieldLabel>Volunteer</FieldLabel>
-          <SponsorPersonPicker
+          <PersonPicker
             people={people}
             selected={selectedPerson}
             onSelect={setSelectedPerson}
@@ -161,7 +161,7 @@ function AddHoursForm({
       <FieldGroup>
         <Field>
           <FieldLabel>Volunteer</FieldLabel>
-          <SponsorPersonPicker
+          <PersonPicker
             people={people}
             selected={selectedPerson}
             onSelect={setSelectedPerson}

@@ -54,6 +54,7 @@ export async function listPeopleAction(): Promise<{ data: PersonListItem[] } | {
     { resource: "volunteers", level: "view" },
     { resource: "events", level: "view" },
     { resource: "governance", level: "manage" },
+    { resource: "people_intake", level: "manage" },
   ]);
   if (permissionError) return permissionError;
 

@@ -2,8 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { parseDistributionForm } from "./distribution-form";
+import { parseDistributionInput, type RecordDistributionInput } from "./distribution-form";
 import { checkAnyPermission } from "@/lib/auth/permissions";
+
+export type { RecordDistributionInput };
 
 export type EventDistributionRow = {
   id: string;
@@ -11,6 +13,11 @@ export type EventDistributionRow = {
   occurred_at: string;
   reason: string | null;
   inventory_item: { id: string; description: string; type: string; size: string | null } | null;
+};
+
+export type DistributionRow = EventDistributionRow & {
+  event: { id: string; name: string } | null;
+  recipient: { id: string; name: string | null } | null;
 };
 
 export type DistributionActionResult = { error: string } | { success: true };
@@ -38,6 +45,31 @@ export async function listEventDistributionsAction(
   return { data: (data ?? []) as unknown as EventDistributionRow[] };
 }
 
+export async function listDistributionsAction(
+  limit: number = 100
+): Promise<{ data: DistributionRow[] } | { error: string }> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkAnyPermission(supabase, [
+    { resource: "inventory", level: "manage" },
+    { resource: "inventory_reports", level: "view" },
+  ]);
+  if (permissionError) return permissionError;
+
+  const { data, error } = await supabase
+    .from("inventory_movements")
+    .select(
+      "id, quantity, occurred_at, reason, inventory_item:inventory_items(id, description, type, size), event:events(id, name), recipient:people(id, name)"
+    )
+    .eq("movement_type", "distributed")
+    .order("occurred_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    return { error: "Could not load distributions. Please try again." };
+  }
+  return { data: (data ?? []) as unknown as DistributionRow[] };
+}
+
 export async function listAvailableInventoryItemsAction(): Promise<
   { data: { id: string; description: string; type: string }[] } | { error: string }
 > {
@@ -61,8 +93,7 @@ export async function listAvailableInventoryItemsAction(): Promise<
 }
 
 export async function recordEventDistributionAction(
-  eventId: string,
-  formData: FormData
+  input: RecordDistributionInput
 ): Promise<DistributionActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -77,24 +108,18 @@ export async function recordEventDistributionAction(
   ]);
   if (permissionError) return permissionError;
 
-  const parsed = parseDistributionForm(formData);
+  const parsed = parseDistributionInput(input);
   if ("error" in parsed) return parsed;
-  const { inventoryItemId, quantity, reason, occurredAt, markDistributed } = parsed.data;
 
-  const { error } = await supabase.rpc("record_event_distribution", {
-    p_inventory_item_id: inventoryItemId,
-    p_event_id: eventId,
-    p_quantity: quantity,
-    p_reason: reason,
-    p_occurred_at: occurredAt,
-    p_mark_item_distributed: markDistributed,
-  });
+  const { error } = await supabase.rpc("record_event_distribution", parsed.data);
 
   if (error) {
     return { error: "Could not record the distribution. Please try again." };
   }
 
+  revalidatePath("/portal/home");
   revalidatePath("/portal/inventory/items");
+  revalidatePath("/portal/inventory/distribution");
   revalidatePath("/portal/events");
   return { success: true };
 }

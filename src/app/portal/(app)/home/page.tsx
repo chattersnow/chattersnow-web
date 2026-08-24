@@ -1,12 +1,15 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserPermissions, hasPermission, hasAnyPermission } from "@/lib/auth/permissions";
+import { resolveCurrentPersonId } from "@/lib/auth/current-person";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatTile, ComingSoonTile, AttentionTile } from "./stat-tile";
+import { ActiveEventCard } from "./active-event-card";
 import {
   getUpcomingSummary,
   getFinancialSummary,
   getInventorySummary,
   getPendingApprovalsSummary,
+  getMyActiveEvents,
 } from "./queries";
 import { listRecentDonationsAction } from "./actions";
 
@@ -45,8 +48,14 @@ export default async function PortalHomePage() {
   ]);
   const canSeeOrganization = hasPermission(permissions, "governance", "manage");
   const canSeeExpenseApprovals = hasPermission(permissions, "finance_approvals", "manage");
-
-  const anySectionVisible = canSeeUpcoming || canSeeFinancial || canSeeInventory || canSeeOrganization;
+  const canRecordDonation = hasAnyPermission(permissions, [
+    { resource: "finance", level: "manage" },
+    { resource: "inventory_intake", level: "manage" },
+  ]);
+  const canRecordDistribution = hasAnyPermission(permissions, [
+    { resource: "inventory", level: "manage" },
+    { resource: "inventory_intake", level: "manage" },
+  ]);
 
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
@@ -58,21 +67,27 @@ export default async function PortalHomePage() {
   const startOfMonthDate = startOfMonth.toISOString().slice(0, 10);
   const startOfYearDate = startOfYear.toISOString().slice(0, 10);
 
-  const [upcoming, financial, inventory, recentDonationsResult, pendingApprovals] = await Promise.all([
-    canSeeUpcoming ? getUpcomingSummary(supabase, nowIso) : Promise.resolve(null),
-    canSeeFinancial
-      ? getFinancialSummary(supabase, startOfMonthDate, startOfYearDate, nowIso)
-      : Promise.resolve(null),
-    canSeeInventory ? getInventorySummary(supabase) : Promise.resolve(null),
-    canSeeInventory && canSeeRecentDonations ? listRecentDonationsAction(5) : Promise.resolve(null),
-    canSeeExpenseApprovals
-      ? getPendingApprovalsSummary(supabase, { canSeeExpenseApprovals })
-      : Promise.resolve(null),
-  ]);
+  const [upcoming, financial, inventory, recentDonationsResult, pendingApprovals, personId] =
+    await Promise.all([
+      canSeeUpcoming ? getUpcomingSummary(supabase, nowIso) : Promise.resolve(null),
+      canSeeFinancial
+        ? getFinancialSummary(supabase, startOfMonthDate, startOfYearDate, nowIso)
+        : Promise.resolve(null),
+      canSeeInventory ? getInventorySummary(supabase) : Promise.resolve(null),
+      canSeeInventory && canSeeRecentDonations ? listRecentDonationsAction(5) : Promise.resolve(null),
+      canSeeExpenseApprovals
+        ? getPendingApprovalsSummary(supabase, { canSeeExpenseApprovals })
+        : Promise.resolve(null),
+      resolveCurrentPersonId(supabase),
+    ]);
 
   const recentDonations =
     recentDonationsResult && "data" in recentDonationsResult ? recentDonationsResult.data : [];
   const attentionItems = pendingApprovals?.items ?? [];
+  const activeEvents = personId ? await getMyActiveEvents(supabase, personId, nowIso) : [];
+
+  const anySectionVisible =
+    canSeeUpcoming || canSeeFinancial || canSeeInventory || canSeeOrganization || activeEvents.length > 0;
 
   return (
     <section>
@@ -86,6 +101,22 @@ export default async function PortalHomePage() {
             </p>
           </CardContent>
         </Card>
+      )}
+
+      {activeEvents.length > 0 && (
+        <div className="mt-6">
+          <SectionLabel>Happening now</SectionLabel>
+          <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {activeEvents.map((event) => (
+              <ActiveEventCard
+                key={event.id}
+                event={event}
+                canRecordDonation={canRecordDonation}
+                canRecordDistribution={canRecordDistribution}
+              />
+            ))}
+          </div>
+        </div>
       )}
 
       {attentionItems.length > 0 && (

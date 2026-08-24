@@ -225,7 +225,7 @@ Inventory changes shall be represented by a stock movement or distribution trans
 - Optional recipient or recipient reference
 - User who recorded the transaction
 
-For distribution, the system should eventually record who received the gear, when, at which event, and who distributed it. Personally identifying recipient information must be protected by RLS and should not be public.
+For distribution, the system records who received the gear (`inventory_movements.recipient_person_id`, a nullable FK to `people`), when, at which event (also optional), and who distributed it (`created_by`). Recipient data is protected by the same RLS as the rest of `people`/`inventory_movements` and is not exposed publicly.
 
 Available quantity should be derived from valid inventory transactions, subject to an explicit policy for damaged, lost, and retired stock.
 

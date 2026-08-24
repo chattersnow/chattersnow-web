@@ -1,15 +1,15 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createPersonAction } from "../people/actions";
+import { createPersonAction } from "./actions";
 import {
   PersonFormFields,
   emptyPersonForm,
   packPersonFormData,
   type PersonFormState,
-} from "../people/person-form-fields";
-import type { PersonListItem } from "../people/actions";
-import type { RoleKey } from "../people/people-shared";
+} from "./person-form-fields";
+import type { PersonListItem } from "./actions";
+import type { RoleKey } from "./people-shared";
 import { filterPeople } from "./person-search";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -18,18 +18,20 @@ import { Input } from "@/components/ui/input";
 
 export type PickedPerson = { id: string; name: string | null; email: string | null; phone: string | null };
 
-export function SponsorPersonPicker({
+export function PersonPicker({
   people,
   selected,
   onSelect,
   onPersonCreated,
   newPersonRole = "is_sponsor",
+  placeholder = "Search by name or email...",
 }: {
   people: PersonListItem[];
   selected: PickedPerson | null;
   onSelect: (person: PickedPerson | null) => void;
   onPersonCreated: (person: PickedPerson) => void;
   newPersonRole?: RoleKey;
+  placeholder?: string;
 }) {
   const [query, setQuery] = useState("");
   const [showCreate, setShowCreate] = useState(false);
@@ -93,7 +95,7 @@ export function SponsorPersonPicker({
   return (
     <div className="flex flex-col gap-2">
       <Input
-        placeholder="Search sponsor/partner by name or email..."
+        placeholder={placeholder}
         value={query}
         onChange={(event) => setQuery(event.target.value)}
       />

@@ -9,7 +9,7 @@ import {
   listMeetingAttendeesAction,
   type MeetingAttendee,
 } from "./attendees-actions";
-import { SponsorPersonPicker, type PickedPerson } from "../../events/sponsor-person-picker";
+import { PersonPicker, type PickedPerson } from "../../people/person-picker";
 import { listPeopleAction, type PersonListItem } from "../../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -58,7 +58,7 @@ function AddAttendeeForm({
       <FieldGroup>
         <Field>
           <FieldLabel>Person</FieldLabel>
-          <SponsorPersonPicker
+          <PersonPicker
             people={people}
             selected={selectedPerson}
             onSelect={setSelectedPerson}

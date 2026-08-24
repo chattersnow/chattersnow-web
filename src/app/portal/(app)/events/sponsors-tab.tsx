@@ -12,7 +12,7 @@ import {
   type EventSponsorPerson,
   type SponsorActionResult,
 } from "./sponsors-actions";
-import { SponsorPersonPicker, type PickedPerson } from "./sponsor-person-picker";
+import { PersonPicker, type PickedPerson } from "../people/person-picker";
 import { listPeopleAction, type PersonListItem } from "../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -154,7 +154,7 @@ function SponsorForm({
         ) : (
           <Field>
             <FieldLabel>Sponsor / partner</FieldLabel>
-            <SponsorPersonPicker
+            <PersonPicker
               people={people}
               selected={selectedPerson}
               onSelect={setSelectedPerson}

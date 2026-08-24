@@ -9,7 +9,7 @@ import {
   packBoardMemberFormData,
   type BoardMemberFormState,
 } from "./board-member-form-fields";
-import { SponsorPersonPicker, type PickedPerson } from "../../events/sponsor-person-picker";
+import { PersonPicker, type PickedPerson } from "../../people/person-picker";
 import type { PersonListItem } from "../../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -86,7 +86,7 @@ export function NewBoardMemberDialog({ people }: { people: PersonListItem[] }) {
           <FieldGroup>
             <Field>
               <FieldLabel>Person</FieldLabel>
-              <SponsorPersonPicker
+              <PersonPicker
                 people={availablePeople}
                 selected={selectedPerson}
                 onSelect={setSelectedPerson}

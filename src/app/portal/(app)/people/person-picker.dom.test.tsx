@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { PersonActionResult, PersonListItem } from "../people/actions";
-import * as PeopleActions from "../people/actions";
+import type { PersonActionResult, PersonListItem } from "./actions";
+import * as PeopleActions from "./actions";
 
 const createPersonActionMock = mock(
   async (): Promise<PersonActionResult> => ({
@@ -11,12 +11,12 @@ const createPersonActionMock = mock(
   })
 );
 
-mock.module("../people/actions", () => ({
+mock.module("./actions", () => ({
   ...PeopleActions,
   createPersonAction: createPersonActionMock,
 }));
 
-const { SponsorPersonPicker } = await import("./sponsor-person-picker");
+const { PersonPicker } = await import("./person-picker");
 
 const people: PersonListItem[] = [
   { id: "1", name: "Jane Doe", email: "jane@example.com", phone: null, is_sponsor: false },
@@ -25,7 +25,7 @@ const people: PersonListItem[] = [
 
 function noop() {}
 
-describe("SponsorPersonPicker", () => {
+describe("PersonPicker", () => {
   beforeEach(() => {
     createPersonActionMock.mockClear();
     createPersonActionMock.mockImplementation(async () => ({
@@ -38,7 +38,7 @@ describe("SponsorPersonPicker", () => {
     const user = userEvent.setup();
     const onSelect = mock(() => {});
     render(
-      <SponsorPersonPicker
+      <PersonPicker
         people={people}
         selected={{ id: "1", name: "Jane Doe", email: "jane@example.com", phone: null }}
         onSelect={onSelect}
@@ -55,10 +55,10 @@ describe("SponsorPersonPicker", () => {
     const user = userEvent.setup();
     const onSelect = mock(() => {});
     render(
-      <SponsorPersonPicker people={people} selected={null} onSelect={onSelect} onPersonCreated={noop} />
+      <PersonPicker people={people} selected={null} onSelect={onSelect} onPersonCreated={noop} />
     );
 
-    await user.type(screen.getByPlaceholderText(/search sponsor/i), "jane");
+    await user.type(screen.getByPlaceholderText(/search by name or email/i), "jane");
     const match = await screen.findByText("Jane Doe");
     await user.click(match);
 
@@ -67,9 +67,9 @@ describe("SponsorPersonPicker", () => {
 
   test("shows a no-matches message when the search has no results", async () => {
     const user = userEvent.setup();
-    render(<SponsorPersonPicker people={people} selected={null} onSelect={noop} onPersonCreated={noop} />);
+    render(<PersonPicker people={people} selected={null} onSelect={noop} onPersonCreated={noop} />);
 
-    await user.type(screen.getByPlaceholderText(/search sponsor/i), "nomatch");
+    await user.type(screen.getByPlaceholderText(/search by name or email/i), "nomatch");
 
     expect(await screen.findByText('No matches for "nomatch".')).toBeInTheDocument();
   });
@@ -79,7 +79,7 @@ describe("SponsorPersonPicker", () => {
     const onSelect = mock(() => {});
     const onPersonCreated = mock(() => {});
     render(
-      <SponsorPersonPicker
+      <PersonPicker
         people={people}
         selected={null}
         onSelect={onSelect}
@@ -103,7 +103,7 @@ describe("SponsorPersonPicker", () => {
       error: "Could not save this person. Please try again.",
     }));
     const user = userEvent.setup();
-    render(<SponsorPersonPicker people={people} selected={null} onSelect={noop} onPersonCreated={noop} />);
+    render(<PersonPicker people={people} selected={null} onSelect={noop} onPersonCreated={noop} />);
 
     await user.click(screen.getByRole("button", { name: "+ Create new person" }));
     await user.type(screen.getByLabelText("Name"), "New Person");
