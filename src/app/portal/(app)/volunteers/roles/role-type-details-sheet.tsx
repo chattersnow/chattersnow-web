@@ -44,7 +44,7 @@ function isDirty(form: FormState, roleType: RoleTypeRow) {
   return form.name !== baseline.name || form.description !== baseline.description;
 }
 
-export function RoleTypeDetailsDialog({
+export function RoleTypeDetailsSheet({
   roleType,
   canManage,
 }: {

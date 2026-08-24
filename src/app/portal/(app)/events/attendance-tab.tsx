@@ -91,7 +91,14 @@ function AttendanceForm({
   );
 }
 
-export function AttendanceTab({ event, mode }: { event: EventRow; mode: "view" | "edit" }) {
+export function AttendanceTab({
+  event,
+  mode,
+}: {
+  event: EventRow;
+  mode: "view" | "edit";
+  active: boolean;
+}) {
   const [editing, setEditing] = useState(false);
   const [prevMode, setPrevMode] = useState(mode);
   const hasAttendance = event.attendance_count !== null || Boolean(event.attendance_notes);

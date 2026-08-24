@@ -1,4 +1,4 @@
-export type ParseResult<T> = { data: T } | { error: string };
+import type { ParseResult } from "@/lib/forms";
 
 export type RoleTypeFormData = {
   name: string;

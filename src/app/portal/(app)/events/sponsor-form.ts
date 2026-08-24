@@ -1,4 +1,4 @@
-export type ParseResult<T> = { data: T } | { error: string };
+import type { ParseResult } from "@/lib/forms";
 
 const SUPPORT_TYPES = ["cash", "in_kind", "both", "other"] as const;
 const FOLLOW_UP_STATUSES = ["not_started", "in_progress", "done"] as const;

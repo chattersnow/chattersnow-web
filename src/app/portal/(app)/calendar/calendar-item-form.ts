@@ -1,6 +1,5 @@
 import { CATEGORIES, CALENDAR_STATUSES, DECISIONS, ITEM_TYPES, VISIBILITIES } from "./calendar-shared";
-
-export type ParseResult<T> = { data: T } | { error: string };
+import type { ParseResult } from "@/lib/forms";
 
 const ITEM_TYPE_VALUES = ITEM_TYPES.map((option) => option.value);
 const CATEGORY_VALUES = CATEGORIES.map((option) => option.value);
