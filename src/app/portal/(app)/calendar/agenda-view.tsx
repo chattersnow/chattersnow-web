@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDateInZone } from "@/lib/time";
-import { CalendarItemDetailsDialog } from "./calendar-item-details-dialog";
+import { CalendarItemDetailsSheet } from "./calendar-item-details-sheet";
 import {
   CalendarStatusBadge,
   NeedsDecisionFlag,
@@ -90,7 +90,7 @@ export function AgendaView({
                       {isPastUndecided(item) && <PastUndecidedFlag />}
                     </div>
                   </div>
-                  <CalendarItemDetailsDialog
+                  <CalendarItemDetailsSheet
                     item={item}
                     owners={owners}
                     programs={programs}

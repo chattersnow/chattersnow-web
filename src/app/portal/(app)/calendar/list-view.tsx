@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CalendarItemDetailsDialog } from "./calendar-item-details-dialog";
+import { CalendarItemDetailsSheet } from "./calendar-item-details-sheet";
 import {
   CalendarStatusBadge,
   CalendarVisibilityBadge,
@@ -127,7 +127,7 @@ export function ListView({
                     <CategoryBadges categories={item.categories} />
                   </TableCell>
                   <TableCell className="text-right">
-                    <CalendarItemDetailsDialog
+                    <CalendarItemDetailsSheet
                       item={item}
                       owners={owners}
                       programs={programs}
