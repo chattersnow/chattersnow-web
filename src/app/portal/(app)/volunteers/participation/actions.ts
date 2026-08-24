@@ -82,6 +82,48 @@ export async function createVolunteerHoursAction(
   return { success: true };
 }
 
+export async function updateVolunteerHoursAction(
+  id: string,
+  personId: string,
+  formData: FormData
+): Promise<VolunteerHoursActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: "You must be signed in to update a logged hours entry." };
+  }
+  const permissionError = await checkPermission(supabase, "volunteers", "manage");
+  if (permissionError) return permissionError;
+  if (!personId) {
+    return { error: "Select or create a person to log hours for." };
+  }
+
+  const parsed = parseParticipationHoursForm(formData);
+  if ("error" in parsed) return parsed;
+  const { eventId, volunteerRoleTypeId, hours, loggedDate, notes } = parsed.data;
+
+  const { error } = await supabase
+    .from("volunteer_hours")
+    .update({
+      person_id: personId,
+      event_id: eventId,
+      volunteer_role_type_id: volunteerRoleTypeId,
+      hours,
+      logged_date: loggedDate,
+      notes,
+    })
+    .eq("id", id);
+
+  if (error) {
+    return { error: "Could not update this entry. Please try again." };
+  }
+
+  revalidatePath("/portal/volunteers/participation");
+  return { success: true };
+}
+
 export async function deleteVolunteerHoursAction(id: string): Promise<VolunteerHoursActionResult> {
   const supabase = await createSupabaseServerClient();
   const {

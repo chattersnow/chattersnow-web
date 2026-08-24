@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { deleteVolunteerHoursAction, type VolunteerHoursEntry } from "./actions";
+import { VolunteerHoursDetailsSheet } from "./volunteer-hours-details-sheet";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -29,7 +30,7 @@ export function HoursTable({ entries, canManage }: { entries: VolunteerHoursEntr
           <TableHead>Role</TableHead>
           <TableHead>Date</TableHead>
           <TableHead>Hours</TableHead>
-          {canManage && <TableHead className="w-px" />}
+          <TableHead className="w-px" />
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -40,20 +41,23 @@ export function HoursTable({ entries, canManage }: { entries: VolunteerHoursEntr
             <TableCell className="app-muted">{entry.volunteer_role_type?.name ?? "—"}</TableCell>
             <TableCell className="app-muted">{dateFormatter.format(new Date(entry.logged_date))}</TableCell>
             <TableCell>{entry.hours}</TableCell>
-            {canManage && (
-              <TableCell className="text-right">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Remove hours entry"
-                  disabled={isDeleting}
-                  onClick={() => handleDelete(entry.id)}
-                >
-                  <Trash2 />
-                </Button>
-              </TableCell>
-            )}
+            <TableCell className="text-right">
+              <div className="flex items-center justify-end gap-1">
+                <VolunteerHoursDetailsSheet entry={entry} canManage={canManage} />
+                {canManage && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Remove hours entry"
+                    disabled={isDeleting}
+                    onClick={() => handleDelete(entry.id)}
+                  >
+                    <Trash2 />
+                  </Button>
+                )}
+              </div>
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>

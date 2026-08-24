@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { addDays } from "@/lib/time";
-import { CalendarItemDetailsDialog } from "./calendar-item-details-dialog";
+import { CalendarItemDetailsSheet } from "./calendar-item-details-sheet";
 import type { CalendarItemRow, CalendarOwner, CalendarProgram } from "./calendar-shared";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -101,7 +101,7 @@ export function MonthView({
                 <div className="app-muted px-1 text-[0.7rem]">{day.getDate()}</div>
                 <div className="flex flex-col gap-0.5">
                   {dayItems.slice(0, MAX_CHIPS_PER_DAY).map((item) => (
-                    <CalendarItemDetailsDialog
+                    <CalendarItemDetailsSheet
                       key={item.id}
                       item={item}
                       owners={owners}
