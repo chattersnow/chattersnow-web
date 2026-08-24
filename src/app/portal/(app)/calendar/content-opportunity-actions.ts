@@ -8,6 +8,32 @@ import { checkPermission } from "@/lib/auth/permissions";
 export type ContentOpportunityActionResult =
   { error: string } | { success: true };
 
+/**
+ * Defense-in-depth: confirms a submitted template_version_id actually
+ * belongs to the submitted template_id before writing, guarding against a
+ * tampered form pairing mismatched ids.
+ */
+async function validateTemplateSelection(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  templateId: string | null,
+  templateVersionId: string | null,
+): Promise<{ error: string } | null> {
+  if (!templateId || !templateVersionId) return null;
+
+  const { data: version, error } = await supabase
+    .from("content_brief_template_versions")
+    .select("template_id")
+    .eq("id", templateVersionId)
+    .maybeSingle();
+
+  if (error || !version || version.template_id !== templateId) {
+    return {
+      error: "Selected template version does not match the selected template.",
+    };
+  }
+  return null;
+}
+
 export async function createContentOpportunityAction(
   calendarItemId: string,
   formData: FormData,
@@ -30,6 +56,13 @@ export async function createContentOpportunityAction(
   if ("error" in parsed) return parsed;
   const { data } = parsed;
 
+  const templateError = await validateTemplateSelection(
+    supabase,
+    data.templateId,
+    data.templateVersionId,
+  );
+  if (templateError) return templateError;
+
   const { error } = await supabase.from("content_opportunities").insert({
     calendar_item_id: calendarItemId,
     content_status: data.contentStatus,
@@ -46,6 +79,9 @@ export async function createContentOpportunityAction(
     draft_due_at: data.draftDueAt,
     status_changed_by: user.id,
     status_changed_at: new Date().toISOString(),
+    template_id: data.templateId,
+    template_version_id: data.templateVersionId,
+    template_field_values: data.templateFieldValues,
   });
 
   if (error) {
@@ -78,6 +114,13 @@ export async function updateContentOpportunityAction(
   if ("error" in parsed) return parsed;
   const { data } = parsed;
 
+  const templateError = await validateTemplateSelection(
+    supabase,
+    data.templateId,
+    data.templateVersionId,
+  );
+  if (templateError) return templateError;
+
   const { data: current, error: fetchError } = await supabase
     .from("content_opportunities")
     .select("content_status")
@@ -104,6 +147,9 @@ export async function updateContentOpportunityAction(
       publish_due_at: data.publishDueAt,
       review_due_at: data.reviewDueAt,
       draft_due_at: data.draftDueAt,
+      template_id: data.templateId,
+      template_version_id: data.templateVersionId,
+      template_field_values: data.templateFieldValues,
       ...(statusChanged
         ? {
             status_changed_by: user.id,

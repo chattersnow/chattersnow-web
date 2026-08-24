@@ -97,6 +97,58 @@ describe("parseContentOpportunityForm", () => {
     );
     expect("data" in result && result.data.publishDueAt).toBeNull();
   });
+
+  test("allows no template selected", () => {
+    const result = parseContentOpportunityForm(formData(validFields));
+    expect("data" in result && result.data.templateId).toBeNull();
+    expect("data" in result && result.data.templateVersionId).toBeNull();
+  });
+
+  test("requires template id and version id together", () => {
+    expect(
+      parseContentOpportunityForm(
+        formData({ ...validFields, templateId: "template-1" }),
+      ),
+    ).toEqual({
+      error: "Select a content brief template before saving field values.",
+    });
+    expect(
+      parseContentOpportunityForm(
+        formData({ ...validFields, templateVersionId: "version-1" }),
+      ),
+    ).toEqual({
+      error: "Select a content brief template before saving field values.",
+    });
+  });
+
+  test("round-trips template field values", () => {
+    const fd = formData({
+      ...validFields,
+      templateId: "template-1",
+      templateVersionId: "version-1",
+    });
+    fd.set(
+      "templateFieldValues",
+      JSON.stringify({ quote: "  Great community!  " }),
+    );
+    const result = parseContentOpportunityForm(fd);
+    expect("data" in result && result.data.templateId).toBe("template-1");
+    expect("data" in result && result.data.templateVersionId).toBe("version-1");
+    expect("data" in result && result.data.templateFieldValues).toEqual({
+      quote: "Great community!",
+    });
+  });
+
+  test("tolerates malformed template field values as an empty object", () => {
+    const fd = formData({
+      ...validFields,
+      templateId: "template-1",
+      templateVersionId: "version-1",
+    });
+    fd.set("templateFieldValues", "not json");
+    const result = parseContentOpportunityForm(fd);
+    expect("data" in result && result.data.templateFieldValues).toEqual({});
+  });
 });
 
 describe("leadTimeSchedule", () => {

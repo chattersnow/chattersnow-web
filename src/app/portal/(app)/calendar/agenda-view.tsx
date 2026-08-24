@@ -18,6 +18,7 @@ import {
   type CalendarOwner,
   type CalendarProgram,
 } from "./calendar-shared";
+import type { ActiveContentBriefTemplate } from "./content-brief-template-shared";
 
 const dayHeadingFormatter = new Intl.DateTimeFormat("en-US", {
   weekday: "long",
@@ -49,12 +50,14 @@ export function AgendaView({
   items,
   owners,
   programs,
+  activeTemplates,
   defaultLeadTimeDays,
   canManage,
 }: {
   items: CalendarItemRow[];
   owners: CalendarOwner[];
   programs: CalendarProgram[];
+  activeTemplates: ActiveContentBriefTemplate[];
   defaultLeadTimeDays: number;
   canManage: boolean;
 }) {
@@ -105,6 +108,7 @@ export function AgendaView({
                     item={item}
                     owners={owners}
                     programs={programs}
+                    activeTemplates={activeTemplates}
                     defaultLeadTimeDays={defaultLeadTimeDays}
                     canManage={canManage}
                   />

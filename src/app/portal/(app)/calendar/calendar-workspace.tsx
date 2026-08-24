@@ -15,6 +15,7 @@ import {
   type CalendarOwner,
   type CalendarProgram,
 } from "./calendar-shared";
+import type { ActiveContentBriefTemplate } from "./content-brief-template-shared";
 import { ListView, type ListSortColumn } from "./list-view";
 import { AgendaView } from "./agenda-view";
 import { MonthView } from "./month-view";
@@ -26,6 +27,7 @@ export function CalendarWorkspace({
   items,
   owners,
   programs,
+  activeTemplates,
   defaultLeadTimeDays,
   canManage,
   filterQuery,
@@ -37,6 +39,7 @@ export function CalendarWorkspace({
   items: CalendarItemRow[];
   owners: CalendarOwner[];
   programs: CalendarProgram[];
+  activeTemplates: ActiveContentBriefTemplate[];
   defaultLeadTimeDays: number;
   canManage: boolean;
   filterQuery: string;
@@ -135,6 +138,7 @@ export function CalendarWorkspace({
           items={filtered}
           owners={owners}
           programs={programs}
+          activeTemplates={activeTemplates}
           defaultLeadTimeDays={defaultLeadTimeDays}
           canManage={canManage}
           sort={sort}
@@ -147,6 +151,7 @@ export function CalendarWorkspace({
           items={filtered}
           owners={owners}
           programs={programs}
+          activeTemplates={activeTemplates}
           defaultLeadTimeDays={defaultLeadTimeDays}
           canManage={canManage}
         />
@@ -157,6 +162,7 @@ export function CalendarWorkspace({
           items={filtered}
           owners={owners}
           programs={programs}
+          activeTemplates={activeTemplates}
           defaultLeadTimeDays={defaultLeadTimeDays}
           canManage={canManage}
           monthHref={monthHref}

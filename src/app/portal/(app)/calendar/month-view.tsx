@@ -11,6 +11,7 @@ import type {
   CalendarOwner,
   CalendarProgram,
 } from "./calendar-shared";
+import type { ActiveContentBriefTemplate } from "./content-brief-template-shared";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MAX_CHIPS_PER_DAY = 3;
@@ -29,6 +30,7 @@ export function MonthView({
   items,
   owners,
   programs,
+  activeTemplates,
   defaultLeadTimeDays,
   canManage,
   monthHref,
@@ -37,6 +39,7 @@ export function MonthView({
   items: CalendarItemRow[];
   owners: CalendarOwner[];
   programs: CalendarProgram[];
+  activeTemplates: ActiveContentBriefTemplate[];
   defaultLeadTimeDays: number;
   canManage: boolean;
   monthHref: (month: string) => string;
@@ -125,6 +128,7 @@ export function MonthView({
                       item={item}
                       owners={owners}
                       programs={programs}
+                      activeTemplates={activeTemplates}
                       defaultLeadTimeDays={defaultLeadTimeDays}
                       canManage={canManage}
                       trigger="chip"
