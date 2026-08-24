@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkPermission } from "@/lib/auth/permissions";
+import { checkUser } from "@/lib/auth/current-user";
 import { friendlyError } from "@/lib/db-errors";
 
 export type PortalUser = {
@@ -64,12 +65,9 @@ export async function assignRoleAction(
   role: string,
 ): Promise<{ error: string } | { success: true }> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in." };
-  }
+  const userResult = await checkUser(supabase);
+  if ("error" in userResult) return userResult;
+  const { user } = userResult;
   const permissionError = await checkPermission(
     supabase,
     "administration",
@@ -138,12 +136,9 @@ export async function createPendingGrantAction(
   }
 
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in." };
-  }
+  const userResult = await checkUser(supabase);
+  if ("error" in userResult) return userResult;
+  const { user } = userResult;
   const permissionError = await checkPermission(
     supabase,
     "administration",
@@ -181,12 +176,9 @@ export async function revokePendingGrantAction(
   id: string,
 ): Promise<{ error: string } | { success: true }> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in." };
-  }
+  const userResult = await checkUser(supabase);
+  if ("error" in userResult) return userResult;
+  const { user } = userResult;
   const permissionError = await checkPermission(
     supabase,
     "administration",

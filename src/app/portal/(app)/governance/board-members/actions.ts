@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseBoardMemberForm } from "./board-member-form";
 import type { BoardMemberRow } from "./board-members-shared";
 import { checkPermission } from "@/lib/auth/permissions";
+import { checkUser } from "@/lib/auth/current-user";
 
 export type BoardMemberActionResult = { error: string } | { success: true };
 
@@ -13,12 +14,11 @@ export async function createBoardMemberAction(
   formData: FormData,
 ): Promise<BoardMemberActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to add a board member." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to add a board member.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "governance",
@@ -56,12 +56,11 @@ export async function updateBoardMemberAction(
   formData: FormData,
 ): Promise<BoardMemberActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to update this board member." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update this board member.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "governance",

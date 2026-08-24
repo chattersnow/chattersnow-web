@@ -8,6 +8,7 @@ import {
   parseGiveawayWinnerForm,
 } from "./giveaway-form";
 import { checkPermission } from "@/lib/auth/permissions";
+import { checkUser } from "@/lib/auth/current-user";
 
 export type GiveawayWinner = {
   id: string;
@@ -79,12 +80,11 @@ export async function upsertEventGiveawayAction(
   formData: FormData,
 ): Promise<GiveawayActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to update the giveaway." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update the giveaway.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return permissionError;
 
@@ -120,12 +120,11 @@ export async function createGiveawayPrizeAction(
   formData: FormData,
 ): Promise<GiveawayActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to add a prize." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to add a prize.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return permissionError;
 
@@ -153,12 +152,11 @@ export async function deleteGiveawayPrizeAction(
   id: string,
 ): Promise<GiveawayActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to remove a prize." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to remove a prize.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return permissionError;
 
@@ -179,12 +177,11 @@ export async function upsertGiveawayWinnerAction(
   formData: FormData,
 ): Promise<GiveawayActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to record a winner." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to record a winner.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return permissionError;
 

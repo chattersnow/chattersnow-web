@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkPermission } from "@/lib/auth/permissions";
+import { checkUser } from "@/lib/auth/current-user";
 
 export type MeetingAttendeePerson = {
   id: string;
@@ -51,12 +52,11 @@ export async function createMeetingAttendeeAction(
   attended: boolean,
 ): Promise<AttendeeActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to add an attendee." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to add an attendee.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "governance",
@@ -87,12 +87,11 @@ export async function updateMeetingAttendeeAction(
   attended: boolean,
 ): Promise<AttendeeActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to update an attendee." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update an attendee.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "governance",
@@ -117,12 +116,11 @@ export async function deleteMeetingAttendeeAction(
   id: string,
 ): Promise<AttendeeActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to remove an attendee." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to remove an attendee.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "governance",

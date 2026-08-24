@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseSponsorForm } from "./sponsor-form";
 import { checkPermission } from "@/lib/auth/permissions";
+import { checkUser } from "@/lib/auth/current-user";
 
 export type EventSponsorPerson = {
   id: string;
@@ -54,12 +55,11 @@ export async function createEventSponsorAction(
   formData: FormData,
 ): Promise<SponsorActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to add a sponsor." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to add a sponsor.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return permissionError;
 
@@ -93,12 +93,11 @@ export async function updateEventSponsorAction(
   formData: FormData,
 ): Promise<SponsorActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to update a sponsor." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update a sponsor.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return permissionError;
 
@@ -122,12 +121,11 @@ export async function deleteEventSponsorAction(
   id: string,
 ): Promise<SponsorActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to remove a sponsor." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to remove a sponsor.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return permissionError;
 

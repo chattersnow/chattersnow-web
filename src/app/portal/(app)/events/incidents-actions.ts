@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseIncidentForm } from "./incidents-form";
 import { checkPermission } from "@/lib/auth/permissions";
+import { checkUser } from "@/lib/auth/current-user";
 
 export type EventIncident = {
   id: string;
@@ -44,12 +45,11 @@ export async function createEventIncidentAction(
   formData: FormData,
 ): Promise<IncidentActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to log an incident." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to log an incident.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "event_incidents",
@@ -76,12 +76,11 @@ export async function deleteEventIncidentAction(
   id: string,
 ): Promise<IncidentActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to remove an incident." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to remove an incident.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "event_incidents",

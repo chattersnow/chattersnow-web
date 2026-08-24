@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseMeetingForm } from "./meeting-form";
 import type { MeetingRow } from "./meeting-badges";
 import { checkPermission } from "@/lib/auth/permissions";
+import { checkUser } from "@/lib/auth/current-user";
 
 export type MeetingActionResult =
   { error: string } | { success: true; id?: string };
@@ -13,12 +14,11 @@ export async function createMeetingAction(
   formData: FormData,
 ): Promise<MeetingActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to schedule a meeting." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to schedule a meeting.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "governance",
@@ -48,12 +48,11 @@ export async function updateMeetingAction(
   formData: FormData,
 ): Promise<MeetingActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to update this meeting." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update this meeting.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "governance",

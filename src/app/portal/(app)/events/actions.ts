@@ -9,6 +9,7 @@ import {
   parseEventReportForm,
 } from "./event-form";
 import { checkPermission } from "@/lib/auth/permissions";
+import { checkUser } from "@/lib/auth/current-user";
 
 export type CreateEventResult = { error: string } | { success: true };
 
@@ -16,12 +17,11 @@ export async function createEventAction(
   formData: FormData,
 ): Promise<CreateEventResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to create an event." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to create an event.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return permissionError;
 
@@ -69,12 +69,11 @@ export async function updateEventAttendanceAction(
   formData: FormData,
 ): Promise<CreateEventResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to update attendance." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update attendance.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return permissionError;
 
@@ -104,12 +103,11 @@ export async function updateEventAction(
   formData: FormData,
 ): Promise<CreateEventResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to update an event." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update an event.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return permissionError;
 
@@ -160,12 +158,11 @@ export async function updateEventPlanningAction(
   formData: FormData,
 ): Promise<CreateEventResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to update planning details." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update planning details.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return permissionError;
 
@@ -221,12 +218,11 @@ export async function updateEventReportAction(
   formData: FormData,
 ): Promise<CreateEventResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to update the event report." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update the event report.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return permissionError;
 
@@ -268,12 +264,12 @@ export async function submitEventReportAction(
   id: string,
 ): Promise<CreateEventResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to submit the event report." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to submit the event report.",
+  );
+  if ("error" in userResult) return userResult;
+  const { user } = userResult;
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return permissionError;
 

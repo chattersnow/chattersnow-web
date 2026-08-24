@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseParticipationHoursForm } from "./hours-form";
 import { checkPermission, checkAnyPermission } from "@/lib/auth/permissions";
+import { checkUser } from "@/lib/auth/current-user";
 
 export type VolunteerHoursPerson = { id: string; name: string | null };
 export type VolunteerHoursEvent = { id: string; name: string } | null;
@@ -46,12 +47,11 @@ export async function createVolunteerHoursAction(
   formData: FormData,
 ): Promise<VolunteerHoursActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to log hours." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to log hours.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkAnyPermission(supabase, [
     { resource: "volunteers", level: "manage" },
     { resource: "volunteer_hours_logging", level: "manage" },
@@ -89,12 +89,11 @@ export async function updateVolunteerHoursAction(
   formData: FormData,
 ): Promise<VolunteerHoursActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to update a logged hours entry." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update a logged hours entry.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "volunteers",
@@ -134,12 +133,11 @@ export async function deleteVolunteerHoursAction(
   id: string,
 ): Promise<VolunteerHoursActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to remove a logged hours entry." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to remove a logged hours entry.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "volunteers",

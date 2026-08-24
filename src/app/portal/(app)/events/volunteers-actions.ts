@@ -7,6 +7,7 @@ import {
   parseEventVolunteerHoursForm,
 } from "./volunteers-form";
 import { checkPermission, checkAnyPermission } from "@/lib/auth/permissions";
+import { checkUser } from "@/lib/auth/current-user";
 
 export type EventVolunteerPerson = {
   id: string;
@@ -53,12 +54,11 @@ export async function createEventVolunteerAction(
   formData: FormData,
 ): Promise<VolunteerActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to add a volunteer." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to add a volunteer.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return permissionError;
   if (!personId) {
@@ -94,12 +94,11 @@ export async function updateEventVolunteerShiftAction(
   shiftId: string | null,
 ): Promise<VolunteerActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to change a shift assignment." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to change a shift assignment.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return permissionError;
 
@@ -121,12 +120,11 @@ export async function deleteEventVolunteerAction(
   id: string,
 ): Promise<VolunteerActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to remove a volunteer." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to remove a volunteer.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return permissionError;
 
@@ -183,12 +181,11 @@ export async function createEventVolunteerHoursAction(
   formData: FormData,
 ): Promise<VolunteerActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to log hours." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to log hours.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkAnyPermission(supabase, [
     { resource: "event_volunteer_hours", level: "manage" },
     { resource: "volunteer_hours_logging", level: "manage" },
@@ -222,12 +219,11 @@ export async function deleteEventVolunteerHoursAction(
   id: string,
 ): Promise<VolunteerActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to remove a logged hours entry." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to remove a logged hours entry.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "event_volunteer_hours",

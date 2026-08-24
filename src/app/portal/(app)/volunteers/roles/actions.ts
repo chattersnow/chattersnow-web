@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseRoleTypeForm } from "./role-type-form";
 import { checkPermission } from "@/lib/auth/permissions";
+import { checkUser } from "@/lib/auth/current-user";
 import { friendlyError } from "@/lib/db-errors";
 
 export type RoleTypeActionResult = { error: string } | { success: true };
@@ -12,12 +13,11 @@ export async function createRoleTypeAction(
   formData: FormData,
 ): Promise<RoleTypeActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to create a role type." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to create a role type.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "volunteers",
@@ -51,12 +51,11 @@ export async function updateRoleTypeAction(
   formData: FormData,
 ): Promise<RoleTypeActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to update a role type." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update a role type.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "volunteers",

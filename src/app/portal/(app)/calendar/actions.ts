@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseCalendarItemForm } from "./calendar-item-form";
 import { checkPermission } from "@/lib/auth/permissions";
+import { checkUser } from "@/lib/auth/current-user";
 import type { CalendarOwner } from "./calendar-shared";
 
 export type CalendarActionResult =
@@ -84,12 +85,11 @@ export async function createCalendarItemAction(
   formData: FormData,
 ): Promise<CalendarActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to create a calendar item." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to create a calendar item.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "content_calendar",
@@ -166,12 +166,11 @@ export async function updateCalendarItemAction(
   formData: FormData,
 ): Promise<CalendarActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to update a calendar item." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update a calendar item.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "content_calendar",
@@ -246,12 +245,11 @@ export async function duplicateCalendarItemAction(
   id: string,
 ): Promise<CalendarActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to duplicate a calendar item." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to duplicate a calendar item.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "content_calendar",
