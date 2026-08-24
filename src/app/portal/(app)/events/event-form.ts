@@ -1,4 +1,4 @@
-export type ParseResult<T> = { data: T } | { error: string };
+import type { ParseResult } from "@/lib/forms";
 
 const VISIBILITIES = ["public", "private"] as const;
 const STATUSES = ["draft", "published", "completed", "cancelled", "archived"] as const;
