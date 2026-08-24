@@ -3,6 +3,12 @@ import { getCurrentUserPermissions, hasPermission } from "@/lib/auth/permissions
 
 export type ExpenseStatus = "submitted" | "approved" | "rejected" | "paid";
 
+const EXPENSE_STATUSES: readonly ExpenseStatus[] = ["submitted", "approved", "rejected", "paid"];
+
+export function isExpenseStatus(value: string | undefined): value is ExpenseStatus {
+  return !!value && (EXPENSE_STATUSES as readonly string[]).includes(value);
+}
+
 export type ExpenseRow = {
   id: string;
   event_id: string | null;

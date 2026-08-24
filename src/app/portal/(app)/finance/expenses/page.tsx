@@ -1,10 +1,25 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ExpenseApprovalWorkflowInfo } from "./approval-workflow-info";
 import { ExpensesTable } from "./expenses-table";
-import { EXPENSE_COLUMNS, getExpenseApprovalContext, type EventOption, type ExpenseRow } from "./expenses-shared";
+import {
+  EXPENSE_COLUMNS,
+  getExpenseApprovalContext,
+  isExpenseStatus,
+  type EventOption,
+  type ExpenseRow,
+} from "./expenses-shared";
 
-export default async function ExpensesPage() {
+type ExpensesPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function ExpensesPage({ searchParams }: ExpensesPageProps) {
   const supabase = await createSupabaseServerClient();
+
+  const params = await searchParams;
+  const statusRaw = params.status;
+  const statusParam = Array.isArray(statusRaw) ? statusRaw[0] : statusRaw;
+  const initialStatusFilter = isExpenseStatus(statusParam) ? statusParam : null;
 
   const [{ data: expenses }, { data: events }, approvalContext] = await Promise.all([
     supabase.from("event_expenses").select(EXPENSE_COLUMNS).order("expense_date", { ascending: false }),
@@ -24,6 +39,7 @@ export default async function ExpensesPage() {
           expenses={(expenses ?? []) as unknown as ExpenseRow[]}
           events={(events ?? []) as EventOption[]}
           approvalContext={approvalContext}
+          initialStatusFilter={initialStatusFilter}
         />
       </div>
     </>
