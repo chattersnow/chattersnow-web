@@ -16,6 +16,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -34,6 +42,7 @@ import {
 } from "@/components/ui/table";
 import { formatRoleLabel } from "@/lib/format";
 import {
+  createInviteLinkAction,
   createPendingGrantAction,
   revokePendingGrantAction,
   type PendingGrant,
@@ -70,6 +79,11 @@ export function PendingAccessSection({
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("");
   const [revokeTarget, setRevokeTarget] = useState<PendingGrant | null>(null);
+  const [inviteResult, setInviteResult] = useState<{
+    grant: PendingGrant;
+    link: string;
+  } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -99,6 +113,26 @@ export function PendingAccessSection({
       setRevokeTarget(null);
       router.refresh();
     });
+  }
+
+  function handleInvite(grant: PendingGrant) {
+    setError(null);
+    startTransition(async () => {
+      const result = await createInviteLinkAction(grant.id);
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+      setInviteResult({ grant, link: result.link });
+      router.refresh();
+    });
+  }
+
+  async function handleCopyLink() {
+    if (!inviteResult) return;
+    await navigator.clipboard.writeText(inviteResult.link);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   return (
@@ -172,15 +206,26 @@ export function PendingAccessSection({
                     <TableCell>{statusBadge(grant)}</TableCell>
                     <TableCell>
                       {grant.status === "pending" && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          disabled={isPending}
-                          onClick={() => setRevokeTarget(grant)}
-                        >
-                          Revoke
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={isPending}
+                            onClick={() => handleInvite(grant)}
+                          >
+                            {grant.invited_at ? "Resend link" : "Invite"}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={isPending}
+                            onClick={() => setRevokeTarget(grant)}
+                          >
+                            Revoke
+                          </Button>
+                        </div>
                       )}
                     </TableCell>
                   </TableRow>
@@ -220,6 +265,34 @@ export function PendingAccessSection({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog
+        open={inviteResult !== null}
+        onOpenChange={(next) => {
+          if (!next) {
+            setInviteResult(null);
+            setCopied(false);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Invite link for {inviteResult?.grant.email}
+            </DialogTitle>
+            <DialogDescription>
+              No email is sent automatically — copy this link and share it with
+              them directly. It expires in about an hour.
+            </DialogDescription>
+          </DialogHeader>
+          <Input readOnly value={inviteResult?.link ?? ""} />
+          <DialogFooter>
+            <Button type="button" onClick={handleCopyLink}>
+              {copied ? "Copied" : "Copy link"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

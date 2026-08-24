@@ -14,6 +14,8 @@ function urlErrorMessage(reason: string | null) {
     return "Google sign-in failed. Please try again.";
   if (reason === "no_access")
     return "Your account is signed in but hasn't been granted portal access yet. Contact an administrator.";
+  if (reason === "invite_failed")
+    return "This invite link is invalid or has expired. Ask an administrator for a new one.";
   return null;
 }
 
