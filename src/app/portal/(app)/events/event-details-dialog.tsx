@@ -312,7 +312,7 @@ export function EventDetailsDialog({ event, programs }: { event: EventRow; progr
                 <SponsorsTab eventId={event.id} active={tab === "sponsors"} mode={mode} />
               </TabsContent>
               <TabsContent value="attendance" className="mt-4">
-                <AttendanceTab event={event} mode={mode} />
+                <AttendanceTab event={event} mode={mode} active={tab === "attendance"} />
               </TabsContent>
               <TabsContent value="registrants" className="mt-4">
                 <RegistrantsTab eventId={event.id} capacity={event.capacity} active={tab === "registrants"} />
