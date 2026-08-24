@@ -1,7 +1,13 @@
 import type { ParseResult } from "@/lib/forms";
 
 const VISIBILITIES = ["public", "private"] as const;
-const STATUSES = ["draft", "published", "completed", "cancelled", "archived"] as const;
+const STATUSES = [
+  "draft",
+  "published",
+  "completed",
+  "cancelled",
+  "archived",
+] as const;
 
 export type EventFormData = {
   name: string;
@@ -71,12 +77,17 @@ export type EventPlanningFormData = {
   budgetAmount: number | null;
 };
 
-export function parseEventPlanningForm(formData: FormData): ParseResult<EventPlanningFormData> {
+export function parseEventPlanningForm(
+  formData: FormData,
+): ParseResult<EventPlanningFormData> {
   const eventLeadId = String(formData.get("eventLeadId") ?? "").trim();
   const capacityRaw = String(formData.get("capacity") ?? "").trim();
   const registrationEnabled =
-    formData.get("registrationEnabled") === "on" || formData.get("registrationEnabled") === "true";
-  const registrationDeadline = String(formData.get("registrationDeadline") ?? "");
+    formData.get("registrationEnabled") === "on" ||
+    formData.get("registrationEnabled") === "true";
+  const registrationDeadline = String(
+    formData.get("registrationDeadline") ?? "",
+  );
   const budgetAmountRaw = String(formData.get("budgetAmount") ?? "").trim();
 
   let capacity: number | null = null;
@@ -102,7 +113,9 @@ export function parseEventPlanningForm(formData: FormData): ParseResult<EventPla
       eventLeadId: eventLeadId || null,
       capacity,
       registrationEnabled,
-      registrationDeadline: registrationDeadline ? new Date(registrationDeadline).toISOString() : null,
+      registrationDeadline: registrationDeadline
+        ? new Date(registrationDeadline).toISOString()
+        : null,
       budgetAmount,
     },
   };
@@ -115,7 +128,9 @@ export type EventReportFormData = {
   reportSummary: string | null;
 };
 
-export function parseEventReportForm(formData: FormData): ParseResult<EventReportFormData> {
+export function parseEventReportForm(
+  formData: FormData,
+): ParseResult<EventReportFormData> {
   const feedbackNotes = String(formData.get("feedbackNotes") ?? "").trim();
   const contentNotes = String(formData.get("contentNotes") ?? "").trim();
   const lessonsLearned = String(formData.get("lessonsLearned") ?? "").trim();
@@ -136,7 +151,9 @@ export type EventAttendanceFormData = {
   attendanceNotes: string | null;
 };
 
-export function parseEventAttendanceForm(formData: FormData): ParseResult<EventAttendanceFormData> {
+export function parseEventAttendanceForm(
+  formData: FormData,
+): ParseResult<EventAttendanceFormData> {
   const countRaw = String(formData.get("attendanceCount") ?? "").trim();
   const notes = String(formData.get("attendanceNotes") ?? "").trim();
 

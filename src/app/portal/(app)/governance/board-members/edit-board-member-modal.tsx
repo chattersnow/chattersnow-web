@@ -35,7 +35,10 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" });
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeZone: "UTC",
+});
 
 function formatDate(value: string | null) {
   if (!value) return "—";
@@ -63,18 +66,29 @@ function isDirty(form: BoardMemberFormState, boardMember: BoardMemberRow) {
   );
 }
 
-export function EditBoardMemberModal({ boardMember }: { boardMember: BoardMemberRow }) {
+export function EditBoardMemberModal({
+  boardMember,
+}: {
+  boardMember: BoardMemberRow;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"view" | "edit">("view");
-  const [form, setForm] = useState<BoardMemberFormState>(() => formStateFor(boardMember));
+  const [form, setForm] = useState<BoardMemberFormState>(() =>
+    formStateFor(boardMember),
+  );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [discardTarget, setDiscardTarget] = useState<"toggle" | "close" | null>(null);
+  const [discardTarget, setDiscardTarget] = useState<"toggle" | "close" | null>(
+    null,
+  );
   const formId = `edit-board-member-form-${boardMember.id}`;
   const dirty = isDirty(form, boardMember);
 
-  function update<K extends keyof BoardMemberFormState>(key: K, value: BoardMemberFormState[K]) {
+  function update<K extends keyof BoardMemberFormState>(
+    key: K,
+    value: BoardMemberFormState[K],
+  ) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -114,7 +128,10 @@ export function EditBoardMemberModal({ boardMember }: { boardMember: BoardMember
     setError(null);
 
     startTransition(async () => {
-      const result = await updateBoardMemberAction(boardMember.id, packBoardMemberFormData(form));
+      const result = await updateBoardMemberAction(
+        boardMember.id,
+        packBoardMemberFormData(form),
+      );
       if ("error" in result) {
         setError(result.error);
         return;
@@ -128,19 +145,39 @@ export function EditBoardMemberModal({ boardMember }: { boardMember: BoardMember
     <>
       <Sheet open={open} onOpenChange={handleOpenChange}>
         <SheetTrigger
-          render={<Button type="button" variant="ghost" size="icon-sm" aria-label="View board member" />}
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="View board member"
+            />
+          }
         >
           <Eye />
         </SheetTrigger>
-        <SheetContent side="right" showCloseButton={false} className="data-[side=right]:sm:max-w-lg">
+        <SheetContent
+          side="right"
+          showCloseButton={false}
+          className="data-[side=right]:sm:max-w-lg"
+        >
           <SheetHeader className="flex-row items-start gap-2 space-y-0">
             <SheetClose
-              render={<Button type="button" variant="ghost" size="icon-sm" aria-label="Close" />}
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Close"
+                />
+              }
             >
               <ArrowLeft />
             </SheetClose>
             <div className="flex flex-1 flex-col gap-0.5">
-              <SheetTitle>{mode === "edit" ? "Edit board member" : "Board member"}</SheetTitle>
+              <SheetTitle>
+                {mode === "edit" ? "Edit board member" : "Board member"}
+              </SheetTitle>
               <SheetDescription>
                 {mode === "edit"
                   ? "Update this board member's term details."
@@ -158,7 +195,12 @@ export function EditBoardMemberModal({ boardMember }: { boardMember: BoardMember
                 <Pencil />
               </Button>
             ) : (
-              <Button type="button" variant="ghost" size="sm" onClick={requestExitEditMode}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={requestExitEditMode}
+              >
                 View
               </Button>
             )}
@@ -167,19 +209,34 @@ export function EditBoardMemberModal({ boardMember }: { boardMember: BoardMember
           {mode === "view" ? (
             <div className="flex-1 overflow-y-auto px-4 pb-4">
               <FieldGroup>
-                <ReadOnlyField label="Person" htmlFor="edit-board-member-person">
+                <ReadOnlyField
+                  label="Person"
+                  htmlFor="edit-board-member-person"
+                >
                   {boardMember.person.name || "—"}
                 </ReadOnlyField>
-                <ReadOnlyField label="Role / title" htmlFor="edit-board-member-role-title">
+                <ReadOnlyField
+                  label="Role / title"
+                  htmlFor="edit-board-member-role-title"
+                >
                   {boardMember.role_title || "—"}
                 </ReadOnlyField>
-                <ReadOnlyField label="Term start" htmlFor="edit-board-member-term-start">
+                <ReadOnlyField
+                  label="Term start"
+                  htmlFor="edit-board-member-term-start"
+                >
                   {formatDate(boardMember.term_start)}
                 </ReadOnlyField>
-                <ReadOnlyField label="Term end" htmlFor="edit-board-member-term-end">
+                <ReadOnlyField
+                  label="Term end"
+                  htmlFor="edit-board-member-term-end"
+                >
                   {formatDate(boardMember.term_end)}
                 </ReadOnlyField>
-                <ReadOnlyField label="Active" htmlFor="edit-board-member-active">
+                <ReadOnlyField
+                  label="Active"
+                  htmlFor="edit-board-member-active"
+                >
                   {boardMember.is_active ? "Yes" : "No"}
                 </ReadOnlyField>
                 <ReadOnlyField label="Notes" htmlFor="edit-board-member-notes">
@@ -188,14 +245,25 @@ export function EditBoardMemberModal({ boardMember }: { boardMember: BoardMember
               </FieldGroup>
             </div>
           ) : (
-            <form id={formId} onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+            <form
+              id={formId}
+              onSubmit={handleSubmit}
+              className="flex min-h-0 flex-1 flex-col"
+            >
               <div className="flex-1 overflow-y-auto px-4 pb-4">
                 <FieldGroup>
-                  <ReadOnlyField label="Person" htmlFor="edit-board-member-person-locked">
+                  <ReadOnlyField
+                    label="Person"
+                    htmlFor="edit-board-member-person-locked"
+                  >
                     {boardMember.person.name || "—"}
                   </ReadOnlyField>
 
-                  <BoardMemberFormFields form={form} update={update} idPrefix="edit-board-member" />
+                  <BoardMemberFormFields
+                    form={form}
+                    update={update}
+                    idPrefix="edit-board-member"
+                  />
 
                   {error && (
                     <Alert variant="destructive">
@@ -217,17 +285,25 @@ export function EditBoardMemberModal({ boardMember }: { boardMember: BoardMember
         </SheetContent>
       </Sheet>
 
-      <AlertDialog open={discardTarget !== null} onOpenChange={(next) => !next && setDiscardTarget(null)}>
+      <AlertDialog
+        open={discardTarget !== null}
+        onOpenChange={(next) => !next && setDiscardTarget(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Discard changes?</AlertDialogTitle>
             <AlertDialogDescription>
-              You have unsaved changes to this board member. Leaving now will discard them.
+              You have unsaved changes to this board member. Leaving now will
+              discard them.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDiscardTarget(null)}>Keep editing</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDiscard}>Discard changes</AlertDialogAction>
+            <AlertDialogCancel onClick={() => setDiscardTarget(null)}>
+              Keep editing
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDiscard}>
+              Discard changes
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

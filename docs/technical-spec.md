@@ -41,19 +41,19 @@ The public site must remain useful without an account. Operational data must req
 
 ## 3. Technology and Deployment
 
-| Area | Decision |
-| --- | --- |
-| Frontend and application | Next.js App Router, TypeScript, React |
-| UI components | shadcn/ui (Tailwind v4 + Base UI primitives), composed with the project's own brand tokens/classes in `globals.css` |
-| Hosting | Vercel |
-| Database | Supabase PostgreSQL |
-| Authentication | Supabase Auth with Google OAuth |
-| Files | Supabase Storage (inventory/gear photos). Document attachments (receipts, governance records) are external links for the initial release — see §2. |
-| Data API | Supabase-generated API and server-side Next.js routes/actions where orchestration is required |
-| Authorization | PostgreSQL Row Level Security (RLS), with server-side checks for sensitive workflows |
-| Source control | GitHub |
-| DNS and domain | Cloudflare DNS; Vercel manages application deployment and domain integration |
-| Local development | Next.js development server and Supabase local stack |
+| Area                     | Decision                                                                                                                                           |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Frontend and application | Next.js App Router, TypeScript, React                                                                                                              |
+| UI components            | shadcn/ui (Tailwind v4 + Base UI primitives), composed with the project's own brand tokens/classes in `globals.css`                                |
+| Hosting                  | Vercel                                                                                                                                             |
+| Database                 | Supabase PostgreSQL                                                                                                                                |
+| Authentication           | Supabase Auth with Google OAuth                                                                                                                    |
+| Files                    | Supabase Storage (inventory/gear photos). Document attachments (receipts, governance records) are external links for the initial release — see §2. |
+| Data API                 | Supabase-generated API and server-side Next.js routes/actions where orchestration is required                                                      |
+| Authorization            | PostgreSQL Row Level Security (RLS), with server-side checks for sensitive workflows                                                               |
+| Source control           | GitHub                                                                                                                                             |
+| DNS and domain           | Cloudflare DNS; Vercel manages application deployment and domain integration                                                                       |
+| Local development        | Next.js development server and Supabase local stack                                                                                                |
 
 The repository started as a minimal Next.js application and has since been built out well past the original "coming soon" skeleton, though unevenly across areas. Supabase Auth, Storage, and API services are enabled in `supabase/config.toml`. Schema exists as ordered migrations under `supabase/migrations/` for the shared `people` directory (donors, sponsors, volunteers), donations, inventory items/movements, events, event sponsors, event expenses, event attendance (a simple event-level headcount, not per-attendee), giveaways/giveaway prizes/giveaway winners, `roles`/`user_roles`, and an append-only `audit_log`, plus the `public_gear_catalog` view; governance records and event registrations have no backing tables yet. `supabase/seed.sql` populates a local dev database with one test account per role (plus a multi-role and a no-role account, all `@example.test`) and sample operational data, so the role matrix and every workflow below can be exercised locally without touching production.
 
@@ -170,22 +170,22 @@ A user may hold more than one role. The full page-by-page breakdown is the entit
 
 #### Entitlement matrix
 
-| Section / page | `admin` | `event_coordinator` | `finance` | `board` | `volunteer` |
-| --- | --- | --- | --- | --- | --- |
-| Dashboard (Home) | Manage | View (event tiles) | View (financial tiles) | View (summary tiles) | View (own activity) |
-| Events — details, sponsors, giveaway, attendance | Manage | Manage | View | None | View + sign up¹ |
-| Events — event-level expenses | Manage | Manage | View | None | None |
-| Programs | Manage | Manage | View | View | View |
-| Impact tracking / reports | Manage | View | View | View | None |
-| Inventory — items, donations (intake), distribution | Manage | None | None | None | Add donations + edit distribution² |
-| Inventory — reports (valuation) | Manage | None | View | None | None |
-| Finance — donations, expenses, reimbursements, reports | Manage | None | Manage | View (reports only) | None |
-| Finance — approvals | Manage | None | Submit³ | Manage | None |
-| People directory | Manage | View | View | None | None |
-| Volunteers — roles (role-type definitions) | Manage | View | None | None | View |
-| Volunteers — participation | Manage | View | None | None | View/log own |
-| Governance — all pages | Manage | None | None | Manage | None |
-| Administration — users, permissions, settings, audit log | Manage | None | None | None | None |
+| Section / page                                           | `admin` | `event_coordinator` | `finance`              | `board`              | `volunteer`                        |
+| -------------------------------------------------------- | ------- | ------------------- | ---------------------- | -------------------- | ---------------------------------- |
+| Dashboard (Home)                                         | Manage  | View (event tiles)  | View (financial tiles) | View (summary tiles) | View (own activity)                |
+| Events — details, sponsors, giveaway, attendance         | Manage  | Manage              | View                   | None                 | View + sign up¹                    |
+| Events — event-level expenses                            | Manage  | Manage              | View                   | None                 | None                               |
+| Programs                                                 | Manage  | Manage              | View                   | View                 | View                               |
+| Impact tracking / reports                                | Manage  | View                | View                   | View                 | None                               |
+| Inventory — items, donations (intake), distribution      | Manage  | None                | None                   | None                 | Add donations + edit distribution² |
+| Inventory — reports (valuation)                          | Manage  | None                | View                   | None                 | None                               |
+| Finance — donations, expenses, reimbursements, reports   | Manage  | None                | Manage                 | View (reports only)  | None                               |
+| Finance — approvals                                      | Manage  | None                | Submit³                | Manage               | None                               |
+| People directory                                         | Manage  | View                | View                   | None                 | None                               |
+| Volunteers — roles (role-type definitions)               | Manage  | View                | None                   | None                 | View                               |
+| Volunteers — participation                               | Manage  | View                | None                   | None                 | View/log own                       |
+| Governance — all pages                                   | Manage  | None                | None                   | Manage               | None                               |
+| Administration — users, permissions, settings, audit log | Manage  | None                | None                   | None                 | None                               |
 
 ¹ Volunteers never see event financial data (expenses, sponsor amounts); event sign-up depends on the not-yet-built event-registration tables noted in §3.
 ² Volunteers do not get Inventory reports since those surface dollar valuations.
@@ -648,7 +648,6 @@ Supabase database changes should be implemented as ordered migrations under `sup
 4. Expense record and receipt link are saved.
 5. Audit entry records the action.
 
-
 ## 11. Non-Functional Requirements
 
 - **Accessibility:** Meet WCAG 2.2 AA targets for public and portal interfaces, including keyboard access, focus states, form errors, labels, and color contrast.
@@ -675,19 +674,17 @@ The initial release is ready when:
 - RLS and authorization behavior are covered by automated tests or documented repeatable checks.
 - Production deployment works through Vercel with Cloudflare DNS and environment-specific Supabase configuration.
 
-
-
 ## 14. Risks and Mitigations
 
-| Risk | Mitigation |
-| --- | --- |
-| Public exposure of internal inventory or donor data | Private-by-default tables/storage and RLS tests |
-| Inventory counts lose their history | Append-only movement records and controlled correction workflow |
-| Financial records are mistaken for formal accounting | Define reporting scope and reconcile with the organization's accounting process |
+| Risk                                                                           | Mitigation                                                                                                                                                          |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public exposure of internal inventory or donor data                            | Private-by-default tables/storage and RLS tests                                                                                                                     |
+| Inventory counts lose their history                                            | Append-only movement records and controlled correction workflow                                                                                                     |
+| Financial records are mistaken for formal accounting                           | Define reporting scope and reconcile with the organization's accounting process                                                                                     |
 | No roles exist yet — every authenticated user currently has full portal access | Introduce `roles`/`user_roles`, replace blanket "authenticated full access" RLS policies with role-scoped ones, and review access with real operators before launch |
-| Registration creates privacy or capacity problems | Start with minimal fields and add capacity/confirmation rules explicitly |
-| Giveaway functionality creates compliance exposure | Complete legal review before enabling ticket sales |
-| Production and preview environments share data accidentally | Separate environment variables and Supabase projects or strict project policies |
+| Registration creates privacy or capacity problems                              | Start with minimal fields and add capacity/confirmation rules explicitly                                                                                            |
+| Giveaway functionality creates compliance exposure                             | Complete legal review before enabling ticket sales                                                                                                                  |
+| Production and preview environments share data accidentally                    | Separate environment variables and Supabase projects or strict project policies                                                                                     |
 
 ## 15. Success Measures
 

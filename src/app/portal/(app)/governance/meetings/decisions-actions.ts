@@ -14,9 +14,15 @@ export type Decision = {
 
 export type DecisionActionResult = { error: string } | { success: true };
 
-export async function listDecisionsAction(meetingId: string): Promise<{ data: Decision[] } | { error: string }> {
+export async function listDecisionsAction(
+  meetingId: string,
+): Promise<{ data: Decision[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "governance", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "governance",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase
@@ -31,7 +37,10 @@ export async function listDecisionsAction(meetingId: string): Promise<{ data: De
   return { data: (data ?? []) as Decision[] };
 }
 
-export async function createDecisionAction(meetingId: string, formData: FormData): Promise<DecisionActionResult> {
+export async function createDecisionAction(
+  meetingId: string,
+  formData: FormData,
+): Promise<DecisionActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -39,7 +48,11 @@ export async function createDecisionAction(meetingId: string, formData: FormData
   if (!user) {
     return { error: "You must be signed in to add a decision." };
   }
-  const permissionError = await checkPermission(supabase, "governance", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "governance",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   const parsed = parseDecisionForm(formData);
@@ -57,7 +70,9 @@ export async function createDecisionAction(meetingId: string, formData: FormData
   return { success: true };
 }
 
-export async function deleteDecisionAction(id: string): Promise<DecisionActionResult> {
+export async function deleteDecisionAction(
+  id: string,
+): Promise<DecisionActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -65,10 +80,17 @@ export async function deleteDecisionAction(id: string): Promise<DecisionActionRe
   if (!user) {
     return { error: "You must be signed in to remove this decision." };
   }
-  const permissionError = await checkPermission(supabase, "governance", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "governance",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
-  const { error } = await supabase.from("governance_meeting_decisions").delete().eq("id", id);
+  const { error } = await supabase
+    .from("governance_meeting_decisions")
+    .delete()
+    .eq("id", id);
 
   if (error) {
     return { error: "Could not remove this decision. Please try again." };

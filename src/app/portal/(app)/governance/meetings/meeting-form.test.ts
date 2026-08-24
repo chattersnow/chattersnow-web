@@ -16,15 +16,21 @@ describe("parseMeetingForm", () => {
 
   test("rejects an invalid meeting type", () => {
     expect(
-      parseMeetingForm(formData({ meetingDate: "2026-01-01T10:00", meetingType: "social" }))
+      parseMeetingForm(
+        formData({ meetingDate: "2026-01-01T10:00", meetingType: "social" }),
+      ),
     ).toEqual({ error: "Select a valid meeting type." });
   });
 
   test("rejects an invalid status", () => {
     expect(
       parseMeetingForm(
-        formData({ meetingDate: "2026-01-01T10:00", meetingType: "board", status: "tentative" })
-      )
+        formData({
+          meetingDate: "2026-01-01T10:00",
+          meetingType: "board",
+          status: "tentative",
+        }),
+      ),
     ).toEqual({ error: "Select a valid status." });
   });
 
@@ -36,7 +42,7 @@ describe("parseMeetingForm", () => {
         status: "scheduled",
         location: "Community Center",
         notes: "Quarterly meeting",
-      })
+      }),
     );
     expect("data" in result).toBe(true);
     if ("data" in result) {
@@ -44,12 +50,16 @@ describe("parseMeetingForm", () => {
       expect(result.data.status).toBe("scheduled");
       expect(result.data.location).toBe("Community Center");
       expect(result.data.notes).toBe("Quarterly meeting");
-      expect(new Date(result.data.meeting_date).toISOString()).toBe(result.data.meeting_date);
+      expect(new Date(result.data.meeting_date).toISOString()).toBe(
+        result.data.meeting_date,
+      );
     }
   });
 
   test("defaults status to scheduled and optional fields to null", () => {
-    const result = parseMeetingForm(formData({ meetingDate: "2026-01-01T10:00", meetingType: "other" }));
+    const result = parseMeetingForm(
+      formData({ meetingDate: "2026-01-01T10:00", meetingType: "other" }),
+    );
     expect(result).toEqual({
       data: {
         meeting_date: new Date("2026-01-01T10:00").toISOString(),

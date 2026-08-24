@@ -1,5 +1,8 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserPermissions, hasPermission } from "@/lib/auth/permissions";
+import {
+  getCurrentUserPermissions,
+  hasPermission,
+} from "@/lib/auth/permissions";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -10,7 +13,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { NewRoleTypeDialog } from "./new-role-type-dialog";
-import { RoleTypeDetailsSheet, type RoleTypeRow } from "./role-type-details-sheet";
+import {
+  RoleTypeDetailsSheet,
+  type RoleTypeRow,
+} from "./role-type-details-sheet";
 
 export default async function VolunteerRolesPage() {
   const supabase = await createSupabaseServerClient();
@@ -28,16 +34,20 @@ export default async function VolunteerRolesPage() {
         Roles
       </h1>
       <p className="app-muted mt-2 max-w-2xl text-sm">
-        Named volunteer job types (e.g. Ride Buddy, Event Setup, Basecamp Staffing) that events
-        and logged hours can be tagged with.
+        Named volunteer job types (e.g. Ride Buddy, Event Setup, Basecamp
+        Staffing) that events and logged hours can be tagged with.
       </p>
 
-      <div className="mt-6 flex justify-end">{canManage ? <NewRoleTypeDialog /> : null}</div>
+      <div className="mt-6 flex justify-end">
+        {canManage ? <NewRoleTypeDialog /> : null}
+      </div>
 
       <Card className="mt-6">
         <CardContent className="px-0">
           {error ? (
-            <p className="app-muted px-4 py-6 text-sm">Could not load role types. Please try again.</p>
+            <p className="app-muted px-4 py-6 text-sm">
+              Could not load role types. Please try again.
+            </p>
           ) : !roleTypes || roleTypes.length === 0 ? (
             <p className="app-muted px-4 py-6 text-sm">No role types yet.</p>
           ) : (
@@ -52,12 +62,17 @@ export default async function VolunteerRolesPage() {
               <TableBody>
                 {(roleTypes as RoleTypeRow[]).map((roleType) => (
                   <TableRow key={roleType.id}>
-                    <TableCell className="font-medium">{roleType.name}</TableCell>
+                    <TableCell className="font-medium">
+                      {roleType.name}
+                    </TableCell>
                     <TableCell className="app-muted max-w-sm truncate">
                       {roleType.description || "—"}
                     </TableCell>
                     <TableCell className="text-right">
-                      <RoleTypeDetailsSheet roleType={roleType} canManage={canManage} />
+                      <RoleTypeDetailsSheet
+                        roleType={roleType}
+                        canManage={canManage}
+                      />
                     </TableCell>
                   </TableRow>
                 ))}

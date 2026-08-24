@@ -8,11 +8,14 @@ export type BoardMemberFormData = {
   notes: string | null;
 };
 
-export function parseBoardMemberForm(formData: FormData): ParseResult<BoardMemberFormData> {
+export function parseBoardMemberForm(
+  formData: FormData,
+): ParseResult<BoardMemberFormData> {
   const roleTitle = String(formData.get("roleTitle") ?? "").trim();
   const termStart = String(formData.get("termStart") ?? "").trim();
   const termEnd = String(formData.get("termEnd") ?? "").trim();
-  const isActive = formData.get("isActive") === "on" || formData.get("isActive") === "true";
+  const isActive =
+    formData.get("isActive") === "on" || formData.get("isActive") === "true";
   const notes = String(formData.get("notes") ?? "").trim();
 
   if (!roleTitle) return { error: "Role/title is required." };

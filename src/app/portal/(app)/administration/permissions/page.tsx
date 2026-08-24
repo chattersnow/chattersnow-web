@@ -5,15 +5,18 @@ import { PermissionsMatrix } from "./permissions-matrix";
 export default async function PermissionsPage() {
   const supabase = await createSupabaseServerClient();
 
-  const [{ data: roles, error: rolesError }, { data: resources, error: resourcesError }, { data: rolePermissions, error: rolePermissionsError }] =
-    await Promise.all([
-      supabase.from("roles").select("id, name, description").order("name"),
-      supabase
-        .from("resources")
-        .select("id, key, section, label, description, sort_order")
-        .order("sort_order"),
-      supabase.from("role_permissions").select("role_id, resource_id, level"),
-    ]);
+  const [
+    { data: roles, error: rolesError },
+    { data: resources, error: resourcesError },
+    { data: rolePermissions, error: rolePermissionsError },
+  ] = await Promise.all([
+    supabase.from("roles").select("id, name, description").order("name"),
+    supabase
+      .from("resources")
+      .select("id, key, section, label, description, sort_order")
+      .order("sort_order"),
+    supabase.from("role_permissions").select("role_id, resource_id, level"),
+  ]);
 
   const error = rolesError || resourcesError || rolePermissionsError;
 

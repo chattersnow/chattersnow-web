@@ -1,5 +1,10 @@
 import { cn } from "@/lib/utils";
-import { CONDITIONS, GENDERS, labelFor, resolveImageUrl } from "@/lib/inventory";
+import {
+  CONDITIONS,
+  GENDERS,
+  labelFor,
+  resolveImageUrl,
+} from "@/lib/inventory";
 
 export { CONDITIONS, GENDERS, labelFor, resolveImageUrl };
 
@@ -42,7 +47,7 @@ export function StatusBadge({ status }: { status: string }) {
       className={cn(
         "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
         status === "available" && "bg-primary/10 text-primary",
-        status !== "available" && "bg-muted text-muted-foreground"
+        status !== "available" && "bg-muted text-muted-foreground",
       )}
     >
       {labelFor(STATUSES, status)}

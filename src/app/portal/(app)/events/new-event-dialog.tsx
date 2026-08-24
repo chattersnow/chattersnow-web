@@ -61,7 +61,7 @@ export function NewEventDialog({ programs = [] }: { programs?: Program[] }) {
 
   function update<K extends keyof ReturnType<typeof getInitialFormState>>(
     key: K,
-    value: ReturnType<typeof getInitialFormState>[K]
+    value: ReturnType<typeof getInitialFormState>[K],
   ) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
@@ -143,12 +143,17 @@ export function NewEventDialog({ programs = [] }: { programs?: Program[] }) {
               <FieldLabel htmlFor="programId">Program</FieldLabel>
               <Select
                 value={form.programId || "none"}
-                onValueChange={(value) => update("programId", value === "none" ? "" : (value ?? ""))}
+                onValueChange={(value) =>
+                  update("programId", value === "none" ? "" : (value ?? ""))
+                }
               >
                 <SelectTrigger id="programId" className="w-full">
                   <SelectValue placeholder="No program">
                     {(value: string) =>
-                      value && value !== "none" ? (programs.find((program) => program.id === value)?.name ?? "No program") : "No program"
+                      value && value !== "none"
+                        ? (programs.find((program) => program.id === value)
+                            ?.name ?? "No program")
+                        : "No program"
                     }
                   </SelectValue>
                 </SelectTrigger>
@@ -230,11 +235,16 @@ export function NewEventDialog({ programs = [] }: { programs?: Program[] }) {
                 <FieldLabel htmlFor="visibility">Visibility</FieldLabel>
                 <Select
                   value={form.visibility}
-                  onValueChange={(value) => update("visibility", value ?? "private")}
+                  onValueChange={(value) =>
+                    update("visibility", value ?? "private")
+                  }
                 >
                   <SelectTrigger id="visibility" className="w-full">
                     <SelectValue placeholder="Select visibility">
-                      {(value: string) => VISIBILITIES.find((option) => option.value === value)?.label ?? "Select visibility"}
+                      {(value: string) =>
+                        VISIBILITIES.find((option) => option.value === value)
+                          ?.label ?? "Select visibility"
+                      }
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -254,7 +264,10 @@ export function NewEventDialog({ programs = [] }: { programs?: Program[] }) {
                 >
                   <SelectTrigger id="status" className="w-full">
                     <SelectValue placeholder="Select status">
-                      {(value: string) => STATUSES.find((option) => option.value === value)?.label ?? "Select status"}
+                      {(value: string) =>
+                        STATUSES.find((option) => option.value === value)
+                          ?.label ?? "Select status"
+                      }
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>

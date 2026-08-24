@@ -13,8 +13,8 @@ export default function ReimbursementsPage() {
             <CardTitle>Coming soon</CardTitle>
           </CardHeader>
           <CardContent className="app-muted text-sm">
-            This area will track reimbursement requests submitted by staff and volunteers,
-            including status and payout details.
+            This area will track reimbursement requests submitted by staff and
+            volunteers, including status and payout details.
           </CardContent>
         </Card>
       </div>

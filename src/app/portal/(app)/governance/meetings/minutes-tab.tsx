@@ -3,7 +3,11 @@
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
-import { getMinutesAction, upsertMinutesAction, type Minutes } from "./minutes-actions";
+import {
+  getMinutesAction,
+  upsertMinutesAction,
+  type Minutes,
+} from "./minutes-actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -23,7 +27,9 @@ function MinutesForm({
   onCancel: () => void;
 }) {
   const router = useRouter();
-  const [externalLink, setExternalLink] = useState(minutes?.external_link ?? "");
+  const [externalLink, setExternalLink] = useState(
+    minutes?.external_link ?? "",
+  );
   const [bodyText, setBodyText] = useState(minutes?.body_text ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -48,7 +54,10 @@ function MinutesForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-md border border-[var(--line)] p-4">
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-md border border-[var(--line)] p-4"
+    >
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="minutes-link">External link</FieldLabel>
@@ -90,7 +99,15 @@ function MinutesForm({
   );
 }
 
-export function MinutesTab({ meetingId, active, mode }: { meetingId: string; active: boolean; mode: "view" | "edit" }) {
+export function MinutesTab({
+  meetingId,
+  active,
+  mode,
+}: {
+  meetingId: string;
+  active: boolean;
+  mode: "view" | "edit";
+}) {
   const [minutes, setMinutes] = useState<Minutes | null | undefined>(undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -137,7 +154,11 @@ export function MinutesTab({ meetingId, active, mode }: { meetingId: string; act
           <p className="app-muted text-sm">No minutes recorded yet.</p>
           {mode === "edit" && (
             <div>
-              <Button type="button" variant="outline" onClick={() => setEditing(true)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditing(true)}
+              >
                 + Add minutes
               </Button>
             </div>
@@ -160,14 +181,22 @@ export function MinutesTab({ meetingId, active, mode }: { meetingId: string; act
             )}
           </ReadOnlyField>
           <ReadOnlyField label="Minutes text" htmlFor="minutes-body-view">
-            <span className="whitespace-pre-wrap">{minutes.body_text || "—"}</span>
+            <span className="whitespace-pre-wrap">
+              {minutes.body_text || "—"}
+            </span>
           </ReadOnlyField>
         </FieldGroup>
       )}
 
       {minutes && mode === "edit" && (
         <div>
-          <Button type="button" variant="ghost" size="icon-sm" aria-label="Edit minutes" onClick={() => setEditing(true)}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Edit minutes"
+            onClick={() => setEditing(true)}
+          >
             <Pencil />
           </Button>
         </div>

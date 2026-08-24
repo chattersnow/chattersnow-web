@@ -3,7 +3,10 @@ import { AddDonationModal } from "./add-donation-modal";
 import { RecordDistributionModal } from "./record-distribution-modal";
 import type { ActiveEventForPerson } from "./queries";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" });
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 
 export function ActiveEventCard({
   event,
@@ -26,9 +29,17 @@ export function ActiveEventCard({
         </p>
         {(canRecordDonation || canRecordDistribution) && (
           <div className="mt-3 flex flex-wrap gap-2">
-            {canRecordDonation && <AddDonationModal eventId={event.id} triggerLabel="Accept a donation" />}
+            {canRecordDonation && (
+              <AddDonationModal
+                eventId={event.id}
+                triggerLabel="Accept a donation"
+              />
+            )}
             {canRecordDistribution && (
-              <RecordDistributionModal eventId={event.id} triggerLabel="Record a distribution" />
+              <RecordDistributionModal
+                eventId={event.id}
+                triggerLabel="Record a distribution"
+              />
             )}
           </div>
         )}

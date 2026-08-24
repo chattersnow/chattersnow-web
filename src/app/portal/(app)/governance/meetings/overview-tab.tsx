@@ -4,7 +4,11 @@ import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
 import { updateMeetingAction } from "./actions";
-import { MeetingStatusBadge, MeetingTypeBadge, type MeetingRow } from "./meeting-badges";
+import {
+  MeetingStatusBadge,
+  MeetingTypeBadge,
+  type MeetingRow,
+} from "./meeting-badges";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -32,7 +36,10 @@ const STATUSES = [
   { value: "cancelled", label: "Cancelled" },
 ];
 
-const viewDateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" });
+const viewDateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 
 function formatDatetimeLocal(value: string) {
   if (!value) return "—";
@@ -98,7 +105,10 @@ function MeetingOverviewForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-md border border-[var(--line)] p-4">
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-md border border-[var(--line)] p-4"
+    >
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="meeting-date">Date &amp; time</FieldLabel>
@@ -114,7 +124,10 @@ function MeetingOverviewForm({
         <Field orientation="responsive">
           <Field>
             <FieldLabel htmlFor="meeting-type">Type</FieldLabel>
-            <Select value={form.meetingType} onValueChange={(value) => update("meetingType", value ?? "board")}>
+            <Select
+              value={form.meetingType}
+              onValueChange={(value) => update("meetingType", value ?? "board")}
+            >
               <SelectTrigger id="meeting-type">
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
@@ -129,7 +142,10 @@ function MeetingOverviewForm({
           </Field>
           <Field>
             <FieldLabel htmlFor="meeting-status">Status</FieldLabel>
-            <Select value={form.status} onValueChange={(value) => update("status", value ?? "scheduled")}>
+            <Select
+              value={form.status}
+              onValueChange={(value) => update("status", value ?? "scheduled")}
+            >
               <SelectTrigger id="meeting-status">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
@@ -181,7 +197,13 @@ function MeetingOverviewForm({
   );
 }
 
-export function OverviewTab({ meeting, mode }: { meeting: MeetingRow; mode: "view" | "edit" }) {
+export function OverviewTab({
+  meeting,
+  mode,
+}: {
+  meeting: MeetingRow;
+  mode: "view" | "edit";
+}) {
   const [editing, setEditing] = useState(false);
   const [prevMode, setPrevMode] = useState(mode);
 
@@ -191,7 +213,13 @@ export function OverviewTab({ meeting, mode }: { meeting: MeetingRow; mode: "vie
   }
 
   if (editing) {
-    return <MeetingOverviewForm meeting={meeting} onSaved={() => setEditing(false)} onCancel={() => setEditing(false)} />;
+    return (
+      <MeetingOverviewForm
+        meeting={meeting}
+        onSaved={() => setEditing(false)}
+        onCancel={() => setEditing(false)}
+      />
+    );
   }
 
   return (
@@ -215,7 +243,13 @@ export function OverviewTab({ meeting, mode }: { meeting: MeetingRow; mode: "vie
       </FieldGroup>
       {mode === "edit" && (
         <div>
-          <Button type="button" variant="ghost" size="icon-sm" aria-label="Edit meeting" onClick={() => setEditing(true)}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Edit meeting"
+            onClick={() => setEditing(true)}
+          >
             <Pencil />
           </Button>
         </div>

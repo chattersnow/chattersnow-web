@@ -16,12 +16,20 @@ const validFields = {
 describe("parseProgramForm", () => {
   test("parses valid input", () => {
     const result = parseProgramForm(formData(validFields));
-    expect("data" in result && result.data.name).toBe("Chatter Snow Access Days");
+    expect("data" in result && result.data.name).toBe(
+      "Chatter Snow Access Days",
+    );
     expect("data" in result && result.data.status).toBe("active");
   });
 
   test("trims the name and treats blank description as null", () => {
-    const result = parseProgramForm(formData({ ...validFields, name: "  Gear Exchange  ", description: "  " }));
+    const result = parseProgramForm(
+      formData({
+        ...validFields,
+        name: "  Gear Exchange  ",
+        description: "  ",
+      }),
+    );
     expect("data" in result && result.data.name).toBe("Gear Exchange");
     expect("data" in result && result.data.description).toBeNull();
   });
@@ -33,7 +41,9 @@ describe("parseProgramForm", () => {
   });
 
   test("requires a valid status", () => {
-    expect(parseProgramForm(formData({ ...validFields, status: "archived" }))).toEqual({
+    expect(
+      parseProgramForm(formData({ ...validFields, status: "archived" })),
+    ).toEqual({
       error: "Select a valid status.",
     });
   });

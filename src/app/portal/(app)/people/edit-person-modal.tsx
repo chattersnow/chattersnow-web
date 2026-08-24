@@ -69,11 +69,16 @@ export function EditPersonModal({ person }: { person: PersonRow }) {
   const [form, setForm] = useState<PersonFormState>(() => formStateFor(person));
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [discardTarget, setDiscardTarget] = useState<"toggle" | "close" | null>(null);
+  const [discardTarget, setDiscardTarget] = useState<"toggle" | "close" | null>(
+    null,
+  );
   const formId = `edit-person-form-${person.id}`;
   const dirty = isDirty(form, person);
 
-  function update<K extends keyof PersonFormState>(key: K, value: PersonFormState[K]) {
+  function update<K extends keyof PersonFormState>(
+    key: K,
+    value: PersonFormState[K],
+  ) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -113,7 +118,10 @@ export function EditPersonModal({ person }: { person: PersonRow }) {
     setError(null);
 
     startTransition(async () => {
-      const result = await updatePersonAction(person.id, packPersonFormData(form));
+      const result = await updatePersonAction(
+        person.id,
+        packPersonFormData(form),
+      );
       if ("error" in result) {
         setError(result.error);
         return;
@@ -127,19 +135,39 @@ export function EditPersonModal({ person }: { person: PersonRow }) {
     <>
       <Sheet open={open} onOpenChange={handleOpenChange}>
         <SheetTrigger
-          render={<Button type="button" variant="ghost" size="icon-sm" aria-label="View person" />}
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="View person"
+            />
+          }
         >
           <Eye />
         </SheetTrigger>
-        <SheetContent side="right" showCloseButton={false} className="data-[side=right]:sm:max-w-lg">
+        <SheetContent
+          side="right"
+          showCloseButton={false}
+          className="data-[side=right]:sm:max-w-lg"
+        >
           <SheetHeader className="flex-row items-start gap-2 space-y-0">
             <SheetClose
-              render={<Button type="button" variant="ghost" size="icon-sm" aria-label="Close" />}
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Close"
+                />
+              }
             >
               <ArrowLeft />
             </SheetClose>
             <div className="flex flex-1 flex-col gap-0.5">
-              <SheetTitle>{mode === "edit" ? "Edit person" : "Person"}</SheetTitle>
+              <SheetTitle>
+                {mode === "edit" ? "Edit person" : "Person"}
+              </SheetTitle>
               <SheetDescription>
                 {mode === "edit"
                   ? "Update this person's contact details and roles."
@@ -147,11 +175,22 @@ export function EditPersonModal({ person }: { person: PersonRow }) {
               </SheetDescription>
             </div>
             {mode === "view" ? (
-              <Button type="button" variant="ghost" size="icon-sm" aria-label="Edit person" onClick={() => setMode("edit")}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Edit person"
+                onClick={() => setMode("edit")}
+              >
                 <Pencil />
               </Button>
             ) : (
-              <Button type="button" variant="ghost" size="sm" onClick={requestExitEditMode}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={requestExitEditMode}
+              >
                 View
               </Button>
             )}
@@ -178,10 +217,18 @@ export function EditPersonModal({ person }: { person: PersonRow }) {
               </FieldGroup>
             </div>
           ) : (
-            <form id={formId} onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+            <form
+              id={formId}
+              onSubmit={handleSubmit}
+              className="flex min-h-0 flex-1 flex-col"
+            >
               <div className="flex-1 overflow-y-auto px-4 pb-4">
                 <FieldGroup>
-                  <PersonFormFields form={form} update={update} idPrefix="edit-person" />
+                  <PersonFormFields
+                    form={form}
+                    update={update}
+                    idPrefix="edit-person"
+                  />
 
                   {error && (
                     <Alert variant="destructive">
@@ -203,17 +250,25 @@ export function EditPersonModal({ person }: { person: PersonRow }) {
         </SheetContent>
       </Sheet>
 
-      <AlertDialog open={discardTarget !== null} onOpenChange={(next) => !next && setDiscardTarget(null)}>
+      <AlertDialog
+        open={discardTarget !== null}
+        onOpenChange={(next) => !next && setDiscardTarget(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Discard changes?</AlertDialogTitle>
             <AlertDialogDescription>
-              You have unsaved changes to this person. Leaving now will discard them.
+              You have unsaved changes to this person. Leaving now will discard
+              them.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDiscardTarget(null)}>Keep editing</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDiscard}>Discard changes</AlertDialogAction>
+            <AlertDialogCancel onClick={() => setDiscardTarget(null)}>
+              Keep editing
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDiscard}>
+              Discard changes
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

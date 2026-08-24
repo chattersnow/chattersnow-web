@@ -1,6 +1,13 @@
 "use client";
 
-import { FormEvent, Ref, useEffect, useImperativeHandle, useState, useTransition } from "react";
+import {
+  FormEvent,
+  Ref,
+  useEffect,
+  useImperativeHandle,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter } from "next/navigation";
 import { updateEventAction } from "./actions";
 import type { Program } from "../programs/actions";
@@ -69,7 +76,9 @@ type FormState = ReturnType<typeof formStateFor>;
 
 function isDirty(form: FormState, event: EventRow) {
   const baseline = formStateFor(event);
-  return (Object.keys(baseline) as (keyof FormState)[]).some((key) => form[key] !== baseline[key]);
+  return (Object.keys(baseline) as (keyof FormState)[]).some(
+    (key) => form[key] !== baseline[key],
+  );
 }
 
 export type OverviewTabHandle = {
@@ -147,7 +156,9 @@ export function OverviewTab({
     });
   }
 
-  const programName = programs.find((program) => program.id === form.programId)?.name;
+  const programName = programs.find(
+    (program) => program.id === form.programId,
+  )?.name;
 
   if (mode === "view") {
     return (
@@ -226,7 +237,9 @@ export function OverviewTab({
           <Textarea
             id="details-description"
             value={form.description}
-            onChange={(changeEvent) => update("description", changeEvent.target.value)}
+            onChange={(changeEvent) =>
+              update("description", changeEvent.target.value)
+            }
           />
         </Field>
 
@@ -234,12 +247,17 @@ export function OverviewTab({
           <FieldLabel htmlFor="details-programId">Program</FieldLabel>
           <Select
             value={form.programId || "none"}
-            onValueChange={(value) => update("programId", value === "none" ? "" : (value ?? ""))}
+            onValueChange={(value) =>
+              update("programId", value === "none" ? "" : (value ?? ""))
+            }
           >
             <SelectTrigger id="details-programId" className="w-full">
               <SelectValue placeholder="No program">
                 {(value: string) =>
-                  value && value !== "none" ? (programs.find((program) => program.id === value)?.name ?? "No program") : "No program"
+                  value && value !== "none"
+                    ? (programs.find((program) => program.id === value)?.name ??
+                      "No program")
+                    : "No program"
                 }
               </SelectValue>
             </SelectTrigger>
@@ -261,7 +279,9 @@ export function OverviewTab({
               id="details-eventType"
               placeholder="e.g. Access Day, Gear Exchange, Community Ride"
               value={form.eventType}
-              onChange={(changeEvent) => update("eventType", changeEvent.target.value)}
+              onChange={(changeEvent) =>
+                update("eventType", changeEvent.target.value)
+              }
             />
           </Field>
           <Field>
@@ -269,7 +289,9 @@ export function OverviewTab({
             <Input
               id="details-venue"
               value={form.venue}
-              onChange={(changeEvent) => update("venue", changeEvent.target.value)}
+              onChange={(changeEvent) =>
+                update("venue", changeEvent.target.value)
+              }
             />
           </Field>
         </Field>
@@ -279,7 +301,9 @@ export function OverviewTab({
           <Input
             id="details-location"
             value={form.location}
-            onChange={(changeEvent) => update("location", changeEvent.target.value)}
+            onChange={(changeEvent) =>
+              update("location", changeEvent.target.value)
+            }
           />
         </Field>
 
@@ -291,7 +315,9 @@ export function OverviewTab({
               required
               type="datetime-local"
               value={form.startsAt}
-              onChange={(changeEvent) => update("startsAt", changeEvent.target.value)}
+              onChange={(changeEvent) =>
+                update("startsAt", changeEvent.target.value)
+              }
             />
           </Field>
           <Field>
@@ -300,7 +326,9 @@ export function OverviewTab({
               id="details-endsAt"
               type="datetime-local"
               value={form.endsAt}
-              onChange={(changeEvent) => update("endsAt", changeEvent.target.value)}
+              onChange={(changeEvent) =>
+                update("endsAt", changeEvent.target.value)
+              }
             />
           </Field>
         </Field>
@@ -312,7 +340,9 @@ export function OverviewTab({
             required
             placeholder="e.g. America/Chicago"
             value={form.timezone}
-            onChange={(changeEvent) => update("timezone", changeEvent.target.value)}
+            onChange={(changeEvent) =>
+              update("timezone", changeEvent.target.value)
+            }
           />
         </Field>
 
@@ -321,11 +351,16 @@ export function OverviewTab({
             <FieldLabel htmlFor="details-visibility">Visibility</FieldLabel>
             <Select
               value={form.visibility}
-              onValueChange={(value) => update("visibility", value ?? "private")}
+              onValueChange={(value) =>
+                update("visibility", value ?? "private")
+              }
             >
               <SelectTrigger id="details-visibility" className="w-full">
                 <SelectValue placeholder="Select visibility">
-                  {(value: string) => VISIBILITIES.find((option) => option.value === value)?.label ?? "Select visibility"}
+                  {(value: string) =>
+                    VISIBILITIES.find((option) => option.value === value)
+                      ?.label ?? "Select visibility"
+                  }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -339,10 +374,16 @@ export function OverviewTab({
           </Field>
           <Field>
             <FieldLabel htmlFor="details-status">Status</FieldLabel>
-            <Select value={form.status} onValueChange={(value) => update("status", value ?? "draft")}>
+            <Select
+              value={form.status}
+              onValueChange={(value) => update("status", value ?? "draft")}
+            >
               <SelectTrigger id="details-status" className="w-full">
                 <SelectValue placeholder="Select status">
-                  {(value: string) => STATUSES.find((option) => option.value === value)?.label ?? "Select status"}
+                  {(value: string) =>
+                    STATUSES.find((option) => option.value === value)?.label ??
+                    "Select status"
+                  }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>

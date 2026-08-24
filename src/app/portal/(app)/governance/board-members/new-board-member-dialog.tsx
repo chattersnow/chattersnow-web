@@ -28,12 +28,19 @@ export function NewBoardMemberDialog({ people }: { people: PersonListItem[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [availablePeople, setAvailablePeople] = useState(people);
-  const [selectedPerson, setSelectedPerson] = useState<PickedPerson | null>(null);
-  const [form, setForm] = useState<BoardMemberFormState>(() => emptyBoardMemberForm());
+  const [selectedPerson, setSelectedPerson] = useState<PickedPerson | null>(
+    null,
+  );
+  const [form, setForm] = useState<BoardMemberFormState>(() =>
+    emptyBoardMemberForm(),
+  );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  function update<K extends keyof BoardMemberFormState>(key: K, value: BoardMemberFormState[K]) {
+  function update<K extends keyof BoardMemberFormState>(
+    key: K,
+    value: BoardMemberFormState[K],
+  ) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -61,7 +68,10 @@ export function NewBoardMemberDialog({ people }: { people: PersonListItem[] }) {
     }
 
     startTransition(async () => {
-      const result = await createBoardMemberAction(selectedPerson.id, packBoardMemberFormData(form));
+      const result = await createBoardMemberAction(
+        selectedPerson.id,
+        packBoardMemberFormData(form),
+      );
       if ("error" in result) {
         setError(result.error);
         return;
@@ -73,7 +83,9 @@ export function NewBoardMemberDialog({ people }: { people: PersonListItem[] }) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button type="button" className="shrink-0 whitespace-nowrap" />}>
+      <DialogTrigger
+        render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
+      >
         Add board member
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
@@ -94,7 +106,11 @@ export function NewBoardMemberDialog({ people }: { people: PersonListItem[] }) {
               />
             </Field>
 
-            <BoardMemberFormFields form={form} update={update} idPrefix="new-board-member" />
+            <BoardMemberFormFields
+              form={form}
+              update={update}
+              idPrefix="new-board-member"
+            />
 
             {error && (
               <Alert variant="destructive">

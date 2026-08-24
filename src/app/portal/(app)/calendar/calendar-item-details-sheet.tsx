@@ -68,7 +68,10 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ContentOpportunityTab } from "./content-opportunity-tab";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" });
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 
 function toDatetimeLocalValue(iso: string | null) {
   if (!iso) return "";
@@ -151,7 +154,9 @@ export function CalendarItemDetailsSheet({
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [discardTarget, setDiscardTarget] = useState<"toggle" | "close" | null>(null);
+  const [discardTarget, setDiscardTarget] = useState<"toggle" | "close" | null>(
+    null,
+  );
   const formId = `edit-calendar-item-form-${item.id}`;
   const dirty = isDirty(form, item);
 
@@ -162,7 +167,9 @@ export function CalendarItemDetailsSheet({
   function toggleListValue(key: "categories" | "programIds", value: string) {
     setForm((prev) => {
       const list = prev[key];
-      const next = list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
+      const next = list.includes(value)
+        ? list.filter((v) => v !== value)
+        : [...list, value];
       return { ...prev, [key]: next };
     });
   }
@@ -218,8 +225,10 @@ export function CalendarItemDetailsSheet({
     formData.set("calendarStatus", form.calendarStatus);
     formData.set("visibility", form.visibility);
     formData.set("ownerId", form.ownerId);
-    for (const category of form.categories) formData.append("categories", category);
-    for (const programId of form.programIds) formData.append("programIds", programId);
+    for (const category of form.categories)
+      formData.append("categories", category);
+    for (const programId of form.programIds)
+      formData.append("programIds", programId);
     formData.set("decision", form.decision);
     formData.set("decisionNote", form.decisionNote);
 
@@ -279,25 +288,45 @@ export function CalendarItemDetailsSheet({
                 type="button"
                 className={cn(
                   "w-full truncate rounded px-1 py-0.5 text-left text-[0.7rem] hover:bg-muted",
-                  needsDecision(item) && "bg-destructive/10 text-destructive"
+                  needsDecision(item) && "bg-destructive/10 text-destructive",
                 )}
               />
             ) : (
-              <Button type="button" variant="ghost" size="icon-sm" aria-label={`View ${item.title}`} />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`View ${item.title}`}
+              />
             )
           }
         >
           {trigger === "chip" ? item.title : <Eye />}
         </SheetTrigger>
-        <SheetContent side="right" showCloseButton={false} className="data-[side=right]:sm:max-w-xl">
+        <SheetContent
+          side="right"
+          showCloseButton={false}
+          className="data-[side=right]:sm:max-w-xl"
+        >
           <SheetHeader className="flex-row items-start gap-2 space-y-0">
-            <SheetClose render={<Button type="button" variant="ghost" size="icon-sm" aria-label="Close" />}>
+            <SheetClose
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Close"
+                />
+              }
+            >
               <ArrowLeft />
             </SheetClose>
             <div className="flex flex-1 flex-col gap-0.5">
               <SheetTitle>{item.title}</SheetTitle>
               <SheetDescription>
-                {mode === "edit" ? "Update this calendar item." : "View this calendar item's details."}
+                {mode === "edit"
+                  ? "Update this calendar item."
+                  : "View this calendar item's details."}
               </SheetDescription>
             </div>
             {canManage && mode === "view" && (
@@ -324,7 +353,12 @@ export function CalendarItemDetailsSheet({
               </div>
             )}
             {canManage && mode === "edit" && (
-              <Button type="button" variant="ghost" size="sm" onClick={requestExitEditMode}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={requestExitEditMode}
+              >
                 View
               </Button>
             )}
@@ -359,7 +393,9 @@ export function CalendarItemDetailsSheet({
                         {dateFormatter.format(new Date(item.starts_at))}
                       </ReadOnlyField>
                       <ReadOnlyField label="Ends" htmlFor="item-ends">
-                        {item.ends_at ? dateFormatter.format(new Date(item.ends_at)) : "—"}
+                        {item.ends_at
+                          ? dateFormatter.format(new Date(item.ends_at))
+                          : "—"}
                       </ReadOnlyField>
                     </Field>
                     <ReadOnlyField label="Summary" htmlFor="item-summary">
@@ -367,13 +403,17 @@ export function CalendarItemDetailsSheet({
                     </ReadOnlyField>
                     <Field orientation="responsive">
                       <Field>
-                        <FieldLabel htmlFor="item-priority">Priority</FieldLabel>
+                        <FieldLabel htmlFor="item-priority">
+                          Priority
+                        </FieldLabel>
                         <div id="item-priority">
                           <PriorityTierBadge tier={item.priority_tier} />
                         </div>
                       </Field>
                       <Field>
-                        <FieldLabel htmlFor="item-status">Calendar status</FieldLabel>
+                        <FieldLabel htmlFor="item-status">
+                          Calendar status
+                        </FieldLabel>
                         <div id="item-status">
                           <CalendarStatusBadge status={item.calendar_status} />
                         </div>
@@ -381,9 +421,13 @@ export function CalendarItemDetailsSheet({
                     </Field>
                     <Field orientation="responsive">
                       <Field>
-                        <FieldLabel htmlFor="item-visibility">Visibility</FieldLabel>
+                        <FieldLabel htmlFor="item-visibility">
+                          Visibility
+                        </FieldLabel>
                         <div id="item-visibility">
-                          <CalendarVisibilityBadge visibility={item.visibility} />
+                          <CalendarVisibilityBadge
+                            visibility={item.visibility}
+                          />
                         </div>
                       </Field>
                       <ReadOnlyField label="Owner" htmlFor="item-owner">
@@ -391,7 +435,9 @@ export function CalendarItemDetailsSheet({
                       </ReadOnlyField>
                     </Field>
                     <Field>
-                      <FieldLabel htmlFor="item-categories">Categories</FieldLabel>
+                      <FieldLabel htmlFor="item-categories">
+                        Categories
+                      </FieldLabel>
                       <div id="item-categories">
                         <CategoryBadges categories={item.categories} />
                       </div>
@@ -400,13 +446,21 @@ export function CalendarItemDetailsSheet({
                       <FieldLabel htmlFor="item-decision">Decision</FieldLabel>
                       <div id="item-decision" className="flex flex-col gap-1">
                         <DecisionBadge decision={item.decision} />
-                        {item.decision_note && <p className="app-muted text-sm">{item.decision_note}</p>}
+                        {item.decision_note && (
+                          <p className="app-muted text-sm">
+                            {item.decision_note}
+                          </p>
+                        )}
                       </div>
                     </Field>
                   </FieldGroup>
                 </div>
               ) : (
-                <form id={formId} onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+                <form
+                  id={formId}
+                  onSubmit={handleSubmit}
+                  className="flex min-h-0 flex-1 flex-col"
+                >
                   <div className="flex-1 overflow-y-auto px-4 pb-4">
                     <FieldGroup>
                       <Field>
@@ -415,21 +469,37 @@ export function CalendarItemDetailsSheet({
                           id="edit-title"
                           required
                           value={form.title}
-                          onChange={(event) => update("title", event.target.value)}
+                          onChange={(event) =>
+                            update("title", event.target.value)
+                          }
                         />
                       </Field>
 
                       <Field>
-                        <FieldLabel htmlFor="edit-itemType">Item type</FieldLabel>
-                        <Select value={form.itemType} onValueChange={(value) => update("itemType", value ?? form.itemType)}>
+                        <FieldLabel htmlFor="edit-itemType">
+                          Item type
+                        </FieldLabel>
+                        <Select
+                          value={form.itemType}
+                          onValueChange={(value) =>
+                            update("itemType", value ?? form.itemType)
+                          }
+                        >
                           <SelectTrigger id="edit-itemType" className="w-full">
                             <SelectValue placeholder="Select item type">
-                              {(value: string) => ITEM_TYPES.find((option) => option.value === value)?.label}
+                              {(value: string) =>
+                                ITEM_TYPES.find(
+                                  (option) => option.value === value,
+                                )?.label
+                              }
                             </SelectValue>
                           </SelectTrigger>
                           <SelectContent>
                             {ITEM_TYPES.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
+                              <SelectItem
+                                key={option.value}
+                                value={option.value}
+                              >
                                 {option.label}
                               </SelectItem>
                             ))}
@@ -442,19 +512,25 @@ export function CalendarItemDetailsSheet({
                         <Textarea
                           id="edit-summary"
                           value={form.summary}
-                          onChange={(event) => update("summary", event.target.value)}
+                          onChange={(event) =>
+                            update("summary", event.target.value)
+                          }
                         />
                       </Field>
 
                       <Field orientation="responsive">
                         <Field>
-                          <FieldLabel htmlFor="edit-startsAt">Starts</FieldLabel>
+                          <FieldLabel htmlFor="edit-startsAt">
+                            Starts
+                          </FieldLabel>
                           <Input
                             id="edit-startsAt"
                             required
                             type="datetime-local"
                             value={form.startsAt}
-                            onChange={(event) => update("startsAt", event.target.value)}
+                            onChange={(event) =>
+                              update("startsAt", event.target.value)
+                            }
                           />
                         </Field>
                         <Field>
@@ -463,47 +539,71 @@ export function CalendarItemDetailsSheet({
                             id="edit-endsAt"
                             type="datetime-local"
                             value={form.endsAt}
-                            onChange={(event) => update("endsAt", event.target.value)}
+                            onChange={(event) =>
+                              update("endsAt", event.target.value)
+                            }
                           />
                         </Field>
                       </Field>
 
                       <Field orientation="responsive">
                         <Field>
-                          <FieldLabel htmlFor="edit-timeZone">Time zone</FieldLabel>
+                          <FieldLabel htmlFor="edit-timeZone">
+                            Time zone
+                          </FieldLabel>
                           <Input
                             id="edit-timeZone"
                             required
                             value={form.timeZone}
-                            onChange={(event) => update("timeZone", event.target.value)}
+                            onChange={(event) =>
+                              update("timeZone", event.target.value)
+                            }
                           />
                         </Field>
                         <Field>
-                          <FieldLabel htmlFor="edit-recurrenceRule">Recurrence</FieldLabel>
+                          <FieldLabel htmlFor="edit-recurrenceRule">
+                            Recurrence
+                          </FieldLabel>
                           <Input
                             id="edit-recurrenceRule"
                             placeholder="e.g. Annual, March 31"
                             value={form.recurrenceRule}
-                            onChange={(event) => update("recurrenceRule", event.target.value)}
+                            onChange={(event) =>
+                              update("recurrenceRule", event.target.value)
+                            }
                           />
                         </Field>
                       </Field>
 
                       <Field orientation="responsive">
                         <Field>
-                          <FieldLabel htmlFor="edit-priorityTier">Priority</FieldLabel>
+                          <FieldLabel htmlFor="edit-priorityTier">
+                            Priority
+                          </FieldLabel>
                           <Select
                             value={form.priorityTier}
-                            onValueChange={(value) => update("priorityTier", value ?? "3")}
+                            onValueChange={(value) =>
+                              update("priorityTier", value ?? "3")
+                            }
                           >
-                            <SelectTrigger id="edit-priorityTier" className="w-full">
+                            <SelectTrigger
+                              id="edit-priorityTier"
+                              className="w-full"
+                            >
                               <SelectValue placeholder="Select priority">
-                                {(value: string) => PRIORITY_TIERS.find((option) => option.value === value)?.label}
+                                {(value: string) =>
+                                  PRIORITY_TIERS.find(
+                                    (option) => option.value === value,
+                                  )?.label
+                                }
                               </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                               {PRIORITY_TIERS.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
+                                <SelectItem
+                                  key={option.value}
+                                  value={option.value}
+                                >
                                   {option.label}
                                 </SelectItem>
                               ))}
@@ -511,19 +611,33 @@ export function CalendarItemDetailsSheet({
                           </Select>
                         </Field>
                         <Field>
-                          <FieldLabel htmlFor="edit-calendarStatus">Calendar status</FieldLabel>
+                          <FieldLabel htmlFor="edit-calendarStatus">
+                            Calendar status
+                          </FieldLabel>
                           <Select
                             value={form.calendarStatus}
-                            onValueChange={(value) => update("calendarStatus", value ?? "idea")}
+                            onValueChange={(value) =>
+                              update("calendarStatus", value ?? "idea")
+                            }
                           >
-                            <SelectTrigger id="edit-calendarStatus" className="w-full">
+                            <SelectTrigger
+                              id="edit-calendarStatus"
+                              className="w-full"
+                            >
                               <SelectValue placeholder="Select status">
-                                {(value: string) => CALENDAR_STATUSES.find((option) => option.value === value)?.label}
+                                {(value: string) =>
+                                  CALENDAR_STATUSES.find(
+                                    (option) => option.value === value,
+                                  )?.label
+                                }
                               </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                               {CALENDAR_STATUSES.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
+                                <SelectItem
+                                  key={option.value}
+                                  value={option.value}
+                                >
                                   {option.label}
                                 </SelectItem>
                               ))}
@@ -533,29 +647,47 @@ export function CalendarItemDetailsSheet({
                       </Field>
 
                       <Field>
-                        <FieldLabel htmlFor="edit-priorityRationale">Priority rationale</FieldLabel>
+                        <FieldLabel htmlFor="edit-priorityRationale">
+                          Priority rationale
+                        </FieldLabel>
                         <Textarea
                           id="edit-priorityRationale"
                           value={form.priorityRationale}
-                          onChange={(event) => update("priorityRationale", event.target.value)}
+                          onChange={(event) =>
+                            update("priorityRationale", event.target.value)
+                          }
                         />
                       </Field>
 
                       <Field orientation="responsive">
                         <Field>
-                          <FieldLabel htmlFor="edit-visibility">Visibility</FieldLabel>
+                          <FieldLabel htmlFor="edit-visibility">
+                            Visibility
+                          </FieldLabel>
                           <Select
                             value={form.visibility}
-                            onValueChange={(value) => update("visibility", value ?? "internal")}
+                            onValueChange={(value) =>
+                              update("visibility", value ?? "internal")
+                            }
                           >
-                            <SelectTrigger id="edit-visibility" className="w-full">
+                            <SelectTrigger
+                              id="edit-visibility"
+                              className="w-full"
+                            >
                               <SelectValue placeholder="Select visibility">
-                                {(value: string) => VISIBILITIES.find((option) => option.value === value)?.label}
+                                {(value: string) =>
+                                  VISIBILITIES.find(
+                                    (option) => option.value === value,
+                                  )?.label
+                                }
                               </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                               {VISIBILITIES.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
+                                <SelectItem
+                                  key={option.value}
+                                  value={option.value}
+                                >
                                   {option.label}
                                 </SelectItem>
                               ))}
@@ -566,13 +698,20 @@ export function CalendarItemDetailsSheet({
                           <FieldLabel htmlFor="edit-ownerId">Owner</FieldLabel>
                           <Select
                             value={form.ownerId || "none"}
-                            onValueChange={(value) => update("ownerId", value === "none" ? "" : value ?? "")}
+                            onValueChange={(value) =>
+                              update(
+                                "ownerId",
+                                value === "none" ? "" : (value ?? ""),
+                              )
+                            }
                           >
                             <SelectTrigger id="edit-ownerId" className="w-full">
                               <SelectValue placeholder="No owner">
                                 {(value: string) =>
                                   value && value !== "none"
-                                    ? owners.find((owner) => owner.user_id === value)?.email ?? "No owner"
+                                    ? (owners.find(
+                                        (owner) => owner.user_id === value,
+                                      )?.email ?? "No owner")
                                     : "No owner"
                                 }
                               </SelectValue>
@@ -580,7 +719,10 @@ export function CalendarItemDetailsSheet({
                             <SelectContent>
                               <SelectItem value="none">No owner</SelectItem>
                               {owners.map((owner) => (
-                                <SelectItem key={owner.user_id} value={owner.user_id}>
+                                <SelectItem
+                                  key={owner.user_id}
+                                  value={owner.user_id}
+                                >
                                   {owner.email}
                                 </SelectItem>
                               ))}
@@ -590,13 +732,25 @@ export function CalendarItemDetailsSheet({
                       </Field>
 
                       <Field>
-                        <FieldLabel htmlFor="edit-categories-group">Categories</FieldLabel>
-                        <div id="edit-categories-group" className="flex flex-col gap-2">
+                        <FieldLabel htmlFor="edit-categories-group">
+                          Categories
+                        </FieldLabel>
+                        <div
+                          id="edit-categories-group"
+                          className="flex flex-col gap-2"
+                        >
                           {CATEGORIES.map((category) => (
-                            <label key={category.value} className="flex items-center gap-2 text-sm">
+                            <label
+                              key={category.value}
+                              className="flex items-center gap-2 text-sm"
+                            >
                               <Checkbox
-                                checked={form.categories.includes(category.value)}
-                                onCheckedChange={() => toggleListValue("categories", category.value)}
+                                checked={form.categories.includes(
+                                  category.value,
+                                )}
+                                onCheckedChange={() =>
+                                  toggleListValue("categories", category.value)
+                                }
                               />
                               {category.label}
                             </label>
@@ -606,13 +760,23 @@ export function CalendarItemDetailsSheet({
 
                       {programs.length > 0 && (
                         <Field>
-                          <FieldLabel htmlFor="edit-programs-group">Related programs</FieldLabel>
-                          <div id="edit-programs-group" className="flex flex-col gap-2">
+                          <FieldLabel htmlFor="edit-programs-group">
+                            Related programs
+                          </FieldLabel>
+                          <div
+                            id="edit-programs-group"
+                            className="flex flex-col gap-2"
+                          >
                             {programs.map((program) => (
-                              <label key={program.id} className="flex items-center gap-2 text-sm">
+                              <label
+                                key={program.id}
+                                className="flex items-center gap-2 text-sm"
+                              >
                                 <Checkbox
                                   checked={form.programIds.includes(program.id)}
-                                  onCheckedChange={() => toggleListValue("programIds", program.id)}
+                                  onCheckedChange={() =>
+                                    toggleListValue("programIds", program.id)
+                                  }
                                 />
                                 {program.name}
                               </label>
@@ -623,24 +787,41 @@ export function CalendarItemDetailsSheet({
 
                       <Field orientation="responsive">
                         <Field>
-                          <FieldLabel htmlFor="edit-decision">Decision</FieldLabel>
+                          <FieldLabel htmlFor="edit-decision">
+                            Decision
+                          </FieldLabel>
                           <Select
                             value={form.decision || "none"}
-                            onValueChange={(value) => update("decision", value === "none" ? "" : value ?? "")}
+                            onValueChange={(value) =>
+                              update(
+                                "decision",
+                                value === "none" ? "" : (value ?? ""),
+                              )
+                            }
                           >
-                            <SelectTrigger id="edit-decision" className="w-full">
+                            <SelectTrigger
+                              id="edit-decision"
+                              className="w-full"
+                            >
                               <SelectValue placeholder="No decision yet">
                                 {(value: string) =>
                                   value && value !== "none"
-                                    ? DECISIONS.find((option) => option.value === value)?.label
+                                    ? DECISIONS.find(
+                                        (option) => option.value === value,
+                                      )?.label
                                     : "No decision yet"
                                 }
                               </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="none">No decision yet</SelectItem>
+                              <SelectItem value="none">
+                                No decision yet
+                              </SelectItem>
                               {DECISIONS.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
+                                <SelectItem
+                                  key={option.value}
+                                  value={option.value}
+                                >
                                   {option.label}
                                 </SelectItem>
                               ))}
@@ -648,12 +829,20 @@ export function CalendarItemDetailsSheet({
                           </Select>
                         </Field>
                         <Field>
-                          <FieldLabel htmlFor="edit-decisionNote">Decision note</FieldLabel>
+                          <FieldLabel htmlFor="edit-decisionNote">
+                            Decision note
+                          </FieldLabel>
                           <Input
                             id="edit-decisionNote"
-                            placeholder={form.decision === "skip" ? "Reason (required)" : "Optional"}
+                            placeholder={
+                              form.decision === "skip"
+                                ? "Reason (required)"
+                                : "Optional"
+                            }
                             value={form.decisionNote}
-                            onChange={(event) => update("decisionNote", event.target.value)}
+                            onChange={(event) =>
+                              update("decisionNote", event.target.value)
+                            }
                           />
                         </Field>
                       </Field>
@@ -662,11 +851,21 @@ export function CalendarItemDetailsSheet({
 
                   <SheetFooter className="flex-row flex-wrap justify-end gap-2 border-t bg-muted/50">
                     {item.calendar_status === "archived" ? (
-                      <Button type="button" variant="outline" disabled={isPending} onClick={handleRestore}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={isPending}
+                        onClick={handleRestore}
+                      >
                         Restore
                       </Button>
                     ) : (
-                      <Button type="button" variant="outline" disabled={isPending} onClick={handleArchive}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={isPending}
+                        onClick={handleArchive}
+                      >
                         Archive
                       </Button>
                     )}
@@ -692,17 +891,25 @@ export function CalendarItemDetailsSheet({
         </SheetContent>
       </Sheet>
 
-      <AlertDialog open={discardTarget !== null} onOpenChange={(next) => !next && setDiscardTarget(null)}>
+      <AlertDialog
+        open={discardTarget !== null}
+        onOpenChange={(next) => !next && setDiscardTarget(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Discard changes?</AlertDialogTitle>
             <AlertDialogDescription>
-              You have unsaved changes to this calendar item. Leaving now will discard them.
+              You have unsaved changes to this calendar item. Leaving now will
+              discard them.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDiscardTarget(null)}>Keep editing</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDiscard}>Discard changes</AlertDialogAction>
+            <AlertDialogCancel onClick={() => setDiscardTarget(null)}>
+              Keep editing
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDiscard}>
+              Discard changes
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

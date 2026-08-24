@@ -9,7 +9,8 @@ export type RegisterForEventResult = { error: string } | { success: true };
 const ERROR_MESSAGES: Record<string, string> = {
   EVENT_NOT_FOUND: "This event could not be found.",
   REGISTRATION_CLOSED: "Registration is not open for this event.",
-  REGISTRATION_DEADLINE_PASSED: "The registration deadline for this event has passed.",
+  REGISTRATION_DEADLINE_PASSED:
+    "The registration deadline for this event has passed.",
   EVENT_AT_CAPACITY: "This event has reached capacity.",
   ALREADY_REGISTERED: "This email is already registered for this event.",
   INVALID_PARTY_SIZE: "Party size must be at least 1.",
@@ -23,7 +24,7 @@ const ERROR_MESSAGES: Record<string, string> = {
 // access to event_registrations to check capacity itself.
 export async function registerForEventAction(
   eventId: string,
-  formData: FormData
+  formData: FormData,
 ): Promise<RegisterForEventResult> {
   const parsed = parseEventRegistrationForm(formData);
   if ("error" in parsed) return parsed;
@@ -40,7 +41,11 @@ export async function registerForEventAction(
   });
 
   if (error) {
-    return { error: ERROR_MESSAGES[error.message] ?? "Could not save your registration. Please try again." };
+    return {
+      error:
+        ERROR_MESSAGES[error.message] ??
+        "Could not save your registration. Please try again.",
+    };
   }
 
   revalidatePath(`/events/${eventId}`);

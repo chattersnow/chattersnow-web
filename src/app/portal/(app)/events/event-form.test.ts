@@ -46,19 +46,29 @@ describe("parseEventForm", () => {
   });
 
   test("rejects an invalid visibility", () => {
-    expect(parseEventForm(formData({ ...validFields, visibility: "hidden" }))).toEqual({
+    expect(
+      parseEventForm(formData({ ...validFields, visibility: "hidden" })),
+    ).toEqual({
       error: "Select a valid visibility.",
     });
   });
 
   test("rejects an invalid status", () => {
-    expect(parseEventForm(formData({ ...validFields, status: "unknown" }))).toEqual({
+    expect(
+      parseEventForm(formData({ ...validFields, status: "unknown" })),
+    ).toEqual({
       error: "Select a valid status.",
     });
   });
 
   test("accepts the widened lifecycle statuses", () => {
-    for (const status of ["draft", "published", "completed", "cancelled", "archived"] as const) {
+    for (const status of [
+      "draft",
+      "published",
+      "completed",
+      "cancelled",
+      "archived",
+    ] as const) {
       const result = parseEventForm(formData({ ...validFields, status }));
       expect("data" in result && result.data.status).toBe(status);
     }
@@ -70,20 +80,27 @@ describe("parseEventForm", () => {
   });
 
   test("carries a selected program", () => {
-    const result = parseEventForm(formData({ ...validFields, programId: "11111111-1111-1111-1111-111111111111" }));
-    expect("data" in result && result.data.programId).toBe("11111111-1111-1111-1111-111111111111");
+    const result = parseEventForm(
+      formData({
+        ...validFields,
+        programId: "11111111-1111-1111-1111-111111111111",
+      }),
+    );
+    expect("data" in result && result.data.programId).toBe(
+      "11111111-1111-1111-1111-111111111111",
+    );
   });
 
   test("rejects an end time before the start time", () => {
     const result = parseEventForm(
-      formData({ ...validFields, endsAt: "2026-12-01T09:00" })
+      formData({ ...validFields, endsAt: "2026-12-01T09:00" }),
     );
     expect(result).toEqual({ error: "End time must be after the start time." });
   });
 
   test("accepts an end time after the start time", () => {
     const result = parseEventForm(
-      formData({ ...validFields, endsAt: "2026-12-01T12:00" })
+      formData({ ...validFields, endsAt: "2026-12-01T12:00" }),
     );
     expect("data" in result && result.data.endsAt).not.toBeNull();
   });
@@ -97,19 +114,27 @@ describe("parseEventAttendanceForm", () => {
   });
 
   test("rejects a negative attendance count", () => {
-    expect(parseEventAttendanceForm(formData({ attendanceCount: "-1" }))).toEqual({
+    expect(
+      parseEventAttendanceForm(formData({ attendanceCount: "-1" })),
+    ).toEqual({
       error: "Attendance must be a whole number of 0 or more.",
     });
   });
 
   test("rejects a non-integer attendance count", () => {
-    expect(parseEventAttendanceForm(formData({ attendanceCount: "3.2" }))).toEqual({
+    expect(
+      parseEventAttendanceForm(formData({ attendanceCount: "3.2" })),
+    ).toEqual({
       error: "Attendance must be a whole number of 0 or more.",
     });
   });
 
   test("parses a valid attendance count", () => {
-    expect(parseEventAttendanceForm(formData({ attendanceCount: "42", attendanceNotes: "Great turnout" }))).toEqual({
+    expect(
+      parseEventAttendanceForm(
+        formData({ attendanceCount: "42", attendanceNotes: "Great turnout" }),
+      ),
+    ).toEqual({
       data: { attendanceCount: 42, attendanceNotes: "Great turnout" },
     });
   });
@@ -142,7 +167,11 @@ describe("parseEventPlanningForm", () => {
 
   test("parses valid planning fields", () => {
     const result = parseEventPlanningForm(
-      formData({ capacity: "50", registrationEnabled: "on", budgetAmount: "1200.50" })
+      formData({
+        capacity: "50",
+        registrationEnabled: "on",
+        budgetAmount: "1200.50",
+      }),
     );
     expect("data" in result && result.data.capacity).toBe(50);
     expect("data" in result && result.data.registrationEnabled).toBe(true);
@@ -153,13 +182,20 @@ describe("parseEventPlanningForm", () => {
 describe("parseEventReportForm", () => {
   test("allows all-empty report fields", () => {
     expect(parseEventReportForm(formData({}))).toEqual({
-      data: { feedbackNotes: null, contentNotes: null, lessonsLearned: null, reportSummary: null },
+      data: {
+        feedbackNotes: null,
+        contentNotes: null,
+        lessonsLearned: null,
+        reportSummary: null,
+      },
     });
   });
 
   test("parses report fields", () => {
     expect(
-      parseEventReportForm(formData({ lessonsLearned: "Start setup earlier next time" }))
+      parseEventReportForm(
+        formData({ lessonsLearned: "Start setup earlier next time" }),
+      ),
     ).toEqual({
       data: {
         feedbackNotes: null,

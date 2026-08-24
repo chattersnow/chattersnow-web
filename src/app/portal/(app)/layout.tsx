@@ -18,7 +18,11 @@ import { LogoutButton } from "./logout-button";
 import { PortalNav } from "./portal-nav";
 import { SidebarQuickActions } from "./sidebar-quick-actions";
 
-export default async function PortalAppLayout({ children }: { children: React.ReactNode }) {
+export default async function PortalAppLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -41,7 +45,10 @@ export default async function PortalAppLayout({ children }: { children: React.Re
       <SidebarProvider defaultOpen={sidebarOpen}>
         <Sidebar collapsible="icon">
           <SidebarHeader>
-            <Link href="/portal/home" className="flex min-w-0 items-center gap-2 px-2 py-1.5">
+            <Link
+              href="/portal/home"
+              className="flex min-w-0 items-center gap-2 px-2 py-1.5"
+            >
               <Image
                 src="/chatter-logo-transparent.png"
                 alt="Chatter Snow"
@@ -66,7 +73,10 @@ export default async function PortalAppLayout({ children }: { children: React.Re
         <SidebarInset>
           <header className="flex items-center gap-3 border-b border-[var(--line)] px-6 py-4 sm:px-10">
             <SidebarTrigger />
-            <Link href="/portal/home" className="flex items-center gap-2 md:hidden">
+            <Link
+              href="/portal/home"
+              className="flex items-center gap-2 md:hidden"
+            >
               <Image
                 src="/chatter-logo-transparent.png"
                 alt="Chatter Snow"

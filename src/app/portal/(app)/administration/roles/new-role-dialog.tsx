@@ -56,8 +56,8 @@ export function NewRoleDialog() {
         <DialogHeader>
           <DialogTitle>New role</DialogTitle>
           <DialogDescription>
-            New roles start with no permissions on any resource. Grant access from the Permissions
-            screen once it&apos;s created.
+            New roles start with no permissions on any resource. Grant access
+            from the Permissions screen once it&apos;s created.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>

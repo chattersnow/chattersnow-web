@@ -12,7 +12,9 @@ import { checkPermission } from "@/lib/auth/permissions";
 
 export type CreateEventResult = { error: string } | { success: true };
 
-export async function createEventAction(formData: FormData): Promise<CreateEventResult> {
+export async function createEventAction(
+  formData: FormData,
+): Promise<CreateEventResult> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -25,8 +27,19 @@ export async function createEventAction(formData: FormData): Promise<CreateEvent
 
   const parsed = parseEventForm(formData);
   if ("error" in parsed) return parsed;
-  const { name, description, eventType, location, venue, startsAt, endsAt, timezone, visibility, status, programId } =
-    parsed.data;
+  const {
+    name,
+    description,
+    eventType,
+    location,
+    venue,
+    startsAt,
+    endsAt,
+    timezone,
+    visibility,
+    status,
+    programId,
+  } = parsed.data;
 
   const { error } = await supabase.from("events").insert({
     name,
@@ -53,7 +66,7 @@ export async function createEventAction(formData: FormData): Promise<CreateEvent
 
 export async function updateEventAttendanceAction(
   id: string,
-  formData: FormData
+  formData: FormData,
 ): Promise<CreateEventResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -88,7 +101,7 @@ export async function updateEventAttendanceAction(
 
 export async function updateEventAction(
   id: string,
-  formData: FormData
+  formData: FormData,
 ): Promise<CreateEventResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -102,8 +115,19 @@ export async function updateEventAction(
 
   const parsed = parseEventForm(formData);
   if ("error" in parsed) return parsed;
-  const { name, description, eventType, location, venue, startsAt, endsAt, timezone, visibility, status, programId } =
-    parsed.data;
+  const {
+    name,
+    description,
+    eventType,
+    location,
+    venue,
+    startsAt,
+    endsAt,
+    timezone,
+    visibility,
+    status,
+    programId,
+  } = parsed.data;
 
   const { error } = await supabase
     .from("events")
@@ -133,7 +157,7 @@ export async function updateEventAction(
 
 export async function updateEventPlanningAction(
   id: string,
-  formData: FormData
+  formData: FormData,
 ): Promise<CreateEventResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -147,7 +171,13 @@ export async function updateEventPlanningAction(
 
   const parsed = parseEventPlanningForm(formData);
   if ("error" in parsed) return parsed;
-  const { eventLeadId, capacity, registrationEnabled, registrationDeadline, budgetAmount } = parsed.data;
+  const {
+    eventLeadId,
+    capacity,
+    registrationEnabled,
+    registrationDeadline,
+    budgetAmount,
+  } = parsed.data;
 
   const { error } = await supabase
     .from("events")
@@ -171,7 +201,9 @@ export async function updateEventPlanningAction(
 
 export type EventLead = { user_id: string; email: string | null };
 
-export async function listEventLeadsAction(): Promise<{ data: EventLead[] } | { error: string }> {
+export async function listEventLeadsAction(): Promise<
+  { data: EventLead[] } | { error: string }
+> {
   const supabase = await createSupabaseServerClient();
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return permissionError;
@@ -186,7 +218,7 @@ export async function listEventLeadsAction(): Promise<{ data: EventLead[] } | { 
 
 export async function updateEventReportAction(
   id: string,
-  formData: FormData
+  formData: FormData,
 ): Promise<CreateEventResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -200,9 +232,14 @@ export async function updateEventReportAction(
 
   const parsed = parseEventReportForm(formData);
   if ("error" in parsed) return parsed;
-  const { feedbackNotes, contentNotes, lessonsLearned, reportSummary } = parsed.data;
+  const { feedbackNotes, contentNotes, lessonsLearned, reportSummary } =
+    parsed.data;
 
-  const { data: current } = await supabase.from("events").select("report_status").eq("id", id).single();
+  const { data: current } = await supabase
+    .from("events")
+    .select("report_status")
+    .eq("id", id)
+    .single();
 
   const { error } = await supabase
     .from("events")
@@ -211,7 +248,10 @@ export async function updateEventReportAction(
       content_notes: contentNotes,
       lessons_learned: lessonsLearned,
       report_summary: reportSummary,
-      report_status: current?.report_status === "not_started" ? "in_progress" : current?.report_status,
+      report_status:
+        current?.report_status === "not_started"
+          ? "in_progress"
+          : current?.report_status,
     })
     .eq("id", id);
 
@@ -224,7 +264,9 @@ export async function updateEventReportAction(
   return { success: true };
 }
 
-export async function submitEventReportAction(id: string): Promise<CreateEventResult> {
+export async function submitEventReportAction(
+  id: string,
+): Promise<CreateEventResult> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },

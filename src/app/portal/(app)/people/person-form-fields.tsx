@@ -34,7 +34,10 @@ export function PersonFormFields({
   idPrefix,
 }: {
   form: PersonFormState;
-  update: <K extends keyof PersonFormState>(key: K, value: PersonFormState[K]) => void;
+  update: <K extends keyof PersonFormState>(
+    key: K,
+    value: PersonFormState[K],
+  ) => void;
   idPrefix: string;
 }) {
   function toggleRole(key: RoleKey, checked: boolean) {

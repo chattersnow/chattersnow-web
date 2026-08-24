@@ -5,11 +5,17 @@ export const PERMISSION_LEVELS = ["none", "view", "manage"] as const;
 
 export type PermissionLevel = (typeof PERMISSION_LEVELS)[number];
 
-const LEVEL_RANK: Record<PermissionLevel, number> = { none: 0, view: 1, manage: 2 };
+const LEVEL_RANK: Record<PermissionLevel, number> = {
+  none: 0,
+  view: 1,
+  manage: 2,
+};
 
 export type PermissionMap = Record<string, PermissionLevel>;
 
-export async function getCurrentUserPermissions(supabase: SupabaseClient): Promise<PermissionMap> {
+export async function getCurrentUserPermissions(
+  supabase: SupabaseClient,
+): Promise<PermissionMap> {
   // Best-effort: picks up a pending_role_grants row staged after this user's
   // first login (e.g. while they were stuck with zero roles) without
   // requiring a re-login. Unlike the same call in the OAuth callback, an
@@ -19,7 +25,10 @@ export async function getCurrentUserPermissions(supabase: SupabaseClient): Promi
 
   const { data } = await supabase.rpc("my_permissions");
   const map: PermissionMap = {};
-  for (const row of (data ?? []) as { resource_key: string; level: PermissionLevel }[]) {
+  for (const row of (data ?? []) as {
+    resource_key: string;
+    level: PermissionLevel;
+  }[]) {
     map[row.resource_key] = row.level;
   }
   return map;
@@ -39,7 +48,9 @@ export function hasAnyPermission(
   permissions: PermissionMap,
   checks: readonly PermissionCheck[],
 ): boolean {
-  return checks.some((check) => hasPermission(permissions, check.resource, check.level));
+  return checks.some((check) =>
+    hasPermission(permissions, check.resource, check.level),
+  );
 }
 
 /**
@@ -67,7 +78,8 @@ export async function requirePermission(
 
 export type PermissionDenied = { error: string };
 
-const DEFAULT_DENIED_MESSAGE = "You don't have permission to perform this action.";
+const DEFAULT_DENIED_MESSAGE =
+  "You don't have permission to perform this action.";
 
 /**
  * Server Action variant of requireAnyPermission: returns { error } instead of

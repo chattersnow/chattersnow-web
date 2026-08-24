@@ -9,26 +9,40 @@ function formData(fields: Record<string, string>) {
 
 describe("parseExpenseForm", () => {
   test("requires a description", () => {
-    expect(parseExpenseForm(formData({ expenseDate: "2026-01-01", amount: "10" }))).toEqual({
+    expect(
+      parseExpenseForm(formData({ expenseDate: "2026-01-01", amount: "10" })),
+    ).toEqual({
       error: "Description is required.",
     });
   });
 
   test("requires an expense date", () => {
-    expect(parseExpenseForm(formData({ description: "Tents", amount: "10" }))).toEqual({
+    expect(
+      parseExpenseForm(formData({ description: "Tents", amount: "10" })),
+    ).toEqual({
       error: "Expense date is required.",
     });
   });
 
   test("rejects a negative amount", () => {
     expect(
-      parseExpenseForm(formData({ description: "Tents", expenseDate: "2026-01-01", amount: "-1" }))
+      parseExpenseForm(
+        formData({
+          description: "Tents",
+          expenseDate: "2026-01-01",
+          amount: "-1",
+        }),
+      ),
     ).toEqual({ error: "Amount must be a positive number." });
   });
 
   test("defaults currency to USD", () => {
     const result = parseExpenseForm(
-      formData({ description: "Tents", expenseDate: "2026-01-01", amount: "10" })
+      formData({
+        description: "Tents",
+        expenseDate: "2026-01-01",
+        amount: "10",
+      }),
     );
     expect("data" in result && result.data.currency).toBe("USD");
   });
@@ -43,7 +57,7 @@ describe("parseExpenseForm", () => {
         currency: "CAD",
         receiptUrl: "https://example.com/receipt.pdf",
         notes: "Reimbursed",
-      })
+      }),
     );
     expect(result).toEqual({
       data: {
@@ -61,14 +75,20 @@ describe("parseExpenseForm", () => {
 
 describe("parseRejectReason", () => {
   test("requires a reason", () => {
-    expect(parseRejectReason("")).toEqual({ error: "A rejection reason is required." });
+    expect(parseRejectReason("")).toEqual({
+      error: "A rejection reason is required.",
+    });
   });
 
   test("rejects a whitespace-only reason", () => {
-    expect(parseRejectReason("   ")).toEqual({ error: "A rejection reason is required." });
+    expect(parseRejectReason("   ")).toEqual({
+      error: "A rejection reason is required.",
+    });
   });
 
   test("trims a valid reason", () => {
-    expect(parseRejectReason("  Missing receipt  ")).toEqual({ data: "Missing receipt" });
+    expect(parseRejectReason("  Missing receipt  ")).toEqual({
+      data: "Missing receipt",
+    });
   });
 });

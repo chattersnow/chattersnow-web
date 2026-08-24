@@ -34,10 +34,13 @@ const PILLARS: Pillar[] = [
         name: "Gear Access",
         description: (
           <>
-            We collect and redistribute donated ski and snowboard equipment
-            to help make snow sports more accessible. See what&apos;s
-            currently available on our{" "}
-            <Link href="/gears" className="underline underline-offset-4 hover:text-foreground">
+            We collect and redistribute donated ski and snowboard equipment to
+            help make snow sports more accessible. See what&apos;s currently
+            available on our{" "}
+            <Link
+              href="/gears"
+              className="underline underline-offset-4 hover:text-foreground"
+            >
               Gear page
             </Link>
             .
@@ -85,9 +88,12 @@ const PILLARS: Pillar[] = [
         name: "Gear Drives / Swaps",
         description: (
           <>
-            Periodic drives and swap events where members can donate, trade,
-            and pick up gear in person. Learn more about donating on our{" "}
-            <Link href="/gears#donate" className="underline underline-offset-4 hover:text-foreground">
+            Periodic drives and swap events where members can donate, trade, and
+            pick up gear in person. Learn more about donating on our{" "}
+            <Link
+              href="/gears#donate"
+              className="underline underline-offset-4 hover:text-foreground"
+            >
               Gear page
             </Link>
             .
@@ -99,10 +105,13 @@ const PILLARS: Pillar[] = [
         name: "Partnerships",
         description: (
           <>
-            We work with mountains, gear brands, and other organizations to
-            make events more affordable and accessible. Interested in
-            partnering with Chatter? Visit{" "}
-            <Link href="/get-involved" className="underline underline-offset-4 hover:text-foreground">
+            We work with mountains, gear brands, and other organizations to make
+            events more affordable and accessible. Interested in partnering with
+            Chatter? Visit{" "}
+            <Link
+              href="/get-involved"
+              className="underline underline-offset-4 hover:text-foreground"
+            >
               Get Involved
             </Link>
             .

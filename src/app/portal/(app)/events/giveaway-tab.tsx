@@ -29,7 +29,10 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-const currencyFormatter = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+const currencyFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+});
 const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
 
 function formatMoney(value: number | string | null) {
@@ -56,7 +59,7 @@ const DISTRIBUTION_STATUSES = [
 ];
 
 const DISTRIBUTION_STATUS_LABELS: Record<string, string> = Object.fromEntries(
-  DISTRIBUTION_STATUSES.map((option) => [option.value, option.label])
+  DISTRIBUTION_STATUSES.map((option) => [option.value, option.label]),
 );
 
 function GiveawaySalesForm({
@@ -71,12 +74,20 @@ function GiveawaySalesForm({
   onCancel?: () => void;
 }) {
   const [name, setName] = useState(giveaway?.name ?? "");
-  const [ticketsSold, setTicketsSold] = useState(String(giveaway?.tickets_sold ?? 0));
-  const [ticketPrice, setTicketPrice] = useState(
-    giveaway?.ticket_price === null || giveaway?.ticket_price === undefined ? "" : String(giveaway.ticket_price)
+  const [ticketsSold, setTicketsSold] = useState(
+    String(giveaway?.tickets_sold ?? 0),
   );
-  const [revenueAmount, setRevenueAmount] = useState(String(giveaway?.revenue_amount ?? 0));
-  const [drawingDate, setDrawingDate] = useState(toDateInputValue(giveaway?.drawing_date ?? null));
+  const [ticketPrice, setTicketPrice] = useState(
+    giveaway?.ticket_price === null || giveaway?.ticket_price === undefined
+      ? ""
+      : String(giveaway.ticket_price),
+  );
+  const [revenueAmount, setRevenueAmount] = useState(
+    String(giveaway?.revenue_amount ?? 0),
+  );
+  const [drawingDate, setDrawingDate] = useState(
+    toDateInputValue(giveaway?.drawing_date ?? null),
+  );
   const [notes, setNotes] = useState(giveaway?.notes ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -104,11 +115,18 @@ function GiveawaySalesForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-md border border-[var(--line)] p-4">
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-md border border-[var(--line)] p-4"
+    >
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="giveaway-name">Giveaway name</FieldLabel>
-          <Input id="giveaway-name" value={name} onChange={(e) => setName(e.target.value)} />
+          <Input
+            id="giveaway-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
         </Field>
 
         <Field orientation="responsive">
@@ -124,7 +142,9 @@ function GiveawaySalesForm({
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="giveaway-ticketPrice">Ticket price ($)</FieldLabel>
+            <FieldLabel htmlFor="giveaway-ticketPrice">
+              Ticket price ($)
+            </FieldLabel>
             <Input
               id="giveaway-ticketPrice"
               type="number"
@@ -161,7 +181,11 @@ function GiveawaySalesForm({
 
         <Field>
           <FieldLabel htmlFor="giveaway-notes">Notes</FieldLabel>
-          <Textarea id="giveaway-notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          <Textarea
+            id="giveaway-notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          />
         </Field>
 
         {error && (
@@ -177,7 +201,11 @@ function GiveawaySalesForm({
             </Button>
           )}
           <Button type="submit" disabled={isPending}>
-            {isPending ? "Saving..." : giveaway ? "Save giveaway" : "Set up giveaway"}
+            {isPending
+              ? "Saving..."
+              : giveaway
+                ? "Save giveaway"
+                : "Set up giveaway"}
           </Button>
         </div>
       </FieldGroup>
@@ -226,7 +254,13 @@ function GiveawaySummary({
 
       {canEdit && (
         <div className="mt-3 flex justify-end">
-          <Button type="button" variant="ghost" size="icon-sm" aria-label="Edit giveaway" onClick={onEdit}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Edit giveaway"
+            onClick={onEdit}
+          >
             <Pencil />
           </Button>
         </div>
@@ -246,9 +280,15 @@ function WinnerForm({
 }) {
   const winner = prize.giveaway_winners;
   const [winnerName, setWinnerName] = useState(winner?.winner_name ?? "");
-  const [winnerContact, setWinnerContact] = useState(winner?.winner_contact ?? "");
-  const [status, setStatus] = useState(winner?.distribution_status ?? "pending");
-  const [distributedAt, setDistributedAt] = useState(toDateInputValue(winner?.distributed_at ?? null));
+  const [winnerContact, setWinnerContact] = useState(
+    winner?.winner_contact ?? "",
+  );
+  const [status, setStatus] = useState(
+    winner?.distribution_status ?? "pending",
+  );
+  const [distributedAt, setDistributedAt] = useState(
+    toDateInputValue(winner?.distributed_at ?? null),
+  );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -277,7 +317,9 @@ function WinnerForm({
       <FieldGroup>
         <Field orientation="responsive">
           <Field>
-            <FieldLabel htmlFor={`winner-name-${prize.id}`}>Winner name</FieldLabel>
+            <FieldLabel htmlFor={`winner-name-${prize.id}`}>
+              Winner name
+            </FieldLabel>
             <Input
               id={`winner-name-${prize.id}`}
               value={winnerName}
@@ -285,7 +327,9 @@ function WinnerForm({
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor={`winner-contact-${prize.id}`}>Winner contact</FieldLabel>
+            <FieldLabel htmlFor={`winner-contact-${prize.id}`}>
+              Winner contact
+            </FieldLabel>
             <Input
               id={`winner-contact-${prize.id}`}
               value={winnerContact}
@@ -296,11 +340,21 @@ function WinnerForm({
 
         <Field orientation="responsive">
           <Field>
-            <FieldLabel htmlFor={`winner-status-${prize.id}`}>Distribution status</FieldLabel>
-            <Select value={status} onValueChange={(value) => setStatus(value ?? "pending")}>
-              <SelectTrigger id={`winner-status-${prize.id}`} className="w-full">
+            <FieldLabel htmlFor={`winner-status-${prize.id}`}>
+              Distribution status
+            </FieldLabel>
+            <Select
+              value={status}
+              onValueChange={(value) => setStatus(value ?? "pending")}
+            >
+              <SelectTrigger
+                id={`winner-status-${prize.id}`}
+                className="w-full"
+              >
                 <SelectValue placeholder="Select status">
-                  {(value: string) => DISTRIBUTION_STATUS_LABELS[value] ?? "Select status"}
+                  {(value: string) =>
+                    DISTRIBUTION_STATUS_LABELS[value] ?? "Select status"
+                  }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -313,7 +367,9 @@ function WinnerForm({
             </Select>
           </Field>
           <Field>
-            <FieldLabel htmlFor={`winner-distributedAt-${prize.id}`}>Distributed on</FieldLabel>
+            <FieldLabel htmlFor={`winner-distributedAt-${prize.id}`}>
+              Distributed on
+            </FieldLabel>
             <Input
               id={`winner-distributedAt-${prize.id}`}
               type="date"
@@ -355,25 +411,44 @@ function WinnerSummary({
     <div className="mt-3 rounded-md bg-muted/40 p-3">
       <FieldGroup>
         <Field orientation="responsive">
-          <ReadOnlyField label="Winner name" htmlFor={`winner-name-view-${winner.id}`}>
+          <ReadOnlyField
+            label="Winner name"
+            htmlFor={`winner-name-view-${winner.id}`}
+          >
             {winner.winner_name || "—"}
           </ReadOnlyField>
-          <ReadOnlyField label="Winner contact" htmlFor={`winner-contact-view-${winner.id}`}>
+          <ReadOnlyField
+            label="Winner contact"
+            htmlFor={`winner-contact-view-${winner.id}`}
+          >
             {winner.winner_contact || "—"}
           </ReadOnlyField>
         </Field>
         <Field orientation="responsive">
-          <ReadOnlyField label="Distribution status" htmlFor={`winner-status-view-${winner.id}`}>
-            {DISTRIBUTION_STATUS_LABELS[winner.distribution_status] ?? winner.distribution_status}
+          <ReadOnlyField
+            label="Distribution status"
+            htmlFor={`winner-status-view-${winner.id}`}
+          >
+            {DISTRIBUTION_STATUS_LABELS[winner.distribution_status] ??
+              winner.distribution_status}
           </ReadOnlyField>
-          <ReadOnlyField label="Distributed on" htmlFor={`winner-distributedAt-view-${winner.id}`}>
+          <ReadOnlyField
+            label="Distributed on"
+            htmlFor={`winner-distributedAt-view-${winner.id}`}
+          >
             {formatDate(winner.distributed_at)}
           </ReadOnlyField>
         </Field>
       </FieldGroup>
       {canEdit && (
         <div className="mt-2 flex justify-end">
-          <Button type="button" variant="ghost" size="icon-sm" aria-label="Edit winner" onClick={onEdit}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Edit winner"
+            onClick={onEdit}
+          >
             <Pencil />
           </Button>
         </div>
@@ -446,7 +521,11 @@ function AddPrizeForm({
     formData.set("notes", notes);
 
     startTransition(async () => {
-      const result = await createGiveawayPrizeAction(giveawayId, selectedDonor?.id ?? null, formData);
+      const result = await createGiveawayPrizeAction(
+        giveawayId,
+        selectedDonor?.id ?? null,
+        formData,
+      );
       if ("error" in result) {
         setError(result.error);
         return;
@@ -456,11 +535,19 @@ function AddPrizeForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-md border border-[var(--line)] p-4">
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-md border border-[var(--line)] p-4"
+    >
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="prize-name">Prize name</FieldLabel>
-          <Input id="prize-name" required value={prizeName} onChange={(e) => setPrizeName(e.target.value)} />
+          <Input
+            id="prize-name"
+            required
+            value={prizeName}
+            onChange={(e) => setPrizeName(e.target.value)}
+          />
         </Field>
 
         <Field>
@@ -488,7 +575,11 @@ function AddPrizeForm({
 
         <Field>
           <FieldLabel htmlFor="prize-notes">Notes</FieldLabel>
-          <Textarea id="prize-notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          <Textarea
+            id="prize-notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          />
         </Field>
 
         {error && (
@@ -520,7 +611,9 @@ export function GiveawayTab({
   mode: "view" | "edit";
 }) {
   const router = useRouter();
-  const [giveaway, setGiveaway] = useState<Giveaway | null | undefined>(undefined);
+  const [giveaway, setGiveaway] = useState<Giveaway | null | undefined>(
+    undefined,
+  );
   const [people, setPeople] = useState<PersonListItem[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isDeleting, startDeleteTransition] = useTransition();
@@ -578,8 +671,8 @@ export function GiveawayTab({
   return (
     <div className="flex flex-col gap-4">
       <p className="app-muted text-xs">
-        This tab only records giveaway results. Public-facing ticket sales require a legal, tax, and
-        jurisdictional review before being enabled.
+        This tab only records giveaway results. Public-facing ticket sales
+        require a legal, tax, and jurisdictional review before being enabled.
       </p>
 
       {loadError && (
@@ -603,13 +696,21 @@ export function GiveawayTab({
               onCancel={() => setEditingSales(false)}
             />
           ) : giveaway ? (
-            <GiveawaySummary giveaway={giveaway} onEdit={() => setEditingSales(true)} canEdit={canEdit} />
+            <GiveawaySummary
+              giveaway={giveaway}
+              onEdit={() => setEditingSales(true)}
+              canEdit={canEdit}
+            />
           ) : (
             <div className="flex flex-col gap-3">
               <p className="app-muted text-sm">No giveaway set up yet.</p>
               {canEdit && (
                 <div>
-                  <Button type="button" variant="outline" onClick={() => setEditingSales(true)}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setEditingSales(true)}
+                  >
                     + Set up giveaway
                   </Button>
                 </div>
@@ -624,12 +725,17 @@ export function GiveawayTab({
                 <p className="app-muted text-sm">No prizes added yet.</p>
               )}
               {giveaway.giveaway_prizes.map((prize) => (
-                <div key={prize.id} className="rounded-md border border-[var(--line)] p-3">
+                <div
+                  key={prize.id}
+                  className="rounded-md border border-[var(--line)] p-3"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-medium">{prize.prize_name}</p>
                       <p className="app-muted text-xs">
-                        {prize.donor?.name ? `Donated by ${prize.donor.name} · ` : ""}
+                        {prize.donor?.name
+                          ? `Donated by ${prize.donor.name} · `
+                          : ""}
                         {formatMoney(prize.estimated_value)}
                       </p>
                     </div>
@@ -673,7 +779,11 @@ export function GiveawayTab({
                   />
                 ) : (
                   <div>
-                    <Button type="button" variant="outline" onClick={() => setShowAddPrize(true)}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowAddPrize(true)}
+                    >
                       + Add prize
                     </Button>
                   </div>

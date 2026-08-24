@@ -9,7 +9,13 @@ const VIEWS = [
 
 export type CalendarView = (typeof VIEWS)[number]["value"];
 
-export function ViewToggle({ view, hrefFor }: { view: CalendarView; hrefFor: (view: CalendarView) => string }) {
+export function ViewToggle({
+  view,
+  hrefFor,
+}: {
+  view: CalendarView;
+  hrefFor: (view: CalendarView) => string;
+}) {
   return (
     <div className="flex gap-1 rounded-lg border border-input p-1">
       {VIEWS.map((option) => (

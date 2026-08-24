@@ -17,7 +17,9 @@ export type EventShift = {
 
 export type ShiftActionResult = { error: string } | { success: true };
 
-export async function listEventShiftsAction(eventId: string): Promise<{ data: EventShift[] } | { error: string }> {
+export async function listEventShiftsAction(
+  eventId: string,
+): Promise<{ data: EventShift[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
   const permissionError = await checkPermission(supabase, "events", "view");
   if (permissionError) return permissionError;
@@ -34,7 +36,10 @@ export async function listEventShiftsAction(eventId: string): Promise<{ data: Ev
   return { data: (data ?? []) as EventShift[] };
 }
 
-export async function createEventShiftAction(eventId: string, formData: FormData): Promise<ShiftActionResult> {
+export async function createEventShiftAction(
+  eventId: string,
+  formData: FormData,
+): Promise<ShiftActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -66,7 +71,9 @@ export async function createEventShiftAction(eventId: string, formData: FormData
   return { success: true };
 }
 
-export async function deleteEventShiftAction(id: string): Promise<ShiftActionResult> {
+export async function deleteEventShiftAction(
+  id: string,
+): Promise<ShiftActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },

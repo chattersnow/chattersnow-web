@@ -13,24 +13,69 @@ export type ImpactFormData = {
   beginner_pairings_count: number | null;
   survey_respondents_count: number | null;
   survey_easier_to_participate_yes_count: number | null;
-  survey_would_not_have_participated_without_assistance_yes_count: number | null;
+  survey_would_not_have_participated_without_assistance_yes_count:
+    number | null;
   survey_first_time_skiing_yes_count: number | null;
   survey_felt_welcomed_yes_count: number | null;
   survey_would_attend_again_yes_count: number | null;
   notes: string | null;
 };
 
-const INTEGER_FIELDS: { key: keyof ImpactFormData; formKey: string; label: string }[] = [
-  { key: "total_participants", formKey: "totalParticipants", label: "Total participants" },
-  { key: "first_time_participants", formKey: "firstTimeParticipants", label: "First-time participants" },
-  { key: "first_time_riders", formKey: "firstTimeRiders", label: "First-time skiers/snowboarders" },
-  { key: "beginner_participants", formKey: "beginnerParticipants", label: "Beginner participants" },
-  { key: "volunteer_participants", formKey: "volunteerParticipants", label: "Volunteer participants" },
-  { key: "subsidized_tickets_count", formKey: "subsidizedTicketsCount", label: "Subsidized tickets" },
-  { key: "rental_subsidies_count", formKey: "rentalSubsidiesCount", label: "Rental subsidies" },
-  { key: "equipment_loans_count", formKey: "equipmentLoansCount", label: "Equipment loans" },
-  { key: "beginner_pairings_count", formKey: "beginnerPairingsCount", label: "Beginner pairings" },
-  { key: "survey_respondents_count", formKey: "surveyRespondentsCount", label: "Survey respondents" },
+const INTEGER_FIELDS: {
+  key: keyof ImpactFormData;
+  formKey: string;
+  label: string;
+}[] = [
+  {
+    key: "total_participants",
+    formKey: "totalParticipants",
+    label: "Total participants",
+  },
+  {
+    key: "first_time_participants",
+    formKey: "firstTimeParticipants",
+    label: "First-time participants",
+  },
+  {
+    key: "first_time_riders",
+    formKey: "firstTimeRiders",
+    label: "First-time skiers/snowboarders",
+  },
+  {
+    key: "beginner_participants",
+    formKey: "beginnerParticipants",
+    label: "Beginner participants",
+  },
+  {
+    key: "volunteer_participants",
+    formKey: "volunteerParticipants",
+    label: "Volunteer participants",
+  },
+  {
+    key: "subsidized_tickets_count",
+    formKey: "subsidizedTicketsCount",
+    label: "Subsidized tickets",
+  },
+  {
+    key: "rental_subsidies_count",
+    formKey: "rentalSubsidiesCount",
+    label: "Rental subsidies",
+  },
+  {
+    key: "equipment_loans_count",
+    formKey: "equipmentLoansCount",
+    label: "Equipment loans",
+  },
+  {
+    key: "beginner_pairings_count",
+    formKey: "beginnerPairingsCount",
+    label: "Beginner pairings",
+  },
+  {
+    key: "survey_respondents_count",
+    formKey: "surveyRespondentsCount",
+    label: "Survey respondents",
+  },
   {
     key: "survey_easier_to_participate_yes_count",
     formKey: "surveyEasierToParticipateYesCount",
@@ -58,7 +103,9 @@ const INTEGER_FIELDS: { key: keyof ImpactFormData; formKey: string; label: strin
   },
 ];
 
-export function parseImpactForm(formData: FormData): ParseResult<ImpactFormData> {
+export function parseImpactForm(
+  formData: FormData,
+): ParseResult<ImpactFormData> {
   const counts: Record<string, number | null> = {};
 
   for (const field of INTEGER_FIELDS) {
@@ -74,12 +121,16 @@ export function parseImpactForm(formData: FormData): ParseResult<ImpactFormData>
     counts[field.key] = parsed;
   }
 
-  const assistanceTotalRaw = String(formData.get("assistanceTotal") ?? "").trim();
+  const assistanceTotalRaw = String(
+    formData.get("assistanceTotal") ?? "",
+  ).trim();
   let assistanceTotal: number | null = null;
   if (assistanceTotalRaw) {
     const parsed = Number(assistanceTotalRaw);
     if (Number.isNaN(parsed) || parsed < 0) {
-      return { error: "Total participant assistance must be a positive number." };
+      return {
+        error: "Total participant assistance must be a positive number.",
+      };
     }
     assistanceTotal = parsed;
   }

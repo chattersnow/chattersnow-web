@@ -3,9 +3,18 @@
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Banknote, Check, Eye, Pencil, X } from "lucide-react";
-import { approveExpenseAction, markExpensePaidAction, rejectExpenseAction, updateExpenseAction } from "./actions";
+import {
+  approveExpenseAction,
+  markExpensePaidAction,
+  rejectExpenseAction,
+  updateExpenseAction,
+} from "./actions";
 import { ExpenseStatusBadge } from "./expense-badges";
-import { ExpenseFormFields, packExpenseFormData, type ExpenseFormState } from "./expense-form-fields";
+import {
+  ExpenseFormFields,
+  packExpenseFormData,
+  type ExpenseFormState,
+} from "./expense-form-fields";
 import {
   formatAmount,
   formatExpenseDate,
@@ -49,7 +58,10 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 
-const dateTimeFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" });
+const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 
 function formStateFor(expense: ExpenseRow): ExpenseFormState {
   return {
@@ -65,7 +77,9 @@ function formStateFor(expense: ExpenseRow): ExpenseFormState {
 
 function isDirty(form: ExpenseFormState, expense: ExpenseRow) {
   const baseline = formStateFor(expense);
-  return (Object.keys(baseline) as (keyof ExpenseFormState)[]).some((key) => form[key] !== baseline[key]);
+  return (Object.keys(baseline) as (keyof ExpenseFormState)[]).some(
+    (key) => form[key] !== baseline[key],
+  );
 }
 
 export function EditExpenseModal({
@@ -84,28 +98,40 @@ export function EditExpenseModal({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"view" | "edit">("view");
-  const [form, setForm] = useState<ExpenseFormState>(() => formStateFor(expense));
+  const [form, setForm] = useState<ExpenseFormState>(() =>
+    formStateFor(expense),
+  );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [discardTarget, setDiscardTarget] = useState<"toggle" | "close" | null>(null);
+  const [discardTarget, setDiscardTarget] = useState<"toggle" | "close" | null>(
+    null,
+  );
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const formId = `edit-expense-form-${expense.id}`;
   const dirty = isDirty(form, expense);
 
-  const isSubmitter = approvalContext.userId !== null && approvalContext.userId === expense.submitted_by;
+  const isSubmitter =
+    approvalContext.userId !== null &&
+    approvalContext.userId === expense.submitted_by;
   const canSelfApproveThis =
     approvalContext.canSelfApprove &&
     isSubmitter &&
     approvalContext.threshold !== null &&
     isSelfApprovalEligible(expense.amount, approvalContext.threshold);
   const canApproveOrRejectThis = approvalContext.canApprove && !isSubmitter;
-  const canApprove = expense.status === "submitted" && (canApproveOrRejectThis || canSelfApproveThis);
+  const canApprove =
+    expense.status === "submitted" &&
+    (canApproveOrRejectThis || canSelfApproveThis);
   const canReject = expense.status === "submitted" && canApproveOrRejectThis;
-  const canMarkPaid = expense.status === "approved" && approvalContext.canMarkPaid;
+  const canMarkPaid =
+    expense.status === "approved" && approvalContext.canMarkPaid;
   const canEdit = expense.status === "submitted";
 
-  function update<K extends keyof ExpenseFormState>(key: K, value: ExpenseFormState[K]) {
+  function update<K extends keyof ExpenseFormState>(
+    key: K,
+    value: ExpenseFormState[K],
+  ) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -145,7 +171,10 @@ export function EditExpenseModal({
     setError(null);
 
     startTransition(async () => {
-      const result = await updateExpenseAction(expense.id, packExpenseFormData(form));
+      const result = await updateExpenseAction(
+        expense.id,
+        packExpenseFormData(form),
+      );
       if ("error" in result) {
         setError(result.error);
         return;
@@ -202,29 +231,62 @@ export function EditExpenseModal({
     <>
       <Sheet open={open} onOpenChange={handleOpenChange}>
         <SheetTrigger
-          render={<Button type="button" variant="ghost" size="icon-sm" aria-label="View expense" />}
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="View expense"
+            />
+          }
         >
           <Eye />
         </SheetTrigger>
-        <SheetContent side="right" showCloseButton={false} className="data-[side=right]:sm:max-w-lg">
+        <SheetContent
+          side="right"
+          showCloseButton={false}
+          className="data-[side=right]:sm:max-w-lg"
+        >
           <SheetHeader className="flex-row items-start gap-2 space-y-0">
             <SheetClose
-              render={<Button type="button" variant="ghost" size="icon-sm" aria-label="Close" />}
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Close"
+                />
+              }
             >
               <ArrowLeft />
             </SheetClose>
             <div className="flex flex-1 flex-col gap-0.5">
-              <SheetTitle>{mode === "edit" ? "Edit expense" : "Expense"}</SheetTitle>
+              <SheetTitle>
+                {mode === "edit" ? "Edit expense" : "Expense"}
+              </SheetTitle>
               <SheetDescription>
-                {mode === "edit" ? "Update the details for this expense." : "View this expense's details."}
+                {mode === "edit"
+                  ? "Update the details for this expense."
+                  : "View this expense's details."}
               </SheetDescription>
             </div>
             {mode === "view" && canEdit ? (
-              <Button type="button" variant="ghost" size="icon-sm" aria-label="Edit expense" onClick={() => setMode("edit")}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Edit expense"
+                onClick={() => setMode("edit")}
+              >
                 <Pencil />
               </Button>
             ) : mode === "edit" ? (
-              <Button type="button" variant="ghost" size="sm" onClick={requestExitEditMode}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={requestExitEditMode}
+              >
                 View
               </Button>
             ) : null}
@@ -242,21 +304,30 @@ export function EditExpenseModal({
                     </span>
                   </div>
                 </Field>
-                <ReadOnlyField label="Description" htmlFor="edit-expense-description">
+                <ReadOnlyField
+                  label="Description"
+                  htmlFor="edit-expense-description"
+                >
                   {expense.description}
                 </ReadOnlyField>
                 <ReadOnlyField label="Event" htmlFor="edit-expense-event">
                   {expense.events?.name ?? "No event"}
                 </ReadOnlyField>
                 <Field orientation="responsive">
-                  <ReadOnlyField label="Date" htmlFor="edit-expense-expenseDate">
+                  <ReadOnlyField
+                    label="Date"
+                    htmlFor="edit-expense-expenseDate"
+                  >
                     {formatExpenseDate(expense.expense_date)}
                   </ReadOnlyField>
                   <ReadOnlyField label="Amount" htmlFor="edit-expense-amount">
                     {formatAmount(expense.amount, expense.currency)}
                   </ReadOnlyField>
                 </Field>
-                <ReadOnlyField label="Receipt link" htmlFor="edit-expense-receiptUrl">
+                <ReadOnlyField
+                  label="Receipt link"
+                  htmlFor="edit-expense-receiptUrl"
+                >
                   {expense.receipt_url || "—"}
                 </ReadOnlyField>
                 <ReadOnlyField label="Notes" htmlFor="edit-expense-notes">
@@ -264,18 +335,29 @@ export function EditExpenseModal({
                 </ReadOnlyField>
 
                 {expense.status === "approved" && expense.approved_at && (
-                  <ReadOnlyField label="Approved" htmlFor="edit-expense-approved">
+                  <ReadOnlyField
+                    label="Approved"
+                    htmlFor="edit-expense-approved"
+                  >
                     {dateTimeFormatter.format(new Date(expense.approved_at))}
                   </ReadOnlyField>
                 )}
                 {expense.status === "rejected" && (
                   <>
                     {expense.rejected_at && (
-                      <ReadOnlyField label="Rejected" htmlFor="edit-expense-rejected">
-                        {dateTimeFormatter.format(new Date(expense.rejected_at))}
+                      <ReadOnlyField
+                        label="Rejected"
+                        htmlFor="edit-expense-rejected"
+                      >
+                        {dateTimeFormatter.format(
+                          new Date(expense.rejected_at),
+                        )}
                       </ReadOnlyField>
                     )}
-                    <ReadOnlyField label="Rejection reason" htmlFor="edit-expense-rejection-reason">
+                    <ReadOnlyField
+                      label="Rejection reason"
+                      htmlFor="edit-expense-rejection-reason"
+                    >
                       {expense.rejection_reason || "—"}
                     </ReadOnlyField>
                   </>
@@ -294,7 +376,11 @@ export function EditExpenseModal({
               </FieldGroup>
             </div>
           ) : (
-            <form id={formId} onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+            <form
+              id={formId}
+              onSubmit={handleSubmit}
+              className="flex min-h-0 flex-1 flex-col"
+            >
               <div className="flex-1 overflow-y-auto px-4 pb-4">
                 <FieldGroup>
                   <ExpenseFormFields
@@ -336,12 +422,20 @@ export function EditExpenseModal({
                 </Button>
               )}
               {canApprove && (
-                <Button type="button" disabled={isPending} onClick={handleApprove}>
+                <Button
+                  type="button"
+                  disabled={isPending}
+                  onClick={handleApprove}
+                >
                   <Check /> {isPending ? "Approving..." : "Approve"}
                 </Button>
               )}
               {canMarkPaid && (
-                <Button type="button" disabled={isPending} onClick={handleMarkPaid}>
+                <Button
+                  type="button"
+                  disabled={isPending}
+                  onClick={handleMarkPaid}
+                >
                   <Banknote /> {isPending ? "Marking paid..." : "Mark as paid"}
                 </Button>
               )}
@@ -350,17 +444,25 @@ export function EditExpenseModal({
         </SheetContent>
       </Sheet>
 
-      <AlertDialog open={discardTarget !== null} onOpenChange={(next) => !next && setDiscardTarget(null)}>
+      <AlertDialog
+        open={discardTarget !== null}
+        onOpenChange={(next) => !next && setDiscardTarget(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Discard changes?</AlertDialogTitle>
             <AlertDialogDescription>
-              You have unsaved changes to this expense. Leaving now will discard them.
+              You have unsaved changes to this expense. Leaving now will discard
+              them.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDiscardTarget(null)}>Keep editing</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDiscard}>Discard changes</AlertDialogAction>
+            <AlertDialogCancel onClick={() => setDiscardTarget(null)}>
+              Keep editing
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDiscard}>
+              Discard changes
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -375,7 +477,9 @@ export function EditExpenseModal({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Reject expense</DialogTitle>
-            <DialogDescription>Explain why this expense is being rejected.</DialogDescription>
+            <DialogDescription>
+              Explain why this expense is being rejected.
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleReject}>
             <FieldGroup>

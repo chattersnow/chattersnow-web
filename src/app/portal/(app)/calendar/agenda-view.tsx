@@ -27,10 +27,15 @@ const dayHeadingFormatter = new Intl.DateTimeFormat("en-US", {
 });
 const timeFormatter = new Intl.DateTimeFormat("en-US", { timeStyle: "short" });
 
-function groupByDay(items: CalendarItemRow[]): { dayKey: string; items: CalendarItemRow[] }[] {
+function groupByDay(
+  items: CalendarItemRow[],
+): { dayKey: string; items: CalendarItemRow[] }[] {
   const groups = new Map<string, CalendarItemRow[]>();
   for (const item of items) {
-    const dayKey = formatDateInZone(new Date(item.starts_at), item.time_zone || "UTC");
+    const dayKey = formatDateInZone(
+      new Date(item.starts_at),
+      item.time_zone || "UTC",
+    );
     const existing = groups.get(dayKey);
     if (existing) existing.push(item);
     else groups.set(dayKey, [item]);
@@ -59,7 +64,9 @@ export function AgendaView({
     return (
       <Card className="mt-6">
         <CardContent className="px-4 py-6">
-          <p className="app-muted text-sm">No calendar items match these filters.</p>
+          <p className="app-muted text-sm">
+            No calendar items match these filters.
+          </p>
         </CardContent>
       </Card>
     );
@@ -75,7 +82,10 @@ export function AgendaView({
             </h2>
             <div className="flex flex-col divide-y divide-border">
               {dayItems.map((item) => (
-                <div key={item.id} className="flex items-center justify-between gap-3 py-2">
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between gap-3 py-2"
+                >
                   <div className="flex flex-col gap-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{item.title}</span>
@@ -83,7 +93,8 @@ export function AgendaView({
                       <CalendarStatusBadge status={item.calendar_status} />
                     </div>
                     <p className="app-muted text-xs">
-                      {timeFormatter.format(new Date(item.starts_at))} · {labelFor(ITEM_TYPES, item.item_type)}
+                      {timeFormatter.format(new Date(item.starts_at))} ·{" "}
+                      {labelFor(ITEM_TYPES, item.item_type)}
                     </p>
                     <div className="flex flex-wrap gap-1">
                       {needsDecision(item) && <NeedsDecisionFlag />}

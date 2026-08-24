@@ -42,7 +42,10 @@ export function ExpenseFormFields({
   idPrefix,
 }: {
   form: ExpenseFormState;
-  update: <K extends keyof ExpenseFormState>(key: K, value: ExpenseFormState[K]) => void;
+  update: <K extends keyof ExpenseFormState>(
+    key: K,
+    value: ExpenseFormState[K],
+  ) => void;
   events: EventOption[];
   lockEventSelection?: boolean;
   idPrefix: string;
@@ -63,13 +66,18 @@ export function ExpenseFormFields({
         <FieldLabel htmlFor={`${idPrefix}-event`}>Event</FieldLabel>
         <Select
           value={form.eventId || "none"}
-          onValueChange={(value) => update("eventId", value === "none" ? "" : (value ?? ""))}
+          onValueChange={(value) =>
+            update("eventId", value === "none" ? "" : (value ?? ""))
+          }
           disabled={lockEventSelection}
         >
           <SelectTrigger id={`${idPrefix}-event`} className="w-full">
             <SelectValue placeholder="No event">
               {(value: string) =>
-                value && value !== "none" ? (events.find((event) => event.id === value)?.name ?? "No event") : "No event"
+                value && value !== "none"
+                  ? (events.find((event) => event.id === value)?.name ??
+                    "No event")
+                  : "No event"
               }
             </SelectValue>
           </SelectTrigger>
@@ -111,7 +119,10 @@ export function ExpenseFormFields({
 
       <Field>
         <FieldLabel htmlFor={`${idPrefix}-currency`}>Currency</FieldLabel>
-        <Select value={form.currency} onValueChange={(value) => update("currency", value ?? "USD")}>
+        <Select
+          value={form.currency}
+          onValueChange={(value) => update("currency", value ?? "USD")}
+        >
           <SelectTrigger id={`${idPrefix}-currency`} className="w-full">
             <SelectValue placeholder="Select currency" />
           </SelectTrigger>

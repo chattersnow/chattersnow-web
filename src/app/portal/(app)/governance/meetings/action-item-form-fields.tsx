@@ -25,7 +25,10 @@ export function ActionItemFormFields({
   idPrefix,
 }: {
   form: ActionItemFormState;
-  update: <K extends keyof ActionItemFormState>(key: K, value: ActionItemFormState[K]) => void;
+  update: <K extends keyof ActionItemFormState>(
+    key: K,
+    value: ActionItemFormState[K],
+  ) => void;
   idPrefix: string;
 }) {
   return (
@@ -52,7 +55,10 @@ export function ActionItemFormFields({
 
       <Field>
         <label className="flex items-center gap-2 text-sm">
-          <Checkbox checked={form.done} onCheckedChange={(checked) => update("done", checked === true)} />
+          <Checkbox
+            checked={form.done}
+            onCheckedChange={(checked) => update("done", checked === true)}
+          />
           Done
         </label>
       </Field>

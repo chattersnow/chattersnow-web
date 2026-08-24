@@ -13,10 +13,14 @@ export type EventImpactNote = ImpactFormData & {
 export type ImpactActionResult = { error: string } | { success: true };
 
 export async function getEventImpactAction(
-  eventId: string
+  eventId: string,
 ): Promise<{ data: EventImpactNote | null } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "event_impact", "view");
+  const permissionError = await checkPermission(
+    supabase,
+    "event_impact",
+    "view",
+  );
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase
@@ -33,7 +37,7 @@ export async function getEventImpactAction(
 
 export async function upsertEventImpactAction(
   eventId: string,
-  formData: FormData
+  formData: FormData,
 ): Promise<ImpactActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -42,7 +46,11 @@ export async function upsertEventImpactAction(
   if (!user) {
     return { error: "You must be signed in to save impact notes." };
   }
-  const permissionError = await checkPermission(supabase, "event_impact", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "event_impact",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   const parsed = parseImpactForm(formData);

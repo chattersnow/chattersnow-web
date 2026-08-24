@@ -1,6 +1,13 @@
 "use client";
 
-import { FormEvent, Ref, useEffect, useImperativeHandle, useState, useTransition } from "react";
+import {
+  FormEvent,
+  Ref,
+  useEffect,
+  useImperativeHandle,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter } from "next/navigation";
 import { submitEventReportAction, updateEventReportAction } from "./actions";
 import { ReportStatusBadge, type EventRow } from "./event-badges";
@@ -23,7 +30,9 @@ type FormState = ReturnType<typeof formStateFor>;
 
 function isDirty(form: FormState, event: EventRow) {
   const baseline = formStateFor(event);
-  return (Object.keys(baseline) as (keyof FormState)[]).some((key) => form[key] !== baseline[key]);
+  return (Object.keys(baseline) as (keyof FormState)[]).some(
+    (key) => form[key] !== baseline[key],
+  );
 }
 
 export type ReportTabHandle = {
@@ -117,7 +126,10 @@ export function ReportTab({
         <ReadOnlyField label="Report summary" htmlFor="report-reportSummary">
           {form.reportSummary || "—"}
         </ReadOnlyField>
-        <ReadOnlyField label="Participant feedback" htmlFor="report-feedbackNotes">
+        <ReadOnlyField
+          label="Participant feedback"
+          htmlFor="report-feedbackNotes"
+        >
           {form.feedbackNotes || "—"}
         </ReadOnlyField>
         <ReadOnlyField label="Photos / content" htmlFor="report-contentNotes">
@@ -127,7 +139,13 @@ export function ReportTab({
           {form.lessonsLearned || "—"}
         </ReadOnlyField>
         {event.report_status !== "submitted" && (
-          <Button type="button" variant="outline" className="self-start" onClick={handleSubmitReport} disabled={isSubmitting}>
+          <Button
+            type="button"
+            variant="outline"
+            className="self-start"
+            onClick={handleSubmitReport}
+            disabled={isSubmitting}
+          >
             {isSubmitting ? "Submitting..." : "Submit report"}
           </Button>
         )}
@@ -156,40 +174,60 @@ export function ReportTab({
             id="report-reportSummary"
             placeholder="Write-up of how the event went, pulling together attendance, expenses, incidents, etc."
             value={form.reportSummary}
-            onChange={(changeEvent) => update("reportSummary", changeEvent.target.value)}
+            onChange={(changeEvent) =>
+              update("reportSummary", changeEvent.target.value)
+            }
           />
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="report-feedbackNotes">Participant feedback</FieldLabel>
+          <FieldLabel htmlFor="report-feedbackNotes">
+            Participant feedback
+          </FieldLabel>
           <Textarea
             id="report-feedbackNotes"
             value={form.feedbackNotes}
-            onChange={(changeEvent) => update("feedbackNotes", changeEvent.target.value)}
+            onChange={(changeEvent) =>
+              update("feedbackNotes", changeEvent.target.value)
+            }
           />
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="report-contentNotes">Photos / content</FieldLabel>
+          <FieldLabel htmlFor="report-contentNotes">
+            Photos / content
+          </FieldLabel>
           <Textarea
             id="report-contentNotes"
             placeholder="Links to shared albums, social posts, etc."
             value={form.contentNotes}
-            onChange={(changeEvent) => update("contentNotes", changeEvent.target.value)}
+            onChange={(changeEvent) =>
+              update("contentNotes", changeEvent.target.value)
+            }
           />
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="report-lessonsLearned">Lessons learned</FieldLabel>
+          <FieldLabel htmlFor="report-lessonsLearned">
+            Lessons learned
+          </FieldLabel>
           <Textarea
             id="report-lessonsLearned"
             value={form.lessonsLearned}
-            onChange={(changeEvent) => update("lessonsLearned", changeEvent.target.value)}
+            onChange={(changeEvent) =>
+              update("lessonsLearned", changeEvent.target.value)
+            }
           />
         </Field>
 
         {event.report_status !== "submitted" && (
-          <Button type="button" variant="outline" className="self-start" onClick={handleSubmitReport} disabled={isSubmitting}>
+          <Button
+            type="button"
+            variant="outline"
+            className="self-start"
+            onClick={handleSubmitReport}
+            disabled={isSubmitting}
+          >
             {isSubmitting ? "Submitting..." : "Submit report"}
           </Button>
         )}

@@ -1,11 +1,21 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getCurrentUserPermissions, hasPermission } from "@/lib/auth/permissions";
+import {
+  getCurrentUserPermissions,
+  hasPermission,
+} from "@/lib/auth/permissions";
 
 export type ExpenseStatus = "submitted" | "approved" | "rejected" | "paid";
 
-const EXPENSE_STATUSES: readonly ExpenseStatus[] = ["submitted", "approved", "rejected", "paid"];
+const EXPENSE_STATUSES: readonly ExpenseStatus[] = [
+  "submitted",
+  "approved",
+  "rejected",
+  "paid",
+];
 
-export function isExpenseStatus(value: string | undefined): value is ExpenseStatus {
+export function isExpenseStatus(
+  value: string | undefined,
+): value is ExpenseStatus {
   return !!value && (EXPENSE_STATUSES as readonly string[]).includes(value);
 }
 
@@ -37,9 +47,13 @@ export const EXPENSE_COLUMNS =
   "id, event_id, description, expense_date, amount, currency, receipt_url, notes, events(name), status, submitted_by, approved_by, approved_at, rejected_at, rejection_reason, paid_by, paid_at";
 
 /** Below the threshold, `finance` may self-approve its own submission. */
-export function isSelfApprovalEligible(amount: number | string, threshold: number): boolean {
+export function isSelfApprovalEligible(
+  amount: number | string,
+  threshold: number,
+): boolean {
   const numericAmount = typeof amount === "string" ? Number(amount) : amount;
-  if (!Number.isFinite(numericAmount) || !Number.isFinite(threshold)) return false;
+  if (!Number.isFinite(numericAmount) || !Number.isFinite(threshold))
+    return false;
   return numericAmount < threshold;
 }
 
@@ -52,25 +66,33 @@ export type ExpenseApprovalContext = {
 };
 
 export async function getExpenseApprovalContext(
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
 ): Promise<ExpenseApprovalContext> {
-  const [{ data: userData }, permissions, { data: settingRow }] = await Promise.all([
-    supabase.auth.getUser(),
-    getCurrentUserPermissions(supabase),
-    supabase
-      .from("app_settings")
-      .select("value")
-      .eq("key", "finance.expense_approval_threshold")
-      .maybeSingle(),
-  ]);
+  const [{ data: userData }, permissions, { data: settingRow }] =
+    await Promise.all([
+      supabase.auth.getUser(),
+      getCurrentUserPermissions(supabase),
+      supabase
+        .from("app_settings")
+        .select("value")
+        .eq("key", "finance.expense_approval_threshold")
+        .maybeSingle(),
+    ]);
 
   const thresholdValue = settingRow?.value;
-  const threshold = typeof thresholdValue === "number" ? thresholdValue : Number(thresholdValue ?? NaN);
+  const threshold =
+    typeof thresholdValue === "number"
+      ? thresholdValue
+      : Number(thresholdValue ?? NaN);
 
   return {
     userId: userData.user?.id ?? null,
     canApprove: hasPermission(permissions, "finance_approvals", "manage"),
-    canSelfApprove: hasPermission(permissions, "finance_self_approval", "manage"),
+    canSelfApprove: hasPermission(
+      permissions,
+      "finance_self_approval",
+      "manage",
+    ),
     canMarkPaid: hasPermission(permissions, "finance", "manage"),
     threshold: Number.isFinite(threshold) ? threshold : null,
   };
@@ -83,16 +105,23 @@ export async function getExpenseApprovalContext(
  */
 export function getExpenseNextStepMessage(
   expense: Pick<ExpenseRow, "status" | "submitted_by" | "amount" | "currency">,
-  approvalContext: ExpenseApprovalContext
+  approvalContext: ExpenseApprovalContext,
 ): string {
-  const isSubmitter = approvalContext.userId !== null && approvalContext.userId === expense.submitted_by;
+  const isSubmitter =
+    approvalContext.userId !== null &&
+    approvalContext.userId === expense.submitted_by;
   const thresholdLabel =
-    approvalContext.threshold !== null ? formatAmount(approvalContext.threshold, expense.currency) : null;
+    approvalContext.threshold !== null
+      ? formatAmount(approvalContext.threshold, expense.currency)
+      : null;
 
   if (expense.status === "submitted") {
     if (isSubmitter) {
       if (approvalContext.canSelfApprove) {
-        if (thresholdLabel !== null && isSelfApprovalEligible(expense.amount, approvalContext.threshold!)) {
+        if (
+          thresholdLabel !== null &&
+          isSelfApprovalEligible(expense.amount, approvalContext.threshold!)
+        ) {
           return `Below the ${thresholdLabel} approval threshold — you can self-approve this.`;
         }
         return thresholdLabel !== null
@@ -123,7 +152,10 @@ export function formatAmount(amount: number | string, currency: string) {
   const numeric = typeof amount === "string" ? Number(amount) : amount;
   if (!Number.isFinite(numeric)) return "—";
   try {
-    return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(numeric);
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+    }).format(numeric);
   } catch {
     return `${currency} ${numeric.toFixed(2)}`;
   }

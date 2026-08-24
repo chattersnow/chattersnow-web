@@ -43,7 +43,9 @@ function formStateFor(role: RoleRow): FormState {
 
 function isDirty(form: FormState, role: RoleRow) {
   const baseline = formStateFor(role);
-  return form.name !== baseline.name || form.description !== baseline.description;
+  return (
+    form.name !== baseline.name || form.description !== baseline.description
+  );
 }
 
 export function RoleDetailsDialog({ role }: { role: RoleRow }) {
@@ -54,7 +56,9 @@ export function RoleDetailsDialog({ role }: { role: RoleRow }) {
   const [form, setForm] = useState<FormState>(() => formStateFor(role));
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [discardTarget, setDiscardTarget] = useState<"toggle" | "close" | null>(null);
+  const [discardTarget, setDiscardTarget] = useState<"toggle" | "close" | null>(
+    null,
+  );
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const formId = `edit-role-form-${role.id}`;
   const dirty = isDirty(form, role);
@@ -98,7 +102,11 @@ export function RoleDetailsDialog({ role }: { role: RoleRow }) {
     event.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result = await renameRoleAction(role.id, form.name, form.description);
+      const result = await renameRoleAction(
+        role.id,
+        form.name,
+        form.description,
+      );
       if ("error" in result) {
         setError(result.error);
         return;
@@ -126,26 +134,61 @@ export function RoleDetailsDialog({ role }: { role: RoleRow }) {
   return (
     <>
       <Sheet open={open} onOpenChange={handleOpenChange}>
-        <SheetTrigger render={<Button type="button" variant="ghost" size="icon-sm" aria-label={`View ${role.name}`} />}>
+        <SheetTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={`View ${role.name}`}
+            />
+          }
+        >
           <Eye />
         </SheetTrigger>
-        <SheetContent side="right" showCloseButton={false} className="data-[side=right]:sm:max-w-lg">
+        <SheetContent
+          side="right"
+          showCloseButton={false}
+          className="data-[side=right]:sm:max-w-lg"
+        >
           <SheetHeader className="flex-row items-start gap-2 space-y-0">
-            <SheetClose render={<Button type="button" variant="ghost" size="icon-sm" aria-label="Close" />}>
+            <SheetClose
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Close"
+                />
+              }
+            >
               <ArrowLeft />
             </SheetClose>
             <div className="flex flex-1 flex-col gap-0.5">
               <SheetTitle>{mode === "edit" ? "Edit role" : "Role"}</SheetTitle>
               <SheetDescription>
-                {mode === "edit" ? "Update this role's details." : "View this role's details."}
+                {mode === "edit"
+                  ? "Update this role's details."
+                  : "View this role's details."}
               </SheetDescription>
             </div>
             {mode === "view" ? (
-              <Button type="button" variant="ghost" size="icon-sm" aria-label="Edit role" onClick={() => setMode("edit")}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Edit role"
+                onClick={() => setMode("edit")}
+              >
                 <Pencil />
               </Button>
             ) : (
-              <Button type="button" variant="ghost" size="sm" onClick={requestExitEditMode}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={requestExitEditMode}
+              >
                 View
               </Button>
             )}
@@ -163,7 +206,11 @@ export function RoleDetailsDialog({ role }: { role: RoleRow }) {
               </FieldGroup>
             </div>
           ) : (
-            <form id={formId} onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+            <form
+              id={formId}
+              onSubmit={handleSubmit}
+              className="flex min-h-0 flex-1 flex-col"
+            >
               <div className="flex-1 overflow-y-auto px-4 pb-4">
                 <FieldGroup>
                   <Field>
@@ -174,16 +221,24 @@ export function RoleDetailsDialog({ role }: { role: RoleRow }) {
                       value={form.name}
                       onChange={(event) => update("name", event.target.value)}
                       disabled={protectedRole}
-                      title={protectedRole ? "Built-in roles can't be renamed." : undefined}
+                      title={
+                        protectedRole
+                          ? "Built-in roles can't be renamed."
+                          : undefined
+                      }
                     />
                   </Field>
 
                   <Field>
-                    <FieldLabel htmlFor="role-edit-description">Description</FieldLabel>
+                    <FieldLabel htmlFor="role-edit-description">
+                      Description
+                    </FieldLabel>
                     <Textarea
                       id="role-edit-description"
                       value={form.description}
-                      onChange={(event) => update("description", event.target.value)}
+                      onChange={(event) =>
+                        update("description", event.target.value)
+                      }
                     />
                   </Field>
 
@@ -203,7 +258,9 @@ export function RoleDetailsDialog({ role }: { role: RoleRow }) {
                 type="button"
                 variant="destructive"
                 disabled={protectedRole || isPending}
-                title={protectedRole ? "Built-in roles can't be deleted." : undefined}
+                title={
+                  protectedRole ? "Built-in roles can't be deleted." : undefined
+                }
                 onClick={() => setDeleteConfirmOpen(true)}
               >
                 Delete role
@@ -216,17 +273,25 @@ export function RoleDetailsDialog({ role }: { role: RoleRow }) {
         </SheetContent>
       </Sheet>
 
-      <AlertDialog open={discardTarget !== null} onOpenChange={(next) => !next && setDiscardTarget(null)}>
+      <AlertDialog
+        open={discardTarget !== null}
+        onOpenChange={(next) => !next && setDiscardTarget(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Discard changes?</AlertDialogTitle>
             <AlertDialogDescription>
-              You have unsaved changes to this role. Leaving now will discard them.
+              You have unsaved changes to this role. Leaving now will discard
+              them.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDiscardTarget(null)}>Keep editing</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDiscard}>Discard changes</AlertDialogAction>
+            <AlertDialogCancel onClick={() => setDiscardTarget(null)}>
+              Keep editing
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDiscard}>
+              Discard changes
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -236,12 +301,17 @@ export function RoleDetailsDialog({ role }: { role: RoleRow }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this role?</AlertDialogTitle>
             <AlertDialogDescription>
-              This can&apos;t be undone. The role must not be assigned to any users.
+              This can&apos;t be undone. The role must not be assigned to any
+              users.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={handleDelete} disabled={isPending}>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isPending}
+            >
               {isPending ? "Deleting..." : "Delete role"}
             </AlertDialogAction>
           </AlertDialogFooter>

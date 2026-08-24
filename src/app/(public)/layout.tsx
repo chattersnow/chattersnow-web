@@ -11,7 +11,11 @@ const FOOTER_LINKS = [
   { label: "Contact", href: "/contact" },
 ] as const;
 
-export default function PublicLayout({ children }: { children: React.ReactNode }) {
+export default function PublicLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <>
       <header className="border-b border-[var(--line)] px-6 py-4 sm:px-10">

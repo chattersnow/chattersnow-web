@@ -1,7 +1,14 @@
 import type { ParseResult } from "@/lib/forms";
 
 const CONDITIONS = ["new", "like_new", "good", "fair", "poor"] as const;
-const STATUSES = ["available", "distributed", "damaged", "lost", "retired", "other"] as const;
+const STATUSES = [
+  "available",
+  "distributed",
+  "damaged",
+  "lost",
+  "retired",
+  "other",
+] as const;
 
 export type InventoryItemFormData = {
   description: string;
@@ -15,7 +22,9 @@ export type InventoryItemFormData = {
   notes: string | null;
 };
 
-export function parseInventoryItemForm(formData: FormData): ParseResult<InventoryItemFormData> {
+export function parseInventoryItemForm(
+  formData: FormData,
+): ParseResult<InventoryItemFormData> {
   const description = String(formData.get("description") ?? "").trim();
   const type = String(formData.get("type") ?? "").trim();
   const condition = String(formData.get("condition") ?? "");

@@ -15,7 +15,10 @@ function localYmd(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-export function parseMonthKey(month: string): { year: number; monthIndex: number } {
+export function parseMonthKey(month: string): {
+  year: number;
+  monthIndex: number;
+} {
   const [year, monthNum] = month.split("-").map(Number);
   return { year, monthIndex: monthNum - 1 };
 }
@@ -32,16 +35,25 @@ export function addMonths(month: string, delta: number): string {
 
 function monthLabel(month: string): string {
   const { year, monthIndex } = parseMonthKey(month);
-  return new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric" }).format(
-    new Date(year, monthIndex, 1)
-  );
+  return new Intl.DateTimeFormat(undefined, {
+    month: "long",
+    year: "numeric",
+  }).format(new Date(year, monthIndex, 1));
 }
 
 function buildGridDays(month: string): Date[] {
   const { year, monthIndex } = parseMonthKey(month);
   const firstOfMonth = new Date(year, monthIndex, 1);
   const gridStart = new Date(year, monthIndex, 1 - firstOfMonth.getDay());
-  return Array.from({ length: 42 }, (_, i) => new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i));
+  return Array.from(
+    { length: 42 },
+    (_, i) =>
+      new Date(
+        gridStart.getFullYear(),
+        gridStart.getMonth(),
+        gridStart.getDate() + i,
+      ),
+  );
 }
 
 export function CalendarMonthView({
@@ -76,7 +88,9 @@ export function CalendarMonthView({
         >
           <ChevronLeft />
         </Button>
-        <p className="brand-display text-lg font-semibold">{monthLabel(month)}</p>
+        <p className="brand-display text-lg font-semibold">
+          {monthLabel(month)}
+        </p>
         <Button
           variant="outline"
           size="icon-sm"
@@ -123,7 +137,10 @@ export function CalendarMonthView({
                         {item.title}
                       </a>
                     ) : (
-                      <p className="truncate text-[11px] font-medium" title={item.title}>
+                      <p
+                        className="truncate text-[11px] font-medium"
+                        title={item.title}
+                      >
                         {item.title}
                       </p>
                     )}

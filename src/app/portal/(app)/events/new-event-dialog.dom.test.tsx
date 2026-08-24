@@ -39,7 +39,7 @@ describe("NewEventDialog", () => {
     await openDialog(user);
 
     expect(screen.getByLabelText("Timezone")).toHaveValue(
-      Intl.DateTimeFormat().resolvedOptions().timeZone
+      Intl.DateTimeFormat().resolvedOptions().timeZone,
     );
   });
 
@@ -72,7 +72,7 @@ describe("NewEventDialog", () => {
     await user.click(screen.getByRole("button", { name: "Create event" }));
 
     expect(
-      await screen.findByText("Could not create the event. Please try again.")
+      await screen.findByText("Could not create the event. Please try again."),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Event name")).toHaveValue("Winter Fest");
   });

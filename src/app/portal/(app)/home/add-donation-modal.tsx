@@ -2,10 +2,7 @@
 
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import {
-  createDonationAction,
-  type CreateDonationInput,
-} from "./actions";
+import { createDonationAction, type CreateDonationInput } from "./actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -107,13 +104,22 @@ export function AddDonationModal({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  function updateDonor<K extends keyof DonorState>(key: K, value: DonorState[K]) {
+  function updateDonor<K extends keyof DonorState>(
+    key: K,
+    value: DonorState[K],
+  ) {
     setDonor((prev) => ({ ...prev, [key]: value }));
   }
 
-  function updateItem<K extends keyof ItemDraft>(itemKey: string, key: K, value: ItemDraft[K]) {
+  function updateItem<K extends keyof ItemDraft>(
+    itemKey: string,
+    key: K,
+    value: ItemDraft[K],
+  ) {
     setItems((prev) =>
-      prev.map((item) => (item.key === itemKey ? { ...item, [key]: value } : item))
+      prev.map((item) =>
+        item.key === itemKey ? { ...item, [key]: value } : item,
+      ),
     );
   }
 
@@ -122,7 +128,9 @@ export function AddDonationModal({
   }
 
   function removeItem(itemKey: string) {
-    setItems((prev) => (prev.length > 1 ? prev.filter((item) => item.key !== itemKey) : prev));
+    setItems((prev) =>
+      prev.length > 1 ? prev.filter((item) => item.key !== itemKey) : prev,
+    );
   }
 
   function handleOpenChange(nextOpen: boolean) {
@@ -201,7 +209,9 @@ export function AddDonationModal({
         </DialogHeader>
 
         <p className="app-muted text-sm">
-          {step === "donor" ? "Step 1 of 2 · Donor details" : "Step 2 of 2 · Donated items"}
+          {step === "donor"
+            ? "Step 1 of 2 · Donor details"
+            : "Step 2 of 2 · Donated items"}
         </p>
 
         <form onSubmit={handleSubmit}>
@@ -211,7 +221,9 @@ export function AddDonationModal({
                 <Checkbox
                   id="isAnonymous"
                   checked={donor.isAnonymous}
-                  onCheckedChange={(checked) => updateDonor("isAnonymous", Boolean(checked))}
+                  onCheckedChange={(checked) =>
+                    updateDonor("isAnonymous", Boolean(checked))
+                  }
                 />
                 <FieldLabel htmlFor="isAnonymous">Anonymous donor</FieldLabel>
               </Field>
@@ -223,7 +235,9 @@ export function AddDonationModal({
                   required={!donor.isAnonymous}
                   disabled={donor.isAnonymous}
                   value={donor.donorName}
-                  onChange={(event) => updateDonor("donorName", event.target.value)}
+                  onChange={(event) =>
+                    updateDonor("donorName", event.target.value)
+                  }
                 />
               </Field>
 
@@ -235,7 +249,9 @@ export function AddDonationModal({
                     type="email"
                     disabled={donor.isAnonymous}
                     value={donor.donorEmail}
-                    onChange={(event) => updateDonor("donorEmail", event.target.value)}
+                    onChange={(event) =>
+                      updateDonor("donorEmail", event.target.value)
+                    }
                   />
                 </Field>
                 <Field>
@@ -245,7 +261,9 @@ export function AddDonationModal({
                     type="tel"
                     disabled={donor.isAnonymous}
                     value={donor.donorPhone}
-                    onChange={(event) => updateDonor("donorPhone", event.target.value)}
+                    onChange={(event) =>
+                      updateDonor("donorPhone", event.target.value)
+                    }
                   />
                 </Field>
               </Field>
@@ -254,11 +272,16 @@ export function AddDonationModal({
                 <FieldLabel htmlFor="sourceType">Donor source</FieldLabel>
                 <Select
                   value={donor.sourceType || null}
-                  onValueChange={(value) => updateDonor("sourceType", value ?? "")}
+                  onValueChange={(value) =>
+                    updateDonor("sourceType", value ?? "")
+                  }
                 >
                   <SelectTrigger id="sourceType" className="w-full">
                     <SelectValue placeholder="Select a source">
-                      {(value: string) => SOURCE_TYPES.find((option) => option.value === value)?.label ?? "Select a source"}
+                      {(value: string) =>
+                        SOURCE_TYPES.find((option) => option.value === value)
+                          ?.label ?? "Select a source"
+                      }
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -276,7 +299,9 @@ export function AddDonationModal({
                 <Textarea
                   id="donorNotes"
                   value={donor.donorNotes}
-                  onChange={(event) => updateDonor("donorNotes", event.target.value)}
+                  onChange={(event) =>
+                    updateDonor("donorNotes", event.target.value)
+                  }
                 />
               </Field>
 
@@ -289,9 +314,14 @@ export function AddDonationModal({
           ) : (
             <FieldGroup>
               {items.map((item, index) => (
-                <FieldGroup key={item.key} className="rounded-md border border-[var(--line)] p-4">
+                <FieldGroup
+                  key={item.key}
+                  className="rounded-md border border-[var(--line)] p-4"
+                >
                   <div className="flex items-center justify-between">
-                    <FieldLabel className="text-sm font-medium">Item {index + 1}</FieldLabel>
+                    <FieldLabel className="text-sm font-medium">
+                      Item {index + 1}
+                    </FieldLabel>
                     <Button
                       type="button"
                       variant="ghost"
@@ -319,35 +349,53 @@ export function AddDonationModal({
 
                   <Field orientation="responsive">
                     <Field>
-                      <FieldLabel htmlFor={`itemType-${item.key}`}>Item type</FieldLabel>
+                      <FieldLabel htmlFor={`itemType-${item.key}`}>
+                        Item type
+                      </FieldLabel>
                       <Input
                         id={`itemType-${item.key}`}
                         required
                         placeholder="e.g. Jacket"
                         value={item.type}
-                        onChange={(event) => updateItem(item.key, "type", event.target.value)}
+                        onChange={(event) =>
+                          updateItem(item.key, "type", event.target.value)
+                        }
                       />
                     </Field>
                     <Field>
-                      <FieldLabel htmlFor={`itemSize-${item.key}`}>Size</FieldLabel>
+                      <FieldLabel htmlFor={`itemSize-${item.key}`}>
+                        Size
+                      </FieldLabel>
                       <Input
                         id={`itemSize-${item.key}`}
                         value={item.size}
-                        onChange={(event) => updateItem(item.key, "size", event.target.value)}
+                        onChange={(event) =>
+                          updateItem(item.key, "size", event.target.value)
+                        }
                       />
                     </Field>
                   </Field>
 
                   <Field orientation="responsive">
                     <Field>
-                      <FieldLabel htmlFor={`itemGender-${item.key}`}>Gender</FieldLabel>
+                      <FieldLabel htmlFor={`itemGender-${item.key}`}>
+                        Gender
+                      </FieldLabel>
                       <Select
                         value={item.gender || null}
-                        onValueChange={(value) => updateItem(item.key, "gender", value ?? "")}
+                        onValueChange={(value) =>
+                          updateItem(item.key, "gender", value ?? "")
+                        }
                       >
-                        <SelectTrigger id={`itemGender-${item.key}`} className="w-full">
+                        <SelectTrigger
+                          id={`itemGender-${item.key}`}
+                          className="w-full"
+                        >
                           <SelectValue placeholder="Select a gender">
-                            {(value: string) => GENDERS.find((option) => option.value === value)?.label ?? "Select a gender"}
+                            {(value: string) =>
+                              GENDERS.find((option) => option.value === value)
+                                ?.label ?? "Select a gender"
+                            }
                           </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
@@ -360,14 +408,25 @@ export function AddDonationModal({
                       </Select>
                     </Field>
                     <Field>
-                      <FieldLabel htmlFor={`condition-${item.key}`}>Condition</FieldLabel>
+                      <FieldLabel htmlFor={`condition-${item.key}`}>
+                        Condition
+                      </FieldLabel>
                       <Select
                         value={item.condition || null}
-                        onValueChange={(value) => updateItem(item.key, "condition", value ?? "")}
+                        onValueChange={(value) =>
+                          updateItem(item.key, "condition", value ?? "")
+                        }
                       >
-                        <SelectTrigger id={`condition-${item.key}`} className="w-full">
+                        <SelectTrigger
+                          id={`condition-${item.key}`}
+                          className="w-full"
+                        >
                           <SelectValue placeholder="Select a condition">
-                            {(value: string) => CONDITIONS.find((option) => option.value === value)?.label ?? "Select a condition"}
+                            {(value: string) =>
+                              CONDITIONS.find(
+                                (option) => option.value === value,
+                              )?.label ?? "Select a condition"
+                            }
                           </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
@@ -382,23 +441,31 @@ export function AddDonationModal({
                   </Field>
 
                   <Field>
-                    <FieldLabel htmlFor={`faceValue-${item.key}`}>Face value ($)</FieldLabel>
+                    <FieldLabel htmlFor={`faceValue-${item.key}`}>
+                      Face value ($)
+                    </FieldLabel>
                     <Input
                       id={`faceValue-${item.key}`}
                       type="number"
                       min="0"
                       step="0.01"
                       value={item.faceValue}
-                      onChange={(event) => updateItem(item.key, "faceValue", event.target.value)}
+                      onChange={(event) =>
+                        updateItem(item.key, "faceValue", event.target.value)
+                      }
                     />
                   </Field>
 
                   <Field>
-                    <FieldLabel htmlFor={`itemNotes-${item.key}`}>Item notes</FieldLabel>
+                    <FieldLabel htmlFor={`itemNotes-${item.key}`}>
+                      Item notes
+                    </FieldLabel>
                     <Textarea
                       id={`itemNotes-${item.key}`}
                       value={item.notes}
-                      onChange={(event) => updateItem(item.key, "notes", event.target.value)}
+                      onChange={(event) =>
+                        updateItem(item.key, "notes", event.target.value)
+                      }
                     />
                   </Field>
                 </FieldGroup>
@@ -423,7 +490,11 @@ export function AddDonationModal({
               </Button>
             ) : (
               <>
-                <Button type="button" variant="outline" onClick={() => setStep("donor")}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStep("donor")}
+                >
                   Back
                 </Button>
                 <Button type="submit" disabled={isPending}>

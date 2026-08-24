@@ -39,20 +39,33 @@ function formatValue(value: unknown): string {
 export function AuditLogDetailSheet({ row }: { row: AuditLogRow }) {
   const diff = computeDiff(row.old_data, row.new_data);
   const showOnlyChanged = row.action === "update";
-  const entries = showOnlyChanged ? diff.filter((entry) => entry.changed) : diff;
+  const entries = showOnlyChanged
+    ? diff.filter((entry) => entry.changed)
+    : diff;
 
   return (
     <Sheet>
-      <SheetTrigger render={<Button type="button" variant="ghost" size="icon-sm" aria-label="View entry details" />}>
+      <SheetTrigger
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="View entry details"
+          />
+        }
+      >
         <Eye />
       </SheetTrigger>
       <SheetContent side="right" className="data-[side=right]:sm:max-w-[520px]">
         <SheetHeader>
           <SheetTitle>
-            {TABLE_LABELS[row.table_name] ?? row.table_name} · <ActionBadge action={row.action} />
+            {TABLE_LABELS[row.table_name] ?? row.table_name} ·{" "}
+            <ActionBadge action={row.action} />
           </SheetTitle>
           <SheetDescription>
-            {dateTimeFormatter.format(new Date(row.occurred_at))} by {row.actor_label} · record{" "}
+            {dateTimeFormatter.format(new Date(row.occurred_at))} by{" "}
+            {row.actor_label} · record{" "}
             <span className="font-mono">{row.record_id}</span>
           </SheetDescription>
         </SheetHeader>
@@ -67,20 +80,29 @@ export function AuditLogDetailSheet({ row }: { row: AuditLogRow }) {
                   key={entry.key}
                   className={cn(
                     "rounded-lg border border-[var(--line)] p-3 text-sm",
-                    entry.changed && "border-[var(--purple-deep)] bg-[var(--purple-soft)]/40"
+                    entry.changed &&
+                      "border-[var(--purple-deep)] bg-[var(--purple-soft)]/40",
                   )}
                 >
-                  <div className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">{entry.key}</div>
+                  <div className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+                    {entry.key}
+                  </div>
                   {row.action === "insert" ? (
-                    <div className="mt-1 break-words">{formatValue(entry.after)}</div>
+                    <div className="mt-1 break-words">
+                      {formatValue(entry.after)}
+                    </div>
                   ) : row.action === "delete" ? (
-                    <div className="mt-1 break-words">{formatValue(entry.before)}</div>
+                    <div className="mt-1 break-words">
+                      {formatValue(entry.before)}
+                    </div>
                   ) : (
                     <div className="mt-1 grid grid-cols-2 gap-2">
                       <div className="break-words text-muted-foreground line-through">
                         {formatValue(entry.before)}
                       </div>
-                      <div className="break-words">{formatValue(entry.after)}</div>
+                      <div className="break-words">
+                        {formatValue(entry.after)}
+                      </div>
                     </div>
                   )}
                 </div>

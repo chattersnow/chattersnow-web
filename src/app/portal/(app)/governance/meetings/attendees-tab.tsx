@@ -15,7 +15,14 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 function AddAttendeeForm({
   people,
@@ -25,11 +32,16 @@ function AddAttendeeForm({
 }: {
   people: PersonListItem[];
   onPersonCreated: (person: PickedPerson) => void;
-  onSubmit: (personId: string, attended: boolean) => Promise<{ error: string } | { success: true }>;
+  onSubmit: (
+    personId: string,
+    attended: boolean,
+  ) => Promise<{ error: string } | { success: true }>;
   onCancel: () => void;
 }) {
   const router = useRouter();
-  const [selectedPerson, setSelectedPerson] = useState<PickedPerson | null>(null);
+  const [selectedPerson, setSelectedPerson] = useState<PickedPerson | null>(
+    null,
+  );
   const [attended, setAttended] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -54,7 +66,10 @@ function AddAttendeeForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-md border border-[var(--line)] p-4">
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-md border border-[var(--line)] p-4"
+    >
       <FieldGroup>
         <Field>
           <FieldLabel>Person</FieldLabel>
@@ -68,7 +83,10 @@ function AddAttendeeForm({
 
         <Field>
           <label className="flex items-center gap-2 text-sm">
-            <Checkbox checked={attended} onCheckedChange={(checked) => setAttended(checked === true)} />
+            <Checkbox
+              checked={attended}
+              onCheckedChange={(checked) => setAttended(checked === true)}
+            />
             Attended
           </label>
         </Field>
@@ -92,7 +110,15 @@ function AddAttendeeForm({
   );
 }
 
-export function AttendeesTab({ meetingId, active, mode }: { meetingId: string; active: boolean; mode: "view" | "edit" }) {
+export function AttendeesTab({
+  meetingId,
+  active,
+  mode,
+}: {
+  meetingId: string;
+  active: boolean;
+  mode: "view" | "edit";
+}) {
   const router = useRouter();
   const [attendees, setAttendees] = useState<MeetingAttendee[] | null>(null);
   const [people, setPeople] = useState<PersonListItem[]>([]);
@@ -162,8 +188,12 @@ export function AttendeesTab({ meetingId, active, mode }: { meetingId: string; a
           <TableBody>
             {attendees?.map((attendee) => (
               <TableRow key={attendee.id}>
-                <TableCell className="font-medium">{attendee.person?.name ?? "—"}</TableCell>
-                <TableCell className="app-muted">{attendee.attended ? "Yes" : "No"}</TableCell>
+                <TableCell className="font-medium">
+                  {attendee.person?.name ?? "—"}
+                </TableCell>
+                <TableCell className="app-muted">
+                  {attendee.attended ? "Yes" : "No"}
+                </TableCell>
                 <TableCell className="text-right">
                   {mode === "edit" && (
                     <Button
@@ -189,12 +219,18 @@ export function AttendeesTab({ meetingId, active, mode }: { meetingId: string; a
           <AddAttendeeForm
             people={people}
             onPersonCreated={handlePersonCreated}
-            onSubmit={(personId, attended) => createMeetingAttendeeAction(meetingId, personId, attended)}
+            onSubmit={(personId, attended) =>
+              createMeetingAttendeeAction(meetingId, personId, attended)
+            }
             onCancel={() => setShowAdd(false)}
           />
         ) : (
           <div>
-            <Button type="button" variant="outline" onClick={() => setShowAdd(true)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowAdd(true)}
+            >
               + Add attendee
             </Button>
           </div>

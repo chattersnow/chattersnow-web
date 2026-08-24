@@ -8,10 +8,14 @@ import { checkPermission } from "@/lib/auth/permissions";
 export type ProgramActionResult = { error: string } | { success: true };
 
 function friendlyError(error: { code?: string }, fallback: string) {
-  return error.code === "23505" ? "A program with this name already exists." : fallback;
+  return error.code === "23505"
+    ? "A program with this name already exists."
+    : fallback;
 }
 
-export async function createProgramAction(formData: FormData): Promise<ProgramActionResult> {
+export async function createProgramAction(
+  formData: FormData,
+): Promise<ProgramActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -26,10 +30,17 @@ export async function createProgramAction(formData: FormData): Promise<ProgramAc
   if ("error" in parsed) return parsed;
   const { name, description, status } = parsed.data;
 
-  const { error } = await supabase.from("programs").insert({ name, description, status });
+  const { error } = await supabase
+    .from("programs")
+    .insert({ name, description, status });
 
   if (error) {
-    return { error: friendlyError(error, "Could not create the program. Please try again.") };
+    return {
+      error: friendlyError(
+        error,
+        "Could not create the program. Please try again.",
+      ),
+    };
   }
 
   revalidatePath("/portal/programs");
@@ -39,7 +50,7 @@ export async function createProgramAction(formData: FormData): Promise<ProgramAc
 
 export async function updateProgramAction(
   id: string,
-  formData: FormData
+  formData: FormData,
 ): Promise<ProgramActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -61,7 +72,12 @@ export async function updateProgramAction(
     .eq("id", id);
 
   if (error) {
-    return { error: friendlyError(error, "Could not update the program. Please try again.") };
+    return {
+      error: friendlyError(
+        error,
+        "Could not update the program. Please try again.",
+      ),
+    };
   }
 
   revalidatePath("/portal/programs");
@@ -71,7 +87,9 @@ export async function updateProgramAction(
 
 export type Program = { id: string; name: string; status: string };
 
-export async function listProgramsAction(): Promise<{ data: Program[] } | { error: string }> {
+export async function listProgramsAction(): Promise<
+  { data: Program[] } | { error: string }
+> {
   const supabase = await createSupabaseServerClient();
   const permissionError = await checkPermission(supabase, "programs", "view");
   if (permissionError) return permissionError;
@@ -96,7 +114,7 @@ export type ProgramEvent = {
 };
 
 export async function listProgramEventsAction(
-  programId: string
+  programId: string,
 ): Promise<{ data: ProgramEvent[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
   const permissionError = await checkPermission(supabase, "events", "view");

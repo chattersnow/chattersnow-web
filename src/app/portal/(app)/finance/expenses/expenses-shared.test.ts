@@ -54,9 +54,16 @@ describe("isSelfApprovalEligible", () => {
 });
 
 describe("getExpenseNextStepMessage", () => {
-  const baseExpense = { status: "submitted" as const, submitted_by: "user-1", amount: 100, currency: "USD" };
+  const baseExpense = {
+    status: "submitted" as const,
+    submitted_by: "user-1",
+    amount: 100,
+    currency: "USD",
+  };
 
-  function context(overrides: Partial<ExpenseApprovalContext>): ExpenseApprovalContext {
+  function context(
+    overrides: Partial<ExpenseApprovalContext>,
+  ): ExpenseApprovalContext {
     return {
       userId: "user-1",
       canApprove: false,
@@ -68,62 +75,85 @@ describe("getExpenseNextStepMessage", () => {
   }
 
   test("submitter below threshold can self-approve", () => {
-    expect(getExpenseNextStepMessage(baseExpense, context({ canSelfApprove: true }))).toBe(
-      "Below the $500.00 approval threshold — you can self-approve this."
-    );
+    expect(
+      getExpenseNextStepMessage(baseExpense, context({ canSelfApprove: true })),
+    ).toBe("Below the $500.00 approval threshold — you can self-approve this.");
   });
 
   test("submitter at/above threshold needs a second approver", () => {
     expect(
-      getExpenseNextStepMessage({ ...baseExpense, amount: 600 }, context({ canSelfApprove: true }))
-    ).toBe("At or above the $500.00 approval threshold — needs approval from an admin or board member.");
+      getExpenseNextStepMessage(
+        { ...baseExpense, amount: 600 },
+        context({ canSelfApprove: true }),
+      ),
+    ).toBe(
+      "At or above the $500.00 approval threshold — needs approval from an admin or board member.",
+    );
   });
 
   test("submitter without self-approval rights awaits approval", () => {
     expect(getExpenseNextStepMessage(baseExpense, context({}))).toBe(
-      "Awaiting approval from an admin or board member."
+      "Awaiting approval from an admin or board member.",
     );
   });
 
   test("an approver viewing someone else's submission can act on it", () => {
     expect(
-      getExpenseNextStepMessage(baseExpense, context({ userId: "user-2", canApprove: true }))
+      getExpenseNextStepMessage(
+        baseExpense,
+        context({ userId: "user-2", canApprove: true }),
+      ),
     ).toBe("Awaiting approval — you can approve or reject this.");
   });
 
   test("a non-approver viewing someone else's submission just waits", () => {
-    expect(getExpenseNextStepMessage(baseExpense, context({ userId: "user-2" }))).toBe(
-      "Awaiting approval from an admin or board member."
-    );
+    expect(
+      getExpenseNextStepMessage(baseExpense, context({ userId: "user-2" })),
+    ).toBe("Awaiting approval from an admin or board member.");
   });
 
   test("falls back gracefully when no threshold is configured", () => {
     expect(
-      getExpenseNextStepMessage(baseExpense, context({ canSelfApprove: true, threshold: null }))
+      getExpenseNextStepMessage(
+        baseExpense,
+        context({ canSelfApprove: true, threshold: null }),
+      ),
     ).toBe("Needs approval from an admin or board member.");
   });
 
   test("approved and markable as paid", () => {
     expect(
-      getExpenseNextStepMessage({ ...baseExpense, status: "approved" }, context({ canMarkPaid: true }))
+      getExpenseNextStepMessage(
+        { ...baseExpense, status: "approved" },
+        context({ canMarkPaid: true }),
+      ),
     ).toBe("Approved — mark it as paid once payment has been sent.");
   });
 
   test("approved but viewer can't mark paid", () => {
-    expect(getExpenseNextStepMessage({ ...baseExpense, status: "approved" }, context({}))).toBe(
-      "Approved — awaiting payment."
-    );
+    expect(
+      getExpenseNextStepMessage(
+        { ...baseExpense, status: "approved" },
+        context({}),
+      ),
+    ).toBe("Approved — awaiting payment.");
   });
 
   test("rejected", () => {
-    expect(getExpenseNextStepMessage({ ...baseExpense, status: "rejected" }, context({}))).toBe(
-      "Rejected. See the reason below."
-    );
+    expect(
+      getExpenseNextStepMessage(
+        { ...baseExpense, status: "rejected" },
+        context({}),
+      ),
+    ).toBe("Rejected. See the reason below.");
   });
 
   test("paid", () => {
-    expect(getExpenseNextStepMessage({ ...baseExpense, status: "paid" }, context({}))).toBe(
-      "Paid. This expense is complete."
-    );
+    expect(
+      getExpenseNextStepMessage(
+        { ...baseExpense, status: "paid" },
+        context({}),
+      ),
+    ).toBe("Paid. This expense is complete.");
   });
 });

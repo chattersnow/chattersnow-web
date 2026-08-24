@@ -10,7 +10,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { EditBoardMemberModal } from "./edit-board-member-modal";
 import { NewBoardMemberDialog } from "./new-board-member-dialog";
 import type { BoardMemberRow } from "./board-members-shared";
@@ -20,7 +27,10 @@ const FILTER_ALL = "all";
 const FILTER_ACTIVE = "active";
 const FILTER_PAST = "past";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" });
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeZone: "UTC",
+});
 
 function formatDate(value: string | null) {
   if (!value) return "—";
@@ -37,15 +47,16 @@ export function BoardMembersTable({
   canManage: boolean;
 }) {
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<typeof FILTER_ALL | typeof FILTER_ACTIVE | typeof FILTER_PAST>(
-    FILTER_ACTIVE
-  );
+  const [statusFilter, setStatusFilter] = useState<
+    typeof FILTER_ALL | typeof FILTER_ACTIVE | typeof FILTER_PAST
+  >(FILTER_ACTIVE);
 
   const visibleBoardMembers = useMemo(() => {
     const query = search.trim().toLowerCase();
 
     return boardMembers.filter((boardMember) => {
-      if (statusFilter === FILTER_ACTIVE && !boardMember.is_active) return false;
+      if (statusFilter === FILTER_ACTIVE && !boardMember.is_active)
+        return false;
       if (statusFilter === FILTER_PAST && boardMember.is_active) return false;
       if (!query) return true;
       return (
@@ -61,7 +72,9 @@ export function BoardMembersTable({
         {canManage && <NewBoardMemberDialog people={people} />}
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">No board members added yet.</p>
+            <p className="app-muted px-4 py-6 text-sm">
+              No board members added yet.
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -91,11 +104,18 @@ export function BoardMembersTable({
           </div>
 
           <div className="flex flex-col gap-1">
-            <span className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">Status</span>
+            <span className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+              Status
+            </span>
             <Select
               value={statusFilter}
               onValueChange={(value) =>
-                setStatusFilter((value as typeof FILTER_ALL | typeof FILTER_ACTIVE | typeof FILTER_PAST) ?? FILTER_ALL)
+                setStatusFilter(
+                  (value as
+                    | typeof FILTER_ALL
+                    | typeof FILTER_ACTIVE
+                    | typeof FILTER_PAST) ?? FILTER_ALL,
+                )
               }
             >
               <SelectTrigger className="h-8">
@@ -136,13 +156,25 @@ export function BoardMembersTable({
               ) : (
                 visibleBoardMembers.map((boardMember) => (
                   <TableRow key={boardMember.id}>
-                    <TableCell className="font-medium">{boardMember.person.name ?? "—"}</TableCell>
-                    <TableCell className="app-muted">{boardMember.role_title}</TableCell>
-                    <TableCell className="app-muted">{formatDate(boardMember.term_start)}</TableCell>
-                    <TableCell className="app-muted">{formatDate(boardMember.term_end)}</TableCell>
-                    <TableCell className="app-muted">{boardMember.is_active ? "Active" : "Past"}</TableCell>
+                    <TableCell className="font-medium">
+                      {boardMember.person.name ?? "—"}
+                    </TableCell>
+                    <TableCell className="app-muted">
+                      {boardMember.role_title}
+                    </TableCell>
+                    <TableCell className="app-muted">
+                      {formatDate(boardMember.term_start)}
+                    </TableCell>
+                    <TableCell className="app-muted">
+                      {formatDate(boardMember.term_end)}
+                    </TableCell>
+                    <TableCell className="app-muted">
+                      {boardMember.is_active ? "Active" : "Past"}
+                    </TableCell>
                     <TableCell>
-                      {canManage && <EditBoardMemberModal boardMember={boardMember} />}
+                      {canManage && (
+                        <EditBoardMemberModal boardMember={boardMember} />
+                      )}
                     </TableCell>
                   </TableRow>
                 ))

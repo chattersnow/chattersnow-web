@@ -64,14 +64,28 @@ type TabValue =
 // Tabs whose form submits through the sheet's shared footer Save button
 // (formId + dirty/discard tracking); everything else manages its own
 // inline add/edit/delete affordances, same as the pre-workflow tabs did.
-const FORM_TABS = new Set<TabValue>(["overview", "planning", "logistics", "report", "impact"]);
+const FORM_TABS = new Set<TabValue>([
+  "overview",
+  "planning",
+  "logistics",
+  "report",
+  "impact",
+]);
 
 type Mode = "view" | "edit";
 
 type PhaseKey = "basic" | "planning" | "during" | "after";
 
-const PHASES: { key: PhaseKey; label: string; tabs: { value: TabValue; label: string }[] }[] = [
-  { key: "basic", label: "Basic", tabs: [{ value: "overview", label: "Overview" }] },
+const PHASES: {
+  key: PhaseKey;
+  label: string;
+  tabs: { value: TabValue; label: string }[];
+}[] = [
+  {
+    key: "basic",
+    label: "Basic",
+    tabs: [{ value: "overview", label: "Overview" }],
+  },
   {
     key: "planning",
     label: "Planning",
@@ -111,7 +125,9 @@ function phaseForTab(tab: TabValue): PhaseKey {
 
 function planningStatus(event: EventRow): PhaseStatus {
   const signals = [event.event_lead_id, event.capacity, event.budget_amount];
-  const present = signals.filter((value) => value !== null && value !== undefined).length;
+  const present = signals.filter(
+    (value) => value !== null && value !== undefined,
+  ).length;
   if (present === 0) return "not_started";
   if (present === signals.length) return "done";
   return "in_progress";
@@ -119,11 +135,17 @@ function planningStatus(event: EventRow): PhaseStatus {
 
 function duringStatus(event: EventRow): PhaseStatus {
   if (event.attendance_count !== null) return "done";
-  return new Date(event.starts_at) <= new Date() ? "in_progress" : "not_started";
+  return new Date(event.starts_at) <= new Date()
+    ? "in_progress"
+    : "not_started";
 }
 
 function afterStatus(event: EventRow): PhaseStatus {
-  return event.report_status === "submitted" ? "done" : event.report_status === "in_progress" ? "in_progress" : "not_started";
+  return event.report_status === "submitted"
+    ? "done"
+    : event.report_status === "in_progress"
+      ? "in_progress"
+      : "not_started";
 }
 
 function phaseStatus(key: PhaseKey, event: EventRow): PhaseStatus | null {
@@ -133,13 +155,23 @@ function phaseStatus(key: PhaseKey, event: EventRow): PhaseStatus | null {
   return null;
 }
 
-export function EventDetailsDialog({ event, programs }: { event: EventRow; programs: Program[] }) {
+export function EventDetailsDialog({
+  event,
+  programs,
+}: {
+  event: EventRow;
+  programs: Program[];
+}) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<TabValue>("overview");
   const [mode, setMode] = useState<Mode>("view");
-  const [pending, setPending] = useState<Partial<Record<TabValue, boolean>>>({});
+  const [pending, setPending] = useState<Partial<Record<TabValue, boolean>>>(
+    {},
+  );
   const [dirty, setDirty] = useState<Partial<Record<TabValue, boolean>>>({});
-  const [discardTarget, setDiscardTarget] = useState<"toggle" | "close" | null>(null);
+  const [discardTarget, setDiscardTarget] = useState<"toggle" | "close" | null>(
+    null,
+  );
   const overviewTabRef = useRef<OverviewTabHandle>(null);
   const planningTabRef = useRef<PlanningTabHandle>(null);
   const logisticsTabRef = useRef<LogisticsTabHandle>(null);
@@ -151,19 +183,46 @@ export function EventDetailsDialog({ event, programs }: { event: EventRow; progr
   // Stable per-tab callbacks — the child tabs use these as effect
   // dependencies, so a new function identity every render (as an inline
   // arrow prop would be) re-fires those effects every render and loops.
-  const onOverviewPending = useCallback((value: boolean) => setPending((prev) => ({ ...prev, overview: value })), []);
-  const onOverviewDirty = useCallback((value: boolean) => setDirty((prev) => ({ ...prev, overview: value })), []);
-  const onPlanningPending = useCallback((value: boolean) => setPending((prev) => ({ ...prev, planning: value })), []);
-  const onPlanningDirty = useCallback((value: boolean) => setDirty((prev) => ({ ...prev, planning: value })), []);
+  const onOverviewPending = useCallback(
+    (value: boolean) => setPending((prev) => ({ ...prev, overview: value })),
+    [],
+  );
+  const onOverviewDirty = useCallback(
+    (value: boolean) => setDirty((prev) => ({ ...prev, overview: value })),
+    [],
+  );
+  const onPlanningPending = useCallback(
+    (value: boolean) => setPending((prev) => ({ ...prev, planning: value })),
+    [],
+  );
+  const onPlanningDirty = useCallback(
+    (value: boolean) => setDirty((prev) => ({ ...prev, planning: value })),
+    [],
+  );
   const onLogisticsPending = useCallback(
     (value: boolean) => setPending((prev) => ({ ...prev, logistics: value })),
-    []
+    [],
   );
-  const onLogisticsDirty = useCallback((value: boolean) => setDirty((prev) => ({ ...prev, logistics: value })), []);
-  const onReportPending = useCallback((value: boolean) => setPending((prev) => ({ ...prev, report: value })), []);
-  const onReportDirty = useCallback((value: boolean) => setDirty((prev) => ({ ...prev, report: value })), []);
-  const onImpactPending = useCallback((value: boolean) => setPending((prev) => ({ ...prev, impact: value })), []);
-  const onImpactDirty = useCallback((value: boolean) => setDirty((prev) => ({ ...prev, impact: value })), []);
+  const onLogisticsDirty = useCallback(
+    (value: boolean) => setDirty((prev) => ({ ...prev, logistics: value })),
+    [],
+  );
+  const onReportPending = useCallback(
+    (value: boolean) => setPending((prev) => ({ ...prev, report: value })),
+    [],
+  );
+  const onReportDirty = useCallback(
+    (value: boolean) => setDirty((prev) => ({ ...prev, report: value })),
+    [],
+  );
+  const onImpactPending = useCallback(
+    (value: boolean) => setPending((prev) => ({ ...prev, impact: value })),
+    [],
+  );
+  const onImpactDirty = useCallback(
+    (value: boolean) => setDirty((prev) => ({ ...prev, impact: value })),
+    [],
+  );
 
   function handleOpenChange(nextOpen: boolean) {
     if (!nextOpen && mode === "edit" && anyDirty) {
@@ -209,29 +268,60 @@ export function EventDetailsDialog({ event, programs }: { event: EventRow; progr
     <>
       <Sheet open={open} onOpenChange={handleOpenChange}>
         <SheetTrigger
-          render={<Button type="button" variant="ghost" size="icon-sm" aria-label="View event details" />}
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="View event details"
+            />
+          }
         >
           <Eye />
         </SheetTrigger>
-        <SheetContent side="right" showCloseButton={false} className="data-[side=right]:sm:max-w-[640px]">
+        <SheetContent
+          side="right"
+          showCloseButton={false}
+          className="data-[side=right]:sm:max-w-[640px]"
+        >
           <SheetHeader className="flex-row items-start gap-2 space-y-0">
             <SheetClose
-              render={<Button type="button" variant="ghost" size="icon-sm" aria-label="Close" />}
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Close"
+                />
+              }
             >
               <ArrowLeft />
             </SheetClose>
             <div className="flex flex-1 flex-col gap-0.5">
               <SheetTitle>{event.name}</SheetTitle>
               <SheetDescription>
-                {mode === "edit" ? "Update this event's details." : "View this event's details."}
+                {mode === "edit"
+                  ? "Update this event's details."
+                  : "View this event's details."}
               </SheetDescription>
             </div>
             {mode === "view" ? (
-              <Button type="button" variant="ghost" size="icon-sm" aria-label="Edit event" onClick={() => setMode("edit")}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Edit event"
+                onClick={() => setMode("edit")}
+              >
                 <Pencil />
               </Button>
             ) : (
-              <Button type="button" variant="ghost" size="sm" onClick={requestExitEditMode}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={requestExitEditMode}
+              >
                 View
               </Button>
             )}
@@ -250,7 +340,7 @@ export function EventDetailsDialog({ event, programs }: { event: EventRow; progr
                     "flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors",
                     isActive
                       ? "border-[var(--purple-deep)] bg-[var(--purple-soft)] text-foreground"
-                      : "border-transparent text-muted-foreground hover:bg-[var(--purple-soft)]/50"
+                      : "border-transparent text-muted-foreground hover:bg-[var(--purple-soft)]/50",
                   )}
                 >
                   {phase.label}
@@ -261,7 +351,11 @@ export function EventDetailsDialog({ event, programs }: { event: EventRow; progr
           </div>
 
           <div className="flex-1 overflow-y-auto px-4 pb-4">
-            <Tabs value={tab} onValueChange={(value) => setTab(value as TabValue)} className="mt-2">
+            <Tabs
+              value={tab}
+              onValueChange={(value) => setTab(value as TabValue)}
+              className="mt-2"
+            >
               <TabsList variant="line" className="flex-wrap">
                 {activePhase.tabs.map((t) => (
                   <TabsTrigger key={t.value} value={t.value}>
@@ -306,28 +400,61 @@ export function EventDetailsDialog({ event, programs }: { event: EventRow; progr
                 />
               </TabsContent>
               <TabsContent value="volunteers" className="mt-4">
-                <VolunteersTab eventId={event.id} active={tab === "volunteers"} mode={mode} />
+                <VolunteersTab
+                  eventId={event.id}
+                  active={tab === "volunteers"}
+                  mode={mode}
+                />
               </TabsContent>
               <TabsContent value="sponsors" className="mt-4">
-                <SponsorsTab eventId={event.id} active={tab === "sponsors"} mode={mode} />
+                <SponsorsTab
+                  eventId={event.id}
+                  active={tab === "sponsors"}
+                  mode={mode}
+                />
               </TabsContent>
               <TabsContent value="attendance" className="mt-4">
-                <AttendanceTab event={event} mode={mode} active={tab === "attendance"} />
+                <AttendanceTab
+                  event={event}
+                  mode={mode}
+                  active={tab === "attendance"}
+                />
               </TabsContent>
               <TabsContent value="registrants" className="mt-4">
-                <RegistrantsTab eventId={event.id} capacity={event.capacity} active={tab === "registrants"} />
+                <RegistrantsTab
+                  eventId={event.id}
+                  capacity={event.capacity}
+                  active={tab === "registrants"}
+                />
               </TabsContent>
               <TabsContent value="distributions" className="mt-4">
-                <DistributionsTab eventId={event.id} active={tab === "distributions"} mode={mode} />
+                <DistributionsTab
+                  eventId={event.id}
+                  active={tab === "distributions"}
+                  mode={mode}
+                />
               </TabsContent>
               <TabsContent value="incidents" className="mt-4">
-                <IncidentsTab eventId={event.id} active={tab === "incidents"} mode={mode} />
+                <IncidentsTab
+                  eventId={event.id}
+                  active={tab === "incidents"}
+                  mode={mode}
+                />
               </TabsContent>
               <TabsContent value="giveaway" className="mt-4">
-                <GiveawayTab eventId={event.id} active={tab === "giveaway"} mode={mode} />
+                <GiveawayTab
+                  eventId={event.id}
+                  active={tab === "giveaway"}
+                  mode={mode}
+                />
               </TabsContent>
               <TabsContent value="expenses" className="mt-4">
-                <EventExpensesTab eventId={event.id} eventName={event.name} active={tab === "expenses"} mode={mode} />
+                <EventExpensesTab
+                  eventId={event.id}
+                  eventName={event.name}
+                  active={tab === "expenses"}
+                  mode={mode}
+                />
               </TabsContent>
               <TabsContent value="report" className="mt-4">
                 <ReportTab
@@ -353,14 +480,22 @@ export function EventDetailsDialog({ event, programs }: { event: EventRow; progr
                 />
               </TabsContent>
               <TabsContent value="donations" className="mt-4">
-                <DonationsTab eventId={event.id} active={tab === "donations"} mode={mode} />
+                <DonationsTab
+                  eventId={event.id}
+                  active={tab === "donations"}
+                  mode={mode}
+                />
               </TabsContent>
             </Tabs>
           </div>
 
           {FORM_TABS.has(tab) && mode === "edit" && (
             <SheetFooter className="flex-row justify-end border-t bg-muted/50">
-              <Button type="submit" form={`${FORM_ID_PREFIX}-${tab}-${event.id}`} disabled={pending[tab]}>
+              <Button
+                type="submit"
+                form={`${FORM_ID_PREFIX}-${tab}-${event.id}`}
+                disabled={pending[tab]}
+              >
                 {pending[tab] ? "Saving..." : "Save changes"}
               </Button>
             </SheetFooter>
@@ -368,17 +503,25 @@ export function EventDetailsDialog({ event, programs }: { event: EventRow; progr
         </SheetContent>
       </Sheet>
 
-      <AlertDialog open={discardTarget !== null} onOpenChange={(next) => !next && setDiscardTarget(null)}>
+      <AlertDialog
+        open={discardTarget !== null}
+        onOpenChange={(next) => !next && setDiscardTarget(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Discard changes?</AlertDialogTitle>
             <AlertDialogDescription>
-              You have unsaved changes to this event. Leaving now will discard them.
+              You have unsaved changes to this event. Leaving now will discard
+              them.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDiscardTarget(null)}>Keep editing</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDiscard}>Discard changes</AlertDialogAction>
+            <AlertDialogCancel onClick={() => setDiscardTarget(null)}>
+              Keep editing
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDiscard}>
+              Discard changes
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

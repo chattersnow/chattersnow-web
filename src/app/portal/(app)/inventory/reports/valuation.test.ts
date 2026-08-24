@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { summarizeByStatus, summarizeByType, sumMovementValue, toNumber } from "./valuation";
+import {
+  summarizeByStatus,
+  summarizeByType,
+  sumMovementValue,
+  toNumber,
+} from "./valuation";
 
 describe("toNumber", () => {
   test("coerces numeric strings", () => {
@@ -35,7 +40,11 @@ describe("summarizeByType", () => {
 
   test("sorts by total value descending", () => {
     const result = summarizeByType(items, "available");
-    expect(result.map((row) => row.type)).toEqual(["jacket", "boots", "Unspecified"]);
+    expect(result.map((row) => row.type)).toEqual([
+      "jacket",
+      "boots",
+      "Unspecified",
+    ]);
   });
 
   test("defaults to available status", () => {
@@ -67,9 +76,21 @@ describe("summarizeByStatus", () => {
 
 describe("sumMovementValue", () => {
   const movements = [
-    { movement_type: "received", quantity: 1, inventory_items: { face_value: 50 } },
-    { movement_type: "received", quantity: 2, inventory_items: { face_value: "30" } },
-    { movement_type: "distributed", quantity: 1, inventory_items: { face_value: 20 } },
+    {
+      movement_type: "received",
+      quantity: 1,
+      inventory_items: { face_value: 50 },
+    },
+    {
+      movement_type: "received",
+      quantity: 2,
+      inventory_items: { face_value: "30" },
+    },
+    {
+      movement_type: "distributed",
+      quantity: 1,
+      inventory_items: { face_value: 20 },
+    },
     { movement_type: "received", quantity: 1, inventory_items: null },
   ];
 

@@ -5,12 +5,20 @@ import { parsePersonForm } from "./person-form";
 describe("emptyPersonForm", () => {
   test("has no roles set when no default is given", () => {
     const form = emptyPersonForm();
-    expect(form.roles).toEqual({ is_donor: false, is_sponsor: false, is_volunteer: false });
+    expect(form.roles).toEqual({
+      is_donor: false,
+      is_sponsor: false,
+      is_volunteer: false,
+    });
   });
 
   test("sets only the given default role", () => {
     const form = emptyPersonForm("is_sponsor");
-    expect(form.roles).toEqual({ is_donor: false, is_sponsor: true, is_volunteer: false });
+    expect(form.roles).toEqual({
+      is_donor: false,
+      is_sponsor: true,
+      is_volunteer: false,
+    });
   });
 });
 

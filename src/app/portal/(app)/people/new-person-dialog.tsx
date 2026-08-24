@@ -29,7 +29,10 @@ export function NewPersonDialog() {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  function update<K extends keyof PersonFormState>(key: K, value: PersonFormState[K]) {
+  function update<K extends keyof PersonFormState>(
+    key: K,
+    value: PersonFormState[K],
+  ) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -58,7 +61,9 @@ export function NewPersonDialog() {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button type="button" className="shrink-0 whitespace-nowrap" />}>
+      <DialogTrigger
+        render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
+      >
         Add person
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
@@ -71,7 +76,11 @@ export function NewPersonDialog() {
 
         <form onSubmit={handleSubmit}>
           <FieldGroup>
-            <PersonFormFields form={form} update={update} idPrefix="new-person" />
+            <PersonFormFields
+              form={form}
+              update={update}
+              idPrefix="new-person"
+            />
 
             {error && (
               <Alert variant="destructive">

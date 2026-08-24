@@ -3,21 +3,20 @@ import { rolesFor } from "./people-shared";
 
 describe("rolesFor", () => {
   test("returns an empty list when no roles are set", () => {
-    expect(rolesFor({ is_donor: false, is_sponsor: false, is_volunteer: false })).toEqual([]);
+    expect(
+      rolesFor({ is_donor: false, is_sponsor: false, is_volunteer: false }),
+    ).toEqual([]);
   });
 
   test("returns labels in ROLE_OPTIONS order regardless of which flags are set", () => {
-    expect(rolesFor({ is_donor: false, is_sponsor: true, is_volunteer: true })).toEqual([
-      "Sponsor",
-      "Volunteer",
-    ]);
+    expect(
+      rolesFor({ is_donor: false, is_sponsor: true, is_volunteer: true }),
+    ).toEqual(["Sponsor", "Volunteer"]);
   });
 
   test("returns all labels when every role is set", () => {
-    expect(rolesFor({ is_donor: true, is_sponsor: true, is_volunteer: true })).toEqual([
-      "Donor",
-      "Sponsor",
-      "Volunteer",
-    ]);
+    expect(
+      rolesFor({ is_donor: true, is_sponsor: true, is_volunteer: true }),
+    ).toEqual(["Donor", "Sponsor", "Volunteer"]);
   });
 });

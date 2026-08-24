@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { parseDonationInput, type CreateDonationInput, type DonationItemInput } from "./donation-form";
+import {
+  parseDonationInput,
+  type CreateDonationInput,
+  type DonationItemInput,
+} from "./donation-form";
 import { checkPermission, checkAnyPermission } from "@/lib/auth/permissions";
 
 export type { CreateDonationInput, DonationItemInput };
@@ -10,7 +14,7 @@ export type { CreateDonationInput, DonationItemInput };
 export type CreateDonationResult = { error: string } | { success: true };
 
 export async function createDonationAction(
-  input: CreateDonationInput
+  input: CreateDonationInput,
 ): Promise<CreateDonationResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -28,7 +32,10 @@ export async function createDonationAction(
   const parsed = parseDonationInput(input);
   if ("error" in parsed) return parsed;
 
-  const { error } = await supabase.rpc("create_donation_with_items", parsed.data);
+  const { error } = await supabase.rpc(
+    "create_donation_with_items",
+    parsed.data,
+  );
 
   if (error) {
     return { error: "Could not save the donation. Please try again." };
@@ -57,7 +64,7 @@ export type EventDonationRow = {
 };
 
 export async function listEventDonationsAction(
-  eventId: string
+  eventId: string,
 ): Promise<{ data: EventDonationRow[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
   const permissionError = await checkPermission(supabase, "finance", "view");
@@ -66,19 +73,21 @@ export async function listEventDonationsAction(
   const { data, error } = await supabase
     .from("donations")
     .select(
-      "id, donated_at, notes, donor:people(name, is_anonymous), inventory_items(id, description, type, size, condition, face_value, status)"
+      "id, donated_at, notes, donor:people(name, is_anonymous), inventory_items(id, description, type, size, condition, face_value, status)",
     )
     .eq("event_id", eventId)
     .order("donated_at", { ascending: false });
 
   if (error) {
-    return { error: "Could not load donations for this event. Please try again." };
+    return {
+      error: "Could not load donations for this event. Please try again.",
+    };
   }
   return { data: (data ?? []) as unknown as EventDonationRow[] };
 }
 
 export async function listRecentDonationsAction(
-  limit: number
+  limit: number,
 ): Promise<{ data: EventDonationRow[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
   const permissionError = await checkPermission(supabase, "finance", "view");
@@ -87,7 +96,7 @@ export async function listRecentDonationsAction(
   const { data, error } = await supabase
     .from("donations")
     .select(
-      "id, donated_at, notes, donor:people(name, is_anonymous), inventory_items(id, description, type, size, condition, face_value, status)"
+      "id, donated_at, notes, donor:people(name, is_anonymous), inventory_items(id, description, type, size, condition, face_value, status)",
     )
     .order("donated_at", { ascending: false })
     .limit(limit);

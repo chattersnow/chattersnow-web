@@ -7,13 +7,14 @@ import { parseCalendarItemForm } from "./calendar-item-form";
 import { checkPermission } from "@/lib/auth/permissions";
 import type { CalendarOwner } from "./calendar-shared";
 
-export type CalendarActionResult = { error: string } | { success: true; warning?: string };
+export type CalendarActionResult =
+  { error: string } | { success: true; warning?: string };
 
 async function syncCalendarItemLinks(
   supabase: SupabaseClient,
   itemId: string,
   categories: string[],
-  programIds: string[]
+  programIds: string[],
 ): Promise<{ error: string } | null> {
   const { error: deleteCategoriesError } = await supabase
     .from("calendar_item_categories")
@@ -37,10 +38,14 @@ async function syncCalendarItemLinks(
     return { error: "Could not save related programs. Please try again." };
   }
   if (programIds.length > 0) {
-    const { error } = await supabase
-      .from("calendar_item_programs")
-      .insert(programIds.map((programId) => ({ item_id: itemId, program_id: programId })));
-    if (error) return { error: "Could not save related programs. Please try again." };
+    const { error } = await supabase.from("calendar_item_programs").insert(
+      programIds.map((programId) => ({
+        item_id: itemId,
+        program_id: programId,
+      })),
+    );
+    if (error)
+      return { error: "Could not save related programs. Please try again." };
   }
 
   return null;
@@ -48,8 +53,12 @@ async function syncCalendarItemLinks(
 
 async function findRecurrenceOverlapWarning(
   supabase: SupabaseClient,
-  item: { startsAt: string; endsAt: string | null; recurrenceRule: string | null },
-  excludeId?: string
+  item: {
+    startsAt: string;
+    endsAt: string | null;
+    recurrenceRule: string | null;
+  },
+  excludeId?: string,
 ): Promise<string | undefined> {
   if (!item.recurrenceRule) return undefined;
 
@@ -63,13 +72,17 @@ async function findRecurrenceOverlapWarning(
   if (excludeId) query = query.neq("id", excludeId);
 
   const { data } = await query;
-  const overlap = (data ?? []).find((row) => (row.ends_at ?? row.starts_at) >= item.startsAt);
+  const overlap = (data ?? []).find(
+    (row) => (row.ends_at ?? row.starts_at) >= item.startsAt,
+  );
   if (!overlap) return undefined;
 
   return `This recurring item overlaps with "${overlap.title}" (starts ${new Date(overlap.starts_at).toLocaleDateString()}).`;
 }
 
-export async function createCalendarItemAction(formData: FormData): Promise<CalendarActionResult> {
+export async function createCalendarItemAction(
+  formData: FormData,
+): Promise<CalendarActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -77,7 +90,11 @@ export async function createCalendarItemAction(formData: FormData): Promise<Cale
   if (!user) {
     return { error: "You must be signed in to create a calendar item." };
   }
-  const permissionError = await checkPermission(supabase, "content_calendar", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "content_calendar",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   const parsed = parseCalendarItemForm(formData);
@@ -126,13 +143,18 @@ export async function createCalendarItemAction(formData: FormData): Promise<Cale
     return { error: "Could not create the calendar item. Please try again." };
   }
 
-  const linkError = await syncCalendarItemLinks(supabase, inserted.id, categories, programIds);
+  const linkError = await syncCalendarItemLinks(
+    supabase,
+    inserted.id,
+    categories,
+    programIds,
+  );
   if (linkError) return linkError;
 
   const warning = await findRecurrenceOverlapWarning(
     supabase,
     { startsAt, endsAt, recurrenceRule },
-    inserted.id
+    inserted.id,
   );
 
   revalidatePath("/portal/calendar");
@@ -141,7 +163,7 @@ export async function createCalendarItemAction(formData: FormData): Promise<Cale
 
 export async function updateCalendarItemAction(
   id: string,
-  formData: FormData
+  formData: FormData,
 ): Promise<CalendarActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -150,7 +172,11 @@ export async function updateCalendarItemAction(
   if (!user) {
     return { error: "You must be signed in to update a calendar item." };
   }
-  const permissionError = await checkPermission(supabase, "content_calendar", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "content_calendar",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   const parsed = parseCalendarItemForm(formData);
@@ -198,16 +224,27 @@ export async function updateCalendarItemAction(
     return { error: "Could not update the calendar item. Please try again." };
   }
 
-  const linkError = await syncCalendarItemLinks(supabase, id, categories, programIds);
+  const linkError = await syncCalendarItemLinks(
+    supabase,
+    id,
+    categories,
+    programIds,
+  );
   if (linkError) return linkError;
 
-  const warning = await findRecurrenceOverlapWarning(supabase, { startsAt, endsAt, recurrenceRule }, id);
+  const warning = await findRecurrenceOverlapWarning(
+    supabase,
+    { startsAt, endsAt, recurrenceRule },
+    id,
+  );
 
   revalidatePath("/portal/calendar");
   return warning ? { success: true, warning } : { success: true };
 }
 
-export async function duplicateCalendarItemAction(id: string): Promise<CalendarActionResult> {
+export async function duplicateCalendarItemAction(
+  id: string,
+): Promise<CalendarActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -215,13 +252,17 @@ export async function duplicateCalendarItemAction(id: string): Promise<CalendarA
   if (!user) {
     return { error: "You must be signed in to duplicate a calendar item." };
   }
-  const permissionError = await checkPermission(supabase, "content_calendar", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "content_calendar",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   const { data: original, error: fetchError } = await supabase
     .from("calendar_items")
     .select(
-      "title, item_type, starts_at, ends_at, time_zone, recurrence_rule, summary, priority_tier, priority_rationale, visibility, owner_id, calendar_item_categories(category), calendar_item_programs(program_id)"
+      "title, item_type, starts_at, ends_at, time_zone, recurrence_rule, summary, priority_tier, priority_rationale, visibility, owner_id, calendar_item_categories(category), calendar_item_programs(program_id)",
     )
     .eq("id", id)
     .single();
@@ -252,25 +293,38 @@ export async function duplicateCalendarItemAction(id: string): Promise<CalendarA
     .single();
 
   if (insertError || !inserted) {
-    return { error: "Could not duplicate the calendar item. Please try again." };
+    return {
+      error: "Could not duplicate the calendar item. Please try again.",
+    };
   }
 
   const categories = (original.calendar_item_categories ?? []).map(
-    (row: { category: string }) => row.category
+    (row: { category: string }) => row.category,
   );
   const programIds = (original.calendar_item_programs ?? []).map(
-    (row: { program_id: string }) => row.program_id
+    (row: { program_id: string }) => row.program_id,
   );
-  const linkError = await syncCalendarItemLinks(supabase, inserted.id, categories, programIds);
+  const linkError = await syncCalendarItemLinks(
+    supabase,
+    inserted.id,
+    categories,
+    programIds,
+  );
   if (linkError) return linkError;
 
   revalidatePath("/portal/calendar");
   return { success: true };
 }
 
-export async function archiveCalendarItemAction(id: string): Promise<CalendarActionResult> {
+export async function archiveCalendarItemAction(
+  id: string,
+): Promise<CalendarActionResult> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "content_calendar", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "content_calendar",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   const { error } = await supabase
@@ -286,9 +340,15 @@ export async function archiveCalendarItemAction(id: string): Promise<CalendarAct
   return { success: true };
 }
 
-export async function restoreCalendarItemAction(id: string): Promise<CalendarActionResult> {
+export async function restoreCalendarItemAction(
+  id: string,
+): Promise<CalendarActionResult> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "content_calendar", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "content_calendar",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   const { error } = await supabase
@@ -308,7 +368,11 @@ export async function listCalendarOwnersAction(): Promise<
   { data: CalendarOwner[] } | { error: string }
 > {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "content_calendar", "view");
+  const permissionError = await checkPermission(
+    supabase,
+    "content_calendar",
+    "view",
+  );
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase.rpc("list_calendar_owners");

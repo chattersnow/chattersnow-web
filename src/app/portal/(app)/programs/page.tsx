@@ -1,5 +1,8 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserPermissions, hasPermission } from "@/lib/auth/permissions";
+import {
+  getCurrentUserPermissions,
+  hasPermission,
+} from "@/lib/auth/permissions";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -29,16 +32,20 @@ export default async function ProgramsPage() {
         Programs
       </h1>
       <p className="app-muted mt-2 max-w-2xl text-sm">
-        Named, repeatable initiatives that events roll up into — assign an event to a
-        program from the event&rsquo;s Overview tab.
+        Named, repeatable initiatives that events roll up into — assign an event
+        to a program from the event&rsquo;s Overview tab.
       </p>
 
-      <div className="mt-6 flex justify-end">{canManage ? <NewProgramDialog /> : null}</div>
+      <div className="mt-6 flex justify-end">
+        {canManage ? <NewProgramDialog /> : null}
+      </div>
 
       <Card className="mt-6">
         <CardContent className="px-0">
           {error ? (
-            <p className="app-muted px-4 py-6 text-sm">Could not load programs. Please try again.</p>
+            <p className="app-muted px-4 py-6 text-sm">
+              Could not load programs. Please try again.
+            </p>
           ) : !programs || programs.length === 0 ? (
             <p className="app-muted px-4 py-6 text-sm">No programs yet.</p>
           ) : (
@@ -54,7 +61,9 @@ export default async function ProgramsPage() {
               <TableBody>
                 {(programs as ProgramRow[]).map((program) => (
                   <TableRow key={program.id}>
-                    <TableCell className="font-medium">{program.name}</TableCell>
+                    <TableCell className="font-medium">
+                      {program.name}
+                    </TableCell>
                     <TableCell className="app-muted max-w-sm truncate">
                       {program.description || "—"}
                     </TableCell>
@@ -62,7 +71,10 @@ export default async function ProgramsPage() {
                       <ProgramStatusBadge status={program.status} />
                     </TableCell>
                     <TableCell className="text-right">
-                      <ProgramDetailsDialog program={program} canManage={canManage} />
+                      <ProgramDetailsDialog
+                        program={program}
+                        canManage={canManage}
+                      />
                     </TableCell>
                   </TableRow>
                 ))}

@@ -16,12 +16,18 @@ const ACTION_STYLES: Record<string, string> = {
   delete: "bg-destructive/10 text-destructive",
 };
 
-function Pill({ className, children }: { className?: string; children: ReactNode }) {
+function Pill({
+  className,
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
   return (
     <span
       className={cn(
         "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize",
-        className
+        className,
       )}
     >
       {children}
@@ -30,5 +36,9 @@ function Pill({ className, children }: { className?: string; children: ReactNode
 }
 
 export function ActionBadge({ action }: { action: string }) {
-  return <Pill className={ACTION_STYLES[action] ?? "bg-muted text-muted-foreground"}>{action}</Pill>;
+  return (
+    <Pill className={ACTION_STYLES[action] ?? "bg-muted text-muted-foreground"}>
+      {action}
+    </Pill>
+  );
 }

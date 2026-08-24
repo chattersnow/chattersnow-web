@@ -9,13 +9,22 @@ function formData(fields: Record<string, string>) {
 
 describe("parseRoleTypeForm", () => {
   test("parses valid input", () => {
-    const result = parseRoleTypeForm(formData({ name: "Ride Buddy", description: "Skis alongside a participant." }));
+    const result = parseRoleTypeForm(
+      formData({
+        name: "Ride Buddy",
+        description: "Skis alongside a participant.",
+      }),
+    );
     expect("data" in result && result.data.name).toBe("Ride Buddy");
-    expect("data" in result && result.data.description).toBe("Skis alongside a participant.");
+    expect("data" in result && result.data.description).toBe(
+      "Skis alongside a participant.",
+    );
   });
 
   test("trims the name and treats blank description as null", () => {
-    const result = parseRoleTypeForm(formData({ name: "  Event Setup  ", description: "  " }));
+    const result = parseRoleTypeForm(
+      formData({ name: "  Event Setup  ", description: "  " }),
+    );
     expect("data" in result && result.data.name).toBe("Event Setup");
     expect("data" in result && result.data.description).toBeNull();
   });

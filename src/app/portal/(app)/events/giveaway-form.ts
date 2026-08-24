@@ -9,7 +9,9 @@ export type GiveawayFormData = {
   notes: string | null;
 };
 
-export function parseGiveawayForm(formData: FormData): ParseResult<GiveawayFormData> {
+export function parseGiveawayForm(
+  formData: FormData,
+): ParseResult<GiveawayFormData> {
   const name = String(formData.get("name") ?? "").trim();
   const ticketsSoldRaw = String(formData.get("ticketsSold") ?? "0").trim();
   const ticketPriceRaw = String(formData.get("ticketPrice") ?? "").trim();
@@ -41,7 +43,9 @@ export function parseGiveawayForm(formData: FormData): ParseResult<GiveawayFormD
       ticketsSold,
       ticketPrice,
       revenueAmount,
-      drawingDate: drawingDateRaw ? new Date(drawingDateRaw).toISOString() : null,
+      drawingDate: drawingDateRaw
+        ? new Date(drawingDateRaw).toISOString()
+        : null,
       notes: notes || null,
     },
   };
@@ -53,7 +57,9 @@ export type GiveawayPrizeFormData = {
   notes: string | null;
 };
 
-export function parseGiveawayPrizeForm(formData: FormData): ParseResult<GiveawayPrizeFormData> {
+export function parseGiveawayPrizeForm(
+  formData: FormData,
+): ParseResult<GiveawayPrizeFormData> {
   const prizeName = String(formData.get("prizeName") ?? "").trim();
   const estimatedValueRaw = String(formData.get("estimatedValue") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim();
@@ -85,10 +91,14 @@ export type GiveawayWinnerFormData = {
   notes: string | null;
 };
 
-export function parseGiveawayWinnerForm(formData: FormData): ParseResult<GiveawayWinnerFormData> {
+export function parseGiveawayWinnerForm(
+  formData: FormData,
+): ParseResult<GiveawayWinnerFormData> {
   const winnerName = String(formData.get("winnerName") ?? "").trim();
   const winnerContact = String(formData.get("winnerContact") ?? "").trim();
-  const distributionStatus = String(formData.get("distributionStatus") ?? "pending");
+  const distributionStatus = String(
+    formData.get("distributionStatus") ?? "pending",
+  );
   const distributedAtRaw = String(formData.get("distributedAt") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim();
 
@@ -99,7 +109,9 @@ export function parseGiveawayWinnerForm(formData: FormData): ParseResult<Giveawa
       winnerName,
       winnerContact: winnerContact || null,
       distributionStatus,
-      distributedAt: distributedAtRaw ? new Date(distributedAtRaw).toISOString() : null,
+      distributedAt: distributedAtRaw
+        ? new Date(distributedAtRaw).toISOString()
+        : null,
       notes: notes || null,
     },
   };

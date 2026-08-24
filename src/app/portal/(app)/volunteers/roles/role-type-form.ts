@@ -5,7 +5,9 @@ export type RoleTypeFormData = {
   description: string | null;
 };
 
-export function parseRoleTypeForm(formData: FormData): ParseResult<RoleTypeFormData> {
+export function parseRoleTypeForm(
+  formData: FormData,
+): ParseResult<RoleTypeFormData> {
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
 

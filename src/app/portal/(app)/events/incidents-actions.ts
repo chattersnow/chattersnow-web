@@ -17,10 +17,14 @@ export type EventIncident = {
 export type IncidentActionResult = { error: string } | { success: true };
 
 export async function listEventIncidentsAction(
-  eventId: string
+  eventId: string,
 ): Promise<{ data: EventIncident[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "event_incidents", "view");
+  const permissionError = await checkPermission(
+    supabase,
+    "event_incidents",
+    "view",
+  );
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase
@@ -37,7 +41,7 @@ export async function listEventIncidentsAction(
 
 export async function createEventIncidentAction(
   eventId: string,
-  formData: FormData
+  formData: FormData,
 ): Promise<IncidentActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -46,13 +50,19 @@ export async function createEventIncidentAction(
   if (!user) {
     return { error: "You must be signed in to log an incident." };
   }
-  const permissionError = await checkPermission(supabase, "event_incidents", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "event_incidents",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   const parsed = parseIncidentForm(formData);
   if ("error" in parsed) return parsed;
 
-  const { error } = await supabase.from("event_incidents").insert({ event_id: eventId, ...parsed.data });
+  const { error } = await supabase
+    .from("event_incidents")
+    .insert({ event_id: eventId, ...parsed.data });
 
   if (error) {
     return { error: "Could not save the incident. Please try again." };
@@ -62,7 +72,9 @@ export async function createEventIncidentAction(
   return { success: true };
 }
 
-export async function deleteEventIncidentAction(id: string): Promise<IncidentActionResult> {
+export async function deleteEventIncidentAction(
+  id: string,
+): Promise<IncidentActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -70,10 +82,17 @@ export async function deleteEventIncidentAction(id: string): Promise<IncidentAct
   if (!user) {
     return { error: "You must be signed in to remove an incident." };
   }
-  const permissionError = await checkPermission(supabase, "event_incidents", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "event_incidents",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
-  const { error } = await supabase.from("event_incidents").delete().eq("id", id);
+  const { error } = await supabase
+    .from("event_incidents")
+    .delete()
+    .eq("id", id);
   if (error) {
     return { error: "Could not remove the incident. Please try again." };
   }

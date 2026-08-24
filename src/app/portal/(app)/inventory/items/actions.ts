@@ -9,7 +9,7 @@ export type UpdateInventoryItemResult = { error: string } | { success: true };
 
 export async function updateInventoryItemAction(
   id: string,
-  formData: FormData
+  formData: FormData,
 ): Promise<UpdateInventoryItemResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -27,7 +27,10 @@ export async function updateInventoryItemAction(
   const parsed = parseInventoryItemForm(formData);
   if ("error" in parsed) return parsed;
 
-  const { error } = await supabase.from("inventory_items").update(parsed.data).eq("id", id);
+  const { error } = await supabase
+    .from("inventory_items")
+    .update(parsed.data)
+    .eq("id", id);
 
   if (error) {
     return { error: "Could not save the item. Please try again." };

@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { parseGiveawayForm, parseGiveawayPrizeForm, parseGiveawayWinnerForm } from "./giveaway-form";
+import {
+  parseGiveawayForm,
+  parseGiveawayPrizeForm,
+  parseGiveawayWinnerForm,
+} from "./giveaway-form";
 import { checkPermission } from "@/lib/auth/permissions";
 
 export type GiveawayWinner = {
@@ -15,7 +19,12 @@ export type GiveawayWinner = {
   notes: string | null;
 };
 
-export type GiveawayPrizeDonor = { id: string; name: string | null; email: string | null; phone: string | null };
+export type GiveawayPrizeDonor = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+};
 
 export type GiveawayPrize = {
   id: string;
@@ -43,7 +52,7 @@ export type Giveaway = {
 export type GiveawayActionResult = { error: string } | { success: true };
 
 export async function getEventGiveawayAction(
-  eventId: string
+  eventId: string,
 ): Promise<{ data: Giveaway | null } | { error: string }> {
   const supabase = await createSupabaseServerClient();
   const permissionError = await checkPermission(supabase, "events", "view");
@@ -52,20 +61,22 @@ export async function getEventGiveawayAction(
   const { data, error } = await supabase
     .from("giveaways")
     .select(
-      "id, event_id, name, tickets_sold, ticket_price, revenue_amount, drawing_date, notes, giveaway_prizes(id, giveaway_id, prize_name, donor_person_id, donor:people(id, name, email, phone), estimated_value, notes, giveaway_winners(id, giveaway_prize_id, winner_name, winner_contact, distribution_status, distributed_at, notes))"
+      "id, event_id, name, tickets_sold, ticket_price, revenue_amount, drawing_date, notes, giveaway_prizes(id, giveaway_id, prize_name, donor_person_id, donor:people(id, name, email, phone), estimated_value, notes, giveaway_winners(id, giveaway_prize_id, winner_name, winner_contact, distribution_status, distributed_at, notes))",
     )
     .eq("event_id", eventId)
     .maybeSingle();
 
   if (error) {
-    return { error: "Could not load the giveaway for this event. Please try again." };
+    return {
+      error: "Could not load the giveaway for this event. Please try again.",
+    };
   }
   return { data: (data as unknown as Giveaway) ?? null };
 }
 
 export async function upsertEventGiveawayAction(
   eventId: string,
-  formData: FormData
+  formData: FormData,
 ): Promise<GiveawayActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -79,7 +90,8 @@ export async function upsertEventGiveawayAction(
 
   const parsed = parseGiveawayForm(formData);
   if ("error" in parsed) return parsed;
-  const { name, ticketsSold, ticketPrice, revenueAmount, drawingDate, notes } = parsed.data;
+  const { name, ticketsSold, ticketPrice, revenueAmount, drawingDate, notes } =
+    parsed.data;
 
   const { error } = await supabase.from("giveaways").upsert(
     {
@@ -91,7 +103,7 @@ export async function upsertEventGiveawayAction(
       drawing_date: drawingDate,
       notes,
     },
-    { onConflict: "event_id" }
+    { onConflict: "event_id" },
   );
 
   if (error) {
@@ -105,7 +117,7 @@ export async function upsertEventGiveawayAction(
 export async function createGiveawayPrizeAction(
   giveawayId: string,
   donorPersonId: string | null,
-  formData: FormData
+  formData: FormData,
 ): Promise<GiveawayActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -137,7 +149,9 @@ export async function createGiveawayPrizeAction(
   return { success: true };
 }
 
-export async function deleteGiveawayPrizeAction(id: string): Promise<GiveawayActionResult> {
+export async function deleteGiveawayPrizeAction(
+  id: string,
+): Promise<GiveawayActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -148,7 +162,10 @@ export async function deleteGiveawayPrizeAction(id: string): Promise<GiveawayAct
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return permissionError;
 
-  const { error } = await supabase.from("giveaway_prizes").delete().eq("id", id);
+  const { error } = await supabase
+    .from("giveaway_prizes")
+    .delete()
+    .eq("id", id);
   if (error) {
     return { error: "Could not remove the prize. Please try again." };
   }
@@ -159,7 +176,7 @@ export async function deleteGiveawayPrizeAction(id: string): Promise<GiveawayAct
 
 export async function upsertGiveawayWinnerAction(
   prizeId: string,
-  formData: FormData
+  formData: FormData,
 ): Promise<GiveawayActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -173,7 +190,13 @@ export async function upsertGiveawayWinnerAction(
 
   const parsed = parseGiveawayWinnerForm(formData);
   if ("error" in parsed) return parsed;
-  const { winnerName, winnerContact, distributionStatus, distributedAt, notes } = parsed.data;
+  const {
+    winnerName,
+    winnerContact,
+    distributionStatus,
+    distributedAt,
+    notes,
+  } = parsed.data;
 
   const { error } = await supabase.from("giveaway_winners").upsert(
     {
@@ -184,7 +207,7 @@ export async function upsertGiveawayWinnerAction(
       distributed_at: distributedAt,
       notes,
     },
-    { onConflict: "giveaway_prize_id" }
+    { onConflict: "giveaway_prize_id" },
   );
 
   if (error) {

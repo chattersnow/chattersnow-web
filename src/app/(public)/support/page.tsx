@@ -42,15 +42,15 @@ export default function SupportPage() {
             <p>
               Sponsors help fund the core of what Chatter does: subsidizing
               mountain days, keeping gear access programs running, and making
-              events more affordable for LGBTQ+ riders who might not
-              otherwise be able to join.
+              events more affordable for LGBTQ+ riders who might not otherwise
+              be able to join.
             </p>
             <p>
               We&apos;re building out sponsorship tiers and benefits (event
-              branding, gear partnerships, and community recognition among
-              them) — if your business or organization is interested in
-              supporting Chatter, reach out and we&apos;ll work out what
-              makes sense together.
+              branding, gear partnerships, and community recognition among them)
+              — if your business or organization is interested in supporting
+              Chatter, reach out and we&apos;ll work out what makes sense
+              together.
             </p>
           </div>
           <Button
@@ -68,10 +68,13 @@ export default function SupportPage() {
             In-kind donations
           </h2>
           <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-            We accept gently used ski and snowboard gear, which we
-            redistribute through our gear program. See what we accept and how
-            to donate on our{" "}
-            <Link href="/gears#donate" className="underline underline-offset-4 hover:text-foreground">
+            We accept gently used ski and snowboard gear, which we redistribute
+            through our gear program. See what we accept and how to donate on
+            our{" "}
+            <Link
+              href="/gears#donate"
+              className="underline underline-offset-4 hover:text-foreground"
+            >
               Gear page
             </Link>
             .

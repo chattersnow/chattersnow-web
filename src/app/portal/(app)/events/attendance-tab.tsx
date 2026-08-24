@@ -47,10 +47,15 @@ function AttendanceForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-md border border-[var(--line)] p-4">
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-md border border-[var(--line)] p-4"
+    >
       <FieldGroup>
         <Field>
-          <FieldLabel htmlFor="attendance-count">Attendance headcount</FieldLabel>
+          <FieldLabel htmlFor="attendance-count">
+            Attendance headcount
+          </FieldLabel>
           <Input
             id="attendance-count"
             type="number"
@@ -101,7 +106,8 @@ export function AttendanceTab({
 }) {
   const [editing, setEditing] = useState(false);
   const [prevMode, setPrevMode] = useState(mode);
-  const hasAttendance = event.attendance_count !== null || Boolean(event.attendance_notes);
+  const hasAttendance =
+    event.attendance_count !== null || Boolean(event.attendance_notes);
 
   if (mode !== prevMode) {
     setPrevMode(mode);
@@ -109,7 +115,13 @@ export function AttendanceTab({
   }
 
   if (editing) {
-    return <AttendanceForm event={event} onSaved={() => setEditing(false)} onCancel={() => setEditing(false)} />;
+    return (
+      <AttendanceForm
+        event={event}
+        onSaved={() => setEditing(false)}
+        onCancel={() => setEditing(false)}
+      />
+    );
   }
 
   if (!hasAttendance) {
@@ -118,7 +130,11 @@ export function AttendanceTab({
         <p className="app-muted text-sm">No attendance recorded yet.</p>
         {mode === "edit" && (
           <div>
-            <Button type="button" variant="outline" onClick={() => setEditing(true)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setEditing(true)}
+            >
               + Record attendance
             </Button>
           </div>
@@ -139,7 +155,13 @@ export function AttendanceTab({
       </FieldGroup>
       {mode === "edit" && (
         <div>
-          <Button type="button" variant="ghost" size="icon-sm" aria-label="Edit attendance" onClick={() => setEditing(true)}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Edit attendance"
+            onClick={() => setEditing(true)}
+          >
             <Pencil />
           </Button>
         </div>

@@ -21,7 +21,9 @@ export default async function GearsPage() {
 
   const { data: items } = await supabase
     .from("public_gear_catalog")
-    .select("id, description, size, type, gender, condition, photo_url, created_at")
+    .select(
+      "id, description, size, type, gender, condition, photo_url, created_at",
+    )
     .order("created_at", { ascending: false });
 
   return (
@@ -57,9 +59,9 @@ export default async function GearsPage() {
             Request gear
           </h2>
           <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-            See something in the library you need, or don&apos;t see your
-            size? Send us a message and we&apos;ll do our best to match you
-            with available gear.
+            See something in the library you need, or don&apos;t see your size?
+            Send us a message and we&apos;ll do our best to match you with
+            available gear.
           </p>
           <Button
             variant="outline"
@@ -86,10 +88,13 @@ export default async function GearsPage() {
                 ))}
               </ul>
               <p className="app-muted text-sm leading-relaxed">
-                Drop items off in person at any Chatter event, or contact us
-                to arrange a drop-off, mail-in, or collection.
+                Drop items off in person at any Chatter event, or contact us to
+                arrange a drop-off, mail-in, or collection.
               </p>
-              <Button nativeButton={false} render={<Link href="/contact?topic=gear" />}>
+              <Button
+                nativeButton={false}
+                render={<Link href="/contact?topic=gear" />}
+              >
                 Contact us to donate gear
               </Button>
             </CardContent>
@@ -103,7 +108,10 @@ export default async function GearsPage() {
           <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
             We periodically run gear drives and swap events where members can
             donate, trade, and pick up gear in person. See{" "}
-            <Link href="/programs" className="underline underline-offset-4 hover:text-foreground">
+            <Link
+              href="/programs"
+              className="underline underline-offset-4 hover:text-foreground"
+            >
               Programs
             </Link>{" "}
             for what&apos;s coming up.

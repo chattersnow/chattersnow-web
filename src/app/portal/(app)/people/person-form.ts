@@ -10,14 +10,20 @@ export type PersonFormData = {
   is_volunteer: boolean;
 };
 
-export function parsePersonForm(formData: FormData): ParseResult<PersonFormData> {
+export function parsePersonForm(
+  formData: FormData,
+): ParseResult<PersonFormData> {
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim();
-  const is_donor = formData.get("isDonor") === "on" || formData.get("isDonor") === "true";
-  const is_sponsor = formData.get("isSponsor") === "on" || formData.get("isSponsor") === "true";
-  const is_volunteer = formData.get("isVolunteer") === "on" || formData.get("isVolunteer") === "true";
+  const is_donor =
+    formData.get("isDonor") === "on" || formData.get("isDonor") === "true";
+  const is_sponsor =
+    formData.get("isSponsor") === "on" || formData.get("isSponsor") === "true";
+  const is_volunteer =
+    formData.get("isVolunteer") === "on" ||
+    formData.get("isVolunteer") === "true";
 
   if (!name) return { error: "Name is required." };
   if (!is_donor && !is_sponsor && !is_volunteer) {

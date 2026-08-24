@@ -44,7 +44,7 @@ export function NewProgramDialog() {
 
   function update<K extends keyof ReturnType<typeof getInitialFormState>>(
     key: K,
-    value: ReturnType<typeof getInitialFormState>[K]
+    value: ReturnType<typeof getInitialFormState>[K],
   ) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
@@ -79,7 +79,9 @@ export function NewProgramDialog() {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button type="button" className="shrink-0 whitespace-nowrap" />}>
+      <DialogTrigger
+        render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
+      >
         New program
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
@@ -113,10 +115,16 @@ export function NewProgramDialog() {
 
             <Field>
               <FieldLabel htmlFor="status">Status</FieldLabel>
-              <Select value={form.status} onValueChange={(value) => update("status", value ?? "pilot")}>
+              <Select
+                value={form.status}
+                onValueChange={(value) => update("status", value ?? "pilot")}
+              >
                 <SelectTrigger id="status" className="w-full">
                   <SelectValue placeholder="Select status">
-                    {(value: string) => STATUSES.find((option) => option.value === value)?.label ?? "Select status"}
+                    {(value: string) =>
+                      STATUSES.find((option) => option.value === value)
+                        ?.label ?? "Select status"
+                    }
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>

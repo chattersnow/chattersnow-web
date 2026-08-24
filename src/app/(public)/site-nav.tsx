@@ -171,7 +171,7 @@ export function SiteNav() {
                     </ul>
                   </NavigationMenuContent>
                 </NavigationMenuItem>
-              )
+              ),
             )}
           </NavigationMenuList>
         </NavigationMenu>
@@ -191,19 +191,27 @@ export function SiteNav() {
           <nav className="flex flex-col gap-2 px-4 pb-4">
             {NAV_GROUPS.map((group) =>
               !group.links ? (
-                <MobileNavLink key={group.label} href={group.href} onNavigate={closeMobile}>
+                <MobileNavLink
+                  key={group.label}
+                  href={group.href}
+                  onNavigate={closeMobile}
+                >
                   {group.label}
                 </MobileNavLink>
               ) : (
                 <div key={group.label} className="flex flex-col gap-0.5">
                   <p className="app-eyebrow px-2">{group.label}</p>
                   {group.links.map((link) => (
-                    <MobileSubNavLink key={link.href} href={link.href} onNavigate={closeMobile}>
+                    <MobileSubNavLink
+                      key={link.href}
+                      href={link.href}
+                      onNavigate={closeMobile}
+                    >
                       {link.label}
                     </MobileSubNavLink>
                   ))}
                 </div>
-              )
+              ),
             )}
           </nav>
         </SheetContent>

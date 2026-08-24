@@ -11,7 +11,9 @@ export type LogisticsFormData = {
   notes: string | null;
 };
 
-export function parseLogisticsForm(formData: FormData): ParseResult<LogisticsFormData> {
+export function parseLogisticsForm(
+  formData: FormData,
+): ParseResult<LogisticsFormData> {
   const field = (key: string) => String(formData.get(key) ?? "").trim() || null;
 
   return {

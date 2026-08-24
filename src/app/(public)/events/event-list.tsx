@@ -1,16 +1,34 @@
 import { EventCard, type PublicEvent } from "./event-card";
 
-export function EventList({ events, now }: { events: PublicEvent[]; now: number }) {
+export function EventList({
+  events,
+  now,
+}: {
+  events: PublicEvent[];
+  now: number;
+}) {
   if (events.length === 0) {
-    return <p className="app-muted py-16 text-center text-sm">No events yet.</p>;
+    return (
+      <p className="app-muted py-16 text-center text-sm">No events yet.</p>
+    );
   }
 
   const upcoming = events
-    .filter((event) => new Date(event.ends_at ?? event.starts_at).getTime() >= now)
-    .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
+    .filter(
+      (event) => new Date(event.ends_at ?? event.starts_at).getTime() >= now,
+    )
+    .sort(
+      (a, b) =>
+        new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime(),
+    );
   const past = events
-    .filter((event) => new Date(event.ends_at ?? event.starts_at).getTime() < now)
-    .sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime());
+    .filter(
+      (event) => new Date(event.ends_at ?? event.starts_at).getTime() < now,
+    )
+    .sort(
+      (a, b) =>
+        new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime(),
+    );
 
   return (
     <div className="space-y-12">
@@ -19,7 +37,9 @@ export function EventList({ events, now }: { events: PublicEvent[]; now: number 
           Upcoming events
         </h2>
         {upcoming.length === 0 ? (
-          <p className="app-muted mt-4 text-sm">No upcoming events right now.</p>
+          <p className="app-muted mt-4 text-sm">
+            No upcoming events right now.
+          </p>
         ) : (
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {upcoming.map((event) => (

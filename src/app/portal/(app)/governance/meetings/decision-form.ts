@@ -5,7 +5,9 @@ export type DecisionFormData = {
   decision_date: string;
 };
 
-export function parseDecisionForm(formData: FormData): ParseResult<DecisionFormData> {
+export function parseDecisionForm(
+  formData: FormData,
+): ParseResult<DecisionFormData> {
   const description = String(formData.get("description") ?? "").trim();
   const decisionDate = String(formData.get("decisionDate") ?? "").trim();
 

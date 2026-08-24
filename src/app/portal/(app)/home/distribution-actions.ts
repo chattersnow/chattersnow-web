@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { parseDistributionInput, type RecordDistributionInput } from "./distribution-form";
+import {
+  parseDistributionInput,
+  type RecordDistributionInput,
+} from "./distribution-form";
 import { checkAnyPermission } from "@/lib/auth/permissions";
 
 export type { RecordDistributionInput };
@@ -12,7 +15,12 @@ export type EventDistributionRow = {
   quantity: number;
   occurred_at: string;
   reason: string | null;
-  inventory_item: { id: string; description: string; type: string; size: string | null } | null;
+  inventory_item: {
+    id: string;
+    description: string;
+    type: string;
+    size: string | null;
+  } | null;
 };
 
 export type DistributionRow = EventDistributionRow & {
@@ -23,7 +31,7 @@ export type DistributionRow = EventDistributionRow & {
 export type DistributionActionResult = { error: string } | { success: true };
 
 export async function listEventDistributionsAction(
-  eventId: string
+  eventId: string,
 ): Promise<{ data: EventDistributionRow[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
   const permissionError = await checkAnyPermission(supabase, [
@@ -34,19 +42,23 @@ export async function listEventDistributionsAction(
 
   const { data, error } = await supabase
     .from("inventory_movements")
-    .select("id, quantity, occurred_at, reason, inventory_item:inventory_items(id, description, type, size)")
+    .select(
+      "id, quantity, occurred_at, reason, inventory_item:inventory_items(id, description, type, size)",
+    )
     .eq("event_id", eventId)
     .eq("movement_type", "distributed")
     .order("occurred_at", { ascending: false });
 
   if (error) {
-    return { error: "Could not load distributions for this event. Please try again." };
+    return {
+      error: "Could not load distributions for this event. Please try again.",
+    };
   }
   return { data: (data ?? []) as unknown as EventDistributionRow[] };
 }
 
 export async function listDistributionsAction(
-  limit: number = 100
+  limit: number = 100,
 ): Promise<{ data: DistributionRow[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
   const permissionError = await checkAnyPermission(supabase, [
@@ -58,7 +70,7 @@ export async function listDistributionsAction(
   const { data, error } = await supabase
     .from("inventory_movements")
     .select(
-      "id, quantity, occurred_at, reason, inventory_item:inventory_items(id, description, type, size), event:events(id, name), recipient:people(id, name)"
+      "id, quantity, occurred_at, reason, inventory_item:inventory_items(id, description, type, size), event:events(id, name), recipient:people(id, name)",
     )
     .eq("movement_type", "distributed")
     .order("occurred_at", { ascending: false })
@@ -71,7 +83,8 @@ export async function listDistributionsAction(
 }
 
 export async function listAvailableInventoryItemsAction(): Promise<
-  { data: { id: string; description: string; type: string }[] } | { error: string }
+  | { data: { id: string; description: string; type: string }[] }
+  | { error: string }
 > {
   const supabase = await createSupabaseServerClient();
   const permissionError = await checkAnyPermission(supabase, [
@@ -93,7 +106,7 @@ export async function listAvailableInventoryItemsAction(): Promise<
 }
 
 export async function recordEventDistributionAction(
-  input: RecordDistributionInput
+  input: RecordDistributionInput,
 ): Promise<DistributionActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -111,7 +124,10 @@ export async function recordEventDistributionAction(
   const parsed = parseDistributionInput(input);
   if ("error" in parsed) return parsed;
 
-  const { error } = await supabase.rpc("record_event_distribution", parsed.data);
+  const { error } = await supabase.rpc(
+    "record_event_distribution",
+    parsed.data,
+  );
 
   if (error) {
     return { error: "Could not record the distribution. Please try again." };

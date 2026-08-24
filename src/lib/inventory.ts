@@ -31,7 +31,10 @@ export function resolveImageUrl(url: string | null): string | null {
   return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
 }
 
-export function labelFor(options: { value: string; label: string }[], value: string | null) {
+export function labelFor(
+  options: { value: string; label: string }[],
+  value: string | null,
+) {
   if (!value) return null;
   return options.find((option) => option.value === value)?.label ?? value;
 }

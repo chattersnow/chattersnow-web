@@ -5,9 +5,17 @@ import {
 } from "@/components/ui/sidebar";
 import { NewEventDialog } from "./events/new-event-dialog";
 import { AddDonationModal } from "./home/add-donation-modal";
-import { hasPermission, hasAnyPermission, type PermissionMap } from "@/lib/auth/permissions";
+import {
+  hasPermission,
+  hasAnyPermission,
+  type PermissionMap,
+} from "@/lib/auth/permissions";
 
-export function SidebarQuickActions({ permissions }: { permissions: PermissionMap }) {
+export function SidebarQuickActions({
+  permissions,
+}: {
+  permissions: PermissionMap;
+}) {
   const canCreateEvent = hasPermission(permissions, "events", "manage");
   const canRecordDonation = hasAnyPermission(permissions, [
     { resource: "finance", level: "manage" },

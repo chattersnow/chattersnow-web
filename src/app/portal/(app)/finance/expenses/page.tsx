@@ -13,7 +13,9 @@ type ExpensesPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function ExpensesPage({ searchParams }: ExpensesPageProps) {
+export default async function ExpensesPage({
+  searchParams,
+}: ExpensesPageProps) {
   const supabase = await createSupabaseServerClient();
 
   const params = await searchParams;
@@ -21,11 +23,18 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
   const statusParam = Array.isArray(statusRaw) ? statusRaw[0] : statusRaw;
   const initialStatusFilter = isExpenseStatus(statusParam) ? statusParam : null;
 
-  const [{ data: expenses }, { data: events }, approvalContext] = await Promise.all([
-    supabase.from("event_expenses").select(EXPENSE_COLUMNS).order("expense_date", { ascending: false }),
-    supabase.from("events").select("id, name").order("name", { ascending: true }),
-    getExpenseApprovalContext(supabase),
-  ]);
+  const [{ data: expenses }, { data: events }, approvalContext] =
+    await Promise.all([
+      supabase
+        .from("event_expenses")
+        .select(EXPENSE_COLUMNS)
+        .order("expense_date", { ascending: false }),
+      supabase
+        .from("events")
+        .select("id, name")
+        .order("name", { ascending: true }),
+      getExpenseApprovalContext(supabase),
+    ]);
 
   return (
     <>

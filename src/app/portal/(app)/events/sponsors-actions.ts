@@ -29,7 +29,7 @@ export type EventSponsor = {
 export type SponsorActionResult = { error: string } | { success: true };
 
 export async function listEventSponsorsAction(
-  eventId: string
+  eventId: string,
 ): Promise<{ data: EventSponsor[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
   const permissionError = await checkPermission(supabase, "events", "view");
@@ -38,7 +38,7 @@ export async function listEventSponsorsAction(
   const { data, error } = await supabase
     .from("event_sponsors")
     .select(
-      "id, event_id, person_id, support_type, in_kind_description, contribution_value, is_public, notes, follow_up_status, follow_up_notes, person:people(id, name, email, phone)"
+      "id, event_id, person_id, support_type, in_kind_description, contribution_value, is_public, notes, follow_up_status, follow_up_notes, person:people(id, name, email, phone)",
     )
     .eq("event_id", eventId);
 
@@ -51,7 +51,7 @@ export async function listEventSponsorsAction(
 export async function createEventSponsorAction(
   eventId: string,
   personId: string,
-  formData: FormData
+  formData: FormData,
 ): Promise<SponsorActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -77,7 +77,8 @@ export async function createEventSponsorAction(
   if (error) {
     if (error.code === "23505") {
       return {
-        error: "This person is already linked to this event as a sponsor. Edit their existing entry instead.",
+        error:
+          "This person is already linked to this event as a sponsor. Edit their existing entry instead.",
       };
     }
     return { error: "Could not save the sponsor. Please try again." };
@@ -89,7 +90,7 @@ export async function createEventSponsorAction(
 
 export async function updateEventSponsorAction(
   id: string,
-  formData: FormData
+  formData: FormData,
 ): Promise<SponsorActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -104,7 +105,10 @@ export async function updateEventSponsorAction(
   const parsed = parseSponsorForm(formData);
   if ("error" in parsed) return parsed;
 
-  const { error } = await supabase.from("event_sponsors").update(parsed.data).eq("id", id);
+  const { error } = await supabase
+    .from("event_sponsors")
+    .update(parsed.data)
+    .eq("id", id);
 
   if (error) {
     return { error: "Could not update the sponsor. Please try again." };
@@ -114,7 +118,9 @@ export async function updateEventSponsorAction(
   return { success: true };
 }
 
-export async function deleteEventSponsorAction(id: string): Promise<SponsorActionResult> {
+export async function deleteEventSponsorAction(
+  id: string,
+): Promise<SponsorActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },

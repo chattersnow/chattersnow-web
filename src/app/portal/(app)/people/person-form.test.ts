@@ -21,12 +21,16 @@ describe("parsePersonForm", () => {
   });
 
   test("accepts a single role", () => {
-    const result = parsePersonForm(formData({ name: "Jane", isVolunteer: "true" }));
+    const result = parsePersonForm(
+      formData({ name: "Jane", isVolunteer: "true" }),
+    );
     expect("data" in result && result.data.is_volunteer).toBe(true);
   });
 
-  test("accepts a native checkbox value of \"on\"", () => {
-    const result = parsePersonForm(formData({ name: "Jane", isVolunteer: "on" }));
+  test('accepts a native checkbox value of "on"', () => {
+    const result = parsePersonForm(
+      formData({ name: "Jane", isVolunteer: "on" }),
+    );
     expect("data" in result && result.data.is_volunteer).toBe(true);
   });
 
@@ -39,7 +43,7 @@ describe("parsePersonForm", () => {
         notes: "VIP",
         isDonor: "true",
         isSponsor: "true",
-      })
+      }),
     );
     expect(result).toEqual({
       data: {

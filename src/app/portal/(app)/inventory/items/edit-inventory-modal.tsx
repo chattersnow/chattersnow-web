@@ -65,7 +65,9 @@ type InventoryFormState = ReturnType<typeof formStateFor>;
 
 function isDirty(form: InventoryFormState, item: InventoryItem) {
   const baseline = formStateFor(item);
-  return (Object.keys(baseline) as (keyof InventoryFormState)[]).some((key) => form[key] !== baseline[key]);
+  return (Object.keys(baseline) as (keyof InventoryFormState)[]).some(
+    (key) => form[key] !== baseline[key],
+  );
 }
 
 export function EditInventoryModal({ item }: { item: InventoryItem }) {
@@ -75,11 +77,16 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
   const [form, setForm] = useState(() => formStateFor(item));
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [discardTarget, setDiscardTarget] = useState<"toggle" | "close" | null>(null);
+  const [discardTarget, setDiscardTarget] = useState<"toggle" | "close" | null>(
+    null,
+  );
   const formId = `edit-inventory-form-${item.id}`;
   const dirty = isDirty(form, item);
 
-  function update<K extends keyof InventoryFormState>(key: K, value: InventoryFormState[K]) {
+  function update<K extends keyof InventoryFormState>(
+    key: K,
+    value: InventoryFormState[K],
+  ) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -144,29 +151,60 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
     <>
       <Sheet open={open} onOpenChange={handleOpenChange}>
         <SheetTrigger
-          render={<Button type="button" variant="ghost" size="icon-sm" aria-label="View item" />}
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="View item"
+            />
+          }
         >
           <Eye />
         </SheetTrigger>
-        <SheetContent side="right" showCloseButton={false} className="data-[side=right]:sm:max-w-lg">
+        <SheetContent
+          side="right"
+          showCloseButton={false}
+          className="data-[side=right]:sm:max-w-lg"
+        >
           <SheetHeader className="flex-row items-start gap-2 space-y-0">
             <SheetClose
-              render={<Button type="button" variant="ghost" size="icon-sm" aria-label="Close" />}
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Close"
+                />
+              }
             >
               <ArrowLeft />
             </SheetClose>
             <div className="flex flex-1 flex-col gap-0.5">
               <SheetTitle>{mode === "edit" ? "Edit item" : "Item"}</SheetTitle>
               <SheetDescription>
-                {mode === "edit" ? "Update the details for this inventory item." : "View this item's details."}
+                {mode === "edit"
+                  ? "Update the details for this inventory item."
+                  : "View this item's details."}
               </SheetDescription>
             </div>
             {mode === "view" ? (
-              <Button type="button" variant="ghost" size="icon-sm" aria-label="Edit item" onClick={() => setMode("edit")}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Edit item"
+                onClick={() => setMode("edit")}
+              >
                 <Pencil />
               </Button>
             ) : (
-              <Button type="button" variant="ghost" size="sm" onClick={requestExitEditMode}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={requestExitEditMode}
+              >
                 View
               </Button>
             )}
@@ -175,7 +213,10 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
           {mode === "view" ? (
             <div className="flex-1 overflow-y-auto px-4 pb-4">
               <FieldGroup>
-                <ReadOnlyField label="Item description" htmlFor="edit-description">
+                <ReadOnlyField
+                  label="Item description"
+                  htmlFor="edit-description"
+                >
                   {item.description}
                 </ReadOnlyField>
                 <Field orientation="responsive">
@@ -214,16 +255,24 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
               </FieldGroup>
             </div>
           ) : (
-            <form id={formId} onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+            <form
+              id={formId}
+              onSubmit={handleSubmit}
+              className="flex min-h-0 flex-1 flex-col"
+            >
               <div className="flex-1 overflow-y-auto px-4 pb-4">
                 <FieldGroup>
                   <Field>
-                    <FieldLabel htmlFor="edit-description">Item description</FieldLabel>
+                    <FieldLabel htmlFor="edit-description">
+                      Item description
+                    </FieldLabel>
                     <Textarea
                       id="edit-description"
                       required
                       value={form.description}
-                      onChange={(event) => update("description", event.target.value)}
+                      onChange={(event) =>
+                        update("description", event.target.value)
+                      }
                     />
                   </Field>
 
@@ -256,7 +305,9 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
                       >
                         <SelectTrigger id="edit-gender" className="w-full">
                           <SelectValue placeholder="Select a gender">
-                            {(value: string) => labelFor(GENDERS, value) ?? "Select a gender"}
+                            {(value: string) =>
+                              labelFor(GENDERS, value) ?? "Select a gender"
+                            }
                           </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
@@ -269,14 +320,21 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
                       </Select>
                     </Field>
                     <Field>
-                      <FieldLabel htmlFor="edit-condition">Condition</FieldLabel>
+                      <FieldLabel htmlFor="edit-condition">
+                        Condition
+                      </FieldLabel>
                       <Select
                         value={form.condition || null}
-                        onValueChange={(value) => update("condition", value ?? "")}
+                        onValueChange={(value) =>
+                          update("condition", value ?? "")
+                        }
                       >
                         <SelectTrigger id="edit-condition" className="w-full">
                           <SelectValue placeholder="Select a condition">
-                            {(value: string) => labelFor(CONDITIONS, value) ?? "Select a condition"}
+                            {(value: string) =>
+                              labelFor(CONDITIONS, value) ??
+                              "Select a condition"
+                            }
                           </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
@@ -299,7 +357,9 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
                       >
                         <SelectTrigger id="edit-status" className="w-full">
                           <SelectValue placeholder="Select a status">
-                            {(value: string) => labelFor(STATUSES, value) ?? "Select a status"}
+                            {(value: string) =>
+                              labelFor(STATUSES, value) ?? "Select a status"
+                            }
                           </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
@@ -312,14 +372,18 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
                       </Select>
                     </Field>
                     <Field>
-                      <FieldLabel htmlFor="edit-faceValue">Face value ($)</FieldLabel>
+                      <FieldLabel htmlFor="edit-faceValue">
+                        Face value ($)
+                      </FieldLabel>
                       <Input
                         id="edit-faceValue"
                         type="number"
                         min="0"
                         step="0.01"
                         value={form.faceValue}
-                        onChange={(event) => update("faceValue", event.target.value)}
+                        onChange={(event) =>
+                          update("faceValue", event.target.value)
+                        }
                       />
                     </Field>
                   </Field>
@@ -331,7 +395,9 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
                       type="url"
                       placeholder="https://..."
                       value={form.photoUrl}
-                      onChange={(event) => update("photoUrl", event.target.value)}
+                      onChange={(event) =>
+                        update("photoUrl", event.target.value)
+                      }
                     />
                   </Field>
 
@@ -364,17 +430,25 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
         </SheetContent>
       </Sheet>
 
-      <AlertDialog open={discardTarget !== null} onOpenChange={(next) => !next && setDiscardTarget(null)}>
+      <AlertDialog
+        open={discardTarget !== null}
+        onOpenChange={(next) => !next && setDiscardTarget(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Discard changes?</AlertDialogTitle>
             <AlertDialogDescription>
-              You have unsaved changes to this item. Leaving now will discard them.
+              You have unsaved changes to this item. Leaving now will discard
+              them.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDiscardTarget(null)}>Keep editing</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDiscard}>Discard changes</AlertDialogAction>
+            <AlertDialogCancel onClick={() => setDiscardTarget(null)}>
+              Keep editing
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDiscard}>
+              Discard changes
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

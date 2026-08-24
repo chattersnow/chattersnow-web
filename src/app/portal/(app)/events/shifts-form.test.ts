@@ -10,7 +10,9 @@ function formData(fields: Record<string, string>) {
 describe("parseShiftForm", () => {
   test("requires a label", () => {
     expect(
-      parseShiftForm(formData({ startsAt: "2026-01-05T10:00", endsAt: "2026-01-05T13:00" }))
+      parseShiftForm(
+        formData({ startsAt: "2026-01-05T10:00", endsAt: "2026-01-05T13:00" }),
+      ),
     ).toEqual({ error: "Label is required." });
   });
 
@@ -23,8 +25,12 @@ describe("parseShiftForm", () => {
   test("rejects an end time at or before the start time", () => {
     expect(
       parseShiftForm(
-        formData({ label: "Basecamp AM", startsAt: "2026-01-05T13:00", endsAt: "2026-01-05T10:00" })
-      )
+        formData({
+          label: "Basecamp AM",
+          startsAt: "2026-01-05T13:00",
+          endsAt: "2026-01-05T10:00",
+        }),
+      ),
     ).toEqual({ error: "End time must be after start time." });
   });
 
@@ -36,8 +42,8 @@ describe("parseShiftForm", () => {
           startsAt: "2026-01-05T10:00",
           endsAt: "2026-01-05T13:00",
           targetHeadcount: "0",
-        })
-      )
+        }),
+      ),
     ).toEqual({ error: "Target headcount must be a positive number." });
   });
 
@@ -49,7 +55,7 @@ describe("parseShiftForm", () => {
         endsAt: "2026-01-05T13:00",
         targetHeadcount: "2",
         notes: "Bring radios",
-      })
+      }),
     );
     expect("data" in result && result.data).toEqual({
       label: "Basecamp AM",
@@ -62,7 +68,11 @@ describe("parseShiftForm", () => {
 
   test("allows an empty target headcount and notes", () => {
     const result = parseShiftForm(
-      formData({ label: "Basecamp AM", startsAt: "2026-01-05T10:00", endsAt: "2026-01-05T13:00" })
+      formData({
+        label: "Basecamp AM",
+        startsAt: "2026-01-05T10:00",
+        endsAt: "2026-01-05T13:00",
+      }),
     );
     expect("data" in result && result.data.targetHeadcount).toBeNull();
     expect("data" in result && result.data.notes).toBeNull();

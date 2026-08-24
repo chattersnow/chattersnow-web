@@ -20,7 +20,9 @@ export type DistributionRpcArgs = {
   p_mark_item_distributed: boolean;
 };
 
-export function parseDistributionInput(input: RecordDistributionInput): ParseResult<DistributionRpcArgs> {
+export function parseDistributionInput(
+  input: RecordDistributionInput,
+): ParseResult<DistributionRpcArgs> {
   const inventoryItemId = input.inventoryItemId.trim();
   if (!inventoryItemId) {
     return { error: "Select an inventory item." };
@@ -30,7 +32,9 @@ export function parseDistributionInput(input: RecordDistributionInput): ParseRes
     return { error: "Quantity must be a whole number greater than zero." };
   }
 
-  const occurredAt = input.occurredAt ? new Date(input.occurredAt).toISOString() : new Date().toISOString();
+  const occurredAt = input.occurredAt
+    ? new Date(input.occurredAt).toISOString()
+    : new Date().toISOString();
 
   return {
     data: {

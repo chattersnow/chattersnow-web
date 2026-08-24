@@ -27,7 +27,11 @@ import {
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { TabNavOverlay } from "./tab-nav-overlay";
-import { hasAnyPermission, type PermissionCheck, type PermissionMap } from "@/lib/auth/permissions";
+import {
+  hasAnyPermission,
+  type PermissionCheck,
+  type PermissionMap,
+} from "@/lib/auth/permissions";
 
 type NavSubItem = {
   value: string;
@@ -294,9 +298,11 @@ export function PortalNav({ permissions }: { permissions: PermissionMap }) {
   const { state: sidebarState } = useSidebar();
   const activeSection = activeSectionFor(pathname);
 
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => ({
-    [activeSection]: true,
-  }));
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(
+    () => ({
+      [activeSection]: true,
+    }),
+  );
   const [syncedSection, setSyncedSection] = useState(activeSection);
 
   if (activeSection !== syncedSection) {
@@ -309,14 +315,26 @@ export function PortalNav({ permissions }: { permissions: PermissionMap }) {
   }
 
   const visibleItems = NAV_ITEMS.filter((item) => {
-    if (item.subItems) return item.subItems.some((sub) => hasAnyPermission(permissions, sub.access));
+    if (item.subItems)
+      return item.subItems.some((sub) =>
+        hasAnyPermission(permissions, sub.access),
+      );
     return !item.access || hasAnyPermission(permissions, item.access);
   }).map((item) => {
-    const subItems = item.subItems?.filter((sub) => hasAnyPermission(permissions, sub.access));
-    const href = subItems && subItems.length > 0 && !subItems.some((s) => s.href === item.href)
-      ? subItems[0].href
-      : item.href;
-    return { ...item, href, subItems: subItems && subItems.length > 0 ? subItems : undefined };
+    const subItems = item.subItems?.filter((sub) =>
+      hasAnyPermission(permissions, sub.access),
+    );
+    const href =
+      subItems &&
+      subItems.length > 0 &&
+      !subItems.some((s) => s.href === item.href)
+        ? subItems[0].href
+        : item.href;
+    return {
+      ...item,
+      href,
+      subItems: subItems && subItems.length > 0 ? subItems : undefined,
+    };
   });
 
   return (
@@ -324,7 +342,9 @@ export function PortalNav({ permissions }: { permissions: PermissionMap }) {
       {visibleItems.map((item) => {
         const isSectionActive = activeSection === item.value;
         const isOpen = Boolean(item.subItems && openSections[item.value]);
-        const activeSub = isSectionActive ? activeSubItemFor(pathname, item) : undefined;
+        const activeSub = isSectionActive
+          ? activeSubItemFor(pathname, item)
+          : undefined;
 
         return (
           <SidebarMenuItem key={item.value}>
@@ -345,7 +365,7 @@ export function PortalNav({ permissions }: { permissions: PermissionMap }) {
                 <ChevronRight
                   className={cn(
                     "ml-auto transition-transform",
-                    isOpen && "rotate-90"
+                    isOpen && "rotate-90",
                   )}
                 />
               </SidebarMenuButton>

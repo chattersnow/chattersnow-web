@@ -15,7 +15,7 @@ export type EventRegistrant = {
 };
 
 export async function listEventRegistrantsAction(
-  eventId: string
+  eventId: string,
 ): Promise<{ data: EventRegistrant[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
   const permissionError = await checkPermission(supabase, "events", "view");

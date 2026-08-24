@@ -15,20 +15,38 @@ describe("parseContentForm", () => {
   });
 
   test("trims and keeps a link-only entry", () => {
-    expect(parseContentForm(formData({ externalLink: " https://example.com/agenda.pdf " }))).toEqual({
-      data: { external_link: "https://example.com/agenda.pdf", body_text: null },
+    expect(
+      parseContentForm(
+        formData({ externalLink: " https://example.com/agenda.pdf " }),
+      ),
+    ).toEqual({
+      data: {
+        external_link: "https://example.com/agenda.pdf",
+        body_text: null,
+      },
     });
   });
 
   test("keeps a text-only entry", () => {
-    expect(parseContentForm(formData({ bodyText: "1. Call to order\n2. Old business" }))).toEqual({
-      data: { external_link: null, body_text: "1. Call to order\n2. Old business" },
+    expect(
+      parseContentForm(
+        formData({ bodyText: "1. Call to order\n2. Old business" }),
+      ),
+    ).toEqual({
+      data: {
+        external_link: null,
+        body_text: "1. Call to order\n2. Old business",
+      },
     });
   });
 
   test("keeps both when provided", () => {
     expect(
-      parseContentForm(formData({ externalLink: "https://example.com", bodyText: "Notes" }))
-    ).toEqual({ data: { external_link: "https://example.com", body_text: "Notes" } });
+      parseContentForm(
+        formData({ externalLink: "https://example.com", bodyText: "Notes" }),
+      ),
+    ).toEqual({
+      data: { external_link: "https://example.com", body_text: "Notes" },
+    });
   });
 });

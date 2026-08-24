@@ -13,8 +13,9 @@ export default function ConflictOfInterestPage() {
             <CardTitle>Coming soon</CardTitle>
           </CardHeader>
           <CardContent className="app-muted text-sm">
-            This area will track per-person annual conflict of interest disclosure
-            statements, including on-file date and any noted conflicts.
+            This area will track per-person annual conflict of interest
+            disclosure statements, including on-file date and any noted
+            conflicts.
           </CardContent>
         </Card>
       </div>

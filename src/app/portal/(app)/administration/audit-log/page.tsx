@@ -13,7 +13,10 @@ import {
 } from "@/components/ui/table";
 import { listUsersAction } from "../users/actions";
 import { ActionBadge, TABLE_LABELS } from "./audit-log-badges";
-import { AuditLogDetailSheet, type AuditLogRow } from "./audit-log-detail-sheet";
+import {
+  AuditLogDetailSheet,
+  type AuditLogRow,
+} from "./audit-log-detail-sheet";
 
 const PAGE_SIZE = 50;
 
@@ -50,7 +53,9 @@ type AuditLogPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function AuditLogPage({ searchParams }: AuditLogPageProps) {
+export default async function AuditLogPage({
+  searchParams,
+}: AuditLogPageProps) {
   const supabase = await createSupabaseServerClient();
 
   const params = await searchParams;
@@ -64,12 +69,16 @@ export default async function AuditLogPage({ searchParams }: AuditLogPageProps) 
   const dir: "asc" | "desc" = raw("dir") === "asc" ? "asc" : "desc";
 
   const tableRaw = raw("table");
-  const tableFilter = TABLE_VALUES.includes(tableRaw as (typeof TABLE_VALUES)[number])
+  const tableFilter = TABLE_VALUES.includes(
+    tableRaw as (typeof TABLE_VALUES)[number],
+  )
     ? (tableRaw as (typeof TABLE_VALUES)[number])
     : "all";
 
   const actionRaw = raw("action");
-  const actionFilter = ACTION_VALUES.includes(actionRaw as (typeof ACTION_VALUES)[number])
+  const actionFilter = ACTION_VALUES.includes(
+    actionRaw as (typeof ACTION_VALUES)[number],
+  )
     ? (actionRaw as (typeof ACTION_VALUES)[number])
     : "all";
 
@@ -82,13 +91,18 @@ export default async function AuditLogPage({ searchParams }: AuditLogPageProps) 
 
   const usersResult = await listUsersAction();
   const users = "data" in usersResult ? usersResult.data : [];
-  const actorEmailById = new Map(users.map((user) => [user.user_id, user.email ?? user.user_id]));
+  const actorEmailById = new Map(
+    users.map((user) => [user.user_id, user.email ?? user.user_id]),
+  );
 
   let query = supabase
     .from("audit_log")
-    .select("id, table_name, record_id, action, actor_id, occurred_at, old_data, new_data", {
-      count: "exact",
-    })
+    .select(
+      "id, table_name, record_id, action, actor_id, occurred_at, old_data, new_data",
+      {
+        count: "exact",
+      },
+    )
     .order(sort, { ascending: dir === "asc" })
     .order("id", { ascending: true });
 
@@ -99,7 +113,11 @@ export default async function AuditLogPage({ searchParams }: AuditLogPageProps) 
   if (toDate) query = query.lte("occurred_at", `${toDate}T23:59:59.999Z`);
 
   const offset = (page - 1) * PAGE_SIZE;
-  const { data: entries, error, count } = await query.range(offset, offset + PAGE_SIZE - 1);
+  const {
+    data: entries,
+    error,
+    count,
+  } = await query.range(offset, offset + PAGE_SIZE - 1);
 
   const filterParams = new URLSearchParams();
   if (tableFilter !== "all") filterParams.set("table", tableFilter);
@@ -128,11 +146,19 @@ export default async function AuditLogPage({ searchParams }: AuditLogPageProps) 
     if (sort !== column) {
       return <ArrowUpDown className="size-3.5 text-muted-foreground" />;
     }
-    return dir === "asc" ? <ArrowUp className="size-3.5" /> : <ArrowDown className="size-3.5" />;
+    return dir === "asc" ? (
+      <ArrowUp className="size-3.5" />
+    ) : (
+      <ArrowDown className="size-3.5" />
+    );
   }
 
   const hasActiveFilters =
-    tableFilter !== "all" || actionFilter !== "all" || actorFilter !== "all" || !!fromDate || !!toDate;
+    tableFilter !== "all" ||
+    actionFilter !== "all" ||
+    actorFilter !== "all" ||
+    !!fromDate ||
+    !!toDate;
 
   const totalPages = count ? Math.max(1, Math.ceil(count / PAGE_SIZE)) : 1;
 
@@ -151,10 +177,18 @@ export default async function AuditLogPage({ searchParams }: AuditLogPageProps) 
           <input type="hidden" name="dir" value={dir} />
 
           <div className="flex flex-col gap-1">
-            <label htmlFor="table" className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+            <label
+              htmlFor="table"
+              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+            >
               Table
             </label>
-            <select id="table" name="table" defaultValue={tableFilter} className={selectClassName}>
+            <select
+              id="table"
+              name="table"
+              defaultValue={tableFilter}
+              className={selectClassName}
+            >
               <option value="all">All tables</option>
               {TABLE_VALUES.map((value) => (
                 <option key={value} value={value}>
@@ -165,10 +199,18 @@ export default async function AuditLogPage({ searchParams }: AuditLogPageProps) 
           </div>
 
           <div className="flex flex-col gap-1">
-            <label htmlFor="action" className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+            <label
+              htmlFor="action"
+              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+            >
               Action
             </label>
-            <select id="action" name="action" defaultValue={actionFilter} className={selectClassName}>
+            <select
+              id="action"
+              name="action"
+              defaultValue={actionFilter}
+              className={selectClassName}
+            >
               <option value="all">All actions</option>
               {ACTION_VALUES.map((value) => (
                 <option key={value} value={value} className="capitalize">
@@ -179,10 +221,18 @@ export default async function AuditLogPage({ searchParams }: AuditLogPageProps) 
           </div>
 
           <div className="flex flex-col gap-1">
-            <label htmlFor="actor" className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+            <label
+              htmlFor="actor"
+              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+            >
               Actor
             </label>
-            <select id="actor" name="actor" defaultValue={actorFilter} className={selectClassName}>
+            <select
+              id="actor"
+              name="actor"
+              defaultValue={actorFilter}
+              className={selectClassName}
+            >
               <option value="all">All actors</option>
               {users.map((user) => (
                 <option key={user.user_id} value={user.user_id}>
@@ -193,7 +243,10 @@ export default async function AuditLogPage({ searchParams }: AuditLogPageProps) 
           </div>
 
           <div className="flex flex-col gap-1">
-            <label htmlFor="from" className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+            <label
+              htmlFor="from"
+              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+            >
               From
             </label>
             <input
@@ -206,10 +259,19 @@ export default async function AuditLogPage({ searchParams }: AuditLogPageProps) 
           </div>
 
           <div className="flex flex-col gap-1">
-            <label htmlFor="to" className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+            <label
+              htmlFor="to"
+              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+            >
               To
             </label>
-            <input id="to" name="to" type="date" defaultValue={toDate} className={selectClassName} />
+            <input
+              id="to"
+              name="to"
+              type="date"
+              defaultValue={toDate}
+              className={selectClassName}
+            />
           </div>
 
           <Button type="submit" variant="outline">
@@ -230,9 +292,13 @@ export default async function AuditLogPage({ searchParams }: AuditLogPageProps) 
       <Card className="mt-6">
         <CardContent className="px-0">
           {error ? (
-            <p className="app-muted px-4 py-6 text-sm">Could not load the audit log. Please try again.</p>
+            <p className="app-muted px-4 py-6 text-sm">
+              Could not load the audit log. Please try again.
+            </p>
           ) : !entries || entries.length === 0 ? (
-            <p className="app-muted px-4 py-6 text-sm">No entries match these filters.</p>
+            <p className="app-muted px-4 py-6 text-sm">
+              No entries match these filters.
+            </p>
           ) : (
             <Table>
               <TableHeader>
@@ -261,19 +327,29 @@ export default async function AuditLogPage({ searchParams }: AuditLogPageProps) 
                     record_id: entry.record_id,
                     action: entry.action,
                     occurred_at: entry.occurred_at,
-                    actor_label: entry.actor_id ? actorEmailById.get(entry.actor_id) ?? entry.actor_id : "System",
+                    actor_label: entry.actor_id
+                      ? (actorEmailById.get(entry.actor_id) ?? entry.actor_id)
+                      : "System",
                     old_data: entry.old_data as Record<string, unknown> | null,
                     new_data: entry.new_data as Record<string, unknown> | null,
                   };
                   return (
                     <TableRow key={entry.id}>
-                      <TableCell>{dateTimeFormatter.format(new Date(entry.occurred_at))}</TableCell>
-                      <TableCell>{TABLE_LABELS[entry.table_name] ?? entry.table_name}</TableCell>
+                      <TableCell>
+                        {dateTimeFormatter.format(new Date(entry.occurred_at))}
+                      </TableCell>
+                      <TableCell>
+                        {TABLE_LABELS[entry.table_name] ?? entry.table_name}
+                      </TableCell>
                       <TableCell>
                         <ActionBadge action={entry.action} />
                       </TableCell>
-                      <TableCell className="font-mono text-xs">{entry.record_id.slice(0, 8)}</TableCell>
-                      <TableCell className="app-muted">{auditRow.actor_label}</TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {entry.record_id.slice(0, 8)}
+                      </TableCell>
+                      <TableCell className="app-muted">
+                        {auditRow.actor_label}
+                      </TableCell>
                       <TableCell className="text-right">
                         <AuditLogDetailSheet row={auditRow} />
                       </TableCell>
@@ -293,7 +369,12 @@ export default async function AuditLogPage({ searchParams }: AuditLogPageProps) 
           </p>
           <div className="flex gap-2">
             {page > 1 ? (
-              <Button variant="outline" size="sm" nativeButton={false} render={<Link href={pageHref(page - 1)} />}>
+              <Button
+                variant="outline"
+                size="sm"
+                nativeButton={false}
+                render={<Link href={pageHref(page - 1)} />}
+              >
                 Previous
               </Button>
             ) : (
@@ -302,7 +383,12 @@ export default async function AuditLogPage({ searchParams }: AuditLogPageProps) 
               </Button>
             )}
             {page < totalPages ? (
-              <Button variant="outline" size="sm" nativeButton={false} render={<Link href={pageHref(page + 1)} />}>
+              <Button
+                variant="outline"
+                size="sm"
+                nativeButton={false}
+                render={<Link href={pageHref(page + 1)} />}
+              >
                 Next
               </Button>
             ) : (

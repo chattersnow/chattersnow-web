@@ -32,5 +32,7 @@ export const CATEGORIES = [
 ] as const;
 
 export function categoryLabel(value: string): string {
-  return CATEGORIES.find((category) => category.value === value)?.label ?? value;
+  return (
+    CATEGORIES.find((category) => category.value === value)?.label ?? value
+  );
 }

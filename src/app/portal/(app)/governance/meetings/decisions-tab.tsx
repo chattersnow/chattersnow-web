@@ -3,15 +3,30 @@
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
-import { createDecisionAction, deleteDecisionAction, listDecisionsAction, type Decision } from "./decisions-actions";
+import {
+  createDecisionAction,
+  deleteDecisionAction,
+  listDecisionsAction,
+  type Decision,
+} from "./decisions-actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" });
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeZone: "UTC",
+});
 
 function formatDate(value: string) {
   return dateFormatter.format(new Date(value));
@@ -23,7 +38,9 @@ function AddDecisionForm({
   onCancel,
 }: {
   defaultDate: string;
-  onSubmit: (formData: FormData) => Promise<{ error: string } | { success: true }>;
+  onSubmit: (
+    formData: FormData,
+  ) => Promise<{ error: string } | { success: true }>;
   onCancel: () => void;
 }) {
   const router = useRouter();
@@ -52,10 +69,15 @@ function AddDecisionForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-md border border-[var(--line)] p-4">
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-md border border-[var(--line)] p-4"
+    >
       <FieldGroup>
         <Field>
-          <FieldLabel htmlFor="new-decision-description">Description</FieldLabel>
+          <FieldLabel htmlFor="new-decision-description">
+            Description
+          </FieldLabel>
           <Textarea
             id="new-decision-description"
             required
@@ -166,8 +188,12 @@ export function DecisionsTab({
           <TableBody>
             {decisions?.map((decision) => (
               <TableRow key={decision.id}>
-                <TableCell className="whitespace-normal font-medium">{decision.description}</TableCell>
-                <TableCell className="app-muted">{formatDate(decision.decision_date)}</TableCell>
+                <TableCell className="whitespace-normal font-medium">
+                  {decision.description}
+                </TableCell>
+                <TableCell className="app-muted">
+                  {formatDate(decision.decision_date)}
+                </TableCell>
                 <TableCell className="text-right">
                   {mode === "edit" && (
                     <Button
@@ -197,7 +223,11 @@ export function DecisionsTab({
           />
         ) : (
           <div>
-            <Button type="button" variant="outline" onClick={() => setShowAdd(true)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowAdd(true)}
+            >
               + Add decision
             </Button>
           </div>

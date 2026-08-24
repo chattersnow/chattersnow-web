@@ -9,7 +9,8 @@ export default async function SystemSettingsPage() {
     .eq("key", "finance.expense_approval_threshold")
     .maybeSingle();
 
-  const threshold = typeof data?.value === "number" ? data.value : Number(data?.value ?? NaN);
+  const threshold =
+    typeof data?.value === "number" ? data.value : Number(data?.value ?? NaN);
 
   return (
     <>
@@ -18,7 +19,11 @@ export default async function SystemSettingsPage() {
       </h1>
 
       <div className="mt-6">
-        <SystemSettingsForm expenseApprovalThreshold={Number.isFinite(threshold) ? threshold : null} />
+        <SystemSettingsForm
+          expenseApprovalThreshold={
+            Number.isFinite(threshold) ? threshold : null
+          }
+        />
       </div>
     </>
   );

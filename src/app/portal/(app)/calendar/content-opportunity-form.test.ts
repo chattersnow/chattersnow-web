@@ -25,49 +25,75 @@ describe("parseContentOpportunityForm", () => {
   });
 
   test("requires a valid content status", () => {
-    expect(parseContentOpportunityForm(formData({ ...validFields, contentStatus: "made_up" }))).toEqual({
+    expect(
+      parseContentOpportunityForm(
+        formData({ ...validFields, contentStatus: "made_up" }),
+      ),
+    ).toEqual({
       error: "Select a valid content status.",
     });
   });
 
   test("requires a reason when content is skipped", () => {
-    const result = parseContentOpportunityForm(formData({ ...validFields, contentStatus: "skipped" }));
-    expect(result).toEqual({ error: "A reason is required when content is skipped." });
+    const result = parseContentOpportunityForm(
+      formData({ ...validFields, contentStatus: "skipped" }),
+    );
+    expect(result).toEqual({
+      error: "A reason is required when content is skipped.",
+    });
   });
 
   test("accepts a skip status with a reason", () => {
     const result = parseContentOpportunityForm(
-      formData({ ...validFields, contentStatus: "skipped", skipReason: "No capacity this year." })
+      formData({
+        ...validFields,
+        contentStatus: "skipped",
+        skipReason: "No capacity this year.",
+      }),
     );
-    expect("data" in result && result.data.skipReason).toBe("No capacity this year.");
+    expect("data" in result && result.data.skipReason).toBe(
+      "No capacity this year.",
+    );
   });
 
   test("requires a positive whole-number lead time", () => {
-    expect(parseContentOpportunityForm(formData({ ...validFields, leadTimeDays: "0" }))).toEqual({
+    expect(
+      parseContentOpportunityForm(
+        formData({ ...validFields, leadTimeDays: "0" }),
+      ),
+    ).toEqual({
       error: "Lead time must be a whole number of days greater than zero.",
     });
-    expect(parseContentOpportunityForm(formData({ ...validFields, leadTimeDays: "7.5" }))).toEqual({
+    expect(
+      parseContentOpportunityForm(
+        formData({ ...validFields, leadTimeDays: "7.5" }),
+      ),
+    ).toEqual({
       error: "Lead time must be a whole number of days greater than zero.",
     });
   });
 
   test("requires draft due on or before review due", () => {
     const result = parseContentOpportunityForm(
-      formData({ ...validFields, draftDueAt: "2027-03-25T09:00" })
+      formData({ ...validFields, draftDueAt: "2027-03-25T09:00" }),
     );
-    expect(result).toEqual({ error: "Draft due date must be on or before the review due date." });
+    expect(result).toEqual({
+      error: "Draft due date must be on or before the review due date.",
+    });
   });
 
   test("requires review due on or before publish due", () => {
     const result = parseContentOpportunityForm(
-      formData({ ...validFields, reviewDueAt: "2027-04-01T09:00" })
+      formData({ ...validFields, reviewDueAt: "2027-04-01T09:00" }),
     );
-    expect(result).toEqual({ error: "Review due date must be on or before the publish due date." });
+    expect(result).toEqual({
+      error: "Review due date must be on or before the publish due date.",
+    });
   });
 
   test("allows empty due dates", () => {
     const result = parseContentOpportunityForm(
-      formData({ contentStatus: "not_planned", leadTimeDays: "21" })
+      formData({ contentStatus: "not_planned", leadTimeDays: "21" }),
     );
     expect("data" in result && result.data.publishDueAt).toBeNull();
   });

@@ -19,7 +19,9 @@ export default async function RolesPage() {
       <div className="mt-6">
         {"error" in result ? (
           <Card>
-            <CardContent className="app-muted text-sm">{result.error}</CardContent>
+            <CardContent className="app-muted text-sm">
+              {result.error}
+            </CardContent>
           </Card>
         ) : (
           <RolesTable roles={result.data} />

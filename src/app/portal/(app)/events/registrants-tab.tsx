@@ -1,11 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { listEventRegistrantsAction, type EventRegistrant } from "./registrants-actions";
+import {
+  listEventRegistrantsAction,
+  type EventRegistrant,
+} from "./registrants-actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" });
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 
 export function RegistrantsTab({
   eventId,
@@ -16,7 +29,9 @@ export function RegistrantsTab({
   capacity: number | null;
   active: boolean;
 }) {
-  const [registrants, setRegistrants] = useState<EventRegistrant[] | null>(null);
+  const [registrants, setRegistrants] = useState<EventRegistrant[] | null>(
+    null,
+  );
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -30,7 +45,9 @@ export function RegistrantsTab({
     });
   }, [active, eventId]);
 
-  const totalAttending = registrants?.reduce((sum, registrant) => sum + registrant.party_size, 0) ?? 0;
+  const totalAttending =
+    registrants?.reduce((sum, registrant) => sum + registrant.party_size, 0) ??
+    0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -42,7 +59,8 @@ export function RegistrantsTab({
 
       {registrants !== null && (
         <p className="app-muted text-sm">
-          {registrants.length} registration{registrants.length === 1 ? "" : "s"}, {totalAttending} attending
+          {registrants.length} registration{registrants.length === 1 ? "" : "s"}
+          , {totalAttending} attending
           {capacity !== null && ` of ${capacity} capacity`}
         </p>
       )}
@@ -67,7 +85,9 @@ export function RegistrantsTab({
                 <TableCell className="font-medium">{registrant.name}</TableCell>
                 <TableCell className="app-muted">
                   {registrant.email}
-                  {registrant.phone && <span className="block text-xs">{registrant.phone}</span>}
+                  {registrant.phone && (
+                    <span className="block text-xs">{registrant.phone}</span>
+                  )}
                 </TableCell>
                 <TableCell>{registrant.party_size}</TableCell>
                 <TableCell className="app-muted whitespace-nowrap">

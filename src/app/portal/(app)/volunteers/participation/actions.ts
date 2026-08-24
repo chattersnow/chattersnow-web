@@ -31,7 +31,7 @@ export async function listVolunteerHoursAction(): Promise<
   const { data, error } = await supabase
     .from("volunteer_hours")
     .select(
-      "id, hours, logged_date, notes, person:people(id, name), event:events(id, name), volunteer_role_type:volunteer_role_types(id, name)"
+      "id, hours, logged_date, notes, person:people(id, name), event:events(id, name), volunteer_role_type:volunteer_role_types(id, name)",
     )
     .order("logged_date", { ascending: false });
 
@@ -43,7 +43,7 @@ export async function listVolunteerHoursAction(): Promise<
 
 export async function createVolunteerHoursAction(
   personId: string,
-  formData: FormData
+  formData: FormData,
 ): Promise<VolunteerHoursActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -63,7 +63,8 @@ export async function createVolunteerHoursAction(
 
   const parsed = parseParticipationHoursForm(formData);
   if ("error" in parsed) return parsed;
-  const { eventId, volunteerRoleTypeId, hours, loggedDate, notes } = parsed.data;
+  const { eventId, volunteerRoleTypeId, hours, loggedDate, notes } =
+    parsed.data;
 
   const { error } = await supabase.from("volunteer_hours").insert({
     person_id: personId,
@@ -85,7 +86,7 @@ export async function createVolunteerHoursAction(
 export async function updateVolunteerHoursAction(
   id: string,
   personId: string,
-  formData: FormData
+  formData: FormData,
 ): Promise<VolunteerHoursActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -94,7 +95,11 @@ export async function updateVolunteerHoursAction(
   if (!user) {
     return { error: "You must be signed in to update a logged hours entry." };
   }
-  const permissionError = await checkPermission(supabase, "volunteers", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "volunteers",
+    "manage",
+  );
   if (permissionError) return permissionError;
   if (!personId) {
     return { error: "Select or create a person to log hours for." };
@@ -102,7 +107,8 @@ export async function updateVolunteerHoursAction(
 
   const parsed = parseParticipationHoursForm(formData);
   if ("error" in parsed) return parsed;
-  const { eventId, volunteerRoleTypeId, hours, loggedDate, notes } = parsed.data;
+  const { eventId, volunteerRoleTypeId, hours, loggedDate, notes } =
+    parsed.data;
 
   const { error } = await supabase
     .from("volunteer_hours")
@@ -124,7 +130,9 @@ export async function updateVolunteerHoursAction(
   return { success: true };
 }
 
-export async function deleteVolunteerHoursAction(id: string): Promise<VolunteerHoursActionResult> {
+export async function deleteVolunteerHoursAction(
+  id: string,
+): Promise<VolunteerHoursActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -132,10 +140,17 @@ export async function deleteVolunteerHoursAction(id: string): Promise<VolunteerH
   if (!user) {
     return { error: "You must be signed in to remove a logged hours entry." };
   }
-  const permissionError = await checkPermission(supabase, "volunteers", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "volunteers",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
-  const { error } = await supabase.from("volunteer_hours").delete().eq("id", id);
+  const { error } = await supabase
+    .from("volunteer_hours")
+    .delete()
+    .eq("id", id);
   if (error) {
     return { error: "Could not remove this entry. Please try again." };
   }
@@ -146,7 +161,9 @@ export async function deleteVolunteerHoursAction(id: string): Promise<VolunteerH
 
 export type EventOption = { id: string; name: string };
 
-export async function listEventOptionsAction(): Promise<{ data: EventOption[] } | { error: string }> {
+export async function listEventOptionsAction(): Promise<
+  { data: EventOption[] } | { error: string }
+> {
   const supabase = await createSupabaseServerClient();
   const permissionError = await checkPermission(supabase, "volunteers", "view");
   if (permissionError) return permissionError;

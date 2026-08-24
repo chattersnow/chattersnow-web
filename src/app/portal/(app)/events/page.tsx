@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserPermissions, hasPermission } from "@/lib/auth/permissions";
+import {
+  getCurrentUserPermissions,
+  hasPermission,
+} from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -17,14 +20,26 @@ import { EventDetailsDialog } from "./event-details-dialog";
 import { StatusBadge, VisibilityBadge } from "./event-badges";
 import { listProgramsAction } from "../programs/actions";
 
-const SORTABLE_COLUMNS = ["name", "starts_at", "status", "visibility", "location"] as const;
+const SORTABLE_COLUMNS = [
+  "name",
+  "starts_at",
+  "status",
+  "visibility",
+  "location",
+] as const;
 type SortColumn = (typeof SORTABLE_COLUMNS)[number];
 
 function isSortColumn(value: string | undefined): value is SortColumn {
   return !!value && (SORTABLE_COLUMNS as readonly string[]).includes(value);
 }
 
-const STATUS_VALUES = ["draft", "published", "completed", "cancelled", "archived"] as const;
+const STATUS_VALUES = [
+  "draft",
+  "published",
+  "completed",
+  "cancelled",
+  "archived",
+] as const;
 const VISIBILITY_VALUES = ["public", "private"] as const;
 const WHEN_VALUES = ["upcoming", "past"] as const;
 
@@ -61,19 +76,23 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
   const dir: "asc" | "desc" = raw("dir") === "desc" ? "desc" : "asc";
 
   const statusRaw = raw("status");
-  const statusFilter = STATUS_VALUES.includes(statusRaw as (typeof STATUS_VALUES)[number])
+  const statusFilter = STATUS_VALUES.includes(
+    statusRaw as (typeof STATUS_VALUES)[number],
+  )
     ? (statusRaw as (typeof STATUS_VALUES)[number])
     : "all";
 
   const visibilityRaw = raw("visibility");
   const visibilityFilter = VISIBILITY_VALUES.includes(
-    visibilityRaw as (typeof VISIBILITY_VALUES)[number]
+    visibilityRaw as (typeof VISIBILITY_VALUES)[number],
   )
     ? (visibilityRaw as (typeof VISIBILITY_VALUES)[number])
     : "all";
 
   const whenRaw = raw("when");
-  const whenFilter = WHEN_VALUES.includes(whenRaw as (typeof WHEN_VALUES)[number])
+  const whenFilter = WHEN_VALUES.includes(
+    whenRaw as (typeof WHEN_VALUES)[number],
+  )
     ? (whenRaw as (typeof WHEN_VALUES)[number])
     : "all";
 
@@ -82,7 +101,7 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
   let query = supabase
     .from("events")
     .select(
-      "id, name, location, starts_at, ends_at, timezone, visibility, status, attendance_count, attendance_notes, description, event_type, venue, capacity, registration_enabled, registration_deadline, budget_amount, event_lead_id, report_status, report_summary, lessons_learned, feedback_notes, content_notes, report_submitted_at, report_submitted_by, program_id"
+      "id, name, location, starts_at, ends_at, timezone, visibility, status, attendance_count, attendance_notes, description, event_type, venue, capacity, registration_enabled, registration_deadline, budget_amount, event_lead_id, report_status, report_summary, lessons_learned, feedback_notes, content_notes, report_submitted_at, report_submitted_by, program_id",
     )
     .order(sort, { ascending: dir === "asc" })
     .order("id", { ascending: true });
@@ -105,7 +124,8 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
 
   const filterParams = new URLSearchParams();
   if (statusFilter !== "all") filterParams.set("status", statusFilter);
-  if (visibilityFilter !== "all") filterParams.set("visibility", visibilityFilter);
+  if (visibilityFilter !== "all")
+    filterParams.set("visibility", visibilityFilter);
   if (whenFilter !== "all") filterParams.set("when", whenFilter);
 
   function sortHref(column: SortColumn) {
@@ -120,10 +140,17 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
     if (sort !== column) {
       return <ArrowUpDown className="size-3.5 text-muted-foreground" />;
     }
-    return dir === "asc" ? <ArrowUp className="size-3.5" /> : <ArrowDown className="size-3.5" />;
+    return dir === "asc" ? (
+      <ArrowUp className="size-3.5" />
+    ) : (
+      <ArrowDown className="size-3.5" />
+    );
   }
 
-  const hasActiveFilters = statusFilter !== "all" || visibilityFilter !== "all" || whenFilter !== "all";
+  const hasActiveFilters =
+    statusFilter !== "all" ||
+    visibilityFilter !== "all" ||
+    whenFilter !== "all";
 
   const selectClassName =
     "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
@@ -142,10 +169,18 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
           <input type="hidden" name="dir" value={dir} />
 
           <div className="flex flex-col gap-1">
-            <label htmlFor="when" className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+            <label
+              htmlFor="when"
+              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+            >
               When
             </label>
-            <select id="when" name="when" defaultValue={whenFilter} className={selectClassName}>
+            <select
+              id="when"
+              name="when"
+              defaultValue={whenFilter}
+              className={selectClassName}
+            >
               <option value="all">All events</option>
               <option value="upcoming">Upcoming</option>
               <option value="past">Past</option>
@@ -153,10 +188,18 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label htmlFor="status" className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+            <label
+              htmlFor="status"
+              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+            >
               Status
             </label>
-            <select id="status" name="status" defaultValue={statusFilter} className={selectClassName}>
+            <select
+              id="status"
+              name="status"
+              defaultValue={statusFilter}
+              className={selectClassName}
+            >
               <option value="all">All statuses</option>
               <option value="draft">Draft</option>
               <option value="published">Published</option>
@@ -167,7 +210,10 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label htmlFor="visibility" className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+            <label
+              htmlFor="visibility"
+              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+            >
               Visibility
             </label>
             <select
@@ -200,9 +246,13 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
       <Card className="mt-6">
         <CardContent className="px-0">
           {error ? (
-            <p className="app-muted px-4 py-6 text-sm">Could not load events. Please try again.</p>
+            <p className="app-muted px-4 py-6 text-sm">
+              Could not load events. Please try again.
+            </p>
           ) : !events || events.length === 0 ? (
-            <p className="app-muted px-4 py-6 text-sm">No events match these filters.</p>
+            <p className="app-muted px-4 py-6 text-sm">
+              No events match these filters.
+            </p>
           ) : (
             <Table>
               <TableHeader>
@@ -225,8 +275,12 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
                 {events.map((event) => (
                   <TableRow key={event.id}>
                     <TableCell className="font-medium">{event.name}</TableCell>
-                    <TableCell>{dateFormatter.format(new Date(event.starts_at))}</TableCell>
-                    <TableCell className="app-muted">{event.location || "—"}</TableCell>
+                    <TableCell>
+                      {dateFormatter.format(new Date(event.starts_at))}
+                    </TableCell>
+                    <TableCell className="app-muted">
+                      {event.location || "—"}
+                    </TableCell>
                     <TableCell>
                       <StatusBadge status={event.status} />
                     </TableCell>

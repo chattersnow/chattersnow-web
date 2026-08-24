@@ -10,16 +10,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { EditPersonModal } from "./edit-person-modal";
 import { NewPersonDialog } from "./new-person-dialog";
-import { ROLE_OPTIONS, rolesFor, type PersonRow, type RoleKey } from "./people-shared";
+import {
+  ROLE_OPTIONS,
+  rolesFor,
+  type PersonRow,
+  type RoleKey,
+} from "./people-shared";
 
 const FILTER_ALL = "all";
 
-export function PeopleTable({ people, canManage }: { people: PersonRow[]; canManage: boolean }) {
+export function PeopleTable({
+  people,
+  canManage,
+}: {
+  people: PersonRow[];
+  canManage: boolean;
+}) {
   const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState<RoleKey | typeof FILTER_ALL>(FILTER_ALL);
+  const [roleFilter, setRoleFilter] = useState<RoleKey | typeof FILTER_ALL>(
+    FILTER_ALL,
+  );
 
   const visiblePeople = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -73,16 +93,25 @@ export function PeopleTable({ people, canManage }: { people: PersonRow[]; canMan
           </div>
 
           <div className="flex flex-col gap-1">
-            <span className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">Role</span>
+            <span className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+              Role
+            </span>
             <Select
               value={roleFilter}
-              onValueChange={(value) => setRoleFilter((value as RoleKey | typeof FILTER_ALL) ?? FILTER_ALL)}
+              onValueChange={(value) =>
+                setRoleFilter(
+                  (value as RoleKey | typeof FILTER_ALL) ?? FILTER_ALL,
+                )
+              }
             >
               <SelectTrigger className="h-8">
                 <SelectValue placeholder="Role">
                   {(value: string) => {
                     if (value === FILTER_ALL) return "All people";
-                    return ROLE_OPTIONS.find((option) => option.key === value)?.label ?? "Role";
+                    return (
+                      ROLE_OPTIONS.find((option) => option.key === value)
+                        ?.label ?? "Role"
+                    );
                   }}
                 </SelectValue>
               </SelectTrigger>
@@ -123,11 +152,21 @@ export function PeopleTable({ people, canManage }: { people: PersonRow[]; canMan
               ) : (
                 visiblePeople.map((person) => (
                   <TableRow key={person.id}>
-                    <TableCell className="font-medium">{person.name ?? "—"}</TableCell>
-                    <TableCell className="app-muted">{rolesFor(person).join(", ") || "—"}</TableCell>
-                    <TableCell className="app-muted">{person.email ?? "—"}</TableCell>
-                    <TableCell className="app-muted">{person.phone ?? "—"}</TableCell>
-                    <TableCell>{canManage && <EditPersonModal person={person} />}</TableCell>
+                    <TableCell className="font-medium">
+                      {person.name ?? "—"}
+                    </TableCell>
+                    <TableCell className="app-muted">
+                      {rolesFor(person).join(", ") || "—"}
+                    </TableCell>
+                    <TableCell className="app-muted">
+                      {person.email ?? "—"}
+                    </TableCell>
+                    <TableCell className="app-muted">
+                      {person.phone ?? "—"}
+                    </TableCell>
+                    <TableCell>
+                      {canManage && <EditPersonModal person={person} />}
+                    </TableCell>
                   </TableRow>
                 ))
               )}
