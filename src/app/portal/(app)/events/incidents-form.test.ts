@@ -15,7 +15,11 @@ describe("parseIncidentForm", () => {
   });
 
   test("rejects an invalid severity", () => {
-    expect(parseIncidentForm(formData({ description: "Slipped on ice", severity: "extreme" }))).toEqual({
+    expect(
+      parseIncidentForm(
+        formData({ description: "Slipped on ice", severity: "extreme" }),
+      ),
+    ).toEqual({
       error: "Select a valid severity.",
     });
   });
@@ -27,7 +31,11 @@ describe("parseIncidentForm", () => {
 
   test("parses valid input", () => {
     const result = parseIncidentForm(
-      formData({ description: "Twisted ankle", severity: "moderate", peopleInvolved: "Alex R." })
+      formData({
+        description: "Twisted ankle",
+        severity: "moderate",
+        peopleInvolved: "Alex R.",
+      }),
     );
     expect("data" in result && result.data.description).toBe("Twisted ankle");
     expect("data" in result && result.data.severity).toBe("moderate");

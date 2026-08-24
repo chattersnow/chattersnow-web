@@ -2,7 +2,10 @@
 
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { listAvailableInventoryItemsAction, recordEventDistributionAction } from "./distribution-actions";
+import {
+  listAvailableInventoryItemsAction,
+  recordEventDistributionAction,
+} from "./distribution-actions";
 import { listPeopleAction, type PersonListItem } from "../people/actions";
 import { PersonPicker, type PickedPerson } from "../people/person-picker";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -47,7 +50,9 @@ export function RecordDistributionModal({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [availableItems, setAvailableItems] = useState<{ id: string; description: string; type: string }[]>([]);
+  const [availableItems, setAvailableItems] = useState<
+    { id: string; description: string; type: string }[]
+  >([]);
   const [people, setPeople] = useState<PersonListItem[]>([]);
   const [recipient, setRecipient] = useState<PickedPerson | null>(null);
 
@@ -115,25 +120,42 @@ export function RecordDistributionModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button type="button" variant="outline" className="shrink-0 whitespace-nowrap" />}>
+      <DialogTrigger
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            className="shrink-0 whitespace-nowrap"
+          />
+        }
+      >
         {triggerLabel}
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Record a distribution</DialogTitle>
-          <DialogDescription>Record gear being handed out from inventory.</DialogDescription>
+          <DialogDescription>
+            Record gear being handed out from inventory.
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="dist-item">Inventory item</FieldLabel>
-              <Select value={inventoryItemId || null} onValueChange={(value) => setInventoryItemId(value ?? "")}>
+              <Select
+                value={inventoryItemId || null}
+                onValueChange={(value) => setInventoryItemId(value ?? "")}
+              >
                 <SelectTrigger id="dist-item" className="w-full">
                   <SelectValue placeholder="Select an available item">
                     {(value: string) => {
-                      const item = availableItems.find((candidate) => candidate.id === value);
-                      return item ? `${item.description} (${item.type})` : "Select an available item";
+                      const item = availableItems.find(
+                        (candidate) => candidate.id === value,
+                      );
+                      return item
+                        ? `${item.description} (${item.type})`
+                        : "Select an available item";
                     }}
                   </SelectValue>
                 </SelectTrigger>
@@ -160,7 +182,9 @@ export function RecordDistributionModal({
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor="dist-occurredAt">Date &amp; time</FieldLabel>
+                <FieldLabel htmlFor="dist-occurredAt">
+                  Date &amp; time
+                </FieldLabel>
                 <Input
                   id="dist-occurredAt"
                   type="datetime-local"
@@ -177,7 +201,12 @@ export function RecordDistributionModal({
                   people={people}
                   selected={recipient}
                   onSelect={setRecipient}
-                  onPersonCreated={(person) => setPeople((prev) => [...prev, { ...person, is_sponsor: false }])}
+                  onPersonCreated={(person) =>
+                    setPeople((prev) => [
+                      ...prev,
+                      { ...person, is_sponsor: false },
+                    ])
+                  }
                   placeholder="Search recipient by name or email..."
                 />
               </Field>
@@ -185,16 +214,24 @@ export function RecordDistributionModal({
 
             <Field>
               <FieldLabel htmlFor="dist-reason">Reason / notes</FieldLabel>
-              <Textarea id="dist-reason" value={reason} onChange={(event) => setReason(event.target.value)} />
+              <Textarea
+                id="dist-reason"
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+              />
             </Field>
 
             <Field orientation="horizontal">
               <Checkbox
                 id="dist-markDistributed"
                 checked={markDistributed}
-                onCheckedChange={(checked) => setMarkDistributed(Boolean(checked))}
+                onCheckedChange={(checked) =>
+                  setMarkDistributed(Boolean(checked))
+                }
               />
-              <FieldLabel htmlFor="dist-markDistributed">Mark item as distributed</FieldLabel>
+              <FieldLabel htmlFor="dist-markDistributed">
+                Mark item as distributed
+              </FieldLabel>
             </Field>
 
             {error && (
@@ -205,7 +242,11 @@ export function RecordDistributionModal({
           </FieldGroup>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleOpenChange(false)}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={isPending}>

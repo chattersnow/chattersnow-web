@@ -3,7 +3,11 @@
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
-import { getAgendaAction, upsertAgendaAction, type Agenda } from "./agenda-actions";
+import {
+  getAgendaAction,
+  upsertAgendaAction,
+  type Agenda,
+} from "./agenda-actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -48,7 +52,10 @@ function AgendaForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-md border border-[var(--line)] p-4">
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-md border border-[var(--line)] p-4"
+    >
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="agenda-link">External link</FieldLabel>
@@ -90,7 +97,15 @@ function AgendaForm({
   );
 }
 
-export function AgendaTab({ meetingId, active, mode }: { meetingId: string; active: boolean; mode: "view" | "edit" }) {
+export function AgendaTab({
+  meetingId,
+  active,
+  mode,
+}: {
+  meetingId: string;
+  active: boolean;
+  mode: "view" | "edit";
+}) {
   const [agenda, setAgenda] = useState<Agenda | null | undefined>(undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -137,7 +152,11 @@ export function AgendaTab({ meetingId, active, mode }: { meetingId: string; acti
           <p className="app-muted text-sm">No agenda added yet.</p>
           {mode === "edit" && (
             <div>
-              <Button type="button" variant="outline" onClick={() => setEditing(true)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditing(true)}
+              >
                 + Add agenda
               </Button>
             </div>
@@ -160,14 +179,22 @@ export function AgendaTab({ meetingId, active, mode }: { meetingId: string; acti
             )}
           </ReadOnlyField>
           <ReadOnlyField label="Agenda text" htmlFor="agenda-body-view">
-            <span className="whitespace-pre-wrap">{agenda.body_text || "—"}</span>
+            <span className="whitespace-pre-wrap">
+              {agenda.body_text || "—"}
+            </span>
           </ReadOnlyField>
         </FieldGroup>
       )}
 
       {agenda && mode === "edit" && (
         <div>
-          <Button type="button" variant="ghost" size="icon-sm" aria-label="Edit agenda" onClick={() => setEditing(true)}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Edit agenda"
+            onClick={() => setEditing(true)}
+          >
             <Pencil />
           </Button>
         </div>

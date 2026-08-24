@@ -14,10 +14,14 @@ export function StatTile({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="app-muted text-sm font-semibold">{label}</CardTitle>
+        <CardTitle className="app-muted text-sm font-semibold">
+          {label}
+        </CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">{value}</p>
+        <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
+          {value}
+        </p>
         {caption && <p className="app-muted mt-2 text-sm">{caption}</p>}
       </CardContent>
     </Card>
@@ -36,12 +40,22 @@ export function AttentionTile({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="app-muted text-sm font-semibold">{label}</CardTitle>
+        <CardTitle className="app-muted text-sm font-semibold">
+          {label}
+        </CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">{count}</p>
+        <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
+          {count}
+        </p>
         <p className="app-muted mt-2 text-sm">Awaiting your review</p>
-        <Button variant="outline" size="sm" className="mt-3" nativeButton={false} render={<Link href={href} />}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-3"
+          nativeButton={false}
+          render={<Link href={href} />}
+        >
           Review
         </Button>
       </CardContent>
@@ -49,11 +63,19 @@ export function AttentionTile({
   );
 }
 
-export function ComingSoonTile({ label, description }: { label: string; description: string }) {
+export function ComingSoonTile({
+  label,
+  description,
+}: {
+  label: string;
+  description: string;
+}) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="app-muted text-sm font-semibold">{label}</CardTitle>
+        <CardTitle className="app-muted text-sm font-semibold">
+          {label}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <p className="text-sm font-medium">Coming soon</p>

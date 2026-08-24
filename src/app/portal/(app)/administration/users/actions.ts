@@ -18,12 +18,21 @@ export type PortalRoleOption = {
   description: string | null;
 };
 
-export async function listRolesAction(): Promise<{ data: PortalRoleOption[] } | { error: string }> {
+export async function listRolesAction(): Promise<
+  { data: PortalRoleOption[] } | { error: string }
+> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "administration", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "administration",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
-  const { data, error } = await supabase.from("roles").select("id, name, description").order("name");
+  const { data, error } = await supabase
+    .from("roles")
+    .select("id, name, description")
+    .order("name");
 
   if (error) {
     return { error: "Could not load roles. Please try again." };
@@ -31,9 +40,15 @@ export async function listRolesAction(): Promise<{ data: PortalRoleOption[] } | 
   return { data: (data ?? []) as PortalRoleOption[] };
 }
 
-export async function listUsersAction(): Promise<{ data: PortalUser[] } | { error: string }> {
+export async function listUsersAction(): Promise<
+  { data: PortalUser[] } | { error: string }
+> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "administration", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "administration",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase.rpc("list_portal_users");
@@ -55,7 +70,11 @@ export async function assignRoleAction(
   if (!user) {
     return { error: "You must be signed in." };
   }
-  const permissionError = await checkPermission(supabase, "administration", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "administration",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   const { data: roleRow, error: roleError } = await supabase
@@ -87,9 +106,15 @@ export type PendingGrant = {
   roles: { name: string };
 };
 
-export async function listPendingGrantsAction(): Promise<{ data: PendingGrant[] } | { error: string }> {
+export async function listPendingGrantsAction(): Promise<
+  { data: PendingGrant[] } | { error: string }
+> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "administration", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "administration",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase
@@ -119,7 +144,11 @@ export async function createPendingGrantAction(
   if (!user) {
     return { error: "You must be signed in." };
   }
-  const permissionError = await checkPermission(supabase, "administration", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "administration",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   const { data: roleRow, error: roleError } = await supabase
@@ -148,7 +177,9 @@ export async function createPendingGrantAction(
   return { success: true };
 }
 
-export async function revokePendingGrantAction(id: string): Promise<{ error: string } | { success: true }> {
+export async function revokePendingGrantAction(
+  id: string,
+): Promise<{ error: string } | { success: true }> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -156,12 +187,20 @@ export async function revokePendingGrantAction(id: string): Promise<{ error: str
   if (!user) {
     return { error: "You must be signed in." };
   }
-  const permissionError = await checkPermission(supabase, "administration", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "administration",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase
     .from("pending_role_grants")
-    .update({ status: "revoked", revoked_by: user.id, revoked_at: new Date().toISOString() })
+    .update({
+      status: "revoked",
+      revoked_by: user.id,
+      revoked_at: new Date().toISOString(),
+    })
     .eq("id", id)
     .eq("status", "pending")
     .select("id");
@@ -181,7 +220,11 @@ export async function revokeRoleAction(
   role: string,
 ): Promise<{ error: string } | { success: true }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "administration", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "administration",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   const { data: roleRow, error: roleError } = await supabase

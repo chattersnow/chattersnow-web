@@ -65,7 +65,9 @@ describe("hasAnyPermission", () => {
 
   test("false if no checks pass", () => {
     const permissions: PermissionMap = { events: "none" };
-    expect(hasAnyPermission(permissions, [{ resource: "events", level: "view" }])).toBe(false);
+    expect(
+      hasAnyPermission(permissions, [{ resource: "events", level: "view" }]),
+    ).toBe(false);
   });
 
   test("false for an empty check list", () => {
@@ -93,8 +95,12 @@ describe("getCurrentUserPermissions", () => {
 
 describe("requirePermission / requireAnyPermission", () => {
   test("returns the permission map without redirecting when satisfied", async () => {
-    const supabase = fakeSupabase([{ resource_key: "events", level: "manage" }]);
-    await expect(requirePermission(supabase, "events", "view")).resolves.toEqual({
+    const supabase = fakeSupabase([
+      { resource_key: "events", level: "manage" },
+    ]);
+    await expect(
+      requirePermission(supabase, "events", "view"),
+    ).resolves.toEqual({
       events: "manage",
     });
     expect(redirectMock).not.toHaveBeenCalled();
@@ -103,15 +109,17 @@ describe("requirePermission / requireAnyPermission", () => {
   test("redirects to /portal/home when unsatisfied", async () => {
     redirectMock.mockClear();
     const supabase = fakeSupabase([{ resource_key: "events", level: "none" }]);
-    await expect(requirePermission(supabase, "events", "manage")).rejects.toThrow(
-      "REDIRECT:/portal/home",
-    );
+    await expect(
+      requirePermission(supabase, "events", "manage"),
+    ).rejects.toThrow("REDIRECT:/portal/home");
     expect(redirectMock).toHaveBeenCalledWith("/portal/home");
   });
 
   test("requireAnyPermission is satisfied if any check passes", async () => {
     redirectMock.mockClear();
-    const supabase = fakeSupabase([{ resource_key: "finance", level: "manage" }]);
+    const supabase = fakeSupabase([
+      { resource_key: "finance", level: "manage" },
+    ]);
     await requireAnyPermission(supabase, [
       { resource: "events", level: "view" },
       { resource: "finance", level: "manage" },

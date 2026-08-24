@@ -18,14 +18,20 @@ describe("parseDonationInput", () => {
   });
 
   test("allows an empty donor name when anonymous", () => {
-    const result = parseDonationInput({ ...validInput, isAnonymous: true, donorName: "" });
+    const result = parseDonationInput({
+      ...validInput,
+      isAnonymous: true,
+      donorName: "",
+    });
     expect("data" in result && result.data.p_donor_name).toBeNull();
   });
 
   test("rejects an invalid source type", () => {
-    expect(parseDonationInput({ ...validInput, sourceType: "crypto" })).toEqual({
-      error: "Select a valid donor source.",
-    });
+    expect(parseDonationInput({ ...validInput, sourceType: "crypto" })).toEqual(
+      {
+        error: "Select a valid donor source.",
+      },
+    );
   });
 
   test("requires at least one item", () => {
@@ -36,25 +42,37 @@ describe("parseDonationInput", () => {
 
   test("requires each item's description", () => {
     expect(
-      parseDonationInput({ ...validInput, items: [{ ...validItem, description: "" }] })
+      parseDonationInput({
+        ...validInput,
+        items: [{ ...validItem, description: "" }],
+      }),
     ).toEqual({ error: "Item 1: description is required." });
   });
 
   test("requires each item's type", () => {
     expect(
-      parseDonationInput({ ...validInput, items: [{ ...validItem, type: "" }] })
+      parseDonationInput({
+        ...validInput,
+        items: [{ ...validItem, type: "" }],
+      }),
     ).toEqual({ error: "Item 1: type is required." });
   });
 
   test("rejects an invalid item condition", () => {
     expect(
-      parseDonationInput({ ...validInput, items: [{ ...validItem, condition: "mint" }] })
+      parseDonationInput({
+        ...validInput,
+        items: [{ ...validItem, condition: "mint" }],
+      }),
     ).toEqual({ error: "Item 1: select a valid condition." });
   });
 
   test("rejects a negative item face value", () => {
     expect(
-      parseDonationInput({ ...validInput, items: [{ ...validItem, faceValue: -5 }] })
+      parseDonationInput({
+        ...validInput,
+        items: [{ ...validItem, faceValue: -5 }],
+      }),
     ).toEqual({ error: "Item 1: face value must be a positive number." });
   });
 
@@ -63,7 +81,7 @@ describe("parseDonationInput", () => {
       parseDonationInput({
         ...validInput,
         items: [validItem, { ...validItem, description: "" }],
-      })
+      }),
     ).toEqual({ error: "Item 2: description is required." });
   });
 

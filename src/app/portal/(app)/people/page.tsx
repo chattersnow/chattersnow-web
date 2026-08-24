@@ -1,5 +1,8 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserPermissions, hasPermission } from "@/lib/auth/permissions";
+import {
+  getCurrentUserPermissions,
+  hasPermission,
+} from "@/lib/auth/permissions";
 import { PeopleTable } from "./people-table";
 import type { PersonRow } from "./people-shared";
 
@@ -20,7 +23,10 @@ export default async function PeoplePage() {
       </h1>
 
       <div className="mt-6">
-        <PeopleTable people={(people ?? []) as PersonRow[]} canManage={canManage} />
+        <PeopleTable
+          people={(people ?? []) as PersonRow[]}
+          canManage={canManage}
+        />
       </div>
     </>
   );

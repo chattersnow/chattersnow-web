@@ -34,12 +34,18 @@ const DECISION_STYLES: Record<string, string> = {
   defer: "bg-secondary text-secondary-foreground",
 };
 
-function Pill({ className, children }: { className?: string; children: ReactNode }) {
+function Pill({
+  className,
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
   return (
     <span
       className={cn(
         "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize",
-        className
+        className,
       )}
     >
       {children}
@@ -49,13 +55,27 @@ function Pill({ className, children }: { className?: string; children: ReactNode
 
 export function CalendarStatusBadge({ status }: { status: string }) {
   return (
-    <Pill className={CALENDAR_STATUS_STYLES[status] ?? "bg-muted text-muted-foreground"}>{status}</Pill>
+    <Pill
+      className={
+        CALENDAR_STATUS_STYLES[status] ?? "bg-muted text-muted-foreground"
+      }
+    >
+      {status}
+    </Pill>
   );
 }
 
-export function CalendarVisibilityBadge({ visibility }: { visibility: string }) {
+export function CalendarVisibilityBadge({
+  visibility,
+}: {
+  visibility: string;
+}) {
   return (
-    <Pill className={VISIBILITY_STYLES[visibility] ?? "bg-muted text-muted-foreground"}>
+    <Pill
+      className={
+        VISIBILITY_STYLES[visibility] ?? "bg-muted text-muted-foreground"
+      }
+    >
       {VISIBILITY_LABELS[visibility] ?? visibility}
     </Pill>
   );
@@ -63,7 +83,11 @@ export function CalendarVisibilityBadge({ visibility }: { visibility: string }) 
 
 export function PriorityTierBadge({ tier }: { tier: number }) {
   return (
-    <Pill className={PRIORITY_TIER_STYLES[String(tier)] ?? "bg-muted text-muted-foreground"}>
+    <Pill
+      className={
+        PRIORITY_TIER_STYLES[String(tier)] ?? "bg-muted text-muted-foreground"
+      }
+    >
       Tier {tier}
     </Pill>
   );
@@ -74,18 +98,24 @@ export function DecisionBadge({ decision }: { decision: string | null }) {
     return <Pill className="bg-muted text-muted-foreground">No decision</Pill>;
   }
   return (
-    <Pill className={DECISION_STYLES[decision] ?? "bg-muted text-muted-foreground"}>
+    <Pill
+      className={DECISION_STYLES[decision] ?? "bg-muted text-muted-foreground"}
+    >
       {labelFor(DECISIONS, decision)}
     </Pill>
   );
 }
 
 export function CategoryBadges({ categories }: { categories: string[] }) {
-  if (categories.length === 0) return <span className="app-muted text-sm">—</span>;
+  if (categories.length === 0)
+    return <span className="app-muted text-sm">—</span>;
   return (
     <div className="flex flex-wrap gap-1">
       {categories.map((category) => (
-        <Pill key={category} className="bg-muted text-muted-foreground normal-case">
+        <Pill
+          key={category}
+          className="bg-muted text-muted-foreground normal-case"
+        >
           {labelFor(CATEGORIES, category)}
         </Pill>
       ))}

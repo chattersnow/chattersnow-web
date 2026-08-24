@@ -24,11 +24,20 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const NO_MEETING = "none";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" });
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeZone: "UTC",
+});
 
 function meetingLabel(meeting: ResolutionMeetingOption) {
   return `${dateFormatter.format(new Date(meeting.meeting_date))} — ${meeting.meeting_type}`;
@@ -45,13 +54,20 @@ export function NewResolutionDialog({
   const [open, setOpen] = useState(false);
   const [availablePeople, setAvailablePeople] = useState(people);
   const [selectedMover, setSelectedMover] = useState<PickedPerson | null>(null);
-  const [selectedSeconder, setSelectedSeconder] = useState<PickedPerson | null>(null);
+  const [selectedSeconder, setSelectedSeconder] = useState<PickedPerson | null>(
+    null,
+  );
   const [meetingId, setMeetingId] = useState<string>(NO_MEETING);
-  const [form, setForm] = useState<ResolutionFormState>(() => emptyResolutionForm());
+  const [form, setForm] = useState<ResolutionFormState>(() =>
+    emptyResolutionForm(),
+  );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  function update<K extends keyof ResolutionFormState>(key: K, value: ResolutionFormState[K]) {
+  function update<K extends keyof ResolutionFormState>(
+    key: K,
+    value: ResolutionFormState[K],
+  ) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -85,7 +101,7 @@ export function NewResolutionDialog({
         meetingId === NO_MEETING ? null : meetingId,
         selectedMover.id,
         selectedSeconder?.id ?? null,
-        packResolutionFormData(form)
+        packResolutionFormData(form),
       );
       if ("error" in result) {
         setError(result.error);
@@ -98,7 +114,9 @@ export function NewResolutionDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button type="button" className="shrink-0 whitespace-nowrap" />}>
+      <DialogTrigger
+        render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
+      >
         Add resolution
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
@@ -111,7 +129,10 @@ export function NewResolutionDialog({
           <FieldGroup>
             <Field>
               <FieldLabel>Meeting</FieldLabel>
-              <Select value={meetingId} onValueChange={(value) => setMeetingId(value ?? NO_MEETING)}>
+              <Select
+                value={meetingId}
+                onValueChange={(value) => setMeetingId(value ?? NO_MEETING)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="No meeting" />
                 </SelectTrigger>
@@ -146,7 +167,11 @@ export function NewResolutionDialog({
               />
             </Field>
 
-            <ResolutionFormFields form={form} update={update} idPrefix="new-resolution" />
+            <ResolutionFormFields
+              form={form}
+              update={update}
+              idPrefix="new-resolution"
+            />
 
             {error && (
               <Alert variant="destructive">

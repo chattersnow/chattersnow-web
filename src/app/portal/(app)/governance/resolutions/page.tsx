@@ -1,5 +1,8 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserPermissions, hasPermission } from "@/lib/auth/permissions";
+import {
+  getCurrentUserPermissions,
+  hasPermission,
+} from "@/lib/auth/permissions";
 import { ResolutionsTable } from "./resolutions-table";
 import type { Resolution } from "./resolutions-actions";
 import type { ResolutionMeetingOption } from "./resolutions-shared";
@@ -13,18 +16,27 @@ export default async function ResolutionsPage() {
   const permissions = await getCurrentUserPermissions(supabase);
   const canManage = hasPermission(permissions, "governance", "manage");
 
-  const [{ data: resolutions }, { data: people }, { data: meetings }] = await Promise.all([
-    supabase.from("resolutions").select(RESOLUTION_SELECT).order("created_at", { ascending: false }),
-    supabase.from("people").select("id, name, email, phone, is_sponsor").order("name", { ascending: true }),
-    supabase
-      .from("governance_meetings")
-      .select("id, meeting_date, meeting_type")
-      .order("meeting_date", { ascending: false }),
-  ]);
+  const [{ data: resolutions }, { data: people }, { data: meetings }] =
+    await Promise.all([
+      supabase
+        .from("resolutions")
+        .select(RESOLUTION_SELECT)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("people")
+        .select("id, name, email, phone, is_sponsor")
+        .order("name", { ascending: true }),
+      supabase
+        .from("governance_meetings")
+        .select("id, meeting_date, meeting_type")
+        .order("meeting_date", { ascending: false }),
+    ]);
 
   return (
     <>
-      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">Resolutions</h1>
+      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+        Resolutions
+      </h1>
 
       <div className="mt-6">
         <ResolutionsTable

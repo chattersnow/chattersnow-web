@@ -11,7 +11,9 @@ export type MeetingFormData = {
   notes: string | null;
 };
 
-export function parseMeetingForm(formData: FormData): ParseResult<MeetingFormData> {
+export function parseMeetingForm(
+  formData: FormData,
+): ParseResult<MeetingFormData> {
   const meetingDate = String(formData.get("meetingDate") ?? "");
   const meetingType = String(formData.get("meetingType") ?? "");
   const status = String(formData.get("status") ?? "scheduled");

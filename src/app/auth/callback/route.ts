@@ -7,7 +7,10 @@ export async function GET(request: Request) {
   const next = requestUrl.searchParams.get("next");
   const providerError = requestUrl.searchParams.get("error");
   const destination = next?.startsWith("/") ? next : "/portal/home";
-  const loginWithError = new URL("/portal/login?error=oauth_failed", requestUrl.origin);
+  const loginWithError = new URL(
+    "/portal/login?error=oauth_failed",
+    requestUrl.origin,
+  );
 
   if (providerError) {
     return NextResponse.redirect(loginWithError);

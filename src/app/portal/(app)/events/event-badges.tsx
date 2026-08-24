@@ -55,12 +55,18 @@ const REPORT_STATUS_LABELS: Record<string, string> = {
   submitted: "Submitted",
 };
 
-function Pill({ className, children }: { className?: string; children: ReactNode }) {
+function Pill({
+  className,
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
   return (
     <span
       className={cn(
         "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize",
-        className
+        className,
       )}
     >
       {children}
@@ -78,7 +84,11 @@ export function StatusBadge({ status }: { status: string }) {
 
 export function VisibilityBadge({ visibility }: { visibility: string }) {
   return (
-    <Pill className={VISIBILITY_STYLES[visibility] ?? "bg-muted text-muted-foreground"}>
+    <Pill
+      className={
+        VISIBILITY_STYLES[visibility] ?? "bg-muted text-muted-foreground"
+      }
+    >
       {visibility}
     </Pill>
   );
@@ -86,7 +96,11 @@ export function VisibilityBadge({ visibility }: { visibility: string }) {
 
 export function ReportStatusBadge({ status }: { status: string }) {
   return (
-    <Pill className={REPORT_STATUS_STYLES[status] ?? "bg-muted text-muted-foreground"}>
+    <Pill
+      className={
+        REPORT_STATUS_STYLES[status] ?? "bg-muted text-muted-foreground"
+      }
+    >
       {REPORT_STATUS_LABELS[status] ?? status}
     </Pill>
   );
@@ -107,7 +121,11 @@ const PHASE_STATUS_LABELS: Record<PhaseStatus, string> = {
 };
 
 export function PhaseStatusBadge({ status }: { status: PhaseStatus }) {
-  return <Pill className={PHASE_STATUS_STYLES[status]}>{PHASE_STATUS_LABELS[status]}</Pill>;
+  return (
+    <Pill className={PHASE_STATUS_STYLES[status]}>
+      {PHASE_STATUS_LABELS[status]}
+    </Pill>
+  );
 }
 
 const SEVERITY_STYLES: Record<string, string> = {
@@ -117,5 +135,11 @@ const SEVERITY_STYLES: Record<string, string> = {
 };
 
 export function SeverityBadge({ severity }: { severity: string }) {
-  return <Pill className={SEVERITY_STYLES[severity] ?? "bg-muted text-muted-foreground"}>{severity}</Pill>;
+  return (
+    <Pill
+      className={SEVERITY_STYLES[severity] ?? "bg-muted text-muted-foreground"}
+    >
+      {severity}
+    </Pill>
+  );
 }

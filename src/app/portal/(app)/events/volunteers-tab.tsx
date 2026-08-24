@@ -26,12 +26,28 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
-const shiftTimeFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" });
+const shiftTimeFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 
 function formatShiftRange(shift: EventShift) {
   return `${shiftTimeFormatter.format(new Date(shift.starts_at))} – ${shiftTimeFormatter.format(new Date(shift.ends_at))}`;
@@ -41,7 +57,9 @@ function AddShiftForm({
   onSubmit,
   onCancel,
 }: {
-  onSubmit: (formData: FormData) => Promise<{ error: string } | { success: true }>;
+  onSubmit: (
+    formData: FormData,
+  ) => Promise<{ error: string } | { success: true }>;
   onCancel: () => void;
 }) {
   const router = useRouter();
@@ -76,7 +94,10 @@ function AddShiftForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-md border border-[var(--line)] p-4">
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-md border border-[var(--line)] p-4"
+    >
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="shift-label">Duty / location</FieldLabel>
@@ -110,7 +131,9 @@ function AddShiftForm({
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="shift-targetHeadcount">Target headcount</FieldLabel>
+          <FieldLabel htmlFor="shift-targetHeadcount">
+            Target headcount
+          </FieldLabel>
           <Input
             id="shift-targetHeadcount"
             type="number"
@@ -124,7 +147,11 @@ function AddShiftForm({
 
         <Field>
           <FieldLabel htmlFor="shift-notes">Notes</FieldLabel>
-          <Textarea id="shift-notes" value={notes} onChange={(event) => setNotes(event.target.value)} />
+          <Textarea
+            id="shift-notes"
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+          />
         </Field>
 
         {error && (
@@ -156,11 +183,16 @@ function AddVolunteerForm({
   people: PersonListItem[];
   shifts: EventShift[];
   onPersonCreated: (person: PickedPerson) => void;
-  onSubmit: (personId: string, formData: FormData) => Promise<{ error: string } | { success: true }>;
+  onSubmit: (
+    personId: string,
+    formData: FormData,
+  ) => Promise<{ error: string } | { success: true }>;
   onCancel: () => void;
 }) {
   const router = useRouter();
-  const [selectedPerson, setSelectedPerson] = useState<PickedPerson | null>(null);
+  const [selectedPerson, setSelectedPerson] = useState<PickedPerson | null>(
+    null,
+  );
   const [shiftId, setShiftId] = useState<string | null>(null);
   const [role, setRole] = useState("");
   const [notes, setNotes] = useState("");
@@ -192,7 +224,10 @@ function AddVolunteerForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-md border border-[var(--line)] p-4">
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-md border border-[var(--line)] p-4"
+    >
       <FieldGroup>
         <Field>
           <FieldLabel>Volunteer</FieldLabel>
@@ -208,10 +243,16 @@ function AddVolunteerForm({
         {shifts.length > 0 && (
           <Field>
             <FieldLabel htmlFor="volunteer-shift">Shift</FieldLabel>
-            <Select value={shiftId} onValueChange={(value) => setShiftId(value)}>
+            <Select
+              value={shiftId}
+              onValueChange={(value) => setShiftId(value)}
+            >
               <SelectTrigger id="volunteer-shift" className="w-full">
                 <SelectValue placeholder="No shift (whole event)">
-                  {(value: string) => shifts.find((s) => s.id === value)?.label ?? "No shift (whole event)"}
+                  {(value: string) =>
+                    shifts.find((s) => s.id === value)?.label ??
+                    "No shift (whole event)"
+                  }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -237,7 +278,11 @@ function AddVolunteerForm({
 
         <Field>
           <FieldLabel htmlFor="volunteer-notes">Notes</FieldLabel>
-          <Textarea id="volunteer-notes" value={notes} onChange={(event) => setNotes(event.target.value)} />
+          <Textarea
+            id="volunteer-notes"
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+          />
         </Field>
 
         {error && (
@@ -267,13 +312,20 @@ function AddHoursForm({
 }: {
   people: PersonListItem[];
   onPersonCreated: (person: PickedPerson) => void;
-  onSubmit: (personId: string, formData: FormData) => Promise<{ error: string } | { success: true }>;
+  onSubmit: (
+    personId: string,
+    formData: FormData,
+  ) => Promise<{ error: string } | { success: true }>;
   onCancel: () => void;
 }) {
   const router = useRouter();
-  const [selectedPerson, setSelectedPerson] = useState<PickedPerson | null>(null);
+  const [selectedPerson, setSelectedPerson] = useState<PickedPerson | null>(
+    null,
+  );
   const [hours, setHours] = useState("");
-  const [loggedDate, setLoggedDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [loggedDate, setLoggedDate] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -303,7 +355,10 @@ function AddHoursForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-md border border-[var(--line)] p-4">
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-md border border-[var(--line)] p-4"
+    >
       <FieldGroup>
         <Field>
           <FieldLabel>Volunteer</FieldLabel>
@@ -341,7 +396,11 @@ function AddHoursForm({
 
         <Field>
           <FieldLabel htmlFor="hours-notes">Notes</FieldLabel>
-          <Textarea id="hours-notes" value={notes} onChange={(event) => setNotes(event.target.value)} />
+          <Textarea
+            id="hours-notes"
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+          />
         </Field>
 
         {error && (
@@ -363,7 +422,15 @@ function AddHoursForm({
   );
 }
 
-export function VolunteersTab({ eventId, active, mode }: { eventId: string; active: boolean; mode: "view" | "edit" }) {
+export function VolunteersTab({
+  eventId,
+  active,
+  mode,
+}: {
+  eventId: string;
+  active: boolean;
+  mode: "view" | "edit";
+}) {
   const router = useRouter();
   const [volunteers, setVolunteers] = useState<EventVolunteer[] | null>(null);
   const [hours, setHours] = useState<EventVolunteerHours[] | null>(null);
@@ -444,11 +511,17 @@ export function VolunteersTab({ eventId, active, mode }: { eventId: string; acti
     });
   }
 
-  const totalHours = (hours ?? []).reduce((sum, entry) => sum + Number(entry.hours), 0);
+  const totalHours = (hours ?? []).reduce(
+    (sum, entry) => sum + Number(entry.hours),
+    0,
+  );
   const shiftHeadcounts = new Map<string, number>();
   for (const volunteer of volunteers ?? []) {
     if (!volunteer.shift_id) continue;
-    shiftHeadcounts.set(volunteer.shift_id, (shiftHeadcounts.get(volunteer.shift_id) ?? 0) + 1);
+    shiftHeadcounts.set(
+      volunteer.shift_id,
+      (shiftHeadcounts.get(volunteer.shift_id) ?? 0) + 1,
+    );
   }
 
   return (
@@ -462,7 +535,10 @@ export function VolunteersTab({ eventId, active, mode }: { eventId: string; acti
       <div className="flex flex-col gap-3">
         <h3 className="text-sm font-semibold">Shifts</h3>
         {shifts.length === 0 && !showAddShift ? (
-          <p className="app-muted text-sm">No shifts defined. Volunteers can still be signed up for the whole event.</p>
+          <p className="app-muted text-sm">
+            No shifts defined. Volunteers can still be signed up for the whole
+            event.
+          </p>
         ) : (
           <Table>
             <TableHeader>
@@ -476,13 +552,23 @@ export function VolunteersTab({ eventId, active, mode }: { eventId: string; acti
             <TableBody>
               {shifts.map((shift) => {
                 const assigned = shiftHeadcounts.get(shift.id) ?? 0;
-                const gap = shift.target_headcount !== null && assigned < shift.target_headcount;
+                const gap =
+                  shift.target_headcount !== null &&
+                  assigned < shift.target_headcount;
                 return (
                   <TableRow key={shift.id}>
                     <TableCell className="font-medium">{shift.label}</TableCell>
-                    <TableCell className="app-muted">{formatShiftRange(shift)}</TableCell>
-                    <TableCell className={gap ? "text-[var(--destructive)]" : "app-muted"}>
-                      {shift.target_headcount !== null ? `${assigned} / ${shift.target_headcount}` : assigned}
+                    <TableCell className="app-muted">
+                      {formatShiftRange(shift)}
+                    </TableCell>
+                    <TableCell
+                      className={
+                        gap ? "text-[var(--destructive)]" : "app-muted"
+                      }
+                    >
+                      {shift.target_headcount !== null
+                        ? `${assigned} / ${shift.target_headcount}`
+                        : assigned}
                       {gap ? " — gap" : ""}
                     </TableCell>
                     <TableCell className="text-right">
@@ -516,7 +602,12 @@ export function VolunteersTab({ eventId, active, mode }: { eventId: string; acti
               }}
             />
           ) : (
-            <Button type="button" variant="outline" className="self-start" onClick={() => setShowAddShift(true)}>
+            <Button
+              type="button"
+              variant="outline"
+              className="self-start"
+              onClick={() => setShowAddShift(true)}
+            >
               + Add shift
             </Button>
           ))}
@@ -541,16 +632,23 @@ export function VolunteersTab({ eventId, active, mode }: { eventId: string; acti
             <TableBody>
               {volunteers?.map((volunteer) => (
                 <TableRow key={volunteer.id}>
-                  <TableCell className="font-medium">{volunteer.person?.name ?? "—"}</TableCell>
+                  <TableCell className="font-medium">
+                    {volunteer.person?.name ?? "—"}
+                  </TableCell>
                   <TableCell className="app-muted">
                     {mode === "edit" && shifts.length > 0 ? (
                       <Select
                         value={volunteer.shift_id}
-                        onValueChange={(value) => handleShiftReassign(volunteer.id, value)}
+                        onValueChange={(value) =>
+                          handleShiftReassign(volunteer.id, value)
+                        }
                       >
                         <SelectTrigger className="w-full" size="sm">
                           <SelectValue placeholder="No shift">
-                            {(value: string) => shifts.find((s) => s.id === value)?.label ?? "No shift"}
+                            {(value: string) =>
+                              shifts.find((s) => s.id === value)?.label ??
+                              "No shift"
+                            }
                           </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
@@ -562,10 +660,13 @@ export function VolunteersTab({ eventId, active, mode }: { eventId: string; acti
                         </SelectContent>
                       </Select>
                     ) : (
-                      shifts.find((s) => s.id === volunteer.shift_id)?.label ?? "—"
+                      (shifts.find((s) => s.id === volunteer.shift_id)?.label ??
+                      "—")
                     )}
                   </TableCell>
-                  <TableCell className="app-muted">{volunteer.role || "—"}</TableCell>
+                  <TableCell className="app-muted">
+                    {volunteer.role || "—"}
+                  </TableCell>
                   <TableCell className="text-right">
                     {mode === "edit" && (
                       <Button
@@ -592,14 +693,21 @@ export function VolunteersTab({ eventId, active, mode }: { eventId: string; acti
               people={people}
               shifts={shifts}
               onPersonCreated={handlePersonCreated}
-              onSubmit={(personId, formData) => createEventVolunteerAction(eventId, personId, formData)}
+              onSubmit={(personId, formData) =>
+                createEventVolunteerAction(eventId, personId, formData)
+              }
               onCancel={() => {
                 setShowAddVolunteer(false);
                 refresh();
               }}
             />
           ) : (
-            <Button type="button" variant="outline" className="self-start" onClick={() => setShowAddVolunteer(true)}>
+            <Button
+              type="button"
+              variant="outline"
+              className="self-start"
+              onClick={() => setShowAddVolunteer(true)}
+            >
               + Add volunteer
             </Button>
           ))}
@@ -607,7 +715,8 @@ export function VolunteersTab({ eventId, active, mode }: { eventId: string; acti
 
       <div className="flex flex-col gap-3 border-t border-[var(--line)] pt-4">
         <h3 className="text-sm font-semibold">
-          Hours logged{hours && hours.length > 0 ? ` (${totalHours} total)` : ""}
+          Hours logged
+          {hours && hours.length > 0 ? ` (${totalHours} total)` : ""}
         </h3>
         {hours === null ? (
           <p className="app-muted text-sm">Loading hours...</p>
@@ -626,8 +735,12 @@ export function VolunteersTab({ eventId, active, mode }: { eventId: string; acti
             <TableBody>
               {hours?.map((entry) => (
                 <TableRow key={entry.id}>
-                  <TableCell className="font-medium">{entry.person?.name ?? "—"}</TableCell>
-                  <TableCell className="app-muted">{dateFormatter.format(new Date(entry.logged_date))}</TableCell>
+                  <TableCell className="font-medium">
+                    {entry.person?.name ?? "—"}
+                  </TableCell>
+                  <TableCell className="app-muted">
+                    {dateFormatter.format(new Date(entry.logged_date))}
+                  </TableCell>
                   <TableCell>{entry.hours}</TableCell>
                   <TableCell className="text-right">
                     {mode === "edit" && (
@@ -654,14 +767,21 @@ export function VolunteersTab({ eventId, active, mode }: { eventId: string; acti
             <AddHoursForm
               people={people}
               onPersonCreated={handlePersonCreated}
-              onSubmit={(personId, formData) => createEventVolunteerHoursAction(eventId, personId, formData)}
+              onSubmit={(personId, formData) =>
+                createEventVolunteerHoursAction(eventId, personId, formData)
+              }
               onCancel={() => {
                 setShowAddHours(false);
                 refresh();
               }}
             />
           ) : (
-            <Button type="button" variant="outline" className="self-start" onClick={() => setShowAddHours(true)}>
+            <Button
+              type="button"
+              variant="outline"
+              className="self-start"
+              onClick={() => setShowAddHours(true)}
+            >
               + Log hours
             </Button>
           ))}

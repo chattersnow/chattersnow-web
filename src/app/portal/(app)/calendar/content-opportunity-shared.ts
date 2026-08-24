@@ -38,7 +38,7 @@ export type ContentOpportunityRow = {
  */
 export function leadTimeSchedule(
   publishDueAt: Date,
-  leadTimeDays: number
+  leadTimeDays: number,
 ): { draftDueAt: Date; reviewDueAt: Date } {
   return {
     draftDueAt: addDays(publishDueAt, -Math.round((leadTimeDays * 2) / 3)),

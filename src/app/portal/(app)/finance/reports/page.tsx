@@ -13,8 +13,8 @@ export default function FinancialReportsPage() {
             <CardTitle>Coming soon</CardTitle>
           </CardHeader>
           <CardContent className="app-muted text-sm">
-            This area will provide summary financial reports covering income, expenses, and
-            donations across a selected period.
+            This area will provide summary financial reports covering income,
+            expenses, and donations across a selected period.
           </CardContent>
         </Card>
       </div>

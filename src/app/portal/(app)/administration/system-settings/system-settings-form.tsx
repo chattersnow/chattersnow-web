@@ -6,12 +6,23 @@ import { updateExpenseApprovalThresholdAction } from "./actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
-export function SystemSettingsForm({ expenseApprovalThreshold }: { expenseApprovalThreshold: number | null }) {
+export function SystemSettingsForm({
+  expenseApprovalThreshold,
+}: {
+  expenseApprovalThreshold: number | null;
+}) {
   const router = useRouter();
-  const [value, setValue] = useState(expenseApprovalThreshold?.toString() ?? "");
+  const [value, setValue] = useState(
+    expenseApprovalThreshold?.toString() ?? "",
+  );
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -54,8 +65,9 @@ export function SystemSettingsForm({ expenseApprovalThreshold }: { expenseApprov
                 onChange={(event) => setValue(event.target.value)}
               />
               <FieldDescription>
-                Below this amount, finance can self-approve their own expense submissions. At or above it, a
-                second approval from admin or board is required.
+                Below this amount, finance can self-approve their own expense
+                submissions. At or above it, a second approval from admin or
+                board is required.
               </FieldDescription>
             </Field>
 

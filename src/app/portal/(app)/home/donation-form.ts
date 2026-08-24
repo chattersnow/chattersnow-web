@@ -21,7 +21,13 @@ export type CreateDonationInput = {
   eventId?: string;
 };
 
-const SOURCE_TYPES = ["individual", "brand", "organization", "event", "other"] as const;
+const SOURCE_TYPES = [
+  "individual",
+  "brand",
+  "organization",
+  "event",
+  "other",
+] as const;
 const CONDITIONS = ["new", "like_new", "good", "fair", "poor"] as const;
 
 export type DonationRpcArgs = {
@@ -43,12 +49,18 @@ export type DonationRpcArgs = {
   p_event_id: string | null;
 };
 
-export function parseDonationInput(input: CreateDonationInput): ParseResult<DonationRpcArgs> {
+export function parseDonationInput(
+  input: CreateDonationInput,
+): ParseResult<DonationRpcArgs> {
   const donorName = input.donorName.trim();
   if (!input.isAnonymous && !donorName) {
-    return { error: "Donor name is required unless the donation is anonymous." };
+    return {
+      error: "Donor name is required unless the donation is anonymous.",
+    };
   }
-  if (!SOURCE_TYPES.includes(input.sourceType as (typeof SOURCE_TYPES)[number])) {
+  if (
+    !SOURCE_TYPES.includes(input.sourceType as (typeof SOURCE_TYPES)[number])
+  ) {
     return { error: "Select a valid donor source." };
   }
   if (!input.items.length) {
@@ -67,7 +79,10 @@ export function parseDonationInput(input: CreateDonationInput): ParseResult<Dona
     if (!CONDITIONS.includes(item.condition as (typeof CONDITIONS)[number])) {
       return { error: `${label}: select a valid condition.` };
     }
-    if (item.faceValue != null && (Number.isNaN(item.faceValue) || item.faceValue < 0)) {
+    if (
+      item.faceValue != null &&
+      (Number.isNaN(item.faceValue) || item.faceValue < 0)
+    ) {
       return { error: `${label}: face value must be a positive number.` };
     }
   }

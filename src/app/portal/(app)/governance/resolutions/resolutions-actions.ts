@@ -6,7 +6,12 @@ import { checkPermission } from "@/lib/auth/permissions";
 import { parseResolutionForm } from "./resolution-form";
 import { parseContentForm } from "../meetings/content-form";
 
-export type ResolutionPerson = { id: string; name: string | null; email: string | null; phone: string | null };
+export type ResolutionPerson = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+};
 
 export type Resolution = {
   id: string;
@@ -25,12 +30,21 @@ export type ResolutionActionResult = { error: string } | { success: true };
 const RESOLUTION_SELECT =
   "id, meeting_id, motion_text, vote_outcome, effective_date, external_link, body_text, mover:people!mover_person_id(id, name, email, phone), seconder:people!seconder_person_id(id, name, email, phone)";
 
-export async function listResolutionsAction(meetingId?: string): Promise<{ data: Resolution[] } | { error: string }> {
+export async function listResolutionsAction(
+  meetingId?: string,
+): Promise<{ data: Resolution[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "governance", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "governance",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
-  let query = supabase.from("resolutions").select(RESOLUTION_SELECT).order("created_at", { ascending: false });
+  let query = supabase
+    .from("resolutions")
+    .select(RESOLUTION_SELECT)
+    .order("created_at", { ascending: false });
   if (meetingId) query = query.eq("meeting_id", meetingId);
 
   const { data, error } = await query;
@@ -45,7 +59,7 @@ export async function createResolutionAction(
   meetingId: string | null,
   moverPersonId: string,
   seconderPersonId: string | null,
-  formData: FormData
+  formData: FormData,
 ): Promise<ResolutionActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -54,7 +68,11 @@ export async function createResolutionAction(
   if (!user) {
     return { error: "You must be signed in to add a resolution." };
   }
-  const permissionError = await checkPermission(supabase, "governance", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "governance",
+    "manage",
+  );
   if (permissionError) return permissionError;
   if (!moverPersonId) {
     return { error: "Select or create a mover for this resolution." };
@@ -86,7 +104,7 @@ export async function updateResolutionAction(
   id: string,
   moverPersonId: string,
   seconderPersonId: string | null,
-  formData: FormData
+  formData: FormData,
 ): Promise<ResolutionActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -95,7 +113,11 @@ export async function updateResolutionAction(
   if (!user) {
     return { error: "You must be signed in to update this resolution." };
   }
-  const permissionError = await checkPermission(supabase, "governance", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "governance",
+    "manage",
+  );
   if (permissionError) return permissionError;
   if (!moverPersonId) {
     return { error: "Select or create a mover for this resolution." };
@@ -125,7 +147,9 @@ export async function updateResolutionAction(
   return { success: true };
 }
 
-export async function deleteResolutionAction(id: string): Promise<ResolutionActionResult> {
+export async function deleteResolutionAction(
+  id: string,
+): Promise<ResolutionActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -133,7 +157,11 @@ export async function deleteResolutionAction(id: string): Promise<ResolutionActi
   if (!user) {
     return { error: "You must be signed in to remove this resolution." };
   }
-  const permissionError = await checkPermission(supabase, "governance", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "governance",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   const { error } = await supabase.from("resolutions").delete().eq("id", id);

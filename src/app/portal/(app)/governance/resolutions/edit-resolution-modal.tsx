@@ -38,14 +38,20 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" });
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeZone: "UTC",
+});
 
 function formatDate(value: string | null) {
   if (!value) return "—";
   return dateFormatter.format(new Date(value));
 }
 
-function meetingLabel(meetingId: string | null, meetings: ResolutionMeetingOption[]) {
+function meetingLabel(
+  meetingId: string | null,
+  meetings: ResolutionMeetingOption[],
+) {
   if (!meetingId) return "—";
   const meeting = meetings.find((m) => m.id === meetingId);
   if (!meeting) return "—";
@@ -66,7 +72,7 @@ function isDirty(
   form: ResolutionFormState,
   mover: PickedPerson | null,
   seconder: PickedPerson | null,
-  resolution: Resolution
+  resolution: Resolution,
 ) {
   const baseline = formStateFor(resolution);
   return (
@@ -93,16 +99,27 @@ export function EditResolutionModal({
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [availablePeople, setAvailablePeople] = useState(people);
-  const [selectedMover, setSelectedMover] = useState<PickedPerson | null>(resolution.mover);
-  const [selectedSeconder, setSelectedSeconder] = useState<PickedPerson | null>(resolution.seconder);
-  const [form, setForm] = useState<ResolutionFormState>(() => formStateFor(resolution));
+  const [selectedMover, setSelectedMover] = useState<PickedPerson | null>(
+    resolution.mover,
+  );
+  const [selectedSeconder, setSelectedSeconder] = useState<PickedPerson | null>(
+    resolution.seconder,
+  );
+  const [form, setForm] = useState<ResolutionFormState>(() =>
+    formStateFor(resolution),
+  );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [discardTarget, setDiscardTarget] = useState<"toggle" | "close" | null>(null);
+  const [discardTarget, setDiscardTarget] = useState<"toggle" | "close" | null>(
+    null,
+  );
   const formId = `edit-resolution-form-${resolution.id}`;
   const dirty = isDirty(form, selectedMover, selectedSeconder, resolution);
 
-  function update<K extends keyof ResolutionFormState>(key: K, value: ResolutionFormState[K]) {
+  function update<K extends keyof ResolutionFormState>(
+    key: K,
+    value: ResolutionFormState[K],
+  ) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -161,7 +178,7 @@ export function EditResolutionModal({
         resolution.id,
         selectedMover.id,
         selectedSeconder?.id ?? null,
-        packResolutionFormData(form)
+        packResolutionFormData(form),
       );
       if ("error" in result) {
         setError(result.error);
@@ -175,18 +192,44 @@ export function EditResolutionModal({
   return (
     <>
       <Sheet open={open} onOpenChange={handleOpenChange}>
-        <SheetTrigger render={<Button type="button" variant="ghost" size="icon-sm" aria-label="View resolution" />}>
+        <SheetTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="View resolution"
+            />
+          }
+        >
           <Eye />
         </SheetTrigger>
-        <SheetContent side="right" showCloseButton={false} className="data-[side=right]:sm:max-w-lg">
+        <SheetContent
+          side="right"
+          showCloseButton={false}
+          className="data-[side=right]:sm:max-w-lg"
+        >
           <SheetHeader className="flex-row items-start gap-2 space-y-0">
-            <SheetClose render={<Button type="button" variant="ghost" size="icon-sm" aria-label="Close" />}>
+            <SheetClose
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Close"
+                />
+              }
+            >
               <ArrowLeft />
             </SheetClose>
             <div className="flex flex-1 flex-col gap-0.5">
-              <SheetTitle>{mode === "edit" ? "Edit resolution" : "Resolution"}</SheetTitle>
+              <SheetTitle>
+                {mode === "edit" ? "Edit resolution" : "Resolution"}
+              </SheetTitle>
               <SheetDescription>
-                {mode === "edit" ? "Update this resolution's details." : "View this resolution's details."}
+                {mode === "edit"
+                  ? "Update this resolution's details."
+                  : "View this resolution's details."}
               </SheetDescription>
             </div>
             {mode === "view" ? (
@@ -200,7 +243,12 @@ export function EditResolutionModal({
                 <Pencil />
               </Button>
             ) : (
-              <Button type="button" variant="ghost" size="sm" onClick={requestExitEditMode}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={requestExitEditMode}
+              >
                 View
               </Button>
             )}
@@ -209,25 +257,45 @@ export function EditResolutionModal({
           {mode === "view" ? (
             <div className="flex-1 overflow-y-auto px-4 pb-4">
               <FieldGroup>
-                <ReadOnlyField label="Meeting" htmlFor="edit-resolution-meeting">
+                <ReadOnlyField
+                  label="Meeting"
+                  htmlFor="edit-resolution-meeting"
+                >
                   {meetingLabel(resolution.meeting_id, meetings)}
                 </ReadOnlyField>
-                <ReadOnlyField label="Motion text" htmlFor="edit-resolution-motion-text">
-                  <span className="whitespace-pre-wrap">{resolution.motion_text}</span>
+                <ReadOnlyField
+                  label="Motion text"
+                  htmlFor="edit-resolution-motion-text"
+                >
+                  <span className="whitespace-pre-wrap">
+                    {resolution.motion_text}
+                  </span>
                 </ReadOnlyField>
                 <ReadOnlyField label="Mover" htmlFor="edit-resolution-mover">
                   {resolution.mover.name || "—"}
                 </ReadOnlyField>
-                <ReadOnlyField label="Seconder" htmlFor="edit-resolution-seconder">
+                <ReadOnlyField
+                  label="Seconder"
+                  htmlFor="edit-resolution-seconder"
+                >
                   {resolution.seconder?.name || "—"}
                 </ReadOnlyField>
-                <ReadOnlyField label="Vote outcome" htmlFor="edit-resolution-vote-outcome">
+                <ReadOnlyField
+                  label="Vote outcome"
+                  htmlFor="edit-resolution-vote-outcome"
+                >
                   <VoteOutcomeBadge outcome={resolution.vote_outcome} />
                 </ReadOnlyField>
-                <ReadOnlyField label="Effective date" htmlFor="edit-resolution-effective-date">
+                <ReadOnlyField
+                  label="Effective date"
+                  htmlFor="edit-resolution-effective-date"
+                >
                   {formatDate(resolution.effective_date)}
                 </ReadOnlyField>
-                <ReadOnlyField label="External link" htmlFor="edit-resolution-external-link">
+                <ReadOnlyField
+                  label="External link"
+                  htmlFor="edit-resolution-external-link"
+                >
                   {resolution.external_link ? (
                     <a
                       href={resolution.external_link}
@@ -241,16 +309,28 @@ export function EditResolutionModal({
                     "—"
                   )}
                 </ReadOnlyField>
-                <ReadOnlyField label="Resolution text" htmlFor="edit-resolution-body-text">
-                  <span className="whitespace-pre-wrap">{resolution.body_text || "—"}</span>
+                <ReadOnlyField
+                  label="Resolution text"
+                  htmlFor="edit-resolution-body-text"
+                >
+                  <span className="whitespace-pre-wrap">
+                    {resolution.body_text || "—"}
+                  </span>
                 </ReadOnlyField>
               </FieldGroup>
             </div>
           ) : (
-            <form id={formId} onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+            <form
+              id={formId}
+              onSubmit={handleSubmit}
+              className="flex min-h-0 flex-1 flex-col"
+            >
               <div className="flex-1 overflow-y-auto px-4 pb-4">
                 <FieldGroup>
-                  <ReadOnlyField label="Meeting" htmlFor="edit-resolution-meeting-locked">
+                  <ReadOnlyField
+                    label="Meeting"
+                    htmlFor="edit-resolution-meeting-locked"
+                  >
                     {meetingLabel(resolution.meeting_id, meetings)}
                   </ReadOnlyField>
 
@@ -274,7 +354,11 @@ export function EditResolutionModal({
                     />
                   </div>
 
-                  <ResolutionFormFields form={form} update={update} idPrefix="edit-resolution" />
+                  <ResolutionFormFields
+                    form={form}
+                    update={update}
+                    idPrefix="edit-resolution"
+                  />
 
                   {error && (
                     <Alert variant="destructive">
@@ -296,17 +380,25 @@ export function EditResolutionModal({
         </SheetContent>
       </Sheet>
 
-      <AlertDialog open={discardTarget !== null} onOpenChange={(next) => !next && setDiscardTarget(null)}>
+      <AlertDialog
+        open={discardTarget !== null}
+        onOpenChange={(next) => !next && setDiscardTarget(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Discard changes?</AlertDialogTitle>
             <AlertDialogDescription>
-              You have unsaved changes to this resolution. Leaving now will discard them.
+              You have unsaved changes to this resolution. Leaving now will
+              discard them.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDiscardTarget(null)}>Keep editing</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDiscard}>Discard changes</AlertDialogAction>
+            <AlertDialogCancel onClick={() => setDiscardTarget(null)}>
+              Keep editing
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDiscard}>
+              Discard changes
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

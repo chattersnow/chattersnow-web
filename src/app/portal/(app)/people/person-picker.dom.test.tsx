@@ -4,12 +4,10 @@ import userEvent from "@testing-library/user-event";
 import type { PersonActionResult, PersonListItem } from "./actions";
 import * as PeopleActions from "./actions";
 
-const createPersonActionMock = mock(
-  async (): Promise<PersonActionResult> => ({
-    success: true,
-    person: { id: "new-1", name: "New Person", email: null, phone: null },
-  })
-);
+const createPersonActionMock = mock(async (): Promise<PersonActionResult> => ({
+  success: true,
+  person: { id: "new-1", name: "New Person", email: null, phone: null },
+}));
 
 mock.module("./actions", () => ({
   ...PeopleActions,
@@ -19,8 +17,20 @@ mock.module("./actions", () => ({
 const { PersonPicker } = await import("./person-picker");
 
 const people: PersonListItem[] = [
-  { id: "1", name: "Jane Doe", email: "jane@example.com", phone: null, is_sponsor: false },
-  { id: "2", name: "John Smith", email: "john@acme.com", phone: null, is_sponsor: true },
+  {
+    id: "1",
+    name: "Jane Doe",
+    email: "jane@example.com",
+    phone: null,
+    is_sponsor: false,
+  },
+  {
+    id: "2",
+    name: "John Smith",
+    email: "john@acme.com",
+    phone: null,
+    is_sponsor: true,
+  },
 ];
 
 function noop() {}
@@ -40,10 +50,15 @@ describe("PersonPicker", () => {
     render(
       <PersonPicker
         people={people}
-        selected={{ id: "1", name: "Jane Doe", email: "jane@example.com", phone: null }}
+        selected={{
+          id: "1",
+          name: "Jane Doe",
+          email: "jane@example.com",
+          phone: null,
+        }}
         onSelect={onSelect}
         onPersonCreated={noop}
-      />
+      />,
     );
 
     expect(screen.getByText("Jane Doe")).toBeInTheDocument();
@@ -55,10 +70,18 @@ describe("PersonPicker", () => {
     const user = userEvent.setup();
     const onSelect = mock(() => {});
     render(
-      <PersonPicker people={people} selected={null} onSelect={onSelect} onPersonCreated={noop} />
+      <PersonPicker
+        people={people}
+        selected={null}
+        onSelect={onSelect}
+        onPersonCreated={noop}
+      />,
     );
 
-    await user.type(screen.getByPlaceholderText(/search by name or email/i), "jane");
+    await user.type(
+      screen.getByPlaceholderText(/search by name or email/i),
+      "jane",
+    );
     const match = await screen.findByText("Jane Doe");
     await user.click(match);
 
@@ -67,11 +90,23 @@ describe("PersonPicker", () => {
 
   test("shows a no-matches message when the search has no results", async () => {
     const user = userEvent.setup();
-    render(<PersonPicker people={people} selected={null} onSelect={noop} onPersonCreated={noop} />);
+    render(
+      <PersonPicker
+        people={people}
+        selected={null}
+        onSelect={noop}
+        onPersonCreated={noop}
+      />,
+    );
 
-    await user.type(screen.getByPlaceholderText(/search by name or email/i), "nomatch");
+    await user.type(
+      screen.getByPlaceholderText(/search by name or email/i),
+      "nomatch",
+    );
 
-    expect(await screen.findByText('No matches for "nomatch".')).toBeInTheDocument();
+    expect(
+      await screen.findByText('No matches for "nomatch".'),
+    ).toBeInTheDocument();
   });
 
   test("creates and selects a new person", async () => {
@@ -84,16 +119,23 @@ describe("PersonPicker", () => {
         selected={null}
         onSelect={onSelect}
         onPersonCreated={onPersonCreated}
-      />
+      />,
     );
 
-    await user.click(screen.getByRole("button", { name: "+ Create new person" }));
+    await user.click(
+      screen.getByRole("button", { name: "+ Create new person" }),
+    );
     await user.type(screen.getByLabelText("Name"), "New Person");
     await user.click(screen.getByRole("button", { name: "Create & select" }));
 
     await waitFor(() => expect(onSelect).toHaveBeenCalled());
     expect(createPersonActionMock).toHaveBeenCalledTimes(1);
-    const created = { id: "new-1", name: "New Person", email: null, phone: null };
+    const created = {
+      id: "new-1",
+      name: "New Person",
+      email: null,
+      phone: null,
+    };
     expect(onPersonCreated).toHaveBeenCalledWith(created);
     expect(onSelect).toHaveBeenCalledWith(created);
   });
@@ -103,14 +145,23 @@ describe("PersonPicker", () => {
       error: "Could not save this person. Please try again.",
     }));
     const user = userEvent.setup();
-    render(<PersonPicker people={people} selected={null} onSelect={noop} onPersonCreated={noop} />);
+    render(
+      <PersonPicker
+        people={people}
+        selected={null}
+        onSelect={noop}
+        onPersonCreated={noop}
+      />,
+    );
 
-    await user.click(screen.getByRole("button", { name: "+ Create new person" }));
+    await user.click(
+      screen.getByRole("button", { name: "+ Create new person" }),
+    );
     await user.type(screen.getByLabelText("Name"), "New Person");
     await user.click(screen.getByRole("button", { name: "Create & select" }));
 
     expect(
-      await screen.findByText("Could not save this person. Please try again.")
+      await screen.findByText("Could not save this person. Please try again."),
     ).toBeInTheDocument();
   });
 });

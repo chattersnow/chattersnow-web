@@ -23,12 +23,18 @@ const STATUS_STYLES: Record<string, string> = {
   cancelled: "bg-destructive/10 text-destructive",
 };
 
-function Pill({ className, children }: { className?: string; children: ReactNode }) {
+function Pill({
+  className,
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
   return (
     <span
       className={cn(
         "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize",
-        className
+        className,
       )}
     >
       {children}
@@ -37,9 +43,17 @@ function Pill({ className, children }: { className?: string; children: ReactNode
 }
 
 export function MeetingTypeBadge({ type }: { type: string }) {
-  return <Pill className={TYPE_STYLES[type] ?? "bg-muted text-muted-foreground"}>{type}</Pill>;
+  return (
+    <Pill className={TYPE_STYLES[type] ?? "bg-muted text-muted-foreground"}>
+      {type}
+    </Pill>
+  );
 }
 
 export function MeetingStatusBadge({ status }: { status: string }) {
-  return <Pill className={STATUS_STYLES[status] ?? "bg-muted text-muted-foreground"}>{status}</Pill>;
+  return (
+    <Pill className={STATUS_STYLES[status] ?? "bg-muted text-muted-foreground"}>
+      {status}
+    </Pill>
+  );
 }

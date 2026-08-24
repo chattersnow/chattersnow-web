@@ -79,7 +79,9 @@ export function NewCalendarItemDialog({
   function toggleListValue(key: "categories" | "programIds", value: string) {
     setForm((prev) => {
       const list = prev[key];
-      const next = list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
+      const next = list.includes(value)
+        ? list.filter((v) => v !== value)
+        : [...list, value];
       return { ...prev, [key]: next };
     });
   }
@@ -111,8 +113,10 @@ export function NewCalendarItemDialog({
     formData.set("calendarStatus", form.calendarStatus);
     formData.set("visibility", form.visibility);
     formData.set("ownerId", form.ownerId);
-    for (const category of form.categories) formData.append("categories", category);
-    for (const programId of form.programIds) formData.append("programIds", programId);
+    for (const category of form.categories)
+      formData.append("categories", category);
+    for (const programId of form.programIds)
+      formData.append("programIds", programId);
     formData.set("decision", form.decision);
     formData.set("decisionNote", form.decisionNote);
 
@@ -132,15 +136,17 @@ export function NewCalendarItemDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button type="button" className="shrink-0 whitespace-nowrap" />}>
+      <DialogTrigger
+        render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
+      >
         New calendar item
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Create calendar item</DialogTitle>
           <DialogDescription>
-            Chatter events, community observances, campaigns, and content opportunities all share
-            this shape.
+            Chatter events, community observances, campaigns, and content
+            opportunities all share this shape.
           </DialogDescription>
         </DialogHeader>
 
@@ -158,10 +164,17 @@ export function NewCalendarItemDialog({
 
             <Field>
               <FieldLabel htmlFor="itemType">Item type</FieldLabel>
-              <Select value={form.itemType} onValueChange={(value) => update("itemType", value ?? form.itemType)}>
+              <Select
+                value={form.itemType}
+                onValueChange={(value) =>
+                  update("itemType", value ?? form.itemType)
+                }
+              >
                 <SelectTrigger id="itemType" className="w-full">
                   <SelectValue placeholder="Select item type">
-                    {(value: string) => ITEM_TYPES.find((option) => option.value === value)?.label}
+                    {(value: string) =>
+                      ITEM_TYPES.find((option) => option.value === value)?.label
+                    }
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -222,7 +235,9 @@ export function NewCalendarItemDialog({
                   id="recurrenceRule"
                   placeholder="e.g. Annual, March 31"
                   value={form.recurrenceRule}
-                  onChange={(event) => update("recurrenceRule", event.target.value)}
+                  onChange={(event) =>
+                    update("recurrenceRule", event.target.value)
+                  }
                 />
               </Field>
             </Field>
@@ -232,11 +247,16 @@ export function NewCalendarItemDialog({
                 <FieldLabel htmlFor="priorityTier">Priority</FieldLabel>
                 <Select
                   value={form.priorityTier}
-                  onValueChange={(value) => update("priorityTier", value ?? "3")}
+                  onValueChange={(value) =>
+                    update("priorityTier", value ?? "3")
+                  }
                 >
                   <SelectTrigger id="priorityTier" className="w-full">
                     <SelectValue placeholder="Select priority">
-                      {(value: string) => PRIORITY_TIERS.find((option) => option.value === value)?.label}
+                      {(value: string) =>
+                        PRIORITY_TIERS.find((option) => option.value === value)
+                          ?.label
+                      }
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -249,14 +269,22 @@ export function NewCalendarItemDialog({
                 </Select>
               </Field>
               <Field>
-                <FieldLabel htmlFor="calendarStatus">Calendar status</FieldLabel>
+                <FieldLabel htmlFor="calendarStatus">
+                  Calendar status
+                </FieldLabel>
                 <Select
                   value={form.calendarStatus}
-                  onValueChange={(value) => update("calendarStatus", value ?? "idea")}
+                  onValueChange={(value) =>
+                    update("calendarStatus", value ?? "idea")
+                  }
                 >
                   <SelectTrigger id="calendarStatus" className="w-full">
                     <SelectValue placeholder="Select status">
-                      {(value: string) => CALENDAR_STATUSES.find((option) => option.value === value)?.label}
+                      {(value: string) =>
+                        CALENDAR_STATUSES.find(
+                          (option) => option.value === value,
+                        )?.label
+                      }
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -271,12 +299,16 @@ export function NewCalendarItemDialog({
             </Field>
 
             <Field>
-              <FieldLabel htmlFor="priorityRationale">Priority rationale</FieldLabel>
+              <FieldLabel htmlFor="priorityRationale">
+                Priority rationale
+              </FieldLabel>
               <Textarea
                 id="priorityRationale"
                 placeholder="Why this tier?"
                 value={form.priorityRationale}
-                onChange={(event) => update("priorityRationale", event.target.value)}
+                onChange={(event) =>
+                  update("priorityRationale", event.target.value)
+                }
               />
             </Field>
 
@@ -285,11 +317,16 @@ export function NewCalendarItemDialog({
                 <FieldLabel htmlFor="visibility">Visibility</FieldLabel>
                 <Select
                   value={form.visibility}
-                  onValueChange={(value) => update("visibility", value ?? "internal")}
+                  onValueChange={(value) =>
+                    update("visibility", value ?? "internal")
+                  }
                 >
                   <SelectTrigger id="visibility" className="w-full">
                     <SelectValue placeholder="Select visibility">
-                      {(value: string) => VISIBILITIES.find((option) => option.value === value)?.label}
+                      {(value: string) =>
+                        VISIBILITIES.find((option) => option.value === value)
+                          ?.label
+                      }
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -305,13 +342,16 @@ export function NewCalendarItemDialog({
                 <FieldLabel htmlFor="ownerId">Owner</FieldLabel>
                 <Select
                   value={form.ownerId || "none"}
-                  onValueChange={(value) => update("ownerId", value === "none" ? "" : value ?? "")}
+                  onValueChange={(value) =>
+                    update("ownerId", value === "none" ? "" : (value ?? ""))
+                  }
                 >
                   <SelectTrigger id="ownerId" className="w-full">
                     <SelectValue placeholder="No owner">
                       {(value: string) =>
                         value && value !== "none"
-                          ? owners.find((owner) => owner.user_id === value)?.email ?? "No owner"
+                          ? (owners.find((owner) => owner.user_id === value)
+                              ?.email ?? "No owner")
                           : "No owner"
                       }
                     </SelectValue>
@@ -332,10 +372,15 @@ export function NewCalendarItemDialog({
               <FieldLabel htmlFor="categories-group">Categories</FieldLabel>
               <div id="categories-group" className="flex flex-col gap-2">
                 {CATEGORIES.map((category) => (
-                  <label key={category.value} className="flex items-center gap-2 text-sm">
+                  <label
+                    key={category.value}
+                    className="flex items-center gap-2 text-sm"
+                  >
                     <Checkbox
                       checked={form.categories.includes(category.value)}
-                      onCheckedChange={() => toggleListValue("categories", category.value)}
+                      onCheckedChange={() =>
+                        toggleListValue("categories", category.value)
+                      }
                     />
                     {category.label}
                   </label>
@@ -345,13 +390,20 @@ export function NewCalendarItemDialog({
 
             {programs.length > 0 && (
               <Field>
-                <FieldLabel htmlFor="programs-group">Related programs</FieldLabel>
+                <FieldLabel htmlFor="programs-group">
+                  Related programs
+                </FieldLabel>
                 <div id="programs-group" className="flex flex-col gap-2">
                   {programs.map((program) => (
-                    <label key={program.id} className="flex items-center gap-2 text-sm">
+                    <label
+                      key={program.id}
+                      className="flex items-center gap-2 text-sm"
+                    >
                       <Checkbox
                         checked={form.programIds.includes(program.id)}
-                        onCheckedChange={() => toggleListValue("programIds", program.id)}
+                        onCheckedChange={() =>
+                          toggleListValue("programIds", program.id)
+                        }
                       />
                       {program.name}
                     </label>
@@ -365,13 +417,16 @@ export function NewCalendarItemDialog({
                 <FieldLabel htmlFor="decision">Decision</FieldLabel>
                 <Select
                   value={form.decision || "none"}
-                  onValueChange={(value) => update("decision", value === "none" ? "" : value ?? "")}
+                  onValueChange={(value) =>
+                    update("decision", value === "none" ? "" : (value ?? ""))
+                  }
                 >
                   <SelectTrigger id="decision" className="w-full">
                     <SelectValue placeholder="No decision yet">
                       {(value: string) =>
                         value && value !== "none"
-                          ? DECISIONS.find((option) => option.value === value)?.label
+                          ? DECISIONS.find((option) => option.value === value)
+                              ?.label
                           : "No decision yet"
                       }
                     </SelectValue>
@@ -390,9 +445,13 @@ export function NewCalendarItemDialog({
                 <FieldLabel htmlFor="decisionNote">Decision note</FieldLabel>
                 <Input
                   id="decisionNote"
-                  placeholder={form.decision === "skip" ? "Reason (required)" : "Optional"}
+                  placeholder={
+                    form.decision === "skip" ? "Reason (required)" : "Optional"
+                  }
                   value={form.decisionNote}
-                  onChange={(event) => update("decisionNote", event.target.value)}
+                  onChange={(event) =>
+                    update("decisionNote", event.target.value)
+                  }
                 />
               </Field>
             </Field>

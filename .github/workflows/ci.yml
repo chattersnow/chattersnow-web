@@ -7,8 +7,8 @@ on:
     branches: [main, development]
 
 jobs:
-  lint-and-test:
-    name: Lint & Unit Tests
+  quality:
+    name: Lint, Type-check, Format, Test, Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -25,5 +25,14 @@ jobs:
       - name: Lint
         run: bun run lint
 
+      - name: Type-check
+        run: bun run typecheck
+
+      - name: Format check
+        run: bun run format:check
+
       - name: Unit tests
         run: bun test --coverage
+
+      - name: Build
+        run: bun run build

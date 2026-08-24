@@ -13,8 +13,8 @@ export default function FinanceDonationsPage() {
             <CardTitle>Coming soon</CardTitle>
           </CardHeader>
           <CardContent className="app-muted text-sm">
-            This area will track monetary donations received, including donor, amount, date,
-            and payment method.
+            This area will track monetary donations received, including donor,
+            amount, date, and payment method.
           </CardContent>
         </Card>
       </div>

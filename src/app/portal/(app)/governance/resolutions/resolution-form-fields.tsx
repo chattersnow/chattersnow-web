@@ -2,7 +2,13 @@
 
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { VoteOutcome } from "./resolution-form";
 
@@ -30,7 +36,10 @@ export function ResolutionFormFields({
   idPrefix,
 }: {
   form: ResolutionFormState;
-  update: <K extends keyof ResolutionFormState>(key: K, value: ResolutionFormState[K]) => void;
+  update: <K extends keyof ResolutionFormState>(
+    key: K,
+    value: ResolutionFormState[K],
+  ) => void;
   idPrefix: string;
 }) {
   return (
@@ -47,8 +56,15 @@ export function ResolutionFormFields({
 
       <Field orientation="responsive">
         <Field>
-          <FieldLabel htmlFor={`${idPrefix}-vote-outcome`}>Vote outcome</FieldLabel>
-          <Select value={form.voteOutcome} onValueChange={(value) => update("voteOutcome", value as VoteOutcome)}>
+          <FieldLabel htmlFor={`${idPrefix}-vote-outcome`}>
+            Vote outcome
+          </FieldLabel>
+          <Select
+            value={form.voteOutcome}
+            onValueChange={(value) =>
+              update("voteOutcome", value as VoteOutcome)
+            }
+          >
             <SelectTrigger id={`${idPrefix}-vote-outcome`}>
               <SelectValue placeholder="Vote outcome" />
             </SelectTrigger>
@@ -61,7 +77,9 @@ export function ResolutionFormFields({
           </Select>
         </Field>
         <Field>
-          <FieldLabel htmlFor={`${idPrefix}-effective-date`}>Effective date</FieldLabel>
+          <FieldLabel htmlFor={`${idPrefix}-effective-date`}>
+            Effective date
+          </FieldLabel>
           <Input
             id={`${idPrefix}-effective-date`}
             type="date"
@@ -72,7 +90,9 @@ export function ResolutionFormFields({
       </Field>
 
       <Field>
-        <FieldLabel htmlFor={`${idPrefix}-external-link`}>External link</FieldLabel>
+        <FieldLabel htmlFor={`${idPrefix}-external-link`}>
+          External link
+        </FieldLabel>
         <Input
           id={`${idPrefix}-external-link`}
           type="url"
@@ -83,7 +103,9 @@ export function ResolutionFormFields({
       </Field>
 
       <Field>
-        <FieldLabel htmlFor={`${idPrefix}-body-text`}>Resolution text</FieldLabel>
+        <FieldLabel htmlFor={`${idPrefix}-body-text`}>
+          Resolution text
+        </FieldLabel>
         <Textarea
           id={`${idPrefix}-body-text`}
           value={form.bodyText}

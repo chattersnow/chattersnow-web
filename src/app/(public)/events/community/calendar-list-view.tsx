@@ -1,7 +1,13 @@
 import { CalendarItemCard } from "./calendar-item-card";
 import type { PublicCalendarItem } from "./calendar-shared";
 
-export function CalendarListView({ items, now }: { items: PublicCalendarItem[]; now: number }) {
+export function CalendarListView({
+  items,
+  now,
+}: {
+  items: PublicCalendarItem[];
+  now: number;
+}) {
   if (items.length === 0) {
     return (
       <p className="app-muted py-16 text-center text-sm">
@@ -12,10 +18,16 @@ export function CalendarListView({ items, now }: { items: PublicCalendarItem[]; 
 
   const upcoming = items
     .filter((item) => new Date(item.ends_at ?? item.starts_at).getTime() >= now)
-    .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
+    .sort(
+      (a, b) =>
+        new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime(),
+    );
   const past = items
     .filter((item) => new Date(item.ends_at ?? item.starts_at).getTime() < now)
-    .sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime());
+    .sort(
+      (a, b) =>
+        new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime(),
+    );
 
   return (
     <div className="space-y-12">

@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { CONDITIONS, GENDERS, labelFor, resolveImageUrl } from "@/lib/inventory";
+import {
+  CONDITIONS,
+  GENDERS,
+  labelFor,
+  resolveImageUrl,
+} from "@/lib/inventory";
 
 describe("resolveImageUrl", () => {
   test("returns null for null input", () => {

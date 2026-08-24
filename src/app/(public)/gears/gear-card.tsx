@@ -1,7 +1,12 @@
 import Image from "next/image";
 import { ImageOff } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { CONDITIONS, GENDERS, labelFor, resolveImageUrl } from "@/lib/inventory";
+import {
+  CONDITIONS,
+  GENDERS,
+  labelFor,
+  resolveImageUrl,
+} from "@/lib/inventory";
 import type { GearItem } from "./gear-catalog";
 
 export function GearCard({ item }: { item: GearItem }) {
@@ -30,7 +35,9 @@ export function GearCard({ item }: { item: GearItem }) {
         <p className="app-muted text-xs">
           {[item.type, item.size, genderLabel].filter(Boolean).join(" · ")}
         </p>
-        <p className="text-xs text-muted-foreground">{labelFor(CONDITIONS, item.condition)}</p>
+        <p className="text-xs text-muted-foreground">
+          {labelFor(CONDITIONS, item.condition)}
+        </p>
       </CardContent>
     </Card>
   );

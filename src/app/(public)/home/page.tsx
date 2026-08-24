@@ -19,7 +19,7 @@ export default async function Home() {
 
   const now = nowMs();
   const nextEvent = (events ?? []).find(
-    (event) => new Date(event.ends_at ?? event.starts_at).getTime() >= now
+    (event) => new Date(event.ends_at ?? event.starts_at).getTime() >= now,
   );
 
   return (

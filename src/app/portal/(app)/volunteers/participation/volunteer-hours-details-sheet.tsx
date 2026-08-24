@@ -79,7 +79,12 @@ function isDirty(form: FormState, entry: VolunteerHoursEntry) {
 }
 
 function personFor(entry: VolunteerHoursEntry): PickedPerson {
-  return { id: entry.person.id, name: entry.person.name, email: null, phone: null };
+  return {
+    id: entry.person.id,
+    name: entry.person.name,
+    email: null,
+    phone: null,
+  };
 }
 
 export function VolunteerHoursDetailsSheet({
@@ -93,13 +98,17 @@ export function VolunteerHoursDetailsSheet({
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [form, setForm] = useState<FormState>(() => formStateFor(entry));
-  const [selectedPerson, setSelectedPerson] = useState<PickedPerson | null>(() => personFor(entry));
+  const [selectedPerson, setSelectedPerson] = useState<PickedPerson | null>(
+    () => personFor(entry),
+  );
   const [people, setPeople] = useState<PersonListItem[]>([]);
   const [events, setEvents] = useState<EventOption[]>([]);
   const [roleTypes, setRoleTypes] = useState<RoleType[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [discardTarget, setDiscardTarget] = useState<"toggle" | "close" | null>(null);
+  const [discardTarget, setDiscardTarget] = useState<"toggle" | "close" | null>(
+    null,
+  );
   const formId = `edit-hours-form-${entry.id}`;
   const dirty = isDirty(form, entry) || selectedPerson?.id !== entry.person.id;
 
@@ -164,13 +173,20 @@ export function VolunteerHoursDetailsSheet({
 
     const formData = new FormData();
     formData.set("eventId", form.eventId === NONE_VALUE ? "" : form.eventId);
-    formData.set("volunteerRoleTypeId", form.volunteerRoleTypeId === NONE_VALUE ? "" : form.volunteerRoleTypeId);
+    formData.set(
+      "volunteerRoleTypeId",
+      form.volunteerRoleTypeId === NONE_VALUE ? "" : form.volunteerRoleTypeId,
+    );
     formData.set("hours", form.hours);
     formData.set("loggedDate", form.loggedDate);
     formData.set("notes", form.notes);
 
     startTransition(async () => {
-      const result = await updateVolunteerHoursAction(entry.id, selectedPerson.id, formData);
+      const result = await updateVolunteerHoursAction(
+        entry.id,
+        selectedPerson.id,
+        formData,
+      );
       if ("error" in result) {
         setError(result.error);
         return;
@@ -195,15 +211,32 @@ export function VolunteerHoursDetailsSheet({
         >
           <Eye />
         </SheetTrigger>
-        <SheetContent side="right" showCloseButton={false} className="data-[side=right]:sm:max-w-lg">
+        <SheetContent
+          side="right"
+          showCloseButton={false}
+          className="data-[side=right]:sm:max-w-lg"
+        >
           <SheetHeader className="flex-row items-start gap-2 space-y-0">
-            <SheetClose render={<Button type="button" variant="ghost" size="icon-sm" aria-label="Close" />}>
+            <SheetClose
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Close"
+                />
+              }
+            >
               <ArrowLeft />
             </SheetClose>
             <div className="flex flex-1 flex-col gap-0.5">
-              <SheetTitle>{mode === "edit" ? "Edit hours" : "Logged hours"}</SheetTitle>
+              <SheetTitle>
+                {mode === "edit" ? "Edit hours" : "Logged hours"}
+              </SheetTitle>
               <SheetDescription>
-                {mode === "edit" ? "Update this logged hours entry." : "View this logged hours entry."}
+                {mode === "edit"
+                  ? "Update this logged hours entry."
+                  : "View this logged hours entry."}
               </SheetDescription>
             </div>
             {canManage &&
@@ -218,7 +251,12 @@ export function VolunteerHoursDetailsSheet({
                   <Pencil />
                 </Button>
               ) : (
-                <Button type="button" variant="ghost" size="sm" onClick={requestExitEditMode}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={requestExitEditMode}
+                >
                   View
                 </Button>
               ))}
@@ -248,7 +286,11 @@ export function VolunteerHoursDetailsSheet({
               </FieldGroup>
             </div>
           ) : (
-            <form id={formId} onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+            <form
+              id={formId}
+              onSubmit={handleSubmit}
+              className="flex min-h-0 flex-1 flex-col"
+            >
               <div className="flex-1 overflow-y-auto px-4 pb-4">
                 <FieldGroup>
                   <Field>
@@ -258,7 +300,10 @@ export function VolunteerHoursDetailsSheet({
                       selected={selectedPerson}
                       onSelect={setSelectedPerson}
                       onPersonCreated={(person) =>
-                        setPeople((prev) => [...prev, { ...person, is_sponsor: false }])
+                        setPeople((prev) => [
+                          ...prev,
+                          { ...person, is_sponsor: false },
+                        ])
                       }
                       newPersonRole="is_volunteer"
                     />
@@ -273,29 +318,43 @@ export function VolunteerHoursDetailsSheet({
                         min="0"
                         step="0.25"
                         value={form.hours}
-                        onChange={(event) => update("hours", event.target.value)}
+                        onChange={(event) =>
+                          update("hours", event.target.value)
+                        }
                       />
                     </Field>
                     <Field>
-                      <FieldLabel htmlFor="hours-edit-loggedDate">Date</FieldLabel>
+                      <FieldLabel htmlFor="hours-edit-loggedDate">
+                        Date
+                      </FieldLabel>
                       <Input
                         id="hours-edit-loggedDate"
                         type="date"
                         value={form.loggedDate}
-                        onChange={(event) => update("loggedDate", event.target.value)}
+                        onChange={(event) =>
+                          update("loggedDate", event.target.value)
+                        }
                       />
                     </Field>
                   </Field>
 
                   <Field>
-                    <FieldLabel htmlFor="hours-edit-event">Event (optional)</FieldLabel>
-                    <Select value={form.eventId} onValueChange={(value) => update("eventId", value ?? NONE_VALUE)}>
+                    <FieldLabel htmlFor="hours-edit-event">
+                      Event (optional)
+                    </FieldLabel>
+                    <Select
+                      value={form.eventId}
+                      onValueChange={(value) =>
+                        update("eventId", value ?? NONE_VALUE)
+                      }
+                    >
                       <SelectTrigger id="hours-edit-event" className="w-full">
                         <SelectValue placeholder="No event">
                           {(value: string) =>
                             value === NONE_VALUE
                               ? "No event"
-                              : (events.find((option) => option.id === value)?.name ?? "No event")
+                              : (events.find((option) => option.id === value)
+                                  ?.name ?? "No event")
                           }
                         </SelectValue>
                       </SelectTrigger>
@@ -311,17 +370,25 @@ export function VolunteerHoursDetailsSheet({
                   </Field>
 
                   <Field>
-                    <FieldLabel htmlFor="hours-edit-role-type">Role type (optional)</FieldLabel>
+                    <FieldLabel htmlFor="hours-edit-role-type">
+                      Role type (optional)
+                    </FieldLabel>
                     <Select
                       value={form.volunteerRoleTypeId}
-                      onValueChange={(value) => update("volunteerRoleTypeId", value ?? NONE_VALUE)}
+                      onValueChange={(value) =>
+                        update("volunteerRoleTypeId", value ?? NONE_VALUE)
+                      }
                     >
-                      <SelectTrigger id="hours-edit-role-type" className="w-full">
+                      <SelectTrigger
+                        id="hours-edit-role-type"
+                        className="w-full"
+                      >
                         <SelectValue placeholder="No role type">
                           {(value: string) =>
                             value === NONE_VALUE
                               ? "No role type"
-                              : (roleTypes.find((option) => option.id === value)?.name ?? "No role type")
+                              : (roleTypes.find((option) => option.id === value)
+                                  ?.name ?? "No role type")
                           }
                         </SelectValue>
                       </SelectTrigger>
@@ -365,17 +432,25 @@ export function VolunteerHoursDetailsSheet({
         </SheetContent>
       </Sheet>
 
-      <AlertDialog open={discardTarget !== null} onOpenChange={(next) => !next && setDiscardTarget(null)}>
+      <AlertDialog
+        open={discardTarget !== null}
+        onOpenChange={(next) => !next && setDiscardTarget(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Discard changes?</AlertDialogTitle>
             <AlertDialogDescription>
-              You have unsaved changes to this hours entry. Leaving now will discard them.
+              You have unsaved changes to this hours entry. Leaving now will
+              discard them.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDiscardTarget(null)}>Keep editing</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDiscard}>Discard changes</AlertDialogAction>
+            <AlertDialogCancel onClick={() => setDiscardTarget(null)}>
+              Keep editing
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDiscard}>
+              Discard changes
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -22,15 +22,21 @@ export type MeetingAttendee = {
 export type AttendeeActionResult = { error: string } | { success: true };
 
 export async function listMeetingAttendeesAction(
-  meetingId: string
+  meetingId: string,
 ): Promise<{ data: MeetingAttendee[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "governance", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "governance",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase
     .from("governance_meeting_attendees")
-    .select("id, meeting_id, person_id, attended, person:people(id, name, email, phone)")
+    .select(
+      "id, meeting_id, person_id, attended, person:people(id, name, email, phone)",
+    )
     .eq("meeting_id", meetingId);
 
   if (error) {
@@ -42,7 +48,7 @@ export async function listMeetingAttendeesAction(
 export async function createMeetingAttendeeAction(
   meetingId: string,
   personId: string,
-  attended: boolean
+  attended: boolean,
 ): Promise<AttendeeActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -51,7 +57,11 @@ export async function createMeetingAttendeeAction(
   if (!user) {
     return { error: "You must be signed in to add an attendee." };
   }
-  const permissionError = await checkPermission(supabase, "governance", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "governance",
+    "manage",
+  );
   if (permissionError) return permissionError;
   if (!personId) {
     return { error: "Select or create a person to add." };
@@ -74,7 +84,7 @@ export async function createMeetingAttendeeAction(
 
 export async function updateMeetingAttendeeAction(
   id: string,
-  attended: boolean
+  attended: boolean,
 ): Promise<AttendeeActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -83,10 +93,17 @@ export async function updateMeetingAttendeeAction(
   if (!user) {
     return { error: "You must be signed in to update an attendee." };
   }
-  const permissionError = await checkPermission(supabase, "governance", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "governance",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
-  const { error } = await supabase.from("governance_meeting_attendees").update({ attended }).eq("id", id);
+  const { error } = await supabase
+    .from("governance_meeting_attendees")
+    .update({ attended })
+    .eq("id", id);
 
   if (error) {
     return { error: "Could not update this attendee. Please try again." };
@@ -96,7 +113,9 @@ export async function updateMeetingAttendeeAction(
   return { success: true };
 }
 
-export async function deleteMeetingAttendeeAction(id: string): Promise<AttendeeActionResult> {
+export async function deleteMeetingAttendeeAction(
+  id: string,
+): Promise<AttendeeActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -104,10 +123,17 @@ export async function deleteMeetingAttendeeAction(id: string): Promise<AttendeeA
   if (!user) {
     return { error: "You must be signed in to remove an attendee." };
   }
-  const permissionError = await checkPermission(supabase, "governance", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "governance",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
-  const { error } = await supabase.from("governance_meeting_attendees").delete().eq("id", id);
+  const { error } = await supabase
+    .from("governance_meeting_attendees")
+    .delete()
+    .eq("id", id);
 
   if (error) {
     return { error: "Could not remove this attendee. Please try again." };

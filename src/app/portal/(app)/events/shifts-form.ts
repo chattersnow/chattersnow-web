@@ -12,7 +12,9 @@ export function parseShiftForm(formData: FormData): ParseResult<ShiftFormData> {
   const label = String(formData.get("label") ?? "").trim();
   const startsAt = String(formData.get("startsAt") ?? "").trim();
   const endsAt = String(formData.get("endsAt") ?? "").trim();
-  const targetHeadcountRaw = String(formData.get("targetHeadcount") ?? "").trim();
+  const targetHeadcountRaw = String(
+    formData.get("targetHeadcount") ?? "",
+  ).trim();
   const notes = String(formData.get("notes") ?? "").trim();
 
   if (!label) {
@@ -36,5 +38,13 @@ export function parseShiftForm(formData: FormData): ParseResult<ShiftFormData> {
     }
   }
 
-  return { data: { label, startsAt: startsAtIso, endsAt: endsAtIso, targetHeadcount, notes: notes || null } };
+  return {
+    data: {
+      label,
+      startsAt: startsAtIso,
+      endsAt: endsAtIso,
+      targetHeadcount,
+      notes: notes || null,
+    },
+  };
 }

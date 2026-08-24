@@ -25,9 +25,14 @@ describe("parseLogisticsForm", () => {
 
   test("trims and keeps provided fields", () => {
     const result = parseLogisticsForm(
-      formData({ meetingPoint: "  Base lodge  ", emergencyContactName: "Jamie" })
+      formData({
+        meetingPoint: "  Base lodge  ",
+        emergencyContactName: "Jamie",
+      }),
     );
     expect("data" in result && result.data.meeting_point).toBe("Base lodge");
-    expect("data" in result && result.data.emergency_contact_name).toBe("Jamie");
+    expect("data" in result && result.data.emergency_contact_name).toBe(
+      "Jamie",
+    );
   });
 });

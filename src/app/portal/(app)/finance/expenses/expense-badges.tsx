@@ -9,12 +9,18 @@ const STATUS_STYLES: Record<ExpenseStatus, string> = {
   paid: "bg-secondary text-secondary-foreground",
 };
 
-function Pill({ className, children }: { className?: string; children: ReactNode }) {
+function Pill({
+  className,
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
   return (
     <span
       className={cn(
         "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize",
-        className
+        className,
       )}
     >
       {children}
@@ -23,5 +29,9 @@ function Pill({ className, children }: { className?: string; children: ReactNode
 }
 
 export function ExpenseStatusBadge({ status }: { status: ExpenseStatus }) {
-  return <Pill className={STATUS_STYLES[status] ?? "bg-muted text-muted-foreground"}>{status}</Pill>;
+  return (
+    <Pill className={STATUS_STYLES[status] ?? "bg-muted text-muted-foreground"}>
+      {status}
+    </Pill>
+  );
 }

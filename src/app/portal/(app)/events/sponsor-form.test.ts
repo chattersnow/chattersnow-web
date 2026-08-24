@@ -21,12 +21,16 @@ describe("parseSponsorForm", () => {
 
   test("rejects a negative contribution value", () => {
     expect(
-      parseSponsorForm(formData({ supportType: "cash", contributionValue: "-1" }))
+      parseSponsorForm(
+        formData({ supportType: "cash", contributionValue: "-1" }),
+      ),
     ).toEqual({ error: "Contribution value must be a positive number." });
   });
 
   test("treats isPublic=on as public", () => {
-    const result = parseSponsorForm(formData({ supportType: "cash", isPublic: "on" }));
+    const result = parseSponsorForm(
+      formData({ supportType: "cash", isPublic: "on" }),
+    );
     expect("data" in result && result.data.is_public).toBe(true);
   });
 
@@ -43,7 +47,7 @@ describe("parseSponsorForm", () => {
         contributionValue: "500",
         isPublic: "true",
         notes: "Annual sponsor",
-      })
+      }),
     );
     expect(result).toEqual({
       data: {
@@ -60,15 +64,23 @@ describe("parseSponsorForm", () => {
 
   test("rejects an invalid follow-up status", () => {
     expect(
-      parseSponsorForm(formData({ supportType: "cash", followUpStatus: "later" }))
+      parseSponsorForm(
+        formData({ supportType: "cash", followUpStatus: "later" }),
+      ),
     ).toEqual({ error: "Select a valid follow-up status." });
   });
 
   test("parses follow-up fields", () => {
     const result = parseSponsorForm(
-      formData({ supportType: "cash", followUpStatus: "done", followUpNotes: "Sent thank-you" })
+      formData({
+        supportType: "cash",
+        followUpStatus: "done",
+        followUpNotes: "Sent thank-you",
+      }),
     );
     expect("data" in result && result.data.follow_up_status).toBe("done");
-    expect("data" in result && result.data.follow_up_notes).toBe("Sent thank-you");
+    expect("data" in result && result.data.follow_up_notes).toBe(
+      "Sent thank-you",
+    );
   });
 });

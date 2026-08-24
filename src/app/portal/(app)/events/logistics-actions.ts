@@ -20,7 +20,7 @@ export type EventLogistics = {
 export type LogisticsActionResult = { error: string } | { success: true };
 
 export async function getEventLogisticsAction(
-  eventId: string
+  eventId: string,
 ): Promise<{ data: EventLogistics | null } | { error: string }> {
   const supabase = await createSupabaseServerClient();
   const permissionError = await checkPermission(supabase, "events", "view");
@@ -29,7 +29,7 @@ export async function getEventLogisticsAction(
   const { data, error } = await supabase
     .from("event_logistics")
     .select(
-      "event_id, meeting_point, gear_requirements, transportation, food, supplies, emergency_contact_name, emergency_contact_phone, notes"
+      "event_id, meeting_point, gear_requirements, transportation, food, supplies, emergency_contact_name, emergency_contact_phone, notes",
     )
     .eq("event_id", eventId)
     .maybeSingle();
@@ -42,7 +42,7 @@ export async function getEventLogisticsAction(
 
 export async function upsertEventLogisticsAction(
   eventId: string,
-  formData: FormData
+  formData: FormData,
 ): Promise<LogisticsActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -59,7 +59,10 @@ export async function upsertEventLogisticsAction(
 
   const { error } = await supabase
     .from("event_logistics")
-    .upsert({ event_id: eventId, ...parsed.data, updated_by: user.id }, { onConflict: "event_id" });
+    .upsert(
+      { event_id: eventId, ...parsed.data, updated_by: user.id },
+      { onConflict: "event_id" },
+    );
 
   if (error) {
     return { error: "Could not save logistics. Please try again." };

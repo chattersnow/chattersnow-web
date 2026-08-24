@@ -1,8 +1,19 @@
 "use client";
 
-import { FormEvent, Ref, useEffect, useImperativeHandle, useState, useTransition } from "react";
+import {
+  FormEvent,
+  Ref,
+  useEffect,
+  useImperativeHandle,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter } from "next/navigation";
-import { listEventLeadsAction, updateEventPlanningAction, type EventLead } from "./actions";
+import {
+  listEventLeadsAction,
+  updateEventPlanningAction,
+  type EventLead,
+} from "./actions";
 import type { EventRow } from "./event-badges";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -17,8 +28,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" });
-const currencyFormatter = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+const currencyFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+});
 
 function formatDatetimeLocal(value: string | null) {
   if (!value) return "—";
@@ -44,7 +61,8 @@ function formStateFor(event: EventRow) {
     capacity: event.capacity === null ? "" : String(event.capacity),
     registrationEnabled: event.registration_enabled,
     registrationDeadline: toDatetimeLocalValue(event.registration_deadline),
-    budgetAmount: event.budget_amount === null ? "" : String(event.budget_amount),
+    budgetAmount:
+      event.budget_amount === null ? "" : String(event.budget_amount),
   };
 }
 
@@ -52,7 +70,9 @@ type FormState = ReturnType<typeof formStateFor>;
 
 function isDirty(form: FormState, event: EventRow) {
   const baseline = formStateFor(event);
-  return (Object.keys(baseline) as (keyof FormState)[]).some((key) => form[key] !== baseline[key]);
+  return (Object.keys(baseline) as (keyof FormState)[]).some(
+    (key) => form[key] !== baseline[key],
+  );
 }
 
 export type PlanningTabHandle = {
@@ -114,7 +134,10 @@ export function PlanningTab({
     const formData = new FormData();
     formData.set("eventLeadId", form.eventLeadId);
     formData.set("capacity", form.capacity);
-    formData.set("registrationEnabled", form.registrationEnabled ? "on" : "off");
+    formData.set(
+      "registrationEnabled",
+      form.registrationEnabled ? "on" : "off",
+    );
     formData.set("registrationDeadline", form.registrationDeadline);
     formData.set("budgetAmount", form.budgetAmount);
 
@@ -129,7 +152,9 @@ export function PlanningTab({
     });
   }
 
-  const leadEmail = leads.find((lead) => lead.user_id === form.eventLeadId)?.email;
+  const leadEmail = leads.find(
+    (lead) => lead.user_id === form.eventLeadId,
+  )?.email;
 
   if (mode === "view") {
     return (
@@ -146,10 +171,16 @@ export function PlanningTab({
           </ReadOnlyField>
         </Field>
         <Field orientation="responsive">
-          <ReadOnlyField label="Registration" htmlFor="planning-registrationEnabled">
+          <ReadOnlyField
+            label="Registration"
+            htmlFor="planning-registrationEnabled"
+          >
             {form.registrationEnabled ? "Enabled" : "Disabled"}
           </ReadOnlyField>
-          <ReadOnlyField label="Registration deadline" htmlFor="planning-registrationDeadline">
+          <ReadOnlyField
+            label="Registration deadline"
+            htmlFor="planning-registrationDeadline"
+          >
             {formatDatetimeLocal(event.registration_deadline)}
           </ReadOnlyField>
         </Field>
@@ -190,7 +221,9 @@ export function PlanningTab({
               min={0}
               step={1}
               value={form.capacity}
-              onChange={(changeEvent) => update("capacity", changeEvent.target.value)}
+              onChange={(changeEvent) =>
+                update("capacity", changeEvent.target.value)
+              }
             />
           </Field>
           <Field>
@@ -201,7 +234,9 @@ export function PlanningTab({
               min="0"
               step="0.01"
               value={form.budgetAmount}
-              onChange={(changeEvent) => update("budgetAmount", changeEvent.target.value)}
+              onChange={(changeEvent) =>
+                update("budgetAmount", changeEvent.target.value)
+              }
             />
           </Field>
         </Field>
@@ -210,18 +245,26 @@ export function PlanningTab({
           <Checkbox
             id="planning-registrationEnabled"
             checked={form.registrationEnabled}
-            onCheckedChange={(checked) => update("registrationEnabled", Boolean(checked))}
+            onCheckedChange={(checked) =>
+              update("registrationEnabled", Boolean(checked))
+            }
           />
-          <FieldLabel htmlFor="planning-registrationEnabled">Registration enabled</FieldLabel>
+          <FieldLabel htmlFor="planning-registrationEnabled">
+            Registration enabled
+          </FieldLabel>
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="planning-registrationDeadline">Registration deadline</FieldLabel>
+          <FieldLabel htmlFor="planning-registrationDeadline">
+            Registration deadline
+          </FieldLabel>
           <Input
             id="planning-registrationDeadline"
             type="datetime-local"
             value={form.registrationDeadline}
-            onChange={(changeEvent) => update("registrationDeadline", changeEvent.target.value)}
+            onChange={(changeEvent) =>
+              update("registrationDeadline", changeEvent.target.value)
+            }
           />
         </Field>
 

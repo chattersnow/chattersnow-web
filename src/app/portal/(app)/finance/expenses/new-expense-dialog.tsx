@@ -38,11 +38,16 @@ export function NewExpenseDialog({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<ExpenseFormState>(() => emptyExpenseForm(defaultEventId));
+  const [form, setForm] = useState<ExpenseFormState>(() =>
+    emptyExpenseForm(defaultEventId),
+  );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  function update<K extends keyof ExpenseFormState>(key: K, value: ExpenseFormState[K]) {
+  function update<K extends keyof ExpenseFormState>(
+    key: K,
+    value: ExpenseFormState[K],
+  ) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -72,7 +77,9 @@ export function NewExpenseDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button type="button" className="shrink-0 whitespace-nowrap" />}>
+      <DialogTrigger
+        render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
+      >
         {triggerLabel}
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">

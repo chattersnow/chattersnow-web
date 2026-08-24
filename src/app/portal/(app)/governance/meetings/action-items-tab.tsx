@@ -22,11 +22,28 @@ import { listPeopleAction, type PersonListItem } from "../../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" });
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeZone: "UTC",
+});
 
 function formatDate(value: string | null) {
   if (!value) return "—";
@@ -45,16 +62,24 @@ function AddActionItemForm({
 }: {
   people: PersonListItem[];
   onPersonCreated: (person: PickedPerson) => void;
-  onSubmit: (ownerPersonId: string, formData: FormData) => Promise<{ error: string } | { success: true }>;
+  onSubmit: (
+    ownerPersonId: string,
+    formData: FormData,
+  ) => Promise<{ error: string } | { success: true }>;
   onCancel: () => void;
 }) {
   const router = useRouter();
   const [selectedOwner, setSelectedOwner] = useState<PickedPerson | null>(null);
-  const [form, setForm] = useState<ActionItemFormState>(() => emptyActionItemForm());
+  const [form, setForm] = useState<ActionItemFormState>(() =>
+    emptyActionItemForm(),
+  );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  function update<K extends keyof ActionItemFormState>(key: K, value: ActionItemFormState[K]) {
+  function update<K extends keyof ActionItemFormState>(
+    key: K,
+    value: ActionItemFormState[K],
+  ) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -67,7 +92,10 @@ function AddActionItemForm({
     }
 
     startTransition(async () => {
-      const result = await onSubmit(selectedOwner.id, packActionItemFormData(form));
+      const result = await onSubmit(
+        selectedOwner.id,
+        packActionItemFormData(form),
+      );
       if ("error" in result) {
         setError(result.error);
         return;
@@ -78,14 +106,26 @@ function AddActionItemForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-md border border-[var(--line)] p-4">
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-md border border-[var(--line)] p-4"
+    >
       <FieldGroup>
         <Field>
           <FieldLabel>Owner</FieldLabel>
-          <PersonPicker people={people} selected={selectedOwner} onSelect={setSelectedOwner} onPersonCreated={onPersonCreated} />
+          <PersonPicker
+            people={people}
+            selected={selectedOwner}
+            onSelect={setSelectedOwner}
+            onPersonCreated={onPersonCreated}
+          />
         </Field>
 
-        <ActionItemFormFields form={form} update={update} idPrefix="new-action-item" />
+        <ActionItemFormFields
+          form={form}
+          update={update}
+          idPrefix="new-action-item"
+        />
 
         {error && (
           <Alert variant="destructive">
@@ -119,7 +159,9 @@ function EditActionItemDialog({
   onSaved: () => void;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [selectedOwner, setSelectedOwner] = useState<PickedPerson | null>(() => ownerFrom(actionItem));
+  const [selectedOwner, setSelectedOwner] = useState<PickedPerson | null>(() =>
+    ownerFrom(actionItem),
+  );
   const [form, setForm] = useState<ActionItemFormState>(() => ({
     description: actionItem.description,
     dueDate: actionItem.due_date ?? "",
@@ -128,7 +170,10 @@ function EditActionItemDialog({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  function update<K extends keyof ActionItemFormState>(key: K, value: ActionItemFormState[K]) {
+  function update<K extends keyof ActionItemFormState>(
+    key: K,
+    value: ActionItemFormState[K],
+  ) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -141,7 +186,11 @@ function EditActionItemDialog({
     }
 
     startTransition(async () => {
-      const result = await updateActionItemAction(actionItem.id, selectedOwner.id, packActionItemFormData(form));
+      const result = await updateActionItemAction(
+        actionItem.id,
+        selectedOwner.id,
+        packActionItemFormData(form),
+      );
       if ("error" in result) {
         setError(result.error);
         return;
@@ -155,7 +204,9 @@ function EditActionItemDialog({
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit action item</DialogTitle>
-          <DialogDescription>Update this action item&apos;s details.</DialogDescription>
+          <DialogDescription>
+            Update this action item&apos;s details.
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
@@ -170,7 +221,11 @@ function EditActionItemDialog({
               />
             </Field>
 
-            <ActionItemFormFields form={form} update={update} idPrefix={`edit-action-item-${actionItem.id}`} />
+            <ActionItemFormFields
+              form={form}
+              update={update}
+              idPrefix={`edit-action-item-${actionItem.id}`}
+            />
 
             {error && (
               <Alert variant="destructive">
@@ -190,7 +245,15 @@ function EditActionItemDialog({
   );
 }
 
-export function ActionItemsTab({ meetingId, active, mode }: { meetingId: string; active: boolean; mode: "view" | "edit" }) {
+export function ActionItemsTab({
+  meetingId,
+  active,
+  mode,
+}: {
+  meetingId: string;
+  active: boolean;
+  mode: "view" | "edit";
+}) {
   const router = useRouter();
   const [actionItems, setActionItems] = useState<ActionItem[] | null>(null);
   const [people, setPeople] = useState<PersonListItem[]>([]);
@@ -235,7 +298,10 @@ export function ActionItemsTab({ meetingId, active, mode }: { meetingId: string;
 
   function handleToggleStatus(actionItem: ActionItem) {
     startMutation(async () => {
-      await updateActionItemStatusAction(actionItem.id, actionItem.status === "done" ? "open" : "done");
+      await updateActionItemStatusAction(
+        actionItem.id,
+        actionItem.status === "done" ? "open" : "done",
+      );
       refresh();
     });
   }
@@ -247,7 +313,8 @@ export function ActionItemsTab({ meetingId, active, mode }: { meetingId: string;
     });
   }
 
-  const editingItem = actionItems?.find((item) => item.id === editingId) ?? null;
+  const editingItem =
+    actionItems?.find((item) => item.id === editingId) ?? null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -275,9 +342,15 @@ export function ActionItemsTab({ meetingId, active, mode }: { meetingId: string;
           <TableBody>
             {actionItems?.map((actionItem) => (
               <TableRow key={actionItem.id}>
-                <TableCell className="whitespace-normal font-medium">{actionItem.description}</TableCell>
-                <TableCell className="app-muted">{actionItem.owner?.name ?? "—"}</TableCell>
-                <TableCell className="app-muted">{formatDate(actionItem.due_date)}</TableCell>
+                <TableCell className="whitespace-normal font-medium">
+                  {actionItem.description}
+                </TableCell>
+                <TableCell className="app-muted">
+                  {actionItem.owner?.name ?? "—"}
+                </TableCell>
+                <TableCell className="app-muted">
+                  {formatDate(actionItem.due_date)}
+                </TableCell>
                 <TableCell>
                   <Checkbox
                     checked={actionItem.status === "done"}
@@ -321,12 +394,18 @@ export function ActionItemsTab({ meetingId, active, mode }: { meetingId: string;
           <AddActionItemForm
             people={people}
             onPersonCreated={handlePersonCreated}
-            onSubmit={(ownerPersonId, formData) => createActionItemAction(meetingId, ownerPersonId, formData)}
+            onSubmit={(ownerPersonId, formData) =>
+              createActionItemAction(meetingId, ownerPersonId, formData)
+            }
             onCancel={() => setShowAdd(false)}
           />
         ) : (
           <div>
-            <Button type="button" variant="outline" onClick={() => setShowAdd(true)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowAdd(true)}
+            >
               + Add action item
             </Button>
           </div>

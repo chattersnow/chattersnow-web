@@ -3,8 +3,21 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { EditResolutionModal } from "./edit-resolution-modal";
 import { NewResolutionDialog } from "./new-resolution-dialog";
 import { VoteOutcomeBadge } from "./resolution-badges";
@@ -14,14 +27,20 @@ import type { PersonListItem } from "../../people/actions";
 
 const FILTER_ALL = "all";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" });
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeZone: "UTC",
+});
 
 function formatDate(value: string | null) {
   if (!value) return "—";
   return dateFormatter.format(new Date(value));
 }
 
-function meetingDateFor(meetingId: string | null, meetings: ResolutionMeetingOption[]) {
+function meetingDateFor(
+  meetingId: string | null,
+  meetings: ResolutionMeetingOption[],
+) {
   if (!meetingId) return "—";
   const meeting = meetings.find((m) => m.id === meetingId);
   return meeting ? formatDate(meeting.meeting_date) : "—";
@@ -45,7 +64,11 @@ export function ResolutionsTable({
     const query = search.trim().toLowerCase();
 
     return resolutions.filter((resolution) => {
-      if (outcomeFilter !== FILTER_ALL && resolution.vote_outcome !== outcomeFilter) return false;
+      if (
+        outcomeFilter !== FILTER_ALL &&
+        resolution.vote_outcome !== outcomeFilter
+      )
+        return false;
       if (!query) return true;
       return (
         resolution.motion_text.toLowerCase().includes(query) ||
@@ -57,10 +80,14 @@ export function ResolutionsTable({
   if (resolutions.length === 0) {
     return (
       <div className="space-y-4">
-        {canManage && <NewResolutionDialog people={people} meetings={meetings} />}
+        {canManage && (
+          <NewResolutionDialog people={people} meetings={meetings} />
+        )}
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">No resolutions recorded yet.</p>
+            <p className="app-muted px-4 py-6 text-sm">
+              No resolutions recorded yet.
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -70,11 +97,16 @@ export function ResolutionsTable({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        {canManage && <NewResolutionDialog people={people} meetings={meetings} />}
+        {canManage && (
+          <NewResolutionDialog people={people} meetings={meetings} />
+        )}
 
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1">
-            <label htmlFor="resolutions-search" className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+            <label
+              htmlFor="resolutions-search"
+              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+            >
               Search
             </label>
             <Input
@@ -87,8 +119,13 @@ export function ResolutionsTable({
           </div>
 
           <div className="flex flex-col gap-1">
-            <span className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">Vote outcome</span>
-            <Select value={outcomeFilter} onValueChange={(value) => setOutcomeFilter(value ?? FILTER_ALL)}>
+            <span className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+              Vote outcome
+            </span>
+            <Select
+              value={outcomeFilter}
+              onValueChange={(value) => setOutcomeFilter(value ?? FILTER_ALL)}
+            >
               <SelectTrigger className="h-8">
                 <SelectValue placeholder="Vote outcome" />
               </SelectTrigger>
@@ -129,15 +166,29 @@ export function ResolutionsTable({
               ) : (
                 visibleResolutions.map((resolution) => (
                   <TableRow key={resolution.id}>
-                    <TableCell className="max-w-xs truncate font-medium">{resolution.motion_text}</TableCell>
-                    <TableCell className="app-muted">{resolution.mover.name ?? "—"}</TableCell>
+                    <TableCell className="max-w-xs truncate font-medium">
+                      {resolution.motion_text}
+                    </TableCell>
+                    <TableCell className="app-muted">
+                      {resolution.mover.name ?? "—"}
+                    </TableCell>
                     <TableCell>
                       <VoteOutcomeBadge outcome={resolution.vote_outcome} />
                     </TableCell>
-                    <TableCell className="app-muted">{formatDate(resolution.effective_date)}</TableCell>
-                    <TableCell className="app-muted">{meetingDateFor(resolution.meeting_id, meetings)}</TableCell>
+                    <TableCell className="app-muted">
+                      {formatDate(resolution.effective_date)}
+                    </TableCell>
+                    <TableCell className="app-muted">
+                      {meetingDateFor(resolution.meeting_id, meetings)}
+                    </TableCell>
                     <TableCell>
-                      {canManage && <EditResolutionModal resolution={resolution} people={people} meetings={meetings} />}
+                      {canManage && (
+                        <EditResolutionModal
+                          resolution={resolution}
+                          people={people}
+                          meetings={meetings}
+                        />
+                      )}
                     </TableCell>
                   </TableRow>
                 ))

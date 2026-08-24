@@ -7,7 +7,15 @@ import { checkPermission, checkAnyPermission } from "@/lib/auth/permissions";
 
 export type PersonActionResult =
   | { error: string }
-  | { success: true; person?: { id: string; name: string | null; email: string | null; phone: string | null } };
+  | {
+      success: true;
+      person?: {
+        id: string;
+        name: string | null;
+        email: string | null;
+        phone: string | null;
+      };
+    };
 
 export type PersonListItem = {
   id: string;
@@ -17,7 +25,9 @@ export type PersonListItem = {
   is_sponsor: boolean;
 };
 
-export async function createPersonAction(formData: FormData): Promise<PersonActionResult> {
+export async function createPersonAction(
+  formData: FormData,
+): Promise<PersonActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -47,7 +57,9 @@ export async function createPersonAction(formData: FormData): Promise<PersonActi
   return { success: true, person: data };
 }
 
-export async function listPeopleAction(): Promise<{ data: PersonListItem[] } | { error: string }> {
+export async function listPeopleAction(): Promise<
+  { data: PersonListItem[] } | { error: string }
+> {
   const supabase = await createSupabaseServerClient();
   const permissionError = await checkAnyPermission(supabase, [
     { resource: "people", level: "view" },
@@ -71,7 +83,7 @@ export async function listPeopleAction(): Promise<{ data: PersonListItem[] } | {
 
 export async function updatePersonAction(
   id: string,
-  formData: FormData
+  formData: FormData,
 ): Promise<PersonActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -86,7 +98,10 @@ export async function updatePersonAction(
   const parsed = parsePersonForm(formData);
   if ("error" in parsed) return parsed;
 
-  const { error } = await supabase.from("people").update(parsed.data).eq("id", id);
+  const { error } = await supabase
+    .from("people")
+    .update(parsed.data)
+    .eq("id", id);
   if (error) {
     return { error: "Could not update this person. Please try again." };
   }

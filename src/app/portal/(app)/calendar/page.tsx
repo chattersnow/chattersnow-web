@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserPermissions, hasPermission } from "@/lib/auth/permissions";
+import {
+  getCurrentUserPermissions,
+  hasPermission,
+} from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
 import { listProgramsAction } from "../programs/actions";
 import { listCalendarOwnersAction } from "./actions";
@@ -18,7 +21,12 @@ import {
 } from "./calendar-shared";
 
 const VIEW_VALUES: CalendarView[] = ["list", "agenda", "month"];
-const SORT_VALUES: ListSortColumn[] = ["title", "starts_at", "priority_tier", "calendar_status"];
+const SORT_VALUES: ListSortColumn[] = [
+  "title",
+  "starts_at",
+  "priority_tier",
+  "calendar_status",
+];
 
 type CalendarPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -29,7 +37,9 @@ function currentMonthParam(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
-export default async function CalendarPage({ searchParams }: CalendarPageProps) {
+export default async function CalendarPage({
+  searchParams,
+}: CalendarPageProps) {
   const supabase = await createSupabaseServerClient();
   const permissions = await getCurrentUserPermissions(supabase);
   const canManage = hasPermission(permissions, "content_calendar", "manage");
@@ -45,7 +55,9 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     : "list";
   const month = raw("month") || currentMonthParam();
 
-  const sort: ListSortColumn = SORT_VALUES.includes(raw("sort") as ListSortColumn)
+  const sort: ListSortColumn = SORT_VALUES.includes(
+    raw("sort") as ListSortColumn,
+  )
     ? (raw("sort") as ListSortColumn)
     : "starts_at";
   const dir: "asc" | "desc" = raw("dir") === "desc" ? "desc" : "asc";
@@ -60,27 +72,36 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
   const decisionFilter = raw("decision") || "all";
 
   const categorySelect =
-    categoryFilter !== "all" ? "calendar_item_categories!inner(category)" : "calendar_item_categories(category)";
+    categoryFilter !== "all"
+      ? "calendar_item_categories!inner(category)"
+      : "calendar_item_categories(category)";
   const programSelect =
-    programFilter !== "all" ? "calendar_item_programs!inner(program_id)" : "calendar_item_programs(program_id)";
+    programFilter !== "all"
+      ? "calendar_item_programs!inner(program_id)"
+      : "calendar_item_programs(program_id)";
 
   let query = supabase
     .from("calendar_items")
     .select(
-      `id, title, item_type, starts_at, ends_at, time_zone, recurrence_rule, summary, priority_tier, priority_rationale, calendar_status, visibility, owner_id, decision, decision_note, ${categorySelect}, ${programSelect}, content_opportunities(id, calendar_item_id, content_status, skip_reason, chatter_connection, recommended_formats, recommended_action, outstanding_work, owner_id, reviewer_id, lead_time_days, publish_due_at, review_due_at, draft_due_at, status_changed_by, status_changed_at)`
+      `id, title, item_type, starts_at, ends_at, time_zone, recurrence_rule, summary, priority_tier, priority_rationale, calendar_status, visibility, owner_id, decision, decision_note, ${categorySelect}, ${programSelect}, content_opportunities(id, calendar_item_id, content_status, skip_reason, chatter_connection, recommended_formats, recommended_action, outstanding_work, owner_id, reviewer_id, lead_time_days, publish_due_at, review_due_at, draft_due_at, status_changed_by, status_changed_at)`,
     )
     .order(sort, { ascending: dir === "asc" })
     .order("id", { ascending: true });
 
   if (typeFilter !== "all") query = query.eq("item_type", typeFilter);
-  if (priorityFilter !== "all") query = query.eq("priority_tier", Number(priorityFilter));
+  if (priorityFilter !== "all")
+    query = query.eq("priority_tier", Number(priorityFilter));
   if (ownerFilter !== "all") query = query.eq("owner_id", ownerFilter);
-  if (visibilityFilter !== "all") query = query.eq("visibility", visibilityFilter);
+  if (visibilityFilter !== "all")
+    query = query.eq("visibility", visibilityFilter);
   if (statusFilter !== "all") query = query.eq("calendar_status", statusFilter);
   if (decisionFilter === "none") query = query.is("decision", null);
-  else if (decisionFilter !== "all") query = query.eq("decision", decisionFilter);
-  if (categoryFilter !== "all") query = query.eq("calendar_item_categories.category", categoryFilter);
-  if (programFilter !== "all") query = query.eq("calendar_item_programs.program_id", programFilter);
+  else if (decisionFilter !== "all")
+    query = query.eq("decision", decisionFilter);
+  if (categoryFilter !== "all")
+    query = query.eq("calendar_item_categories.category", categoryFilter);
+  if (programFilter !== "all")
+    query = query.eq("calendar_item_programs.program_id", programFilter);
 
   const { data: rows, error } = await query;
 
@@ -146,7 +167,8 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
   if (priorityFilter !== "all") filterParams.set("priority", priorityFilter);
   if (programFilter !== "all") filterParams.set("program", programFilter);
   if (ownerFilter !== "all") filterParams.set("owner", ownerFilter);
-  if (visibilityFilter !== "all") filterParams.set("visibility", visibilityFilter);
+  if (visibilityFilter !== "all")
+    filterParams.set("visibility", visibilityFilter);
   if (statusFilter !== "all") filterParams.set("status", statusFilter);
   if (decisionFilter !== "all") filterParams.set("decision", decisionFilter);
 
@@ -164,10 +186,16 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
 
   return (
     <>
-      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">Calendar</h1>
+      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+        Calendar
+      </h1>
 
       <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
-        {canManage ? <NewCalendarItemDialog owners={owners} programs={programs} /> : <div />}
+        {canManage ? (
+          <NewCalendarItemDialog owners={owners} programs={programs} />
+        ) : (
+          <div />
+        )}
         <ViewToggle view={view} hrefFor={viewHref} />
       </div>
 
@@ -178,10 +206,18 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         {view === "month" && <input type="hidden" name="month" value={month} />}
 
         <div className="flex flex-col gap-1">
-          <label htmlFor="type" className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+          <label
+            htmlFor="type"
+            className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+          >
             Type
           </label>
-          <select id="type" name="type" defaultValue={typeFilter} className={selectClassName}>
+          <select
+            id="type"
+            name="type"
+            defaultValue={typeFilter}
+            className={selectClassName}
+          >
             <option value="all">All types</option>
             {ITEM_TYPES.map((option) => (
               <option key={option.value} value={option.value}>
@@ -192,10 +228,18 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor="category" className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+          <label
+            htmlFor="category"
+            className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+          >
             Category
           </label>
-          <select id="category" name="category" defaultValue={categoryFilter} className={selectClassName}>
+          <select
+            id="category"
+            name="category"
+            defaultValue={categoryFilter}
+            className={selectClassName}
+          >
             <option value="all">All categories</option>
             {CATEGORIES.map((option) => (
               <option key={option.value} value={option.value}>
@@ -206,10 +250,18 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor="priority" className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+          <label
+            htmlFor="priority"
+            className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+          >
             Priority
           </label>
-          <select id="priority" name="priority" defaultValue={priorityFilter} className={selectClassName}>
+          <select
+            id="priority"
+            name="priority"
+            defaultValue={priorityFilter}
+            className={selectClassName}
+          >
             <option value="all">All tiers</option>
             {PRIORITY_TIERS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -220,10 +272,18 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor="program" className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+          <label
+            htmlFor="program"
+            className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+          >
             Program
           </label>
-          <select id="program" name="program" defaultValue={programFilter} className={selectClassName}>
+          <select
+            id="program"
+            name="program"
+            defaultValue={programFilter}
+            className={selectClassName}
+          >
             <option value="all">All programs</option>
             {programs.map((program) => (
               <option key={program.id} value={program.id}>
@@ -234,10 +294,18 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor="owner" className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+          <label
+            htmlFor="owner"
+            className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+          >
             Owner
           </label>
-          <select id="owner" name="owner" defaultValue={ownerFilter} className={selectClassName}>
+          <select
+            id="owner"
+            name="owner"
+            defaultValue={ownerFilter}
+            className={selectClassName}
+          >
             <option value="all">All owners</option>
             {owners.map((owner) => (
               <option key={owner.user_id} value={owner.user_id}>
@@ -248,10 +316,18 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor="visibility" className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+          <label
+            htmlFor="visibility"
+            className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+          >
             Visibility
           </label>
-          <select id="visibility" name="visibility" defaultValue={visibilityFilter} className={selectClassName}>
+          <select
+            id="visibility"
+            name="visibility"
+            defaultValue={visibilityFilter}
+            className={selectClassName}
+          >
             <option value="all">All</option>
             {VISIBILITIES.map((option) => (
               <option key={option.value} value={option.value}>
@@ -262,10 +338,18 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor="status" className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+          <label
+            htmlFor="status"
+            className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+          >
             Status
           </label>
-          <select id="status" name="status" defaultValue={statusFilter} className={selectClassName}>
+          <select
+            id="status"
+            name="status"
+            defaultValue={statusFilter}
+            className={selectClassName}
+          >
             <option value="all">All statuses</option>
             {CALENDAR_STATUSES.map((option) => (
               <option key={option.value} value={option.value}>
@@ -276,10 +360,18 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor="decision" className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+          <label
+            htmlFor="decision"
+            className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+          >
             Decision
           </label>
-          <select id="decision" name="decision" defaultValue={decisionFilter} className={selectClassName}>
+          <select
+            id="decision"
+            name="decision"
+            defaultValue={decisionFilter}
+            className={selectClassName}
+          >
             <option value="all">All</option>
             <option value="none">No decision</option>
             <option value="plan">Plan</option>
@@ -292,14 +384,20 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
           Filter
         </Button>
         {hasActiveFilters && (
-          <Button variant="ghost" nativeButton={false} render={<Link href={`/portal/calendar?view=${view}`} />}>
+          <Button
+            variant="ghost"
+            nativeButton={false}
+            render={<Link href={`/portal/calendar?view=${view}`} />}
+          >
             Clear
           </Button>
         )}
       </form>
 
       {error ? (
-        <p className="app-muted mt-6 px-4 py-6 text-sm">Could not load calendar items. Please try again.</p>
+        <p className="app-muted mt-6 px-4 py-6 text-sm">
+          Could not load calendar items. Please try again.
+        </p>
       ) : (
         <div className="mt-2">
           <CalendarWorkspace

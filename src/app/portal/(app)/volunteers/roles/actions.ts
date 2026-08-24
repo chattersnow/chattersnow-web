@@ -8,7 +8,9 @@ import { friendlyError } from "@/lib/db-errors";
 
 export type RoleTypeActionResult = { error: string } | { success: true };
 
-export async function createRoleTypeAction(formData: FormData): Promise<RoleTypeActionResult> {
+export async function createRoleTypeAction(
+  formData: FormData,
+): Promise<RoleTypeActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -16,13 +18,19 @@ export async function createRoleTypeAction(formData: FormData): Promise<RoleType
   if (!user) {
     return { error: "You must be signed in to create a role type." };
   }
-  const permissionError = await checkPermission(supabase, "volunteers", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "volunteers",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   const parsed = parseRoleTypeForm(formData);
   if ("error" in parsed) return parsed;
 
-  const { error } = await supabase.from("volunteer_role_types").insert(parsed.data);
+  const { error } = await supabase
+    .from("volunteer_role_types")
+    .insert(parsed.data);
 
   if (error) {
     return {
@@ -40,7 +48,7 @@ export async function createRoleTypeAction(formData: FormData): Promise<RoleType
 
 export async function updateRoleTypeAction(
   id: string,
-  formData: FormData
+  formData: FormData,
 ): Promise<RoleTypeActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -49,13 +57,20 @@ export async function updateRoleTypeAction(
   if (!user) {
     return { error: "You must be signed in to update a role type." };
   }
-  const permissionError = await checkPermission(supabase, "volunteers", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "volunteers",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   const parsed = parseRoleTypeForm(formData);
   if ("error" in parsed) return parsed;
 
-  const { error } = await supabase.from("volunteer_role_types").update(parsed.data).eq("id", id);
+  const { error } = await supabase
+    .from("volunteer_role_types")
+    .update(parsed.data)
+    .eq("id", id);
 
   if (error) {
     return {
@@ -73,7 +88,9 @@ export async function updateRoleTypeAction(
 
 export type RoleType = { id: string; name: string };
 
-export async function listRoleTypesAction(): Promise<{ data: RoleType[] } | { error: string }> {
+export async function listRoleTypesAction(): Promise<
+  { data: RoleType[] } | { error: string }
+> {
   const supabase = await createSupabaseServerClient();
   const permissionError = await checkPermission(supabase, "volunteers", "view");
   if (permissionError) return permissionError;

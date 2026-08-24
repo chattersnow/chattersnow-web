@@ -7,9 +7,19 @@ import {
 } from "../home/distribution-actions";
 import { RecordDistributionModal } from "../home/record-distribution-modal";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" });
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 
 export function DistributionsTab({
   eventId,
@@ -20,7 +30,9 @@ export function DistributionsTab({
   active: boolean;
   mode: "view" | "edit";
 }) {
-  const [distributions, setDistributions] = useState<EventDistributionRow[] | null>(null);
+  const [distributions, setDistributions] = useState<
+    EventDistributionRow[] | null
+  >(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   function refresh() {
@@ -49,13 +61,19 @@ export function DistributionsTab({
       )}
 
       {mode === "edit" && (
-        <RecordDistributionModal eventId={eventId} triggerLabel="+ Record distribution" onSaved={refresh} />
+        <RecordDistributionModal
+          eventId={eventId}
+          triggerLabel="+ Record distribution"
+          onSaved={refresh}
+        />
       )}
 
       {distributions === null ? (
         <p className="app-muted text-sm">Loading distributions...</p>
       ) : distributions.length === 0 ? (
-        <p className="app-muted text-sm">No gear distributed at this event yet.</p>
+        <p className="app-muted text-sm">
+          No gear distributed at this event yet.
+        </p>
       ) : (
         <Table>
           <TableHeader>
@@ -71,11 +89,17 @@ export function DistributionsTab({
               <TableRow key={movement.id}>
                 <TableCell className="font-medium">
                   {movement.inventory_item?.description ?? "—"}
-                  <span className="app-muted block text-xs">{movement.inventory_item?.type}</span>
+                  <span className="app-muted block text-xs">
+                    {movement.inventory_item?.type}
+                  </span>
                 </TableCell>
                 <TableCell>{movement.quantity}</TableCell>
-                <TableCell className="app-muted">{dateFormatter.format(new Date(movement.occurred_at))}</TableCell>
-                <TableCell className="app-muted">{movement.reason || "—"}</TableCell>
+                <TableCell className="app-muted">
+                  {dateFormatter.format(new Date(movement.occurred_at))}
+                </TableCell>
+                <TableCell className="app-muted">
+                  {movement.reason || "—"}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

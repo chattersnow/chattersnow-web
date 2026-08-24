@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getExpenseApprovalContextAction, listEventExpensesAction } from "../finance/expenses/actions";
+import {
+  getExpenseApprovalContextAction,
+  listEventExpensesAction,
+} from "../finance/expenses/actions";
 import { EditExpenseModal } from "../finance/expenses/edit-expense-modal";
 import { ExpenseStatusBadge } from "../finance/expenses/expense-badges";
 import { NewExpenseDialog } from "../finance/expenses/new-expense-dialog";
@@ -13,7 +16,14 @@ import {
   type ExpenseRow,
 } from "../finance/expenses/expenses-shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const EMPTY_APPROVAL_CONTEXT: ExpenseApprovalContext = {
   userId: null,
@@ -36,7 +46,8 @@ export function EventExpensesTab({
 }) {
   const [expenses, setExpenses] = useState<ExpenseRow[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [approvalContext, setApprovalContext] = useState<ExpenseApprovalContext>(EMPTY_APPROVAL_CONTEXT);
+  const [approvalContext, setApprovalContext] =
+    useState<ExpenseApprovalContext>(EMPTY_APPROVAL_CONTEXT);
 
   const eventOptions: EventOption[] = [{ id: eventId, name: eventName }];
 
@@ -79,7 +90,9 @@ export function EventExpensesTab({
       {expenses === null ? (
         <p className="app-muted text-sm">Loading expenses...</p>
       ) : expenses.length === 0 ? (
-        <p className="app-muted text-sm">No expenses recorded for this event yet.</p>
+        <p className="app-muted text-sm">
+          No expenses recorded for this event yet.
+        </p>
       ) : (
         <Table>
           <TableHeader>
@@ -94,9 +107,15 @@ export function EventExpensesTab({
           <TableBody>
             {expenses.map((expense) => (
               <TableRow key={expense.id}>
-                <TableCell className="whitespace-normal">{expense.description}</TableCell>
-                <TableCell className="app-muted">{formatExpenseDate(expense.expense_date)}</TableCell>
-                <TableCell>{formatAmount(expense.amount, expense.currency)}</TableCell>
+                <TableCell className="whitespace-normal">
+                  {expense.description}
+                </TableCell>
+                <TableCell className="app-muted">
+                  {formatExpenseDate(expense.expense_date)}
+                </TableCell>
+                <TableCell>
+                  {formatAmount(expense.amount, expense.currency)}
+                </TableCell>
                 <TableCell>
                   <ExpenseStatusBadge status={expense.status} />
                 </TableCell>

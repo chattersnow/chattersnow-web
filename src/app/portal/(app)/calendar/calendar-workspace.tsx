@@ -2,8 +2,19 @@
 
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RANGES, type CalendarItemRow, type CalendarOwner, type CalendarProgram } from "./calendar-shared";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  RANGES,
+  type CalendarItemRow,
+  type CalendarOwner,
+  type CalendarProgram,
+} from "./calendar-shared";
 import { ListView, type ListSortColumn } from "./list-view";
 import { AgendaView } from "./agenda-view";
 import { MonthView } from "./month-view";
@@ -61,7 +72,9 @@ export function CalendarWorkspace({
         if (!haystack.includes(query)) return false;
       }
       if (range !== "all") {
-        const windowEnd = new Date(now.getTime() + Number(range) * 24 * 60 * 60 * 1000);
+        const windowEnd = new Date(
+          now.getTime() + Number(range) * 24 * 60 * 60 * 1000,
+        );
         const startsAt = new Date(item.starts_at);
         const endsAt = item.ends_at ? new Date(item.ends_at) : startsAt;
         if (!(startsAt <= windowEnd && endsAt >= now)) return false;
@@ -74,7 +87,10 @@ export function CalendarWorkspace({
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1">
-          <label htmlFor="calendar-search" className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+          <label
+            htmlFor="calendar-search"
+            className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+          >
             Search
           </label>
           <Input
@@ -86,13 +102,21 @@ export function CalendarWorkspace({
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor="calendar-range" className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+          <label
+            htmlFor="calendar-range"
+            className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+          >
             Range
           </label>
-          <Select value={range} onValueChange={(value) => setRange(value ?? "all")}>
+          <Select
+            value={range}
+            onValueChange={(value) => setRange(value ?? "all")}
+          >
             <SelectTrigger id="calendar-range" className="w-44">
               <SelectValue placeholder="All upcoming">
-                {(value: string) => RANGES.find((option) => option.value === value)?.label}
+                {(value: string) =>
+                  RANGES.find((option) => option.value === value)?.label
+                }
               </SelectValue>
             </SelectTrigger>
             <SelectContent>

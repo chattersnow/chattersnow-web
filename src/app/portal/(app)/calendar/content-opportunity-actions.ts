@@ -5,11 +5,12 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseContentOpportunityForm } from "./content-opportunity-form";
 import { checkPermission } from "@/lib/auth/permissions";
 
-export type ContentOpportunityActionResult = { error: string } | { success: true };
+export type ContentOpportunityActionResult =
+  { error: string } | { success: true };
 
 export async function createContentOpportunityAction(
   calendarItemId: string,
-  formData: FormData
+  formData: FormData,
 ): Promise<ContentOpportunityActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -18,7 +19,11 @@ export async function createContentOpportunityAction(
   if (!user) {
     return { error: "You must be signed in to start a content brief." };
   }
-  const permissionError = await checkPermission(supabase, "content_calendar", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "content_calendar",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   const parsed = parseContentOpportunityForm(formData);
@@ -53,7 +58,7 @@ export async function createContentOpportunityAction(
 
 export async function updateContentOpportunityAction(
   id: string,
-  formData: FormData
+  formData: FormData,
 ): Promise<ContentOpportunityActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -62,7 +67,11 @@ export async function updateContentOpportunityAction(
   if (!user) {
     return { error: "You must be signed in to update a content brief." };
   }
-  const permissionError = await checkPermission(supabase, "content_calendar", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "content_calendar",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   const parsed = parseContentOpportunityForm(formData);
@@ -96,7 +105,10 @@ export async function updateContentOpportunityAction(
       review_due_at: data.reviewDueAt,
       draft_due_at: data.draftDueAt,
       ...(statusChanged
-        ? { status_changed_by: user.id, status_changed_at: new Date().toISOString() }
+        ? {
+            status_changed_by: user.id,
+            status_changed_at: new Date().toISOString(),
+          }
         : {}),
     })
     .eq("id", id);

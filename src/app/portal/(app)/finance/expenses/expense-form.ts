@@ -10,7 +10,9 @@ export type ExpenseFormData = {
   notes: string | null;
 };
 
-export function parseExpenseForm(formData: FormData): ParseResult<ExpenseFormData> {
+export function parseExpenseForm(
+  formData: FormData,
+): ParseResult<ExpenseFormData> {
   const description = String(formData.get("description") ?? "").trim();
   const eventId = String(formData.get("eventId") ?? "").trim();
   const expenseDate = String(formData.get("expenseDate") ?? "").trim();

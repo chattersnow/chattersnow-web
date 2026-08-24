@@ -10,7 +10,7 @@ export type BoardMemberActionResult = { error: string } | { success: true };
 
 export async function createBoardMemberAction(
   personId: string,
-  formData: FormData
+  formData: FormData,
 ): Promise<BoardMemberActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -19,7 +19,11 @@ export async function createBoardMemberAction(
   if (!user) {
     return { error: "You must be signed in to add a board member." };
   }
-  const permissionError = await checkPermission(supabase, "governance", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "governance",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   if (!personId) {
@@ -35,7 +39,10 @@ export async function createBoardMemberAction(
 
   if (error) {
     if (error.code === "23505") {
-      return { error: "This person already has an active board term. Edit their existing entry instead." };
+      return {
+        error:
+          "This person already has an active board term. Edit their existing entry instead.",
+      };
     }
     return { error: "Could not save this board member. Please try again." };
   }
@@ -46,7 +53,7 @@ export async function createBoardMemberAction(
 
 export async function updateBoardMemberAction(
   id: string,
-  formData: FormData
+  formData: FormData,
 ): Promise<BoardMemberActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -55,17 +62,27 @@ export async function updateBoardMemberAction(
   if (!user) {
     return { error: "You must be signed in to update this board member." };
   }
-  const permissionError = await checkPermission(supabase, "governance", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "governance",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   const parsed = parseBoardMemberForm(formData);
   if ("error" in parsed) return parsed;
 
-  const { error } = await supabase.from("board_members").update(parsed.data).eq("id", id);
+  const { error } = await supabase
+    .from("board_members")
+    .update(parsed.data)
+    .eq("id", id);
 
   if (error) {
     if (error.code === "23505") {
-      return { error: "This person already has an active board term. Deactivate it first." };
+      return {
+        error:
+          "This person already has an active board term. Deactivate it first.",
+      };
     }
     return { error: "Could not update this board member. Please try again." };
   }
@@ -74,15 +91,21 @@ export async function updateBoardMemberAction(
   return { success: true };
 }
 
-export async function listBoardMembersAction(): Promise<{ data: BoardMemberRow[] } | { error: string }> {
+export async function listBoardMembersAction(): Promise<
+  { data: BoardMemberRow[] } | { error: string }
+> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "governance", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "governance",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase
     .from("board_members")
     .select(
-      "id, role_title, term_start, term_end, is_active, notes, person:people(id, name, email, phone)"
+      "id, role_title, term_start, term_end, is_active, notes, person:people(id, name, email, phone)",
     )
     .order("is_active", { ascending: false })
     .order("term_start", { ascending: false });

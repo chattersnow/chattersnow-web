@@ -27,7 +27,9 @@ const CONTACT_TOPICS = [
 export function ContactForm() {
   const searchParams = useSearchParams();
   const requestedTopic = searchParams.get("topic");
-  const initialTopic = CONTACT_TOPICS.some((option) => option.value === requestedTopic)
+  const initialTopic = CONTACT_TOPICS.some(
+    (option) => option.value === requestedTopic,
+  )
     ? (requestedTopic as string)
     : CONTACT_TOPICS[0].value;
 
@@ -65,7 +67,9 @@ export function ContactForm() {
           <FieldLabel htmlFor="contact-topic">Topic</FieldLabel>
           <Select
             value={topic}
-            onValueChange={(value) => setTopic(value ?? CONTACT_TOPICS[0].value)}
+            onValueChange={(value) =>
+              setTopic(value ?? CONTACT_TOPICS[0].value)
+            }
           >
             <SelectTrigger id="contact-topic">
               <SelectValue placeholder="Topic" />

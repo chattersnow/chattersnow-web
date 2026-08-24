@@ -1,11 +1,24 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserPermissions, hasAnyPermission } from "@/lib/auth/permissions";
+import {
+  getCurrentUserPermissions,
+  hasAnyPermission,
+} from "@/lib/auth/permissions";
 import { listDistributionsAction } from "../../home/distribution-actions";
 import { RecordDistributionModal } from "../../home/record-distribution-modal";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" });
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 
 export default async function DistributionPage() {
   const supabase = await createSupabaseServerClient();
@@ -24,7 +37,12 @@ export default async function DistributionPage() {
       </h1>
 
       <div className="mt-6 flex flex-col gap-4">
-        {canRecord && <RecordDistributionModal triggerLabel="Record distribution" showRecipientField />}
+        {canRecord && (
+          <RecordDistributionModal
+            triggerLabel="Record distribution"
+            showRecipientField
+          />
+        )}
 
         {"error" in result ? (
           <Alert variant="destructive">
@@ -49,13 +67,23 @@ export default async function DistributionPage() {
                 <TableRow key={movement.id}>
                   <TableCell className="font-medium">
                     {movement.inventory_item?.description ?? "—"}
-                    <span className="app-muted block text-xs">{movement.inventory_item?.type}</span>
+                    <span className="app-muted block text-xs">
+                      {movement.inventory_item?.type}
+                    </span>
                   </TableCell>
                   <TableCell>{movement.quantity}</TableCell>
-                  <TableCell className="app-muted">{dateFormatter.format(new Date(movement.occurred_at))}</TableCell>
-                  <TableCell className="app-muted">{movement.event?.name ?? "—"}</TableCell>
-                  <TableCell className="app-muted">{movement.recipient?.name ?? "—"}</TableCell>
-                  <TableCell className="app-muted">{movement.reason || "—"}</TableCell>
+                  <TableCell className="app-muted">
+                    {dateFormatter.format(new Date(movement.occurred_at))}
+                  </TableCell>
+                  <TableCell className="app-muted">
+                    {movement.event?.name ?? "—"}
+                  </TableCell>
+                  <TableCell className="app-muted">
+                    {movement.recipient?.name ?? "—"}
+                  </TableCell>
+                  <TableCell className="app-muted">
+                    {movement.reason || "—"}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

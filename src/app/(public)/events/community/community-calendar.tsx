@@ -12,36 +12,60 @@ import {
 import { formatDateInZone } from "@/lib/time";
 import { CalendarListView } from "./calendar-list-view";
 import { currentMonthKey, CalendarMonthView } from "./calendar-month-view";
-import { CATEGORIES, categoryLabel, type PublicCalendarItem } from "./calendar-shared";
+import {
+  CATEGORIES,
+  categoryLabel,
+  type PublicCalendarItem,
+} from "./calendar-shared";
 
 const FILTER_ALL = "all";
 
 function monthOptionLabel(month: string) {
   const [year, monthNum] = month.split("-").map(Number);
-  return new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric" }).format(
-    new Date(year, monthNum - 1, 1)
-  );
+  return new Intl.DateTimeFormat(undefined, {
+    month: "long",
+    year: "numeric",
+  }).format(new Date(year, monthNum - 1, 1));
 }
 
-export function CommunityCalendar({ items, now }: { items: PublicCalendarItem[]; now: number }) {
+export function CommunityCalendar({
+  items,
+  now,
+}: {
+  items: PublicCalendarItem[];
+  now: number;
+}) {
   const [viewMode, setViewMode] = useState<"list" | "month">("list");
   const [categoryFilter, setCategoryFilter] = useState(FILTER_ALL);
   const [selectedMonth, setSelectedMonth] = useState(FILTER_ALL);
 
   const monthOptions = useMemo(() => {
-    const keys = new Set(items.map((item) => formatDateInZone(new Date(item.starts_at), item.time_zone).slice(0, 7)));
+    const keys = new Set(
+      items.map((item) =>
+        formatDateInZone(new Date(item.starts_at), item.time_zone).slice(0, 7),
+      ),
+    );
     return Array.from(keys).sort();
   }, [items]);
 
-  const activeMonth = viewMode === "month" && selectedMonth === FILTER_ALL ? currentMonthKey() : selectedMonth;
+  const activeMonth =
+    viewMode === "month" && selectedMonth === FILTER_ALL
+      ? currentMonthKey()
+      : selectedMonth;
 
   const visibleItems = useMemo(() => {
     return items.filter((item) => {
-      if (categoryFilter !== FILTER_ALL && !(item.categories ?? []).includes(categoryFilter)) {
+      if (
+        categoryFilter !== FILTER_ALL &&
+        !(item.categories ?? []).includes(categoryFilter)
+      ) {
         return false;
       }
       if (activeMonth !== FILTER_ALL) {
-        const itemMonth = formatDateInZone(new Date(item.starts_at), item.time_zone).slice(0, 7);
+        const itemMonth = formatDateInZone(
+          new Date(item.starts_at),
+          item.time_zone,
+        ).slice(0, 7);
         if (itemMonth !== activeMonth) return false;
       }
       return true;
@@ -51,7 +75,8 @@ export function CommunityCalendar({ items, now }: { items: PublicCalendarItem[];
   if (items.length === 0) {
     return (
       <p className="app-muted py-16 text-center text-sm">
-        The community calendar doesn&apos;t have any published items yet. Check back soon.
+        The community calendar doesn&apos;t have any published items yet. Check
+        back soon.
       </p>
     );
   }
@@ -90,10 +115,15 @@ export function CommunityCalendar({ items, now }: { items: PublicCalendarItem[];
           <label className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
             Category
           </label>
-          <Select value={categoryFilter} onValueChange={(value) => setCategoryFilter(value ?? FILTER_ALL)}>
+          <Select
+            value={categoryFilter}
+            onValueChange={(value) => setCategoryFilter(value ?? FILTER_ALL)}
+          >
             <SelectTrigger className="h-8">
               <SelectValue placeholder="Category">
-                {(value: string) => (value === FILTER_ALL ? "All categories" : categoryLabel(value))}
+                {(value: string) =>
+                  value === FILTER_ALL ? "All categories" : categoryLabel(value)
+                }
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -112,10 +142,17 @@ export function CommunityCalendar({ items, now }: { items: PublicCalendarItem[];
             <label className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
               Month
             </label>
-            <Select value={selectedMonth} onValueChange={(value) => setSelectedMonth(value ?? FILTER_ALL)}>
+            <Select
+              value={selectedMonth}
+              onValueChange={(value) => setSelectedMonth(value ?? FILTER_ALL)}
+            >
               <SelectTrigger className="h-8">
                 <SelectValue placeholder="Month">
-                  {(value: string) => (value === FILTER_ALL ? "All months" : monthOptionLabel(value))}
+                  {(value: string) =>
+                    value === FILTER_ALL
+                      ? "All months"
+                      : monthOptionLabel(value)
+                  }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -134,7 +171,11 @@ export function CommunityCalendar({ items, now }: { items: PublicCalendarItem[];
       {viewMode === "list" ? (
         <CalendarListView items={visibleItems} now={now} />
       ) : (
-        <CalendarMonthView items={visibleItems} month={activeMonth} onMonthChange={setSelectedMonth} />
+        <CalendarMonthView
+          items={visibleItems}
+          month={activeMonth}
+          onMonthChange={setSelectedMonth}
+        />
       )}
     </div>
   );

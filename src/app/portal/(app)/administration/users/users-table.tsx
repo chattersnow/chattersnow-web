@@ -14,9 +14,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { formatRoleLabel } from "@/lib/format";
-import { assignRoleAction, revokeRoleAction, type PortalUser, type PortalRoleOption } from "./actions";
+import {
+  assignRoleAction,
+  revokeRoleAction,
+  type PortalUser,
+  type PortalRoleOption,
+} from "./actions";
 
 export function UsersTable({
   users,
@@ -50,7 +62,9 @@ export function UsersTable({
   if (users.length === 0) {
     return (
       <Card>
-        <CardContent className="app-muted px-4 py-6 text-sm">No users found.</CardContent>
+        <CardContent className="app-muted px-4 py-6 text-sm">
+          No users found.
+        </CardContent>
       </Card>
     );
   }
@@ -84,7 +98,9 @@ export function UsersTable({
 
                 return (
                   <TableRow key={portalUser.user_id}>
-                    <TableCell className="font-medium">{portalUser.email ?? "—"}</TableCell>
+                    <TableCell className="font-medium">
+                      {portalUser.email ?? "—"}
+                    </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1.5">
                         {portalUser.roles.length === 0 ? (
@@ -93,19 +109,34 @@ export function UsersTable({
                           portalUser.roles.map((role) => {
                             const lockedSelfAdmin = isSelf && role === "admin";
                             return (
-                              <Badge key={role} variant="secondary" className="gap-1 pr-1">
+                              <Badge
+                                key={role}
+                                variant="secondary"
+                                className="gap-1 pr-1"
+                              >
                                 {formatRoleLabel(role)}
                                 <button
                                   type="button"
                                   disabled={isPending || lockedSelfAdmin}
-                                  title={lockedSelfAdmin ? "You can't remove your own admin role." : undefined}
+                                  title={
+                                    lockedSelfAdmin
+                                      ? "You can't remove your own admin role."
+                                      : undefined
+                                  }
                                   onClick={() =>
-                                    runAction(revokeRoleAction(portalUser.user_id, role))
+                                    runAction(
+                                      revokeRoleAction(
+                                        portalUser.user_id,
+                                        role,
+                                      ),
+                                    )
                                   }
                                   className="rounded-full p-0.5 hover:bg-black/10 disabled:pointer-events-none disabled:opacity-40 dark:hover:bg-white/10"
                                 >
                                   <X className="size-3" />
-                                  <span className="sr-only">Remove {formatRoleLabel(role)}</span>
+                                  <span className="sr-only">
+                                    Remove {formatRoleLabel(role)}
+                                  </span>
                                 </button>
                               </Badge>
                             );
@@ -118,7 +149,9 @@ export function UsersTable({
                         <div className="flex items-center gap-2">
                           <Select
                             value={pendingRole}
-                            onValueChange={(value) => setPendingRole(value ?? "")}
+                            onValueChange={(value) =>
+                              setPendingRole(value ?? "")
+                            }
                           >
                             <SelectTrigger className="h-8 w-40">
                               <SelectValue placeholder="Role" />
@@ -136,7 +169,12 @@ export function UsersTable({
                             size="sm"
                             disabled={!pendingRole || isPending}
                             onClick={() =>
-                              runAction(assignRoleAction(portalUser.user_id, pendingRole))
+                              runAction(
+                                assignRoleAction(
+                                  portalUser.user_id,
+                                  pendingRole,
+                                ),
+                              )
                             }
                           >
                             Add

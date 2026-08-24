@@ -3,9 +3,27 @@ import { filterPeople } from "./person-search";
 import type { PersonListItem } from "./actions";
 
 const people: PersonListItem[] = [
-  { id: "1", name: "Jane Doe", email: "jane@example.com", phone: null, is_sponsor: false },
-  { id: "2", name: "John Smith", email: "john@acme.com", phone: null, is_sponsor: true },
-  { id: "3", name: null, email: "anon@example.com", phone: null, is_sponsor: false },
+  {
+    id: "1",
+    name: "Jane Doe",
+    email: "jane@example.com",
+    phone: null,
+    is_sponsor: false,
+  },
+  {
+    id: "2",
+    name: "John Smith",
+    email: "john@acme.com",
+    phone: null,
+    is_sponsor: true,
+  },
+  {
+    id: "3",
+    name: null,
+    email: "anon@example.com",
+    phone: null,
+    is_sponsor: false,
+  },
 ];
 
 describe("filterPeople", () => {

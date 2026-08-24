@@ -22,7 +22,11 @@ export async function createRoleAction(
   }
 
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "administration", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "administration",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   const { error } = await supabase
@@ -30,7 +34,11 @@ export async function createRoleAction(
     .insert({ name: trimmedName, description: description.trim() || null });
   if (error) {
     return {
-      error: friendlyError(error, "A role with that name already exists.", "Could not create role. Please try again."),
+      error: friendlyError(
+        error,
+        "A role with that name already exists.",
+        "Could not create role. Please try again.",
+      ),
     };
   }
 
@@ -49,7 +57,11 @@ export async function renameRoleAction(
   }
 
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "administration", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "administration",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   const { data: role, error: fetchError } = await supabase
@@ -70,7 +82,11 @@ export async function renameRoleAction(
     .eq("id", id);
   if (error) {
     return {
-      error: friendlyError(error, "A role with that name already exists.", "Could not update role. Please try again."),
+      error: friendlyError(
+        error,
+        "A role with that name already exists.",
+        "Could not update role. Please try again.",
+      ),
     };
   }
 
@@ -78,9 +94,15 @@ export async function renameRoleAction(
   return { success: true };
 }
 
-export async function deleteRoleAction(id: string): Promise<{ error: string } | { success: true }> {
+export async function deleteRoleAction(
+  id: string,
+): Promise<{ error: string } | { success: true }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "administration", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "administration",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   const { data: role, error: fetchError } = await supabase
@@ -103,7 +125,9 @@ export async function deleteRoleAction(id: string): Promise<{ error: string } | 
     return { error: "Could not check role usage. Please try again." };
   }
   if (count && count > 0) {
-    return { error: `This role is still assigned to ${count} user${count === 1 ? "" : "s"} and can't be deleted.` };
+    return {
+      error: `This role is still assigned to ${count} user${count === 1 ? "" : "s"} and can't be deleted.`,
+    };
   }
 
   const { error } = await supabase.from("roles").delete().eq("id", id);

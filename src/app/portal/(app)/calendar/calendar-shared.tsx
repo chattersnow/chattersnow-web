@@ -4,8 +4,14 @@ export const ITEM_TYPES = [
   { value: "chatter_event", label: "Chatter event" },
   { value: "partner_event", label: "Partner / co-hosted event" },
   { value: "community_observance", label: "Community observance" },
-  { value: "heritage_social_justice_moment", label: "Heritage / social justice moment" },
-  { value: "winter_outdoor_sports_moment", label: "Winter / outdoor sports moment" },
+  {
+    value: "heritage_social_justice_moment",
+    label: "Heritage / social justice moment",
+  },
+  {
+    value: "winter_outdoor_sports_moment",
+    label: "Winter / outdoor sports moment",
+  },
   { value: "content_campaign", label: "Content campaign" },
   { value: "fundraiser", label: "Fundraiser / donation drive" },
   { value: "partner_opportunity", label: "Partner opportunity" },
@@ -55,8 +61,13 @@ export const RANGES = [
 
 type Option = { value: string; label: string };
 
-export function labelFor(options: readonly Option[], value: string | null | undefined): string {
-  return options.find((option) => option.value === value)?.label ?? value ?? "—";
+export function labelFor(
+  options: readonly Option[],
+  value: string | null | undefined,
+): string {
+  return (
+    options.find((option) => option.value === value)?.label ?? value ?? "—"
+  );
 }
 
 export type CalendarItemRow = {
@@ -84,14 +95,18 @@ export type CalendarOwner = { user_id: string; email: string | null };
 export type CalendarProgram = { id: string; name: string; status: string };
 
 export function needsDecision(
-  item: Pick<CalendarItemRow, "priority_tier" | "decision" | "calendar_status">
+  item: Pick<CalendarItemRow, "priority_tier" | "decision" | "calendar_status">,
 ): boolean {
-  return item.priority_tier === 1 && !item.decision && item.calendar_status !== "archived";
+  return (
+    item.priority_tier === 1 &&
+    !item.decision &&
+    item.calendar_status !== "archived"
+  );
 }
 
 export function isPastUndecided(
   item: Pick<CalendarItemRow, "starts_at" | "decision" | "calendar_status">,
-  now: Date = new Date()
+  now: Date = new Date(),
 ): boolean {
   return (
     new Date(item.starts_at) < now &&
@@ -101,7 +116,10 @@ export function isPastUndecided(
   );
 }
 
-export function ownerEmail(owners: CalendarOwner[], ownerId: string | null): string {
+export function ownerEmail(
+  owners: CalendarOwner[],
+  ownerId: string | null,
+): string {
   if (!ownerId) return "—";
   return owners.find((owner) => owner.user_id === ownerId)?.email ?? "—";
 }

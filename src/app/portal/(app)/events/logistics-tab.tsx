@@ -1,8 +1,19 @@
 "use client";
 
-import { FormEvent, Ref, useEffect, useImperativeHandle, useState, useTransition } from "react";
+import {
+  FormEvent,
+  Ref,
+  useEffect,
+  useImperativeHandle,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter } from "next/navigation";
-import { getEventLogisticsAction, upsertEventLogisticsAction, type EventLogistics } from "./logistics-actions";
+import {
+  getEventLogisticsAction,
+  upsertEventLogisticsAction,
+  type EventLogistics,
+} from "./logistics-actions";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -61,7 +72,9 @@ export function LogisticsTab({
   ref?: Ref<LogisticsTabHandle>;
 }) {
   const router = useRouter();
-  const [logistics, setLogistics] = useState<EventLogistics | null | undefined>(undefined);
+  const [logistics, setLogistics] = useState<EventLogistics | null | undefined>(
+    undefined,
+  );
   const [form, setForm] = useState<FormState>(() => formStateFor(null));
   const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -85,7 +98,10 @@ export function LogisticsTab({
   }, [active, eventId]);
 
   useEffect(() => {
-    onDirtyChange?.(logistics !== undefined && JSON.stringify(form) !== JSON.stringify(formStateFor(logistics)));
+    onDirtyChange?.(
+      logistics !== undefined &&
+        JSON.stringify(form) !== JSON.stringify(formStateFor(logistics)),
+    );
   }, [form, logistics, onDirtyChange]);
 
   useImperativeHandle(ref, () => ({
@@ -142,10 +158,16 @@ export function LogisticsTab({
         <ReadOnlyField label="Meeting point" htmlFor="logistics-meetingPoint">
           {form.meetingPoint || "—"}
         </ReadOnlyField>
-        <ReadOnlyField label="Gear requirements" htmlFor="logistics-gearRequirements">
+        <ReadOnlyField
+          label="Gear requirements"
+          htmlFor="logistics-gearRequirements"
+        >
           {form.gearRequirements || "—"}
         </ReadOnlyField>
-        <ReadOnlyField label="Transportation" htmlFor="logistics-transportation">
+        <ReadOnlyField
+          label="Transportation"
+          htmlFor="logistics-transportation"
+        >
           {form.transportation || "—"}
         </ReadOnlyField>
         <ReadOnlyField label="Food" htmlFor="logistics-food">
@@ -155,10 +177,16 @@ export function LogisticsTab({
           {form.supplies || "—"}
         </ReadOnlyField>
         <Field orientation="responsive">
-          <ReadOnlyField label="Emergency contact" htmlFor="logistics-emergencyContactName">
+          <ReadOnlyField
+            label="Emergency contact"
+            htmlFor="logistics-emergencyContactName"
+          >
             {form.emergencyContactName || "—"}
           </ReadOnlyField>
-          <ReadOnlyField label="Emergency phone" htmlFor="logistics-emergencyContactPhone">
+          <ReadOnlyField
+            label="Emergency phone"
+            htmlFor="logistics-emergencyContactPhone"
+          >
             {form.emergencyContactPhone || "—"}
           </ReadOnlyField>
         </Field>
@@ -173,29 +201,41 @@ export function LogisticsTab({
     <form id={formId} onSubmit={handleSubmit}>
       <FieldGroup>
         <Field>
-          <FieldLabel htmlFor="logistics-meetingPoint">Meeting point</FieldLabel>
+          <FieldLabel htmlFor="logistics-meetingPoint">
+            Meeting point
+          </FieldLabel>
           <Input
             id="logistics-meetingPoint"
             value={form.meetingPoint}
-            onChange={(changeEvent) => update("meetingPoint", changeEvent.target.value)}
+            onChange={(changeEvent) =>
+              update("meetingPoint", changeEvent.target.value)
+            }
           />
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="logistics-gearRequirements">Gear requirements</FieldLabel>
+          <FieldLabel htmlFor="logistics-gearRequirements">
+            Gear requirements
+          </FieldLabel>
           <Textarea
             id="logistics-gearRequirements"
             value={form.gearRequirements}
-            onChange={(changeEvent) => update("gearRequirements", changeEvent.target.value)}
+            onChange={(changeEvent) =>
+              update("gearRequirements", changeEvent.target.value)
+            }
           />
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="logistics-transportation">Transportation</FieldLabel>
+          <FieldLabel htmlFor="logistics-transportation">
+            Transportation
+          </FieldLabel>
           <Textarea
             id="logistics-transportation"
             value={form.transportation}
-            onChange={(changeEvent) => update("transportation", changeEvent.target.value)}
+            onChange={(changeEvent) =>
+              update("transportation", changeEvent.target.value)
+            }
           />
         </Field>
 
@@ -213,25 +253,35 @@ export function LogisticsTab({
           <Textarea
             id="logistics-supplies"
             value={form.supplies}
-            onChange={(changeEvent) => update("supplies", changeEvent.target.value)}
+            onChange={(changeEvent) =>
+              update("supplies", changeEvent.target.value)
+            }
           />
         </Field>
 
         <Field orientation="responsive">
           <Field>
-            <FieldLabel htmlFor="logistics-emergencyContactName">Emergency contact</FieldLabel>
+            <FieldLabel htmlFor="logistics-emergencyContactName">
+              Emergency contact
+            </FieldLabel>
             <Input
               id="logistics-emergencyContactName"
               value={form.emergencyContactName}
-              onChange={(changeEvent) => update("emergencyContactName", changeEvent.target.value)}
+              onChange={(changeEvent) =>
+                update("emergencyContactName", changeEvent.target.value)
+              }
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="logistics-emergencyContactPhone">Emergency phone</FieldLabel>
+            <FieldLabel htmlFor="logistics-emergencyContactPhone">
+              Emergency phone
+            </FieldLabel>
             <Input
               id="logistics-emergencyContactPhone"
               value={form.emergencyContactPhone}
-              onChange={(changeEvent) => update("emergencyContactPhone", changeEvent.target.value)}
+              onChange={(changeEvent) =>
+                update("emergencyContactPhone", changeEvent.target.value)
+              }
             />
           </Field>
         </Field>
@@ -241,7 +291,9 @@ export function LogisticsTab({
           <Textarea
             id="logistics-notes"
             value={form.notes}
-            onChange={(changeEvent) => update("notes", changeEvent.target.value)}
+            onChange={(changeEvent) =>
+              update("notes", changeEvent.target.value)
+            }
           />
         </Field>
 

@@ -1,5 +1,8 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserPermissions, hasPermission } from "@/lib/auth/permissions";
+import {
+  getCurrentUserPermissions,
+  hasPermission,
+} from "@/lib/auth/permissions";
 import { MeetingsTable } from "./meetings-table";
 import type { MeetingRow } from "./meeting-badges";
 
@@ -20,7 +23,10 @@ export default async function MeetingsPage() {
       </h1>
 
       <div className="mt-6">
-        <MeetingsTable meetings={(meetings ?? []) as MeetingRow[]} canManage={canManage} />
+        <MeetingsTable
+          meetings={(meetings ?? []) as MeetingRow[]}
+          canManage={canManage}
+        />
       </div>
     </>
   );

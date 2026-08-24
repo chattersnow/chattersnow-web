@@ -24,7 +24,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { formatRoleLabel } from "@/lib/format";
 import {
   createPendingGrantAction,
@@ -34,7 +41,11 @@ import {
 } from "./actions";
 
 function statusBadge(grant: PendingGrant) {
-  if (grant.status === "pending" && grant.expires_at && new Date(grant.expires_at) <= new Date()) {
+  if (
+    grant.status === "pending" &&
+    grant.expires_at &&
+    new Date(grant.expires_at) <= new Date()
+  ) {
     return <Badge variant="outline">Expired</Badge>;
   }
   if (grant.status === "pending") {
@@ -103,7 +114,10 @@ export function PendingAccessSection({
             </Alert>
           )}
 
-          <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-2">
+          <form
+            onSubmit={handleSubmit}
+            className="flex flex-wrap items-end gap-2"
+          >
             <div className="flex-1 min-w-48">
               <Input
                 type="email"
@@ -113,7 +127,10 @@ export function PendingAccessSection({
                 required
               />
             </div>
-            <Select value={role} onValueChange={(value) => setRole(value ?? "")}>
+            <Select
+              value={role}
+              onValueChange={(value) => setRole(value ?? "")}
+            >
               <SelectTrigger className="h-9 w-40">
                 <SelectValue placeholder="Role" />
               </SelectTrigger>
@@ -125,7 +142,10 @@ export function PendingAccessSection({
                 ))}
               </SelectContent>
             </Select>
-            <Button type="submit" disabled={!email.trim() || !role || isPending}>
+            <Button
+              type="submit"
+              disabled={!email.trim() || !role || isPending}
+            >
               Stage access
             </Button>
           </form>
@@ -171,22 +191,30 @@ export function PendingAccessSection({
         </CardContent>
       </Card>
 
-      <AlertDialog open={revokeTarget !== null} onOpenChange={(next) => !next && setRevokeTarget(null)}>
+      <AlertDialog
+        open={revokeTarget !== null}
+        onOpenChange={(next) => !next && setRevokeTarget(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Revoke pending access?</AlertDialogTitle>
             <AlertDialogDescription>
               {revokeTarget && (
                 <>
-                  {revokeTarget.email} will no longer receive the {formatRoleLabel(revokeTarget.roles.name)} role
-                  when they sign in.
+                  {revokeTarget.email} will no longer receive the{" "}
+                  {formatRoleLabel(revokeTarget.roles.name)} role when they sign
+                  in.
                 </>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={handleRevoke} disabled={isPending}>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={handleRevoke}
+              disabled={isPending}
+            >
               {isPending ? "Revoking..." : "Revoke"}
             </AlertDialogAction>
           </AlertDialogFooter>

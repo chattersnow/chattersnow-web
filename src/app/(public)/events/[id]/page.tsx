@@ -37,7 +37,9 @@ export async function generateMetadata({
     .eq("id", id)
     .maybeSingle();
 
-  return { title: event ? `${event.name} | Chatter Snow` : "Event | Chatter Snow" };
+  return {
+    title: event ? `${event.name} | Chatter Snow` : "Event | Chatter Snow",
+  };
 }
 
 export default async function EventDetailPage({
@@ -51,7 +53,7 @@ export default async function EventDetailPage({
   const { data: event } = await supabase
     .from("public_events")
     .select(
-      "id, name, location, starts_at, ends_at, timezone, description, event_type, venue, capacity, registration_enabled, registration_deadline"
+      "id, name, location, starts_at, ends_at, timezone, description, event_type, venue, capacity, registration_enabled, registration_deadline",
     )
     .eq("id", id)
     .maybeSingle<PublicEventDetail>();
@@ -70,18 +72,25 @@ export default async function EventDetailPage({
           </h1>
           <p className="app-muted mt-4 text-sm sm:text-base">
             {dateFormatter.format(new Date(event.starts_at))}
-            {event.ends_at && ` – ${dateFormatter.format(new Date(event.ends_at))}`}
+            {event.ends_at &&
+              ` – ${dateFormatter.format(new Date(event.ends_at))}`}
           </p>
           {(event.venue || event.location) && (
-            <p className="app-muted text-sm sm:text-base">{event.venue ?? event.location}</p>
+            <p className="app-muted text-sm sm:text-base">
+              {event.venue ?? event.location}
+            </p>
           )}
           {event.description && (
-            <p className="mt-6 max-w-2xl text-sm leading-relaxed sm:text-base">{event.description}</p>
+            <p className="mt-6 max-w-2xl text-sm leading-relaxed sm:text-base">
+              {event.description}
+            </p>
           )}
         </section>
 
         <section className="mt-10 max-w-lg">
-          <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em]">Register</h2>
+          <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em]">
+            Register
+          </h2>
           <div className="mt-4">
             {registrationWindow.open ? (
               <EventRegistrationForm eventId={event.id} />

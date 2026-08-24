@@ -45,7 +45,9 @@ export function InventoryCard({ item }: { item: InventoryItem }) {
           <span className="text-xs text-muted-foreground">
             {labelFor(CONDITIONS, item.condition)}
           </span>
-          <span className="text-sm font-semibold">{formatFaceValue(item.face_value)}</span>
+          <span className="text-sm font-semibold">
+            {formatFaceValue(item.face_value)}
+          </span>
         </div>
         <StatusBadge status={item.status} />
       </CardContent>

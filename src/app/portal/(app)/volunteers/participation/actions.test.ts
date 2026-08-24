@@ -40,7 +40,11 @@ function fakeSupabase({
 } = {}) {
   const from = mock(() => new QueryStub(result));
   const rpc = mock(async () => ({ data: permissionRows }));
-  return { client: { auth: { getUser: async () => ({ data: { user } }) }, from, rpc }, from, rpc };
+  return {
+    client: { auth: { getUser: async () => ({ data: { user } }) }, from, rpc },
+    from,
+    rpc,
+  };
 }
 
 let currentSupabase: ReturnType<typeof fakeSupabase>["client"];
@@ -61,25 +65,39 @@ function formData(fields: Record<string, string>) {
   return fd;
 }
 
-const validFields = { eventId: "", volunteerRoleTypeId: "", hours: "2.5", loggedDate: "2026-01-05", notes: "" };
+const validFields = {
+  eventId: "",
+  volunteerRoleTypeId: "",
+  hours: "2.5",
+  loggedDate: "2026-01-05",
+  notes: "",
+};
 
 describe("createVolunteerHoursAction", () => {
   test("requires a signed-in user", async () => {
     currentSupabase = fakeSupabase({ user: null }).client;
-    const result = await createVolunteerHoursAction("p1", formData(validFields));
+    const result = await createVolunteerHoursAction(
+      "p1",
+      formData(validFields),
+    );
     expect(result).toEqual({ error: "You must be signed in to log hours." });
   });
 
   test("requires a person id", async () => {
     currentSupabase = fakeSupabase().client;
     const result = await createVolunteerHoursAction("", formData(validFields));
-    expect(result).toEqual({ error: "Select or create a person to log hours for." });
+    expect(result).toEqual({
+      error: "Select or create a person to log hours for.",
+    });
   });
 
   test("returns validation errors without hitting the database", async () => {
     const { client, from } = fakeSupabase();
     currentSupabase = client;
-    const result = await createVolunteerHoursAction("p1", formData({ ...validFields, hours: "0" }));
+    const result = await createVolunteerHoursAction(
+      "p1",
+      formData({ ...validFields, hours: "0" }),
+    );
     expect(result).toEqual({ error: "Hours must be a positive number." });
     expect(from).not.toHaveBeenCalled();
   });
@@ -88,33 +106,53 @@ describe("createVolunteerHoursAction", () => {
     revalidatePathMock.mockClear();
     const { client, from } = fakeSupabase({ result: { error: null } });
     currentSupabase = client;
-    const result = await createVolunteerHoursAction("p1", formData(validFields));
+    const result = await createVolunteerHoursAction(
+      "p1",
+      formData(validFields),
+    );
     expect(result).toEqual({ success: true });
     expect(from).toHaveBeenCalledWith("volunteer_hours");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/portal/volunteers/participation");
+    expect(revalidatePathMock).toHaveBeenCalledWith(
+      "/portal/volunteers/participation",
+    );
   });
 
   test("returns a friendly error on db failure", async () => {
-    currentSupabase = fakeSupabase({ result: { error: { code: "500" } } }).client;
-    const result = await createVolunteerHoursAction("p1", formData(validFields));
+    currentSupabase = fakeSupabase({
+      result: { error: { code: "500" } },
+    }).client;
+    const result = await createVolunteerHoursAction(
+      "p1",
+      formData(validFields),
+    );
     expect(result).toEqual({ error: "Could not log hours. Please try again." });
   });
 
   test("denies a user with neither volunteers:manage nor volunteer_hours_logging:manage", async () => {
     const { client, from } = fakeSupabase({ permissionRows: [] });
     currentSupabase = client;
-    const result = await createVolunteerHoursAction("p1", formData(validFields));
-    expect(result).toEqual({ error: "You don't have permission to perform this action." });
+    const result = await createVolunteerHoursAction(
+      "p1",
+      formData(validFields),
+    );
+    expect(result).toEqual({
+      error: "You don't have permission to perform this action.",
+    });
     expect(from).not.toHaveBeenCalled();
   });
 
   test("allows a self-logger with only volunteer_hours_logging:manage", async () => {
     revalidatePathMock.mockClear();
     const { client, from } = fakeSupabase({
-      permissionRows: [{ resource_key: "volunteer_hours_logging", level: "manage" }],
+      permissionRows: [
+        { resource_key: "volunteer_hours_logging", level: "manage" },
+      ],
     });
     currentSupabase = client;
-    const result = await createVolunteerHoursAction("p1", formData(validFields));
+    const result = await createVolunteerHoursAction(
+      "p1",
+      formData(validFields),
+    );
     expect(result).toEqual({ success: true });
     expect(from).toHaveBeenCalledWith("volunteer_hours");
   });
@@ -124,16 +162,22 @@ describe("deleteVolunteerHoursAction", () => {
   test("requires a signed-in user", async () => {
     currentSupabase = fakeSupabase({ user: null }).client;
     const result = await deleteVolunteerHoursAction("entry-1");
-    expect(result).toEqual({ error: "You must be signed in to remove a logged hours entry." });
+    expect(result).toEqual({
+      error: "You must be signed in to remove a logged hours entry.",
+    });
   });
 
   test("denies a self-logger with only volunteer_hours_logging:manage", async () => {
     const { client, from } = fakeSupabase({
-      permissionRows: [{ resource_key: "volunteer_hours_logging", level: "manage" }],
+      permissionRows: [
+        { resource_key: "volunteer_hours_logging", level: "manage" },
+      ],
     });
     currentSupabase = client;
     const result = await deleteVolunteerHoursAction("entry-1");
-    expect(result).toEqual({ error: "You don't have permission to perform this action." });
+    expect(result).toEqual({
+      error: "You don't have permission to perform this action.",
+    });
     expect(from).not.toHaveBeenCalled();
   });
 
@@ -144,25 +188,35 @@ describe("deleteVolunteerHoursAction", () => {
     const result = await deleteVolunteerHoursAction("entry-1");
     expect(result).toEqual({ success: true });
     expect(from).toHaveBeenCalledWith("volunteer_hours");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/portal/volunteers/participation");
+    expect(revalidatePathMock).toHaveBeenCalledWith(
+      "/portal/volunteers/participation",
+    );
   });
 
   test("returns a friendly error on db failure", async () => {
-    currentSupabase = fakeSupabase({ result: { error: { code: "500" } } }).client;
+    currentSupabase = fakeSupabase({
+      result: { error: { code: "500" } },
+    }).client;
     const result = await deleteVolunteerHoursAction("entry-1");
-    expect(result).toEqual({ error: "Could not remove this entry. Please try again." });
+    expect(result).toEqual({
+      error: "Could not remove this entry. Please try again.",
+    });
   });
 });
 
 describe("listVolunteerHoursAction", () => {
   test("returns entries on success", async () => {
     const rows = [{ id: "1", hours: 2 }] as unknown as VolunteerHoursEntry[];
-    currentSupabase = fakeSupabase({ result: { data: rows, error: null } }).client;
+    currentSupabase = fakeSupabase({
+      result: { data: rows, error: null },
+    }).client;
     expect(await listVolunteerHoursAction()).toEqual({ data: rows });
   });
 
   test("returns a friendly error on failure", async () => {
-    currentSupabase = fakeSupabase({ result: { data: null, error: { code: "500" } } }).client;
+    currentSupabase = fakeSupabase({
+      result: { data: null, error: { code: "500" } },
+    }).client;
     expect(await listVolunteerHoursAction()).toEqual({
       error: "Could not load volunteer hours. Please try again.",
     });
@@ -179,12 +233,16 @@ describe("listVolunteerHoursAction", () => {
 describe("listEventOptionsAction", () => {
   test("returns events on success", async () => {
     const rows = [{ id: "1", name: "Fall Fundraiser" }];
-    currentSupabase = fakeSupabase({ result: { data: rows, error: null } }).client;
+    currentSupabase = fakeSupabase({
+      result: { data: rows, error: null },
+    }).client;
     expect(await listEventOptionsAction()).toEqual({ data: rows });
   });
 
   test("returns a friendly error on failure", async () => {
-    currentSupabase = fakeSupabase({ result: { data: null, error: { code: "500" } } }).client;
+    currentSupabase = fakeSupabase({
+      result: { data: null, error: { code: "500" } },
+    }).client;
     expect(await listEventOptionsAction()).toEqual({
       error: "Could not load events. Please try again.",
     });

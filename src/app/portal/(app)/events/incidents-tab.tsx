@@ -21,7 +21,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 
 const SEVERITIES = [
@@ -30,16 +37,27 @@ const SEVERITIES = [
   { value: "serious", label: "Serious" },
 ];
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" });
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 
 function toDatetimeLocalValue(date: Date) {
   const offsetMs = date.getTimezoneOffset() * 60 * 1000;
   return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
 }
 
-function AddIncidentForm({ eventId, onCancel }: { eventId: string; onCancel: () => void }) {
+function AddIncidentForm({
+  eventId,
+  onCancel,
+}: {
+  eventId: string;
+  onCancel: () => void;
+}) {
   const router = useRouter();
-  const [occurredAt, setOccurredAt] = useState(() => toDatetimeLocalValue(new Date()));
+  const [occurredAt, setOccurredAt] = useState(() =>
+    toDatetimeLocalValue(new Date()),
+  );
   const [description, setDescription] = useState("");
   const [severity, setSeverity] = useState("minor");
   const [peopleInvolved, setPeopleInvolved] = useState("");
@@ -68,7 +86,10 @@ function AddIncidentForm({ eventId, onCancel }: { eventId: string; onCancel: () 
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-md border border-[var(--line)] p-4">
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-md border border-[var(--line)] p-4"
+    >
       <FieldGroup>
         <Field orientation="responsive">
           <Field>
@@ -82,10 +103,16 @@ function AddIncidentForm({ eventId, onCancel }: { eventId: string; onCancel: () 
           </Field>
           <Field>
             <FieldLabel htmlFor="incident-severity">Severity</FieldLabel>
-            <Select value={severity} onValueChange={(value) => setSeverity(value ?? "minor")}>
+            <Select
+              value={severity}
+              onValueChange={(value) => setSeverity(value ?? "minor")}
+            >
               <SelectTrigger id="incident-severity" className="w-full">
                 <SelectValue placeholder="Select severity">
-                  {(value: string) => SEVERITIES.find((option) => option.value === value)?.label ?? "Select severity"}
+                  {(value: string) =>
+                    SEVERITIES.find((option) => option.value === value)
+                      ?.label ?? "Select severity"
+                  }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -110,7 +137,9 @@ function AddIncidentForm({ eventId, onCancel }: { eventId: string; onCancel: () 
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="incident-peopleInvolved">People involved</FieldLabel>
+          <FieldLabel htmlFor="incident-peopleInvolved">
+            People involved
+          </FieldLabel>
           <Textarea
             id="incident-peopleInvolved"
             value={peopleInvolved}
@@ -137,7 +166,15 @@ function AddIncidentForm({ eventId, onCancel }: { eventId: string; onCancel: () 
   );
 }
 
-export function IncidentsTab({ eventId, active, mode }: { eventId: string; active: boolean; mode: "view" | "edit" }) {
+export function IncidentsTab({
+  eventId,
+  active,
+  mode,
+}: {
+  eventId: string;
+  active: boolean;
+  mode: "view" | "edit";
+}) {
   const router = useRouter();
   const [incidents, setIncidents] = useState<EventIncident[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -209,7 +246,9 @@ export function IncidentsTab({ eventId, active, mode }: { eventId: string; activ
                 <TableCell>
                   <SeverityBadge severity={incident.severity} />
                 </TableCell>
-                <TableCell className="whitespace-normal">{incident.description}</TableCell>
+                <TableCell className="whitespace-normal">
+                  {incident.description}
+                </TableCell>
                 <TableCell className="text-right">
                   {mode === "edit" && (
                     <Button
@@ -240,7 +279,12 @@ export function IncidentsTab({ eventId, active, mode }: { eventId: string; activ
             }}
           />
         ) : (
-          <Button type="button" variant="outline" className="self-start" onClick={() => setShowAdd(true)}>
+          <Button
+            type="button"
+            variant="outline"
+            className="self-start"
+            onClick={() => setShowAdd(true)}
+          >
             + Log incident
           </Button>
         ))}

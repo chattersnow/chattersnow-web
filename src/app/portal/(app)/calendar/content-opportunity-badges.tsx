@@ -14,12 +14,18 @@ const CONTENT_STATUS_STYLES: Record<string, string> = {
   skipped: "bg-muted text-muted-foreground",
 };
 
-function Pill({ className, children }: { className?: string; children: ReactNode }) {
+function Pill({
+  className,
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
   return (
     <span
       className={cn(
         "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize",
-        className
+        className,
       )}
     >
       {children}
@@ -28,6 +34,15 @@ function Pill({ className, children }: { className?: string; children: ReactNode
 }
 
 export function ContentStatusBadge({ status }: { status: string }) {
-  const label = CONTENT_STATUSES.find((option) => option.value === status)?.label ?? status;
-  return <Pill className={CONTENT_STATUS_STYLES[status] ?? "bg-muted text-muted-foreground"}>{label}</Pill>;
+  const label =
+    CONTENT_STATUSES.find((option) => option.value === status)?.label ?? status;
+  return (
+    <Pill
+      className={
+        CONTENT_STATUS_STYLES[status] ?? "bg-muted text-muted-foreground"
+      }
+    >
+      {label}
+    </Pill>
+  );
 }

@@ -86,7 +86,9 @@ export function EventRegistrationForm({ eventId }: { eventId: string }) {
           </Field>
         </Field>
         <Field>
-          <FieldLabel htmlFor="registration-party-size">Number attending</FieldLabel>
+          <FieldLabel htmlFor="registration-party-size">
+            Number attending
+          </FieldLabel>
           <Input
             id="registration-party-size"
             type="number"

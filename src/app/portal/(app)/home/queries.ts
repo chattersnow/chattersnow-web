@@ -1,7 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isEventActiveToday, type EventWindow } from "@/lib/time";
 
-export type NextEvent = { id: string; name: string; starts_at: string; location: string | null };
+export type NextEvent = {
+  id: string;
+  name: string;
+  starts_at: string;
+  location: string | null;
+};
 
 export type UpcomingSummary = {
   nextEvent: NextEvent | null;
@@ -15,37 +20,45 @@ type LinkedEventRow = { id: string };
 
 export async function getUpcomingSummary(
   supabase: SupabaseClient,
-  nowIso: string
+  nowIso: string,
 ): Promise<UpcomingSummary> {
-  const [{ data: nextEvents }, { data: registrations }, { data: volunteers }, { data: sponsors }] =
-    await Promise.all([
-      supabase
-        .from("events")
-        .select("id, name, starts_at, location")
-        .gte("starts_at", nowIso)
-        .order("starts_at", { ascending: true })
-        .limit(1),
-      supabase
-        .from("event_registrations")
-        .select("party_size, events!inner(starts_at)")
-        .gte("events.starts_at", nowIso),
-      supabase
-        .from("event_volunteers")
-        .select("id, events!inner(starts_at)")
-        .gte("events.starts_at", nowIso),
-      supabase
-        .from("event_sponsors")
-        .select("id, events!inner(starts_at)")
-        .gte("events.starts_at", nowIso),
-    ]);
+  const [
+    { data: nextEvents },
+    { data: registrations },
+    { data: volunteers },
+    { data: sponsors },
+  ] = await Promise.all([
+    supabase
+      .from("events")
+      .select("id, name, starts_at, location")
+      .gte("starts_at", nowIso)
+      .order("starts_at", { ascending: true })
+      .limit(1),
+    supabase
+      .from("event_registrations")
+      .select("party_size, events!inner(starts_at)")
+      .gte("events.starts_at", nowIso),
+    supabase
+      .from("event_volunteers")
+      .select("id, events!inner(starts_at)")
+      .gte("events.starts_at", nowIso),
+    supabase
+      .from("event_sponsors")
+      .select("id, events!inner(starts_at)")
+      .gte("events.starts_at", nowIso),
+  ]);
 
-  const registrationRows = (registrations ?? []) as unknown as RegistrationRow[];
+  const registrationRows = (registrations ??
+    []) as unknown as RegistrationRow[];
   const volunteerRows = (volunteers ?? []) as unknown as LinkedEventRow[];
   const sponsorRows = (sponsors ?? []) as unknown as LinkedEventRow[];
 
   return {
     nextEvent: ((nextEvents ?? [])[0] as NextEvent | undefined) ?? null,
-    registrationCount: registrationRows.reduce((total, row) => total + row.party_size, 0),
+    registrationCount: registrationRows.reduce(
+      (total, row) => total + row.party_size,
+      0,
+    ),
     volunteerCount: volunteerRows.length,
     partnerCount: sponsorRows.length,
   };
@@ -61,26 +74,34 @@ export async function getFinancialSummary(
   supabase: SupabaseClient,
   startOfMonthDate: string,
   startOfYearDate: string,
-  nowIso: string
+  nowIso: string,
 ): Promise<FinancialSummary> {
-  const [{ data: expensesThisYear }, { data: expensesThisMonth }, { data: eventBudgets }] =
-    await Promise.all([
-      supabase.from("event_expenses").select("amount").gte("expense_date", startOfYearDate),
-      supabase.from("event_expenses").select("amount").gte("expense_date", startOfMonthDate),
-      supabase
-        .from("events")
-        .select("budget_amount")
-        .eq("status", "published")
-        .gte("starts_at", nowIso),
-    ]);
+  const [
+    { data: expensesThisYear },
+    { data: expensesThisMonth },
+    { data: eventBudgets },
+  ] = await Promise.all([
+    supabase
+      .from("event_expenses")
+      .select("amount")
+      .gte("expense_date", startOfYearDate),
+    supabase
+      .from("event_expenses")
+      .select("amount")
+      .gte("expense_date", startOfMonthDate),
+    supabase
+      .from("events")
+      .select("budget_amount")
+      .eq("status", "published")
+      .gte("starts_at", nowIso),
+  ]);
 
   const sumAmounts = (rows: { amount: number }[] | null) =>
     (rows ?? []).reduce((total, row) => total + row.amount, 0);
 
-  const eventBudgetTotal = ((eventBudgets ?? []) as { budget_amount: number | null }[]).reduce(
-    (total, row) => total + (row.budget_amount ?? 0),
-    0
-  );
+  const eventBudgetTotal = (
+    (eventBudgets ?? []) as { budget_amount: number | null }[]
+  ).reduce((total, row) => total + (row.budget_amount ?? 0), 0);
 
   return {
     expensesThisMonth: sumAmounts(expensesThisMonth),
@@ -96,14 +117,18 @@ export type InventorySummary = {
   itemsNeedingAttention: number;
 };
 
-export async function getInventorySummary(supabase: SupabaseClient): Promise<InventorySummary> {
+export async function getInventorySummary(
+  supabase: SupabaseClient,
+): Promise<InventorySummary> {
   const [
     { count: totalItems },
     { count: itemsAvailable },
     { count: itemsDistributed },
     { count: itemsNeedingAttention },
   ] = await Promise.all([
-    supabase.from("inventory_items").select("*", { count: "exact", head: true }),
+    supabase
+      .from("inventory_items")
+      .select("*", { count: "exact", head: true }),
     supabase
       .from("inventory_items")
       .select("*", { count: "exact", head: true })
@@ -126,7 +151,11 @@ export async function getInventorySummary(supabase: SupabaseClient): Promise<Inv
   };
 }
 
-export type ActiveEventForPerson = EventWindow & { id: string; name: string; location: string | null };
+export type ActiveEventForPerson = EventWindow & {
+  id: string;
+  name: string;
+  location: string | null;
+};
 type ActiveEventJoinRow = { events: ActiveEventForPerson };
 
 /**
@@ -140,10 +169,14 @@ type ActiveEventJoinRow = { events: ActiveEventForPerson };
 export async function getMyActiveEvents(
   supabase: SupabaseClient,
   personId: string,
-  nowIso: string
+  nowIso: string,
 ): Promise<ActiveEventForPerson[]> {
-  const windowStart = new Date(new Date(nowIso).getTime() - 2 * 86_400_000).toISOString();
-  const windowEnd = new Date(new Date(nowIso).getTime() + 2 * 86_400_000).toISOString();
+  const windowStart = new Date(
+    new Date(nowIso).getTime() - 2 * 86_400_000,
+  ).toISOString();
+  const windowEnd = new Date(
+    new Date(nowIso).getTime() + 2 * 86_400_000,
+  ).toISOString();
 
   const { data } = await supabase
     .from("event_volunteers")
@@ -153,22 +186,31 @@ export async function getMyActiveEvents(
     .gte("events.starts_at", windowStart)
     .lte("events.starts_at", windowEnd);
 
-  const events = ((data ?? []) as unknown as ActiveEventJoinRow[]).map((row) => row.events);
+  const events = ((data ?? []) as unknown as ActiveEventJoinRow[]).map(
+    (row) => row.events,
+  );
   const now = new Date(nowIso);
   return events.filter((event) => isEventActiveToday(event, now));
 }
 
-export type PendingApprovalItem = { key: string; label: string; count: number; href: string };
+export type PendingApprovalItem = {
+  key: string;
+  label: string;
+  count: number;
+  href: string;
+};
 export type PendingApprovalsSummary = { items: PendingApprovalItem[] };
 
 export async function getPendingApprovalsSummary(
   supabase: SupabaseClient,
-  options: { canSeeExpenseApprovals: boolean }
+  options: { canSeeExpenseApprovals: boolean },
 ): Promise<PendingApprovalsSummary> {
   const items: PendingApprovalItem[] = [];
 
   if (options.canSeeExpenseApprovals) {
-    const { data: pendingExpenseCount } = await supabase.rpc("count_pending_event_expense_approvals");
+    const { data: pendingExpenseCount } = await supabase.rpc(
+      "count_pending_event_expense_approvals",
+    );
     const count = pendingExpenseCount ?? 0;
     if (count > 0) {
       items.push({

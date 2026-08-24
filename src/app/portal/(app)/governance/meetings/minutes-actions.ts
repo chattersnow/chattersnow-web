@@ -15,10 +15,14 @@ export type Minutes = {
 export type MinutesActionResult = { error: string } | { success: true };
 
 export async function getMinutesAction(
-  meetingId: string
+  meetingId: string,
 ): Promise<{ data: Minutes | null } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "governance", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "governance",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase
@@ -35,7 +39,7 @@ export async function getMinutesAction(
 
 export async function upsertMinutesAction(
   meetingId: string,
-  formData: FormData
+  formData: FormData,
 ): Promise<MinutesActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -44,7 +48,11 @@ export async function upsertMinutesAction(
   if (!user) {
     return { error: "You must be signed in to update the minutes." };
   }
-  const permissionError = await checkPermission(supabase, "governance", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "governance",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
   const parsed = parseContentForm(formData);
@@ -52,7 +60,10 @@ export async function upsertMinutesAction(
 
   const { error } = await supabase
     .from("minutes")
-    .upsert({ meeting_id: meetingId, ...parsed.data }, { onConflict: "meeting_id" });
+    .upsert(
+      { meeting_id: meetingId, ...parsed.data },
+      { onConflict: "meeting_id" },
+    );
 
   if (error) {
     return { error: "Could not save the minutes. Please try again." };

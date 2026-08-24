@@ -9,16 +9,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { MeetingStatusBadge, MeetingTypeBadge, type MeetingRow } from "./meeting-badges";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  MeetingStatusBadge,
+  MeetingTypeBadge,
+  type MeetingRow,
+} from "./meeting-badges";
 import { MeetingDetailsSheet } from "./meeting-details-sheet";
 import { NewMeetingDialog } from "./new-meeting-dialog";
 
 const FILTER_ALL = "all";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" });
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 
-export function MeetingsTable({ meetings, canManage }: { meetings: MeetingRow[]; canManage: boolean }) {
+export function MeetingsTable({
+  meetings,
+  canManage,
+}: {
+  meetings: MeetingRow[];
+  canManage: boolean;
+}) {
   const [typeFilter, setTypeFilter] = useState<string>(FILTER_ALL);
 
   const visibleMeetings = useMemo(() => {
@@ -32,7 +52,9 @@ export function MeetingsTable({ meetings, canManage }: { meetings: MeetingRow[];
         {canManage && <NewMeetingDialog />}
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">No meetings scheduled yet.</p>
+            <p className="app-muted px-4 py-6 text-sm">
+              No meetings scheduled yet.
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -45,8 +67,13 @@ export function MeetingsTable({ meetings, canManage }: { meetings: MeetingRow[];
         {canManage && <NewMeetingDialog />}
 
         <div className="flex flex-col gap-1">
-          <span className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">Type</span>
-          <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value ?? FILTER_ALL)}>
+          <span className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+            Type
+          </span>
+          <Select
+            value={typeFilter}
+            onValueChange={(value) => setTypeFilter(value ?? FILTER_ALL)}
+          >
             <SelectTrigger className="h-8">
               <SelectValue placeholder="Type" />
             </SelectTrigger>
@@ -94,7 +121,9 @@ export function MeetingsTable({ meetings, canManage }: { meetings: MeetingRow[];
                     <TableCell>
                       <MeetingStatusBadge status={meeting.status} />
                     </TableCell>
-                    <TableCell className="app-muted">{meeting.location ?? "—"}</TableCell>
+                    <TableCell className="app-muted">
+                      {meeting.location ?? "—"}
+                    </TableCell>
                     <TableCell>
                       <MeetingDetailsSheet meeting={meeting} />
                     </TableCell>

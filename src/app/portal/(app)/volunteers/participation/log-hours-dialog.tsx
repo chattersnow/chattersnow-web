@@ -2,7 +2,11 @@
 
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createVolunteerHoursAction, listEventOptionsAction, type EventOption } from "./actions";
+import {
+  createVolunteerHoursAction,
+  listEventOptionsAction,
+  type EventOption,
+} from "./actions";
 import { listRoleTypesAction, type RoleType } from "../roles/actions";
 import { listPeopleAction, type PersonListItem } from "../../people/actions";
 import { PersonPicker, type PickedPerson } from "../../people/person-picker";
@@ -46,7 +50,9 @@ export function LogHoursDialog() {
   const [people, setPeople] = useState<PersonListItem[]>([]);
   const [events, setEvents] = useState<EventOption[]>([]);
   const [roleTypes, setRoleTypes] = useState<RoleType[]>([]);
-  const [selectedPerson, setSelectedPerson] = useState<PickedPerson | null>(null);
+  const [selectedPerson, setSelectedPerson] = useState<PickedPerson | null>(
+    null,
+  );
   const [form, setForm] = useState(getInitialFormState);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -66,7 +72,7 @@ export function LogHoursDialog() {
 
   function update<K extends keyof ReturnType<typeof getInitialFormState>>(
     key: K,
-    value: ReturnType<typeof getInitialFormState>[K]
+    value: ReturnType<typeof getInitialFormState>[K],
   ) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
@@ -90,13 +96,19 @@ export function LogHoursDialog() {
 
     const formData = new FormData();
     formData.set("eventId", form.eventId === NONE_VALUE ? "" : form.eventId);
-    formData.set("volunteerRoleTypeId", form.volunteerRoleTypeId === NONE_VALUE ? "" : form.volunteerRoleTypeId);
+    formData.set(
+      "volunteerRoleTypeId",
+      form.volunteerRoleTypeId === NONE_VALUE ? "" : form.volunteerRoleTypeId,
+    );
     formData.set("hours", form.hours);
     formData.set("loggedDate", form.loggedDate);
     formData.set("notes", form.notes);
 
     startTransition(async () => {
-      const result = await createVolunteerHoursAction(selectedPerson.id, formData);
+      const result = await createVolunteerHoursAction(
+        selectedPerson.id,
+        formData,
+      );
       if ("error" in result) {
         setError(result.error);
         return;
@@ -108,13 +120,17 @@ export function LogHoursDialog() {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button type="button" className="shrink-0 whitespace-nowrap" />}>
+      <DialogTrigger
+        render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
+      >
         Log hours
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Log volunteer hours</DialogTitle>
-          <DialogDescription>Record hours contributed, optionally tied to an event.</DialogDescription>
+          <DialogDescription>
+            Record hours contributed, optionally tied to an event.
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
@@ -125,7 +141,12 @@ export function LogHoursDialog() {
                 people={people}
                 selected={selectedPerson}
                 onSelect={setSelectedPerson}
-                onPersonCreated={(person) => setPeople((prev) => [...prev, { ...person, is_sponsor: false }])}
+                onPersonCreated={(person) =>
+                  setPeople((prev) => [
+                    ...prev,
+                    { ...person, is_sponsor: false },
+                  ])
+                }
                 newPersonRole="is_volunteer"
               />
             </Field>
@@ -155,13 +176,19 @@ export function LogHoursDialog() {
 
             <Field>
               <FieldLabel htmlFor="hours-event">Event (optional)</FieldLabel>
-              <Select value={form.eventId} onValueChange={(value) => update("eventId", value ?? NONE_VALUE)}>
+              <Select
+                value={form.eventId}
+                onValueChange={(value) =>
+                  update("eventId", value ?? NONE_VALUE)
+                }
+              >
                 <SelectTrigger id="hours-event" className="w-full">
                   <SelectValue placeholder="No event">
                     {(value: string) =>
                       value === NONE_VALUE
                         ? "No event"
-                        : (events.find((option) => option.id === value)?.name ?? "No event")
+                        : (events.find((option) => option.id === value)?.name ??
+                          "No event")
                     }
                   </SelectValue>
                 </SelectTrigger>
@@ -177,17 +204,22 @@ export function LogHoursDialog() {
             </Field>
 
             <Field>
-              <FieldLabel htmlFor="hours-role-type">Role type (optional)</FieldLabel>
+              <FieldLabel htmlFor="hours-role-type">
+                Role type (optional)
+              </FieldLabel>
               <Select
                 value={form.volunteerRoleTypeId}
-                onValueChange={(value) => update("volunteerRoleTypeId", value ?? NONE_VALUE)}
+                onValueChange={(value) =>
+                  update("volunteerRoleTypeId", value ?? NONE_VALUE)
+                }
               >
                 <SelectTrigger id="hours-role-type" className="w-full">
                   <SelectValue placeholder="No role type">
                     {(value: string) =>
                       value === NONE_VALUE
                         ? "No role type"
-                        : (roleTypes.find((option) => option.id === value)?.name ?? "No role type")
+                        : (roleTypes.find((option) => option.id === value)
+                            ?.name ?? "No role type")
                     }
                   </SelectValue>
                 </SelectTrigger>
@@ -204,7 +236,11 @@ export function LogHoursDialog() {
 
             <Field>
               <FieldLabel htmlFor="hours-notes">Notes</FieldLabel>
-              <Textarea id="hours-notes" value={form.notes} onChange={(event) => update("notes", event.target.value)} />
+              <Textarea
+                id="hours-notes"
+                value={form.notes}
+                onChange={(event) => update("notes", event.target.value)}
+              />
             </Field>
 
             {error && (

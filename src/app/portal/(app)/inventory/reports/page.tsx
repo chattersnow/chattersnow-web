@@ -10,8 +10,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { STATUSES, StatusBadge, formatFaceValue } from "../items/inventory-shared";
-import { summarizeByStatus, summarizeByType, sumMovementValue, type ValuationMovement } from "./valuation";
+import {
+  STATUSES,
+  StatusBadge,
+  formatFaceValue,
+} from "../items/inventory-shared";
+import {
+  summarizeByStatus,
+  summarizeByType,
+  sumMovementValue,
+  type ValuationMovement,
+} from "./valuation";
 
 type InventoryReportsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -21,7 +30,9 @@ function toDateInput(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
-export default async function InventoryReportsPage({ searchParams }: InventoryReportsPageProps) {
+export default async function InventoryReportsPage({
+  searchParams,
+}: InventoryReportsPageProps) {
   const supabase = await createSupabaseServerClient();
 
   const params = await searchParams;
@@ -44,7 +55,9 @@ export default async function InventoryReportsPage({ searchParams }: InventoryRe
     supabase.from("inventory_items").select("type, status, face_value"),
     supabase
       .from("inventory_movements")
-      .select("movement_type, quantity, occurred_at, inventory_items(face_value)")
+      .select(
+        "movement_type, quantity, occurred_at, inventory_items(face_value)",
+      )
       .in("movement_type", ["received", "distributed"])
       .gte("occurred_at", `${fromDate}T00:00:00.000Z`)
       .lte("occurred_at", `${toDate}T23:59:59.999Z`),
@@ -53,10 +66,11 @@ export default async function InventoryReportsPage({ searchParams }: InventoryRe
   const byType = summarizeByType(items ?? []);
   const byStatus = summarizeByStatus(
     items ?? [],
-    STATUSES.map((status) => status.value)
+    STATUSES.map((status) => status.value),
   );
   const onHand = byStatus.find((row) => row.status === "available");
-  const valuationMovements = (movements ?? []) as unknown as ValuationMovement[];
+  const valuationMovements = (movements ??
+    []) as unknown as ValuationMovement[];
   const valueDonated = sumMovementValue(valuationMovements, "received");
   const valueDistributed = sumMovementValue(valuationMovements, "distributed");
 
@@ -74,7 +88,9 @@ export default async function InventoryReportsPage({ searchParams }: InventoryRe
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader>
-            <CardTitle className="app-muted text-sm font-semibold">Total on-hand value</CardTitle>
+            <CardTitle className="app-muted text-sm font-semibold">
+              Total on-hand value
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
@@ -86,7 +102,9 @@ export default async function InventoryReportsPage({ searchParams }: InventoryRe
 
         <Card>
           <CardHeader>
-            <CardTitle className="app-muted text-sm font-semibold">Items on-hand</CardTitle>
+            <CardTitle className="app-muted text-sm font-semibold">
+              Items on-hand
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
@@ -98,7 +116,9 @@ export default async function InventoryReportsPage({ searchParams }: InventoryRe
 
         <Card>
           <CardHeader>
-            <CardTitle className="app-muted text-sm font-semibold">Value donated</CardTitle>
+            <CardTitle className="app-muted text-sm font-semibold">
+              Value donated
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
@@ -112,7 +132,9 @@ export default async function InventoryReportsPage({ searchParams }: InventoryRe
 
         <Card>
           <CardHeader>
-            <CardTitle className="app-muted text-sm font-semibold">Value distributed</CardTitle>
+            <CardTitle className="app-muted text-sm font-semibold">
+              Value distributed
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
@@ -128,7 +150,10 @@ export default async function InventoryReportsPage({ searchParams }: InventoryRe
       <div className="mt-6 flex flex-wrap items-end justify-end gap-3">
         <form method="get" className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1">
-            <label htmlFor="from" className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+            <label
+              htmlFor="from"
+              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+            >
               From
             </label>
             <input
@@ -141,10 +166,19 @@ export default async function InventoryReportsPage({ searchParams }: InventoryRe
           </div>
 
           <div className="flex flex-col gap-1">
-            <label htmlFor="to" className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+            <label
+              htmlFor="to"
+              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+            >
               To
             </label>
-            <input id="to" name="to" type="date" defaultValue={toDate} className={selectClassName} />
+            <input
+              id="to"
+              name="to"
+              type="date"
+              defaultValue={toDate}
+              className={selectClassName}
+            />
           </div>
 
           <Button type="submit" variant="outline">

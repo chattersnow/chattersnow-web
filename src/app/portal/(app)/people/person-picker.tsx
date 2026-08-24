@@ -16,7 +16,12 @@ import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
-export type PickedPerson = { id: string; name: string | null; email: string | null; phone: string | null };
+export type PickedPerson = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+};
 
 export function PersonPicker({
   people,
@@ -35,11 +40,16 @@ export function PersonPicker({
 }) {
   const [query, setQuery] = useState("");
   const [showCreate, setShowCreate] = useState(false);
-  const [createForm, setCreateForm] = useState<PersonFormState>(() => emptyPersonForm(newPersonRole));
+  const [createForm, setCreateForm] = useState<PersonFormState>(() =>
+    emptyPersonForm(newPersonRole),
+  );
   const [createError, setCreateError] = useState<string | null>(null);
   const [isCreating, startCreateTransition] = useTransition();
 
-  function updateCreateForm<K extends keyof PersonFormState>(key: K, value: PersonFormState[K]) {
+  function updateCreateForm<K extends keyof PersonFormState>(
+    key: K,
+    value: PersonFormState[K],
+  ) {
     setCreateForm((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -55,7 +65,9 @@ export function PersonPicker({
       <div className="flex items-center justify-between gap-3 rounded-md border border-[var(--line)] px-3 py-2">
         <div>
           <p className="text-sm font-medium">{selected.name ?? "—"}</p>
-          {selected.email && <p className="app-muted text-xs">{selected.email}</p>}
+          {selected.email && (
+            <p className="app-muted text-xs">{selected.email}</p>
+          )}
         </div>
         <Button
           type="button"
@@ -110,7 +122,9 @@ export function PersonPicker({
               onClick={() => onSelect(person)}
             >
               <span className="font-medium">{person.name ?? "—"}</span>
-              {person.email && <span className="app-muted text-xs">{person.email}</span>}
+              {person.email && (
+                <span className="app-muted text-xs">{person.email}</span>
+              )}
             </button>
           ))}
         </div>
@@ -121,13 +135,23 @@ export function PersonPicker({
       )}
 
       {!showCreate ? (
-        <Button type="button" variant="outline" size="sm" className="self-start" onClick={() => setShowCreate(true)}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="self-start"
+          onClick={() => setShowCreate(true)}
+        >
           + Create new person
         </Button>
       ) : (
         <div className="rounded-md border border-[var(--line)] p-3">
           <FieldGroup>
-            <PersonFormFields form={createForm} update={updateCreateForm} idPrefix="sponsor-new-person" />
+            <PersonFormFields
+              form={createForm}
+              update={updateCreateForm}
+              idPrefix="sponsor-new-person"
+            />
 
             {createError && (
               <Alert variant="destructive">
@@ -136,10 +160,18 @@ export function PersonPicker({
             )}
 
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowCreate(false)}
+              >
                 Cancel
               </Button>
-              <Button type="button" onClick={handleCreateSubmit} disabled={isCreating}>
+              <Button
+                type="button"
+                onClick={handleCreateSubmit}
+                disabled={isCreating}
+              >
                 {isCreating ? "Creating..." : "Create & select"}
               </Button>
             </div>

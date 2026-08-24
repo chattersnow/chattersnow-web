@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 
 function urlErrorMessage(reason: string | null) {
-  if (reason === "oauth_failed") return "Google sign-in failed. Please try again.";
+  if (reason === "oauth_failed")
+    return "Google sign-in failed. Please try again.";
   if (reason === "no_access")
     return "Your account is signed in but hasn't been granted portal access yet. Contact an administrator.";
   return null;
@@ -21,7 +22,9 @@ export function LoginForm() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(() => urlErrorMessage(searchParams.get("error")));
+  const [error, setError] = useState<string | null>(() =>
+    urlErrorMessage(searchParams.get("error")),
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
 
@@ -75,7 +78,9 @@ export function LoginForm() {
         <span className="text-base font-bold" aria-hidden="true">
           G
         </span>
-        {isGoogleSubmitting ? "Connecting to Google..." : "Continue with Google"}
+        {isGoogleSubmitting
+          ? "Connecting to Google..."
+          : "Continue with Google"}
       </Button>
 
       <div className="flex items-center gap-3">

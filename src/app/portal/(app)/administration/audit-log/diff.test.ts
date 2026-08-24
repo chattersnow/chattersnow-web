@@ -3,7 +3,10 @@ import { computeDiff } from "./diff";
 
 describe("computeDiff", () => {
   test("marks only changed keys as changed", () => {
-    const result = computeDiff({ status: "available", notes: "ok" }, { status: "distributed", notes: "ok" });
+    const result = computeDiff(
+      { status: "available", notes: "ok" },
+      { status: "distributed", notes: "ok" },
+    );
     const status = result.find((entry) => entry.key === "status");
     const notes = result.find((entry) => entry.key === "notes");
     expect(status?.changed).toBe(true);
@@ -14,7 +17,9 @@ describe("computeDiff", () => {
 
   test("treats keys only present on one side as changed", () => {
     const result = computeDiff(null, { amount: 10 });
-    expect(result).toEqual([{ key: "amount", before: null, after: 10, changed: true }]);
+    expect(result).toEqual([
+      { key: "amount", before: null, after: 10, changed: true },
+    ]);
   });
 
   test("returns entries sorted by key", () => {

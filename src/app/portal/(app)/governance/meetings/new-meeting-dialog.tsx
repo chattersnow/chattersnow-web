@@ -51,7 +51,7 @@ export function NewMeetingDialog() {
 
   function update<K extends keyof ReturnType<typeof getInitialFormState>>(
     key: K,
-    value: ReturnType<typeof getInitialFormState>[K]
+    value: ReturnType<typeof getInitialFormState>[K],
   ) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
@@ -88,21 +88,26 @@ export function NewMeetingDialog() {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button type="button" className="shrink-0 whitespace-nowrap" />}>
+      <DialogTrigger
+        render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
+      >
         Schedule meeting
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Schedule meeting</DialogTitle>
           <DialogDescription>
-            Basic meeting details — agenda, minutes, and attendees are added separately.
+            Basic meeting details — agenda, minutes, and attendees are added
+            separately.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="new-meeting-date">Date &amp; time</FieldLabel>
+              <FieldLabel htmlFor="new-meeting-date">
+                Date &amp; time
+              </FieldLabel>
               <Input
                 id="new-meeting-date"
                 type="datetime-local"
@@ -115,7 +120,12 @@ export function NewMeetingDialog() {
             <Field orientation="responsive">
               <Field>
                 <FieldLabel htmlFor="new-meeting-type">Type</FieldLabel>
-                <Select value={form.meetingType} onValueChange={(value) => update("meetingType", value ?? "board")}>
+                <Select
+                  value={form.meetingType}
+                  onValueChange={(value) =>
+                    update("meetingType", value ?? "board")
+                  }
+                >
                   <SelectTrigger id="new-meeting-type">
                     <SelectValue placeholder="Type" />
                   </SelectTrigger>

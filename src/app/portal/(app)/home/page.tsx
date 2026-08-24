@@ -1,5 +1,9 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserPermissions, hasPermission, hasAnyPermission } from "@/lib/auth/permissions";
+import {
+  getCurrentUserPermissions,
+  hasPermission,
+  hasAnyPermission,
+} from "@/lib/auth/permissions";
 import { resolveCurrentPersonId } from "@/lib/auth/current-person";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatTile, ComingSoonTile, AttentionTile } from "./stat-tile";
@@ -13,7 +17,10 @@ import {
 } from "./queries";
 import { listRecentDonationsAction } from "./actions";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" });
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -22,7 +29,9 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
 
 function SectionLabel({ children }: { children: string }) {
   return (
-    <h2 className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">{children}</h2>
+    <h2 className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+      {children}
+    </h2>
   );
 }
 
@@ -47,7 +56,11 @@ export default async function PortalHomePage() {
     { resource: "inventory_reports", level: "view" },
   ]);
   const canSeeOrganization = hasPermission(permissions, "governance", "manage");
-  const canSeeExpenseApprovals = hasPermission(permissions, "finance_approvals", "manage");
+  const canSeeExpenseApprovals = hasPermission(
+    permissions,
+    "finance_approvals",
+    "manage",
+  );
   const canRecordDonation = hasAnyPermission(permissions, [
     { resource: "finance", level: "manage" },
     { resource: "inventory_intake", level: "manage" },
@@ -67,37 +80,58 @@ export default async function PortalHomePage() {
   const startOfMonthDate = startOfMonth.toISOString().slice(0, 10);
   const startOfYearDate = startOfYear.toISOString().slice(0, 10);
 
-  const [upcoming, financial, inventory, recentDonationsResult, pendingApprovals, personId] =
-    await Promise.all([
-      canSeeUpcoming ? getUpcomingSummary(supabase, nowIso) : Promise.resolve(null),
-      canSeeFinancial
-        ? getFinancialSummary(supabase, startOfMonthDate, startOfYearDate, nowIso)
-        : Promise.resolve(null),
-      canSeeInventory ? getInventorySummary(supabase) : Promise.resolve(null),
-      canSeeInventory && canSeeRecentDonations ? listRecentDonationsAction(5) : Promise.resolve(null),
-      canSeeExpenseApprovals
-        ? getPendingApprovalsSummary(supabase, { canSeeExpenseApprovals })
-        : Promise.resolve(null),
-      resolveCurrentPersonId(supabase),
-    ]);
+  const [
+    upcoming,
+    financial,
+    inventory,
+    recentDonationsResult,
+    pendingApprovals,
+    personId,
+  ] = await Promise.all([
+    canSeeUpcoming
+      ? getUpcomingSummary(supabase, nowIso)
+      : Promise.resolve(null),
+    canSeeFinancial
+      ? getFinancialSummary(supabase, startOfMonthDate, startOfYearDate, nowIso)
+      : Promise.resolve(null),
+    canSeeInventory ? getInventorySummary(supabase) : Promise.resolve(null),
+    canSeeInventory && canSeeRecentDonations
+      ? listRecentDonationsAction(5)
+      : Promise.resolve(null),
+    canSeeExpenseApprovals
+      ? getPendingApprovalsSummary(supabase, { canSeeExpenseApprovals })
+      : Promise.resolve(null),
+    resolveCurrentPersonId(supabase),
+  ]);
 
   const recentDonations =
-    recentDonationsResult && "data" in recentDonationsResult ? recentDonationsResult.data : [];
+    recentDonationsResult && "data" in recentDonationsResult
+      ? recentDonationsResult.data
+      : [];
   const attentionItems = pendingApprovals?.items ?? [];
-  const activeEvents = personId ? await getMyActiveEvents(supabase, personId, nowIso) : [];
+  const activeEvents = personId
+    ? await getMyActiveEvents(supabase, personId, nowIso)
+    : [];
 
   const anySectionVisible =
-    canSeeUpcoming || canSeeFinancial || canSeeInventory || canSeeOrganization || activeEvents.length > 0;
+    canSeeUpcoming ||
+    canSeeFinancial ||
+    canSeeInventory ||
+    canSeeOrganization ||
+    activeEvents.length > 0;
 
   return (
     <section>
-      <p className="app-muted text-sm font-semibold uppercase tracking-[0.16em]">Overview</p>
+      <p className="app-muted text-sm font-semibold uppercase tracking-[0.16em]">
+        Overview
+      </p>
 
       {!anySectionVisible && (
         <Card className="mt-4">
           <CardContent className="pt-6">
             <p className="app-muted text-sm">
-              Your activity summary will appear here as volunteer participation tracking is added.
+              Your activity summary will appear here as volunteer participation
+              tracking is added.
             </p>
           </CardContent>
         </Card>
@@ -124,7 +158,12 @@ export default async function PortalHomePage() {
           <SectionLabel>Needs your attention</SectionLabel>
           <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {attentionItems.map((item) => (
-              <AttentionTile key={item.key} label={item.label} count={item.count} href={item.href} />
+              <AttentionTile
+                key={item.key}
+                label={item.label}
+                count={item.count}
+                href={item.href}
+              />
             ))}
           </div>
         </div>
@@ -140,7 +179,9 @@ export default async function PortalHomePage() {
               caption={
                 upcoming.nextEvent
                   ? `${dateFormatter.format(new Date(upcoming.nextEvent.starts_at))}${
-                      upcoming.nextEvent.location ? ` · ${upcoming.nextEvent.location}` : ""
+                      upcoming.nextEvent.location
+                        ? ` · ${upcoming.nextEvent.location}`
+                        : ""
                     }`
                   : "No upcoming events"
               }
@@ -220,7 +261,9 @@ export default async function PortalHomePage() {
               </CardHeader>
               <CardContent>
                 {recentDonations.length === 0 ? (
-                  <p className="app-muted text-sm">No donations recorded yet.</p>
+                  <p className="app-muted text-sm">
+                    No donations recorded yet.
+                  </p>
                 ) : (
                   <ul className="divide-border divide-y">
                     {recentDonations.map((donation) => (
@@ -234,8 +277,8 @@ export default async function PortalHomePage() {
                             : donation.donor.name}
                         </span>
                         <span className="app-muted">
-                          {dateFormatter.format(new Date(donation.donated_at))} ·{" "}
-                          {donation.inventory_items.length} item
+                          {dateFormatter.format(new Date(donation.donated_at))}{" "}
+                          · {donation.inventory_items.length} item
                           {donation.inventory_items.length === 1 ? "" : "s"}
                         </span>
                       </li>
@@ -256,8 +299,9 @@ export default async function PortalHomePage() {
               <CardTitle>Coming soon</CardTitle>
             </CardHeader>
             <CardContent className="app-muted text-sm">
-              This area will surface organization-wide health: upcoming compliance deadlines,
-              partnership opportunities, grant deadlines, and governance tasks.
+              This area will surface organization-wide health: upcoming
+              compliance deadlines, partnership opportunities, grant deadlines,
+              and governance tasks.
             </CardContent>
           </Card>
         </div>

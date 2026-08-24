@@ -29,7 +29,10 @@ export function BoardMemberFormFields({
   idPrefix,
 }: {
   form: BoardMemberFormState;
-  update: <K extends keyof BoardMemberFormState>(key: K, value: BoardMemberFormState[K]) => void;
+  update: <K extends keyof BoardMemberFormState>(
+    key: K,
+    value: BoardMemberFormState[K],
+  ) => void;
   idPrefix: string;
 }) {
   return (

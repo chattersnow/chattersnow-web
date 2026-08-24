@@ -2,7 +2,11 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { UsersTable } from "./users-table";
 import { PendingAccessSection } from "./pending-access-section";
-import { listUsersAction, listRolesAction, listPendingGrantsAction } from "./actions";
+import {
+  listUsersAction,
+  listRolesAction,
+  listPendingGrantsAction,
+} from "./actions";
 
 export default async function UsersPage() {
   const supabase = await createSupabaseServerClient();
@@ -26,7 +30,9 @@ export default async function UsersPage() {
       <div className="mt-6 space-y-6">
         {"error" in result ? (
           <Card>
-            <CardContent className="app-muted text-sm">{result.error}</CardContent>
+            <CardContent className="app-muted text-sm">
+              {result.error}
+            </CardContent>
           </Card>
         ) : (
           <UsersTable
@@ -38,10 +44,15 @@ export default async function UsersPage() {
 
         {"error" in pendingResult ? (
           <Card>
-            <CardContent className="app-muted text-sm">{pendingResult.error}</CardContent>
+            <CardContent className="app-muted text-sm">
+              {pendingResult.error}
+            </CardContent>
           </Card>
         ) : (
-          <PendingAccessSection grants={pendingResult.data} availableRoles={availableRoles} />
+          <PendingAccessSection
+            grants={pendingResult.data}
+            availableRoles={availableRoles}
+          />
         )}
       </div>
     </>

@@ -22,8 +22,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PERMISSION_LEVELS, type PermissionLevel } from "@/lib/auth/permissions";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  PERMISSION_LEVELS,
+  type PermissionLevel,
+} from "@/lib/auth/permissions";
 import { formatRoleLabel } from "@/lib/format";
 import { updateRolePermissionsAction } from "./actions";
 
@@ -79,9 +89,13 @@ export function PermissionsMatrix({
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isSaving, startSaveTransition] = useTransition();
-  const [pendingEdits, setPendingEdits] = useState<Map<string, PermissionLevel>>(new Map());
+  const [pendingEdits, setPendingEdits] = useState<
+    Map<string, PermissionLevel>
+  >(new Map());
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
-  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
+    new Set(),
+  );
 
   const levelByCell = useMemo(() => {
     const map = new Map<string, string>();
@@ -91,8 +105,14 @@ export function PermissionsMatrix({
     return map;
   }, [rolePermissions]);
 
-  const roleById = useMemo(() => new Map(roles.map((role) => [role.id, role])), [roles]);
-  const resourceById = useMemo(() => new Map(resources.map((res) => [res.id, res])), [resources]);
+  const roleById = useMemo(
+    () => new Map(roles.map((role) => [role.id, role])),
+    [roles],
+  );
+  const resourceById = useMemo(
+    () => new Map(resources.map((res) => [res.id, res])),
+    [resources],
+  );
 
   const sections = useMemo(() => groupBySection(resources), [resources]);
 
@@ -105,12 +125,23 @@ export function PermissionsMatrix({
       const role = roleById.get(roleId);
       const resource = resourceById.get(resourceId);
       if (!role || !resource) continue;
-      rows.push({ roleId, resourceId, roleName: role.name, resourceLabel: resource.label, from, to });
+      rows.push({
+        roleId,
+        resourceId,
+        roleName: role.name,
+        resourceLabel: resource.label,
+        from,
+        to,
+      });
     }
     return rows;
   }, [pendingEdits, levelByCell, roleById, resourceById]);
 
-  function handleLevelChange(roleId: string, resourceId: string, level: PermissionLevel) {
+  function handleLevelChange(
+    roleId: string,
+    resourceId: string,
+    level: PermissionLevel,
+  ) {
     const cellKey = `${roleId}:${resourceId}`;
     setPendingEdits((prev) => new Map(prev).set(cellKey, level));
   }
@@ -136,7 +167,11 @@ export function PermissionsMatrix({
     setError(null);
     startSaveTransition(async () => {
       const result = await updateRolePermissionsAction(
-        changedCells.map((c) => ({ role_id: c.roleId, resource_id: c.resourceId, level: c.to })),
+        changedCells.map((c) => ({
+          role_id: c.roleId,
+          resource_id: c.resourceId,
+          level: c.to,
+        })),
       );
       if ("error" in result) {
         setError(result.error);
@@ -198,7 +233,9 @@ export function PermissionsMatrix({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="sticky left-0 z-20 bg-card">Resource</TableHead>
+                <TableHead className="sticky left-0 z-20 bg-card">
+                  Resource
+                </TableHead>
                 {roles.map((role) => (
                   <TableHead key={role.id} className="min-w-36">
                     {formatRoleLabel(role.name)}
@@ -219,11 +256,18 @@ export function PermissionsMatrix({
                           aria-expanded={!collapsed}
                           className="flex items-center gap-1.5 app-muted text-xs font-semibold uppercase tracking-[0.1em]"
                         >
-                          {collapsed ? <ChevronRight className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+                          {collapsed ? (
+                            <ChevronRight className="size-3.5" />
+                          ) : (
+                            <ChevronDown className="size-3.5" />
+                          )}
                           {section}
                         </button>
                       </TableCell>
-                      <TableCell colSpan={roles.length} className="bg-[var(--muted)]/40" />
+                      <TableCell
+                        colSpan={roles.length}
+                        className="bg-[var(--muted)]/40"
+                      />
                     </TableRow>
                     {!collapsed &&
                       sectionResources.map((resource) => (
@@ -231,21 +275,33 @@ export function PermissionsMatrix({
                           <TableCell className="sticky left-0 z-10 bg-card">
                             <div className="font-medium">{resource.label}</div>
                             {resource.description && (
-                              <div className="app-muted text-xs">{resource.description}</div>
+                              <div className="app-muted text-xs">
+                                {resource.description}
+                              </div>
                             )}
                           </TableCell>
                           {roles.map((role) => {
                             const cellKey = `${role.id}:${resource.id}`;
-                            const level = pendingEdits.get(cellKey) ?? toPermissionLevel(levelByCell.get(cellKey));
+                            const level =
+                              pendingEdits.get(cellKey) ??
+                              toPermissionLevel(levelByCell.get(cellKey));
                             return (
                               <TableCell key={role.id}>
                                 <Select
                                   value={level}
                                   onValueChange={(value) =>
-                                    value && handleLevelChange(role.id, resource.id, value as PermissionLevel)
+                                    value &&
+                                    handleLevelChange(
+                                      role.id,
+                                      resource.id,
+                                      value as PermissionLevel,
+                                    )
                                   }
                                 >
-                                  <SelectTrigger className="h-8 w-28" disabled={isSaving}>
+                                  <SelectTrigger
+                                    className="h-8 w-28"
+                                    disabled={isSaving}
+                                  >
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -274,8 +330,8 @@ export function PermissionsMatrix({
           <DialogHeader>
             <DialogTitle>Save permission changes</DialogTitle>
             <DialogDescription>
-              Review the {changedCells.length} change{changedCells.length === 1 ? "" : "s"} below before
-              applying them.
+              Review the {changedCells.length} change
+              {changedCells.length === 1 ? "" : "s"} below before applying them.
             </DialogDescription>
           </DialogHeader>
           <div className="max-h-80 overflow-y-auto">
@@ -296,10 +352,19 @@ export function PermissionsMatrix({
             ))}
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setSaveDialogOpen(false)} disabled={isSaving}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setSaveDialogOpen(false)}
+              disabled={isSaving}
+            >
               Cancel
             </Button>
-            <Button type="button" onClick={handleConfirmSave} disabled={isSaving}>
+            <Button
+              type="button"
+              onClick={handleConfirmSave}
+              disabled={isSaving}
+            >
               {isSaving ? "Saving..." : "Confirm & save"}
             </Button>
           </DialogFooter>

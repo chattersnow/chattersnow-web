@@ -33,7 +33,7 @@ export function GearCatalog({ items }: { items: GearItem[] }) {
 
   const typeOptions = useMemo(
     () => Array.from(new Set(items.map((item) => item.type))).sort(),
-    [items]
+    [items],
   );
 
   const visibleItems = useMemo(() => {
@@ -43,13 +43,18 @@ export function GearCatalog({ items }: { items: GearItem[] }) {
       if (typeFilter && item.type !== typeFilter) return false;
       if (conditionFilter && item.condition !== conditionFilter) return false;
       if (genderFilter && item.gender !== genderFilter) return false;
-      if (query && !item.description.toLowerCase().includes(query)) return false;
+      if (query && !item.description.toLowerCase().includes(query))
+        return false;
       return true;
     });
   }, [items, search, typeFilter, conditionFilter, genderFilter]);
 
   if (items.length === 0) {
-    return <p className="app-muted py-16 text-center text-sm">No gear is currently available.</p>;
+    return (
+      <p className="app-muted py-16 text-center text-sm">
+        No gear is currently available.
+      </p>
+    );
   }
 
   return (
@@ -77,7 +82,9 @@ export function GearCatalog({ items }: { items: GearItem[] }) {
           </label>
           <Select
             value={typeFilter ?? FILTER_ALL}
-            onValueChange={(value) => setTypeFilter(value === FILTER_ALL ? null : value)}
+            onValueChange={(value) =>
+              setTypeFilter(value === FILTER_ALL ? null : value)
+            }
           >
             <SelectTrigger className="h-8">
               <SelectValue placeholder="Type" />
@@ -99,11 +106,17 @@ export function GearCatalog({ items }: { items: GearItem[] }) {
           </label>
           <Select
             value={conditionFilter ?? FILTER_ALL}
-            onValueChange={(value) => setConditionFilter(value === FILTER_ALL ? null : value)}
+            onValueChange={(value) =>
+              setConditionFilter(value === FILTER_ALL ? null : value)
+            }
           >
             <SelectTrigger className="h-8">
               <SelectValue placeholder="Condition">
-                {(value: string) => (value === FILTER_ALL ? "All conditions" : (labelFor(CONDITIONS, value) ?? "Condition"))}
+                {(value: string) =>
+                  value === FILTER_ALL
+                    ? "All conditions"
+                    : (labelFor(CONDITIONS, value) ?? "Condition")
+                }
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -123,11 +136,17 @@ export function GearCatalog({ items }: { items: GearItem[] }) {
           </label>
           <Select
             value={genderFilter ?? FILTER_ALL}
-            onValueChange={(value) => setGenderFilter(value === FILTER_ALL ? null : value)}
+            onValueChange={(value) =>
+              setGenderFilter(value === FILTER_ALL ? null : value)
+            }
           >
             <SelectTrigger className="h-8">
               <SelectValue placeholder="Gender">
-                {(value: string) => (value === FILTER_ALL ? "All genders" : (labelFor(GENDERS, value) ?? "Gender"))}
+                {(value: string) =>
+                  value === FILTER_ALL
+                    ? "All genders"
+                    : (labelFor(GENDERS, value) ?? "Gender")
+                }
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -143,7 +162,9 @@ export function GearCatalog({ items }: { items: GearItem[] }) {
       </div>
 
       {visibleItems.length === 0 ? (
-        <p className="app-muted py-16 text-center text-sm">No gear matches your filters.</p>
+        <p className="app-muted py-16 text-center text-sm">
+          No gear matches your filters.
+        </p>
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {visibleItems.map((item) => (

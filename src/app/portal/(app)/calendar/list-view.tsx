@@ -3,7 +3,14 @@
 import Link from "next/link";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { CalendarItemDetailsSheet } from "./calendar-item-details-sheet";
 import {
   CalendarStatusBadge,
@@ -24,9 +31,13 @@ import {
   type CalendarProgram,
 } from "./calendar-shared";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" });
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 
-export type ListSortColumn = "title" | "starts_at" | "priority_tier" | "calendar_status";
+export type ListSortColumn =
+  "title" | "starts_at" | "priority_tier" | "calendar_status";
 
 const SORT_COLUMN_BEFORE_TYPE: { key: ListSortColumn; label: string }[] = [
   { key: "title", label: "Title" },
@@ -57,15 +68,22 @@ export function ListView({
   sortHref: (column: ListSortColumn) => string;
 }) {
   function SortIcon({ column }: { column: ListSortColumn }) {
-    if (sort !== column) return <ArrowUpDown className="size-3.5 text-muted-foreground" />;
-    return dir === "asc" ? <ArrowUp className="size-3.5" /> : <ArrowDown className="size-3.5" />;
+    if (sort !== column)
+      return <ArrowUpDown className="size-3.5 text-muted-foreground" />;
+    return dir === "asc" ? (
+      <ArrowUp className="size-3.5" />
+    ) : (
+      <ArrowDown className="size-3.5" />
+    );
   }
 
   return (
     <Card className="mt-6">
       <CardContent className="px-0">
         {items.length === 0 ? (
-          <p className="app-muted px-4 py-6 text-sm">No calendar items match these filters.</p>
+          <p className="app-muted px-4 py-6 text-sm">
+            No calendar items match these filters.
+          </p>
         ) : (
           <Table>
             <TableHeader>
@@ -111,8 +129,12 @@ export function ListView({
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="app-muted">{labelFor(ITEM_TYPES, item.item_type)}</TableCell>
-                  <TableCell>{dateFormatter.format(new Date(item.starts_at))}</TableCell>
+                  <TableCell className="app-muted">
+                    {labelFor(ITEM_TYPES, item.item_type)}
+                  </TableCell>
+                  <TableCell>
+                    {dateFormatter.format(new Date(item.starts_at))}
+                  </TableCell>
                   <TableCell>
                     <PriorityTierBadge tier={item.priority_tier} />
                   </TableCell>
@@ -122,7 +144,9 @@ export function ListView({
                   <TableCell>
                     <CalendarVisibilityBadge visibility={item.visibility} />
                   </TableCell>
-                  <TableCell className="app-muted">{ownerEmail(owners, item.owner_id)}</TableCell>
+                  <TableCell className="app-muted">
+                    {ownerEmail(owners, item.owner_id)}
+                  </TableCell>
                   <TableCell>
                     <CategoryBadges categories={item.categories} />
                   </TableCell>

@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { parseVolunteerForm, parseEventVolunteerHoursForm } from "./volunteers-form";
+import {
+  parseVolunteerForm,
+  parseEventVolunteerHoursForm,
+} from "./volunteers-form";
 import { checkPermission, checkAnyPermission } from "@/lib/auth/permissions";
 
 export type EventVolunteerPerson = {
@@ -25,7 +28,7 @@ export type EventVolunteer = {
 export type VolunteerActionResult = { error: string } | { success: true };
 
 export async function listEventVolunteersAction(
-  eventId: string
+  eventId: string,
 ): Promise<{ data: EventVolunteer[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
   const permissionError = await checkPermission(supabase, "events", "view");
@@ -33,7 +36,9 @@ export async function listEventVolunteersAction(
 
   const { data, error } = await supabase
     .from("event_volunteers")
-    .select("id, event_id, person_id, shift_id, role, notes, person:people(id, name, email, phone)")
+    .select(
+      "id, event_id, person_id, shift_id, role, notes, person:people(id, name, email, phone)",
+    )
     .eq("event_id", eventId);
 
   if (error) {
@@ -45,7 +50,7 @@ export async function listEventVolunteersAction(
 export async function createEventVolunteerAction(
   eventId: string,
   personId: string,
-  formData: FormData
+  formData: FormData,
 ): Promise<VolunteerActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -64,13 +69,18 @@ export async function createEventVolunteerAction(
   if ("error" in parsed) return parsed;
   const shiftId = String(formData.get("shiftId") ?? "").trim() || null;
 
-  const { error } = await supabase
-    .from("event_volunteers")
-    .insert({ event_id: eventId, person_id: personId, shift_id: shiftId, ...parsed.data });
+  const { error } = await supabase.from("event_volunteers").insert({
+    event_id: eventId,
+    person_id: personId,
+    shift_id: shiftId,
+    ...parsed.data,
+  });
 
   if (error) {
     if (error.code === "23505") {
-      return { error: "This person is already linked to this event as a volunteer." };
+      return {
+        error: "This person is already linked to this event as a volunteer.",
+      };
     }
     return { error: "Could not save the volunteer. Please try again." };
   }
@@ -81,7 +91,7 @@ export async function createEventVolunteerAction(
 
 export async function updateEventVolunteerShiftAction(
   id: string,
-  shiftId: string | null
+  shiftId: string | null,
 ): Promise<VolunteerActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -93,16 +103,23 @@ export async function updateEventVolunteerShiftAction(
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return permissionError;
 
-  const { error } = await supabase.from("event_volunteers").update({ shift_id: shiftId }).eq("id", id);
+  const { error } = await supabase
+    .from("event_volunteers")
+    .update({ shift_id: shiftId })
+    .eq("id", id);
   if (error) {
-    return { error: "Could not update the shift assignment. Please try again." };
+    return {
+      error: "Could not update the shift assignment. Please try again.",
+    };
   }
 
   revalidatePath("/portal/events");
   return { success: true };
 }
 
-export async function deleteEventVolunteerAction(id: string): Promise<VolunteerActionResult> {
+export async function deleteEventVolunteerAction(
+  id: string,
+): Promise<VolunteerActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -113,7 +130,10 @@ export async function deleteEventVolunteerAction(id: string): Promise<VolunteerA
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return permissionError;
 
-  const { error } = await supabase.from("event_volunteers").delete().eq("id", id);
+  const { error } = await supabase
+    .from("event_volunteers")
+    .delete()
+    .eq("id", id);
   if (error) {
     return { error: "Could not remove the volunteer. Please try again." };
   }
@@ -133,15 +153,21 @@ export type EventVolunteerHours = {
 };
 
 export async function listEventVolunteerHoursAction(
-  eventId: string
+  eventId: string,
 ): Promise<{ data: EventVolunteerHours[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "event_volunteer_hours", "view");
+  const permissionError = await checkPermission(
+    supabase,
+    "event_volunteer_hours",
+    "view",
+  );
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase
     .from("event_volunteer_hours")
-    .select("id, event_id, person_id, hours, logged_date, notes, person:people(id, name, email, phone)")
+    .select(
+      "id, event_id, person_id, hours, logged_date, notes, person:people(id, name, email, phone)",
+    )
     .eq("event_id", eventId)
     .order("logged_date", { ascending: false });
 
@@ -154,7 +180,7 @@ export async function listEventVolunteerHoursAction(
 export async function createEventVolunteerHoursAction(
   eventId: string,
   personId: string,
-  formData: FormData
+  formData: FormData,
 ): Promise<VolunteerActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -176,9 +202,13 @@ export async function createEventVolunteerHoursAction(
   if ("error" in parsed) return parsed;
   const { hours, loggedDate, notes } = parsed.data;
 
-  const { error } = await supabase
-    .from("event_volunteer_hours")
-    .insert({ event_id: eventId, person_id: personId, hours, logged_date: loggedDate, notes });
+  const { error } = await supabase.from("event_volunteer_hours").insert({
+    event_id: eventId,
+    person_id: personId,
+    hours,
+    logged_date: loggedDate,
+    notes,
+  });
 
   if (error) {
     return { error: "Could not log hours. Please try again." };
@@ -188,7 +218,9 @@ export async function createEventVolunteerHoursAction(
   return { success: true };
 }
 
-export async function deleteEventVolunteerHoursAction(id: string): Promise<VolunteerActionResult> {
+export async function deleteEventVolunteerHoursAction(
+  id: string,
+): Promise<VolunteerActionResult> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -196,10 +228,17 @@ export async function deleteEventVolunteerHoursAction(id: string): Promise<Volun
   if (!user) {
     return { error: "You must be signed in to remove a logged hours entry." };
   }
-  const permissionError = await checkPermission(supabase, "event_volunteer_hours", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "event_volunteer_hours",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
-  const { error } = await supabase.from("event_volunteer_hours").delete().eq("id", id);
+  const { error } = await supabase
+    .from("event_volunteer_hours")
+    .delete()
+    .eq("id", id);
   if (error) {
     return { error: "Could not remove this entry. Please try again." };
   }

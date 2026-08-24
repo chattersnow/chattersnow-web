@@ -37,16 +37,22 @@ export function CalendarItemCard({ item }: { item: PublicCalendarItem }) {
         <p className="text-sm font-medium">{item.title}</p>
 
         <p className="app-muted text-xs">
-          <time dateTime={item.starts_at}>{formatInZone(item.starts_at, item.time_zone)}</time>
+          <time dateTime={item.starts_at}>
+            {formatInZone(item.starts_at, item.time_zone)}
+          </time>
           {item.ends_at && (
             <>
               {" – "}
-              <time dateTime={item.ends_at}>{formatInZone(item.ends_at, item.time_zone)}</time>
+              <time dateTime={item.ends_at}>
+                {formatInZone(item.ends_at, item.time_zone)}
+              </time>
             </>
           )}
         </p>
 
-        {item.summary && <p className="text-xs text-muted-foreground">{item.summary}</p>}
+        {item.summary && (
+          <p className="text-xs text-muted-foreground">{item.summary}</p>
+        )}
 
         {item.public_url && (
           <a

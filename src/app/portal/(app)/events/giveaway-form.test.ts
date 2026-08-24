@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { parseGiveawayForm, parseGiveawayPrizeForm, parseGiveawayWinnerForm } from "./giveaway-form";
+import {
+  parseGiveawayForm,
+  parseGiveawayPrizeForm,
+  parseGiveawayWinnerForm,
+} from "./giveaway-form";
 
 function formData(fields: Record<string, string>) {
   const fd = new FormData();
@@ -10,7 +14,7 @@ function formData(fields: Record<string, string>) {
 describe("parseGiveawayForm", () => {
   test("parses valid input", () => {
     const result = parseGiveawayForm(
-      formData({ name: "50/50", ticketsSold: "10", revenueAmount: "100" })
+      formData({ name: "50/50", ticketsSold: "10", revenueAmount: "100" }),
     );
     expect(result).toEqual({
       data: {
@@ -50,7 +54,12 @@ describe("parseGiveawayForm", () => {
 
   test("accepts a valid ticket price", () => {
     const result = parseGiveawayForm(
-      formData({ name: "50/50", ticketsSold: "10", revenueAmount: "100", ticketPrice: "5" })
+      formData({
+        name: "50/50",
+        ticketsSold: "10",
+        revenueAmount: "100",
+        ticketPrice: "5",
+      }),
     );
     expect("data" in result && result.data.ticketPrice).toBe(5);
   });
@@ -71,7 +80,7 @@ describe("parseGiveawayPrizeForm", () => {
 
   test("parses valid input", () => {
     const result = parseGiveawayPrizeForm(
-      formData({ prizeName: "Ski pass", estimatedValue: "200" })
+      formData({ prizeName: "Ski pass", estimatedValue: "200" }),
     );
     expect(result).toEqual({
       data: { prizeName: "Ski pass", estimatedValue: 200, notes: null },
@@ -80,7 +89,9 @@ describe("parseGiveawayPrizeForm", () => {
 
   test("rejects a negative estimated value", () => {
     expect(
-      parseGiveawayPrizeForm(formData({ prizeName: "Ski pass", estimatedValue: "-1" }))
+      parseGiveawayPrizeForm(
+        formData({ prizeName: "Ski pass", estimatedValue: "-1" }),
+      ),
     ).toEqual({ error: "Estimated value must be a positive number." });
   });
 });
@@ -99,7 +110,11 @@ describe("parseGiveawayWinnerForm", () => {
 
   test("parses valid input", () => {
     const result = parseGiveawayWinnerForm(
-      formData({ winnerName: "Jane", winnerContact: "jane@example.com", distributionStatus: "distributed" })
+      formData({
+        winnerName: "Jane",
+        winnerContact: "jane@example.com",
+        distributionStatus: "distributed",
+      }),
     );
     expect(result).toEqual({
       data: {

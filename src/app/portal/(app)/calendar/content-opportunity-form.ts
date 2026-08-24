@@ -18,12 +18,20 @@ export type ContentOpportunityFormData = {
   draftDueAt: string | null;
 };
 
-export function parseContentOpportunityForm(formData: FormData): ParseResult<ContentOpportunityFormData> {
+export function parseContentOpportunityForm(
+  formData: FormData,
+): ParseResult<ContentOpportunityFormData> {
   const contentStatus = String(formData.get("contentStatus") ?? "");
   const skipReason = String(formData.get("skipReason") ?? "").trim();
-  const chatterConnection = String(formData.get("chatterConnection") ?? "").trim();
-  const recommendedFormats = String(formData.get("recommendedFormats") ?? "").trim();
-  const recommendedAction = String(formData.get("recommendedAction") ?? "").trim();
+  const chatterConnection = String(
+    formData.get("chatterConnection") ?? "",
+  ).trim();
+  const recommendedFormats = String(
+    formData.get("recommendedFormats") ?? "",
+  ).trim();
+  const recommendedAction = String(
+    formData.get("recommendedAction") ?? "",
+  ).trim();
   const outstandingWork = String(formData.get("outstandingWork") ?? "").trim();
   const ownerId = String(formData.get("ownerId") ?? "").trim();
   const reviewerId = String(formData.get("reviewerId") ?? "").trim();
@@ -32,7 +40,11 @@ export function parseContentOpportunityForm(formData: FormData): ParseResult<Con
   const reviewDueAt = String(formData.get("reviewDueAt") ?? "");
   const draftDueAt = String(formData.get("draftDueAt") ?? "");
 
-  if (!CONTENT_STATUS_VALUES.includes(contentStatus as (typeof CONTENT_STATUS_VALUES)[number])) {
+  if (
+    !CONTENT_STATUS_VALUES.includes(
+      contentStatus as (typeof CONTENT_STATUS_VALUES)[number],
+    )
+  ) {
     return { error: "Select a valid content status." };
   }
   if (contentStatus === "skipped" && !skipReason) {
@@ -41,18 +53,28 @@ export function parseContentOpportunityForm(formData: FormData): ParseResult<Con
 
   const leadTimeDays = Number(leadTimeDaysRaw);
   if (!Number.isInteger(leadTimeDays) || leadTimeDays <= 0) {
-    return { error: "Lead time must be a whole number of days greater than zero." };
+    return {
+      error: "Lead time must be a whole number of days greater than zero.",
+    };
   }
 
-  const publishDueAtIso = publishDueAt ? new Date(publishDueAt).toISOString() : null;
-  const reviewDueAtIso = reviewDueAt ? new Date(reviewDueAt).toISOString() : null;
+  const publishDueAtIso = publishDueAt
+    ? new Date(publishDueAt).toISOString()
+    : null;
+  const reviewDueAtIso = reviewDueAt
+    ? new Date(reviewDueAt).toISOString()
+    : null;
   const draftDueAtIso = draftDueAt ? new Date(draftDueAt).toISOString() : null;
 
   if (draftDueAtIso && reviewDueAtIso && draftDueAtIso > reviewDueAtIso) {
-    return { error: "Draft due date must be on or before the review due date." };
+    return {
+      error: "Draft due date must be on or before the review due date.",
+    };
   }
   if (reviewDueAtIso && publishDueAtIso && reviewDueAtIso > publishDueAtIso) {
-    return { error: "Review due date must be on or before the publish due date." };
+    return {
+      error: "Review due date must be on or before the publish due date.",
+    };
   }
 
   return {

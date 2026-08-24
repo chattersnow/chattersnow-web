@@ -31,7 +31,11 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-export type RoleTypeRow = { id: string; name: string; description: string | null };
+export type RoleTypeRow = {
+  id: string;
+  name: string;
+  description: string | null;
+};
 
 type FormState = { name: string; description: string };
 
@@ -41,7 +45,9 @@ function formStateFor(roleType: RoleTypeRow): FormState {
 
 function isDirty(form: FormState, roleType: RoleTypeRow) {
   const baseline = formStateFor(roleType);
-  return form.name !== baseline.name || form.description !== baseline.description;
+  return (
+    form.name !== baseline.name || form.description !== baseline.description
+  );
 }
 
 export function RoleTypeDetailsSheet({
@@ -57,7 +63,9 @@ export function RoleTypeDetailsSheet({
   const [form, setForm] = useState<FormState>(() => formStateFor(roleType));
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [discardTarget, setDiscardTarget] = useState<"toggle" | "close" | null>(null);
+  const [discardTarget, setDiscardTarget] = useState<"toggle" | "close" | null>(
+    null,
+  );
   const formId = `edit-role-type-form-${roleType.id}`;
   const dirty = isDirty(form, roleType);
 
@@ -119,19 +127,43 @@ export function RoleTypeDetailsSheet({
     <>
       <Sheet open={open} onOpenChange={handleOpenChange}>
         <SheetTrigger
-          render={<Button type="button" variant="ghost" size="icon-sm" aria-label={`View ${roleType.name}`} />}
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={`View ${roleType.name}`}
+            />
+          }
         >
           <Eye />
         </SheetTrigger>
-        <SheetContent side="right" showCloseButton={false} className="data-[side=right]:sm:max-w-lg">
+        <SheetContent
+          side="right"
+          showCloseButton={false}
+          className="data-[side=right]:sm:max-w-lg"
+        >
           <SheetHeader className="flex-row items-start gap-2 space-y-0">
-            <SheetClose render={<Button type="button" variant="ghost" size="icon-sm" aria-label="Close" />}>
+            <SheetClose
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Close"
+                />
+              }
+            >
               <ArrowLeft />
             </SheetClose>
             <div className="flex flex-1 flex-col gap-0.5">
-              <SheetTitle>{mode === "edit" ? "Edit role type" : "Role type"}</SheetTitle>
+              <SheetTitle>
+                {mode === "edit" ? "Edit role type" : "Role type"}
+              </SheetTitle>
               <SheetDescription>
-                {mode === "edit" ? "Update this role type's details." : "View this role type's details."}
+                {mode === "edit"
+                  ? "Update this role type's details."
+                  : "View this role type's details."}
               </SheetDescription>
             </div>
             {canManage &&
@@ -146,7 +178,12 @@ export function RoleTypeDetailsSheet({
                   <Pencil />
                 </Button>
               ) : (
-                <Button type="button" variant="ghost" size="sm" onClick={requestExitEditMode}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={requestExitEditMode}
+                >
                   View
                 </Button>
               ))}
@@ -158,17 +195,26 @@ export function RoleTypeDetailsSheet({
                 <ReadOnlyField label="Role name" htmlFor="role-type-name">
                   {roleType.name}
                 </ReadOnlyField>
-                <ReadOnlyField label="Description" htmlFor="role-type-description">
+                <ReadOnlyField
+                  label="Description"
+                  htmlFor="role-type-description"
+                >
                   {roleType.description || "—"}
                 </ReadOnlyField>
               </FieldGroup>
             </div>
           ) : (
-            <form id={formId} onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+            <form
+              id={formId}
+              onSubmit={handleSubmit}
+              className="flex min-h-0 flex-1 flex-col"
+            >
               <div className="flex-1 overflow-y-auto px-4 pb-4">
                 <FieldGroup>
                   <Field>
-                    <FieldLabel htmlFor="role-type-edit-name">Role name</FieldLabel>
+                    <FieldLabel htmlFor="role-type-edit-name">
+                      Role name
+                    </FieldLabel>
                     <Input
                       id="role-type-edit-name"
                       required
@@ -178,11 +224,15 @@ export function RoleTypeDetailsSheet({
                   </Field>
 
                   <Field>
-                    <FieldLabel htmlFor="role-type-edit-description">Description</FieldLabel>
+                    <FieldLabel htmlFor="role-type-edit-description">
+                      Description
+                    </FieldLabel>
                     <Textarea
                       id="role-type-edit-description"
                       value={form.description}
-                      onChange={(event) => update("description", event.target.value)}
+                      onChange={(event) =>
+                        update("description", event.target.value)
+                      }
                     />
                   </Field>
 
@@ -206,17 +256,25 @@ export function RoleTypeDetailsSheet({
         </SheetContent>
       </Sheet>
 
-      <AlertDialog open={discardTarget !== null} onOpenChange={(next) => !next && setDiscardTarget(null)}>
+      <AlertDialog
+        open={discardTarget !== null}
+        onOpenChange={(next) => !next && setDiscardTarget(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Discard changes?</AlertDialogTitle>
             <AlertDialogDescription>
-              You have unsaved changes to this role type. Leaving now will discard them.
+              You have unsaved changes to this role type. Leaving now will
+              discard them.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDiscardTarget(null)}>Keep editing</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDiscard}>Discard changes</AlertDialogAction>
+            <AlertDialogCancel onClick={() => setDiscardTarget(null)}>
+              Keep editing
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDiscard}>
+              Discard changes
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

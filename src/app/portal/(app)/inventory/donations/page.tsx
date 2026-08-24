@@ -13,8 +13,8 @@ export default function InventoryDonationsPage() {
             <CardTitle>Coming soon</CardTitle>
           </CardHeader>
           <CardContent className="app-muted text-sm">
-            This area will track in-kind item donations received into inventory, including
-            donor, item details, and date received.
+            This area will track in-kind item donations received into inventory,
+            including donor, item details, and date received.
           </CardContent>
         </Card>
       </div>

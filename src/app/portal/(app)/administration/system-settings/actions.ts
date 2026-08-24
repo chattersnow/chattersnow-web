@@ -7,12 +7,21 @@ import { checkPermission } from "@/lib/auth/permissions";
 export type SettingActionResult = { error: string } | { success: true };
 
 /** Generic upsert, reusable for any future app_settings key without a new migration. */
-export async function updateAppSettingAction(key: string, value: unknown): Promise<SettingActionResult> {
+export async function updateAppSettingAction(
+  key: string,
+  value: unknown,
+): Promise<SettingActionResult> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "system_settings", "manage");
+  const permissionError = await checkPermission(
+    supabase,
+    "system_settings",
+    "manage",
+  );
   if (permissionError) return permissionError;
 
-  const { error } = await supabase.from("app_settings").upsert({ key, value }, { onConflict: "key" });
+  const { error } = await supabase
+    .from("app_settings")
+    .upsert({ key, value }, { onConflict: "key" });
   if (error) {
     return { error: "Could not save this setting. Please try again." };
   }
@@ -21,7 +30,9 @@ export async function updateAppSettingAction(key: string, value: unknown): Promi
   return { success: true };
 }
 
-export async function updateExpenseApprovalThresholdAction(formData: FormData): Promise<SettingActionResult> {
+export async function updateExpenseApprovalThresholdAction(
+  formData: FormData,
+): Promise<SettingActionResult> {
   const raw = String(formData.get("threshold") ?? "").trim();
   const value = Number(raw);
   if (!Number.isFinite(value) || value < 0) {

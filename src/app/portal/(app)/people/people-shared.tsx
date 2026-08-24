@@ -17,6 +17,10 @@ export const ROLE_OPTIONS = [
 
 export type RoleKey = (typeof ROLE_OPTIONS)[number]["key"];
 
-export function rolesFor(person: Pick<PersonRow, "is_donor" | "is_sponsor" | "is_volunteer">) {
-  return ROLE_OPTIONS.filter((option) => person[option.key]).map((option) => option.label);
+export function rolesFor(
+  person: Pick<PersonRow, "is_donor" | "is_sponsor" | "is_volunteer">,
+) {
+  return ROLE_OPTIONS.filter((option) => person[option.key]).map(
+    (option) => option.label,
+  );
 }

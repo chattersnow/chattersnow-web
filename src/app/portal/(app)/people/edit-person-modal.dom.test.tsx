@@ -136,7 +136,9 @@ describe("EditPersonModal", () => {
     await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     expect(
-      await screen.findByText("Could not update this person. Please try again.")
+      await screen.findByText(
+        "Could not update this person. Please try again.",
+      ),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Name")).toBeInTheDocument();
   });

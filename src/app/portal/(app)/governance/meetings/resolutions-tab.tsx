@@ -21,11 +21,28 @@ import { PersonPicker, type PickedPerson } from "../../people/person-picker";
 import { listPeopleAction, type PersonListItem } from "../../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" });
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeZone: "UTC",
+});
 
 function formatDate(value: string | null) {
   if (!value) return "—";
@@ -43,18 +60,25 @@ function AddResolutionForm({
   onSubmit: (
     moverPersonId: string,
     seconderPersonId: string | null,
-    formData: FormData
+    formData: FormData,
   ) => Promise<{ error: string } | { success: true }>;
   onCancel: () => void;
 }) {
   const router = useRouter();
   const [selectedMover, setSelectedMover] = useState<PickedPerson | null>(null);
-  const [selectedSeconder, setSelectedSeconder] = useState<PickedPerson | null>(null);
-  const [form, setForm] = useState<ResolutionFormState>(() => emptyResolutionForm());
+  const [selectedSeconder, setSelectedSeconder] = useState<PickedPerson | null>(
+    null,
+  );
+  const [form, setForm] = useState<ResolutionFormState>(() =>
+    emptyResolutionForm(),
+  );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  function update<K extends keyof ResolutionFormState>(key: K, value: ResolutionFormState[K]) {
+  function update<K extends keyof ResolutionFormState>(
+    key: K,
+    value: ResolutionFormState[K],
+  ) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -67,7 +91,11 @@ function AddResolutionForm({
     }
 
     startTransition(async () => {
-      const result = await onSubmit(selectedMover.id, selectedSeconder?.id ?? null, packResolutionFormData(form));
+      const result = await onSubmit(
+        selectedMover.id,
+        selectedSeconder?.id ?? null,
+        packResolutionFormData(form),
+      );
       if ("error" in result) {
         setError(result.error);
         return;
@@ -78,11 +106,19 @@ function AddResolutionForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-md border border-[var(--line)] p-4">
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-md border border-[var(--line)] p-4"
+    >
       <FieldGroup>
         <Field>
           <FieldLabel>Mover</FieldLabel>
-          <PersonPicker people={people} selected={selectedMover} onSelect={setSelectedMover} onPersonCreated={onPersonCreated} />
+          <PersonPicker
+            people={people}
+            selected={selectedMover}
+            onSelect={setSelectedMover}
+            onPersonCreated={onPersonCreated}
+          />
         </Field>
 
         <Field>
@@ -95,7 +131,11 @@ function AddResolutionForm({
           />
         </Field>
 
-        <ResolutionFormFields form={form} update={update} idPrefix="new-resolution-tab" />
+        <ResolutionFormFields
+          form={form}
+          update={update}
+          idPrefix="new-resolution-tab"
+        />
 
         {error && (
           <Alert variant="destructive">
@@ -129,8 +169,12 @@ function EditResolutionDialog({
   onSaved: () => void;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [selectedMover, setSelectedMover] = useState<PickedPerson | null>(resolution.mover);
-  const [selectedSeconder, setSelectedSeconder] = useState<PickedPerson | null>(resolution.seconder);
+  const [selectedMover, setSelectedMover] = useState<PickedPerson | null>(
+    resolution.mover,
+  );
+  const [selectedSeconder, setSelectedSeconder] = useState<PickedPerson | null>(
+    resolution.seconder,
+  );
   const [form, setForm] = useState<ResolutionFormState>(() => ({
     motionText: resolution.motion_text,
     voteOutcome: resolution.vote_outcome,
@@ -141,7 +185,10 @@ function EditResolutionDialog({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  function update<K extends keyof ResolutionFormState>(key: K, value: ResolutionFormState[K]) {
+  function update<K extends keyof ResolutionFormState>(
+    key: K,
+    value: ResolutionFormState[K],
+  ) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -158,7 +205,7 @@ function EditResolutionDialog({
         resolution.id,
         selectedMover.id,
         selectedSeconder?.id ?? null,
-        packResolutionFormData(form)
+        packResolutionFormData(form),
       );
       if ("error" in result) {
         setError(result.error);
@@ -173,7 +220,9 @@ function EditResolutionDialog({
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit resolution</DialogTitle>
-          <DialogDescription>Update this resolution&apos;s details.</DialogDescription>
+          <DialogDescription>
+            Update this resolution&apos;s details.
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
@@ -198,7 +247,11 @@ function EditResolutionDialog({
               />
             </Field>
 
-            <ResolutionFormFields form={form} update={update} idPrefix={`edit-resolution-tab-${resolution.id}`} />
+            <ResolutionFormFields
+              form={form}
+              update={update}
+              idPrefix={`edit-resolution-tab-${resolution.id}`}
+            />
 
             {error && (
               <Alert variant="destructive">
@@ -218,7 +271,15 @@ function EditResolutionDialog({
   );
 }
 
-export function ResolutionsTab({ meetingId, active, mode }: { meetingId: string; active: boolean; mode: "view" | "edit" }) {
+export function ResolutionsTab({
+  meetingId,
+  active,
+  mode,
+}: {
+  meetingId: string;
+  active: boolean;
+  mode: "view" | "edit";
+}) {
   const router = useRouter();
   const [resolutions, setResolutions] = useState<Resolution[] | null>(null);
   const [people, setPeople] = useState<PersonListItem[]>([]);
@@ -268,7 +329,8 @@ export function ResolutionsTab({ meetingId, active, mode }: { meetingId: string;
     });
   }
 
-  const editingResolution = resolutions?.find((resolution) => resolution.id === editingId) ?? null;
+  const editingResolution =
+    resolutions?.find((resolution) => resolution.id === editingId) ?? null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -296,12 +358,18 @@ export function ResolutionsTab({ meetingId, active, mode }: { meetingId: string;
           <TableBody>
             {resolutions?.map((resolution) => (
               <TableRow key={resolution.id}>
-                <TableCell className="whitespace-normal font-medium">{resolution.motion_text}</TableCell>
-                <TableCell className="app-muted">{resolution.mover?.name ?? "—"}</TableCell>
+                <TableCell className="whitespace-normal font-medium">
+                  {resolution.motion_text}
+                </TableCell>
+                <TableCell className="app-muted">
+                  {resolution.mover?.name ?? "—"}
+                </TableCell>
                 <TableCell>
                   <VoteOutcomeBadge outcome={resolution.vote_outcome} />
                 </TableCell>
-                <TableCell className="app-muted">{formatDate(resolution.effective_date)}</TableCell>
+                <TableCell className="app-muted">
+                  {formatDate(resolution.effective_date)}
+                </TableCell>
                 <TableCell className="text-right whitespace-nowrap">
                   {mode === "edit" && (
                     <>
@@ -339,13 +407,22 @@ export function ResolutionsTab({ meetingId, active, mode }: { meetingId: string;
             people={people}
             onPersonCreated={handlePersonCreated}
             onSubmit={(moverPersonId, seconderPersonId, formData) =>
-              createResolutionAction(meetingId, moverPersonId, seconderPersonId, formData)
+              createResolutionAction(
+                meetingId,
+                moverPersonId,
+                seconderPersonId,
+                formData,
+              )
             }
             onCancel={() => setShowAdd(false)}
           />
         ) : (
           <div>
-            <Button type="button" variant="outline" onClick={() => setShowAdd(true)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowAdd(true)}
+            >
               + Add resolution
             </Button>
           </div>

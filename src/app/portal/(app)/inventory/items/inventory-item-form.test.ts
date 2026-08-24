@@ -16,31 +16,41 @@ const validFields = {
 
 describe("parseInventoryItemForm", () => {
   test("requires a description", () => {
-    expect(parseInventoryItemForm(formData({ ...validFields, description: "" }))).toEqual({
+    expect(
+      parseInventoryItemForm(formData({ ...validFields, description: "" })),
+    ).toEqual({
       error: "Item description is required.",
     });
   });
 
   test("requires a type", () => {
-    expect(parseInventoryItemForm(formData({ ...validFields, type: "" }))).toEqual({
+    expect(
+      parseInventoryItemForm(formData({ ...validFields, type: "" })),
+    ).toEqual({
       error: "Item type is required.",
     });
   });
 
   test("rejects an invalid condition", () => {
-    expect(parseInventoryItemForm(formData({ ...validFields, condition: "mint" }))).toEqual({
+    expect(
+      parseInventoryItemForm(formData({ ...validFields, condition: "mint" })),
+    ).toEqual({
       error: "Select a valid item condition.",
     });
   });
 
   test("rejects an invalid status", () => {
-    expect(parseInventoryItemForm(formData({ ...validFields, status: "sold" }))).toEqual({
+    expect(
+      parseInventoryItemForm(formData({ ...validFields, status: "sold" })),
+    ).toEqual({
       error: "Select a valid item status.",
     });
   });
 
   test("rejects a negative face value", () => {
-    expect(parseInventoryItemForm(formData({ ...validFields, faceValue: "-5" }))).toEqual({
+    expect(
+      parseInventoryItemForm(formData({ ...validFields, faceValue: "-5" })),
+    ).toEqual({
       error: "Face value must be a positive number.",
     });
   });
@@ -52,7 +62,14 @@ describe("parseInventoryItemForm", () => {
 
   test("parses valid input", () => {
     const result = parseInventoryItemForm(
-      formData({ ...validFields, size: "M", gender: "unisex", faceValue: "80", photoUrl: "https://x/y.jpg", notes: "Warm" })
+      formData({
+        ...validFields,
+        size: "M",
+        gender: "unisex",
+        faceValue: "80",
+        photoUrl: "https://x/y.jpg",
+        notes: "Warm",
+      }),
     );
     expect(result).toEqual({
       data: {

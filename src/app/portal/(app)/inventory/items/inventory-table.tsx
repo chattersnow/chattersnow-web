@@ -1,7 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, LayoutGrid, List } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  LayoutGrid,
+  List,
+} from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -71,7 +77,7 @@ export function InventoryTable({ items }: { items: InventoryItem[] }) {
 
   const typeOptions = useMemo(
     () => Array.from(new Set(items.map((item) => item.type))).sort(),
-    [items]
+    [items],
   );
 
   function handleSort(key: SortKey) {
@@ -90,7 +96,8 @@ export function InventoryTable({ items }: { items: InventoryItem[] }) {
       if (typeFilter && item.type !== typeFilter) return false;
       if (conditionFilter && item.condition !== conditionFilter) return false;
       if (statusFilter && item.status !== statusFilter) return false;
-      if (query && !item.description.toLowerCase().includes(query)) return false;
+      if (query && !item.description.toLowerCase().includes(query))
+        return false;
       return true;
     });
 
@@ -108,14 +115,24 @@ export function InventoryTable({ items }: { items: InventoryItem[] }) {
 
       return compareNullableStrings(a[sortKey], b[sortKey]) * direction;
     });
-  }, [items, search, typeFilter, conditionFilter, statusFilter, sortKey, sortDirection]);
+  }, [
+    items,
+    search,
+    typeFilter,
+    conditionFilter,
+    statusFilter,
+    sortKey,
+    sortDirection,
+  ]);
 
   if (items.length === 0) {
     return (
       <div className="space-y-4">
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">No inventory items yet.</p>
+            <p className="app-muted px-4 py-6 text-sm">
+              No inventory items yet.
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -148,7 +165,9 @@ export function InventoryTable({ items }: { items: InventoryItem[] }) {
             </label>
             <Select
               value={typeFilter ?? FILTER_ALL}
-              onValueChange={(value) => setTypeFilter(value === FILTER_ALL ? null : value)}
+              onValueChange={(value) =>
+                setTypeFilter(value === FILTER_ALL ? null : value)
+              }
             >
               <SelectTrigger className="h-8">
                 <SelectValue placeholder="Type" />
@@ -176,7 +195,11 @@ export function InventoryTable({ items }: { items: InventoryItem[] }) {
             >
               <SelectTrigger className="h-8">
                 <SelectValue placeholder="Condition">
-                  {(value: string) => (value === FILTER_ALL ? "All conditions" : (labelFor(CONDITIONS, value) ?? "Condition"))}
+                  {(value: string) =>
+                    value === FILTER_ALL
+                      ? "All conditions"
+                      : (labelFor(CONDITIONS, value) ?? "Condition")
+                  }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -196,11 +219,17 @@ export function InventoryTable({ items }: { items: InventoryItem[] }) {
             </label>
             <Select
               value={statusFilter ?? FILTER_ALL}
-              onValueChange={(value) => setStatusFilter(value === FILTER_ALL ? null : value)}
+              onValueChange={(value) =>
+                setStatusFilter(value === FILTER_ALL ? null : value)
+              }
             >
               <SelectTrigger className="h-8">
                 <SelectValue placeholder="Status">
-                  {(value: string) => (value === FILTER_ALL ? "All statuses" : (labelFor(STATUSES, value) ?? "Status"))}
+                  {(value: string) =>
+                    value === FILTER_ALL
+                      ? "All statuses"
+                      : (labelFor(STATUSES, value) ?? "Status")
+                  }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -226,10 +255,18 @@ export function InventoryTable({ items }: { items: InventoryItem[] }) {
               variant="outline"
               className="h-8"
             >
-              <ToggleGroupItem value="list" aria-label="List view" className="h-8 px-2.5">
+              <ToggleGroupItem
+                value="list"
+                aria-label="List view"
+                className="h-8 px-2.5"
+              >
                 <List className="size-4" />
               </ToggleGroupItem>
-              <ToggleGroupItem value="gallery" aria-label="Gallery view" className="h-8 px-2.5">
+              <ToggleGroupItem
+                value="gallery"
+                aria-label="Gallery view"
+                className="h-8 px-2.5"
+              >
                 <LayoutGrid className="size-4" />
               </ToggleGroupItem>
             </ToggleGroup>
@@ -239,7 +276,9 @@ export function InventoryTable({ items }: { items: InventoryItem[] }) {
 
       {view === "gallery" ? (
         visibleItems.length === 0 ? (
-          <p className="app-muted py-16 text-center text-sm">No items match your filters.</p>
+          <p className="app-muted py-16 text-center text-sm">
+            No items match your filters.
+          </p>
         ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {visibleItems.map((item) => (
@@ -291,11 +330,17 @@ export function InventoryTable({ items }: { items: InventoryItem[] }) {
                 ) : (
                   visibleItems.map((item) => (
                     <TableRow key={item.id}>
-                      <TableCell className="whitespace-normal">{item.description}</TableCell>
+                      <TableCell className="whitespace-normal">
+                        {item.description}
+                      </TableCell>
                       <TableCell>{item.type}</TableCell>
                       <TableCell>{item.size ?? "—"}</TableCell>
-                      <TableCell>{labelFor(GENDERS, item.gender) ?? "—"}</TableCell>
-                      <TableCell>{labelFor(CONDITIONS, item.condition)}</TableCell>
+                      <TableCell>
+                        {labelFor(GENDERS, item.gender) ?? "—"}
+                      </TableCell>
+                      <TableCell>
+                        {labelFor(CONDITIONS, item.condition)}
+                      </TableCell>
                       <TableCell>{formatFaceValue(item.face_value)}</TableCell>
                       <TableCell>
                         <StatusBadge status={item.status} />

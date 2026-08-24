@@ -44,8 +44,8 @@ export default function GetInvolvedPage() {
             Get involved
           </h1>
           <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-            Chatter runs on people showing up in whatever way works for them
-            — on the mountain, behind the scenes, or by helping us grow.
+            Chatter runs on people showing up in whatever way works for them —
+            on the mountain, behind the scenes, or by helping us grow.
           </p>
         </section>
 
@@ -57,7 +57,11 @@ export default function GetInvolvedPage() {
             The easiest way to get involved is to show up. Browse upcoming
             mountain days and community meetups and come ride with us.
           </p>
-          <Button className="mt-4" nativeButton={false} render={<Link href="/events" />}>
+          <Button
+            className="mt-4"
+            nativeButton={false}
+            render={<Link href="/events" />}
+          >
             See upcoming events
           </Button>
         </section>
@@ -95,10 +99,10 @@ export default function GetInvolvedPage() {
             Become a partner
           </h2>
           <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-            We work with mountains, gear brands, and other organizations to
-            make events more affordable and accessible for our community. If
-            your organization wants to partner with Chatter on an event,
-            discount, or collaboration, we&apos;d love to hear from you.
+            We work with mountains, gear brands, and other organizations to make
+            events more affordable and accessible for our community. If your
+            organization wants to partner with Chatter on an event, discount, or
+            collaboration, we&apos;d love to hear from you.
           </p>
           <Button
             variant="outline"
@@ -117,7 +121,10 @@ export default function GetInvolvedPage() {
           <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
             Sponsorships help fund events, gear, and programs. See sponsorship
             details on our{" "}
-            <Link href="/support#sponsorship" className="underline underline-offset-4 hover:text-foreground">
+            <Link
+              href="/support#sponsorship"
+              className="underline underline-offset-4 hover:text-foreground"
+            >
               Support page
             </Link>
             .
@@ -129,9 +136,12 @@ export default function GetInvolvedPage() {
             Donate gear
           </h2>
           <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-            Have gear you&apos;re not using? Donating it helps another rider
-            get on the mountain. See what we accept on our{" "}
-            <Link href="/gears#donate" className="underline underline-offset-4 hover:text-foreground">
+            Have gear you&apos;re not using? Donating it helps another rider get
+            on the mountain. See what we accept on our{" "}
+            <Link
+              href="/gears#donate"
+              className="underline underline-offset-4 hover:text-foreground"
+            >
               Gear page
             </Link>
             .

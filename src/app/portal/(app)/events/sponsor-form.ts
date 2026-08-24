@@ -13,19 +13,32 @@ export type SponsorFormData = {
   follow_up_notes: string | null;
 };
 
-export function parseSponsorForm(formData: FormData): ParseResult<SponsorFormData> {
+export function parseSponsorForm(
+  formData: FormData,
+): ParseResult<SponsorFormData> {
   const supportType = String(formData.get("supportType") ?? "in_kind");
-  const inKindDescription = String(formData.get("inKindDescription") ?? "").trim();
-  const contributionValueRaw = String(formData.get("contributionValue") ?? "").trim();
-  const isPublic = formData.get("isPublic") === "on" || formData.get("isPublic") === "true";
+  const inKindDescription = String(
+    formData.get("inKindDescription") ?? "",
+  ).trim();
+  const contributionValueRaw = String(
+    formData.get("contributionValue") ?? "",
+  ).trim();
+  const isPublic =
+    formData.get("isPublic") === "on" || formData.get("isPublic") === "true";
   const notes = String(formData.get("notes") ?? "").trim();
-  const followUpStatus = String(formData.get("followUpStatus") ?? "not_started");
+  const followUpStatus = String(
+    formData.get("followUpStatus") ?? "not_started",
+  );
   const followUpNotes = String(formData.get("followUpNotes") ?? "").trim();
 
   if (!SUPPORT_TYPES.includes(supportType as (typeof SUPPORT_TYPES)[number])) {
     return { error: "Select a valid support type." };
   }
-  if (!FOLLOW_UP_STATUSES.includes(followUpStatus as (typeof FOLLOW_UP_STATUSES)[number])) {
+  if (
+    !FOLLOW_UP_STATUSES.includes(
+      followUpStatus as (typeof FOLLOW_UP_STATUSES)[number],
+    )
+  ) {
     return { error: "Select a valid follow-up status." };
   }
 

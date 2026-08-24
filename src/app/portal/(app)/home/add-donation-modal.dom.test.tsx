@@ -22,13 +22,19 @@ async function openModal(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: "Record donation" }));
 }
 
-async function selectSourceType(user: ReturnType<typeof userEvent.setup>, label: string) {
+async function selectSourceType(
+  user: ReturnType<typeof userEvent.setup>,
+  label: string,
+) {
   await user.click(screen.getByLabelText("Donor source"));
   const listbox = await screen.findByRole("listbox");
   await user.click(within(listbox).getByText(label));
 }
 
-async function fillDonorAndContinue(user: ReturnType<typeof userEvent.setup>, name: string) {
+async function fillDonorAndContinue(
+  user: ReturnType<typeof userEvent.setup>,
+  name: string,
+) {
   await user.type(screen.getByLabelText("Donor name"), name);
   await selectSourceType(user, "Individual");
   await user.click(screen.getByRole("button", { name: "Continue" }));
@@ -37,7 +43,9 @@ async function fillDonorAndContinue(user: ReturnType<typeof userEvent.setup>, na
 describe("AddDonationModal", () => {
   beforeEach(() => {
     createDonationActionMock.mockClear();
-    createDonationActionMock.mockImplementation(async () => ({ success: true }));
+    createDonationActionMock.mockImplementation(async () => ({
+      success: true,
+    }));
   });
 
   test("blocks continuing without a donor name", async () => {
@@ -47,7 +55,9 @@ describe("AddDonationModal", () => {
     await user.click(screen.getByRole("button", { name: "Continue" }));
 
     expect(
-      screen.getByText("Donor name is required unless the donation is anonymous.")
+      screen.getByText(
+        "Donor name is required unless the donation is anonymous.",
+      ),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Step 2 of 2/)).not.toBeInTheDocument();
   });
@@ -60,7 +70,9 @@ describe("AddDonationModal", () => {
     await user.click(screen.getByRole("button", { name: "Continue" }));
 
     expect(
-      screen.queryByText("Donor name is required unless the donation is anonymous.")
+      screen.queryByText(
+        "Donor name is required unless the donation is anonymous.",
+      ),
     ).not.toBeInTheDocument();
     expect(screen.getByText("Select a donor source.")).toBeInTheDocument();
   });
@@ -92,7 +104,9 @@ describe("AddDonationModal", () => {
 
     expect(screen.getAllByRole("button", { name: "Remove" })[0]).toBeDisabled();
 
-    await user.click(screen.getByRole("button", { name: "+ Add another item" }));
+    await user.click(
+      screen.getByRole("button", { name: "+ Add another item" }),
+    );
     expect(screen.getByText("Item 2")).toBeInTheDocument();
     const removeButtons = screen.getAllByRole("button", { name: "Remove" });
     expect(removeButtons[0]).not.toBeDisabled();
@@ -143,7 +157,7 @@ describe("AddDonationModal", () => {
     await user.click(screen.getByRole("button", { name: "Save donation" }));
 
     expect(
-      await screen.findByText("Could not save the donation. Please try again.")
+      await screen.findByText("Could not save the donation. Please try again."),
     ).toBeInTheDocument();
     expect(screen.getByText("Step 2 of 2 · Donated items")).toBeInTheDocument();
   });

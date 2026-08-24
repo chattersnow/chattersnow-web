@@ -22,7 +22,14 @@ import {
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type TabValue = "overview" | "attendees" | "agenda" | "minutes" | "action-items" | "decisions" | "resolutions";
+type TabValue =
+  | "overview"
+  | "attendees"
+  | "agenda"
+  | "minutes"
+  | "action-items"
+  | "decisions"
+  | "resolutions";
 
 const TABS: { value: TabValue; label: string }[] = [
   { value: "overview", label: "Overview" },
@@ -50,34 +57,71 @@ export function MeetingDetailsSheet({ meeting }: { meeting: MeetingRow }) {
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetTrigger
-        render={<Button type="button" variant="ghost" size="icon-sm" aria-label="View meeting details" />}
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="View meeting details"
+          />
+        }
       >
         <Eye />
       </SheetTrigger>
-      <SheetContent side="right" showCloseButton={false} className="data-[side=right]:sm:max-w-[560px]">
+      <SheetContent
+        side="right"
+        showCloseButton={false}
+        className="data-[side=right]:sm:max-w-[560px]"
+      >
         <SheetHeader className="flex-row items-start gap-2 space-y-0">
-          <SheetClose render={<Button type="button" variant="ghost" size="icon-sm" aria-label="Close" />}>
+          <SheetClose
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Close"
+              />
+            }
+          >
             <ArrowLeft />
           </SheetClose>
           <div className="flex flex-1 flex-col gap-0.5">
             <SheetTitle>Meeting</SheetTitle>
             <SheetDescription>
-              {mode === "edit" ? "Update this meeting's details." : "View this meeting's details."}
+              {mode === "edit"
+                ? "Update this meeting's details."
+                : "View this meeting's details."}
             </SheetDescription>
           </div>
           {mode === "view" ? (
-            <Button type="button" variant="ghost" size="icon-sm" aria-label="Edit meeting" onClick={() => setMode("edit")}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Edit meeting"
+              onClick={() => setMode("edit")}
+            >
               <Pencil />
             </Button>
           ) : (
-            <Button type="button" variant="ghost" size="sm" onClick={() => setMode("view")}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setMode("view")}
+            >
               View
             </Button>
           )}
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto px-4 pb-4">
-          <Tabs value={tab} onValueChange={(value) => setTab(value as TabValue)} className="mt-2">
+          <Tabs
+            value={tab}
+            onValueChange={(value) => setTab(value as TabValue)}
+            className="mt-2"
+          >
             <TabsList variant="line" className="flex-wrap">
               {TABS.map((t) => (
                 <TabsTrigger key={t.value} value={t.value}>
@@ -90,16 +134,32 @@ export function MeetingDetailsSheet({ meeting }: { meeting: MeetingRow }) {
               <OverviewTab meeting={meeting} mode={mode} />
             </TabsContent>
             <TabsContent value="attendees" className="mt-4">
-              <AttendeesTab meetingId={meeting.id} active={tab === "attendees"} mode={mode} />
+              <AttendeesTab
+                meetingId={meeting.id}
+                active={tab === "attendees"}
+                mode={mode}
+              />
             </TabsContent>
             <TabsContent value="agenda" className="mt-4">
-              <AgendaTab meetingId={meeting.id} active={tab === "agenda"} mode={mode} />
+              <AgendaTab
+                meetingId={meeting.id}
+                active={tab === "agenda"}
+                mode={mode}
+              />
             </TabsContent>
             <TabsContent value="minutes" className="mt-4">
-              <MinutesTab meetingId={meeting.id} active={tab === "minutes"} mode={mode} />
+              <MinutesTab
+                meetingId={meeting.id}
+                active={tab === "minutes"}
+                mode={mode}
+              />
             </TabsContent>
             <TabsContent value="action-items" className="mt-4">
-              <ActionItemsTab meetingId={meeting.id} active={tab === "action-items"} mode={mode} />
+              <ActionItemsTab
+                meetingId={meeting.id}
+                active={tab === "action-items"}
+                mode={mode}
+              />
             </TabsContent>
             <TabsContent value="decisions" className="mt-4">
               <DecisionsTab
@@ -110,7 +170,11 @@ export function MeetingDetailsSheet({ meeting }: { meeting: MeetingRow }) {
               />
             </TabsContent>
             <TabsContent value="resolutions" className="mt-4">
-              <ResolutionsTab meetingId={meeting.id} active={tab === "resolutions"} mode={mode} />
+              <ResolutionsTab
+                meetingId={meeting.id}
+                active={tab === "resolutions"}
+                mode={mode}
+              />
             </TabsContent>
           </Tabs>
         </div>

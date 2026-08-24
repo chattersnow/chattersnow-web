@@ -11,7 +11,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { EditExpenseModal } from "./edit-expense-modal";
 import { ExpenseStatusBadge } from "./expense-badges";
 import { NewExpenseDialog } from "./new-expense-dialog";
@@ -34,7 +41,12 @@ const SORT_COLUMNS: { key: SortKey; label: string }[] = [
 
 const FILTER_ALL = "all";
 
-const STATUS_OPTIONS: ExpenseStatus[] = ["submitted", "approved", "rejected", "paid"];
+const STATUS_OPTIONS: ExpenseStatus[] = [
+  "submitted",
+  "approved",
+  "rejected",
+  "paid",
+];
 
 export function ExpensesTable({
   expenses,
@@ -49,7 +61,9 @@ export function ExpensesTable({
 }) {
   const [search, setSearch] = useState("");
   const [eventFilter, setEventFilter] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<ExpenseStatus | null>(initialStatusFilter);
+  const [statusFilter, setStatusFilter] = useState<ExpenseStatus | null>(
+    initialStatusFilter,
+  );
   const [sortKey, setSortKey] = useState<SortKey>("expense_date");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
@@ -67,9 +81,15 @@ export function ExpensesTable({
 
     const filtered = expenses.filter((expense) => {
       if (eventFilter === "none" && expense.event_id) return false;
-      if (eventFilter && eventFilter !== "none" && expense.event_id !== eventFilter) return false;
+      if (
+        eventFilter &&
+        eventFilter !== "none" &&
+        expense.event_id !== eventFilter
+      )
+        return false;
       if (statusFilter && expense.status !== statusFilter) return false;
-      if (query && !expense.description.toLowerCase().includes(query)) return false;
+      if (query && !expense.description.toLowerCase().includes(query))
+        return false;
       return true;
     });
 
@@ -89,7 +109,9 @@ export function ExpensesTable({
         <NewExpenseDialog events={events} />
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">No expenses recorded yet.</p>
+            <p className="app-muted px-4 py-6 text-sm">
+              No expenses recorded yet.
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -119,17 +141,24 @@ export function ExpensesTable({
           </div>
 
           <div className="flex flex-col gap-1">
-            <span className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">Event</span>
+            <span className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+              Event
+            </span>
             <Select
               value={eventFilter ?? FILTER_ALL}
-              onValueChange={(value) => setEventFilter(value === FILTER_ALL ? null : value)}
+              onValueChange={(value) =>
+                setEventFilter(value === FILTER_ALL ? null : value)
+              }
             >
               <SelectTrigger className="h-8">
                 <SelectValue placeholder="Event">
                   {(value: string) => {
                     if (value === FILTER_ALL) return "All expenses";
                     if (value === "none") return "No event";
-                    return events.find((event) => event.id === value)?.name ?? "Event";
+                    return (
+                      events.find((event) => event.id === value)?.name ??
+                      "Event"
+                    );
                   }}
                 </SelectValue>
               </SelectTrigger>
@@ -146,22 +175,32 @@ export function ExpensesTable({
           </div>
 
           <div className="flex flex-col gap-1">
-            <span className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">Status</span>
+            <span className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+              Status
+            </span>
             <Select
               value={statusFilter ?? FILTER_ALL}
               onValueChange={(value) =>
-                setStatusFilter(value === FILTER_ALL ? null : (value as ExpenseStatus))
+                setStatusFilter(
+                  value === FILTER_ALL ? null : (value as ExpenseStatus),
+                )
               }
             >
               <SelectTrigger className="h-8">
                 <SelectValue placeholder="Status">
-                  {(value: string) => (value === FILTER_ALL ? "All statuses" : value)}
+                  {(value: string) =>
+                    value === FILTER_ALL ? "All statuses" : value
+                  }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={FILTER_ALL}>All statuses</SelectItem>
                 {STATUS_OPTIONS.map((status) => (
-                  <SelectItem key={status} value={status} className="capitalize">
+                  <SelectItem
+                    key={status}
+                    value={status}
+                    className="capitalize"
+                  >
                     {status}
                   </SelectItem>
                 ))}
@@ -206,22 +245,37 @@ export function ExpensesTable({
             <TableBody>
               {visibleExpenses.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={SORT_COLUMNS.length + 3} className="app-muted text-center">
+                  <TableCell
+                    colSpan={SORT_COLUMNS.length + 3}
+                    className="app-muted text-center"
+                  >
                     No expenses match your filters.
                   </TableCell>
                 </TableRow>
               ) : (
                 visibleExpenses.map((expense) => (
                   <TableRow key={expense.id}>
-                    <TableCell className="whitespace-normal">{expense.description}</TableCell>
-                    <TableCell>{formatExpenseDate(expense.expense_date)}</TableCell>
-                    <TableCell>{formatAmount(expense.amount, expense.currency)}</TableCell>
-                    <TableCell className="app-muted">{expense.events?.name ?? "—"}</TableCell>
+                    <TableCell className="whitespace-normal">
+                      {expense.description}
+                    </TableCell>
+                    <TableCell>
+                      {formatExpenseDate(expense.expense_date)}
+                    </TableCell>
+                    <TableCell>
+                      {formatAmount(expense.amount, expense.currency)}
+                    </TableCell>
+                    <TableCell className="app-muted">
+                      {expense.events?.name ?? "—"}
+                    </TableCell>
                     <TableCell>
                       <ExpenseStatusBadge status={expense.status} />
                     </TableCell>
                     <TableCell>
-                      <EditExpenseModal expense={expense} events={events} approvalContext={approvalContext} />
+                      <EditExpenseModal
+                        expense={expense}
+                        events={events}
+                        approvalContext={approvalContext}
+                      />
                     </TableCell>
                   </TableRow>
                 ))

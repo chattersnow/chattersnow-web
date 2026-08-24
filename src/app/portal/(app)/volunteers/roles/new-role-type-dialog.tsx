@@ -31,7 +31,7 @@ export function NewRoleTypeDialog() {
 
   function update<K extends keyof ReturnType<typeof getInitialFormState>>(
     key: K,
-    value: ReturnType<typeof getInitialFormState>[K]
+    value: ReturnType<typeof getInitialFormState>[K],
   ) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
@@ -65,14 +65,17 @@ export function NewRoleTypeDialog() {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button type="button" className="shrink-0 whitespace-nowrap" />}>
+      <DialogTrigger
+        render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
+      >
         New role type
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Create role type</DialogTitle>
           <DialogDescription>
-            A named volunteer job type, e.g. Ride Buddy, Event Setup, Basecamp Staffing.
+            A named volunteer job type, e.g. Ride Buddy, Event Setup, Basecamp
+            Staffing.
           </DialogDescription>
         </DialogHeader>
 

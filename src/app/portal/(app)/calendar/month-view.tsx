@@ -6,7 +6,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { addDays } from "@/lib/time";
 import { CalendarItemDetailsSheet } from "./calendar-item-details-sheet";
-import type { CalendarItemRow, CalendarOwner, CalendarProgram } from "./calendar-shared";
+import type {
+  CalendarItemRow,
+  CalendarOwner,
+  CalendarProgram,
+} from "./calendar-shared";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MAX_CHIPS_PER_DAY = 3;
@@ -38,7 +42,11 @@ export function MonthView({
   monthHref: (month: string) => string;
 }) {
   const monthStart = parseMonthParam(month);
-  const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0);
+  const monthEnd = new Date(
+    monthStart.getFullYear(),
+    monthStart.getMonth() + 1,
+    0,
+  );
   const gridStart = addDays(monthStart, -monthStart.getDay());
   const gridEnd = addDays(monthEnd, 6 - monthEnd.getDay());
 
@@ -57,7 +65,10 @@ export function MonthView({
 
   const prevMonth = ymd(addDays(monthStart, -1)).slice(0, 7);
   const nextMonth = ymd(addDays(monthEnd, 1)).slice(0, 7);
-  const monthLabel = monthStart.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const monthLabel = monthStart.toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
 
   return (
     <Card className="mt-6">
@@ -88,7 +99,10 @@ export function MonthView({
 
         <div className="grid grid-cols-7 gap-px overflow-hidden rounded-lg border border-border bg-border text-xs">
           {WEEKDAY_LABELS.map((label) => (
-            <div key={label} className="bg-muted px-2 py-1 text-center font-semibold">
+            <div
+              key={label}
+              className="bg-muted px-2 py-1 text-center font-semibold"
+            >
               {label}
             </div>
           ))}
@@ -97,8 +111,13 @@ export function MonthView({
             const dayItems = itemsByDay.get(key) ?? [];
             const inMonth = day.getMonth() === monthStart.getMonth();
             return (
-              <div key={key} className={`min-h-24 bg-card p-1 ${inMonth ? "" : "opacity-40"}`}>
-                <div className="app-muted px-1 text-[0.7rem]">{day.getDate()}</div>
+              <div
+                key={key}
+                className={`min-h-24 bg-card p-1 ${inMonth ? "" : "opacity-40"}`}
+              >
+                <div className="app-muted px-1 text-[0.7rem]">
+                  {day.getDate()}
+                </div>
                 <div className="flex flex-col gap-0.5">
                   {dayItems.slice(0, MAX_CHIPS_PER_DAY).map((item) => (
                     <CalendarItemDetailsSheet
