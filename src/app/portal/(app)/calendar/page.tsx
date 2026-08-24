@@ -67,7 +67,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
   let query = supabase
     .from("calendar_items")
     .select(
-      `id, title, item_type, starts_at, ends_at, time_zone, recurrence_rule, summary, priority_tier, priority_rationale, calendar_status, visibility, owner_id, decision, decision_note, ${categorySelect}, ${programSelect}`
+      `id, title, item_type, starts_at, ends_at, time_zone, recurrence_rule, summary, priority_tier, priority_rationale, calendar_status, visibility, owner_id, decision, decision_note, ${categorySelect}, ${programSelect}, content_opportunities(id, calendar_item_id, content_status, skip_reason, chatter_connection, recommended_formats, recommended_action, outstanding_work, owner_id, reviewer_id, lead_time_days, publish_due_at, review_due_at, draft_due_at, status_changed_by, status_changed_at)`
     )
     .order(sort, { ascending: dir === "asc" })
     .order("id", { ascending: true });
@@ -103,6 +103,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
       decision_note: string | null;
       calendar_item_categories: { category: string }[] | null;
       calendar_item_programs: { program_id: string }[] | null;
+      content_opportunities: CalendarItemRow["content_opportunity"] | null;
     };
     return {
       id: r.id,
@@ -122,6 +123,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
       decision_note: r.decision_note,
       categories: (r.calendar_item_categories ?? []).map((c) => c.category),
       program_ids: (r.calendar_item_programs ?? []).map((p) => p.program_id),
+      content_opportunity: r.content_opportunities,
     };
   });
 
@@ -129,6 +131,14 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
   const owners = "data" in ownersResult ? ownersResult.data : [];
   const programsResult = await listProgramsAction();
   const programs = "data" in programsResult ? programsResult.data : [];
+
+  const { data: leadTimeSetting } = await supabase
+    .from("app_settings")
+    .select("value")
+    .eq("key", "content.default_lead_time_days")
+    .maybeSingle();
+  const defaultLeadTimeDays =
+    typeof leadTimeSetting?.value === "number" ? leadTimeSetting.value : 21;
 
   const filterParams = new URLSearchParams();
   if (typeFilter !== "all") filterParams.set("type", typeFilter);
@@ -298,6 +308,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
             items={items}
             owners={owners}
             programs={programs}
+            defaultLeadTimeDays={defaultLeadTimeDays}
             canManage={canManage}
             filterQuery={filterParams.toString()}
             sort={sort}

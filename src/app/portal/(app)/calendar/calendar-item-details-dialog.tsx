@@ -55,6 +55,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ContentOpportunityTab } from "./content-opportunity-tab";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" });
 
@@ -92,12 +94,14 @@ export function CalendarItemDetailsDialog({
   item,
   owners,
   programs,
+  defaultLeadTimeDays,
   canManage,
   trigger = "icon",
 }: {
   item: CalendarItemRow;
   owners: CalendarOwner[];
   programs: CalendarProgram[];
+  defaultLeadTimeDays: number;
   canManage: boolean;
   trigger?: "icon" | "chip";
 }) {
@@ -266,6 +270,13 @@ export function CalendarItemDetailsDialog({
           </Alert>
         )}
 
+        <Tabs defaultValue="details">
+          <TabsList variant="line">
+            <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="brief">Content brief</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="details" className="mt-3">
         {mode === "view" ? (
           <FieldGroup>
             <ReadOnlyField label="Item type" htmlFor="item-type">
@@ -593,6 +604,19 @@ export function CalendarItemDetailsDialog({
             </DialogFooter>
           </form>
         )}
+          </TabsContent>
+
+          <TabsContent value="brief" className="mt-3">
+            <ContentOpportunityTab
+              calendarItemId={item.id}
+              itemStartsAt={item.starts_at}
+              opportunity={item.content_opportunity}
+              owners={owners}
+              defaultLeadTimeDays={defaultLeadTimeDays}
+              canManage={canManage}
+            />
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

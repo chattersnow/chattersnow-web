@@ -1,3 +1,5 @@
+import type { ContentOpportunityRow } from "./content-opportunity-shared";
+
 export const ITEM_TYPES = [
   { value: "chatter_event", label: "Chatter event" },
   { value: "partner_event", label: "Partner / co-hosted event" },
@@ -75,6 +77,7 @@ export type CalendarItemRow = {
   decision_note: string | null;
   categories: string[];
   program_ids: string[];
+  content_opportunity: ContentOpportunityRow | null;
 };
 
 export type CalendarOwner = { user_id: string; email: string | null };
