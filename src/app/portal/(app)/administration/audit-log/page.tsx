@@ -27,6 +27,8 @@ const TABLE_VALUES = [
   "event_expenses",
   "user_roles",
   "app_settings",
+  "calendar_items",
+  "content_opportunities",
 ] as const;
 
 const ACTION_VALUES = ["insert", "update", "delete"] as const;
