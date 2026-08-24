@@ -10,6 +10,13 @@ const LEVEL_RANK: Record<PermissionLevel, number> = { none: 0, view: 1, manage: 
 export type PermissionMap = Record<string, PermissionLevel>;
 
 export async function getCurrentUserPermissions(supabase: SupabaseClient): Promise<PermissionMap> {
+  // Best-effort: picks up a pending_role_grants row staged after this user's
+  // first login (e.g. while they were stuck with zero roles) without
+  // requiring a re-login. Unlike the same call in the OAuth callback, an
+  // error here must not block an already-working session on routine
+  // navigation, so it's swallowed rather than surfaced.
+  await supabase.rpc("claim_pending_role_grants");
+
   const { data } = await supabase.rpc("my_permissions");
   const map: PermissionMap = {};
   for (const row of (data ?? []) as { resource_key: string; level: PermissionLevel }[]) {

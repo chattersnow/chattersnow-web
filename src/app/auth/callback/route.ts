@@ -24,5 +24,14 @@ export async function GET(request: Request) {
     return NextResponse.redirect(loginWithError);
   }
 
+  // Claims any pending_role_grants staged for this email before first sign-in.
+  // claim_pending_role_grants() only throws when a pending grant actually
+  // existed for this email and materializing it failed, so failing closed
+  // here can't affect a login with nothing staged.
+  const { error: claimError } = await supabase.rpc("claim_pending_role_grants");
+  if (claimError) {
+    return NextResponse.redirect(loginWithError);
+  }
+
   return NextResponse.redirect(new URL(destination, requestUrl.origin));
 }
