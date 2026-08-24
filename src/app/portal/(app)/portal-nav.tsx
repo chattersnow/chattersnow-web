@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   CalendarDays,
+  CalendarRange,
   ChevronRight,
   HandHeart,
   Landmark,
@@ -59,6 +60,13 @@ const NAV_ITEMS: readonly NavItem[] = [
     href: "/portal/events",
     icon: CalendarDays,
     access: [{ resource: "events", level: "view" }],
+  },
+  {
+    value: "calendar",
+    label: "Calendar",
+    href: "/portal/calendar",
+    icon: CalendarRange,
+    access: [{ resource: "content_calendar", level: "view" }],
   },
   {
     value: "programs",
