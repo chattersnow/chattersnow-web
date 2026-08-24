@@ -9,6 +9,7 @@ import { AgendaTab } from "./agenda-tab";
 import { MinutesTab } from "./minutes-tab";
 import { ActionItemsTab } from "./action-items-tab";
 import { DecisionsTab } from "./decisions-tab";
+import { ResolutionsTab } from "./resolutions-tab";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -21,7 +22,7 @@ import {
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type TabValue = "overview" | "attendees" | "agenda" | "minutes" | "action-items" | "decisions";
+type TabValue = "overview" | "attendees" | "agenda" | "minutes" | "action-items" | "decisions" | "resolutions";
 
 const TABS: { value: TabValue; label: string }[] = [
   { value: "overview", label: "Overview" },
@@ -30,6 +31,7 @@ const TABS: { value: TabValue; label: string }[] = [
   { value: "minutes", label: "Minutes" },
   { value: "action-items", label: "Action Items" },
   { value: "decisions", label: "Decisions" },
+  { value: "resolutions", label: "Resolutions" },
 ];
 
 export function MeetingDetailsSheet({ meeting }: { meeting: MeetingRow }) {
@@ -106,6 +108,9 @@ export function MeetingDetailsSheet({ meeting }: { meeting: MeetingRow }) {
                 active={tab === "decisions"}
                 mode={mode}
               />
+            </TabsContent>
+            <TabsContent value="resolutions" className="mt-4">
+              <ResolutionsTab meetingId={meeting.id} active={tab === "resolutions"} mode={mode} />
             </TabsContent>
           </Tabs>
         </div>
