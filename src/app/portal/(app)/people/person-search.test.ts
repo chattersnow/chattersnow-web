@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { filterPeople } from "./person-search";
-import type { PersonListItem } from "../people/actions";
+import type { PersonListItem } from "./actions";
 
 const people: PersonListItem[] = [
   { id: "1", name: "Jane Doe", email: "jane@example.com", phone: null, is_sponsor: false },

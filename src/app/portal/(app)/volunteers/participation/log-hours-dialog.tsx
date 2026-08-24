@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createVolunteerHoursAction, listEventOptionsAction, type EventOption } from "./actions";
 import { listRoleTypesAction, type RoleType } from "../roles/actions";
 import { listPeopleAction, type PersonListItem } from "../../people/actions";
-import { SponsorPersonPicker, type PickedPerson } from "../../events/sponsor-person-picker";
+import { PersonPicker, type PickedPerson } from "../../people/person-picker";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -121,7 +121,7 @@ export function LogHoursDialog() {
           <FieldGroup>
             <Field>
               <FieldLabel>Volunteer</FieldLabel>
-              <SponsorPersonPicker
+              <PersonPicker
                 people={people}
                 selected={selectedPerson}
                 onSelect={setSelectedPerson}

@@ -1,4 +1,4 @@
-import type { PersonListItem } from "../people/actions";
+import type { PersonListItem } from "./actions";
 
 export function filterPeople(people: PersonListItem[], query: string): PersonListItem[] {
   const normalizedQuery = query.trim().toLowerCase();

@@ -13,7 +13,7 @@ import {
   type GiveawayPrize,
   type GiveawayWinner,
 } from "./giveaway-actions";
-import { SponsorPersonPicker, type PickedPerson } from "./sponsor-person-picker";
+import { PersonPicker, type PickedPerson } from "../people/person-picker";
 import { listPeopleAction, type PersonListItem } from "../people/actions";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -465,7 +465,7 @@ function AddPrizeForm({
 
         <Field>
           <FieldLabel>Prize donor</FieldLabel>
-          <SponsorPersonPicker
+          <PersonPicker
             people={people}
             selected={selectedDonor}
             onSelect={setSelectedDonor}

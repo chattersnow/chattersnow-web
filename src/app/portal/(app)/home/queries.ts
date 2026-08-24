@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isEventActiveToday, type EventWindow } from "@/lib/time";
 
 export type NextEvent = { id: string; name: string; starts_at: string; location: string | null };
 
@@ -123,6 +124,38 @@ export async function getInventorySummary(supabase: SupabaseClient): Promise<Inv
     itemsDistributed: itemsDistributed ?? 0,
     itemsNeedingAttention: itemsNeedingAttention ?? 0,
   };
+}
+
+export type ActiveEventForPerson = EventWindow & { id: string; name: string; location: string | null };
+type ActiveEventJoinRow = { events: ActiveEventForPerson };
+
+/**
+ * Events the given person is signed up for (event_volunteers) that are
+ * happening today or currently in progress, in the event's own timezone.
+ * Bounded to a +/-2 day starts_at window in SQL (event_volunteers/events
+ * select only requires events:view, which volunteer has); the exact
+ * per-timezone "today/in progress" check runs in JS since it can't be
+ * expressed as a single SQL predicate across events in different zones.
+ */
+export async function getMyActiveEvents(
+  supabase: SupabaseClient,
+  personId: string,
+  nowIso: string
+): Promise<ActiveEventForPerson[]> {
+  const windowStart = new Date(new Date(nowIso).getTime() - 2 * 86_400_000).toISOString();
+  const windowEnd = new Date(new Date(nowIso).getTime() + 2 * 86_400_000).toISOString();
+
+  const { data } = await supabase
+    .from("event_volunteers")
+    .select("events!inner(id, name, starts_at, ends_at, timezone, location)")
+    .eq("person_id", personId)
+    .eq("events.status", "published")
+    .gte("events.starts_at", windowStart)
+    .lte("events.starts_at", windowEnd);
+
+  const events = ((data ?? []) as unknown as ActiveEventJoinRow[]).map((row) => row.events);
+  const now = new Date(nowIso);
+  return events.filter((event) => isEventActiveToday(event, now));
 }
 
 export type PendingApprovalItem = { key: string; label: string; count: number; href: string };
