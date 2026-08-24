@@ -8,13 +8,17 @@ export type EventWindow = {
   timezone: string;
 };
 
-function formatDateInZone(date: Date, timeZone: string): string {
+export function formatDateInZone(date: Date, timeZone: string): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
   }).format(date);
+}
+
+export function addDays(date: Date, days: number): Date {
+  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
 /**
