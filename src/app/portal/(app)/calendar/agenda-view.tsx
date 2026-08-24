@@ -44,11 +44,13 @@ export function AgendaView({
   items,
   owners,
   programs,
+  defaultLeadTimeDays,
   canManage,
 }: {
   items: CalendarItemRow[];
   owners: CalendarOwner[];
   programs: CalendarProgram[];
+  defaultLeadTimeDays: number;
   canManage: boolean;
 }) {
   const groups = groupByDay(items);
@@ -92,6 +94,7 @@ export function AgendaView({
                     item={item}
                     owners={owners}
                     programs={programs}
+                    defaultLeadTimeDays={defaultLeadTimeDays}
                     canManage={canManage}
                   />
                 </div>

@@ -15,6 +15,7 @@ export function CalendarWorkspace({
   items,
   owners,
   programs,
+  defaultLeadTimeDays,
   canManage,
   filterQuery,
   sort,
@@ -25,6 +26,7 @@ export function CalendarWorkspace({
   items: CalendarItemRow[];
   owners: CalendarOwner[];
   programs: CalendarProgram[];
+  defaultLeadTimeDays: number;
   canManage: boolean;
   filterQuery: string;
   sort: ListSortColumn;
@@ -109,6 +111,7 @@ export function CalendarWorkspace({
           items={filtered}
           owners={owners}
           programs={programs}
+          defaultLeadTimeDays={defaultLeadTimeDays}
           canManage={canManage}
           sort={sort}
           dir={dir}
@@ -116,7 +119,13 @@ export function CalendarWorkspace({
         />
       )}
       {view === "agenda" && (
-        <AgendaView items={filtered} owners={owners} programs={programs} canManage={canManage} />
+        <AgendaView
+          items={filtered}
+          owners={owners}
+          programs={programs}
+          defaultLeadTimeDays={defaultLeadTimeDays}
+          canManage={canManage}
+        />
       )}
       {view === "month" && (
         <MonthView
@@ -124,6 +133,7 @@ export function CalendarWorkspace({
           items={filtered}
           owners={owners}
           programs={programs}
+          defaultLeadTimeDays={defaultLeadTimeDays}
           canManage={canManage}
           monthHref={monthHref}
         />

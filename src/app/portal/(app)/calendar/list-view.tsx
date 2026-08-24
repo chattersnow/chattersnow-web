@@ -41,6 +41,7 @@ export function ListView({
   items,
   owners,
   programs,
+  defaultLeadTimeDays,
   canManage,
   sort,
   dir,
@@ -49,6 +50,7 @@ export function ListView({
   items: CalendarItemRow[];
   owners: CalendarOwner[];
   programs: CalendarProgram[];
+  defaultLeadTimeDays: number;
   canManage: boolean;
   sort: ListSortColumn;
   dir: "asc" | "desc";
@@ -129,6 +131,7 @@ export function ListView({
                       item={item}
                       owners={owners}
                       programs={programs}
+                      defaultLeadTimeDays={defaultLeadTimeDays}
                       canManage={canManage}
                     />
                   </TableCell>

@@ -25,6 +25,7 @@ export function MonthView({
   items,
   owners,
   programs,
+  defaultLeadTimeDays,
   canManage,
   monthHref,
 }: {
@@ -32,6 +33,7 @@ export function MonthView({
   items: CalendarItemRow[];
   owners: CalendarOwner[];
   programs: CalendarProgram[];
+  defaultLeadTimeDays: number;
   canManage: boolean;
   monthHref: (month: string) => string;
 }) {
@@ -104,6 +106,7 @@ export function MonthView({
                       item={item}
                       owners={owners}
                       programs={programs}
+                      defaultLeadTimeDays={defaultLeadTimeDays}
                       canManage={canManage}
                       trigger="chip"
                     />
