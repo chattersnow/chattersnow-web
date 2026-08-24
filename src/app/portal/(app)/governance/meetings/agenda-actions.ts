@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseContentForm } from "./content-form";
 import { checkPermission } from "@/lib/auth/permissions";
+import { checkUser } from "@/lib/auth/current-user";
 
 export type Agenda = {
   id: string;
@@ -42,12 +43,11 @@ export async function upsertAgendaAction(
   formData: FormData,
 ): Promise<AgendaActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to update the agenda." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update the agenda.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "governance",

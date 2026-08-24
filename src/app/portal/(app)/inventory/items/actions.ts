@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseInventoryItemForm } from "./inventory-item-form";
 import { checkAnyPermission } from "@/lib/auth/permissions";
+import { checkUser } from "@/lib/auth/current-user";
 
 export type UpdateInventoryItemResult = { error: string } | { success: true };
 
@@ -12,12 +13,11 @@ export async function updateInventoryItemAction(
   formData: FormData,
 ): Promise<UpdateInventoryItemResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to update an item." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update an item.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkAnyPermission(supabase, [
     { resource: "inventory", level: "manage" },
     { resource: "inventory_intake", level: "manage" },

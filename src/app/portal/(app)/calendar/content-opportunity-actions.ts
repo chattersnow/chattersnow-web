@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseContentOpportunityForm } from "./content-opportunity-form";
 import { checkPermission } from "@/lib/auth/permissions";
+import { checkUser } from "@/lib/auth/current-user";
 
 export type ContentOpportunityActionResult =
   { error: string } | { success: true };
@@ -39,12 +40,12 @@ export async function createContentOpportunityAction(
   formData: FormData,
 ): Promise<ContentOpportunityActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to start a content brief." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to start a content brief.",
+  );
+  if ("error" in userResult) return userResult;
+  const { user } = userResult;
   const permissionError = await checkPermission(
     supabase,
     "content_calendar",
@@ -97,12 +98,12 @@ export async function updateContentOpportunityAction(
   formData: FormData,
 ): Promise<ContentOpportunityActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to update a content brief." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update a content brief.",
+  );
+  if ("error" in userResult) return userResult;
+  const { user } = userResult;
   const permissionError = await checkPermission(
     supabase,
     "content_calendar",

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parsePersonForm } from "./person-form";
 import { checkPermission, checkAnyPermission } from "@/lib/auth/permissions";
+import { checkUser } from "@/lib/auth/current-user";
 
 export type PersonActionResult =
   | { error: string }
@@ -29,12 +30,11 @@ export async function createPersonAction(
   formData: FormData,
 ): Promise<PersonActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to add a person." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to add a person.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkAnyPermission(supabase, [
     { resource: "people", level: "manage" },
     { resource: "people_intake", level: "manage" },
@@ -86,12 +86,11 @@ export async function updatePersonAction(
   formData: FormData,
 ): Promise<PersonActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to update this person." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update this person.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(supabase, "people", "manage");
   if (permissionError) return permissionError;
 

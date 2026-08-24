@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseProgramForm } from "./program-form";
 import { checkPermission } from "@/lib/auth/permissions";
+import { checkUser } from "@/lib/auth/current-user";
 
 export type ProgramActionResult = { error: string } | { success: true };
 
@@ -17,12 +18,11 @@ export async function createProgramAction(
   formData: FormData,
 ): Promise<ProgramActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to create a program." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to create a program.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(supabase, "programs", "manage");
   if (permissionError) return permissionError;
 
@@ -53,12 +53,11 @@ export async function updateProgramAction(
   formData: FormData,
 ): Promise<ProgramActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to update a program." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update a program.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(supabase, "programs", "manage");
   if (permissionError) return permissionError;
 

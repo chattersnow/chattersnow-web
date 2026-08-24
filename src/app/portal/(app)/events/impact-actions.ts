@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseImpactForm, type ImpactFormData } from "./impact-form";
 import { checkPermission } from "@/lib/auth/permissions";
+import { checkUser } from "@/lib/auth/current-user";
 
 export type EventImpactNote = ImpactFormData & {
   id: string;
@@ -40,12 +41,11 @@ export async function upsertEventImpactAction(
   formData: FormData,
 ): Promise<ImpactActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to save impact notes." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to save impact notes.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "event_impact",

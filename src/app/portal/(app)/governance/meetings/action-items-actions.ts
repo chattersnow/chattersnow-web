@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkPermission } from "@/lib/auth/permissions";
+import { checkUser } from "@/lib/auth/current-user";
 import { parseActionItemForm } from "./action-item-form";
 
 export type ActionItemOwner = {
@@ -54,12 +55,11 @@ export async function createActionItemAction(
   formData: FormData,
 ): Promise<ActionItemActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to add an action item." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to add an action item.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "governance",
@@ -95,12 +95,11 @@ export async function updateActionItemAction(
   formData: FormData,
 ): Promise<ActionItemActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to update this action item." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update this action item.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "governance",
@@ -132,12 +131,11 @@ export async function updateActionItemStatusAction(
   status: "open" | "done",
 ): Promise<ActionItemActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to update this action item." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update this action item.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "governance",
@@ -162,12 +160,11 @@ export async function deleteActionItemAction(
   id: string,
 ): Promise<ActionItemActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to remove this action item." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to remove this action item.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "governance",

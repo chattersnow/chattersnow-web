@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseShiftForm } from "./shifts-form";
 import { checkPermission } from "@/lib/auth/permissions";
+import { checkUser } from "@/lib/auth/current-user";
 
 export type EventShift = {
   id: string;
@@ -41,12 +42,11 @@ export async function createEventShiftAction(
   formData: FormData,
 ): Promise<ShiftActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to add a shift." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to add a shift.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return permissionError;
 
@@ -75,12 +75,11 @@ export async function deleteEventShiftAction(
   id: string,
 ): Promise<ShiftActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to remove a shift." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to remove a shift.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return permissionError;
 

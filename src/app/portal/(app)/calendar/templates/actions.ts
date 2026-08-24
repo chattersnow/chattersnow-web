@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseTemplateForm, parseTemplateFieldsForm } from "./template-form";
 import { checkPermission } from "@/lib/auth/permissions";
+import { checkUser } from "@/lib/auth/current-user";
 import { friendlyError } from "@/lib/db-errors";
 import type { ActiveContentBriefTemplate } from "../content-brief-template-shared";
 
@@ -13,12 +14,11 @@ export async function createTemplateAction(
   formData: FormData,
 ): Promise<TemplateActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to create a template." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to create a template.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "content_calendar",
@@ -82,12 +82,11 @@ export async function updateTemplateMetadataAction(
   formData: FormData,
 ): Promise<TemplateActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to update a template." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update a template.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "content_calendar",
@@ -133,12 +132,11 @@ export async function publishTemplateVersionAction(
   formData: FormData,
 ): Promise<TemplateActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to revise a template." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to revise a template.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "content_calendar",

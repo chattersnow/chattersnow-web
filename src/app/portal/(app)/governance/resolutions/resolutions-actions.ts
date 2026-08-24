@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkPermission } from "@/lib/auth/permissions";
+import { checkUser } from "@/lib/auth/current-user";
 import { parseResolutionForm } from "./resolution-form";
 import { parseContentForm } from "../meetings/content-form";
 
@@ -62,12 +63,11 @@ export async function createResolutionAction(
   formData: FormData,
 ): Promise<ResolutionActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to add a resolution." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to add a resolution.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "governance",
@@ -107,12 +107,11 @@ export async function updateResolutionAction(
   formData: FormData,
 ): Promise<ResolutionActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to update this resolution." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update this resolution.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "governance",
@@ -151,12 +150,11 @@ export async function deleteResolutionAction(
   id: string,
 ): Promise<ResolutionActionResult> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "You must be signed in to remove this resolution." };
-  }
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to remove this resolution.",
+  );
+  if ("error" in userResult) return userResult;
   const permissionError = await checkPermission(
     supabase,
     "governance",
