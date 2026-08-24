@@ -8,6 +8,8 @@ export const TABLE_LABELS: Record<string, string> = {
   event_expenses: "Event expenses",
   user_roles: "User roles",
   app_settings: "App settings",
+  calendar_items: "Calendar items",
+  content_opportunities: "Content opportunities",
 };
 
 const ACTION_STYLES: Record<string, string> = {
