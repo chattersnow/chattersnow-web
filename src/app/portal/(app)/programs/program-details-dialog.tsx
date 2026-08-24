@@ -1,10 +1,11 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
+import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Eye, Pencil } from "lucide-react";
-import { updateProgramAction } from "./actions";
+import { listProgramEventsAction, updateProgramAction, type ProgramEvent } from "./actions";
 import { ProgramStatusBadge, type ProgramRow } from "./program-badges";
+import { StatusBadge, VisibilityBadge } from "../events/event-badges";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +29,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 
 const STATUSES = [
   { value: "pilot", label: "Pilot" },
@@ -46,6 +60,20 @@ export function ProgramDetailsDialog({ program, canManage }: { program: ProgramR
   const [form, setForm] = useState(() => formStateFor(program));
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [events, setEvents] = useState<ProgramEvent[] | null>(null);
+  const [eventsError, setEventsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    listProgramEventsAction(program.id).then((result) => {
+      if ("error" in result) {
+        setEventsError(result.error);
+      } else {
+        setEventsError(null);
+        setEvents(result.data);
+      }
+    });
+  }, [open, program.id]);
 
   function update<K extends keyof ReturnType<typeof formStateFor>>(
     key: K,
@@ -90,7 +118,7 @@ export function ProgramDetailsDialog({ program, canManage }: { program: ProgramR
       >
         <Eye />
       </DialogTrigger>
-      <DialogContent showCloseButton={false} className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent showCloseButton={false} className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader className="flex-row items-start gap-2 space-y-0">
           <DialogClose render={<Button type="button" variant="ghost" size="icon-sm" aria-label="Close" />}>
             <ArrowLeft />
@@ -120,6 +148,46 @@ export function ProgramDetailsDialog({ program, canManage }: { program: ProgramR
               <FieldLabel htmlFor="program-status">Status</FieldLabel>
               <div id="program-status">
                 <ProgramStatusBadge status={form.status} />
+              </div>
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="program-events">
+                Events{events ? ` (${events.length})` : ""}
+              </FieldLabel>
+              <div id="program-events">
+                {eventsError ? (
+                  <p className="app-muted text-sm">{eventsError}</p>
+                ) : events === null ? (
+                  <p className="app-muted text-sm">Loading events...</p>
+                ) : events.length === 0 ? (
+                  <p className="app-muted text-sm">No events tagged to this program yet.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Event</TableHead>
+                        <TableHead>Starts</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Visibility</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {events.map((event) => (
+                        <TableRow key={event.id}>
+                          <TableCell className="font-medium">{event.name}</TableCell>
+                          <TableCell>{dateFormatter.format(new Date(event.starts_at))}</TableCell>
+                          <TableCell>
+                            <StatusBadge status={event.status} />
+                          </TableCell>
+                          <TableCell>
+                            <VisibilityBadge visibility={event.visibility} />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </div>
             </Field>
           </FieldGroup>

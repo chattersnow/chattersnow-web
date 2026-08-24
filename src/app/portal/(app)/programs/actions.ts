@@ -86,3 +86,30 @@ export async function listProgramsAction(): Promise<{ data: Program[] } | { erro
   }
   return { data: (data ?? []) as Program[] };
 }
+
+export type ProgramEvent = {
+  id: string;
+  name: string;
+  starts_at: string;
+  status: string;
+  visibility: string;
+};
+
+export async function listProgramEventsAction(
+  programId: string
+): Promise<{ data: ProgramEvent[] } | { error: string }> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "events", "view");
+  if (permissionError) return permissionError;
+
+  const { data, error } = await supabase
+    .from("events")
+    .select("id, name, starts_at, status, visibility")
+    .eq("program_id", programId)
+    .order("starts_at", { ascending: false });
+
+  if (error) {
+    return { error: "Could not load this program's events. Please try again." };
+  }
+  return { data: (data ?? []) as ProgramEvent[] };
+}
