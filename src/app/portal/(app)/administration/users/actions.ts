@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { checkPermission } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
 import { friendlyError } from "@/lib/db-errors";
@@ -101,6 +102,7 @@ export type PendingGrant = {
   status: "pending" | "claimed" | "revoked";
   expires_at: string | null;
   created_at: string;
+  invited_at: string | null;
   roles: { name: string };
 };
 
@@ -117,7 +119,9 @@ export async function listPendingGrantsAction(): Promise<
 
   const { data, error } = await supabase
     .from("pending_role_grants")
-    .select("id, email, status, expires_at, created_at, roles(name)")
+    .select(
+      "id, email, status, expires_at, created_at, invited_at, roles(name)",
+    )
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -205,6 +209,71 @@ export async function revokePendingGrantAction(
 
   revalidatePath("/portal/administration/users");
   return { success: true };
+}
+
+export async function createInviteLinkAction(
+  grantId: string,
+): Promise<{ error: string } | { success: true; link: string }> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(supabase);
+  if ("error" in userResult) return userResult;
+  const { user } = userResult;
+  const permissionError = await checkPermission(
+    supabase,
+    "administration",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  const { data: grant, error: grantError } = await supabase
+    .from("pending_role_grants")
+    .select("id, email, status")
+    .eq("id", grantId)
+    .single();
+  if (grantError || !grant) {
+    return { error: "This pending grant no longer exists." };
+  }
+  if (grant.status !== "pending") {
+    return { error: "This grant has already been claimed or revoked." };
+  }
+
+  const admin = createSupabaseAdminClient();
+  const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/confirm`;
+
+  let result = await admin.auth.admin.generateLink({
+    type: "invite",
+    email: grant.email,
+    options: { redirectTo },
+  });
+  let linkType: "invite" | "magiclink" = "invite";
+
+  if (result.error?.code === "email_exists") {
+    result = await admin.auth.admin.generateLink({
+      type: "magiclink",
+      email: grant.email,
+      options: { redirectTo },
+    });
+    linkType = "magiclink";
+  }
+
+  if (result.error || !result.data) {
+    return {
+      error: "Could not generate a link for this email. Please try again.",
+    };
+  }
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  const link =
+    `${siteUrl}/auth/confirm?token_hash=${result.data.properties.hashed_token}` +
+    `&type=${linkType}&next=/portal/set-password`;
+
+  await supabase
+    .from("pending_role_grants")
+    .update({ invited_at: new Date().toISOString(), invited_by: user.id })
+    .eq("id", grantId);
+
+  revalidatePath("/portal/administration/users");
+  return { success: true, link };
 }
 
 export async function revokeRoleAction(
