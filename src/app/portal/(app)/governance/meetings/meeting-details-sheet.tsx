@@ -9,6 +9,7 @@ import { AgendaTab } from "./agenda-tab";
 import { MinutesTab } from "./minutes-tab";
 import { ActionItemsTab } from "./action-items-tab";
 import { DecisionsTab } from "./decisions-tab";
+import { ResolutionsTab } from "./resolutions-tab";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -27,7 +28,8 @@ type TabValue =
   | "agenda"
   | "minutes"
   | "action-items"
-  | "decisions";
+  | "decisions"
+  | "resolutions";
 
 const TABS: { value: TabValue; label: string }[] = [
   { value: "overview", label: "Overview" },
@@ -36,6 +38,7 @@ const TABS: { value: TabValue; label: string }[] = [
   { value: "minutes", label: "Minutes" },
   { value: "action-items", label: "Action Items" },
   { value: "decisions", label: "Decisions" },
+  { value: "resolutions", label: "Resolutions" },
 ];
 
 export function MeetingDetailsSheet({ meeting }: { meeting: MeetingRow }) {
@@ -163,6 +166,13 @@ export function MeetingDetailsSheet({ meeting }: { meeting: MeetingRow }) {
                 meetingId={meeting.id}
                 meetingDate={meeting.meeting_date.slice(0, 10)}
                 active={tab === "decisions"}
+                mode={mode}
+              />
+            </TabsContent>
+            <TabsContent value="resolutions" className="mt-4">
+              <ResolutionsTab
+                meetingId={meeting.id}
+                active={tab === "resolutions"}
                 mode={mode}
               />
             </TabsContent>
