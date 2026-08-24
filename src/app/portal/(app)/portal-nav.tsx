@@ -70,7 +70,21 @@ const NAV_ITEMS: readonly NavItem[] = [
     label: "Calendar",
     href: "/portal/calendar",
     icon: CalendarRange,
-    access: [{ resource: "content_calendar", level: "view" }],
+    basePath: "/portal/calendar",
+    subItems: [
+      {
+        value: "items",
+        label: "Calendar",
+        href: "/portal/calendar",
+        access: [{ resource: "content_calendar", level: "view" }],
+      },
+      {
+        value: "templates",
+        label: "Brief templates",
+        href: "/portal/calendar/templates",
+        access: [{ resource: "content_calendar", level: "manage" }],
+      },
+    ],
   },
   {
     value: "programs",

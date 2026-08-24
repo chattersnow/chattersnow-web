@@ -67,6 +67,7 @@ import {
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ContentOpportunityTab } from "./content-opportunity-tab";
+import type { ActiveContentBriefTemplate } from "./content-brief-template-shared";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -136,6 +137,7 @@ export function CalendarItemDetailsSheet({
   item,
   owners,
   programs,
+  activeTemplates,
   defaultLeadTimeDays,
   canManage,
   trigger = "icon",
@@ -143,6 +145,7 @@ export function CalendarItemDetailsSheet({
   item: CalendarItemRow;
   owners: CalendarOwner[];
   programs: CalendarProgram[];
+  activeTemplates: ActiveContentBriefTemplate[];
   defaultLeadTimeDays: number;
   canManage: boolean;
   trigger?: "icon" | "chip";
@@ -878,14 +881,17 @@ export function CalendarItemDetailsSheet({
             </TabsContent>
 
             <TabsContent value="brief" className="mt-3">
-              <ContentOpportunityTab
-                calendarItemId={item.id}
-                itemStartsAt={item.starts_at}
-                opportunity={item.content_opportunity}
-                owners={owners}
-                defaultLeadTimeDays={defaultLeadTimeDays}
-                canManage={canManage}
-              />
+              <div className="flex-1 overflow-y-auto px-4 pb-4">
+                <ContentOpportunityTab
+                  calendarItemId={item.id}
+                  itemStartsAt={item.starts_at}
+                  opportunity={item.content_opportunity}
+                  owners={owners}
+                  activeTemplates={activeTemplates}
+                  defaultLeadTimeDays={defaultLeadTimeDays}
+                  canManage={canManage}
+                />
+              </div>
             </TabsContent>
           </Tabs>
         </SheetContent>

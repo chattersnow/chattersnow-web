@@ -15,7 +15,12 @@ import {
 import { ContentStatusBadge } from "./content-opportunity-badges";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
@@ -27,6 +32,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { CalendarOwner } from "./calendar-shared";
+import type {
+  ActiveContentBriefTemplate,
+  TemplateField,
+} from "./content-brief-template-shared";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -60,6 +69,14 @@ function formStateFor(
     ),
     reviewDueAt: toDatetimeLocalValue(opportunity?.review_due_at ?? null),
     draftDueAt: toDatetimeLocalValue(opportunity?.draft_due_at ?? null),
+    // Seeded from the brief's OWN pinned version's fields, never the
+    // template's current/live version -- so opening an existing brief for
+    // edit never silently upgrades its structure. Only picking a template
+    // from the dropdown below changes templateVersionId/resolvedFields.
+    templateId: opportunity?.template_id ?? "",
+    templateVersionId: opportunity?.template_version_id ?? "",
+    templateFieldValues: opportunity?.template_field_values ?? {},
+    resolvedFields: opportunity?.template_version?.fields ?? [],
   };
 }
 
@@ -70,6 +87,7 @@ export function ContentOpportunityTab({
   itemStartsAt,
   opportunity,
   owners,
+  activeTemplates,
   defaultLeadTimeDays,
   canManage,
 }: {
@@ -77,6 +95,7 @@ export function ContentOpportunityTab({
   itemStartsAt: string;
   opportunity: ContentOpportunityRow | null;
   owners: CalendarOwner[];
+  activeTemplates: ActiveContentBriefTemplate[];
   defaultLeadTimeDays: number;
   canManage: boolean;
 }) {
@@ -120,6 +139,38 @@ export function ContentOpportunityTab({
     }));
   }
 
+  function selectTemplate(value: string) {
+    if (value === "none") {
+      setForm((prev) => ({
+        ...prev,
+        templateId: "",
+        templateVersionId: "",
+        templateFieldValues: {},
+        resolvedFields: [],
+      }));
+      return;
+    }
+    const match = activeTemplates.find((template) => template.id === value);
+    if (!match) return;
+    // Picks the template's CURRENT version, frozen at this moment. Switching
+    // templates (or re-picking the same one after it's been revised) resets
+    // field values -- the new field list may not share the old one's keys.
+    setForm((prev) => ({
+      ...prev,
+      templateId: match.id,
+      templateVersionId: match.version_id,
+      templateFieldValues: {},
+      resolvedFields: match.fields,
+    }));
+  }
+
+  function updateTemplateFieldValue(key: string, value: string) {
+    setForm((prev) => ({
+      ...prev,
+      templateFieldValues: { ...prev.templateFieldValues, [key]: value },
+    }));
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -137,6 +188,12 @@ export function ContentOpportunityTab({
     formData.set("publishDueAt", form.publishDueAt);
     formData.set("reviewDueAt", form.reviewDueAt);
     formData.set("draftDueAt", form.draftDueAt);
+    formData.set("templateId", form.templateId);
+    formData.set("templateVersionId", form.templateVersionId);
+    formData.set(
+      "templateFieldValues",
+      JSON.stringify(form.templateFieldValues),
+    );
 
     startTransition(async () => {
       const result = opportunity
@@ -194,6 +251,25 @@ export function ContentOpportunityTab({
                 {opportunity.skip_reason}
               </ReadOnlyField>
             )}
+          {opportunity.template_version && (
+            <>
+              <ReadOnlyField label="Template" htmlFor="brief-template">
+                {activeTemplates.find(
+                  (template) => template.id === opportunity.template_id,
+                )?.name ?? "Template"}{" "}
+                (v{opportunity.template_version.version})
+              </ReadOnlyField>
+              {opportunity.template_version.fields.map((field) => (
+                <ReadOnlyField
+                  key={field.key}
+                  label={field.label}
+                  htmlFor={`brief-template-field-${field.key}`}
+                >
+                  {opportunity.template_field_values[field.key] || "—"}
+                </ReadOnlyField>
+              ))}
+            </>
+          )}
           <ReadOnlyField label="Chatter connection" htmlFor="brief-connection">
             {opportunity.chatter_connection || "—"}
           </ReadOnlyField>
@@ -257,6 +333,54 @@ export function ContentOpportunityTab({
       ) : (
         <form onSubmit={handleSubmit}>
           <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="brief-template">
+                Content brief template
+              </FieldLabel>
+              <Select
+                value={form.templateId || "none"}
+                onValueChange={(value) => selectTemplate(value ?? "none")}
+              >
+                <SelectTrigger id="brief-template" className="w-full">
+                  <SelectValue placeholder="No template">
+                    {(value: string) =>
+                      value && value !== "none"
+                        ? (activeTemplates.find(
+                            (template) => template.id === value,
+                          )?.name ?? "No template")
+                        : "No template"
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No template</SelectItem>
+                  {activeTemplates.map((template) => (
+                    <SelectItem key={template.id} value={template.id}>
+                      {template.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+
+            {form.resolvedFields.map((field: TemplateField) => (
+              <Field key={field.key}>
+                <FieldLabel htmlFor={`brief-template-field-${field.key}`}>
+                  {field.label}
+                </FieldLabel>
+                <Textarea
+                  id={`brief-template-field-${field.key}`}
+                  value={form.templateFieldValues[field.key] ?? ""}
+                  onChange={(event) =>
+                    updateTemplateFieldValue(field.key, event.target.value)
+                  }
+                />
+                {field.help_text && (
+                  <FieldDescription>{field.help_text}</FieldDescription>
+                )}
+              </Field>
+            ))}
+
             <Field orientation="responsive">
               <Field>
                 <FieldLabel htmlFor="brief-contentStatus">

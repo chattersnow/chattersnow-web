@@ -7,6 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { listProgramsAction } from "../programs/actions";
 import { listCalendarOwnersAction } from "./actions";
+import { listActiveContentBriefTemplatesAction } from "./templates/actions";
 import { NewCalendarItemDialog } from "./new-calendar-item-dialog";
 import { CalendarWorkspace } from "./calendar-workspace";
 import { ViewToggle, type CalendarView } from "./view-toggle";
@@ -83,7 +84,7 @@ export default async function CalendarPage({
   let query = supabase
     .from("calendar_items")
     .select(
-      `id, title, item_type, starts_at, ends_at, time_zone, recurrence_rule, summary, priority_tier, priority_rationale, calendar_status, visibility, owner_id, decision, decision_note, ${categorySelect}, ${programSelect}, content_opportunities(id, calendar_item_id, content_status, skip_reason, chatter_connection, recommended_formats, recommended_action, outstanding_work, owner_id, reviewer_id, lead_time_days, publish_due_at, review_due_at, draft_due_at, status_changed_by, status_changed_at)`,
+      `id, title, item_type, starts_at, ends_at, time_zone, recurrence_rule, summary, priority_tier, priority_rationale, calendar_status, visibility, owner_id, decision, decision_note, ${categorySelect}, ${programSelect}, content_opportunities(id, calendar_item_id, content_status, skip_reason, chatter_connection, recommended_formats, recommended_action, outstanding_work, owner_id, reviewer_id, lead_time_days, publish_due_at, review_due_at, draft_due_at, status_changed_by, status_changed_at, template_id, template_version_id, template_field_values, content_brief_template_versions!content_opportunities_template_version_id_fkey(id, version, fields))`,
     )
     .order(sort, { ascending: dir === "asc" })
     .order("id", { ascending: true });
@@ -124,7 +125,16 @@ export default async function CalendarPage({
       decision_note: string | null;
       calendar_item_categories: { category: string }[] | null;
       calendar_item_programs: { program_id: string }[] | null;
-      content_opportunities: CalendarItemRow["content_opportunity"] | null;
+      content_opportunities:
+        | (Omit<
+            NonNullable<CalendarItemRow["content_opportunity"]>,
+            "template_version"
+          > & {
+            content_brief_template_versions: NonNullable<
+              CalendarItemRow["content_opportunity"]
+            >["template_version"];
+          })
+        | null;
     };
     return {
       id: r.id,
@@ -144,7 +154,16 @@ export default async function CalendarPage({
       decision_note: r.decision_note,
       categories: (r.calendar_item_categories ?? []).map((c) => c.category),
       program_ids: (r.calendar_item_programs ?? []).map((p) => p.program_id),
-      content_opportunity: r.content_opportunities,
+      content_opportunity: r.content_opportunities
+        ? (() => {
+            const { content_brief_template_versions, ...opportunity } =
+              r.content_opportunities;
+            return {
+              ...opportunity,
+              template_version: content_brief_template_versions,
+            };
+          })()
+        : null,
     };
   });
 
@@ -152,6 +171,8 @@ export default async function CalendarPage({
   const owners = "data" in ownersResult ? ownersResult.data : [];
   const programsResult = await listProgramsAction();
   const programs = "data" in programsResult ? programsResult.data : [];
+  const templatesResult = await listActiveContentBriefTemplatesAction();
+  const activeTemplates = "data" in templatesResult ? templatesResult.data : [];
 
   const { data: leadTimeSetting } = await supabase
     .from("app_settings")
@@ -406,6 +427,7 @@ export default async function CalendarPage({
             items={items}
             owners={owners}
             programs={programs}
+            activeTemplates={activeTemplates}
             defaultLeadTimeDays={defaultLeadTimeDays}
             canManage={canManage}
             filterQuery={filterParams.toString()}

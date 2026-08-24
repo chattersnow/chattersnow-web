@@ -30,6 +30,7 @@ import {
   type CalendarOwner,
   type CalendarProgram,
 } from "./calendar-shared";
+import type { ActiveContentBriefTemplate } from "./content-brief-template-shared";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -52,6 +53,7 @@ export function ListView({
   items,
   owners,
   programs,
+  activeTemplates,
   defaultLeadTimeDays,
   canManage,
   sort,
@@ -61,6 +63,7 @@ export function ListView({
   items: CalendarItemRow[];
   owners: CalendarOwner[];
   programs: CalendarProgram[];
+  activeTemplates: ActiveContentBriefTemplate[];
   defaultLeadTimeDays: number;
   canManage: boolean;
   sort: ListSortColumn;
@@ -155,6 +158,7 @@ export function ListView({
                       item={item}
                       owners={owners}
                       programs={programs}
+                      activeTemplates={activeTemplates}
                       defaultLeadTimeDays={defaultLeadTimeDays}
                       canManage={canManage}
                     />

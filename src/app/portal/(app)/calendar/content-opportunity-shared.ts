@@ -1,4 +1,5 @@
 import { addDays } from "@/lib/time";
+import type { TemplateField } from "./content-brief-template-shared";
 
 export const CONTENT_STATUSES = [
   { value: "not_planned", label: "Not planned" },
@@ -29,6 +30,14 @@ export type ContentOpportunityRow = {
   draft_due_at: string | null;
   status_changed_by: string | null;
   status_changed_at: string | null;
+  template_id: string | null;
+  template_version_id: string | null;
+  template_field_values: Record<string, string>;
+  template_version: {
+    id: string;
+    version: number;
+    fields: TemplateField[];
+  } | null;
 };
 
 /**

@@ -16,6 +16,9 @@ export type ContentOpportunityFormData = {
   publishDueAt: string | null;
   reviewDueAt: string | null;
   draftDueAt: string | null;
+  templateId: string | null;
+  templateVersionId: string | null;
+  templateFieldValues: Record<string, string>;
 };
 
 export function parseContentOpportunityForm(
@@ -39,6 +42,13 @@ export function parseContentOpportunityForm(
   const publishDueAt = String(formData.get("publishDueAt") ?? "");
   const reviewDueAt = String(formData.get("reviewDueAt") ?? "");
   const draftDueAt = String(formData.get("draftDueAt") ?? "");
+  const templateId = String(formData.get("templateId") ?? "").trim();
+  const templateVersionId = String(
+    formData.get("templateVersionId") ?? "",
+  ).trim();
+  const templateFieldValuesRaw = String(
+    formData.get("templateFieldValues") ?? "",
+  );
 
   if (
     !CONTENT_STATUS_VALUES.includes(
@@ -77,6 +87,29 @@ export function parseContentOpportunityForm(
     };
   }
 
+  if (Boolean(templateId) !== Boolean(templateVersionId)) {
+    return {
+      error: "Select a content brief template before saving field values.",
+    };
+  }
+
+  let templateFieldValues: Record<string, string> = {};
+  if (templateFieldValuesRaw) {
+    try {
+      const parsed = JSON.parse(templateFieldValuesRaw) as Record<
+        string,
+        unknown
+      >;
+      if (parsed && typeof parsed === "object") {
+        for (const [key, value] of Object.entries(parsed)) {
+          templateFieldValues[key] = String(value ?? "").trim();
+        }
+      }
+    } catch {
+      templateFieldValues = {};
+    }
+  }
+
   return {
     data: {
       contentStatus: contentStatus as (typeof CONTENT_STATUS_VALUES)[number],
@@ -91,6 +124,9 @@ export function parseContentOpportunityForm(
       publishDueAt: publishDueAtIso,
       reviewDueAt: reviewDueAtIso,
       draftDueAt: draftDueAtIso,
+      templateId: templateId || null,
+      templateVersionId: templateVersionId || null,
+      templateFieldValues,
     },
   };
 }
