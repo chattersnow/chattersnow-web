@@ -3,8 +3,8 @@
 ## Technical Specification
 
 - **Status:** Draft for team review
-- **Version:** 0.7
-- **Date:** 2026-08-23
+- **Version:** 0.8
+- **Date:** 2026-08-24
 - **Owner:** Chatter Snow
 - **Repository:** `chattersnow-web`
 - **Canonical domain:** `https://chattersnow.org`
@@ -35,6 +35,7 @@ The public site must remain useful without an account. Operational data must req
 - A public view of the internal inventory record (donor/donation linkage, face value, internal notes, status, or movement history). A curated, read-only public catalog of currently available gear is in scope — see §4 and §5.4.
 - Automated calendar synchronization.
 - Waitlists, capacity automation, confirmation emails, or event photo galleries unless prioritized separately.
+- An in-app file upload/attachment solution for documents (expense/reimbursement receipts, governance records). The initial release relies on an existing external solution the organization already manages (Google Drive/OneDrive): records store a link to the file, not the file itself. In-app upload to Supabase Storage (the `file_attachments` table) is a candidate for a later release — see §5.6, §5.12, §5.18, §6.
 
 (Giveaway recording and event attendance headcounts, listed as future capabilities in earlier drafts, are now implemented — see §5.5 and §5.8. Volunteer management, previously listed here as a non-goal, is now specified — see §5.17.)
 
@@ -47,7 +48,7 @@ The public site must remain useful without an account. Operational data must req
 | Hosting | Vercel |
 | Database | Supabase PostgreSQL |
 | Authentication | Supabase Auth with Google OAuth |
-| Files | Supabase Storage |
+| Files | Supabase Storage (inventory/gear photos). Document attachments (receipts, governance records) are external links for the initial release — see §2. |
 | Data API | Supabase-generated API and server-side Next.js routes/actions where orchestration is required |
 | Authorization | PostgreSQL Row Level Security (RLS), with server-side checks for sensitive workflows |
 | Source control | GitHub |
@@ -265,11 +266,11 @@ Authorized users shall be able to record expenses with:
 - Date
 - Amount and currency
 - Category (e.g. branding/marketing, food, transportation, supplies, venue, other)
-- Receipt
+- Receipt link
 - Optional event association
 - Entering user
 
-Receipts should be stored in a private Supabase Storage bucket. Expense records are operational data and do not replace the organization's accounting controls.
+**Implemented as a link, not an upload.** For the initial release, staff record a link to the receipt file in an existing external solution (e.g. Google Drive, OneDrive) rather than uploading it to the portal — `event_expenses.receipt_url` is a plain text URL column. In-app upload to a private Supabase Storage bucket remains a candidate for a later release — see §2. Expense records are operational data and do not replace the organization's accounting controls.
 
 ### 5.7 Donations
 
@@ -338,7 +339,7 @@ Authorized users shall be able to manage nonprofit governance records:
 - **Conflict of interest**: per-person annual disclosure statements, on-file date, and any noted conflicts.
 - **Annual requirements**: recurring compliance items (e.g. annual report, IRS Form 990, state charitable registration renewal) with due date, completion status/date, and responsible party.
 
-The content of an individual governance record (a policy's text, a set of minutes, a signed bylaws amendment, etc.) is not required to take one fixed form. A record may hold an uploaded file attachment, an external link (e.g. to a shared drive), a free-text body, or any combination of the three, so staff can start with a quick note or link and attach a scanned/signed file later without changing record type. See `file_attachments` in §6.
+The content of an individual governance record (a policy's text, a set of minutes, a signed bylaws amendment, etc.) is not required to take one fixed form. A record may hold an external link (e.g. to a file in the organization's Google Drive/OneDrive), a free-text body, or both, so staff can start with a quick note and add a link to the scanned/signed file once it exists. **For the initial release there is no in-app file upload option** — `agendas` and `minutes` are already implemented this way (`external_link`/`body_text` columns only, no `file_attachment_id`). The `file_attachments` table and an uploaded-file option are deferred past the initial release — see §2 and §6.
 
 Governance records contain sensitive organizational and personal information and must not be public. Access is limited to the `admin` and `board` roles — see the entitlement matrix in §5.3.
 
@@ -411,8 +412,10 @@ Authorized users shall be able to request reimbursement for money personally spe
 
 - Requesting person
 - Amount and description
-- Receipt
+- Receipt link
 - Optional associated event
+
+As with expenses (§5.6), the receipt for the initial release is a link to a file in an existing external solution (Google Drive/OneDrive), not an in-app upload.
 
 Reimbursements go through the same approval workflow as §5.16 (submitted → approved/rejected → paid) rather than a separate one, since the underlying control question — who may approve spend — is the same.
 
@@ -517,9 +520,9 @@ Impact rollups themselves (per-event, per-program, and season reports, including
 ### Finance and giveaways
 
 - `event_revenue`: not yet implemented
-- `event_expenses`: implemented, with an optional `event_id` (nullable — expenses may or may not be tied to an event). **Not yet implemented:** an approval state (`status`: submitted/approved/rejected/paid), `submitted_by`, `approved_by`, `approved_at` — see §5.16.
-- `reimbursements`: not yet implemented — requester `person_id`, amount, description, receipt, optional `event_id`, and the same approval state as `event_expenses` (see §5.16, §5.18)
-- `file_attachments`: not yet implemented
+- `event_expenses`: implemented, with an optional `event_id` (nullable — expenses may or may not be tied to an event) and `receipt_url` (a plain text link to the file in an external solution, not an upload — see §5.6). **Not yet implemented:** an approval state (`status`: submitted/approved/rejected/paid), `submitted_by`, `approved_by`, `approved_at` — see §5.16.
+- `reimbursements`: not yet implemented — requester `person_id`, amount, description, `receipt_url` (external link, same pattern as `event_expenses`), optional `event_id`, and the same approval state as `event_expenses` (see §5.16, §5.18)
+- `file_attachments`: deferred past the initial release — see §2, §5.12
 - `giveaways`, `giveaway_prizes`, and `giveaway_winners`: implemented (see §5.8); `giveaway_prizes.donor_name` is free text, not a `people` foreign key
 
 ### Governance
@@ -536,7 +539,7 @@ Not yet implemented — the portal's Governance nav section renders placeholder 
 - `conflict_of_interest_disclosures`: linked to a `people`/`board_members` record, disclosure period, on-file date, notes
 - `annual_requirements`: name, due date, completed-at, responsible `people` record
 
-`agendas`, `minutes`, `resolutions`, `bylaws`, `policies`, `conflict_of_interest_disclosures`, and `annual_requirements` each hold their substantive content via nullable `file_attachment_id` (→ `file_attachments`), `external_link`, and `body_text` columns, populated in any combination per §5.11.
+`agendas`, `minutes`, `resolutions`, `bylaws`, `policies`, `conflict_of_interest_disclosures`, and `annual_requirements` each hold their substantive content via nullable `external_link` and `body_text` columns, populated in either or both, per §5.12. `agendas` and `minutes` are already built this way. A nullable `file_attachment_id` (→ `file_attachments`) is a later-release addition, not part of the initial-release column set.
 
 ### Content and community calendar
 
@@ -637,8 +640,8 @@ Supabase database changes should be implemented as ordered migrations under `sup
 
 1. Authorized user selects an event and enters expense details.
 2. Server validates amount and event access when an event is associated.
-3. Optional receipt is uploaded to private storage.
-4. Expense and attachment metadata are saved.
+3. User optionally pastes a link to the receipt file stored in an external solution (Google Drive/OneDrive) — no upload for the initial release.
+4. Expense record and receipt link are saved.
 5. Audit entry records the action.
 
 
@@ -664,7 +667,7 @@ The initial release is ready when:
 - An administrator can authenticate with Google and access the dashboard, events, expenses, and inventory portal areas.
 - Donation receipt and inventory update workflows preserve transaction history.
 - Inventory counts cannot become negative through normal application workflows.
-- Sensitive uploaded files are private and access-controlled.
+- Sensitive uploaded files (e.g. inventory/gear photos) are private and access-controlled where applicable; expense/reimbursement/governance records store external file links rather than uploads for the initial release, and those links are only readable by the roles authorized for that record.
 - RLS and authorization behavior are covered by automated tests or documented repeatable checks.
 - Production deployment works through Vercel with Cloudflare DNS and environment-specific Supabase configuration.
 
