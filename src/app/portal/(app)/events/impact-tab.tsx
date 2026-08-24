@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { StatTile } from "../home/stat-tile";
 
 type FormState = {
   totalParticipants: string;
@@ -92,6 +93,34 @@ function formatCurrency(value: number | string | null | undefined) {
   const numeric = typeof value === "string" ? Number(value) : value;
   return Number.isFinite(numeric) ? currencyFormatter.format(numeric) : "—";
 }
+
+function statValue(value: number | null | undefined) {
+  return value === null || value === undefined ? "—" : value;
+}
+
+function formatRatio(yesCount: number | null, respondents: number | null) {
+  if (yesCount === null || !respondents || respondents <= 0) return "—";
+  const percent = Math.round((yesCount / respondents) * 100);
+  return `${yesCount} of ${respondents} (${percent}%)`;
+}
+
+type SurveyYesField =
+  | "survey_easier_to_participate_yes_count"
+  | "survey_would_not_have_participated_without_assistance_yes_count"
+  | "survey_first_time_skiing_yes_count"
+  | "survey_felt_welcomed_yes_count"
+  | "survey_would_attend_again_yes_count";
+
+const SURVEY_QUESTIONS: { field: SurveyYesField; label: string }[] = [
+  { field: "survey_easier_to_participate_yes_count", label: "Made it easier to participate" },
+  {
+    field: "survey_would_not_have_participated_without_assistance_yes_count",
+    label: "Would not have participated without assistance",
+  },
+  { field: "survey_first_time_skiing_yes_count", label: "First time skiing/snowboarding" },
+  { field: "survey_felt_welcomed_yes_count", label: "Felt welcomed and included" },
+  { field: "survey_would_attend_again_yes_count", label: "Would attend another event" },
+];
 
 export type ImpactTabHandle = {
   discard: () => void;
@@ -194,77 +223,50 @@ export function ImpactTab({
         )}
         <div className="flex flex-col gap-3">
           <h4 className="text-sm font-semibold">Participation</h4>
-          <FieldGroup>
-            <ReadOnlyField label="Total participants" htmlFor="impact-totalParticipants">
-              {form.totalParticipants || "—"}
-            </ReadOnlyField>
-            <ReadOnlyField label="First-time participants" htmlFor="impact-firstTimeParticipants">
-              {form.firstTimeParticipants || "—"}
-            </ReadOnlyField>
-            <ReadOnlyField label="First-time skiers/snowboarders" htmlFor="impact-firstTimeRiders">
-              {form.firstTimeRiders || "—"}
-            </ReadOnlyField>
-            <ReadOnlyField label="Beginner participants" htmlFor="impact-beginnerParticipants">
-              {form.beginnerParticipants || "—"}
-            </ReadOnlyField>
-            <ReadOnlyField label="Volunteer participants" htmlFor="impact-volunteerParticipants">
-              {form.volunteerParticipants || "—"}
-            </ReadOnlyField>
-          </FieldGroup>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <StatTile label="Total participants" value={statValue(note?.total_participants)} />
+            <StatTile label="First-time participants" value={statValue(note?.first_time_participants)} />
+            <StatTile label="First-time skiers/snowboarders" value={statValue(note?.first_time_riders)} />
+            <StatTile label="Beginner participants" value={statValue(note?.beginner_participants)} />
+            <StatTile label="Volunteer participants" value={statValue(note?.volunteer_participants)} />
+          </div>
         </div>
 
         <div className="flex flex-col gap-3">
           <h4 className="text-sm font-semibold">Financial assistance</h4>
-          <FieldGroup>
-            <ReadOnlyField label="Subsidized tickets" htmlFor="impact-subsidizedTicketsCount">
-              {form.subsidizedTicketsCount || "—"}
-            </ReadOnlyField>
-            <ReadOnlyField label="Rental subsidies" htmlFor="impact-rentalSubsidiesCount">
-              {form.rentalSubsidiesCount || "—"}
-            </ReadOnlyField>
-            <ReadOnlyField label="Equipment loans" htmlFor="impact-equipmentLoansCount">
-              {form.equipmentLoansCount || "—"}
-            </ReadOnlyField>
-            <ReadOnlyField label="Total participant assistance" htmlFor="impact-assistanceTotal">
-              {formatCurrency(note?.assistance_total)}
-            </ReadOnlyField>
-          </FieldGroup>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatTile label="Subsidized tickets" value={statValue(note?.subsidized_tickets_count)} />
+            <StatTile label="Rental subsidies" value={statValue(note?.rental_subsidies_count)} />
+            <StatTile label="Equipment loans" value={statValue(note?.equipment_loans_count)} />
+            <StatTile label="Total participant assistance" value={formatCurrency(note?.assistance_total)} />
+          </div>
         </div>
 
         <div className="flex flex-col gap-3">
           <h4 className="text-sm font-semibold">Volunteer support</h4>
-          <FieldGroup>
-            <ReadOnlyField label="Beginners paired with experienced riders" htmlFor="impact-beginnerPairingsCount">
-              {form.beginnerPairingsCount || "—"}
-            </ReadOnlyField>
-          </FieldGroup>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <StatTile
+              label="Beginners paired with experienced riders"
+              value={statValue(note?.beginner_pairings_count)}
+            />
+          </div>
         </div>
 
         <div className="flex flex-col gap-3">
           <h4 className="text-sm font-semibold">Post-event outcomes survey</h4>
-          <FieldGroup>
-            <ReadOnlyField label="Survey respondents" htmlFor="impact-surveyRespondentsCount">
-              {form.surveyRespondentsCount || "—"}
-            </ReadOnlyField>
-            <ReadOnlyField label="Made it easier to participate — yes" htmlFor="impact-surveyEasierToParticipateYesCount">
-              {form.surveyEasierToParticipateYesCount || "—"}
-            </ReadOnlyField>
-            <ReadOnlyField
-              label="Would not have participated without assistance — yes"
-              htmlFor="impact-surveyWouldNotHaveParticipatedWithoutAssistanceYesCount"
-            >
-              {form.surveyWouldNotHaveParticipatedWithoutAssistanceYesCount || "—"}
-            </ReadOnlyField>
-            <ReadOnlyField label="First time skiing/snowboarding — yes" htmlFor="impact-surveyFirstTimeSkiingYesCount">
-              {form.surveyFirstTimeSkiingYesCount || "—"}
-            </ReadOnlyField>
-            <ReadOnlyField label="Felt welcomed and included — yes" htmlFor="impact-surveyFeltWelcomedYesCount">
-              {form.surveyFeltWelcomedYesCount || "—"}
-            </ReadOnlyField>
-            <ReadOnlyField label="Would attend another event — yes" htmlFor="impact-surveyWouldAttendAgainYesCount">
-              {form.surveyWouldAttendAgainYesCount || "—"}
-            </ReadOnlyField>
-          </FieldGroup>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <StatTile label="Survey respondents" value={statValue(note?.survey_respondents_count)} />
+          </div>
+          <div className="flex flex-col divide-y rounded-lg border">
+            {SURVEY_QUESTIONS.map((question) => (
+              <div key={question.field} className="flex items-center justify-between gap-4 px-4 py-3">
+                <p className="text-sm">{question.label}</p>
+                <p className="app-muted text-sm whitespace-nowrap">
+                  {formatRatio(note?.[question.field] ?? null, note?.survey_respondents_count ?? null)}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
 
         <ReadOnlyField label="Notes" htmlFor="impact-notes">
