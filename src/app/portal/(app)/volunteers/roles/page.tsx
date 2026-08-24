@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { NewRoleTypeDialog } from "./new-role-type-dialog";
-import { RoleTypeDetailsDialog, type RoleTypeRow } from "./role-type-details-dialog";
+import { RoleTypeDetailsSheet, type RoleTypeRow } from "./role-type-details-sheet";
 
 export default async function VolunteerRolesPage() {
   const supabase = await createSupabaseServerClient();
@@ -57,7 +57,7 @@ export default async function VolunteerRolesPage() {
                       {roleType.description || "—"}
                     </TableCell>
                     <TableCell className="text-right">
-                      <RoleTypeDetailsDialog roleType={roleType} canManage={canManage} />
+                      <RoleTypeDetailsSheet roleType={roleType} canManage={canManage} />
                     </TableCell>
                   </TableRow>
                 ))}
