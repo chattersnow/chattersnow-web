@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState, useTransition } from "react";
+import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
 import {
@@ -14,6 +14,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { Textarea } from "@/components/ui/textarea";
+import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 
 function AgendaForm({
   agenda,
@@ -106,23 +107,14 @@ export function AgendaTab({
   active: boolean;
   mode: "view" | "edit";
 }) {
-  const [agenda, setAgenda] = useState<Agenda | null | undefined>(undefined);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
-  const [prevMode, setPrevMode] = useState(mode);
+  const { data: agenda, loadError } = useTabData<Agenda | null>(
+    () => getAgendaAction(meetingId),
+    active,
+    [meetingId],
+  );
 
-  if (mode !== prevMode) {
-    setPrevMode(mode);
-    if (mode === "view") setEditing(false);
-  }
-
-  useEffect(() => {
-    if (!active) return;
-    getAgendaAction(meetingId).then((result) => {
-      if ("error" in result) setLoadError(result.error);
-      else setAgenda(result.data);
-    });
-  }, [active, meetingId]);
+  useResetOnModeChange(mode, () => setEditing(false));
 
   if (agenda === undefined) {
     return <p className="app-muted text-sm">Loading agenda...</p>;
