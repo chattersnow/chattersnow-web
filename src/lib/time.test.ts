@@ -1,5 +1,35 @@
 import { describe, expect, test } from "bun:test";
-import { isEventActiveToday } from "@/lib/time";
+import { formatDueRelative, isEventActiveToday } from "@/lib/time";
+
+describe("formatDueRelative", () => {
+  const now = new Date("2026-08-24T12:00:00Z");
+
+  test("reports a same-day due date as due today", () => {
+    expect(formatDueRelative("2026-08-24T18:00:00Z", now)).toBe("Due today");
+  });
+
+  test("reports a future due date in days", () => {
+    expect(formatDueRelative("2026-08-27T12:00:00Z", now)).toBe(
+      "Due in 3 days",
+    );
+  });
+
+  test("singularizes a one-day-out due date", () => {
+    expect(formatDueRelative("2026-08-25T12:00:00Z", now)).toBe("Due in 1 day");
+  });
+
+  test("reports a past due date as overdue", () => {
+    expect(formatDueRelative("2026-08-20T12:00:00Z", now)).toBe(
+      "4 days overdue",
+    );
+  });
+
+  test("singularizes a one-day overdue date", () => {
+    expect(formatDueRelative("2026-08-23T12:00:00Z", now)).toBe(
+      "1 day overdue",
+    );
+  });
+});
 
 describe("isEventActiveToday", () => {
   test("matches an event starting today in its own timezone", () => {
