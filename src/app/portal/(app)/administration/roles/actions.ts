@@ -3,11 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkPermission } from "@/lib/auth/permissions";
+import { friendlyError } from "@/lib/db-errors";
 import { isSeededRole } from "./seeded-roles";
-
-function friendlyError(error: { code?: string }, fallback: string) {
-  return error.code === "23505" ? "A role with that name already exists." : fallback;
-}
 
 function revalidateRolePaths() {
   revalidatePath("/portal/administration/roles");
@@ -32,7 +29,9 @@ export async function createRoleAction(
     .from("roles")
     .insert({ name: trimmedName, description: description.trim() || null });
   if (error) {
-    return { error: friendlyError(error, "Could not create role. Please try again.") };
+    return {
+      error: friendlyError(error, "A role with that name already exists.", "Could not create role. Please try again."),
+    };
   }
 
   revalidateRolePaths();
@@ -70,7 +69,9 @@ export async function renameRoleAction(
     .update({ name: trimmedName, description: description.trim() || null })
     .eq("id", id);
   if (error) {
-    return { error: friendlyError(error, "Could not update role. Please try again.") };
+    return {
+      error: friendlyError(error, "A role with that name already exists.", "Could not update role. Please try again."),
+    };
   }
 
   revalidateRolePaths();

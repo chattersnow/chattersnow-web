@@ -4,12 +4,9 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseRoleTypeForm } from "./role-type-form";
 import { checkPermission } from "@/lib/auth/permissions";
+import { friendlyError } from "@/lib/db-errors";
 
 export type RoleTypeActionResult = { error: string } | { success: true };
-
-function friendlyError(error: { code?: string }, fallback: string) {
-  return error.code === "23505" ? "A role type with this name already exists." : fallback;
-}
 
 export async function createRoleTypeAction(formData: FormData): Promise<RoleTypeActionResult> {
   const supabase = await createSupabaseServerClient();
@@ -28,7 +25,13 @@ export async function createRoleTypeAction(formData: FormData): Promise<RoleType
   const { error } = await supabase.from("volunteer_role_types").insert(parsed.data);
 
   if (error) {
-    return { error: friendlyError(error, "Could not create the role type. Please try again.") };
+    return {
+      error: friendlyError(
+        error,
+        "A role type with this name already exists.",
+        "Could not create the role type. Please try again.",
+      ),
+    };
   }
 
   revalidatePath("/portal/volunteers/roles");
@@ -55,7 +58,13 @@ export async function updateRoleTypeAction(
   const { error } = await supabase.from("volunteer_role_types").update(parsed.data).eq("id", id);
 
   if (error) {
-    return { error: friendlyError(error, "Could not update the role type. Please try again.") };
+    return {
+      error: friendlyError(
+        error,
+        "A role type with this name already exists.",
+        "Could not update the role type. Please try again.",
+      ),
+    };
   }
 
   revalidatePath("/portal/volunteers/roles");
