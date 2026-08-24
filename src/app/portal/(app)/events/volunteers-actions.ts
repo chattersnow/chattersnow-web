@@ -16,6 +16,7 @@ export type EventVolunteer = {
   id: string;
   event_id: string;
   person_id: string;
+  shift_id: string | null;
   role: string | null;
   notes: string | null;
   person: EventVolunteerPerson;
@@ -32,7 +33,7 @@ export async function listEventVolunteersAction(
 
   const { data, error } = await supabase
     .from("event_volunteers")
-    .select("id, event_id, person_id, role, notes, person:people(id, name, email, phone)")
+    .select("id, event_id, person_id, shift_id, role, notes, person:people(id, name, email, phone)")
     .eq("event_id", eventId);
 
   if (error) {
@@ -61,16 +62,40 @@ export async function createEventVolunteerAction(
 
   const parsed = parseVolunteerForm(formData);
   if ("error" in parsed) return parsed;
+  const shiftId = String(formData.get("shiftId") ?? "").trim() || null;
 
   const { error } = await supabase
     .from("event_volunteers")
-    .insert({ event_id: eventId, person_id: personId, ...parsed.data });
+    .insert({ event_id: eventId, person_id: personId, shift_id: shiftId, ...parsed.data });
 
   if (error) {
     if (error.code === "23505") {
       return { error: "This person is already linked to this event as a volunteer." };
     }
     return { error: "Could not save the volunteer. Please try again." };
+  }
+
+  revalidatePath("/portal/events");
+  return { success: true };
+}
+
+export async function updateEventVolunteerShiftAction(
+  id: string,
+  shiftId: string | null
+): Promise<VolunteerActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: "You must be signed in to change a shift assignment." };
+  }
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
+
+  const { error } = await supabase.from("event_volunteers").update({ shift_id: shiftId }).eq("id", id);
+  if (error) {
+    return { error: "Could not update the shift assignment. Please try again." };
   }
 
   revalidatePath("/portal/events");
