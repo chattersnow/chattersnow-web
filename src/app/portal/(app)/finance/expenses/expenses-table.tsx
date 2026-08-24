@@ -21,6 +21,7 @@ import {
   type EventOption,
   type ExpenseApprovalContext,
   type ExpenseRow,
+  type ExpenseStatus,
 } from "./expenses-shared";
 
 type SortKey = "expense_date" | "description" | "amount";
@@ -33,17 +34,22 @@ const SORT_COLUMNS: { key: SortKey; label: string }[] = [
 
 const FILTER_ALL = "all";
 
+const STATUS_OPTIONS: ExpenseStatus[] = ["submitted", "approved", "rejected", "paid"];
+
 export function ExpensesTable({
   expenses,
   events,
   approvalContext,
+  initialStatusFilter = null,
 }: {
   expenses: ExpenseRow[];
   events: EventOption[];
   approvalContext: ExpenseApprovalContext;
+  initialStatusFilter?: ExpenseStatus | null;
 }) {
   const [search, setSearch] = useState("");
   const [eventFilter, setEventFilter] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<ExpenseStatus | null>(initialStatusFilter);
   const [sortKey, setSortKey] = useState<SortKey>("expense_date");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
@@ -62,6 +68,7 @@ export function ExpensesTable({
     const filtered = expenses.filter((expense) => {
       if (eventFilter === "none" && expense.event_id) return false;
       if (eventFilter && eventFilter !== "none" && expense.event_id !== eventFilter) return false;
+      if (statusFilter && expense.status !== statusFilter) return false;
       if (query && !expense.description.toLowerCase().includes(query)) return false;
       return true;
     });
@@ -74,7 +81,7 @@ export function ExpensesTable({
       }
       return a[sortKey].localeCompare(b[sortKey]) * direction;
     });
-  }, [expenses, search, eventFilter, sortKey, sortDirection]);
+  }, [expenses, search, eventFilter, statusFilter, sortKey, sortDirection]);
 
   if (expenses.length === 0) {
     return (
@@ -132,6 +139,30 @@ export function ExpensesTable({
                 {events.map((event) => (
                   <SelectItem key={event.id} value={event.id}>
                     {event.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">Status</span>
+            <Select
+              value={statusFilter ?? FILTER_ALL}
+              onValueChange={(value) =>
+                setStatusFilter(value === FILTER_ALL ? null : (value as ExpenseStatus))
+              }
+            >
+              <SelectTrigger className="h-8">
+                <SelectValue placeholder="Status">
+                  {(value: string) => (value === FILTER_ALL ? "All statuses" : value)}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={FILTER_ALL}>All statuses</SelectItem>
+                {STATUS_OPTIONS.map((status) => (
+                  <SelectItem key={status} value={status} className="capitalize">
+                    {status}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -1,8 +1,13 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserPermissions, hasPermission, hasAnyPermission } from "@/lib/auth/permissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { StatTile, ComingSoonTile } from "./stat-tile";
-import { getUpcomingSummary, getFinancialSummary, getInventorySummary } from "./queries";
+import { StatTile, ComingSoonTile, AttentionTile } from "./stat-tile";
+import {
+  getUpcomingSummary,
+  getFinancialSummary,
+  getInventorySummary,
+  getPendingApprovalsSummary,
+} from "./queries";
 import { listRecentDonationsAction } from "./actions";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" });
@@ -39,6 +44,7 @@ export default async function PortalHomePage() {
     { resource: "inventory_reports", level: "view" },
   ]);
   const canSeeOrganization = hasPermission(permissions, "governance", "manage");
+  const canSeeExpenseApprovals = hasPermission(permissions, "finance_approvals", "manage");
 
   const anySectionVisible = canSeeUpcoming || canSeeFinancial || canSeeInventory || canSeeOrganization;
 
@@ -52,17 +58,21 @@ export default async function PortalHomePage() {
   const startOfMonthDate = startOfMonth.toISOString().slice(0, 10);
   const startOfYearDate = startOfYear.toISOString().slice(0, 10);
 
-  const [upcoming, financial, inventory, recentDonationsResult] = await Promise.all([
+  const [upcoming, financial, inventory, recentDonationsResult, pendingApprovals] = await Promise.all([
     canSeeUpcoming ? getUpcomingSummary(supabase, nowIso) : Promise.resolve(null),
     canSeeFinancial
       ? getFinancialSummary(supabase, startOfMonthDate, startOfYearDate, nowIso)
       : Promise.resolve(null),
     canSeeInventory ? getInventorySummary(supabase) : Promise.resolve(null),
     canSeeInventory && canSeeRecentDonations ? listRecentDonationsAction(5) : Promise.resolve(null),
+    canSeeExpenseApprovals
+      ? getPendingApprovalsSummary(supabase, { canSeeExpenseApprovals })
+      : Promise.resolve(null),
   ]);
 
   const recentDonations =
     recentDonationsResult && "data" in recentDonationsResult ? recentDonationsResult.data : [];
+  const attentionItems = pendingApprovals?.items ?? [];
 
   return (
     <section>
@@ -76,6 +86,17 @@ export default async function PortalHomePage() {
             </p>
           </CardContent>
         </Card>
+      )}
+
+      {attentionItems.length > 0 && (
+        <div className="mt-6">
+          <SectionLabel>Needs your attention</SectionLabel>
+          <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {attentionItems.map((item) => (
+              <AttentionTile key={item.key} label={item.label} count={item.count} href={item.href} />
+            ))}
+          </div>
+        </div>
       )}
 
       {canSeeUpcoming && upcoming && (
