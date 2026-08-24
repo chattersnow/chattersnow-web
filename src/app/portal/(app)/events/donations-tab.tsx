@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
   listEventDonationsAction,
   type EventDonationRow,
 } from "../home/actions";
 import { AddDonationModal } from "../home/add-donation-modal";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useTabData } from "@/hooks/use-tab-data";
 import {
   Table,
   TableBody,
@@ -38,25 +38,15 @@ export function DonationsTab({
   active: boolean;
   mode: "view" | "edit";
 }) {
-  const [donations, setDonations] = useState<EventDonationRow[] | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  function refresh() {
-    listEventDonationsAction(eventId).then((result) => {
-      if ("error" in result) {
-        setLoadError(result.error);
-      } else {
-        setLoadError(null);
-        setDonations(result.data);
-      }
-    });
-  }
-
-  useEffect(() => {
-    if (!active) return;
-    refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, eventId]);
+  const {
+    data: donations,
+    loadError,
+    refresh,
+  } = useTabData<EventDonationRow[]>(
+    () => listEventDonationsAction(eventId),
+    active,
+    [eventId],
+  );
 
   const items = (donations ?? []).flatMap((donation) =>
     donation.inventory_items.map((item) => ({
@@ -84,7 +74,7 @@ export function DonationsTab({
         />
       )}
 
-      {donations === null ? (
+      {donations === undefined ? (
         <p className="app-muted text-sm">Loading donations...</p>
       ) : items.length === 0 ? (
         <p className="app-muted text-sm">
