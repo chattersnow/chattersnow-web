@@ -20,6 +20,7 @@ import {
   VISIBILITIES,
   type CalendarItemRow,
 } from "./calendar-shared";
+import { mapCalendarItemRow } from "./queries";
 
 const VIEW_VALUES: CalendarView[] = ["list", "agenda", "month"];
 const SORT_VALUES: ListSortColumn[] = [
@@ -106,66 +107,7 @@ export default async function CalendarPage({
 
   const { data: rows, error } = await query;
 
-  const items: CalendarItemRow[] = (rows ?? []).map((row) => {
-    const r = row as unknown as {
-      id: string;
-      title: string;
-      item_type: string;
-      starts_at: string;
-      ends_at: string | null;
-      time_zone: string;
-      recurrence_rule: string | null;
-      summary: string | null;
-      priority_tier: number;
-      priority_rationale: string | null;
-      calendar_status: string;
-      visibility: string;
-      owner_id: string | null;
-      decision: string | null;
-      decision_note: string | null;
-      calendar_item_categories: { category: string }[] | null;
-      calendar_item_programs: { program_id: string }[] | null;
-      content_opportunities:
-        | (Omit<
-            NonNullable<CalendarItemRow["content_opportunity"]>,
-            "template_version"
-          > & {
-            content_brief_template_versions: NonNullable<
-              CalendarItemRow["content_opportunity"]
-            >["template_version"];
-          })
-        | null;
-    };
-    return {
-      id: r.id,
-      title: r.title,
-      item_type: r.item_type,
-      starts_at: r.starts_at,
-      ends_at: r.ends_at,
-      time_zone: r.time_zone,
-      recurrence_rule: r.recurrence_rule,
-      summary: r.summary,
-      priority_tier: r.priority_tier,
-      priority_rationale: r.priority_rationale,
-      calendar_status: r.calendar_status,
-      visibility: r.visibility,
-      owner_id: r.owner_id,
-      decision: r.decision,
-      decision_note: r.decision_note,
-      categories: (r.calendar_item_categories ?? []).map((c) => c.category),
-      program_ids: (r.calendar_item_programs ?? []).map((p) => p.program_id),
-      content_opportunity: r.content_opportunities
-        ? (() => {
-            const { content_brief_template_versions, ...opportunity } =
-              r.content_opportunities;
-            return {
-              ...opportunity,
-              template_version: content_brief_template_versions,
-            };
-          })()
-        : null,
-    };
-  });
+  const items: CalendarItemRow[] = (rows ?? []).map(mapCalendarItemRow);
 
   const ownersResult = await listCalendarOwnersAction();
   const owners = "data" in ownersResult ? ownersResult.data : [];

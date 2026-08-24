@@ -13,6 +13,7 @@ import {
   getFinancialSummary,
   getInventorySummary,
   getPendingApprovalsSummary,
+  getContentWorkSummary,
   getMyActiveEvents,
 } from "./queries";
 import { listRecentDonationsAction } from "./actions";
@@ -61,6 +62,11 @@ export default async function PortalHomePage() {
     "finance_approvals",
     "manage",
   );
+  const canSeeContentCalendar = hasPermission(
+    permissions,
+    "content_calendar",
+    "view",
+  );
   const canRecordDonation = hasAnyPermission(permissions, [
     { resource: "finance", level: "manage" },
     { resource: "inventory_intake", level: "manage" },
@@ -87,6 +93,7 @@ export default async function PortalHomePage() {
     recentDonationsResult,
     pendingApprovals,
     personId,
+    { data: userData },
   ] = await Promise.all([
     canSeeUpcoming
       ? getUpcomingSummary(supabase, nowIso)
@@ -102,13 +109,24 @@ export default async function PortalHomePage() {
       ? getPendingApprovalsSummary(supabase, { canSeeExpenseApprovals })
       : Promise.resolve(null),
     resolveCurrentPersonId(supabase),
+    supabase.auth.getUser(),
   ]);
+
+  const contentWork = canSeeContentCalendar
+    ? await getContentWorkSummary(supabase, {
+        canSeeContentCalendar,
+        userId: userData.user?.id ?? null,
+      })
+    : null;
 
   const recentDonations =
     recentDonationsResult && "data" in recentDonationsResult
       ? recentDonationsResult.data
       : [];
-  const attentionItems = pendingApprovals?.items ?? [];
+  const attentionItems = [
+    ...(pendingApprovals?.items ?? []),
+    ...(contentWork?.items ?? []),
+  ];
   const activeEvents = personId
     ? await getMyActiveEvents(supabase, personId, nowIso)
     : [];

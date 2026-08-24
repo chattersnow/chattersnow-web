@@ -54,3 +54,71 @@ export function leadTimeSchedule(
     reviewDueAt: addDays(publishDueAt, -Math.round(leadTimeDays / 3)),
   };
 }
+
+const DRAFT_STAGE_STATUSES = ["not_planned", "idea", "draft"];
+const REVIEW_STAGE_STATUSES = ["in_review", "changes_requested"];
+const PUBLISH_STAGE_STATUSES = ["approved", "scheduled"];
+
+export type OverdueStage = "draft" | "review" | "publish";
+
+type StageDates = Pick<
+  ContentOpportunityRow,
+  "content_status" | "draft_due_at" | "review_due_at" | "publish_due_at"
+>;
+
+/**
+ * Which lead-time deadline is currently live for this opportunity's stage,
+ * and whether it's already passed. Nothing is overdue once the opportunity
+ * reaches a terminal status (published/skipped).
+ */
+export function overdueStage(
+  opp: StageDates,
+  now: Date = new Date(),
+): OverdueStage | null {
+  if (DRAFT_STAGE_STATUSES.includes(opp.content_status)) {
+    return opp.draft_due_at && new Date(opp.draft_due_at) < now
+      ? "draft"
+      : null;
+  }
+  if (REVIEW_STAGE_STATUSES.includes(opp.content_status)) {
+    return opp.review_due_at && new Date(opp.review_due_at) < now
+      ? "review"
+      : null;
+  }
+  if (PUBLISH_STAGE_STATUSES.includes(opp.content_status)) {
+    return opp.publish_due_at && new Date(opp.publish_due_at) < now
+      ? "publish"
+      : null;
+  }
+  return null;
+}
+
+/** The due date relevant to the opportunity's current stage, for queue sorting. */
+export function effectiveDueDate(opp: StageDates): string | null {
+  if (DRAFT_STAGE_STATUSES.includes(opp.content_status))
+    return opp.draft_due_at;
+  if (REVIEW_STAGE_STATUSES.includes(opp.content_status))
+    return opp.review_due_at;
+  if (PUBLISH_STAGE_STATUSES.includes(opp.content_status))
+    return opp.publish_due_at;
+  return null;
+}
+
+export function isMyContentWork(
+  opp: Pick<
+    ContentOpportunityRow,
+    "content_status" | "owner_id" | "reviewer_id"
+  >,
+  userId: string,
+): boolean {
+  if (opp.content_status === "published" || opp.content_status === "skipped")
+    return false;
+  return opp.owner_id === userId || opp.reviewer_id === userId;
+}
+
+export function isChangesRequestedForMe(
+  opp: Pick<ContentOpportunityRow, "content_status" | "owner_id">,
+  userId: string,
+): boolean {
+  return opp.content_status === "changes_requested" && opp.owner_id === userId;
+}

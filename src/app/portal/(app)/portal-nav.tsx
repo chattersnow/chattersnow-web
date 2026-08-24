@@ -79,6 +79,12 @@ const NAV_ITEMS: readonly NavItem[] = [
         access: [{ resource: "content_calendar", level: "view" }],
       },
       {
+        value: "work-queue",
+        label: "Work queue",
+        href: "/portal/calendar/work-queue",
+        access: [{ resource: "content_calendar", level: "view" }],
+      },
+      {
         value: "templates",
         label: "Brief templates",
         href: "/portal/calendar/templates",
