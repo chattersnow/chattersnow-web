@@ -38,7 +38,13 @@ const NAV_GROUPS: readonly NavGroup[] = [
       { label: "Why LGBTQ+ Snow Sports", href: "/about#why-lgbtq" },
     ],
   },
-  { label: "Events", href: "/events" },
+  {
+    label: "Events",
+    links: [
+      { label: "All Events", href: "/events" },
+      { label: "Community Calendar", href: "/events/community" },
+    ],
+  },
   { label: "Programs", href: "/programs" },
   {
     label: "Gear",
