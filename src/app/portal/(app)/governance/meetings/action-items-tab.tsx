@@ -1,0 +1,351 @@
+"use client";
+
+import { FormEvent, useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Pencil, Trash2 } from "lucide-react";
+import {
+  createActionItemAction,
+  deleteActionItemAction,
+  listActionItemsAction,
+  updateActionItemAction,
+  updateActionItemStatusAction,
+  type ActionItem,
+} from "./action-items-actions";
+import {
+  ActionItemFormFields,
+  emptyActionItemForm,
+  packActionItemFormData,
+  type ActionItemFormState,
+} from "./action-item-form-fields";
+import { PersonPicker, type PickedPerson } from "../../people/person-picker";
+import { listPeopleAction, type PersonListItem } from "../../people/actions";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
+const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" });
+
+function formatDate(value: string | null) {
+  if (!value) return "—";
+  return dateFormatter.format(new Date(value));
+}
+
+function ownerFrom(actionItem: ActionItem): PickedPerson {
+  return actionItem.owner;
+}
+
+function AddActionItemForm({
+  people,
+  onPersonCreated,
+  onSubmit,
+  onCancel,
+}: {
+  people: PersonListItem[];
+  onPersonCreated: (person: PickedPerson) => void;
+  onSubmit: (ownerPersonId: string, formData: FormData) => Promise<{ error: string } | { success: true }>;
+  onCancel: () => void;
+}) {
+  const router = useRouter();
+  const [selectedOwner, setSelectedOwner] = useState<PickedPerson | null>(null);
+  const [form, setForm] = useState<ActionItemFormState>(() => emptyActionItemForm());
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function update<K extends keyof ActionItemFormState>(key: K, value: ActionItemFormState[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    if (!selectedOwner) {
+      setError("Select or create an owner for this action item.");
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await onSubmit(selectedOwner.id, packActionItemFormData(form));
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+      router.refresh();
+      onCancel();
+    });
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="rounded-md border border-[var(--line)] p-4">
+      <FieldGroup>
+        <Field>
+          <FieldLabel>Owner</FieldLabel>
+          <PersonPicker people={people} selected={selectedOwner} onSelect={setSelectedOwner} onPersonCreated={onPersonCreated} />
+        </Field>
+
+        <ActionItemFormFields form={form} update={update} idPrefix="new-action-item" />
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? "Saving..." : "Add action item"}
+          </Button>
+        </div>
+      </FieldGroup>
+    </form>
+  );
+}
+
+function EditActionItemDialog({
+  actionItem,
+  people,
+  onPersonCreated,
+  onSaved,
+  onOpenChange,
+}: {
+  actionItem: ActionItem;
+  people: PersonListItem[];
+  onPersonCreated: (person: PickedPerson) => void;
+  onSaved: () => void;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [selectedOwner, setSelectedOwner] = useState<PickedPerson | null>(() => ownerFrom(actionItem));
+  const [form, setForm] = useState<ActionItemFormState>(() => ({
+    description: actionItem.description,
+    dueDate: actionItem.due_date ?? "",
+    done: actionItem.status === "done",
+  }));
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function update<K extends keyof ActionItemFormState>(key: K, value: ActionItemFormState[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    if (!selectedOwner) {
+      setError("Select or create an owner for this action item.");
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await updateActionItemAction(actionItem.id, selectedOwner.id, packActionItemFormData(form));
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+      onSaved();
+    });
+  }
+
+  return (
+    <Dialog open onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Edit action item</DialogTitle>
+          <DialogDescription>Update this action item&apos;s details.</DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit}>
+          <FieldGroup>
+            <Field>
+              <FieldLabel>Owner</FieldLabel>
+              <PersonPicker
+                people={people}
+                selected={selectedOwner}
+                onSelect={setSelectedOwner}
+                onPersonCreated={onPersonCreated}
+              />
+            </Field>
+
+            <ActionItemFormFields form={form} update={update} idPrefix={`edit-action-item-${actionItem.id}`} />
+
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+          </FieldGroup>
+
+          <DialogFooter>
+            <Button type="submit" disabled={isPending}>
+              {isPending ? "Saving..." : "Save changes"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function ActionItemsTab({ meetingId, active, mode }: { meetingId: string; active: boolean; mode: "view" | "edit" }) {
+  const router = useRouter();
+  const [actionItems, setActionItems] = useState<ActionItem[] | null>(null);
+  const [people, setPeople] = useState<PersonListItem[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [isMutating, startMutation] = useTransition();
+  const [prevMode, setPrevMode] = useState(mode);
+
+  if (mode !== prevMode) {
+    setPrevMode(mode);
+    if (mode === "view") {
+      setShowAdd(false);
+      setEditingId(null);
+    }
+  }
+
+  function load() {
+    listActionItemsAction(meetingId).then((result) => {
+      if ("error" in result) setLoadError(result.error);
+      else setActionItems(result.data);
+    });
+    listPeopleAction().then((result) => {
+      if (!("error" in result)) setPeople(result.data);
+    });
+  }
+
+  useEffect(() => {
+    if (!active) return;
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, meetingId]);
+
+  function refresh() {
+    load();
+    router.refresh();
+  }
+
+  function handlePersonCreated(person: PickedPerson) {
+    setPeople((prev) => [...prev, { ...person, is_sponsor: false }]);
+  }
+
+  function handleToggleStatus(actionItem: ActionItem) {
+    startMutation(async () => {
+      await updateActionItemStatusAction(actionItem.id, actionItem.status === "done" ? "open" : "done");
+      refresh();
+    });
+  }
+
+  function handleDelete(id: string) {
+    startMutation(async () => {
+      await deleteActionItemAction(id);
+      refresh();
+    });
+  }
+
+  const editingItem = actionItems?.find((item) => item.id === editingId) ?? null;
+
+  return (
+    <div className="flex flex-col gap-4">
+      {loadError && (
+        <Alert variant="destructive">
+          <AlertDescription>{loadError}</AlertDescription>
+        </Alert>
+      )}
+
+      {actionItems === null ? (
+        <p className="app-muted text-sm">Loading action items...</p>
+      ) : actionItems.length === 0 && !showAdd ? (
+        <p className="app-muted text-sm">No action items recorded yet.</p>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Description</TableHead>
+              <TableHead>Owner</TableHead>
+              <TableHead>Due date</TableHead>
+              <TableHead>Done</TableHead>
+              <TableHead className="w-px" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {actionItems?.map((actionItem) => (
+              <TableRow key={actionItem.id}>
+                <TableCell className="whitespace-normal font-medium">{actionItem.description}</TableCell>
+                <TableCell className="app-muted">{actionItem.owner?.name ?? "—"}</TableCell>
+                <TableCell className="app-muted">{formatDate(actionItem.due_date)}</TableCell>
+                <TableCell>
+                  <Checkbox
+                    checked={actionItem.status === "done"}
+                    disabled={mode !== "edit" || isMutating}
+                    onCheckedChange={() => handleToggleStatus(actionItem)}
+                  />
+                </TableCell>
+                <TableCell className="text-right whitespace-nowrap">
+                  {mode === "edit" && (
+                    <>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Edit action item"
+                        onClick={() => setEditingId(actionItem.id)}
+                      >
+                        <Pencil />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Remove action item"
+                        disabled={isMutating}
+                        onClick={() => handleDelete(actionItem.id)}
+                      >
+                        <Trash2 />
+                      </Button>
+                    </>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+
+      {mode === "edit" &&
+        (showAdd ? (
+          <AddActionItemForm
+            people={people}
+            onPersonCreated={handlePersonCreated}
+            onSubmit={(ownerPersonId, formData) => createActionItemAction(meetingId, ownerPersonId, formData)}
+            onCancel={() => setShowAdd(false)}
+          />
+        ) : (
+          <div>
+            <Button type="button" variant="outline" onClick={() => setShowAdd(true)}>
+              + Add action item
+            </Button>
+          </div>
+        ))}
+
+      {editingItem && (
+        <EditActionItemDialog
+          actionItem={editingItem}
+          people={people}
+          onPersonCreated={handlePersonCreated}
+          onSaved={() => {
+            setEditingId(null);
+            refresh();
+          }}
+          onOpenChange={(open) => {
+            if (!open) setEditingId(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
