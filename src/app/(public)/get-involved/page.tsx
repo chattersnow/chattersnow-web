@@ -114,9 +114,12 @@ export default function GetInvolvedPage() {
           </h2>
           <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
             We work with mountains, gear brands, and other organizations to make
-            events more affordable and accessible for our community. If your
-            organization wants to partner with Chatter on an event, discount, or
-            collaboration, we&apos;d love to hear from you.
+            events more affordable and accessible for our community. Partnership
+            can look like a lift ticket discount with a resort, a gear brand
+            supplying demo equipment for an event, a co-hosted meetup with
+            another LGBTQ+ or outdoor organization, or a venue donating space
+            for a gear drive. If your organization wants to collaborate with
+            Chatter in any of these ways, we&apos;d love to hear from you.
           </p>
           <Button
             variant="outline"

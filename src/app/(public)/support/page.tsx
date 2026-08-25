@@ -38,24 +38,58 @@ export default function SupportPage() {
           <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
             Sponsorship
           </h2>
-          <div className="app-muted mt-4 max-w-3xl space-y-4 text-sm leading-relaxed sm:text-base">
-            <p>
-              Sponsors help fund the core of what Chatter does: subsidizing
-              mountain days, keeping gear access programs running, and making
-              events more affordable for LGBTQ+ riders who might not otherwise
-              be able to join.
-            </p>
-            <p>
-              We&apos;re building out sponsorship tiers and benefits (event
-              branding, gear partnerships, and community recognition among them)
-              — if your business or organization is interested in supporting
-              Chatter, reach out and we&apos;ll work out what makes sense
-              together.
-            </p>
+          <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
+            Sponsors help fund the core of what Chatter does: subsidizing
+            mountain days, keeping gear access programs running, and making
+            events more affordable for LGBTQ+ riders who might not otherwise be
+            able to join. In return, sponsors get real visibility with our
+            community — event branding, recognition in event materials and on
+            our website, and a direct line to a rider base that shows up for the
+            brands that show up for them.
+          </p>
+
+          <div className="mt-6 grid gap-4 sm:grid-cols-3">
+            <Card>
+              <CardHeader>
+                <CardTitle>Cash sponsorship</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="app-muted text-sm leading-relaxed">
+                  Underwrite an event, a season of mountain days, or a program
+                  like our gear library. Cash sponsors are the easiest way to
+                  keep events affordable and accessible.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>In-kind sponsorship</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="app-muted text-sm leading-relaxed">
+                  Contribute gear, lift tickets, venue space, or services.
+                  In-kind support stretches directly into gear drives, event day
+                  logistics, and giveaways.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Both</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="app-muted text-sm leading-relaxed">
+                  Many of our sponsors mix cash and in-kind support across a
+                  season. We&apos;ll work with you to find a combination that
+                  fits your organization.
+                </p>
+              </CardContent>
+            </Card>
           </div>
+
           <Button
             variant="outline"
-            className="mt-4"
+            className="mt-6"
             nativeButton={false}
             render={<Link href="/contact?topic=partnership" />}
           >
