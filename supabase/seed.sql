@@ -17,15 +17,15 @@
 --   multi@example.test         event_coordinator + volunteer (multi-role)
 --   noaccess@example.test      signed in, no role assigned (access-denied path)
 
-with new_users(email) as (
+with new_users(email, full_name) as (
   values
-    ('admin@example.test'),
-    ('coordinator@example.test'),
-    ('finance@example.test'),
-    ('board@example.test'),
-    ('volunteer@example.test'),
-    ('multi@example.test'),
-    ('noaccess@example.test')
+    ('admin@example.test', 'Avery Morgan'),
+    ('coordinator@example.test', 'Jordan Lee'),
+    ('finance@example.test', 'Morgan Patel'),
+    ('board@example.test', 'Taylor Brooks'),
+    ('volunteer@example.test', 'Casey Rivera'),
+    ('multi@example.test', 'Riley Chen'),
+    ('noaccess@example.test', 'Sam Ellis')
 ),
 inserted_users as (
   insert into auth.users (
@@ -37,7 +37,8 @@ inserted_users as (
   select
     '00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated',
     email, extensions.crypt('password123', extensions.gen_salt('bf')),
-    now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb,
+    now(), '{"provider":"email","providers":["email"]}'::jsonb,
+    jsonb_build_object('full_name', full_name),
     now(), now(),
     '', '', '', ''
   from new_users
@@ -88,6 +89,14 @@ declare
   v_giveaway_id uuid;
   v_prize1 uuid;
   v_prize2 uuid;
+  v_program_id uuid;
+  v_shift_id uuid;
+  v_registration_id uuid;
+  v_calendar_item_id uuid;
+  v_meeting_id uuid;
+  v_role_type_id uuid;
+  v_template_id uuid;
+  v_template_version_id uuid;
 begin
   select id into v_admin_id from auth.users where email = 'admin@example.test';
 
@@ -213,4 +222,116 @@ begin
 
   insert into public.giveaway_winners (giveaway_prize_id, winner_name, distribution_status, created_by)
   values (v_prize2, 'T. Nguyen', 'pending', v_admin_id);
+
+  -- Programs, event planning, volunteers, and attendance.
+  insert into public.programs (name, description, status, created_by)
+  values ('Winter Access Program', 'Gear access and low-cost outdoor events for local participants.', 'active', v_admin_id)
+  returning id into v_program_id;
+
+  update public.events
+  set program_id = v_program_id, description = 'A community gear exchange and winter access event.',
+      event_type = 'gear_swap', venue = 'Community Center', capacity = 100,
+      registration_enabled = true, registration_deadline = now() + interval '14 days',
+      budget_amount = 2500.00, event_lead_id = v_admin_id
+  where id = v_event_upcoming;
+
+  insert into public.event_logistics (event_id, meeting_point, gear_requirements, transportation, food, supplies, created_by)
+  values (v_event_upcoming, 'Community Center front entrance', 'Bring clean winter gear to exchange.', 'RTD bus route 15', 'Coffee and snacks', 'Racks, hangers, intake forms', v_admin_id);
+
+  insert into public.event_volunteers (event_id, person_id, role, notes, created_by)
+  values (v_event_upcoming, v_person_volunteer, 'Intake lead', 'Welcomes donors and checks item condition.', v_admin_id);
+
+  insert into public.event_shifts (event_id, label, starts_at, ends_at, target_headcount, notes, created_by)
+  values (v_event_upcoming, 'Morning setup', now() + interval '20 days' + interval '8 hours', now() + interval '20 days' + interval '10 hours', 3, 'Set up racks and intake tables.', v_admin_id)
+  returning id into v_shift_id;
+
+  update public.event_volunteers set shift_id = v_shift_id
+  where event_id = v_event_upcoming and person_id = v_person_volunteer;
+
+  insert into public.event_volunteer_hours (event_id, person_id, hours, logged_date, notes, logged_by)
+  values (v_event_past, v_person_volunteer, 4.50, current_date - 40, 'Cleanup and distribution support.', v_admin_id);
+
+  insert into public.volunteer_role_types (name, description, created_by)
+  values ('Ride Buddy', 'Supports participants during beginner outdoor activities.', v_admin_id)
+  returning id into v_role_type_id;
+
+  insert into public.volunteer_hours (person_id, event_id, volunteer_role_type_id, hours, logged_date, notes, logged_by)
+  values (v_person_volunteer, v_event_past, v_role_type_id, 3.00, current_date - 40, 'Paired with first-time participants.', v_admin_id);
+
+  insert into public.event_registrations (event_id, name, email, phone, party_size, notes, person_id, checked_in_at)
+  values (v_event_upcoming, 'Jamie Rivera', 'jamie.rivera@example.test', '555-0101', 2, 'Needs one adult medium jacket.', v_person_donor1, null)
+  returning id into v_registration_id;
+
+  insert into public.discount_codes (event_id, code, description, source, registration_id, assigned_at, created_by)
+  values (v_event_upcoming, 'SUMMIT-20', 'Twenty percent off partner gear', 'Summit Outdoor Co.', v_registration_id, now(), v_admin_id);
+
+  insert into public.event_impact_notes (
+    event_id, total_participants, first_time_participants, beginner_participants,
+    volunteer_participants, equipment_loans_count, beginner_pairings_count,
+    survey_respondents_count, survey_felt_welcomed_yes_count,
+    survey_would_attend_again_yes_count, notes, created_by
+  )
+  values (v_event_past, 68, 24, 18, 11, 16, 9, 31, 30, 29, 'Participants especially valued loaner gear and peer support.', v_admin_id);
+
+  -- Content and community calendar, including a pinned brief template version.
+  insert into public.calendar_items (
+    title, item_type, starts_at, ends_at, time_zone, summary, priority_tier,
+    priority_rationale, calendar_status, visibility, owner_id, public_url, created_by
+  )
+  values (
+    'Winter Gear Swap Promotion', 'content_opportunity', now() + interval '12 days', now() + interval '12 days' + interval '1 hour',
+    'America/Denver', 'Promote the upcoming gear swap and registration link.', 1, 'Directly supports participant access and event turnout.',
+    'active', 'public', v_admin_id, 'https://example.test/events/winter-gear-swap', v_admin_id
+  )
+  returning id into v_calendar_item_id;
+
+  insert into public.calendar_item_categories (item_id, category)
+  values (v_calendar_item_id, 'chatter_events'), (v_calendar_item_id, 'campaigns_fundraising');
+
+  insert into public.calendar_item_programs (item_id, program_id)
+  values (v_calendar_item_id, v_program_id);
+
+  select id into v_template_id from public.content_brief_templates where key = 'community_spotlight';
+  select current_version_id into v_template_version_id from public.content_brief_templates where id = v_template_id;
+
+  insert into public.content_opportunities (
+    calendar_item_id, content_status, chatter_connection, recommended_formats,
+    recommended_action, outstanding_work, owner_id, reviewer_id, lead_time_days,
+    publish_due_at, template_id, template_version_id, template_field_values, created_by
+  )
+  values (
+    v_calendar_item_id, 'draft', 'Show how shared gear helps neighbors participate outdoors.',
+    'Instagram post; email; event page', 'Publish a participant-centered event announcement.',
+    'Confirm final registration link and accessibility details.', v_admin_id, v_admin_id, 14,
+    now() + interval '7 days', v_template_id, v_template_version_id,
+    '{"subject_name":"Chatter Snow community","setting":"Local winter trail","publish_permission":"Internal demo content only"}'::jsonb,
+    v_admin_id
+  );
+
+  -- Governance records and nonprofit tracking are separate from event data.
+  insert into public.board_members (person_id, role_title, term_start, term_end, notes, created_by)
+  values (v_person_sponsor, 'Community advisor', current_date - 120, current_date + 245, 'Seeded governance example.', v_admin_id);
+
+  insert into public.governance_meetings (meeting_date, meeting_type, status, location, notes, created_by)
+  values (now() - interval '14 days', 'board', 'completed', 'Video conference', 'Reviewed winter access program launch.', v_admin_id)
+  returning id into v_meeting_id;
+
+  insert into public.governance_meeting_attendees (meeting_id, person_id, attended, created_by)
+  values (v_meeting_id, v_person_sponsor, true, v_admin_id);
+  insert into public.agendas (meeting_id, body_text, created_by)
+  values (v_meeting_id, '1. Program launch\n2. Nonprofit formation timeline', v_admin_id);
+  insert into public.minutes (meeting_id, body_text, created_by)
+  values (v_meeting_id, 'Approved the winter access program launch plan.', v_admin_id);
+  insert into public.governance_meeting_action_items (meeting_id, description, owner_person_id, due_date, created_by)
+  values (v_meeting_id, 'Confirm partner gear donation schedule.', v_person_sponsor, current_date + 14, v_admin_id);
+  insert into public.governance_meeting_decisions (meeting_id, description, decision_date, created_by)
+  values (v_meeting_id, 'Proceed with the winter gear swap pilot.', current_date - 14, v_admin_id);
+  insert into public.resolutions (meeting_id, motion_text, mover_person_id, seconder_person_id, vote_outcome, effective_date, created_by)
+  values (v_meeting_id, 'Adopt the winter access program as a core initiative.', v_person_sponsor, v_person_volunteer, 'passed', current_date - 14, v_admin_id);
+
+  -- Administration edge cases: a staged invite and a deliberately deactivated user.
+  insert into public.pending_role_grants (email, role_id, status, expires_at, name, created_by, invited_at, invited_by)
+  select 'newvolunteer@example.test', r.id, 'pending', now() + interval '30 days', 'Quinn Harper', v_admin_id, now() - interval '1 day', v_admin_id
+  from public.roles r where r.name = 'volunteer';
+
 end $$;
