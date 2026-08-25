@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Camera, HandHeart, Mountain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { VolunteerApplicationForm } from "./volunteer-application-form-fields";
 
 export const metadata: Metadata = {
   title: "Get Involved | Chatter Snow",
@@ -91,6 +92,19 @@ export default function GetInvolvedPage() {
                 </CardContent>
               </Card>
             ))}
+          </div>
+
+          <div className="mt-10 max-w-xl">
+            <h3 className="brand-display text-xl font-semibold tracking-[-0.02em]">
+              Apply to volunteer
+            </h3>
+            <p className="app-muted mt-2 text-sm leading-relaxed">
+              Tell us a bit about yourself and we&apos;ll follow up about
+              getting you plugged in.
+            </p>
+            <div className="mt-6">
+              <VolunteerApplicationForm />
+            </div>
           </div>
         </section>
 
