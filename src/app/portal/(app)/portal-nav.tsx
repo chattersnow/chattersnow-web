@@ -46,7 +46,7 @@ type NavItem = {
   href: string;
   icon: typeof LayoutDashboard;
   basePath?: string;
-  /** Omit for items always visible regardless of permissions (e.g. Overview). */
+  /** Omit for items always visible regardless of permissions (e.g. Dashboard). */
   access?: readonly PermissionCheck[];
   subItems?: readonly NavSubItem[];
 };
@@ -54,7 +54,7 @@ type NavItem = {
 const NAV_ITEMS: readonly NavItem[] = [
   {
     value: "overview",
-    label: "Overview",
+    label: "Dashboard",
     href: "/portal/home",
     icon: LayoutDashboard,
   },
