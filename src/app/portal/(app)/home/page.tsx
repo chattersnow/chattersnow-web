@@ -50,6 +50,7 @@ export default async function PortalHomePage() {
   // events), so each live-data widget checks its own resource or it would
   // render a misleading zero instead of just not appearing.
   const canSeeExpenses = hasPermission(permissions, "event_expenses", "view");
+  const canSeeRevenue = hasPermission(permissions, "event_revenue", "view");
   const canSeeEventBudgets = canSeeUpcoming;
   const canSeeRecentDonations = hasPermission(permissions, "finance", "view");
   const canSeeInventory = hasAnyPermission(permissions, [
@@ -240,6 +241,13 @@ export default async function PortalHomePage() {
                 label="Expenses"
                 value={currencyFormatter.format(financial.expensesThisMonth)}
                 caption={`This month · ${currencyFormatter.format(financial.expensesThisYear)} this year`}
+              />
+            )}
+            {canSeeRevenue && (
+              <StatTile
+                label="Revenue"
+                value={currencyFormatter.format(financial.revenueThisMonth)}
+                caption={`This month · ${currencyFormatter.format(financial.revenueThisYear)} this year`}
               />
             )}
             <ComingSoonTile

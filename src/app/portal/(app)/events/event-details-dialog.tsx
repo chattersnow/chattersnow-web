@@ -17,6 +17,7 @@ import { DonationsTab } from "./donations-tab";
 import { DistributionsTab } from "./distributions-tab";
 import { IncidentsTab } from "./incidents-tab";
 import { EventExpensesTab } from "./event-expenses-tab";
+import { EventRevenueTab } from "./event-revenue-tab";
 import { GiveawayTab } from "./giveaway-tab";
 import { ReportTab, type ReportTabHandle } from "./report-tab";
 import { ImpactTab, type ImpactTabHandle } from "./impact-tab";
@@ -59,6 +60,7 @@ type TabValue =
   | "incidents"
   | "giveaway"
   | "expenses"
+  | "revenue"
   | "report"
   | "impact"
   | "donations";
@@ -115,6 +117,7 @@ const PHASES: {
     label: "After",
     tabs: [
       { value: "expenses", label: "Expenses" },
+      { value: "revenue", label: "Revenue" },
       { value: "report", label: "Report" },
       { value: "impact", label: "Impact" },
       { value: "donations", label: "Donations" },
@@ -464,6 +467,14 @@ export function EventDetailsDialog({
                   eventId={event.id}
                   eventName={event.name}
                   active={tab === "expenses"}
+                  mode={mode}
+                />
+              </TabsContent>
+              <TabsContent value="revenue" className="mt-4">
+                <EventRevenueTab
+                  eventId={event.id}
+                  eventName={event.name}
+                  active={tab === "revenue"}
                   mode={mode}
                 />
               </TabsContent>
