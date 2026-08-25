@@ -6,7 +6,50 @@ import { Select as SelectPrimitive } from "@base-ui/react/select";
 import { cn } from "@/lib/utils";
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react";
 
-const Select = SelectPrimitive.Root;
+// Base UI's <Select.Value> only renders an item's label instead of its raw
+// value when <Select.Root items={...}> is given an explicit value->label
+// map (see the `items` prop docs). Every SelectItem in this codebase is
+// declared statically as JSX children, so rather than asking every call
+// site to also hand-maintain a matching `items` list, derive it once here
+// by walking the static children tree for SelectItem elements.
+function collectSelectItems(
+  children: React.ReactNode,
+): { label: React.ReactNode; value: unknown }[] {
+  const items: { label: React.ReactNode; value: unknown }[] = [];
+  React.Children.forEach(children, (child) => {
+    if (!React.isValidElement(child)) return;
+    const childProps = child.props as {
+      value?: unknown;
+      children?: React.ReactNode;
+    };
+    if (child.type === SelectItem) {
+      items.push({ label: childProps.children, value: childProps.value });
+      return;
+    }
+    if (childProps.children) {
+      items.push(...collectSelectItems(childProps.children));
+    }
+  });
+  return items;
+}
+
+function Select<Value = unknown, Multiple extends boolean | undefined = false>({
+  children,
+  items,
+  ...props
+}: SelectPrimitive.Root.Props<Value, Multiple>) {
+  const derivedItems = React.useMemo(
+    () => collectSelectItems(children),
+    [children],
+  );
+  const resolvedItems =
+    items ?? (derivedItems.length > 0 ? derivedItems : undefined);
+  return (
+    <SelectPrimitive.Root items={resolvedItems} {...props}>
+      {children}
+    </SelectPrimitive.Root>
+  );
+}
 
 function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
   return (
