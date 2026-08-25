@@ -69,6 +69,8 @@ export type FinancialSummary = {
   expensesThisMonth: number;
   expensesThisYear: number;
   eventBudgetTotal: number;
+  revenueThisMonth: number;
+  revenueThisYear: number;
 };
 
 export async function getFinancialSummary(
@@ -81,6 +83,8 @@ export async function getFinancialSummary(
     { data: expensesThisYear },
     { data: expensesThisMonth },
     { data: eventBudgets },
+    { data: revenueThisYear },
+    { data: revenueThisMonth },
   ] = await Promise.all([
     supabase
       .from("event_expenses")
@@ -95,6 +99,14 @@ export async function getFinancialSummary(
       .select("budget_amount")
       .eq("status", "published")
       .gte("starts_at", nowIso),
+    supabase
+      .from("event_revenue")
+      .select("amount")
+      .gte("received_date", startOfYearDate),
+    supabase
+      .from("event_revenue")
+      .select("amount")
+      .gte("received_date", startOfMonthDate),
   ]);
 
   const sumAmounts = (rows: { amount: number }[] | null) =>
@@ -108,6 +120,8 @@ export async function getFinancialSummary(
     expensesThisMonth: sumAmounts(expensesThisMonth),
     expensesThisYear: sumAmounts(expensesThisYear),
     eventBudgetTotal,
+    revenueThisMonth: sumAmounts(revenueThisMonth),
+    revenueThisYear: sumAmounts(revenueThisYear),
   };
 }
 

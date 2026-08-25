@@ -176,6 +176,12 @@ const NAV_ITEMS: readonly NavItem[] = [
         ],
       },
       {
+        value: "revenue",
+        label: "Revenue",
+        href: "/portal/finance/revenue",
+        access: [{ resource: "finance", level: "manage" }],
+      },
+      {
         value: "donations",
         label: "Donations",
         href: "/portal/finance/donations",
