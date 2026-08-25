@@ -3,7 +3,11 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserPermissions } from "@/lib/auth/permissions";
+import {
+  getCurrentUserPermissions,
+  hasPermission,
+} from "@/lib/auth/permissions";
+import { getPendingApprovalsSummary } from "@/lib/portal/attention-items";
 import {
   Sidebar,
   SidebarContent,
@@ -15,6 +19,7 @@ import {
 } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { LogoutButton } from "./logout-button";
+import { NotificationsMenu } from "./notifications-menu";
 import { PortalNav } from "./portal-nav";
 import { SidebarQuickActions } from "./sidebar-quick-actions";
 
@@ -36,6 +41,21 @@ export default async function PortalAppLayout({
   if (!Object.values(permissions).some((level) => level !== "none")) {
     redirect("/portal/login?error=no_access");
   }
+
+  const canSeeExpenseApprovals = hasPermission(
+    permissions,
+    "finance_approvals",
+    "manage",
+  );
+  const pendingApprovals = canSeeExpenseApprovals
+    ? await getPendingApprovalsSummary(supabase, { canSeeExpenseApprovals })
+    : { items: [] };
+
+  const displayName =
+    (user.user_metadata?.full_name as string | undefined) ??
+    (user.user_metadata?.name as string | undefined) ??
+    user.email ??
+    null;
 
   const cookieStore = await cookies();
   const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false";
@@ -73,10 +93,7 @@ export default async function PortalAppLayout({
         <SidebarInset>
           <header className="flex items-center gap-3 border-b border-[var(--line)] px-6 py-4 sm:px-10">
             <SidebarTrigger />
-            <Link
-              href="/portal/home"
-              className="flex items-center gap-2 md:hidden"
-            >
+            <Link href="/portal/home" className="flex items-center gap-2">
               <Image
                 src="/chatter-logo-transparent.png"
                 alt="Chatter Snow"
@@ -84,10 +101,18 @@ export default async function PortalAppLayout({
                 height={28}
                 className="size-7"
               />
-              <span className="app-muted text-xs font-semibold uppercase tracking-[0.16em]">
+              <span className="app-muted hidden text-xs font-semibold uppercase tracking-[0.16em] sm:inline">
                 Operations portal
               </span>
             </Link>
+            <div className="ml-auto flex items-center gap-3">
+              {displayName && (
+                <span className="app-muted hidden max-w-40 truncate text-sm sm:inline">
+                  Hi, {displayName}
+                </span>
+              )}
+              <NotificationsMenu items={pendingApprovals.items} />
+            </div>
           </header>
           <main className="app-shell flex-1 px-6 py-8 sm:px-10">
             <div className="mx-auto max-w-6xl">{children}</div>
