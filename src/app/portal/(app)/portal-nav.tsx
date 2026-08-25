@@ -246,6 +246,12 @@ const NAV_ITEMS: readonly NavItem[] = [
         access: [{ resource: "governance", level: "manage" }],
       },
       {
+        value: "nonprofit-status",
+        label: "Nonprofit Status",
+        href: "/portal/governance/nonprofit-status",
+        access: [{ resource: "governance", level: "manage" }],
+      },
+      {
         value: "resolutions",
         label: "Resolutions",
         href: "/portal/governance/resolutions",
