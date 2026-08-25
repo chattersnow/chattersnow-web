@@ -77,6 +77,7 @@ export function PendingAccessSection({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [role, setRole] = useState("");
   const [revokeTarget, setRevokeTarget] = useState<PendingGrant | null>(null);
   const [inviteResult, setInviteResult] = useState<{
@@ -89,12 +90,13 @@ export function PendingAccessSection({
     event.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result = await createPendingGrantAction(email, role);
+      const result = await createPendingGrantAction(email, role, name);
       if ("error" in result) {
         setError(result.error);
         return;
       }
       setEmail("");
+      setName("");
       setRole("");
       router.refresh();
     });
@@ -161,6 +163,14 @@ export function PendingAccessSection({
                 required
               />
             </div>
+            <div className="flex-1 min-w-40">
+              <Input
+                type="text"
+                placeholder="Name (optional)"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+              />
+            </div>
             <Select
               value={role}
               onValueChange={(value) => setRole(value ?? "")}
@@ -201,7 +211,9 @@ export function PendingAccessSection({
               <TableBody>
                 {grants.map((grant) => (
                   <TableRow key={grant.id}>
-                    <TableCell className="font-medium">{grant.email}</TableCell>
+                    <TableCell className="font-medium">
+                      {grant.name ?? grant.email}
+                    </TableCell>
                     <TableCell>{formatRoleLabel(grant.roles.name)}</TableCell>
                     <TableCell>{statusBadge(grant)}</TableCell>
                     <TableCell>
@@ -246,9 +258,9 @@ export function PendingAccessSection({
             <AlertDialogDescription>
               {revokeTarget && (
                 <>
-                  {revokeTarget.email} will no longer receive the{" "}
-                  {formatRoleLabel(revokeTarget.roles.name)} role when they sign
-                  in.
+                  {revokeTarget.name ?? revokeTarget.email} will no longer
+                  receive the {formatRoleLabel(revokeTarget.roles.name)} role
+                  when they sign in.
                 </>
               )}
             </AlertDialogDescription>
@@ -278,7 +290,8 @@ export function PendingAccessSection({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              Invite link for {inviteResult?.grant.email}
+              Invite link for{" "}
+              {inviteResult?.grant.name ?? inviteResult?.grant.email}
             </DialogTitle>
             <DialogDescription>
               No email is sent automatically — copy this link and share it with

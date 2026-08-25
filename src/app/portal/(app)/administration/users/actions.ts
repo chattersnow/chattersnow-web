@@ -10,8 +10,10 @@ import { friendlyError } from "@/lib/db-errors";
 export type PortalUser = {
   user_id: string;
   email: string | null;
+  full_name: string | null;
   roles: string[];
   created_at: string;
+  deactivated_at: string | null;
 };
 
 export type PortalRoleOption = {
@@ -99,6 +101,7 @@ export async function assignRoleAction(
 export type PendingGrant = {
   id: string;
   email: string;
+  name: string | null;
   status: "pending" | "claimed" | "revoked";
   expires_at: string | null;
   created_at: string;
@@ -120,7 +123,7 @@ export async function listPendingGrantsAction(): Promise<
   const { data, error } = await supabase
     .from("pending_role_grants")
     .select(
-      "id, email, status, expires_at, created_at, invited_at, roles(name)",
+      "id, email, name, status, expires_at, created_at, invited_at, roles(name)",
     )
     .order("created_at", { ascending: false });
 
@@ -133,11 +136,13 @@ export async function listPendingGrantsAction(): Promise<
 export async function createPendingGrantAction(
   email: string,
   role: string,
+  name: string,
 ): Promise<{ error: string } | { success: true }> {
   const trimmedEmail = email.trim().toLowerCase();
   if (!trimmedEmail || !trimmedEmail.includes("@")) {
     return { error: "Enter a valid email address." };
   }
+  const trimmedName = name.trim();
 
   const supabase = await createSupabaseServerClient();
   const userResult = await checkUser(supabase);
@@ -159,9 +164,12 @@ export async function createPendingGrantAction(
     return { error: "Unknown role." };
   }
 
-  const { error } = await supabase
-    .from("pending_role_grants")
-    .insert({ email: trimmedEmail, role_id: roleRow.id, created_by: user.id });
+  const { error } = await supabase.from("pending_role_grants").insert({
+    email: trimmedEmail,
+    role_id: roleRow.id,
+    name: trimmedName || null,
+    created_by: user.id,
+  });
   if (error) {
     return {
       error: friendlyError(
@@ -304,6 +312,68 @@ export async function revokeRoleAction(
     .eq("role_id", roleRow.id);
   if (error) {
     return { error: "Could not remove role. Please try again." };
+  }
+
+  revalidatePath("/portal/administration/users");
+  return { success: true };
+}
+
+export async function deactivateUserAction(
+  userId: string,
+): Promise<{ error: string } | { success: true }> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(supabase);
+  if ("error" in userResult) return userResult;
+  const { user } = userResult;
+  const permissionError = await checkPermission(
+    supabase,
+    "administration",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  if (userId === user.id) {
+    return { error: "You can't deactivate your own account." };
+  }
+
+  const { error } = await supabase
+    .from("deactivated_users")
+    .insert({ user_id: userId, deactivated_by: user.id });
+  if (error) {
+    return {
+      error: friendlyError(
+        error,
+        "This user is already deactivated.",
+        "Could not deactivate this user. Please try again.",
+      ),
+    };
+  }
+
+  revalidatePath("/portal/administration/users");
+  return { success: true };
+}
+
+export async function reactivateUserAction(
+  userId: string,
+): Promise<{ error: string } | { success: true }> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(
+    supabase,
+    "administration",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  const { data, error } = await supabase
+    .from("deactivated_users")
+    .delete()
+    .eq("user_id", userId)
+    .select("user_id");
+  if (error) {
+    return { error: "Could not reactivate this user. Please try again." };
+  }
+  if (!data || data.length === 0) {
+    return { error: "This user is not deactivated." };
   }
 
   revalidatePath("/portal/administration/users");

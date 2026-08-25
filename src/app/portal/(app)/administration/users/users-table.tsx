@@ -4,6 +4,16 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,10 +35,19 @@ import {
 import { formatRoleLabel } from "@/lib/format";
 import {
   assignRoleAction,
+  deactivateUserAction,
+  reactivateUserAction,
   revokeRoleAction,
   type PortalUser,
   type PortalRoleOption,
 } from "./actions";
+
+function statusBadge(portalUser: PortalUser) {
+  if (portalUser.deactivated_at) {
+    return <Badge variant="destructive">Deactivated</Badge>;
+  }
+  return <Badge variant="secondary">Active</Badge>;
+}
 
 export function UsersTable({
   users,
@@ -44,6 +63,9 @@ export function UsersTable({
   const [isPending, startTransition] = useTransition();
   const [addingFor, setAddingFor] = useState<string | null>(null);
   const [pendingRole, setPendingRole] = useState<string>("");
+  const [deactivateTarget, setDeactivateTarget] = useState<PortalUser | null>(
+    null,
+  );
 
   function runAction(promise: Promise<{ error: string } | { success: true }>) {
     setError(null);
@@ -55,6 +77,21 @@ export function UsersTable({
       }
       setAddingFor(null);
       setPendingRole("");
+      router.refresh();
+    });
+  }
+
+  function handleDeactivate() {
+    if (!deactivateTarget) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await deactivateUserAction(deactivateTarget.user_id);
+      if ("error" in result) {
+        setDeactivateTarget(null);
+        setError(result.error);
+        return;
+      }
+      setDeactivateTarget(null);
       router.refresh();
     });
   }
@@ -82,10 +119,14 @@ export function UsersTable({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Email</TableHead>
+                <TableHead>Name</TableHead>
                 <TableHead>Roles</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead className="w-0">
                   <span className="sr-only">Add role</span>
+                </TableHead>
+                <TableHead className="w-0">
+                  <span className="sr-only">Deactivate</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -95,14 +136,21 @@ export function UsersTable({
                   (role) => !portalUser.roles.includes(role.name),
                 );
                 const isSelf = portalUser.user_id === currentUserId;
+                const isDeactivated = portalUser.deactivated_at !== null;
 
                 return (
                   <TableRow key={portalUser.user_id}>
                     <TableCell className="font-medium">
-                      {portalUser.email ?? "—"}
+                      {portalUser.full_name ?? portalUser.email ?? "—"}
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-wrap gap-1.5">
+                      <div
+                        className={
+                          isDeactivated
+                            ? "flex flex-wrap gap-1.5 opacity-60"
+                            : "flex flex-wrap gap-1.5"
+                        }
+                      >
                         {portalUser.roles.length === 0 ? (
                           <span className="app-muted text-sm">No access</span>
                         ) : (
@@ -144,6 +192,7 @@ export function UsersTable({
                         )}
                       </div>
                     </TableCell>
+                    <TableCell>{statusBadge(portalUser)}</TableCell>
                     <TableCell>
                       {addingFor === portalUser.user_id ? (
                         <div className="flex items-center gap-2">
@@ -207,6 +256,36 @@ export function UsersTable({
                         </Button>
                       )}
                     </TableCell>
+                    <TableCell>
+                      {isDeactivated ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={isPending}
+                          onClick={() =>
+                            runAction(reactivateUserAction(portalUser.user_id))
+                          }
+                        >
+                          Reactivate
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={isPending || isSelf}
+                          title={
+                            isSelf
+                              ? "You can't deactivate your own account."
+                              : undefined
+                          }
+                          onClick={() => setDeactivateTarget(portalUser)}
+                        >
+                          Deactivate
+                        </Button>
+                      )}
+                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -214,6 +293,36 @@ export function UsersTable({
           </Table>
         </CardContent>
       </Card>
+
+      <AlertDialog
+        open={deactivateTarget !== null}
+        onOpenChange={(next) => !next && setDeactivateTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deactivate user?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deactivateTarget && (
+                <>
+                  {deactivateTarget.full_name ?? deactivateTarget.email} will
+                  lose all portal access until reactivated. Their roles stay
+                  assigned and will apply again immediately on reactivation.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={handleDeactivate}
+              disabled={isPending}
+            >
+              {isPending ? "Deactivating..." : "Deactivate"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
