@@ -178,7 +178,7 @@ export function SiteNav() {
           <MenuIcon />
           <span className="sr-only">Open menu</span>
         </SheetTrigger>
-        <SheetContent side="right">
+        <SheetContent side="right" size="sm">
           <SheetHeader>
             <SheetTitle>Menu</SheetTitle>
           </SheetHeader>
