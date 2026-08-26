@@ -1,7 +1,9 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
+import { submitContactMessageAction } from "./contact-actions";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -13,9 +15,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { labelFor } from "@/lib/inventory";
-
-const CONTACT_EMAIL = "info@chattersnow.org";
 
 const CONTACT_TOPICS = [
   { value: "general", label: "General inquiry" },
@@ -34,20 +33,43 @@ export function ContactForm() {
     : CONTACT_TOPICS[0].value;
 
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [topic, setTopic] = useState(initialTopic);
   const [message, setMessage] = useState("");
+  const [company, setCompany] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setError(null);
 
-    const topicLabel = labelFor(CONTACT_TOPICS, topic) ?? "General inquiry";
-    const subject = `Message from ${name || "the Chatter Snow website"} — ${topicLabel}`;
-    const body = `${message}\n\n— ${name}`;
-    const mailto = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(
-      subject,
-    )}&body=${encodeURIComponent(body)}`;
+    const formData = new FormData();
+    formData.set("name", name);
+    formData.set("email", email);
+    formData.set("topic", topic);
+    formData.set("message", message);
+    formData.set("company", company);
 
-    window.location.href = mailto;
+    startTransition(async () => {
+      const result = await submitContactMessageAction(formData);
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+      setSuccess(true);
+    });
+  }
+
+  if (success) {
+    return (
+      <Alert>
+        <AlertDescription>
+          Thanks for reaching out! We&apos;ll get back to you soon.
+        </AlertDescription>
+      </Alert>
+    );
   }
 
   return (
@@ -61,6 +83,17 @@ export function ContactForm() {
             autoComplete="name"
             value={name}
             onChange={(event) => setName(event.target.value)}
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="contact-email">Email</FieldLabel>
+          <Input
+            id="contact-email"
+            type="email"
+            required
+            autoComplete="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
           />
         </Field>
         <Field>
@@ -94,8 +127,29 @@ export function ContactForm() {
           />
         </Field>
 
-        <Button type="submit" className="w-full sm:w-fit">
-          Send message
+        {/* Honeypot: hidden from sighted/keyboard users, but bots that
+            autofill every field will fill this and get silently rejected
+            server-side. Not type="hidden" -- bots skip those. */}
+        <div className="sr-only" aria-hidden="true">
+          <label htmlFor="contact-company">Company</label>
+          <input
+            id="contact-company"
+            name="company"
+            tabIndex={-1}
+            autoComplete="off"
+            value={company}
+            onChange={(event) => setCompany(event.target.value)}
+          />
+        </div>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        <Button type="submit" disabled={isPending} className="w-full sm:w-fit">
+          {isPending ? "Sending..." : "Send message"}
         </Button>
       </FieldGroup>
     </form>

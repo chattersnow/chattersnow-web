@@ -85,11 +85,11 @@ Public routes may expose approved content and explicitly public records. The pub
 - **About Us** (`/about`): the organization's mission and programs, plus a **Meet the Team** sub-page (`/about/team`) with staff/leadership profiles.
 - **Events** (`/events`): upcoming and past events with detail pages. Initial release renders events as a list; a calendar view is a possible future enhancement pending further research.
 - **Gears** (`/gears`): the curated, read-only gear availability catalog (`status = available`), limited to description, size, type, gender, condition, and photo.
-- **Contact Us** (`/contact`): a contact form that sends an email to the organization, plus the organization's published email address and social media links.
+- **Contact Us** (`/contact`): a rate-limited contact form that persists inquiries for staff follow-up, plus the organization's published email address and social media links.
 
 Public routes must not expose donor contact details, private event data, internal notes, financial records, the internal inventory record (donation linkage, face value, notes, status, or movement history), individual recipient information, or inventory history. The gear availability catalog above is the sole approved exception, and only through its curated field list.
 
-**Implemented:** Gears (`/gears`) and Contact Us (`/contact`, form + published email/social) are fully built. Events (`/events`) lists upcoming/past events from Supabase but has no detail page or registration yet. About Us (`/about`) has real mission/story copy and has grown beyond the original team-only sub-page into four sub-pages: `/about/team` (roster, bios still "coming soon"), `/about/programs` (Access/Progression/Community pillars, six named programs), `/about/volunteer` (three volunteer opportunities), and `/about/donations` (in-kind donation info; monetary donations is a placeholder). Home (`/home`) is built: mission summary, Join/Get Involved/Donate CTAs, and an upcoming-event highlight.
+**Implemented:** Gears (`/gears`) and Contact Us (`/contact`, server-mediated and rate-limited form + published email/social) are fully built. Events (`/events`) lists upcoming/past events from Supabase but has no detail page or registration yet. About Us (`/about`) has real mission/story copy and has grown beyond the original team-only sub-page into four sub-pages: `/about/team` (roster, bios still "coming soon"), `/about/programs` (Access/Progression/Community pillars, six named programs), `/about/volunteer` (three volunteer opportunities), and `/about/donations` (in-kind donation info; monetary donations is a placeholder). Home (`/home`) is built: mission summary, Join/Get Involved/Donate CTAs, and an upcoming-event highlight.
 
 **What's next:** Replace the monetary-donations placeholder with a real giving path. Write real team bios and an explicit values section. Consider promoting Programs and a consolidated Get Involved page to top-level nav instead of About Us sub-pages, since their content now stands on its own — this would also mean updating this section's five-item IA list, which does not currently name them. A sixth public surface, the Community Calendar, is specified in §5.20 but not yet built or added to this IA list.
 
@@ -113,13 +113,13 @@ The site shall allow visitors to:
 - View a home page introducing Chatter Snow and linking into About Us, Events, Gears, and Contact Us.
 - Learn about Chatter Snow, its mission, and its programs on the About Us page.
 - Meet the team or leadership on an About Us sub-page.
-- Submit a contact inquiry through a form that delivers an email to the organization.
+- Submit a contact inquiry through a form that is persisted for staff follow-up.
 - Find the organization's published contact email address and social media links.
 - Learn how to support the organization.
 
 Content management is not required to be self-service in the first release. The initial implementation may use repository-managed content, while the data model should leave room for a future CMS or admin-managed content. The contact form is a public write path: it must be rate-limited, validated server-side, and must not create or expose any authenticated-only record.
 
-**Implemented:** Home page content (mission summary, upcoming event highlight, Join/Get Involved/Donate CTAs — see §4), About Us (mission/story), team roster (bios pending), programs (`/about/programs`), volunteer opportunities (`/about/volunteer`), in-kind donation info (`/about/donations`), and a working contact form (`/contact`) with published email addresses and an Instagram link.
+**Implemented:** Home page content (mission summary, upcoming event highlight, Join/Get Involved/Donate CTAs — see §4), About Us (mission/story), team roster (bios pending), programs (`/about/programs`), volunteer opportunities (`/about/volunteer`), in-kind donation info (`/about/donations`), and a server-mediated, rate-limited contact form (`/contact`) with published email addresses and an Instagram link.
 
 **What's next:** real leadership bios and an explicit values section on About Us; a real monetary-donation path (currently a "coming soon" stub).
 
@@ -644,7 +644,7 @@ Supabase database changes should be implemented as ordered migrations under `sup
 
 1. Visitor submits the contact form on the Contact Us page.
 2. Server validates input and applies rate limiting/bot protection.
-3. Server sends the inquiry to the organization's email via a transactional email provider; no record is persisted in the database for the initial release.
+3. Server stores the inquiry in `contact_messages` for staff follow-up; no email is sent in the initial release.
 4. Visitor sees a confirmation state; failures are surfaced without exposing delivery internals.
 
 ### Record event expense
