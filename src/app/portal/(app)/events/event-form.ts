@@ -21,6 +21,7 @@ export type EventFormData = {
   visibility: (typeof VISIBILITIES)[number];
   status: (typeof STATUSES)[number];
   programId: string | null;
+  flierUrl: string | null;
 };
 
 export function parseEventForm(formData: FormData): ParseResult<EventFormData> {
@@ -35,6 +36,7 @@ export function parseEventForm(formData: FormData): ParseResult<EventFormData> {
   const visibility = String(formData.get("visibility") ?? "");
   const status = String(formData.get("status") ?? "");
   const programId = String(formData.get("programId") ?? "").trim();
+  const flierUrl = String(formData.get("flierUrl") ?? "").trim();
 
   if (!name) return { error: "Event name is required." };
   if (!startsAt) return { error: "Start date and time are required." };
@@ -65,6 +67,7 @@ export function parseEventForm(formData: FormData): ParseResult<EventFormData> {
       visibility: visibility as (typeof VISIBILITIES)[number],
       status: status as (typeof STATUSES)[number],
       programId: programId || null,
+      flierUrl: flierUrl || null,
     },
   };
 }

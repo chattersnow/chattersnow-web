@@ -15,7 +15,7 @@ export default async function EventsPage() {
     supabase
       .from("public_events")
       .select(
-        "id, name, location, starts_at, ends_at, timezone, description, event_type, venue, capacity, registration_enabled, registration_deadline",
+        "id, name, location, starts_at, ends_at, timezone, description, event_type, venue, capacity, registration_enabled, registration_deadline, flier_url",
       )
       .order("starts_at", { ascending: true }),
     supabase

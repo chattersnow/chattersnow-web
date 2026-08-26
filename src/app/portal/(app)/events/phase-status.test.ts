@@ -34,6 +34,7 @@ const baseEvent: EventRow = {
   report_submitted_at: null,
   report_submitted_by: null,
   program_id: null,
+  flier_url: null,
 };
 
 describe("planningStatus", () => {

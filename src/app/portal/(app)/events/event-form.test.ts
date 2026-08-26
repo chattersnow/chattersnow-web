@@ -91,6 +91,23 @@ describe("parseEventForm", () => {
     );
   });
 
+  test("flier URL is optional", () => {
+    const result = parseEventForm(formData(validFields));
+    expect("data" in result && result.data.flierUrl).toBeNull();
+  });
+
+  test("carries a flier URL", () => {
+    const result = parseEventForm(
+      formData({
+        ...validFields,
+        flierUrl: "https://drive.google.com/file/d/abc123/view",
+      }),
+    );
+    expect("data" in result && result.data.flierUrl).toBe(
+      "https://drive.google.com/file/d/abc123/view",
+    );
+  });
+
   test("rejects an end time before the start time", () => {
     const result = parseEventForm(
       formData({ ...validFields, endsAt: "2026-12-01T09:00" }),

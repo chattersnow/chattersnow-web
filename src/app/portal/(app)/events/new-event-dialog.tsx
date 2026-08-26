@@ -49,6 +49,7 @@ function getInitialFormState() {
     visibility: "private",
     status: "draft",
     programId: "",
+    flierUrl: "",
   };
 }
 
@@ -90,6 +91,7 @@ export function NewEventDialog({ programs = [] }: { programs?: Program[] }) {
     formData.set("visibility", form.visibility);
     formData.set("status", form.status);
     formData.set("programId", form.programId);
+    formData.set("flierUrl", form.flierUrl);
 
     startTransition(async () => {
       const result = await createEventAction(formData);
@@ -194,6 +196,17 @@ export function NewEventDialog({ programs = [] }: { programs?: Program[] }) {
                 id="location"
                 value={form.location}
                 onChange={(event) => update("location", event.target.value)}
+              />
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="flierUrl">Flier image URL</FieldLabel>
+              <Input
+                id="flierUrl"
+                type="url"
+                placeholder="https://drive.google.com/file/d/..."
+                value={form.flierUrl}
+                onChange={(event) => update("flierUrl", event.target.value)}
               />
             </Field>
 

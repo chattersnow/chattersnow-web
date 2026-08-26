@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import {
   Sheet,
   SheetContent,
@@ -12,6 +13,7 @@ import { checkRegistrationWindow } from "./event-registration-form";
 import type { PublicEvent } from "./event-card";
 import { EventSponsors } from "./event-sponsors";
 import { formatDateTimeInZone } from "@/lib/time";
+import { resolveImageUrl } from "@/lib/inventory";
 
 const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
   dateStyle: "full",
@@ -28,6 +30,7 @@ export function EventDetailSheet({
   onOpenChange: (open: boolean) => void;
 }) {
   const registrationWindow = event ? checkRegistrationWindow(event) : null;
+  const imageUrl = event ? resolveImageUrl(event.flier_url) : null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -50,6 +53,17 @@ export function EventDetailSheet({
             </SheetHeader>
 
             <div className="flex-1 overflow-y-auto px-4 pb-4">
+              {imageUrl && (
+                <div className="relative mb-4 aspect-[16/9] w-full overflow-hidden rounded-lg bg-muted">
+                  <Image
+                    src={imageUrl}
+                    alt={event.name}
+                    fill
+                    sizes="(min-width: 640px) 32rem, 100vw"
+                    className="object-cover"
+                  />
+                </div>
+              )}
               {(event.venue || event.location) && (
                 <p className="app-muted text-sm">
                   {event.venue ?? event.location}

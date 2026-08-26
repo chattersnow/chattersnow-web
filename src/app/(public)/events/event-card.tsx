@@ -1,5 +1,8 @@
+import Image from "next/image";
+import { ImageOff } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDateTimeInZone } from "@/lib/time";
+import { resolveImageUrl } from "@/lib/inventory";
 import type { PublicEventSponsor } from "./event-sponsors";
 
 export type PublicEvent = {
@@ -15,6 +18,7 @@ export type PublicEvent = {
   capacity: number | null;
   registration_enabled: boolean;
   registration_deadline: string | null;
+  flier_url: string | null;
   sponsors: PublicEventSponsor[];
 };
 
@@ -30,6 +34,8 @@ export function EventCard({
   event: PublicEvent;
   onSelect: () => void;
 }) {
+  const imageUrl = resolveImageUrl(event.flier_url);
+
   return (
     <Card
       role="button"
@@ -41,9 +47,24 @@ export function EventCard({
           onSelect();
         }
       }}
-      className="cursor-pointer transition-colors hover:border-[var(--purple-deep)]"
+      className="cursor-pointer gap-0 overflow-hidden py-0 transition-colors hover:border-[var(--purple-deep)]"
     >
-      <CardContent className="space-y-1">
+      <div className="relative aspect-[16/9] w-full bg-muted">
+        {imageUrl ? (
+          <Image
+            src={imageUrl}
+            alt={event.name}
+            fill
+            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+            className="object-cover"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <ImageOff className="size-6 text-muted-foreground" aria-hidden />
+          </div>
+        )}
+      </div>
+      <CardContent className="space-y-1 px-4 py-3">
         <p className="text-sm font-medium">{event.name}</p>
         <p className="app-muted text-xs">
           {formatDateTimeInZone(

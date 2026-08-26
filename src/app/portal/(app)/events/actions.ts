@@ -39,6 +39,7 @@ export async function createEventAction(
     visibility,
     status,
     programId,
+    flierUrl,
   } = parsed.data;
 
   const { error } = await supabase.from("events").insert({
@@ -53,6 +54,7 @@ export async function createEventAction(
     visibility,
     status,
     program_id: programId,
+    flier_url: flierUrl,
   });
 
   if (error) {
@@ -125,6 +127,7 @@ export async function updateEventAction(
     visibility,
     status,
     programId,
+    flierUrl,
   } = parsed.data;
 
   const { error } = await supabase
@@ -141,6 +144,7 @@ export async function updateEventAction(
       visibility,
       status,
       program_id: programId,
+      flier_url: flierUrl,
     })
     .eq("id", id);
 
