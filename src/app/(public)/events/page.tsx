@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PageShell } from "@/components/page-shell";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { nowMs } from "@/lib/time";
 import { EventList } from "./event-list";
@@ -36,21 +37,19 @@ export default async function EventsPage() {
   }));
 
   return (
-    <main className="app-shell px-6 py-8 sm:px-10">
-      <div className="mx-auto max-w-6xl">
-        <section>
-          <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-            Upcoming &amp; past events
-          </h1>
-          <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-            Browse Chatter Snow events happening on and off the mountain.
-          </p>
-        </section>
+    <PageShell>
+      <section>
+        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          Upcoming &amp; past events
+        </h1>
+        <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
+          Browse Chatter Snow events happening on and off the mountain.
+        </p>
+      </section>
 
-        <div className="mt-10">
-          <EventList events={eventsWithSponsors} now={nowMs()} />
-        </div>
+      <div className="mt-10">
+        <EventList events={eventsWithSponsors} now={nowMs()} />
       </div>
-    </main>
+    </PageShell>
   );
 }

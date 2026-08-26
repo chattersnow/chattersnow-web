@@ -124,46 +124,44 @@ const PILLARS: Pillar[] = [
 
 export default function ProgramsPage() {
   return (
-    <main className="app-shell px-6 py-8 sm:px-10">
-      <div className="mx-auto max-w-6xl space-y-12">
-        <section>
-          <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-            Programs
-          </h1>
-          <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-            Get access. Find your people. Learn and progress. Keep riding.
-            Everything Chatter runs falls under one of three simple pillars —
-            and new programs can grow within them without changing the story.
+    <div className="space-y-12">
+      <section>
+        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          Programs
+        </h1>
+        <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
+          Get access. Find your people. Learn and progress. Keep riding.
+          Everything Chatter runs falls under one of three simple pillars — and
+          new programs can grow within them without changing the story.
+        </p>
+      </section>
+
+      {PILLARS.map((pillar) => (
+        <section key={pillar.label}>
+          <h2 className="app-eyebrow">{pillar.label}</h2>
+          <p className="app-muted mt-2 max-w-3xl text-sm leading-relaxed sm:text-base">
+            {pillar.description}
           </p>
+
+          <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
+            {pillar.programs.map((program) => (
+              <Card key={program.name}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <span aria-hidden>{program.emoji}</span>
+                    {program.name}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="app-muted text-sm leading-relaxed">
+                    {program.description}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </section>
-
-        {PILLARS.map((pillar) => (
-          <section key={pillar.label}>
-            <h2 className="app-eyebrow">{pillar.label}</h2>
-            <p className="app-muted mt-2 max-w-3xl text-sm leading-relaxed sm:text-base">
-              {pillar.description}
-            </p>
-
-            <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
-              {pillar.programs.map((program) => (
-                <Card key={program.name}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <span aria-hidden>{program.emoji}</span>
-                      {program.name}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="app-muted text-sm leading-relaxed">
-                      {program.description}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </section>
-        ))}
-      </div>
-    </main>
+      ))}
+    </div>
   );
 }
