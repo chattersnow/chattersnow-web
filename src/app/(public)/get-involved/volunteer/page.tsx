@@ -3,7 +3,7 @@ import { HandHeart } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ImagePlaceholder } from "@/components/image-placeholder";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { VolunteerApplicationForm } from "../volunteer-application-form-fields";
+import { VolunteerApplicationSheet } from "../volunteer-application-sheet";
 
 export const metadata: Metadata = {
   title: "Volunteer | Chatter Snow",
@@ -48,17 +48,8 @@ export default async function VolunteerPage() {
               Check back soon for open volunteer roles.
             </p>
           )}
-          <div className="mt-10 max-w-xl">
-            <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
-              Apply to volunteer
-            </h2>
-            <p className="app-muted mt-2 text-sm leading-relaxed">
-              Tell us a bit about yourself and we&apos;ll follow up about
-              getting you plugged in.
-            </p>
-            <div className="mt-6">
-              <VolunteerApplicationForm />
-            </div>
+          <div className="mt-10">
+            <VolunteerApplicationSheet />
           </div>
         </section>
       </div>
