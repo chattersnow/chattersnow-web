@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requirePermission } from "@/lib/auth/permissions";
+import { requireAnyPermission } from "@/lib/auth/permissions";
 
 export default async function ProgramsLayout({
   children,
@@ -7,6 +7,9 @@ export default async function ProgramsLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createSupabaseServerClient();
-  await requirePermission(supabase, "programs", "view");
+  await requireAnyPermission(supabase, [
+    { resource: "programs", level: "view" },
+    { resource: "programs_reports", level: "view" },
+  ]);
   return children;
 }

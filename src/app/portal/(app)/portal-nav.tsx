@@ -97,7 +97,21 @@ const NAV_ITEMS: readonly NavItem[] = [
     label: "Programs",
     href: "/portal/programs",
     icon: Layers,
-    access: [{ resource: "programs", level: "view" }],
+    basePath: "/portal/programs",
+    subItems: [
+      {
+        value: "list",
+        label: "Programs",
+        href: "/portal/programs",
+        access: [{ resource: "programs", level: "view" }],
+      },
+      {
+        value: "reports",
+        label: "Impact Report",
+        href: "/portal/programs/reports",
+        access: [{ resource: "programs_reports", level: "view" }],
+      },
+    ],
   },
   {
     value: "inventory",
