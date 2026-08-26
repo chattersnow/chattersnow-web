@@ -39,6 +39,7 @@ For ad-hoc browser interaction (manually exercising a UI change, poking at a pag
 
 Issues are tracked on the `ChatterWeb` GitHub Project (owner `chattersnow`, project number `1`) via its `Status` field. Keep status in sync with `gh project item-edit`:
 
+- make sure to always start from latest development
 - When starting work on a ticket (e.g. creating/checking out its branch), move the linked issue's `Status` to `In progress`.
 - When a PR for that ticket is opened, move it to `In review`.
 
