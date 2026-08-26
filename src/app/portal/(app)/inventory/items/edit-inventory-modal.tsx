@@ -235,6 +235,20 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
                     {labelFor(CONDITIONS, item.condition) || "—"}
                   </ReadOnlyField>
                 </Field>
+                {item.status === "reserved" && item.holdRequester && (
+                  <ReadOnlyField
+                    label="Requested by"
+                    htmlFor="edit-hold-requester"
+                  >
+                    {[
+                      item.holdRequester.name,
+                      item.holdRequester.email,
+                      item.holdRequester.phone,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ") || "—"}
+                  </ReadOnlyField>
+                )}
                 <Field orientation="responsive">
                   <Field>
                     <FieldLabel htmlFor="edit-status">Status</FieldLabel>

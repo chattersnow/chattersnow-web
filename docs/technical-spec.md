@@ -232,6 +232,10 @@ Available quantity should be derived from valid inventory transactions, subject 
 
 The public site shall let visitors browse a gallery of gear currently available (`status = available`), with filtering by type, condition, and gender, and free-text search by description. The public read path must go through a dedicated, curated database view rather than a relaxed policy on the internal `inventory_items` table, so donor linkage, face value, notes, status, and movement history stay behind authenticated-only access regardless of how the public view's field list evolves.
 
+#### Public gear requests
+
+From the gear library, selecting an available item opens its details in a side panel where a visitor may request it by submitting their name, email, and optional phone/notes. The request is handled by a `security definer` RPC that atomically re-checks availability, flips `inventory_items.status` to `reserved`, and records an `inventory_movements` row (`movement_type = reserved`, `recipient_person_id`) linking the requester into the `people` directory — the same pattern used for public event registration. A reserved item drops out of the public gear catalog until a staff member releases it back to `available` through the existing inventory management flow.
+
 ### 5.5 Event management
 
 Authorized users shall be able to create and manage events, including:

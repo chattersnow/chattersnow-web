@@ -19,10 +19,17 @@ export type InventoryItem = {
   status: string;
   photo_url: string | null;
   notes: string | null;
+  holdRequester?: {
+    id: string;
+    name: string | null;
+    email: string | null;
+    phone: string | null;
+  } | null;
 };
 
 export const STATUSES = [
   { value: "available", label: "Available" },
+  { value: "reserved", label: "Reserved" },
   { value: "distributed", label: "Distributed" },
   { value: "damaged", label: "Damaged" },
   { value: "lost", label: "Lost" },
