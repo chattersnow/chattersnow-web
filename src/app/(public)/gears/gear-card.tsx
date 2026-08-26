@@ -9,12 +9,29 @@ import {
 } from "@/lib/inventory";
 import type { GearItem } from "./gear-catalog";
 
-export function GearCard({ item }: { item: GearItem }) {
+export function GearCard({
+  item,
+  onSelect,
+}: {
+  item: GearItem;
+  onSelect: () => void;
+}) {
   const genderLabel = labelFor(GENDERS, item.gender);
   const imageUrl = resolveImageUrl(item.photo_url);
 
   return (
-    <Card className="gap-0 overflow-hidden py-0">
+    <Card
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect();
+        }
+      }}
+      className="cursor-pointer gap-0 overflow-hidden py-0 transition-colors hover:border-[var(--purple-deep)]"
+    >
       <div className="relative aspect-square w-full bg-muted">
         {imageUrl ? (
           <Image

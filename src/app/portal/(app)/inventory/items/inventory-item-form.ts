@@ -3,6 +3,7 @@ import type { ParseResult } from "@/lib/forms";
 const CONDITIONS = ["new", "like_new", "good", "fair", "poor"] as const;
 const STATUSES = [
   "available",
+  "reserved",
   "distributed",
   "damaged",
   "lost",

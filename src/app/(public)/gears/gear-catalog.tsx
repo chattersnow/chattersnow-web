@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { CONDITIONS, GENDERS, labelFor } from "@/lib/inventory";
 import { GearCard } from "./gear-card";
+import { GearDetailSheet } from "./gear-detail-sheet";
 
 export type GearItem = {
   id: string;
@@ -30,6 +31,8 @@ export function GearCatalog({ items }: { items: GearItem[] }) {
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [conditionFilter, setConditionFilter] = useState<string | null>(null);
   const [genderFilter, setGenderFilter] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<GearItem | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const typeOptions = useMemo(
     () => Array.from(new Set(items.map((item) => item.type))).sort(),
@@ -168,10 +171,23 @@ export function GearCatalog({ items }: { items: GearItem[] }) {
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {visibleItems.map((item) => (
-            <GearCard key={item.id} item={item} />
+            <GearCard
+              key={item.id}
+              item={item}
+              onSelect={() => {
+                setSelectedItem(item);
+                setDetailOpen(true);
+              }}
+            />
           ))}
         </div>
       )}
+
+      <GearDetailSheet
+        item={selectedItem}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+      />
     </div>
   );
 }
