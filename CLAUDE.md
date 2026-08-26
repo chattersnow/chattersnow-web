@@ -6,20 +6,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Chatter Snow's public website and operations portal — a Next.js App Router site with a public marketing site and an authenticated admin portal for managing events, donations, inventory, and expenses. The full product spec lives in `docs/technical-spec.md`; read it before implementing any portal/data-model feature. The portal is well past skeleton stage: it has built-out administration, finance, governance, inventory, events, people, and volunteers modules (`src/app/portal/(app)/*`), backed by 18 Supabase migrations covering donations/inventory, events, event sponsors/expenses, people, and role-scoped RLS.
+Chatter Snow's public website and operations portal — a Next.js App Router site with a public marketing site and an authenticated admin portal for managing events, donations, inventory, expenses, programs, and a content/community calendar. The full product spec lives in `docs/technical-spec.md`; read it before implementing any portal/data-model feature. The portal is well past skeleton stage: it has built-out administration, finance (donations, expenses, reimbursements, revenue), governance, inventory, events, people, programs, volunteers, and content/community-calendar modules (`src/app/portal/(app)/*`), backed by 100+ Supabase migrations covering donations/inventory, events, event sponsors/expenses/revenue, people, role-scoped and data-driven RLS, giveaways, governance (board members, meetings, agendas, resolutions), volunteers, programs, reimbursements, nonprofit-status tracking, and the content/community calendar.
 
 Keep your replies extremely concise and focus on coveying the key information. No unnecessary fluff, no long code snippets.
 
 ## Commands
 
 ```bash
-bun run dev     # start dev server (Next.js, Turbopack by default)
-bun run build   # production build
-bun run start   # run production build
-bun run lint    # eslint (flat config, eslint-config-next core-web-vitals + typescript)
+bun run dev         # start dev server (Next.js, Turbopack by default)
+bun run build       # production build
+bun run start       # run production build
+bun run lint        # eslint (flat config, eslint-config-next core-web-vitals + typescript)
+bun run typecheck   # next typegen && tsc --noEmit
+bun run test        # unit tests (bun test), excludes e2e/**
+bun run test:e2e    # Playwright e2e tests
+bun run format      # prettier --write .
+bun run format:check
 ```
 
-There is no test suite configured yet. TypeScript is checked via `next build` / editor tooling, not a standalone `tsc` script.
+Husky runs a pre-commit hook (`.husky/pre-commit`). CI extends coverage over these same checks.
 
 ## Ticket workflow
 
@@ -31,7 +36,7 @@ Issues are tracked on the `ChatterWeb` GitHub Project (owner `chattersnow`, proj
 ## Architecture
 
 - **Stack**: Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4 (via `@tailwindcss/postcss`), Supabase (Postgres + Auth + Storage). The React Compiler is enabled (`next.config.ts` → `reactCompiler: true`).
-- **Two audiences, one codebase**: per the spec, public routes must work without auth and must never expose donor/financial/inventory/audit data; the portal requires authentication and role checks. The route tree already follows the spec's recommended split: public pages live under `src/app/(public)/*` (home, about, contact, events, gears) and portal pages under `src/app/portal/(app)/*` (home, entry, administration, events, finance, governance, inventory, people, volunteers) — keep new routes in the matching group.
+- **Two audiences, one codebase**: per the spec, public routes must work without auth and must never expose donor/financial/inventory/audit data; the portal requires authentication and role checks. The route tree already follows the spec's recommended split: public pages live under `src/app/(public)/*` (home, about, contact, events, gears) and portal pages under `src/app/portal/(app)/*` (home, entry, administration, calendar, events, finance, governance, inventory, people, programs, volunteers) — keep new routes in the matching group.
 - **Auth flow (Supabase)**:
   - `src/lib/supabase/client.ts` — browser client (`createBrowserClient`), used in client components (e.g. login page) for `signInWithPassword` / `signInWithOAuth`.
   - `src/lib/supabase/server.ts` — server client (`createServerClient`) bound to Next's `cookies()`, used in server components/route handlers to read the session (`supabase.auth.getUser()`).

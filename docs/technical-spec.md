@@ -3,8 +3,8 @@
 ## Technical Specification
 
 - **Status:** Draft for team review
-- **Version:** 0.8
-- **Date:** 2026-08-24
+- **Version:** 0.9
+- **Date:** 2026-08-26
 - **Owner:** Chatter Snow
 - **Repository:** `chattersnow-web`
 - **Canonical domain:** `https://chattersnow.org`
@@ -55,11 +55,11 @@ The public site must remain useful without an account. Operational data must req
 | DNS and domain           | Cloudflare DNS; Vercel manages application deployment and domain integration                                                                       |
 | Local development        | Next.js development server and Supabase local stack                                                                                                |
 
-The repository started as a minimal Next.js application and has since been built out well past the original "coming soon" skeleton, though unevenly across areas. Supabase Auth, Storage, and API services are enabled in `supabase/config.toml`. Schema exists as ordered migrations under `supabase/migrations/` for the shared `people` directory (donors, sponsors, volunteers), donations, inventory items/movements, events, event sponsors, event expenses, event attendance (a simple event-level headcount, not per-attendee), giveaways/giveaway prizes/giveaway winners, `roles`/`user_roles`, and an append-only `audit_log`, plus the `public_gear_catalog` view; governance records and event registrations have no backing tables yet. `supabase/seed.sql` populates a local dev database with one test account per role (plus a multi-role and a no-role account, all `@example.test`) and sample operational data, so the role matrix and every workflow below can be exercised locally without touching production.
+The repository started as a minimal Next.js application and has since been built out well past the original "coming soon" skeleton. Supabase Auth, Storage, and API services are enabled in `supabase/config.toml`. Schema exists as 100+ ordered migrations under `supabase/migrations/`, now covering the shared `people` directory (donors, sponsors, volunteers), donations, inventory items/movements, events, event sponsors, event expenses/revenue, event attendance (a simple event-level headcount, not per-attendee), event registrations (with check-in), discount codes, giveaways/giveaway prizes/giveaway winners, programs, volunteer role types/hours, reimbursements, governance (board members, meetings, agendas/agenda templates, minutes, action items, decisions, resolutions), nonprofit-status milestones, the content and community calendar (calendar items, content opportunities, brief templates, program-suggestion rules), `roles`/`user_roles`/`role_permissions`/`pending_role_grants`/`deactivated_users`, and an append-only `audit_log`, plus curated public views (`public_gear_catalog`, `public_events`, `public_event_sponsors`, `public_volunteer_role_types`, `public_calendar_items`) and abuse-protection primitives (`rate_limit_hits`/`check_rate_limit()`, `contact_messages`) backing the public intake forms. Bylaws, policies, conflict-of-interest disclosures, and annual requirements remain the only governance sub-areas with no backing tables — see §5.12. `supabase/seed.sql` populates a local dev database with one test account per role (plus a multi-role and a no-role account, all `@example.test`) and sample operational data, so the role matrix and every workflow below can be exercised locally without touching production.
 
 Authorization is now role-based: `roles`/`user_roles` tables plus `has_role()`/`is_admin()`/`my_roles()` security-definer helper functions back per-table RLS policies that match the entitlement matrix in §5.3, and the two cross-cutting workflow RPCs (`create_donation_with_items`, `record_event_distribution`) are `security definer` with explicit role checks so they work for roles like `volunteer` that only hold `insert` grants on the underlying tables. On the app side, `src/lib/auth/roles.ts` exposes `getCurrentUserRoles`/`requireAnyRole`; the portal layout redirects an authenticated-but-unprovisioned user (zero roles) to a "no access" login state, every section has its own `layout.tsx` calling `requireAnyRole` server-side (not just nav hiding), and `portal-nav.tsx`/`sidebar-quick-actions.tsx` filter what's shown per role. The five roles are still fixed at the database level (`roles.name` is check-constrained to the five in §5.3) and the matrix is still hardcoded into RLS policies and route guards rather than being data-driven — see "what's next" below and in §5.3.
 
-The portal's sidebar nav already links to Governance, Volunteers, and Administration sections (`src/app/portal/(app)/governance/*`, `volunteers/*`, `administration/*`). Administration > Users is implemented — it lists every portal account (via a `security definer` `list_portal_users` RPC, since `auth.users` isn't otherwise exposed) and lets an admin assign/revoke roles per user directly against `user_roles`. Administration > Audit log (issue #18) is also implemented: a URL-filtered, server-paginated view over the `audit_log` table (see §5.11, §6) with a before/after diff drawer per entry. Administration > Permissions, all of Governance and Volunteers, are still static "Coming soon" placeholders with no data fetching, no server actions, and no backing tables; Administration > System settings is now a real page backed by an `app_settings` key/value table, currently holding the expense approval threshold (§5.16), with more settings expected to be added incrementally as features need them rather than as one upfront build. The public site's Home page (`src/app/(public)/home`) is now implemented with mission copy, CTAs, and an upcoming-event highlight, so the public marketing homepage (§5.1) is built; Contact (§5.1) and the Events list (§5.2) now have working forms/listings, alongside About Us and Gears.
+The portal's sidebar nav links to every section named in §8's route tree. Administration > Users is implemented — it lists every portal account (via a `security definer` `list_portal_users` RPC, since `auth.users` isn't otherwise exposed), lets an admin assign/revoke roles, deactivate/reactivate an account, and issue an invite link that pre-stages a role grant for an email before the person's first sign-in (`pending_role_grants`, claimed automatically on OAuth callback — see §6). Administration > Roles (add/edit/delete roles beyond the initial five) and Administration > Permissions (edit the role × resource matrix with staged, confirm-before-save edits) are both implemented and data-driven — see §5.3. Administration > Audit log (issue #18) is implemented: a URL-filtered, server-paginated view over the `audit_log` table (see §5.11, §6) with a before/after diff drawer per entry, covering donations, inventory, event expenses, user role changes, calendar items, and content opportunities. Administration > System settings is a real page backed by an `app_settings` key/value table, holding the expense and reimbursement approval thresholds (§5.16, §5.18) and the content calendar's default lead time (§5.20), with more settings added incrementally as features need them. Governance (board members, meetings/agendas/minutes/action items/decisions, resolutions, nonprofit-status tracking) and Volunteers (role types, hours logging) are both substantially implemented, not placeholders — see §5.12 and §5.17 for what remains static (bylaws, policies, conflict of interest, annual requirements). The public site's Home page is implemented with mission copy, CTAs, and an upcoming-event highlight; Contact, Events (list, detail, registration, check-in), Gears (catalog and request flow), and the public Community Calendar all have working forms/data, alongside About Us, Get Involved, and Support — see §4.
 
 ### Environment configuration
 
@@ -79,19 +79,23 @@ The secret key must never be exposed to browser code. Production and preview env
 
 ### Public website
 
-Public routes may expose approved content and explicitly public records. The public site has five top-level sections:
+Public routes may expose approved content and explicitly public records. The public site's nav (`src/app/(public)/site-nav.tsx`) now has seven top-level groups, superseding the original five-section IA (About Us's Programs, Volunteer, and Donations sub-pages were promoted out to their own sections):
 
-- **Home** (`/`): a landing page, primarily imagery/highlights linking into the other sections.
-- **About Us** (`/about`): the organization's mission and programs, plus a **Meet the Team** sub-page (`/about/team`) with staff/leadership profiles.
-- **Events** (`/events`): upcoming and past events with detail pages. Initial release renders events as a list; a calendar view is a possible future enhancement pending further research.
-- **Gears** (`/gears`): the curated, read-only gear availability catalog (`status = available`), limited to description, size, type, gender, condition, and photo.
+- **Home** (`/home`): a landing page, primarily imagery/highlights linking into the other sections.
+- **About** (`/about`): the organization's mission and story, plus a **Meet the Team** sub-page (`/about/team`) with staff/leadership profiles.
+- **Events** (`/events`): upcoming and past events with detail pages, plus `/events/community` — the public Community Calendar (§5.20). Initial release renders events as a list; a calendar view is a possible future enhancement pending further research.
+- **Gear** (`/gears/library`, `/gears/donate`): the curated, read-only gear availability catalog with a request flow, and a donate-gear informational page.
+- **Get Involved** (`/get-involved/attend`, `/get-involved/volunteer`, `/get-involved/partner`): attending events, volunteering (opportunities plus an application form), and partnering.
+- **Support** (`/support/donations`, `/support/sponsorship`): monetary giving (placeholder) and sponsorship information.
 - **Contact Us** (`/contact`): a rate-limited contact form that persists inquiries for staff follow-up, plus the organization's published email address and social media links.
+
+A `/programs` page also exists (the pillar/program content originally under `/about/programs`) but its nav entry is currently commented out in `site-nav.tsx`, leaving it unreachable from navigation — see "What's next."
 
 Public routes must not expose donor contact details, private event data, internal notes, financial records, the internal inventory record (donation linkage, face value, notes, status, or movement history), individual recipient information, or inventory history. The gear availability catalog above is the sole approved exception, and only through its curated field list.
 
-**Implemented:** Gears (`/gears`) and Contact Us (`/contact`, server-mediated and rate-limited form + published email/social) are fully built. Events (`/events`) lists upcoming/past events from Supabase but has no detail page or registration yet. About Us (`/about`) has real mission/story copy and has grown beyond the original team-only sub-page into four sub-pages: `/about/team` (roster, bios still "coming soon"), `/about/programs` (Access/Progression/Community pillars, six named programs), `/about/volunteer` (three volunteer opportunities), and `/about/donations` (in-kind donation info; monetary donations is a placeholder). Home (`/home`) is built: mission summary, Join/Get Involved/Donate CTAs, and an upcoming-event highlight.
+**Implemented:** all seven sections above are built. Gear (`/gears/library`) includes a request flow (§5.4); Get Involved > Volunteer is fed live from `volunteer_role_types` plus a public application form (§5.17); Events includes public registration, check-in-eligible listings, public sponsor display, and the Community Calendar (§5.2, §5.20); Contact and the volunteer-application/event-registration paths are rate-limited (§7). About Us (`/about`) has real mission/story copy and a team roster (bios still "coming soon"). Support > Donations remains a monetary-giving placeholder (in-kind donation info only).
 
-**What's next:** Replace the monetary-donations placeholder with a real giving path. Write real team bios and an explicit values section. Consider promoting Programs and a consolidated Get Involved page to top-level nav instead of About Us sub-pages, since their content now stands on its own — this would also mean updating this section's five-item IA list, which does not currently name them. A sixth public surface, the Community Calendar, is specified in §5.20 but not yet built or added to this IA list.
+**What's next:** Replace the monetary-donations placeholder with a real giving path. Write real team bios and an explicit values section. Either re-enable `/programs`'s nav entry or fold it into an existing section — it currently has no route to it. Drive `/programs`'s content from the `programs` table (§5.14, issue #46) instead of static copy.
 
 ### Operations portal
 
@@ -102,7 +106,7 @@ The authenticated admin portal supports:
 - Donation and inventory management
 - Expense management
 
-Giveaway recording (prizes, winners, ticket totals) and event attendance headcounts are implemented as part of event management. Role-based access control (§5.3) is implemented, including Administration > Users for assigning roles to accounts. An audit log (§5.11) is implemented for donations, inventory items/movements, event expenses, and user role changes; events and giveaways are not yet covered. Volunteers, governance record-keeping, admin-configurable permissions/custom roles, expanded reporting, and the content and community calendar (§5.20) remain planned capabilities, are not required for the initial portal, and currently have placeholder pages or no pages at all, with no backing tables.
+Giveaway recording (prizes, winners, ticket totals) and event attendance headcounts are implemented as part of event management. Role-based access control (§5.3) is implemented as a data-driven permissions matrix, including Administration > Users/Roles/Permissions for managing accounts, roles, and the permission matrix itself. An audit log (§5.11) is implemented for donations, inventory items/movements, event expenses, user role changes, calendar items, and content opportunities; events and giveaways are not yet covered. Volunteers (role types, hours logging), governance record-keeping (board members, meetings, agendas, resolutions, nonprofit-status tracking), programs and impact reporting (§5.14, §5.15), reimbursements (§5.18), and the content and community calendar (§5.20) are all implemented. What remains planned or placeholder: bylaws/policies/conflict-of-interest/annual-requirements record-keeping (§5.12), inventory valuation reporting (§5.19), and the financial approval workflow's dollar thresholds (§5.16).
 
 ## 5. Functional Requirements
 
@@ -168,22 +172,22 @@ A user may hold more than one role. The full page-by-page breakdown is the entit
 
 #### Entitlement matrix
 
-| Section / page                                           | `admin` | `event_coordinator` | `finance`              | `board`              | `volunteer`                        |
-| -------------------------------------------------------- | ------- | ------------------- | ---------------------- | -------------------- | ---------------------------------- |
-| Dashboard (Home)                                         | Manage  | View (event tiles)  | View (financial tiles) | View (summary tiles) | View (own activity)                |
-| Events — details, sponsors, giveaway, attendance         | Manage  | Manage              | View                   | None                 | View + sign up¹                    |
-| Events — event-level expenses                            | Manage  | Manage              | View                   | None                 | None                               |
-| Programs                                                 | Manage  | Manage              | View                   | View                 | View                               |
-| Impact tracking / reports                                | Manage  | View                | View                   | View                 | None                               |
-| Inventory — items, donations (intake), distribution      | Manage  | None                | None                   | None                 | Add donations + edit distribution² |
-| Inventory — reports (valuation)                          | Manage  | None                | View                   | None                 | None                               |
-| Finance — donations, expenses, reimbursements, reports   | Manage  | None                | Manage                 | View (reports only)  | None                               |
-| Finance — approvals                                      | Manage  | None                | Submit³                | Manage               | None                               |
-| People directory                                         | Manage  | View                | View                   | None                 | None                               |
-| Volunteers — roles (role-type definitions)               | Manage  | View                | None                   | None                 | View                               |
-| Volunteers — participation                               | Manage  | View                | None                   | None                 | View/log own                       |
-| Governance — all pages                                   | Manage  | None                | None                   | Manage               | None                               |
-| Administration — users, permissions, settings, audit log | Manage  | None                | None                   | None                 | None                               |
+| Section / page                                                  | `admin` | `event_coordinator` | `finance`              | `board`              | `volunteer`                        |
+| --------------------------------------------------------------- | ------- | ------------------- | ---------------------- | -------------------- | ---------------------------------- |
+| Dashboard (Home)                                                | Manage  | View (event tiles)  | View (financial tiles) | View (summary tiles) | View (own activity)                |
+| Events — details, sponsors, giveaway, attendance                | Manage  | Manage              | View                   | None                 | View + sign up¹                    |
+| Events — event-level expenses                                   | Manage  | Manage              | View                   | None                 | None                               |
+| Programs                                                        | Manage  | Manage              | View                   | View                 | View                               |
+| Impact tracking / reports                                       | Manage  | View                | View                   | View                 | None                               |
+| Inventory — items, donations (intake), distribution             | Manage  | None                | None                   | None                 | Add donations + edit distribution² |
+| Inventory — reports (valuation)                                 | Manage  | None                | View                   | None                 | None                               |
+| Finance — donations, expenses, reimbursements, reports          | Manage  | None                | Manage                 | View (reports only)  | None                               |
+| Finance — approvals                                             | Manage  | None                | Submit³                | Manage               | None                               |
+| People directory                                                | Manage  | View                | View                   | None                 | None                               |
+| Volunteers — roles (role-type definitions)                      | Manage  | View                | None                   | None                 | View                               |
+| Volunteers — participation                                      | Manage  | View                | None                   | None                 | View/log own                       |
+| Governance — all pages                                          | Manage  | None                | None                   | Manage               | None                               |
+| Administration — users, roles, permissions, settings, audit log | Manage  | None                | None                   | None                 | None                               |
 
 ¹ Volunteers never see event financial data (expenses, sponsor amounts); event sign-up depends on the not-yet-built event-registration tables noted in §3.
 ² Volunteers do not get Inventory reports since those surface dollar valuations.
@@ -249,6 +253,10 @@ Authorized users shall be able to create and manage events, including:
 - Public/private visibility and publication status
 
 The event record should support a public/private boundary so internal planning details do not become public accidentally. Registration, volunteers, and inventory distributions may be added as later capabilities. Attendance is implemented as a simple event-level headcount (`attendance_count`, `attendance_notes`) rather than per-attendee records — a deliberate product decision, not a placeholder.
+
+**Also implemented, on `events` itself:** an event lead (`event_lead_id` → `auth.users`), venue, capacity, and an after-phase report workflow (`report_status`: not_started/in_progress/submitted, `report_summary`, `lessons_learned`, `feedback_notes`, `content_notes`, `report_submitted_at`), surfaced on the event editor's Report tab.
+
+**Also implemented, as separate per-event tables/tabs on the event editor:** planning-phase logistics (`event_logistics` — meeting point, gear requirements, transportation, food, supplies, emergency contact, notes; one row per event) and a during-phase incident log (`event_incidents` — description, severity: minor/moderate/serious, people involved, occurred-at, reporting user; restricted to `admin`/`event_coordinator` since incident detail is more sensitive than the rest of the events cluster). This event-scoped incident log satisfies the operational need described in §16.1, though it is narrower than that addendum's proposed cross-cutting `incident_reports` table (no inventory-item linkage, no open/resolved workflow) — see §16.1 for the remaining gap.
 
 #### Sponsor and partner selection
 
@@ -364,9 +372,9 @@ Each event may optionally be tagged to a program (`events.program_id`, nullable 
 
 **Implemented** (issue #45): `programs` (name, description, status) and `events.program_id` exist, with `/portal/programs` for CRUD, gated by the `programs` resource per the entitlement matrix in §5.3. A program's own record therefore currently offers name, description, and status; everything else about a program — its events, and everything that hangs off those events (expenses, donations, sponsors, giveaways, inventory movements, volunteer/staff assignments) — has to be read via `events.program_id`, not from the `programs` row itself. The `/portal/programs` view/edit flow uses the same Dialog-based pattern as `volunteers/roles`; see the Sheet-based convention note in §8 for the pending cleanup.
 
-**Not yet implemented — events-on-a-program report.** There is no view listing the events tagged to a given program (e.g. from the Programs page or a program detail view); a user currently has to open each event and check its Overview tab to see whether it belongs to a given program. This is a smaller, more basic ask than the full season/program impact rollup in §5.15 (issue #48), which aggregates participation/financial/hours metrics rather than simply listing member events.
+**Implemented — events-on-a-program list** (issue #62): a program's detail view lists every event tagged to it (name, status, visibility). This is a smaller, more basic view than the full season/program impact rollup in §5.15 (issue #48), which aggregates participation/financial/hours metrics rather than simply listing member events.
 
-The public site's `/about/programs` page is still static content, not driven by this table (issue #46).
+The public site's `/programs` page (moved from `/about/programs` in the public-site nav restructure — see §4) is still static content, not driven by this table (issue #46), and its nav entry is currently commented out, leaving the page unreachable from navigation.
 
 ### 5.15 Impact tracking and reporting
 
@@ -381,7 +389,7 @@ The system shall produce grant- and board-ready impact summaries by rolling up e
 
 This is reporting over existing records (events, donations, expenses, inventory movements) plus the small amount of new impact-specific data noted above — not a parallel system duplicating what's already recorded elsewhere.
 
-**Not yet implemented.** No impact rollup views/queries, no `event_impact_notes` table, and no season/program report UI exist yet.
+**Implemented** (issue #48): `event_impact_notes` (one row per event — participation counts, first-time/beginner counts, financial-assistance counts and dollar total, equipment-loan count, and yes-counts for the five-question post-event survey) and a `security definer` RPC, `get_program_impact_rollup_data(p_program_id)`, that bundles impact notes with distributed `inventory_movements`, `volunteer_hours`, and `event_registrations` for every event tagged to a program into one season/program report. `/portal/programs/reports` provides a program picker and a metrics grid (events, participants, first-time/beginner counts, financial-assistance total, equipment loaned, volunteer hours, repeat participants), gated by the `programs_reports` resource (`admin`/`event_coordinator` manage; `finance`/`board` view; `volunteer` none). The per-event survey/impact-notes entry form itself lives on the event editor's Impact tab, gated by the `event_impact` resource.
 
 ### 5.16 Financial controls and approval workflow
 
@@ -391,9 +399,9 @@ Consistent with the segregation-of-duties model in `planning/governance/roles-an
 - `approved` or `rejected` — set by a user other than the submitter, holding `admin` or `board`.
 - `paid` — payment has been made against an approved record.
 
-Routine, in-budget expenses may be self-approved by `finance`; expenses above a threshold require a second approval from `admin` or `board`; unbudgeted expenses above that threshold require Board approval. **The dollar thresholds themselves are an open decision** (see `roles-and-responsibilities.md` and issue #13 — not yet recorded in `planning/decisions/`); this section specifies the mechanism, not the specific amounts, so the workflow can be built before the thresholds are finalized and the values tightened later without a schema change.
+Routine, in-budget expenses may be self-approved by `finance`; expenses above a threshold require a second approval from `admin` or `board`; unbudgeted expenses above that threshold require Board approval. **The dollar thresholds themselves are an open decision** (see `roles-and-responsibilities.md` and issue #13 — not yet recorded in `planning/decisions/`); this section specifies the mechanism, not the specific amounts, so the workflow was built before the thresholds are finalized and the seeded default can be tightened later without a schema change.
 
-**Not yet implemented.** `event_expenses` has no approval state — any `finance` or `event_coordinator` user can currently record an expense and it is immediately treated as final.
+**Implemented** (issue #29): `event_expenses.status` (submitted/approved/rejected/paid) plus `submitted_by`/`approved_by`/`approved_at`/`rejected_by`/`rejected_at`/`rejection_reason`/`paid_by`/`paid_at`, enforced by `approve_expense`/`reject_expense`/`mark_expense_paid` RPCs. A `finance_self_approval` resource gates self-approval of below-threshold submissions; at/above the threshold (`app_settings.finance.expense_approval_threshold`) a second approver holding `finance_approvals` is required. RLS additionally blocks a submitter from approving their own submission at the row level, independent of the RPC check. Reimbursements (§5.18) reuse the same status/RPC pattern with their own threshold key.
 
 ### 5.17 Volunteer management
 
@@ -407,7 +415,9 @@ Volunteer hours feed the Impact Tracking rollups in §5.15 (e.g. "290 volunteer 
 
 **Implemented** (issues #49/#50): `volunteer_role_types` and `volunteer_hours` back `/portal/volunteers/roles` and `/portal/volunteers/participation`, gated by the `volunteers` resource per §5.3. The role-type view/edit flow (`role-type-details-dialog.tsx`) still uses the Dialog-based pattern rather than the Sheet-based pattern used elsewhere for viewing/editing an existing record (people, inventory, expenses, events) — see the convention note in §8; this should be brought in line the same way as the Programs page (§5.14).
 
-**Not yet implemented — public volunteer opportunities.** The public `/get-involved` page's "Volunteer" section is a hardcoded list of three opportunities (`OPPORTUNITIES` array in `get-involved/page.tsx`), unrelated to `volunteer_role_types`. It should instead be fed from the same role-type catalog staff maintain in the portal, so a new role type shows up publicly without a code change. This needs: (a) a way to mark a role type public-facing (an `is_public` flag, plus whatever short public-facing copy/icon is needed — `volunteer_role_types` currently has only `name`/`description`, no icon), and (b) a curated public read path (a view granted to `anon`, following the same pattern as `public_gear_catalog` and `public_events` — not a relaxed policy on the base table, since `volunteer_role_types` RLS is otherwise `volunteers`-permission-gated).
+**Implemented — public volunteer opportunities** (issue #60): `/get-involved/volunteer` reads live from `public_volunteer_role_types`, a curated view (`id`, `name`, `description` — no icon field) granted to `anon`/`authenticated` over `volunteer_role_types` rows flagged `is_public`, following the same pattern as `public_gear_catalog`/`public_events`. The hardcoded opportunities array is gone.
+
+**Implemented — public volunteer application form** (issue #161): the same page also renders an application form backed by `volunteer_applications` (`person_id`, `name`, `email`, `phone`, free-text `role_interest`, `availability`, `status`: new/contacted/placed/declined/closed) and a `security definer` `submit_volunteer_application()` RPC. Applications are triaged from the portal (status updates), not auto-converted into `people`/volunteer records. This is a separate intake path from the role-type catalog above — it captures interest, not a role assignment.
 
 ### 5.18 Reimbursements
 
@@ -422,7 +432,7 @@ As with expenses (§5.6), the receipt for the initial release is a link to a fil
 
 Reimbursements go through the same approval workflow as §5.16 (submitted → approved/rejected → paid) rather than a separate one, since the underlying control question — who may approve spend — is the same.
 
-**Not yet implemented.** `finance/reimbursements` is a static placeholder page with no backing table.
+**Implemented** (issue #51): `reimbursements` (`person_id` → `people`, optional `event_id`, `description`, `amount`, `currency`, `receipt_url`, `notes`, `status`, `submitted_by`, `approved_by`/`approved_at`, `rejected_by`/`rejected_at`/`rejection_reason`, `paid_by`/`paid_at`) at `/portal/finance/reimbursements`, with `approve_reimbursement`/`reject_reimbursement`/`mark_reimbursement_paid` RPCs mirroring the expense-approval workflow. Gated by dedicated `reimbursements`/`reimbursement_approvals`/`reimbursement_self_approval` resources; the approval threshold is a separate `app_settings` key (`finance.reimbursement_approval_threshold`, seeded at $500) from the expense threshold in §5.16.
 
 ### 5.19 Inventory valuation reporting
 
@@ -433,7 +443,7 @@ Authorized users (`admin`, and `finance`/`board` for view-only oversight per §5
 
 This is a reporting view over `inventory_items` and `inventory_movements` — no new tables are required.
 
-**Not yet implemented.** `inventory/reports` is a static placeholder page.
+**Implemented.** `/portal/inventory/reports` computes on-hand face value by type/status and value donated/distributed over a selected period directly from `inventory_items.face_value` and `inventory_movements` (received/distributed movement types) — no new tables.
 
 ### 5.20 Content and community calendar
 
@@ -456,7 +466,7 @@ Editorial guardrails apply throughout (implemented, issue #113): a content brief
 
 The first-year seed is a curated Tier 1/Tier 2 set (see the planning doc's suggested list), not an exhaustive third-party awareness-day database, and requires operations and community-lead sign-off before import; each date is stored with its source, region, and any year-specific exceptions.
 
-**Status.** The item model, portal CRUD/filters/month-list-agenda views, the content-opportunity brief with its status pipeline and lead-time scheduling, the public Community Calendar page, the starter brief template library, portal work queues/overdue-Tier-1 warnings, full audit history, the Tier 1/Tier 2 seed list, and the editorial guardrails above are all implemented (issues #103, #104, #105, #106, #107, #108, #109, #112, #113 — see §6). Program intelligence (configurable program suggestions, related-item recommendations, annual planning review/report, optional iCal export) is not yet built (issues #110, #111). Full requirements: `planning/ideas/content_community_calendar.md`. Delivery is planned in three phases — (1) calendar foundation: item model, categories/tiers/statuses/owners/visibility/recurrence/audit fields, portal CRUD, public list; (2) content workflow: opportunities, templates, assignment/review, my-work/overdue/history; (3) program intelligence: configurable program suggestions, related-item recommendations, annual reporting, optional iCal export — tracked as issue #102 and its sub-issues. Several open questions (which roles approve public content; which channels the first brief targets; whether public community moments get detail pages; who owns the annual observance list; notification channel; iCal export phase) remain unresolved and tracked in #114.
+**Status.** The item model, portal CRUD/filters/month-list-agenda views, the content-opportunity brief with its status pipeline and lead-time scheduling, the public Community Calendar page, the starter brief template library, portal work queues/overdue-Tier-1 warnings, full audit history, the Tier 1/Tier 2 seed list, the editorial guardrails above, and program intelligence's first two pieces — configurable program suggestions (`calendar_program_suggestion_rules`, `/portal/calendar/program-suggestions`) and related-item recommendations (the item editor's Related Items tab) — are all implemented (issues #103, #104, #105, #106, #107, #108, #109, #110, #111, #112, #113 — see §6). Annual planning review/report and optional iCal export remain unbuilt. Full requirements: `planning/ideas/content_community_calendar.md`. Delivery is planned in three phases — (1) calendar foundation: item model, categories/tiers/statuses/owners/visibility/recurrence/audit fields, portal CRUD, public list; (2) content workflow: opportunities, templates, assignment/review, my-work/overdue/history; (3) program intelligence: configurable program suggestions, related-item recommendations, annual reporting, optional iCal export — tracked as issue #102 and its sub-issues, with only annual reporting and iCal export of phase 3 still open. Several open questions (which roles approve public content; which channels the first brief targets; whether public community moments get detail pages; who owns the annual observance list; notification channel; iCal export phase) remain unresolved and tracked in #114.
 
 ## 6. Proposed Data Model
 
@@ -474,6 +484,8 @@ Implemented (see §5.3):
 - `resources`: catalog of permissionable resources (`key`, `section`, `label`, `description`, `sort_order`) edited via Administration > Permissions
 - `role_permissions`: role × resource → none/view/manage (`role_id`, `resource_id`, `level`, `unique(role_id, resource_id)`), RLS-restricted the same way as `user_roles`
 - `has_permission(resource_key, min_level)`: `security definer` helper used by RLS policies, secured RPCs, and the app (via the `my_permissions()` RPC) to check the calling user's effective permission level for a resource across all their roles; `is_admin()` is now defined in terms of it (`has_permission('administration', 'manage')`) rather than hardcoding the `admin` role name
+- `pending_role_grants`: **implemented** (issues #130/#134) — pre-stages a role grant for an email before that person's first sign-in (`email`, `role_id`, `status`: pending/claimed/revoked, `expires_at`, `created_by`, `claimed_by`/`claimed_at`, `revoked_by`/`revoked_at`, `invited_at`/`invited_by`), one active pending grant per `(email, role)` pair via a partial unique index. `claim_pending_role_grants()` (`security definer`) runs on OAuth callback and on every permissions check to convert a matching pending grant into a real `user_roles` row. Backs Administration > Users' "invite" flow, so an admin can grant access to someone who hasn't signed in yet.
+- `deactivated_users`: **implemented** — `user_id` (PK → `auth.users`), `deactivated_at`, `deactivated_by`. `has_permission()`/`my_permissions()`/`is_admin()` all check this table and return no permissions for a deactivated user without touching their `user_roles`, so reactivating simply removes the row. Administration > Users exposes deactivate/reactivate controls; an admin cannot deactivate their own account.
 
 ### Audit log
 
@@ -489,18 +501,24 @@ Implemented for the tables listed below (see §5.11, issue #18):
 - `pages` or repository content: approved public content
 - `events`
 - `event_sponsors`: links an event to a `people` record via `person_id` (one row per event/person pair), plus per-event sponsorship details — support type, in-kind description, contribution value, public visibility, notes. Sponsor/partner name and contact info are not duplicated here; they live on the linked `people` row.
-- `event_volunteers`: links an event to a `people` record via `person_id`, with an optional free-text `role` and notes; a lightweight, event-scoped sign-up list (predates the fuller `volunteer_role_types`/`volunteer_hours` catalog in "Volunteers" below).
+- `event_volunteers`: links an event to a `people` record via `person_id`, with an optional free-text `role` and notes; a lightweight, event-scoped sign-up list (predates the fuller `volunteer_role_types`/`volunteer_hours` catalog in "Volunteers" below). Optional `shift_id` (issue #70) assigns the volunteer to a time-bounded `event_shifts` row.
+- `event_logistics`: **implemented** — one row per event (`event_id` PK/FK): meeting point, gear requirements, transportation, food, supplies, emergency contact name/phone, notes. A separate table rather than more `events` columns, matching the `event_sponsors`/`event_expenses` per-tab pattern.
+- `event_incidents`: **implemented** — see §5.5/§16.1: `event_id`, `occurred_at`, `description`, `severity` (minor/moderate/serious), `people_involved`, `reported_by`. Restricted to `admin`/`event_coordinator`.
+- `event_shifts`: **implemented** (issue #70) — time-bounded shifts within an event (e.g. basecamp AM/PM on a multi-day trip): `event_id`, `label`, `starts_at`/`ends_at`, optional `target_headcount`, notes. Scoped to `event_volunteers` for now; staff-side shift assignment is left for a follow-up once `event_staff` (§5.9) lands. Managed from the event editor's Volunteers tab, gated by the `events` resource.
+- `event_volunteer_hours`: **implemented** — a lightweight, event-scoped hours log (`event_id`, `person_id`, `hours`, `logged_date`, notes, `logged_by`), predating and distinct from the org-wide `volunteer_hours` table under "Volunteers" below (no `volunteer_role_type_id` yet). Logged from the event editor's Volunteers tab and rolled into the impact reporting in §5.15.
 - `event_staff`: not yet implemented — see §5.9; mirrors `event_volunteers` (`event_id`, `person_id`, optional role/title, notes, unique per event/person pair) for people tagged `is_staff`.
 - `event_registrations`: **implemented** — public registration for an event (name, email, phone, party size, notes), submitted via the anon-callable `register_for_event()` RPC (validates the event is public/published, registration is open, and capacity). Links to a `people` record via `person_id`, resolved-or-created by normalized email inside the RPC (`resolve_or_create_person_by_email()`, since there's no signed-in user to drive a `PersonPicker`); existing rows were backfilled by matching `people.email` where possible. `create_donation_with_items` uses the same helper to resolve an existing `people` row by email instead of always inserting a duplicate. `checked_in_at`: explicit per-registrant check-in (set by staff from the portal, not derived from `events.attendance_count`/`attendance_notes`, which remain a separate manual estimate — see §5.9-adjacent event-day tooling). A walk-in who never pre-registered gets their own `event_registrations` row, created at check-in time via `PersonPicker`, rather than a separate table.
 - `discount_codes`: manual tracking of discount codes a partner/vendor issues for an event (code, description, source) and which registrant each was given to (`registration_id` → `event_registrations.id`, single-use via a unique constraint on `registration_id`, plus a unique `(event_id, lower(code))` index). No payment/pricing integration — redemption happens outside chattersnow-web. No automatic assignment at registration time (needs board input; tracked separately).
+- `contact_messages`: **implemented** (issue #172) — `name`, `email`, `topic`, `message`, persisted via the `security definer` `submit_contact_message()` RPC (honeypot + rate-limited — see §7 item 9); no email is sent, staff review submissions in the portal.
+- `rate_limit_hits`: **implemented** (issue #172) — shared abuse-protection primitive (`route`, `ip_address`, `created_at`) behind `check_rate_limit()`; not exposed to `anon`/`authenticated` directly. See §7 item 9 for which public RPCs use it and at what thresholds.
 
 ### Programs and impact
 
 - `programs`: **implemented** (issue #45) — name, description, status (active/pilot/retired)
 - `events.program_id`: **implemented** — nullable FK from `events` to `programs`, so existing and one-off events remain valid without a program
-- `event_impact_notes`: not yet implemented — optional per-event qualitative outcomes (e.g. the five-question post-event survey described in `RUNNING_PROGRAMS.md`), linked to `events`
+- `event_impact_notes`: **implemented** (issue #48) — one row per event: participation counts (total, first-time, first-time riders, beginner, volunteer), financial-assistance counts and dollar total, equipment-loan count, beginner-pairings count, and yes-counts for the five-question post-event survey described in `RUNNING_PROGRAMS.md`. Gated by the `event_impact` resource; entered via the event editor's Impact tab.
 
-Impact rollups themselves (per-event, per-program, and season reports, including a basic list of events tagged to a program — see §5.14) are computed views/queries over these tables plus `donations`, `event_expenses`, `inventory_movements`, and `volunteer_hours` — not separately stored data. None of these rollup views/queries exist yet.
+Impact rollups themselves (per-event, per-program, and season reports, including a basic list of events tagged to a program — see §5.14) are computed over these tables plus `donations`, `event_expenses`, `inventory_movements`, and `volunteer_hours`. **Implemented** (issue #48): `get_program_impact_rollup_data(p_program_id)`, a `security definer` RPC bundling this data for every event tagged to a program, backing `/portal/programs/reports` (gated by the `programs_reports` resource).
 
 ### Inventory and donations
 
@@ -519,19 +537,20 @@ Impact rollups themselves (per-event, per-program, and season reports, including
 
 - `volunteer_role_types`: catalog of role-type definitions (e.g. Ride Buddy, Event Setup, Basecamp Staffing) — named to avoid colliding with the existing RBAC `roles` table in "Identity and access" above, which is a different concept (portal permissions, not volunteer job types). Currently `name`/`description` only.
 - `volunteer_hours`: `person_id` (→ `people`), optional `event_id`, date, hours, `volunteer_role_type_id`, and the user who logged the entry
-- Not yet implemented: a public-facing flag/copy on `volunteer_role_types` and a curated `public_volunteer_role_types` view granted to `anon`, to back the public `/get-involved` volunteer opportunities section — see §5.17.
+- `volunteer_role_types.is_public` + `public_volunteer_role_types`: **implemented** (issue #60) — a public-facing flag on `volunteer_role_types` and a curated view (`id`, `name`, `description`) granted to `anon`, backing `/get-involved/volunteer`.
+- `volunteer_applications`: **implemented** (issue #161) — public intake, separate from the role-type catalog above: `person_id` (→ `people`), `name`, `email`, `phone`, free-text `role_interest`, `availability`, `status` (new/contacted/placed/declined/closed), submitted via the `security definer` `submit_volunteer_application()` RPC.
 
 ### Finance and giveaways
 
-- `event_revenue`: not yet implemented
-- `event_expenses`: implemented, with an optional `event_id` (nullable — expenses may or may not be tied to an event) and `receipt_url` (a plain text link to the file in an external solution, not an upload — see §5.6). **Not yet implemented:** an approval state (`status`: submitted/approved/rejected/paid), `submitted_by`, `approved_by`, `approved_at` — see §5.16.
-- `reimbursements`: not yet implemented — requester `person_id`, amount, description, `receipt_url` (external link, same pattern as `event_expenses`), optional `event_id`, and the same approval state as `event_expenses` (see §5.16, §5.18)
+- `event_revenue`: **implemented** (issue #27) — optional `event_id`, `source` (check-constrained to ticket_sales/registration_fees/merchandise/onsite_donations/grants/other — deliberately excludes sponsorship, which is tracked via `event_sponsors` instead), `amount`, `received_date`, `notes`. Plain CRUD (no approval workflow), gated by the `event_revenue` resource, at `/portal/finance/revenue`.
+- `event_expenses`: implemented, with an optional `event_id` (nullable — expenses may or may not be tied to an event) and `receipt_url` (a plain text link to the file in an external solution, not an upload — see §5.6). **Implemented** (issue #29): an approval state (`status`: submitted/approved/rejected/paid), `submitted_by`, `approved_by`/`approved_at`, `rejected_by`/`rejected_at`/`rejection_reason`, `paid_by`/`paid_at` — see §5.16.
+- `reimbursements`: **implemented** (issue #51) — requester `person_id`, amount, description, `receipt_url` (external link, same pattern as `event_expenses`), optional `event_id`, and the same approval-state shape as `event_expenses` but with its own resources (`reimbursements`, `reimbursement_approvals`, `reimbursement_self_approval`) and `app_settings` threshold (see §5.16, §5.18)
 - `file_attachments`: deferred past the initial release — see §2, §5.12
 - `giveaways`, `giveaway_prizes`, and `giveaway_winners`: implemented (see §5.8); `giveaway_prizes.donor_name` is free text, not a `people` foreign key
 
 ### Governance
 
-Meetings, agendas, minutes, action items, decisions, and board members are implemented; bylaws, policies, conflict-of-interest disclosures, and annual requirements remain placeholder pages with no backing tables yet.
+Meetings, agendas, minutes, action items, decisions, board members, and nonprofit-status tracking are implemented; bylaws, policies, conflict-of-interest disclosures, and annual requirements remain placeholder pages with no backing tables yet.
 
 - `board_members`: links a `people` record with role/title, term start/end, and active status
 - `governance_meetings`: date, type (board, committee, annual, other), status, `facilitator_person_id`/`notetaker_person_id` (both → `people`, issue #166); associated `governance_meeting_attendees` link table to `people`
@@ -545,17 +564,19 @@ Meetings, agendas, minutes, action items, decisions, and board members are imple
 - `policies`: name, category, effective date, version
 - `conflict_of_interest_disclosures`: linked to a `people`/`board_members` record, disclosure period, on-file date, notes
 - `annual_requirements`: name, due date, completed-at, responsible `people` record
+- `nonprofit_status_milestones`: **implemented** (issues #145/#146) — `description`, `phase`, optional `owner_person_id` (→ `people`), `due_date`, `status` (not_started/in_progress/done). A plain checklist (no percent-complete meter, by design), seeded from `planning/governance/NONPROFIT_FORMATION.md`'s Phase 1–5 checklist, gated by the existing `governance` resource (no new resource needed) at `/portal/governance/nonprofit-status`.
 
 `minutes`, `resolutions`, `bylaws`, `policies`, `conflict_of_interest_disclosures`, and `annual_requirements` each hold their substantive content via nullable `external_link` and `body_text` columns, populated in either or both, per §5.12. `minutes` is already built this way; `agendas` moved to the structured, template-driven column set described above. A nullable `file_attachment_id` (→ `file_attachments`) is a later-release addition, not part of the initial-release column set.
 
 ### Content and community calendar
 
-Data model, portal CRUD, the public surface, the content-opportunity workflow, brief templates, work queues, editorial guardrails, and audit history are all implemented (issues #103, #104, #105, #106, #107, #108, #109, #112, #113); program intelligence remains planned (issues #110, #111) — see §5.20 and issue #102.
+Data model, portal CRUD, the public surface, the content-opportunity workflow, brief templates, work queues, editorial guardrails, audit history, configurable program suggestions, and related-item recommendations are all implemented (issues #103, #104, #105, #106, #107, #108, #109, #110, #111, #112, #113); annual planning review/report and iCal export remain planned — see §5.20 and issue #102.
 
 - `calendar_items`: title, item type, `starts_at`/`ends_at`, recurrence/annual-observance rule, time zone, summary, priority tier + rationale, calendar status (idea/active/complete/archived), public visibility (public/internal/unlisted draft), owner (`owner_id` → `auth.users`), `decision`/`decision_note` (plan/skip/defer, per #104 — the requirements doc's base item-management field, distinct from the content-opportunity brief owned by #106), `source`/`region`/`exceptions` (issue #112, seed provenance), `is_sensitive_topic`/`tone_guidance`/`sensitive_review_by`/`sensitive_review_at` (issue #113 — a sensitive-topic flag with tone guidance and reviewer sign-off, distinct from the content opportunity's own approval step), created/updated timestamps and actor columns.
 - `calendar_item_categories`: item ↔ category (lgbtq_community, winter_outdoor_sports, community_social_justice, chatter_events, campaigns_fundraising, partner_opportunities), a fixed label taxonomy, not free-text tags.
 - `calendar_item_programs`: links a `calendar_items` row to one or more `programs` rows.
-- `calendar_item_links`: self-referencing related-item links.
+- `calendar_item_links`: **implemented** (issue #111) — self-referencing related-item links, surfaced on the item editor's Related Items tab alongside suggested links (shared categories/programs).
+- `calendar_program_suggestion_rules`: **implemented** (issue #110) — admin-maintained rules (`item_type` and/or `category`, `program_id` → `programs`, `note`, `is_active`; at least one of `item_type`/`category` required) that surface as dismissible, editable program-suggestion chips in the item editor — never an automatic assignment. Gated by the existing `content_calendar` resource; managed at `/portal/calendar/program-suggestions`.
 - `public_calendar_items`: curated read-only view (public + active/complete items only, no owner/internal fields), granted to `anon`, mirroring `public_events`; the editorial-guardrail columns above are internal-only and excluded from this view's explicit column list.
 - RLS via the `content_calendar` resource (admin/event_coordinator manage, finance/board/volunteer view); `audit_log` covers `calendar_items`; `list_calendar_owners()` RPC (mirrors `list_event_leads()`) backs the portal's owner picker.
 - `content_opportunities`: one-to-one with a `calendar_items` row (`calendar_item_id` unique) — content status (not planned/idea/draft/in review/changes requested/approved/scheduled/published/skipped, check-constrained to require `skip_reason` when skipped; a stated Chatter connection is required, per issue #113, once status moves past not-planned/idea/skipped), recommended formats/channels, recommended action/CTA, outstanding work, `internal_notes` (issue #113 — general staff working notes, carrying a policy warning to never record specific personal/medical/legal/confidential case details), owner/reviewer (`auth.users`), configurable `lead_time_days` (org default seeded in `app_settings` as `content.default_lead_time_days`), draft/review/publish due dates (defaults computed client-side from the target publish date and lead time — draft at two-thirds, review at one-third — editable per item), `template_id`/`template_version_id`/`template_field_values` (issue #107), and a single `status_changed_by`/`status_changed_at` pair for the most recent transition. RLS reuses the `content_calendar` resource, same as `calendar_items`; `app_settings`' select policy was widened to include `content_calendar` managers so `event_coordinator` can read the lead-time default. Full multi-transition history is available via `audit_log` (issue #109).
@@ -575,35 +596,52 @@ Foreign keys should enforce relationships. Monetary amounts should use a fixed-p
 6. Validate authorization again in server actions or API routes that perform multi-step writes.
 7. Use database transactions or RPCs for workflows such as receiving donations and distributing inventory so related records cannot be partially written.
 8. Validate all client input with shared schemas and enforce database constraints for quantities, amounts, statuses, and required relationships.
-9. Rate-limit public registration and other write endpoints; add bot protection if abuse appears.
+9. Rate-limit public registration and other write endpoints; add bot protection if abuse appears. **Implemented** (issue #172): a shared `rate_limit_hits` table (`route`, `ip_address`, `created_at`) and `check_rate_limit(route, ip_address, max_attempts, window)` `security definer` RPC (sliding window, fails open on a null IP) back per-route limits on `submit_contact_message()` (5/15min), `register_for_event()` (8/15min, plus a honeypot field), and `submit_volunteer_application()` (5/15min by IP, plus its existing 24h per-email throttle and a honeypot field).
 10. Log security-sensitive actions without placing secrets or unnecessary personal data in logs.
 11. Define retention, deletion, export, and access procedures for donor and recipient personal information before production use.
 
 ## 8. Application Structure
 
-Use the Next.js App Router with route groups that make the public/portal boundary visible in the codebase. The actual tree (current, differs slightly from the original proposal — the portal lives under `/portal/(app)/` rather than a top-level `(portal)` group):
+Use the Next.js App Router with route groups that make the public/portal boundary visible in the codebase. The actual tree (current, differs slightly from the original proposal — the portal lives under `/portal/(app)/` rather than a top-level `(portal)` group; see §4 for the public-site nav restructure this reflects):
 
 ```text
 src/app/
   (public)/
-    home/                       # public landing page (placeholder)
-    about/                      # about us, team, programs, donations, volunteer — implemented
-    events/                     # upcoming/past list implemented; no detail page or registration yet
-    gears/                      # public gear availability catalog — implemented
+    home/                       # public landing page — implemented
+    about/                      # mission, story, team (bios pending) — implemented
+    programs/                    # pillar/program content — implemented but unlinked from nav (issue #46)
+    events/
+      [id]/                     # direct-link event detail page
+      community/                # public Community Calendar (§5.20)
+    gears/
+      library/                  # gear catalog + detail/request flow — implemented
+      donate/                   # donate-gear info page
+    get-involved/
+      attend/
+      volunteer/                # opportunities (from volunteer_role_types) + application form — implemented
+      partner/
+    support/
+      donations/                # monetary giving — placeholder
+      sponsorship/              # implemented
     contact/                    # form + published email/social — implemented
+  auth/
+    callback/
+    confirm/
   portal/
     login/
+    set-password/
     (app)/                      # authenticated portal shell (sidebar layout)
       home/                     # admin dashboard
-      events/                   # events, sponsors, expenses tab, giveaway tab, attendance tab
-      inventory/
-      finance/                  # expenses, donations, reimbursements, reports
+      entry/
+      events/                   # events, sponsors, expenses/revenue tabs, giveaway tab, attendance/impact tabs
+      inventory/                # items, donations, distribution, reports (valuation) — all implemented
+      finance/                  # donations, expenses, reimbursements, revenue, reports (reports still placeholder)
       people/                   # shared donor/sponsor/volunteer directory
-      programs/                  # program CRUD — implemented (issue #45)
-      governance/                # placeholder — no backing tables
-      volunteers/                # role types + hours logging — implemented (issues #49/#50)
-      administration/            # users, permissions, audit log implemented; system settings placeholder
-  auth/
+      programs/                 # program CRUD (issue #45) + reports/ (season/program impact rollup, issue #48)
+      governance/               # board-members, meetings (incl. agendas), resolutions, nonprofit-status — implemented; bylaws, policies, conflict-of-interest, annual-requirements — placeholder
+      volunteers/                # roles (role types) + participation (hours logging) — implemented (issues #49/#50)
+      calendar/                 # content & community calendar (§5.20) — implemented, incl. program-suggestions/, templates/, work-queue/
+      administration/           # users (incl. invite links, deactivation), roles, permissions, audit-log — implemented; system-settings — implemented (app_settings)
 ```
 
 The exact route structure may evolve, but authenticated portal layouts must verify the session and authorization before rendering protected data. Use server components for read-heavy pages where practical and keep service-role operations server-only.
@@ -707,27 +745,13 @@ After launch, the team should evaluate:
 
 ## 16. Addendum: Gaps From Role Review (2026-08-22)
 
-A review against the Director of Operations and Bookkeeping/Finance Administration responsibilities in `planning/governance/roles-and-responsibilities.md` found four operational needs with no corresponding requirement anywhere above — distinct from the sections already marked "not yet implemented" (volunteers, registration, reimbursements, approvals, impact tracking), which at least exist as planned work. These four have never been specified.
+A review against the Director of Operations and Bookkeeping/Finance Administration responsibilities in `planning/governance/roles-and-responsibilities.md` found four operational needs with no corresponding requirement anywhere above. As of this review, volunteers, registration, reimbursements, approvals, and impact tracking have all since shipped (see §5.14–§5.18); these four remain the only genuinely unspecified gaps.
 
 ### 16.1 Incident / problem documentation
 
-The roles doc calls for "how incidents/problems are documented" as an internal process Operations must establish; no part of this spec gives it a data shape.
+The roles doc calls for "how incidents/problems are documented" as an internal process Operations must establish. This is now **partially implemented**: `event_incidents` (description, severity: minor/moderate/serious, people involved, occurred-at, reporting user, restricted to `admin`/`event_coordinator`) covers event-scoped incidents — see §5.5.
 
-The system shall let authorized users record an operational incident (e.g. damaged gear at an event, a safety issue, a lost item, a volunteer no-show) with:
-
-- Description and category
-- Date
-- Optional related event
-- Optional related inventory item
-- Severity
-- Status: open or resolved, with resolution notes
-- Reporting user
-
-**Data model:** `incident_reports` — `id`, `description`, `category`, `severity`, `event_id` (nullable FK), `inventory_item_id` (nullable FK), `status`, `resolution_notes`, `reported_by`, `created_at`, `updated_at`.
-
-**Access:** `admin` and `event_coordinator` manage; `volunteer` may submit (view/edit own) per the pattern already used for volunteer-submitted inventory records in §5.3.
-
-**Not yet implemented.**
+**Remaining gap.** `event_incidents` has no category field, no `open`/`resolved` status or resolution notes, no optional inventory-item linkage, and no incident that isn't tied to a specific event (e.g. a storage-location issue). If those are needed, either extend `event_incidents` or add the originally-proposed cross-cutting `incident_reports` (`category`, `inventory_item_id` nullable FK, `status`, `resolution_notes`, and `event_id` made nullable) alongside it.
 
 ### 16.2 Inventory storage locations
 
