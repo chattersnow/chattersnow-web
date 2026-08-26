@@ -7,12 +7,12 @@ export const metadata: Metadata = {
 
 export default function StoryPage() {
   return (
-    <div>
-      <section>
+    <div className="space-y-12">
+      <section className="mx-auto max-w-3xl">
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
           About Chatter
         </h1>
-        <div className="app-muted mt-4 max-w-3xl space-y-4 text-sm leading-relaxed sm:text-base">
+        <div className="app-muted mt-4 space-y-4 text-sm leading-relaxed sm:text-base">
           <p>
             Chatter is a queer ski and snowboard community on the East Coast
             that brings LGBTQ+ riders together both on and off the mountain.
@@ -31,11 +31,11 @@ export default function StoryPage() {
           </p>
         </div>
       </section>
-      <section>
+      <section className="mx-auto max-w-3xl">
         <h2 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
           Our Story
         </h2>
-        <div className="app-muted mt-4 max-w-3xl space-y-4 text-sm leading-relaxed sm:text-base sm:flow-root">
+        <div className="app-muted mt-4 space-y-4 text-sm leading-relaxed sm:text-base sm:flow-root">
           <ImagePlaceholder className="mb-4 aspect-[3/4] w-40 rounded-xl sm:float-right sm:mb-2 sm:ml-6 sm:w-56" />
           <p>
             Chatter started three summers ago when a group of friends wanted to
