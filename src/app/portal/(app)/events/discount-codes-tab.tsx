@@ -232,8 +232,16 @@ export function DiscountCodesTab({
           <TableBody>
             {list.map((code) => (
               <TableRow key={code.id}>
-                <TableCell className="font-medium">{code.code}</TableCell>
-                <TableCell className="app-muted">
+                <TableCell
+                  className="max-w-xs truncate font-medium"
+                  title={code.code}
+                >
+                  {code.code}
+                </TableCell>
+                <TableCell
+                  className="max-w-xs truncate app-muted"
+                  title={code.description ?? undefined}
+                >
                   {code.description ?? "—"}
                 </TableCell>
                 <TableCell className="app-muted">

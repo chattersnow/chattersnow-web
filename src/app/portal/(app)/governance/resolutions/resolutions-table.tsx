@@ -166,7 +166,10 @@ export function ResolutionsTable({
               ) : (
                 visibleResolutions.map((resolution) => (
                   <TableRow key={resolution.id}>
-                    <TableCell className="max-w-xs truncate font-medium">
+                    <TableCell
+                      className="max-w-xs truncate font-medium"
+                      title={resolution.motion_text}
+                    >
                       {resolution.motion_text}
                     </TableCell>
                     <TableCell className="app-muted">

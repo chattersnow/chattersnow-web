@@ -35,7 +35,10 @@ export function RolesTable({ roles }: { roles: RoleRow[] }) {
           <TableBody>
             {roles.map((role) => (
               <TableRow key={role.id}>
-                <TableCell className="font-medium">
+                <TableCell
+                  className="max-w-xs truncate font-medium"
+                  title={formatRoleLabel(role.name)}
+                >
                   {formatRoleLabel(role.name)}
                 </TableCell>
                 <TableCell className="app-muted max-w-sm truncate">

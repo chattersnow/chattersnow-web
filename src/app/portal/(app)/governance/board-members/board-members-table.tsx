@@ -156,7 +156,10 @@ export function BoardMembersTable({
               ) : (
                 visibleBoardMembers.map((boardMember) => (
                   <TableRow key={boardMember.id}>
-                    <TableCell className="font-medium">
+                    <TableCell
+                      className="max-w-xs truncate font-medium"
+                      title={boardMember.person.name ?? undefined}
+                    >
                       {boardMember.person.name ?? "—"}
                     </TableCell>
                     <TableCell className="app-muted">

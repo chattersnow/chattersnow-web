@@ -140,7 +140,12 @@ export function UsersTable({
 
                 return (
                   <TableRow key={portalUser.user_id}>
-                    <TableCell className="font-medium">
+                    <TableCell
+                      className="max-w-xs truncate font-medium"
+                      title={
+                        portalUser.full_name ?? portalUser.email ?? undefined
+                      }
+                    >
                       {portalUser.full_name ?? portalUser.email ?? "—"}
                     </TableCell>
                     <TableCell>

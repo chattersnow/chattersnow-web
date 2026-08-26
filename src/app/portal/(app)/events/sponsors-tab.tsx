@@ -440,7 +440,10 @@ export function SponsorsTab({
                 </TableRow>
               ) : (
                 <TableRow key={sponsor.id}>
-                  <TableCell className="font-medium">
+                  <TableCell
+                    className="max-w-xs truncate font-medium"
+                    title={sponsor.person?.name ?? undefined}
+                  >
                     {sponsor.person?.name ?? "—"}
                   </TableCell>
                   <TableCell className="app-muted capitalize">

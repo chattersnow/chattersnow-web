@@ -279,7 +279,10 @@ export function ProgramDetailsDialog({
                         <TableBody>
                           {events.map((event) => (
                             <TableRow key={event.id}>
-                              <TableCell className="font-medium">
+                              <TableCell
+                                className="max-w-xs truncate font-medium"
+                                title={event.name}
+                              >
                                 {event.name}
                               </TableCell>
                               <TableCell>
