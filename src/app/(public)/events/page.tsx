@@ -12,7 +12,9 @@ export default async function EventsPage() {
 
   const { data: events } = await supabase
     .from("public_events")
-    .select("id, name, location, starts_at, ends_at, timezone")
+    .select(
+      "id, name, location, starts_at, ends_at, timezone, description, event_type, venue, capacity, registration_enabled, registration_deadline",
+    )
     .order("starts_at", { ascending: true });
 
   return (
