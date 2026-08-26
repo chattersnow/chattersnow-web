@@ -11,7 +11,7 @@ import type { CalendarOwner } from "./calendar-shared";
 export type CalendarActionResult =
   { error: string } | { success: true; warning?: string };
 
-async function syncCalendarItemLinks(
+export async function syncCalendarItemLinks(
   supabase: SupabaseClient,
   itemId: string,
   categories: string[],

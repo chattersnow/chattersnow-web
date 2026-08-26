@@ -8,6 +8,7 @@ import {
   hasPermission,
 } from "@/lib/auth/permissions";
 import {
+  getCalendarCoverageReminderSummary,
   getOpsInboxSummary,
   getPendingApprovalsSummary,
 } from "@/lib/portal/attention-items";
@@ -83,7 +84,21 @@ export default async function PortalAppLayout({
         })
       : { items: [] };
 
-  const attentionItems = [...pendingApprovals.items, ...opsInbox.items];
+  const canManageContentCalendar = hasPermission(
+    permissions,
+    "content_calendar",
+    "manage",
+  );
+  const calendarCoverageReminder = await getCalendarCoverageReminderSummary(
+    supabase,
+    { canManageContentCalendar },
+  );
+
+  const attentionItems = [
+    ...pendingApprovals.items,
+    ...opsInbox.items,
+    ...calendarCoverageReminder.items,
+  ];
 
   const displayName =
     (user.user_metadata?.full_name as string | undefined) ??

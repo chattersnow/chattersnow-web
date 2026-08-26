@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isEventActiveToday, type EventWindow } from "@/lib/time";
+import { getMissingCoverageSeriesForYear } from "@/app/portal/(app)/calendar/queries";
 
 export type PendingApprovalItem = {
   key: string;
@@ -49,6 +50,38 @@ export async function getPendingApprovalsSummary(
   }
 
   return { items };
+}
+
+/**
+ * Coverage reminder (issue #191): flags recurring Tier 1/2 observances with
+ * no instance yet for next year. Gated on "manage" (not "view", unlike the
+ * other summaries here) since it's an invitation to generate/import, not
+ * just informational -- showing it to view-only roles would be an
+ * unfixable nag. Only surfaces from October 1 (a "does next year need
+ * coverage" check is noise for the other 9 months).
+ */
+export async function getCalendarCoverageReminderSummary(
+  supabase: SupabaseClient,
+  options: { canManageContentCalendar: boolean },
+  now: Date = new Date(),
+): Promise<PendingApprovalsSummary> {
+  if (!options.canManageContentCalendar) return { items: [] };
+  if (now.getUTCMonth() < 9) return { items: [] };
+
+  const targetYear = now.getUTCFullYear() + 1;
+  const missing = await getMissingCoverageSeriesForYear(supabase, targetYear);
+  if (missing.length === 0) return { items: [] };
+
+  return {
+    items: [
+      {
+        key: "calendar_coverage_missing",
+        label: `${missing.length} recurring observance${missing.length === 1 ? "" : "s"} missing for ${targetYear}`,
+        count: missing.length,
+        href: "/portal/calendar/import",
+      },
+    ],
+  };
 }
 
 type TodaysEventRow = EventWindow & { id: string };

@@ -96,6 +96,7 @@ declare
   v_shift_id uuid;
   v_registration_id uuid;
   v_calendar_item_id uuid;
+  v_recurring_local_date date;
   v_meeting_id uuid;
   v_role_type_id uuid;
   v_template_id uuid;
@@ -353,6 +354,43 @@ begin
     '{"subject_name":"Chatter Snow community","setting":"Local winter trail","publish_permission":"Internal demo content only"}'::jsonb,
     v_admin_id
   );
+
+  -- Structured-recurrence calendar item (issue #191): dated to today so the
+  -- coverage reminder/"generate next year" flow has something to act on
+  -- immediately after a fresh `db reset`, without waiting for a real
+  -- October or hand-seeding via the production Tier 1/2 migration (which
+  -- only applies when the founding admin's real email exists, which it
+  -- doesn't in local dev -- see 20260826070000_seed_tier1_tier2_calendar_
+  -- items.sql). Visit /portal/calendar/import to see it flagged as missing
+  -- next year's instance and try "Generate".
+  -- Anchored to the item's own zone (America/Denver), not UTC's day
+  -- boundary -- truncating now() in UTC would read as "yesterday" in
+  -- Denver for roughly a third of the day, both in starts_at/ends_at and
+  -- in the recurrence_start_*/recurrence_end_* month-day anchors below.
+  v_recurring_local_date := (now() at time zone 'America/Denver')::date;
+
+  insert into public.calendar_items (
+    title, item_type, starts_at, ends_at, time_zone, recurrence_rule,
+    summary, priority_tier, calendar_status, visibility, source, region,
+    series_key, recurrence_start_month, recurrence_start_day,
+    recurrence_end_month, recurrence_end_day, recurrence_end_is_month_end,
+    created_by
+  )
+  values (
+    'Sample Recurring Observance', 'community_observance',
+    (v_recurring_local_date::text || ' 00:00:00 America/Denver')::timestamptz,
+    (v_recurring_local_date::text || ' 23:59:59 America/Denver')::timestamptz,
+    'America/Denver', 'Annually on ' || to_char(v_recurring_local_date, 'FMMonth FMDD'),
+    'Seed-only stand-in recurring observance for exercising the coverage reminder and bulk-import/generate flow locally.',
+    1, 'idea', 'internal', 'Seed data', 'us',
+    gen_random_uuid(), extract(month from v_recurring_local_date)::smallint, extract(day from v_recurring_local_date)::smallint,
+    extract(month from v_recurring_local_date)::smallint, extract(day from v_recurring_local_date)::smallint, false,
+    v_admin_id
+  )
+  returning id into v_calendar_item_id;
+
+  insert into public.calendar_item_categories (item_id, category)
+  values (v_calendar_item_id, 'lgbtq_community');
 
   -- Governance records and nonprofit tracking are separate from event data.
   insert into public.board_members (person_id, role_title, term_start, term_end, notes, created_by)

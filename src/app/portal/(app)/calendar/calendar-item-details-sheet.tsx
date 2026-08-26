@@ -2,7 +2,7 @@
 
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Copy, Eye, Pencil } from "lucide-react";
+import { ArrowLeft, CalendarPlus, Copy, Eye, Pencil } from "lucide-react";
 import {
   archiveCalendarItemAction,
   duplicateCalendarItemAction,
@@ -10,6 +10,8 @@ import {
   restoreCalendarItemAction,
   updateCalendarItemAction,
 } from "./actions";
+import { generateNextYearInstanceAction } from "./recurrence-actions";
+import { hasStructuredRecurrence } from "./calendar-recurrence";
 import {
   CATEGORIES,
   CALENDAR_STATUSES,
@@ -276,6 +278,17 @@ export function CalendarItemDetailsSheet({
     });
   }
 
+  function handleGenerateNextYear() {
+    startTransition(async () => {
+      const result = await generateNextYearInstanceAction(item.id);
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
   function handleArchive() {
     startTransition(async () => {
       const result = await archiveCalendarItemAction(item.id);
@@ -358,6 +371,18 @@ export function CalendarItemDetailsSheet({
             </div>
             {canManage && mode === "view" && (
               <div className="flex items-center gap-1">
+                {hasStructuredRecurrence(item) && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Generate next year"
+                    disabled={isPending}
+                    onClick={handleGenerateNextYear}
+                  >
+                    <CalendarPlus />
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant="ghost"

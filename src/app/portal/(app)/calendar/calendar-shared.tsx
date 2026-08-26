@@ -93,6 +93,12 @@ export type CalendarItemRow = {
   tone_guidance: string | null;
   sensitive_review_by: string | null;
   sensitive_review_at: string | null;
+  series_key: string | null;
+  recurrence_start_month: number | null;
+  recurrence_start_day: number | null;
+  recurrence_end_month: number | null;
+  recurrence_end_day: number | null;
+  recurrence_end_is_month_end: boolean;
   categories: string[];
   program_ids: string[];
   content_opportunity: ContentOpportunityRow | null;
