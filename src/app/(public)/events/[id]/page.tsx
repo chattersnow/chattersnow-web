@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { EventRegistrationForm } from "../event-registration-form-fields";
 import { checkRegistrationWindow } from "../event-registration-form";
 import type { PublicEvent } from "../event-card";
+import { EventSponsors, type PublicEventSponsor } from "../event-sponsors";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "full",
@@ -42,11 +43,17 @@ export default async function EventDetailPage({
       "id, name, location, starts_at, ends_at, timezone, description, event_type, venue, capacity, registration_enabled, registration_deadline",
     )
     .eq("id", id)
-    .maybeSingle<PublicEvent>();
+    .maybeSingle<Omit<PublicEvent, "sponsors">>();
 
   if (!event) notFound();
 
   const registrationWindow = checkRegistrationWindow(event);
+
+  const { data: sponsors } = await supabase
+    .from("public_event_sponsors")
+    .select("sponsor_id, name, logo_url, website")
+    .eq("event_id", event.id)
+    .returns<PublicEventSponsor[]>();
 
   return (
     <main className="app-shell px-6 py-8 sm:px-10">
@@ -72,6 +79,8 @@ export default async function EventDetailPage({
             </p>
           )}
         </section>
+
+        <EventSponsors sponsors={sponsors ?? []} />
 
         {event.registration_enabled && (
           <section className="mt-10 max-w-lg">

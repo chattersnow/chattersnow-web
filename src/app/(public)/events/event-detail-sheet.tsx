@@ -10,6 +10,7 @@ import {
 import { EventRegistrationForm } from "./event-registration-form-fields";
 import { checkRegistrationWindow } from "./event-registration-form";
 import type { PublicEvent } from "./event-card";
+import { EventSponsors } from "./event-sponsors";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "full",
@@ -53,6 +54,8 @@ export function EventDetailSheet({
                   {event.description}
                 </p>
               )}
+
+              <EventSponsors sponsors={event.sponsors} />
 
               {event.registration_enabled && (
                 <div className="mt-6">

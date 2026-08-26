@@ -41,6 +41,8 @@ describe("parsePersonForm", () => {
         email: "jane@example.com",
         phone: "555-1234",
         notes: "VIP",
+        logoUrl: "https://example.com/logo.png",
+        website: "https://example.com",
         isDonor: "true",
         isSponsor: "true",
       }),
@@ -51,10 +53,47 @@ describe("parsePersonForm", () => {
         email: "jane@example.com",
         phone: "555-1234",
         notes: "VIP",
+        logo_url: "https://example.com/logo.png",
+        website: "https://example.com",
         is_donor: true,
         is_sponsor: true,
         is_volunteer: false,
       },
     });
+  });
+
+  test("defaults logo_url and website to null when blank", () => {
+    const result = parsePersonForm(
+      formData({ name: "Jane", isVolunteer: "true" }),
+    );
+    expect(
+      "data" in result &&
+        result.data.logo_url === null &&
+        result.data.website === null,
+    ).toBe(true);
+  });
+
+  test("rejects a non-http(s) logo URL scheme", () => {
+    expect(
+      parsePersonForm(
+        formData({
+          name: "Jane",
+          isVolunteer: "true",
+          logoUrl: "javascript:alert(1)",
+        }),
+      ),
+    ).toEqual({ error: "Logo URL must start with http:// or https://." });
+  });
+
+  test("rejects a non-http(s) website scheme", () => {
+    expect(
+      parsePersonForm(
+        formData({
+          name: "Jane",
+          isVolunteer: "true",
+          website: "data:text/html,<script>alert(1)</script>",
+        }),
+      ),
+    ).toEqual({ error: "Website must start with http:// or https://." });
   });
 });

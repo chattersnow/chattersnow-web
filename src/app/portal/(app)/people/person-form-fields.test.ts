@@ -35,6 +35,8 @@ describe("packPersonFormData", () => {
         email: "jane@example.com",
         phone: null,
         notes: null,
+        logo_url: null,
+        website: null,
         is_donor: false,
         is_sponsor: true,
         is_volunteer: false,

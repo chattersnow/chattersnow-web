@@ -41,6 +41,8 @@ function formStateFor(person: PersonRow): PersonFormState {
     email: person.email ?? "",
     phone: person.phone ?? "",
     notes: person.notes ?? "",
+    logoUrl: person.logo_url ?? "",
+    website: person.website ?? "",
     roles: {
       is_donor: person.is_donor,
       is_sponsor: person.is_sponsor,
@@ -56,6 +58,8 @@ function isDirty(form: PersonFormState, person: PersonRow) {
     form.email !== baseline.email ||
     form.phone !== baseline.phone ||
     form.notes !== baseline.notes ||
+    form.logoUrl !== baseline.logoUrl ||
+    form.website !== baseline.website ||
     form.roles.is_donor !== baseline.roles.is_donor ||
     form.roles.is_sponsor !== baseline.roles.is_sponsor ||
     form.roles.is_volunteer !== baseline.roles.is_volunteer
@@ -207,6 +211,12 @@ export function EditPersonModal({ person }: { person: PersonRow }) {
                 </ReadOnlyField>
                 <ReadOnlyField label="Phone" htmlFor="edit-person-phone">
                   {person.phone || "—"}
+                </ReadOnlyField>
+                <ReadOnlyField label="Logo URL" htmlFor="edit-person-logo-url">
+                  {person.logo_url || "—"}
+                </ReadOnlyField>
+                <ReadOnlyField label="Website" htmlFor="edit-person-website">
+                  {person.website || "—"}
                 </ReadOnlyField>
                 <ReadOnlyField label="Roles" htmlFor="edit-person-roles">
                   {rolesFor(person).join(", ") || "—"}

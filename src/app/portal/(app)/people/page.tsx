@@ -13,7 +13,9 @@ export default async function PeoplePage() {
 
   const { data: people } = await supabase
     .from("people")
-    .select("id, name, email, phone, notes, is_donor, is_sponsor, is_volunteer")
+    .select(
+      "id, name, email, phone, notes, logo_url, website, is_donor, is_sponsor, is_volunteer",
+    )
     .order("name", { ascending: true });
 
   return (
