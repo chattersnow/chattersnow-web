@@ -31,9 +31,9 @@ export default function StoryPage() {
         </div>
       </section>
       <section>
-        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+        <h2 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
           Our Story
-        </h1>
+        </h2>
         <div className="app-muted mt-4 max-w-3xl space-y-4 text-sm leading-relaxed sm:text-base">
           <p>
             Chatter started three summers ago when a group of friends wanted to

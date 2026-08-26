@@ -17,7 +17,7 @@ const GEAR_EXAMPLES = [
 export default function DonateGearPage() {
   return (
     <main className="app-shell px-6 py-8 sm:px-10">
-      <div className="mx-auto max-w-6xl space-y-16">
+      <div className="mx-auto max-w-6xl space-y-12">
         <section id="how-it-works">
           <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
             How the gear program works

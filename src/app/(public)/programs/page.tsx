@@ -91,7 +91,7 @@ const PILLARS: Pillar[] = [
             Periodic drives and swap events where members can donate, trade, and
             pick up gear in person. Learn more about donating on our{" "}
             <Link
-              href="/gears#donate"
+              href="/gears/donate#donate"
               className="underline underline-offset-4 hover:text-foreground"
             >
               Gear page
@@ -139,7 +139,7 @@ export default function ProgramsPage() {
 
         {PILLARS.map((pillar) => (
           <section key={pillar.label}>
-            <span className="app-eyebrow">{pillar.label}</span>
+            <h2 className="app-eyebrow">{pillar.label}</h2>
             <p className="app-muted mt-2 max-w-3xl text-sm leading-relaxed sm:text-base">
               {pillar.description}
             </p>
