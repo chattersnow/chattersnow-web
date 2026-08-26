@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -35,18 +36,25 @@ export type RoleTypeRow = {
   id: string;
   name: string;
   description: string | null;
+  is_public: boolean;
 };
 
-type FormState = { name: string; description: string };
+type FormState = { name: string; description: string; isPublic: boolean };
 
 function formStateFor(roleType: RoleTypeRow): FormState {
-  return { name: roleType.name, description: roleType.description ?? "" };
+  return {
+    name: roleType.name,
+    description: roleType.description ?? "",
+    isPublic: roleType.is_public,
+  };
 }
 
 function isDirty(form: FormState, roleType: RoleTypeRow) {
   const baseline = formStateFor(roleType);
   return (
-    form.name !== baseline.name || form.description !== baseline.description
+    form.name !== baseline.name ||
+    form.description !== baseline.description ||
+    form.isPublic !== baseline.isPublic
   );
 }
 
@@ -111,6 +119,7 @@ export function RoleTypeDetailsSheet({
     const formData = new FormData();
     formData.set("name", form.name);
     formData.set("description", form.description);
+    formData.set("isPublic", form.isPublic ? "on" : "off");
 
     startTransition(async () => {
       const result = await updateRoleTypeAction(roleType.id, formData);
@@ -201,6 +210,9 @@ export function RoleTypeDetailsSheet({
                 >
                   {roleType.description || "—"}
                 </ReadOnlyField>
+                <ReadOnlyField label="Public" htmlFor="role-type-is-public">
+                  {roleType.is_public ? "Yes" : "No"}
+                </ReadOnlyField>
               </FieldGroup>
             </div>
           ) : (
@@ -234,6 +246,19 @@ export function RoleTypeDetailsSheet({
                         update("description", event.target.value)
                       }
                     />
+                  </Field>
+
+                  <Field orientation="horizontal">
+                    <Checkbox
+                      id="role-type-edit-isPublic"
+                      checked={form.isPublic}
+                      onCheckedChange={(checked) =>
+                        update("isPublic", Boolean(checked))
+                      }
+                    />
+                    <FieldLabel htmlFor="role-type-edit-isPublic">
+                      Show on public site
+                    </FieldLabel>
                   </Field>
 
                   {error && (

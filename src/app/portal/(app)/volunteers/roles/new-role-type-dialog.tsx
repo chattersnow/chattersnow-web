@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createRoleTypeAction } from "./actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -19,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 function getInitialFormState() {
-  return { name: "", description: "" };
+  return { name: "", description: "", isPublic: false };
 }
 
 export function NewRoleTypeDialog() {
@@ -51,6 +52,7 @@ export function NewRoleTypeDialog() {
     const formData = new FormData();
     formData.set("name", form.name);
     formData.set("description", form.description);
+    formData.set("isPublic", form.isPublic ? "on" : "off");
 
     startTransition(async () => {
       const result = await createRoleTypeAction(formData);
@@ -98,6 +100,19 @@ export function NewRoleTypeDialog() {
                 value={form.description}
                 onChange={(event) => update("description", event.target.value)}
               />
+            </Field>
+
+            <Field orientation="horizontal">
+              <Checkbox
+                id="role-type-isPublic"
+                checked={form.isPublic}
+                onCheckedChange={(checked) =>
+                  update("isPublic", Boolean(checked))
+                }
+              />
+              <FieldLabel htmlFor="role-type-isPublic">
+                Show on public site
+              </FieldLabel>
             </Field>
 
             {error && (
