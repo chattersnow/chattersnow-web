@@ -18,13 +18,18 @@ bun run build       # production build
 bun run start       # run production build
 bun run lint        # eslint (flat config, eslint-config-next core-web-vitals + typescript)
 bun run typecheck   # next typegen && tsc --noEmit
-bun run test        # unit tests (bun test), excludes e2e/**
+bun run test        # unit tests (bun test), excludes e2e/** and *.integration.test.ts
+bun run test:integration  # integration tests against local Supabase (run `bun run db:start && bun run db:reset` first)
 bun run test:e2e    # Playwright e2e tests
 bun run format      # prettier --write .
 bun run format:check
 ```
 
 Husky runs a pre-commit hook (`.husky/pre-commit`). CI extends coverage over these same checks.
+
+### Integration tests (`*.integration.test.ts`)
+
+Colocated with the source they exercise, same as unit tests, but run against a real local Supabase stack instead of a mocked client — the only way to catch RLS policy gaps and RPC behavior that mocks can't. Shared fixtures/clients live in `test/integration-setup.ts` (a signed-in admin-account client for fixture setup/cleanup, an anon client, `signIn(email)` for the accounts seeded by `supabase/seed.sql`). They're excluded from `bun run test` and only run via `bun run test:integration`, which requires the local stack running and reset (`bun run db:start && bun run db:reset`) first.
 
 ## Manual/interactive browser driving
 
