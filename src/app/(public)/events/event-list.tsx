@@ -1,4 +1,8 @@
+"use client";
+
+import { useState } from "react";
 import { EventCard, type PublicEvent } from "./event-card";
+import { EventDetailSheet } from "./event-detail-sheet";
 
 export function EventList({
   events,
@@ -7,6 +11,14 @@ export function EventList({
   events: PublicEvent[];
   now: number;
 }) {
+  const [selectedEvent, setSelectedEvent] = useState<PublicEvent | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+
+  function openEvent(event: PublicEvent) {
+    setSelectedEvent(event);
+    setDetailOpen(true);
+  }
+
   if (events.length === 0) {
     return (
       <p className="app-muted py-16 text-center text-sm">No events yet.</p>
@@ -43,7 +55,11 @@ export function EventList({
         ) : (
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {upcoming.map((event) => (
-              <EventCard key={event.id} event={event} />
+              <EventCard
+                key={event.id}
+                event={event}
+                onSelect={() => openEvent(event)}
+              />
             ))}
           </div>
         )}
@@ -58,11 +74,21 @@ export function EventList({
         ) : (
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {past.map((event) => (
-              <EventCard key={event.id} event={event} />
+              <EventCard
+                key={event.id}
+                event={event}
+                onSelect={() => openEvent(event)}
+              />
             ))}
           </div>
         )}
       </section>
+
+      <EventDetailSheet
+        event={selectedEvent}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+      />
     </div>
   );
 }

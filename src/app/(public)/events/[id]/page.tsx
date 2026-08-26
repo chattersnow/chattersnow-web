@@ -1,23 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { EventRegistrationForm } from "./event-registration-form-fields";
-import { checkRegistrationWindow } from "./event-registration-form";
-
-type PublicEventDetail = {
-  id: string;
-  name: string;
-  location: string | null;
-  starts_at: string;
-  ends_at: string | null;
-  timezone: string;
-  description: string | null;
-  event_type: string | null;
-  venue: string | null;
-  capacity: number | null;
-  registration_enabled: boolean;
-  registration_deadline: string | null;
-};
+import { EventRegistrationForm } from "../event-registration-form-fields";
+import { checkRegistrationWindow } from "../event-registration-form";
+import type { PublicEvent } from "../event-card";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "full",
@@ -56,7 +42,7 @@ export default async function EventDetailPage({
       "id, name, location, starts_at, ends_at, timezone, description, event_type, venue, capacity, registration_enabled, registration_deadline",
     )
     .eq("id", id)
-    .maybeSingle<PublicEventDetail>();
+    .maybeSingle<PublicEvent>();
 
   if (!event) notFound();
 
