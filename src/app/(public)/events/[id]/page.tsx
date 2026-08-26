@@ -87,18 +87,20 @@ export default async function EventDetailPage({
           )}
         </section>
 
-        <section className="mt-10 max-w-lg">
-          <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em]">
-            Register
-          </h2>
-          <div className="mt-4">
-            {registrationWindow.open ? (
-              <EventRegistrationForm eventId={event.id} />
-            ) : (
-              <p className="app-muted text-sm">{registrationWindow.reason}</p>
-            )}
-          </div>
-        </section>
+        {event.registration_enabled && (
+          <section className="mt-10 max-w-lg">
+            <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em]">
+              Register
+            </h2>
+            <div className="mt-4">
+              {registrationWindow.open ? (
+                <EventRegistrationForm eventId={event.id} />
+              ) : (
+                <p className="app-muted text-sm">{registrationWindow.reason}</p>
+              )}
+            </div>
+          </section>
+        )}
       </div>
     </main>
   );
