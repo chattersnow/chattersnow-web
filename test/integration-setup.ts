@@ -41,14 +41,13 @@ export const SEEDED_USERS = {
   former: "former@example.test",
 } as const;
 
-// A signed-in admin session, used for fixture setup/cleanup. Not the raw
-// service-role client: `service_role` has `bypassrls` but this schema's
-// migrations only ever GRANT table privileges to `authenticated` (never to
-// `service_role`), so a raw service-role client gets "permission denied"
-// on ordinary tables -- it can only reach RPCs and tables granted directly
-// to it. Signing in as the seeded admin account (which has "manage" on
-// every resource) exercises the same authenticated+RLS path the app
-// actually uses and has access to everything fixtures need.
+// A signed-in admin session, used for fixture setup/cleanup, rather than the
+// raw service-role client (createSupabaseAdminClient() in
+// src/lib/supabase/admin.ts -- usable for direct table access since #221's
+// grant migration, but still not what fixtures should exercise): signing in
+// as the seeded admin account (which has "manage" on every resource)
+// exercises the same authenticated+RLS path the app actually uses and has
+// access to everything fixtures need.
 export const adminClient = await signIn(SEEDED_USERS.admin);
 
 // Random, not sequential: the rate limiter keys on (route, ip) over a
