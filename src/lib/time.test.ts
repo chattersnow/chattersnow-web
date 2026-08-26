@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { formatDueRelative, isEventActiveToday } from "@/lib/time";
+import {
+  daysInMonth,
+  formatDueRelative,
+  isEventActiveToday,
+  zonedWallTimeToUtcIso,
+} from "@/lib/time";
 
 describe("formatDueRelative", () => {
   const now = new Date("2026-08-24T12:00:00Z");
@@ -92,5 +97,45 @@ describe("isEventActiveToday", () => {
     };
     expect(() => isEventActiveToday(event, now)).not.toThrow();
     expect(isEventActiveToday(event, now)).toBe(true);
+  });
+});
+
+describe("daysInMonth", () => {
+  test("returns 28 for February in a non-leap year", () => {
+    expect(daysInMonth(2027, 2)).toBe(28);
+  });
+
+  test("returns 29 for February in a leap year", () => {
+    expect(daysInMonth(2028, 2)).toBe(29);
+  });
+
+  test("returns 30 for a 30-day month", () => {
+    expect(daysInMonth(2027, 4)).toBe(30);
+  });
+});
+
+describe("zonedWallTimeToUtcIso", () => {
+  test("converts a Mountain Time (MDT, UTC-6) midnight in June", () => {
+    expect(zonedWallTimeToUtcIso(2027, 6, 1, 0, 0, 0, "America/Denver")).toBe(
+      "2027-06-01T06:00:00.000Z",
+    );
+  });
+
+  test("converts a Mountain Time (MST, UTC-7) midnight in December", () => {
+    expect(zonedWallTimeToUtcIso(2026, 12, 1, 0, 0, 0, "America/Denver")).toBe(
+      "2026-12-01T07:00:00.000Z",
+    );
+  });
+
+  test("converts an end-of-day instant in a zone with no DST", () => {
+    expect(
+      zonedWallTimeToUtcIso(2027, 5, 17, 23, 59, 59, "America/Phoenix"),
+    ).toBe("2027-05-18T06:59:59.000Z");
+  });
+
+  test("round-trips through UTC itself", () => {
+    expect(zonedWallTimeToUtcIso(2027, 1, 1, 0, 0, 0, "UTC")).toBe(
+      "2027-01-01T00:00:00.000Z",
+    );
   });
 });

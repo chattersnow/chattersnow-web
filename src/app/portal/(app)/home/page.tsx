@@ -22,6 +22,7 @@ import {
   getMyActiveEvents,
 } from "./queries";
 import {
+  getCalendarCoverageReminderSummary,
   getOpsInboxSummary,
   getPendingApprovalsSummary,
 } from "@/lib/portal/attention-items";
@@ -86,6 +87,11 @@ export default async function PortalHomePage() {
     permissions,
     "content_calendar",
     "view",
+  );
+  const canManageContentCalendar = hasPermission(
+    permissions,
+    "content_calendar",
+    "manage",
   );
   const canSeeVolunteerApplications = hasPermission(
     permissions,
@@ -166,6 +172,12 @@ export default async function PortalHomePage() {
         )
       : null;
 
+  const calendarCoverageReminder = canManageContentCalendar
+    ? await getCalendarCoverageReminderSummary(supabase, {
+        canManageContentCalendar,
+      })
+    : null;
+
   const recentDonations =
     recentDonationsResult && "data" in recentDonationsResult
       ? recentDonationsResult.data
@@ -174,6 +186,7 @@ export default async function PortalHomePage() {
     ...(pendingApprovals?.items ?? []),
     ...(contentWork?.items ?? []),
     ...(opsInbox?.items ?? []),
+    ...(calendarCoverageReminder?.items ?? []),
   ];
   const activeEvents = personId
     ? await getMyActiveEvents(supabase, personId, nowIso)
