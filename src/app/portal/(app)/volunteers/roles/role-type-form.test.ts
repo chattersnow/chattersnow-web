@@ -34,4 +34,16 @@ describe("parseRoleTypeForm", () => {
       error: "Role name is required.",
     });
   });
+
+  test("parses isPublic when on", () => {
+    const result = parseRoleTypeForm(
+      formData({ name: "Ride Buddy", isPublic: "on" }),
+    );
+    expect("data" in result && result.data.is_public).toBe(true);
+  });
+
+  test("defaults is_public to false when absent", () => {
+    const result = parseRoleTypeForm(formData({ name: "Ride Buddy" }));
+    expect("data" in result && result.data.is_public).toBe(false);
+  });
 });

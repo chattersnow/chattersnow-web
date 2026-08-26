@@ -25,7 +25,7 @@ export default async function VolunteerRolesPage() {
 
   const { data: roleTypes, error } = await supabase
     .from("volunteer_role_types")
-    .select("id, name, description")
+    .select("id, name, description, is_public")
     .order("name", { ascending: true });
 
   return (
@@ -56,6 +56,7 @@ export default async function VolunteerRolesPage() {
                 <TableRow>
                   <TableHead>Role</TableHead>
                   <TableHead>Description</TableHead>
+                  <TableHead>Public</TableHead>
                   <TableHead className="w-px" />
                 </TableRow>
               </TableHeader>
@@ -67,6 +68,9 @@ export default async function VolunteerRolesPage() {
                     </TableCell>
                     <TableCell className="app-muted max-w-sm truncate">
                       {roleType.description || "—"}
+                    </TableCell>
+                    <TableCell className="app-muted">
+                      {roleType.is_public ? "Yes" : "No"}
                     </TableCell>
                     <TableCell className="text-right">
                       <RoleTypeDetailsSheet
