@@ -186,16 +186,21 @@ A user may hold more than one role. The full page-by-page breakdown is the entit
 | People directory                                                | Manage  | View                | View                   | None                 | None                               |
 | Volunteers — roles (role-type definitions)                      | Manage  | View                | None                   | None                 | View                               |
 | Volunteers — participation                                      | Manage  | View                | None                   | None                 | View/log own                       |
+| Volunteers — applications (public intake queue)                 | Manage  | View                | None                   | None                 | View⁴                              |
+| Communications — contact messages                               | Manage  | None                | None                   | None                 | None                               |
 | Governance — all pages                                          | Manage  | None                | None                   | Manage               | None                               |
 | Administration — users, roles, permissions, settings, audit log | Manage  | None                | None                   | None                 | None                               |
 
 ¹ Volunteers never see event financial data (expenses, sponsor amounts); event sign-up depends on the not-yet-built event-registration tables noted in §3.
 ² Volunteers do not get Inventory reports since those surface dollar valuations.
 ³ `finance` may create and edit expense/reimbursement records and mark them submitted, but cannot approve its own submissions — see §5.16.
+⁴ Applications reuse the same `volunteers` resource as the role-type catalog and participation rows rather than a narrower carve-out, so a `volunteer`-role user can read every applicant's name/email/phone, not just their own — an intentional reuse of the existing gate (issue #173), not a new information-sharing decision.
 
 **Implemented:** `roles`/`user_roles` tables, plus a data-driven `resources`/`role_permissions` matrix (role × resource → none/view/manage) that RLS policies and route guards consult via `has_permission()` instead of hardcoded role names — see §6. Route guards (`requirePermission`/`requireAnyPermission` in each section's `layout.tsx`) and nav filtering (`portal-nav.tsx`) both read the same permission map, so unauthorized sections are neither reachable by URL nor shown in the sidebar, and a permission change takes effect immediately without a deploy. Administration > Users lets an admin assign/revoke roles per account, and Administration > Permissions lets an admin edit the matrix and create new roles beyond the initial five (the `roles.name` check constraint has been dropped). A new role starts with no permissions on any resource until explicitly granted.
 
 Resource granularity mostly matches the matrix rows above, with a few narrow "Workflow" resources (`people_intake`, `inventory_intake`, `volunteer_hours_logging`) added to express existing per-verb carve-outs — e.g. a volunteer can record a donation-intake/distribution transaction or create an inline contact from an event/donation form without gaining full People-directory or Inventory-reports access — that a flat view/manage split per matrix row can't otherwise represent without widening those roles' read access.
+
+**Implemented — `communications` resource** (issue #173): added specifically so contact-message routing could be decoupled from full `administration` access — `contact_messages` RLS previously hardcoded `select` to `is_admin()` with no dedicated resource at all (issue #172). Seeded with `admin: manage` only, since no front-desk/communications-coordinator role exists yet; Administration > Permissions can grant it to a new role later without another migration.
 
 ### 5.4 Inventory and donation management
 
@@ -417,7 +422,9 @@ Volunteer hours feed the Impact Tracking rollups in §5.15 (e.g. "290 volunteer 
 
 **Implemented — public volunteer opportunities** (issue #60): `/get-involved/volunteer` reads live from `public_volunteer_role_types`, a curated view (`id`, `name`, `description` — no icon field) granted to `anon`/`authenticated` over `volunteer_role_types` rows flagged `is_public`, following the same pattern as `public_gear_catalog`/`public_events`. The hardcoded opportunities array is gone.
 
-**Implemented — public volunteer application form** (issue #161): the same page also renders an application form backed by `volunteer_applications` (`person_id`, `name`, `email`, `phone`, free-text `role_interest`, `availability`, `status`: new/contacted/placed/declined/closed) and a `security definer` `submit_volunteer_application()` RPC. Applications are triaged from the portal (status updates), not auto-converted into `people`/volunteer records. This is a separate intake path from the role-type catalog above — it captures interest, not a role assignment.
+**Implemented — public volunteer application form** (issue #161): the same page also renders an application form backed by `volunteer_applications` (`person_id`, `name`, `email`, `phone`, free-text `role_interest`, `availability`, `status`: new/contacted/placed/declined/closed) and a `security definer` `submit_volunteer_application()` RPC. Applications are not auto-converted into `people`/volunteer records — they're triaged from the portal instead (see below). This is a separate intake path from the role-type catalog above — it captures interest, not a role assignment.
+
+**Implemented — portal application queue** (issue #173): `/portal/volunteers/applications` lists submissions (search by name/email, filter by status), gated by the same `volunteers` resource as the rows above. A details sheet shows the full submission and, for `volunteers:manage` holders, an inline status control; view-only holders see the status as plain text. New (`status = 'new'`) applications are flagged in the notification bell and the dashboard's "Needs your attention" card, linking to the queue pre-filtered to `?status=new`.
 
 ### 5.18 Reimbursements
 
@@ -509,7 +516,7 @@ Implemented for the tables listed below (see §5.11, issue #18):
 - `event_staff`: not yet implemented — see §5.9; mirrors `event_volunteers` (`event_id`, `person_id`, optional role/title, notes, unique per event/person pair) for people tagged `is_staff`.
 - `event_registrations`: **implemented** — public registration for an event (name, email, phone, party size, notes), submitted via the anon-callable `register_for_event()` RPC (validates the event is public/published, registration is open, and capacity). Links to a `people` record via `person_id`, resolved-or-created by normalized email inside the RPC (`resolve_or_create_person_by_email()`, since there's no signed-in user to drive a `PersonPicker`); existing rows were backfilled by matching `people.email` where possible. `create_donation_with_items` uses the same helper to resolve an existing `people` row by email instead of always inserting a duplicate. `checked_in_at`: explicit per-registrant check-in (set by staff from the portal, not derived from `events.attendance_count`/`attendance_notes`, which remain a separate manual estimate — see §5.9-adjacent event-day tooling). A walk-in who never pre-registered gets their own `event_registrations` row, created at check-in time via `PersonPicker`, rather than a separate table.
 - `discount_codes`: manual tracking of discount codes a partner/vendor issues for an event (code, description, source) and which registrant each was given to (`registration_id` → `event_registrations.id`, single-use via a unique constraint on `registration_id`, plus a unique `(event_id, lower(code))` index). No payment/pricing integration — redemption happens outside chattersnow-web. No automatic assignment at registration time (needs board input; tracked separately).
-- `contact_messages`: **implemented** (issue #172) — `name`, `email`, `topic`, `message`, persisted via the `security definer` `submit_contact_message()` RPC (honeypot + rate-limited — see §7 item 9); no email is sent, staff review submissions in the portal.
+- `contact_messages`: **implemented** (issue #172) — `name`, `email`, `topic`, `message`, persisted via the `security definer` `submit_contact_message()` RPC (honeypot + rate-limited — see §7 item 9); no email is sent. **Implemented — portal triage** (issue #173): a `status` column (new/read/resolved) plus `updated_at`/`updated_by`, gated by the dedicated `communications` resource (§5.3) rather than the original `is_admin()`-only `select` policy. Staff review submissions at `/portal/communications`; opening a message auto-marks it read, and new messages are flagged in the notification bell and dashboard.
 - `rate_limit_hits`: **implemented** (issue #172) — shared abuse-protection primitive (`route`, `ip_address`, `created_at`) behind `check_rate_limit()`; not exposed to `anon`/`authenticated` directly. See §7 item 9 for which public RPCs use it and at what thresholds.
 
 ### Programs and impact
@@ -538,7 +545,7 @@ Impact rollups themselves (per-event, per-program, and season reports, including
 - `volunteer_role_types`: catalog of role-type definitions (e.g. Ride Buddy, Event Setup, Basecamp Staffing) — named to avoid colliding with the existing RBAC `roles` table in "Identity and access" above, which is a different concept (portal permissions, not volunteer job types). Currently `name`/`description` only.
 - `volunteer_hours`: `person_id` (→ `people`), optional `event_id`, date, hours, `volunteer_role_type_id`, and the user who logged the entry
 - `volunteer_role_types.is_public` + `public_volunteer_role_types`: **implemented** (issue #60) — a public-facing flag on `volunteer_role_types` and a curated view (`id`, `name`, `description`) granted to `anon`, backing `/get-involved/volunteer`.
-- `volunteer_applications`: **implemented** (issue #161) — public intake, separate from the role-type catalog above: `person_id` (→ `people`), `name`, `email`, `phone`, free-text `role_interest`, `availability`, `status` (new/contacted/placed/declined/closed), submitted via the `security definer` `submit_volunteer_application()` RPC.
+- `volunteer_applications`: **implemented** (issue #161) — public intake, separate from the role-type catalog above: `person_id` (→ `people`), `name`, `email`, `phone`, free-text `role_interest`, `availability`, `status` (new/contacted/placed/declined/closed), submitted via the `security definer` `submit_volunteer_application()` RPC. Also carries `updated_at`/`updated_by` (issue #173, backing the portal triage queue at `/portal/volunteers/applications` — see §5.17) via the same shared `set_updated_at` trigger used elsewhere in the schema.
 
 ### Finance and giveaways
 
@@ -639,7 +646,8 @@ src/app/
       people/                   # shared donor/sponsor/volunteer directory
       programs/                 # program CRUD (issue #45) + reports/ (season/program impact rollup, issue #48)
       governance/               # board-members, meetings (incl. agendas), resolutions, nonprofit-status — implemented; bylaws, policies, conflict-of-interest, annual-requirements — placeholder
-      volunteers/                # roles (role types) + participation (hours logging) — implemented (issues #49/#50)
+      volunteers/                # roles (role types) + participation (hours logging) + applications (public intake queue, issue #173) — implemented (issues #49/#50/#173)
+      communications/            # contact-form message queue — implemented (issue #173)
       calendar/                 # content & community calendar (§5.20) — implemented, incl. program-suggestions/, templates/, work-queue/
       administration/           # users (incl. invite links, deactivation), roles, permissions, audit-log — implemented; system-settings — implemented (app_settings)
 ```
@@ -684,6 +692,7 @@ Supabase database changes should be implemented as ordered migrations under `sup
 2. Server validates input and applies rate limiting/bot protection.
 3. Server stores the inquiry in `contact_messages` for staff follow-up; no email is sent in the initial release.
 4. Visitor sees a confirmation state; failures are surfaced without exposing delivery internals.
+5. A `communications`-permission holder triages the message at `/portal/communications`: opening it marks it read, and it can be marked resolved once handled.
 
 ### Record event expense
 

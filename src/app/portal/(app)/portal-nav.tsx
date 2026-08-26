@@ -11,6 +11,7 @@ import {
   Landmark,
   LayoutDashboard,
   Layers,
+  Mail,
   Package,
   Scale,
   ShieldCheck,
@@ -177,7 +178,20 @@ const NAV_ITEMS: readonly NavItem[] = [
         href: "/portal/volunteers/participation",
         access: [{ resource: "volunteers", level: "view" }],
       },
+      {
+        value: "applications",
+        label: "Applications",
+        href: "/portal/volunteers/applications",
+        access: [{ resource: "volunteers", level: "view" }],
+      },
     ],
+  },
+  {
+    value: "messages",
+    label: "Messages",
+    href: "/portal/communications",
+    icon: Mail,
+    access: [{ resource: "communications", level: "view" }],
   },
   {
     value: "finance",

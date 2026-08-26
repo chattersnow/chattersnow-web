@@ -21,7 +21,10 @@ import {
   getContentWorkSummary,
   getMyActiveEvents,
 } from "./queries";
-import { getPendingApprovalsSummary } from "@/lib/portal/attention-items";
+import {
+  getOpsInboxSummary,
+  getPendingApprovalsSummary,
+} from "@/lib/portal/attention-items";
 import { listRecentDonationsAction } from "./actions";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -84,6 +87,17 @@ export default async function PortalHomePage() {
     "content_calendar",
     "view",
   );
+  const canSeeVolunteerApplications = hasPermission(
+    permissions,
+    "volunteers",
+    "view",
+  );
+  const canSeeContactMessages = hasPermission(
+    permissions,
+    "communications",
+    "view",
+  );
+  const canSeeEventCheckins = canSeeUpcoming;
   const canRecordDonation = hasAnyPermission(permissions, [
     { resource: "finance", level: "manage" },
     { resource: "inventory_intake", level: "manage" },
@@ -139,6 +153,19 @@ export default async function PortalHomePage() {
       })
     : null;
 
+  const opsInbox =
+    canSeeVolunteerApplications || canSeeContactMessages || canSeeEventCheckins
+      ? await getOpsInboxSummary(
+          supabase,
+          {
+            canSeeVolunteerApplications,
+            canSeeContactMessages,
+            canSeeEventCheckins,
+          },
+          nowIso,
+        )
+      : null;
+
   const recentDonations =
     recentDonationsResult && "data" in recentDonationsResult
       ? recentDonationsResult.data
@@ -146,6 +173,7 @@ export default async function PortalHomePage() {
   const attentionItems = [
     ...(pendingApprovals?.items ?? []),
     ...(contentWork?.items ?? []),
+    ...(opsInbox?.items ?? []),
   ];
   const activeEvents = personId
     ? await getMyActiveEvents(supabase, personId, nowIso)

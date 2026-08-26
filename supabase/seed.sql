@@ -295,6 +295,15 @@ begin
   insert into public.volunteer_applications (person_id, name, email, phone, role_interest, availability, status)
   values (v_person_applicant, 'Morgan Ellis', 'morgan.ellis@example.test', '555-0105', 'Ride Buddy', 'Weekend mornings', 'new');
 
+  -- Public contact-form submissions, exercising the ops inbox (issue #173):
+  -- one unread so the notification bell/dashboard card have something to
+  -- show out of the box, one already resolved to demonstrate the workflow.
+  insert into public.contact_messages (name, email, topic, message, status)
+  values ('Drew Sato', 'drew.sato@example.test', 'partnership', 'We run a gear shop downtown and would love to talk about a seasonal donation drive.', 'new');
+
+  insert into public.contact_messages (name, email, topic, message, status)
+  values ('Casey Nolan', 'casey.nolan@example.test', 'general', 'Do you have gear available in kids sizes right now?', 'resolved');
+
   insert into public.event_registrations (event_id, name, email, phone, party_size, notes, person_id, checked_in_at)
   values (v_event_upcoming, 'Jamie Rivera', 'jamie.rivera@example.test', '555-0101', 2, 'Needs one adult medium jacket.', v_person_donor1, null)
   returning id into v_registration_id;
