@@ -205,7 +205,10 @@ const NAV_ITEMS: readonly NavItem[] = [
         value: "reimbursements",
         label: "Reimbursements",
         href: "/portal/finance/reimbursements",
-        access: [{ resource: "finance", level: "manage" }],
+        access: [
+          { resource: "reimbursements", level: "manage" },
+          { resource: "reimbursement_approvals", level: "manage" },
+        ],
       },
       {
         value: "reports",

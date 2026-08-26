@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requirePermission } from "@/lib/auth/permissions";
+import { requireAnyPermission } from "@/lib/auth/permissions";
 
 export default async function FinanceReimbursementsLayout({
   children,
@@ -7,6 +7,9 @@ export default async function FinanceReimbursementsLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createSupabaseServerClient();
-  await requirePermission(supabase, "finance", "manage");
+  await requireAnyPermission(supabase, [
+    { resource: "reimbursements", level: "manage" },
+    { resource: "reimbursement_approvals", level: "manage" },
+  ]);
   return children;
 }

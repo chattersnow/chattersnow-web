@@ -1,16 +1,26 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { SystemSettingsForm } from "./system-settings-form";
 
+function parseThreshold(value: unknown): number | null {
+  const threshold = typeof value === "number" ? value : Number(value ?? NaN);
+  return Number.isFinite(threshold) ? threshold : null;
+}
+
 export default async function SystemSettingsPage() {
   const supabase = await createSupabaseServerClient();
-  const { data } = await supabase
-    .from("app_settings")
-    .select("value")
-    .eq("key", "finance.expense_approval_threshold")
-    .maybeSingle();
-
-  const threshold =
-    typeof data?.value === "number" ? data.value : Number(data?.value ?? NaN);
+  const [{ data: expenseSetting }, { data: reimbursementSetting }] =
+    await Promise.all([
+      supabase
+        .from("app_settings")
+        .select("value")
+        .eq("key", "finance.expense_approval_threshold")
+        .maybeSingle(),
+      supabase
+        .from("app_settings")
+        .select("value")
+        .eq("key", "finance.reimbursement_approval_threshold")
+        .maybeSingle(),
+    ]);
 
   return (
     <>
@@ -20,9 +30,10 @@ export default async function SystemSettingsPage() {
 
       <div className="mt-6">
         <SystemSettingsForm
-          expenseApprovalThreshold={
-            Number.isFinite(threshold) ? threshold : null
-          }
+          expenseApprovalThreshold={parseThreshold(expenseSetting?.value)}
+          reimbursementApprovalThreshold={parseThreshold(
+            reimbursementSetting?.value,
+          )}
         />
       </div>
     </>

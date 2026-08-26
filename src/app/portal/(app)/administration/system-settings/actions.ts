@@ -41,3 +41,18 @@ export async function updateExpenseApprovalThresholdAction(
 
   return updateAppSettingAction("finance.expense_approval_threshold", value);
 }
+
+export async function updateReimbursementApprovalThresholdAction(
+  formData: FormData,
+): Promise<SettingActionResult> {
+  const raw = String(formData.get("threshold") ?? "").trim();
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0) {
+    return { error: "Threshold must be a positive number." };
+  }
+
+  return updateAppSettingAction(
+    "finance.reimbursement_approval_threshold",
+    value,
+  );
+}

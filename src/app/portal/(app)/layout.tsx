@@ -47,9 +47,18 @@ export default async function PortalAppLayout({
     "finance_approvals",
     "manage",
   );
-  const pendingApprovals = canSeeExpenseApprovals
-    ? await getPendingApprovalsSummary(supabase, { canSeeExpenseApprovals })
-    : { items: [] };
+  const canSeeReimbursementApprovals = hasPermission(
+    permissions,
+    "reimbursement_approvals",
+    "manage",
+  );
+  const pendingApprovals =
+    canSeeExpenseApprovals || canSeeReimbursementApprovals
+      ? await getPendingApprovalsSummary(supabase, {
+          canSeeExpenseApprovals,
+          canSeeReimbursementApprovals,
+        })
+      : { items: [] };
 
   const displayName =
     (user.user_metadata?.full_name as string | undefined) ??

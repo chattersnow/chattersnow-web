@@ -10,7 +10,10 @@ export type PendingApprovalsSummary = { items: PendingApprovalItem[] };
 
 export async function getPendingApprovalsSummary(
   supabase: SupabaseClient,
-  options: { canSeeExpenseApprovals: boolean },
+  options: {
+    canSeeExpenseApprovals: boolean;
+    canSeeReimbursementApprovals: boolean;
+  },
 ): Promise<PendingApprovalsSummary> {
   const items: PendingApprovalItem[] = [];
 
@@ -25,6 +28,21 @@ export async function getPendingApprovalsSummary(
         label: "Expense approvals",
         count,
         href: "/portal/finance/expenses?status=submitted",
+      });
+    }
+  }
+
+  if (options.canSeeReimbursementApprovals) {
+    const { data: pendingReimbursementCount } = await supabase.rpc(
+      "count_pending_reimbursement_approvals",
+    );
+    const count = pendingReimbursementCount ?? 0;
+    if (count > 0) {
+      items.push({
+        key: "reimbursement_approvals",
+        label: "Reimbursement approvals",
+        count,
+        href: "/portal/finance/reimbursements?status=submitted",
       });
     }
   }

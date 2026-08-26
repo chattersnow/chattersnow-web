@@ -57,6 +57,11 @@ export default async function PortalHomePage() {
   // render a misleading zero instead of just not appearing.
   const canSeeExpenses = hasPermission(permissions, "event_expenses", "view");
   const canSeeRevenue = hasPermission(permissions, "event_revenue", "view");
+  const canSeeReimbursements = hasPermission(
+    permissions,
+    "reimbursements",
+    "view",
+  );
   const canSeeEventBudgets = canSeeUpcoming;
   const canSeeRecentDonations = hasPermission(permissions, "finance", "view");
   const canSeeInventory = hasAnyPermission(permissions, [
@@ -67,6 +72,11 @@ export default async function PortalHomePage() {
   const canSeeExpenseApprovals = hasPermission(
     permissions,
     "finance_approvals",
+    "manage",
+  );
+  const canSeeReimbursementApprovals = hasPermission(
+    permissions,
+    "reimbursement_approvals",
     "manage",
   );
   const canSeeContentCalendar = hasPermission(
@@ -112,8 +122,11 @@ export default async function PortalHomePage() {
     canSeeInventory && canSeeRecentDonations
       ? listRecentDonationsAction(5)
       : Promise.resolve(null),
-    canSeeExpenseApprovals
-      ? getPendingApprovalsSummary(supabase, { canSeeExpenseApprovals })
+    canSeeExpenseApprovals || canSeeReimbursementApprovals
+      ? getPendingApprovalsSummary(supabase, {
+          canSeeExpenseApprovals,
+          canSeeReimbursementApprovals,
+        })
       : Promise.resolve(null),
     resolveCurrentPersonId(supabase),
     supabase.auth.getUser(),
@@ -249,10 +262,15 @@ export default async function PortalHomePage() {
                 caption={`This month · ${currencyFormatter.format(financial.revenueThisYear)} this year`}
               />
             )}
-            <DashboardComingSoonRow
-              label="Outstanding reimbursements"
-              description="Reimbursement tracking is planned in issue #51."
-            />
+            {canSeeReimbursements && (
+              <DashboardStatRow
+                label="Outstanding reimbursements"
+                value={currencyFormatter.format(
+                  financial.outstandingReimbursementTotal,
+                )}
+                caption="Submitted or approved, not yet paid"
+              />
+            )}
             {canSeeEventBudgets && (
               <DashboardStatRow
                 label="Event budgets"

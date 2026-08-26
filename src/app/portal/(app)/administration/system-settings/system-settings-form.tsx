@@ -2,7 +2,11 @@
 
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { updateExpenseApprovalThresholdAction } from "./actions";
+import {
+  updateExpenseApprovalThresholdAction,
+  updateReimbursementApprovalThresholdAction,
+  type SettingActionResult,
+} from "./actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,15 +18,21 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
-export function SystemSettingsForm({
-  expenseApprovalThreshold,
+function ThresholdCard({
+  title,
+  idPrefix,
+  description,
+  initialValue,
+  action,
 }: {
-  expenseApprovalThreshold: number | null;
+  title: string;
+  idPrefix: string;
+  description: string;
+  initialValue: number | null;
+  action: (formData: FormData) => Promise<SettingActionResult>;
 }) {
   const router = useRouter();
-  const [value, setValue] = useState(
-    expenseApprovalThreshold?.toString() ?? "",
-  );
+  const [value, setValue] = useState(initialValue?.toString() ?? "");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -34,7 +44,7 @@ export function SystemSettingsForm({
 
     const formData = new FormData(event.currentTarget);
     startTransition(async () => {
-      const result = await updateExpenseApprovalThresholdAction(formData);
+      const result = await action(formData);
       if ("error" in result) {
         setError(result.error);
         return;
@@ -47,15 +57,17 @@ export function SystemSettingsForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Expense approval threshold</CardTitle>
+        <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit}>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="threshold">Threshold (USD)</FieldLabel>
+              <FieldLabel htmlFor={`${idPrefix}-threshold`}>
+                Threshold (USD)
+              </FieldLabel>
               <Input
-                id="threshold"
+                id={`${idPrefix}-threshold`}
                 name="threshold"
                 type="number"
                 min="0"
@@ -64,11 +76,7 @@ export function SystemSettingsForm({
                 value={value}
                 onChange={(event) => setValue(event.target.value)}
               />
-              <FieldDescription>
-                Below this amount, finance can self-approve their own expense
-                submissions. At or above it, a second approval from admin or
-                board is required.
-              </FieldDescription>
+              <FieldDescription>{description}</FieldDescription>
             </Field>
 
             {error && (
@@ -91,5 +99,32 @@ export function SystemSettingsForm({
         </form>
       </CardContent>
     </Card>
+  );
+}
+
+export function SystemSettingsForm({
+  expenseApprovalThreshold,
+  reimbursementApprovalThreshold,
+}: {
+  expenseApprovalThreshold: number | null;
+  reimbursementApprovalThreshold: number | null;
+}) {
+  return (
+    <div className="space-y-6">
+      <ThresholdCard
+        title="Expense approval threshold"
+        idPrefix="expense"
+        description="Below this amount, finance can self-approve their own expense submissions. At or above it, a second approval from admin or board is required."
+        initialValue={expenseApprovalThreshold}
+        action={updateExpenseApprovalThresholdAction}
+      />
+      <ThresholdCard
+        title="Reimbursement approval threshold"
+        idPrefix="reimbursement"
+        description="Below this amount, finance can self-approve their own reimbursement submissions. At or above it, a second approval from admin or board is required."
+        initialValue={reimbursementApprovalThreshold}
+        action={updateReimbursementApprovalThresholdAction}
+      />
+    </div>
   );
 }
