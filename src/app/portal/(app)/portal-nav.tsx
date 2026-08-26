@@ -90,6 +90,12 @@ const NAV_ITEMS: readonly NavItem[] = [
         href: "/portal/calendar/templates",
         access: [{ resource: "content_calendar", level: "manage" }],
       },
+      {
+        value: "program-suggestions",
+        label: "Program suggestions",
+        href: "/portal/calendar/program-suggestions",
+        access: [{ resource: "content_calendar", level: "manage" }],
+      },
     ],
   },
   {

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { listProgramsAction } from "../programs/actions";
 import { listCalendarOwnersAction } from "./actions";
 import { listActiveContentBriefTemplatesAction } from "./templates/actions";
+import { listActiveProgramSuggestionRulesAction } from "./program-suggestions/actions";
 import { NewCalendarItemDialog } from "./new-calendar-item-dialog";
 import { CalendarWorkspace } from "./calendar-workspace";
 import { ViewToggle, type CalendarView } from "./view-toggle";
@@ -115,6 +116,9 @@ export default async function CalendarPage({
   const programs = "data" in programsResult ? programsResult.data : [];
   const templatesResult = await listActiveContentBriefTemplatesAction();
   const activeTemplates = "data" in templatesResult ? templatesResult.data : [];
+  const suggestionRulesResult = await listActiveProgramSuggestionRulesAction();
+  const programSuggestionRules =
+    "data" in suggestionRulesResult ? suggestionRulesResult.data : [];
 
   const { data: leadTimeSetting } = await supabase
     .from("app_settings")
@@ -155,7 +159,11 @@ export default async function CalendarPage({
 
       <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
         {canManage ? (
-          <NewCalendarItemDialog owners={owners} programs={programs} />
+          <NewCalendarItemDialog
+            owners={owners}
+            programs={programs}
+            programSuggestionRules={programSuggestionRules}
+          />
         ) : (
           <div />
         )}
@@ -371,6 +379,7 @@ export default async function CalendarPage({
             programs={programs}
             activeTemplates={activeTemplates}
             defaultLeadTimeDays={defaultLeadTimeDays}
+            programSuggestionRules={programSuggestionRules}
             canManage={canManage}
             filterQuery={filterParams.toString()}
             sort={sort}

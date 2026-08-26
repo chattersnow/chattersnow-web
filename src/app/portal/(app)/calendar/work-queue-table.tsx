@@ -35,6 +35,7 @@ import {
   overdueStage,
 } from "./content-opportunity-shared";
 import type { ActiveContentBriefTemplate } from "./content-brief-template-shared";
+import type { ProgramSuggestionRule } from "./program-suggestion-shared";
 
 export function WorkQueueTable({
   items,
@@ -42,6 +43,7 @@ export function WorkQueueTable({
   programs,
   activeTemplates,
   defaultLeadTimeDays,
+  programSuggestionRules,
   canManage,
   currentUserId,
   emptyMessage,
@@ -51,6 +53,7 @@ export function WorkQueueTable({
   programs: CalendarProgram[];
   activeTemplates: ActiveContentBriefTemplate[];
   defaultLeadTimeDays: number;
+  programSuggestionRules: ProgramSuggestionRule[];
   canManage: boolean;
   currentUserId: string | null;
   emptyMessage: string;
@@ -127,6 +130,7 @@ export function WorkQueueTable({
                         programs={programs}
                         activeTemplates={activeTemplates}
                         defaultLeadTimeDays={defaultLeadTimeDays}
+                        programSuggestionRules={programSuggestionRules}
                         canManage={canManage}
                       />
                     </TableCell>

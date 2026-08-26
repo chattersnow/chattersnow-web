@@ -16,6 +16,7 @@ import {
   type CalendarProgram,
 } from "./calendar-shared";
 import type { ActiveContentBriefTemplate } from "./content-brief-template-shared";
+import type { ProgramSuggestionRule } from "./program-suggestion-shared";
 import { ListView, type ListSortColumn } from "./list-view";
 import { AgendaView } from "./agenda-view";
 import { MonthView } from "./month-view";
@@ -29,6 +30,7 @@ export function CalendarWorkspace({
   programs,
   activeTemplates,
   defaultLeadTimeDays,
+  programSuggestionRules,
   canManage,
   filterQuery,
   sort,
@@ -41,6 +43,7 @@ export function CalendarWorkspace({
   programs: CalendarProgram[];
   activeTemplates: ActiveContentBriefTemplate[];
   defaultLeadTimeDays: number;
+  programSuggestionRules: ProgramSuggestionRule[];
   canManage: boolean;
   filterQuery: string;
   sort: ListSortColumn;
@@ -140,6 +143,7 @@ export function CalendarWorkspace({
           programs={programs}
           activeTemplates={activeTemplates}
           defaultLeadTimeDays={defaultLeadTimeDays}
+          programSuggestionRules={programSuggestionRules}
           canManage={canManage}
           sort={sort}
           dir={dir}
@@ -153,6 +157,7 @@ export function CalendarWorkspace({
           programs={programs}
           activeTemplates={activeTemplates}
           defaultLeadTimeDays={defaultLeadTimeDays}
+          programSuggestionRules={programSuggestionRules}
           canManage={canManage}
         />
       )}
@@ -164,6 +169,7 @@ export function CalendarWorkspace({
           programs={programs}
           activeTemplates={activeTemplates}
           defaultLeadTimeDays={defaultLeadTimeDays}
+          programSuggestionRules={programSuggestionRules}
           canManage={canManage}
           monthHref={monthHref}
         />

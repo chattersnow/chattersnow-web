@@ -19,6 +19,7 @@ import {
   type CalendarProgram,
 } from "./calendar-shared";
 import type { ActiveContentBriefTemplate } from "./content-brief-template-shared";
+import type { ProgramSuggestionRule } from "./program-suggestion-shared";
 
 const dayHeadingFormatter = new Intl.DateTimeFormat("en-US", {
   weekday: "long",
@@ -52,6 +53,7 @@ export function AgendaView({
   programs,
   activeTemplates,
   defaultLeadTimeDays,
+  programSuggestionRules,
   canManage,
 }: {
   items: CalendarItemRow[];
@@ -59,6 +61,7 @@ export function AgendaView({
   programs: CalendarProgram[];
   activeTemplates: ActiveContentBriefTemplate[];
   defaultLeadTimeDays: number;
+  programSuggestionRules: ProgramSuggestionRule[];
   canManage: boolean;
 }) {
   const groups = groupByDay(items);
@@ -110,6 +113,7 @@ export function AgendaView({
                     programs={programs}
                     activeTemplates={activeTemplates}
                     defaultLeadTimeDays={defaultLeadTimeDays}
+                    programSuggestionRules={programSuggestionRules}
                     canManage={canManage}
                   />
                 </div>

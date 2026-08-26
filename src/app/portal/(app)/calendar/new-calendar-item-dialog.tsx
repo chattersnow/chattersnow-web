@@ -34,6 +34,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  suggestedProgramIds,
+  type ProgramSuggestionRule,
+} from "./program-suggestion-shared";
 
 function getInitialFormState() {
   return {
@@ -63,9 +67,11 @@ type FormState = ReturnType<typeof getInitialFormState>;
 export function NewCalendarItemDialog({
   owners,
   programs,
+  programSuggestionRules,
 }: {
   owners: CalendarOwner[];
   programs: CalendarProgram[];
+  programSuggestionRules: ProgramSuggestionRule[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -397,6 +403,37 @@ export function NewCalendarItemDialog({
                 <FieldLabel htmlFor="programs-group">
                   Related programs
                 </FieldLabel>
+                {(() => {
+                  const suggestedIds = suggestedProgramIds(
+                    programSuggestionRules,
+                    form.itemType,
+                    form.categories,
+                    form.programIds,
+                  );
+                  const suggested = suggestedIds
+                    .map((id) => programs.find((program) => program.id === id))
+                    .filter((program): program is CalendarProgram =>
+                      Boolean(program),
+                    );
+                  if (suggested.length === 0) return null;
+                  return (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="app-muted text-xs">Suggested:</span>
+                      {suggested.map((program) => (
+                        <button
+                          key={program.id}
+                          type="button"
+                          onClick={() =>
+                            toggleListValue("programIds", program.id)
+                          }
+                          className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/20"
+                        >
+                          + {program.name}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
                 <div id="programs-group" className="flex flex-col gap-2">
                   {programs.map((program) => (
                     <label

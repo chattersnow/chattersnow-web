@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { listProgramsAction } from "../../programs/actions";
 import { listCalendarOwnersAction } from "../actions";
 import { listActiveContentBriefTemplatesAction } from "../templates/actions";
+import { listActiveProgramSuggestionRulesAction } from "../program-suggestions/actions";
 import { listWorkQueueItems } from "../queries";
 import { WorkQueueTable } from "../work-queue-table";
 import {
@@ -44,6 +45,7 @@ export default async function WorkQueuePage({
     ownersResult,
     programsResult,
     templatesResult,
+    suggestionRulesResult,
     { data: leadTimeSetting },
   ] = await Promise.all([
     supabase.auth.getUser(),
@@ -51,6 +53,7 @@ export default async function WorkQueuePage({
     listCalendarOwnersAction(),
     listProgramsAction(),
     listActiveContentBriefTemplatesAction(),
+    listActiveProgramSuggestionRulesAction(),
     supabase
       .from("app_settings")
       .select("value")
@@ -62,6 +65,8 @@ export default async function WorkQueuePage({
   const owners = "data" in ownersResult ? ownersResult.data : [];
   const programs = "data" in programsResult ? programsResult.data : [];
   const activeTemplates = "data" in templatesResult ? templatesResult.data : [];
+  const programSuggestionRules =
+    "data" in suggestionRulesResult ? suggestionRulesResult.data : [];
   const defaultLeadTimeDays =
     typeof leadTimeSetting?.value === "number" ? leadTimeSetting.value : 21;
 
@@ -163,6 +168,7 @@ export default async function WorkQueuePage({
           programs={programs}
           activeTemplates={activeTemplates}
           defaultLeadTimeDays={defaultLeadTimeDays}
+          programSuggestionRules={programSuggestionRules}
           canManage={canManage}
           currentUserId={currentUserId}
           emptyMessage="Nothing is assigned to you as an owner or reviewer right now."
@@ -174,6 +180,7 @@ export default async function WorkQueuePage({
           programs={programs}
           activeTemplates={activeTemplates}
           defaultLeadTimeDays={defaultLeadTimeDays}
+          programSuggestionRules={programSuggestionRules}
           canManage={canManage}
           currentUserId={currentUserId}
           emptyMessage={

@@ -71,7 +71,12 @@ import {
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ContentOpportunityTab } from "./content-opportunity-tab";
+import { RelatedItemsTab } from "./related-items-tab";
 import type { ActiveContentBriefTemplate } from "./content-brief-template-shared";
+import {
+  suggestedProgramIds,
+  type ProgramSuggestionRule,
+} from "./program-suggestion-shared";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -147,6 +152,7 @@ export function CalendarItemDetailsSheet({
   programs,
   activeTemplates,
   defaultLeadTimeDays,
+  programSuggestionRules,
   canManage,
   trigger = "icon",
 }: {
@@ -155,6 +161,7 @@ export function CalendarItemDetailsSheet({
   programs: CalendarProgram[];
   activeTemplates: ActiveContentBriefTemplate[];
   defaultLeadTimeDays: number;
+  programSuggestionRules: ProgramSuggestionRule[];
   canManage: boolean;
   trigger?: "icon" | "chip";
 }) {
@@ -403,6 +410,7 @@ export function CalendarItemDetailsSheet({
             <TabsList variant="line">
               <TabsTrigger value="details">Details</TabsTrigger>
               <TabsTrigger value="brief">Content brief</TabsTrigger>
+              <TabsTrigger value="related">Related</TabsTrigger>
             </TabsList>
 
             <TabsContent value="details" className="mt-3">
@@ -860,6 +868,41 @@ export function CalendarItemDetailsSheet({
                           <FieldLabel htmlFor="edit-programs-group">
                             Related programs
                           </FieldLabel>
+                          {(() => {
+                            const suggestedIds = suggestedProgramIds(
+                              programSuggestionRules,
+                              form.itemType,
+                              form.categories,
+                              form.programIds,
+                            );
+                            const suggested = suggestedIds
+                              .map((id) =>
+                                programs.find((program) => program.id === id),
+                              )
+                              .filter((program): program is CalendarProgram =>
+                                Boolean(program),
+                              );
+                            if (suggested.length === 0) return null;
+                            return (
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="app-muted text-xs">
+                                  Suggested:
+                                </span>
+                                {suggested.map((program) => (
+                                  <button
+                                    key={program.id}
+                                    type="button"
+                                    onClick={() =>
+                                      toggleListValue("programIds", program.id)
+                                    }
+                                    className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/20"
+                                  >
+                                    + {program.name}
+                                  </button>
+                                ))}
+                              </div>
+                            );
+                          })()}
                           <div
                             id="edit-programs-group"
                             className="flex flex-col gap-2"
@@ -1013,6 +1056,16 @@ export function CalendarItemDetailsSheet({
                   canManage={canManage}
                   isSensitiveTopic={item.is_sensitive_topic}
                   toneGuidance={item.tone_guidance}
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="related" className="mt-3">
+              <div className="flex-1 overflow-y-auto px-4 pb-4">
+                <RelatedItemsTab
+                  itemId={item.id}
+                  canManage={canManage}
+                  open={open}
                 />
               </div>
             </TabsContent>
