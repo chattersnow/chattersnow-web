@@ -26,6 +26,10 @@ bun run format:check
 
 Husky runs a pre-commit hook (`.husky/pre-commit`). CI extends coverage over these same checks.
 
+## Manual/interactive browser driving
+
+For ad-hoc browser interaction (manually exercising a UI change, poking at a page) use the `playwright-cli` terminal tool (`npm install -g @playwright/cli`, ships the `playwright-cli` binary), not an MCP browser server — the CLI is far cheaper on tokens since it doesn't round-trip full tool schemas/results through the model. Run `playwright-cli --help` for the command list (`open`, `goto`, `click`, `snapshot`, etc.). The project's `playwright` MCP server was removed for this reason; `@playwright/test` (used by `bun run test:e2e`) is unaffected — that's the automated e2e test runner, unrelated to the CLI/MCP choice above.
+
 ## Ticket workflow
 
 Issues are tracked on the `ChatterWeb` GitHub Project (owner `chattersnow`, project number `1`) via its `Status` field. Keep status in sync with `gh project item-edit`:
