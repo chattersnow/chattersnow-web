@@ -7,11 +7,13 @@ import {
   createContentOpportunityAction,
   updateContentOpportunityAction,
 } from "./content-opportunity-actions";
+import { upsertContentPermissionAction } from "./content-permission-actions";
 import {
   CONTENT_STATUSES,
   leadTimeSchedule,
   type ContentOpportunityRow,
 } from "./content-opportunity-shared";
+import type { ContentPermissionRow } from "./content-permission-shared";
 import { ContentStatusBadge } from "./content-opportunity-badges";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -61,6 +63,7 @@ function formStateFor(
     recommendedFormats: opportunity?.recommended_formats ?? "",
     recommendedAction: opportunity?.recommended_action ?? "",
     outstandingWork: opportunity?.outstanding_work ?? "",
+    internalNotes: opportunity?.internal_notes ?? "",
     ownerId: opportunity?.owner_id ?? "",
     reviewerId: opportunity?.reviewer_id ?? "",
     leadTimeDays: String(opportunity?.lead_time_days ?? defaultLeadTimeDays),
@@ -82,6 +85,16 @@ function formStateFor(
 
 type FormState = ReturnType<typeof formStateFor>;
 
+function consentFormStateFor(permission: ContentPermissionRow | null) {
+  return {
+    permittedUse: permission?.permitted_use ?? "",
+    usageLimits: permission?.usage_limits ?? "",
+    consentOnFileAt: permission?.consent_on_file_at ?? "",
+  };
+}
+
+type ConsentFormState = ReturnType<typeof consentFormStateFor>;
+
 export function ContentOpportunityTab({
   calendarItemId,
   itemStartsAt,
@@ -90,6 +103,8 @@ export function ContentOpportunityTab({
   activeTemplates,
   defaultLeadTimeDays,
   canManage,
+  isSensitiveTopic,
+  toneGuidance,
 }: {
   calendarItemId: string;
   itemStartsAt: string;
@@ -98,6 +113,8 @@ export function ContentOpportunityTab({
   activeTemplates: ActiveContentBriefTemplate[];
   defaultLeadTimeDays: number;
   canManage: boolean;
+  isSensitiveTopic: boolean;
+  toneGuidance: string | null;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<"view" | "edit">("view");
@@ -106,6 +123,54 @@ export function ContentOpportunityTab({
   );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const [consentMode, setConsentMode] = useState<"view" | "edit">("view");
+  const [consentForm, setConsentForm] = useState<ConsentFormState>(() =>
+    consentFormStateFor(opportunity?.content_permission ?? null),
+  );
+  const [consentError, setConsentError] = useState<string | null>(null);
+  const [isConsentPending, startConsentTransition] = useTransition();
+
+  const currentTemplateId =
+    mode === "edit" ? form.templateId : (opportunity?.template_id ?? null);
+  const requiresConsent =
+    activeTemplates.find((template) => template.id === currentTemplateId)
+      ?.requires_consent ?? false;
+
+  function startEditingConsent() {
+    setConsentForm(
+      consentFormStateFor(opportunity?.content_permission ?? null),
+    );
+    setConsentError(null);
+    setConsentMode("edit");
+  }
+
+  function handleConsentSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setConsentError(null);
+    if (!opportunity) {
+      setConsentError("Save this brief first before recording consent.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.set("permittedUse", consentForm.permittedUse);
+    formData.set("usageLimits", consentForm.usageLimits);
+    formData.set("consentOnFileAt", consentForm.consentOnFileAt);
+
+    startConsentTransition(async () => {
+      const result = await upsertContentPermissionAction(
+        opportunity.id,
+        formData,
+      );
+      if ("error" in result) {
+        setConsentError(result.error);
+        return;
+      }
+      setConsentMode("view");
+      router.refresh();
+    });
+  }
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -182,6 +247,7 @@ export function ContentOpportunityTab({
     formData.set("recommendedFormats", form.recommendedFormats);
     formData.set("recommendedAction", form.recommendedAction);
     formData.set("outstandingWork", form.outstandingWork);
+    formData.set("internalNotes", form.internalNotes);
     formData.set("ownerId", form.ownerId);
     formData.set("reviewerId", form.reviewerId);
     formData.set("leadTimeDays", form.leadTimeDays);
@@ -208,9 +274,20 @@ export function ContentOpportunityTab({
     });
   }
 
+  const toneGuidanceBanner = isSensitiveTopic && (
+    <Alert>
+      <AlertDescription>
+        <strong>Sensitive topic.</strong>{" "}
+        {toneGuidance ??
+          "Add tone guidance on this item's Details tab so it's surfaced here for whoever writes this content."}
+      </AlertDescription>
+    </Alert>
+  );
+
   if (!opportunity && mode === "view") {
     return (
       <div className="flex flex-col items-start gap-3 py-2">
+        {toneGuidanceBanner}
         <p className="app-muted text-sm">No content brief yet for this item.</p>
         {canManage && (
           <Button type="button" variant="outline" onClick={startEditing}>
@@ -223,6 +300,7 @@ export function ContentOpportunityTab({
 
   return (
     <div className="flex flex-col gap-3 py-2">
+      {toneGuidanceBanner}
       {error && (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
@@ -320,6 +398,153 @@ export function ContentOpportunityTab({
           <ReadOnlyField label="Outstanding work" htmlFor="brief-outstanding">
             {opportunity.outstanding_work || "—"}
           </ReadOnlyField>
+          <Field>
+            <ReadOnlyField
+              label="Internal notes"
+              htmlFor="brief-internal-notes"
+            >
+              {opportunity.internal_notes || "—"}
+            </ReadOnlyField>
+            <FieldDescription>
+              Staff-only working notes. Never record specific personal, medical,
+              legal, or confidential case details here.
+            </FieldDescription>
+          </Field>
+          {requiresConsent && (
+            <Field className="rounded-lg border p-3">
+              <div className="flex items-center justify-between">
+                <FieldLabel htmlFor="consent-section">
+                  Community-story consent
+                </FieldLabel>
+                {canManage && consentMode === "view" && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Edit consent"
+                    onClick={startEditingConsent}
+                  >
+                    <Pencil />
+                  </Button>
+                )}
+              </div>
+              <div id="consent-section" className="flex flex-col gap-2">
+                {consentError && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{consentError}</AlertDescription>
+                  </Alert>
+                )}
+                {consentMode === "view" ? (
+                  opportunity.content_permission ? (
+                    <>
+                      <ReadOnlyField
+                        label="Permitted use"
+                        htmlFor="consent-permitted-use"
+                      >
+                        {opportunity.content_permission.permitted_use}
+                      </ReadOnlyField>
+                      <ReadOnlyField
+                        label="Usage limits"
+                        htmlFor="consent-usage-limits"
+                      >
+                        {opportunity.content_permission.usage_limits || "—"}
+                      </ReadOnlyField>
+                      <ReadOnlyField
+                        label="Consent on file"
+                        htmlFor="consent-on-file"
+                      >
+                        {opportunity.content_permission.consent_on_file_at}
+                      </ReadOnlyField>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-destructive">
+                        No consent recorded yet. This is required before
+                        approving, scheduling, or publishing this content.
+                      </p>
+                      {canManage && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="self-start"
+                          onClick={startEditingConsent}
+                        >
+                          Record consent
+                        </Button>
+                      )}
+                    </>
+                  )
+                ) : (
+                  <form onSubmit={handleConsentSubmit}>
+                    <FieldGroup>
+                      <Field>
+                        <FieldLabel htmlFor="consent-permittedUse">
+                          Permitted use
+                        </FieldLabel>
+                        <Textarea
+                          id="consent-permittedUse"
+                          required
+                          value={consentForm.permittedUse}
+                          onChange={(event) =>
+                            setConsentForm((prev) => ({
+                              ...prev,
+                              permittedUse: event.target.value,
+                            }))
+                          }
+                        />
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor="consent-usageLimits">
+                          Usage limits
+                        </FieldLabel>
+                        <Textarea
+                          id="consent-usageLimits"
+                          placeholder="e.g. social only, no last names"
+                          value={consentForm.usageLimits}
+                          onChange={(event) =>
+                            setConsentForm((prev) => ({
+                              ...prev,
+                              usageLimits: event.target.value,
+                            }))
+                          }
+                        />
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor="consent-onFileAt">
+                          Consent on file
+                        </FieldLabel>
+                        <Input
+                          id="consent-onFileAt"
+                          type="date"
+                          required
+                          value={consentForm.consentOnFileAt}
+                          onChange={(event) =>
+                            setConsentForm((prev) => ({
+                              ...prev,
+                              consentOnFileAt: event.target.value,
+                            }))
+                          }
+                        />
+                      </Field>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => setConsentMode("view")}
+                        >
+                          Cancel
+                        </Button>
+                        <Button type="submit" disabled={isConsentPending}>
+                          {isConsentPending ? "Saving..." : "Save consent"}
+                        </Button>
+                      </div>
+                    </FieldGroup>
+                  </form>
+                )}
+              </div>
+            </Field>
+          )}
           {opportunity.status_changed_at && (
             <p className="app-muted text-xs">
               Status last changed{" "}
@@ -602,6 +827,23 @@ export function ContentOpportunityTab({
                   update("outstandingWork", event.target.value)
                 }
               />
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="brief-internalNotes">
+                Internal notes
+              </FieldLabel>
+              <Textarea
+                id="brief-internalNotes"
+                value={form.internalNotes}
+                onChange={(event) =>
+                  update("internalNotes", event.target.value)
+                }
+              />
+              <FieldDescription>
+                Staff-only working notes. Never record specific personal,
+                medical, legal, or confidential case details here.
+              </FieldDescription>
             </Field>
           </FieldGroup>
 

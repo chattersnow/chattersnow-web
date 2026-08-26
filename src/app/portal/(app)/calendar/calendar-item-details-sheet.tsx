@@ -6,6 +6,7 @@ import { ArrowLeft, Copy, Eye, Pencil } from "lucide-react";
 import {
   archiveCalendarItemAction,
   duplicateCalendarItemAction,
+  recordSensitiveTopicReviewAction,
   restoreCalendarItemAction,
   updateCalendarItemAction,
 } from "./actions";
@@ -18,6 +19,7 @@ import {
   VISIBILITIES,
   labelFor,
   needsDecision,
+  needsSensitiveReview,
   ownerEmail,
   type CalendarItemRow,
   type CalendarOwner,
@@ -28,7 +30,9 @@ import {
   CalendarVisibilityBadge,
   CategoryBadges,
   DecisionBadge,
+  NeedsSensitiveReviewFlag,
   PriorityTierBadge,
+  SensitiveTopicBadge,
 } from "./calendar-badges";
 import { cn } from "@/lib/utils";
 import {
@@ -106,6 +110,8 @@ function formStateFor(item: CalendarItemRow) {
     programIds: item.program_ids,
     decision: item.decision ?? "",
     decisionNote: item.decision_note ?? "",
+    isSensitiveTopic: item.is_sensitive_topic,
+    toneGuidance: item.tone_guidance ?? "",
   };
 }
 
@@ -129,7 +135,9 @@ function isDirty(form: FormState, item: CalendarItemRow) {
     !arraysEqual(form.categories, baseline.categories) ||
     !arraysEqual(form.programIds, baseline.programIds) ||
     form.decision !== baseline.decision ||
-    form.decisionNote !== baseline.decisionNote
+    form.decisionNote !== baseline.decisionNote ||
+    form.isSensitiveTopic !== baseline.isSensitiveTopic ||
+    form.toneGuidance !== baseline.toneGuidance
   );
 }
 
@@ -234,6 +242,8 @@ export function CalendarItemDetailsSheet({
       formData.append("programIds", programId);
     formData.set("decision", form.decision);
     formData.set("decisionNote", form.decisionNote);
+    formData.set("isSensitiveTopic", String(form.isSensitiveTopic));
+    formData.set("toneGuidance", form.toneGuidance);
 
     startTransition(async () => {
       const result = await updateCalendarItemAction(item.id, formData);
@@ -262,6 +272,17 @@ export function CalendarItemDetailsSheet({
   function handleArchive() {
     startTransition(async () => {
       const result = await archiveCalendarItemAction(item.id);
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  function handleRecordSensitiveReview() {
+    startTransition(async () => {
+      const result = await recordSensitiveTopicReviewAction(item.id);
       if ("error" in result) {
         setError(result.error);
         return;
@@ -453,6 +474,58 @@ export function CalendarItemDetailsSheet({
                           <p className="app-muted text-sm">
                             {item.decision_note}
                           </p>
+                        )}
+                      </div>
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="item-sensitive-topic">
+                        Sensitive topic
+                      </FieldLabel>
+                      <div
+                        id="item-sensitive-topic"
+                        className="flex flex-col gap-2"
+                      >
+                        {item.is_sensitive_topic ? (
+                          <>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <SensitiveTopicBadge
+                                reviewed={Boolean(item.sensitive_review_by)}
+                              />
+                              {needsSensitiveReview(item) && (
+                                <NeedsSensitiveReviewFlag />
+                              )}
+                            </div>
+                            {item.tone_guidance && (
+                              <p className="app-muted text-sm">
+                                {item.tone_guidance}
+                              </p>
+                            )}
+                            {item.sensitive_review_by ? (
+                              <p className="app-muted text-xs">
+                                Reviewed{" "}
+                                {dateFormatter.format(
+                                  new Date(item.sensitive_review_at!),
+                                )}{" "}
+                                by{" "}
+                                {ownerEmail(owners, item.sensitive_review_by)}
+                              </p>
+                            ) : (
+                              canManage && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="self-start"
+                                  disabled={isPending}
+                                  onClick={handleRecordSensitiveReview}
+                                >
+                                  Record reviewer sign-off
+                                </Button>
+                              )
+                            )}
+                          </>
+                        ) : (
+                          <span className="app-muted text-sm">Not flagged</span>
                         )}
                       </div>
                     </Field>
@@ -870,6 +943,33 @@ export function CalendarItemDetailsSheet({
                           />
                         </Field>
                       </Field>
+
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={form.isSensitiveTopic}
+                          onCheckedChange={(checked) =>
+                            update("isSensitiveTopic", checked === true)
+                          }
+                        />
+                        Sensitive topic (requires reviewer sign-off distinct
+                        from content approval)
+                      </label>
+
+                      {form.isSensitiveTopic && (
+                        <Field>
+                          <FieldLabel htmlFor="edit-toneGuidance">
+                            Tone guidance
+                          </FieldLabel>
+                          <Textarea
+                            id="edit-toneGuidance"
+                            placeholder="How should staff write about this moment?"
+                            value={form.toneGuidance}
+                            onChange={(event) =>
+                              update("toneGuidance", event.target.value)
+                            }
+                          />
+                        </Field>
+                      )}
                     </FieldGroup>
                   </div>
 
@@ -911,6 +1011,8 @@ export function CalendarItemDetailsSheet({
                   activeTemplates={activeTemplates}
                   defaultLeadTimeDays={defaultLeadTimeDays}
                   canManage={canManage}
+                  isSensitiveTopic={item.is_sensitive_topic}
+                  toneGuidance={item.tone_guidance}
                 />
               </div>
             </TabsContent>

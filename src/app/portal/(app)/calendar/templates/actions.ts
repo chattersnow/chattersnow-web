@@ -38,6 +38,7 @@ export async function createTemplateAction(
       name: parsedTemplate.data.name,
       description: parsedTemplate.data.description,
       is_active: parsedTemplate.data.isActive,
+      requires_consent: parsedTemplate.data.requiresConsent,
     })
     .select("id")
     .single();
@@ -104,6 +105,7 @@ export async function updateTemplateMetadataAction(
       name: parsed.data.name,
       description: parsed.data.description,
       is_active: parsed.data.isActive,
+      requires_consent: parsed.data.requiresConsent,
     })
     .eq("id", id);
 
@@ -205,7 +207,7 @@ export async function listActiveContentBriefTemplatesAction(): Promise<
   const { data, error } = await supabase
     .from("content_brief_templates")
     .select(
-      "id, key, name, description, current_version_id, content_brief_template_versions!content_brief_templates_current_version_id_fkey(id, version, fields)",
+      "id, key, name, description, requires_consent, current_version_id, content_brief_template_versions!content_brief_templates_current_version_id_fkey(id, version, fields)",
     )
     .eq("is_active", true)
     .not("current_version_id", "is", null)
@@ -224,6 +226,7 @@ export async function listActiveContentBriefTemplatesAction(): Promise<
         key: string;
         name: string;
         description: string | null;
+        requires_consent: boolean;
         content_brief_template_versions: {
           id: string;
           version: number;
@@ -237,6 +240,7 @@ export async function listActiveContentBriefTemplatesAction(): Promise<
           key: r.key,
           name: r.name,
           description: r.description,
+          requires_consent: r.requires_consent,
           version_id: r.content_brief_template_versions.id,
           version: r.content_brief_template_versions.version,
           fields: r.content_brief_template_versions.fields,

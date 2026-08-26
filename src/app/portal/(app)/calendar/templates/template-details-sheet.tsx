@@ -43,6 +43,7 @@ export type TemplateListRow = {
   name: string;
   description: string | null;
   is_active: boolean;
+  requires_consent: boolean;
   version: number;
   fields: TemplateField[];
 };
@@ -54,6 +55,7 @@ type DetailsFormState = {
   name: string;
   description: string;
   isActive: boolean;
+  requiresConsent: boolean;
 };
 
 function detailsFormStateFor(template: TemplateListRow): DetailsFormState {
@@ -62,6 +64,7 @@ function detailsFormStateFor(template: TemplateListRow): DetailsFormState {
     name: template.name,
     description: template.description ?? "",
     isActive: template.is_active,
+    requiresConsent: template.requires_consent,
   };
 }
 
@@ -71,7 +74,8 @@ function isDetailsDirty(form: DetailsFormState, template: TemplateListRow) {
     form.key !== baseline.key ||
     form.name !== baseline.name ||
     form.description !== baseline.description ||
-    form.isActive !== baseline.isActive
+    form.isActive !== baseline.isActive ||
+    form.requiresConsent !== baseline.requiresConsent
   );
 }
 
@@ -151,6 +155,7 @@ export function TemplateDetailsSheet({
     formData.set("name", detailsForm.name);
     formData.set("description", detailsForm.description);
     formData.set("isActive", String(detailsForm.isActive));
+    formData.set("requiresConsent", String(detailsForm.requiresConsent));
 
     startTransition(async () => {
       const result = await updateTemplateMetadataAction(template.id, formData);
@@ -288,6 +293,12 @@ export function TemplateDetailsSheet({
                 <ReadOnlyField label="Active" htmlFor="template-view-active">
                   {template.is_active ? "Yes" : "No"}
                 </ReadOnlyField>
+                <ReadOnlyField
+                  label="Requires consent before approval"
+                  htmlFor="template-view-requires-consent"
+                >
+                  {template.requires_consent ? "Yes" : "No"}
+                </ReadOnlyField>
                 <Field>
                   <FieldLabel htmlFor="template-view-fields">
                     Current fields (v{template.version})
@@ -372,6 +383,19 @@ export function TemplateDetailsSheet({
                       }
                     />
                     Active (shown when staff pick a template for a brief)
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={detailsForm.requiresConsent}
+                      onCheckedChange={(checked) =>
+                        setDetailsForm((prev) => ({
+                          ...prev,
+                          requiresConsent: checked === true,
+                        }))
+                      }
+                    />
+                    Requires recorded consent before approval (e.g. a
+                    community-story spotlight)
                   </label>
                 </FieldGroup>
               </div>

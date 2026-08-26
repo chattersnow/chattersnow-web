@@ -122,4 +122,24 @@ describe("parseCalendarItemForm", () => {
     );
     expect(result).toEqual({ error: "Select valid categories." });
   });
+
+  test("defaults sensitive-topic fields to unflagged with no guidance", () => {
+    const result = parseCalendarItemForm(formData(validFields));
+    expect("data" in result && result.data.isSensitiveTopic).toBe(false);
+    expect("data" in result && result.data.toneGuidance).toBeNull();
+  });
+
+  test("parses a sensitive-topic flag with tone guidance", () => {
+    const result = parseCalendarItemForm(
+      formData({
+        ...validFields,
+        isSensitiveTopic: "true",
+        toneGuidance: "  Memorial, not sensational.  ",
+      }),
+    );
+    expect("data" in result && result.data.isSensitiveTopic).toBe(true);
+    expect("data" in result && result.data.toneGuidance).toBe(
+      "Memorial, not sensational.",
+    );
+  });
 });

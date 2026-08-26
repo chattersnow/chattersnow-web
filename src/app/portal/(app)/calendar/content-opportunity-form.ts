@@ -10,6 +10,7 @@ export type ContentOpportunityFormData = {
   recommendedFormats: string | null;
   recommendedAction: string | null;
   outstandingWork: string | null;
+  internalNotes: string | null;
   ownerId: string | null;
   reviewerId: string | null;
   leadTimeDays: number;
@@ -36,6 +37,7 @@ export function parseContentOpportunityForm(
     formData.get("recommendedAction") ?? "",
   ).trim();
   const outstandingWork = String(formData.get("outstandingWork") ?? "").trim();
+  const internalNotes = String(formData.get("internalNotes") ?? "").trim();
   const ownerId = String(formData.get("ownerId") ?? "").trim();
   const reviewerId = String(formData.get("reviewerId") ?? "").trim();
   const leadTimeDaysRaw = String(formData.get("leadTimeDays") ?? "");
@@ -59,6 +61,15 @@ export function parseContentOpportunityForm(
   }
   if (contentStatus === "skipped" && !skipReason) {
     return { error: "A reason is required when content is skipped." };
+  }
+  if (
+    !["not_planned", "idea", "skipped"].includes(contentStatus) &&
+    !chatterConnection
+  ) {
+    return {
+      error:
+        "A stated Chatter connection is required once work begins on this content.",
+    };
   }
 
   const leadTimeDays = Number(leadTimeDaysRaw);
@@ -118,6 +129,7 @@ export function parseContentOpportunityForm(
       recommendedFormats: recommendedFormats || null,
       recommendedAction: recommendedAction || null,
       outstandingWork: outstandingWork || null,
+      internalNotes: internalNotes || null,
       ownerId: ownerId || null,
       reviewerId: reviewerId || null,
       leadTimeDays,

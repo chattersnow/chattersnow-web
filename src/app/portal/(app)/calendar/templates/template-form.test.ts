@@ -15,6 +15,7 @@ describe("parseTemplateForm", () => {
         name: "Community spotlight",
         description: "Spotlight a person or group.",
         isActive: "true",
+        requiresConsent: "true",
       }),
     );
     expect("data" in result && result.data).toEqual({
@@ -22,7 +23,13 @@ describe("parseTemplateForm", () => {
       name: "Community spotlight",
       description: "Spotlight a person or group.",
       isActive: true,
+      requiresConsent: true,
     });
+  });
+
+  test("defaults requiresConsent to false when absent", () => {
+    const result = parseTemplateForm(formData({ key: "foo", name: "Foo" }));
+    expect("data" in result && result.data.requiresConsent).toBe(false);
   });
 
   test("trims fields and treats blank description as null", () => {

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { AlertTriangle, Clock } from "lucide-react";
+import { AlertTriangle, Clock, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CATEGORIES, DECISIONS, labelFor } from "./calendar-shared";
 
@@ -131,6 +131,32 @@ export function NeedsDecisionFlag() {
     >
       <AlertTriangle className="size-3" />
       Needs a decision
+    </span>
+  );
+}
+
+export function SensitiveTopicBadge({ reviewed }: { reviewed: boolean }) {
+  return (
+    <Pill
+      className={
+        reviewed
+          ? "bg-secondary text-secondary-foreground"
+          : "bg-destructive/10 text-destructive"
+      }
+    >
+      {reviewed ? "Sensitive topic — reviewed" : "Sensitive topic"}
+    </Pill>
+  );
+}
+
+export function NeedsSensitiveReviewFlag() {
+  return (
+    <span
+      title="This is a flagged sensitive-topic moment with no reviewer sign-off yet"
+      className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
+    >
+      <ShieldAlert className="size-3" />
+      Needs sensitive-topic review
     </span>
   );
 }

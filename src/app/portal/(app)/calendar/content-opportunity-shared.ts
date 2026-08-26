@@ -1,5 +1,6 @@
 import { addDays } from "@/lib/time";
 import type { TemplateField } from "./content-brief-template-shared";
+import type { ContentPermissionRow } from "./content-permission-shared";
 
 export const CONTENT_STATUSES = [
   { value: "not_planned", label: "Not planned" },
@@ -22,6 +23,7 @@ export type ContentOpportunityRow = {
   recommended_formats: string | null;
   recommended_action: string | null;
   outstanding_work: string | null;
+  internal_notes: string | null;
   owner_id: string | null;
   reviewer_id: string | null;
   lead_time_days: number;
@@ -38,6 +40,7 @@ export type ContentOpportunityRow = {
     version: number;
     fields: TemplateField[];
   } | null;
+  content_permission: ContentPermissionRow | null;
 };
 
 /**
