@@ -27,7 +27,7 @@ export default async function ContentBriefTemplatesPage() {
   const { data: rows, error } = await supabase
     .from("content_brief_templates")
     .select(
-      "id, key, name, description, is_active, content_brief_template_versions!content_brief_templates_current_version_id_fkey(version, fields)",
+      "id, key, name, description, is_active, requires_consent, content_brief_template_versions!content_brief_templates_current_version_id_fkey(version, fields)",
     )
     .order("name", { ascending: true });
 
@@ -38,6 +38,7 @@ export default async function ContentBriefTemplatesPage() {
       name: string;
       description: string | null;
       is_active: boolean;
+      requires_consent: boolean;
       content_brief_template_versions: {
         version: number;
         fields: TemplateField[];
@@ -51,6 +52,7 @@ export default async function ContentBriefTemplatesPage() {
         name: r.name,
         description: r.description,
         is_active: r.is_active,
+        requires_consent: r.requires_consent,
         version: r.content_brief_template_versions.version,
         fields: r.content_brief_template_versions.fields,
       },
@@ -89,6 +91,7 @@ export default async function ContentBriefTemplatesPage() {
                   <TableHead>Key</TableHead>
                   <TableHead>Version</TableHead>
                   <TableHead>Active</TableHead>
+                  <TableHead>Requires consent</TableHead>
                   <TableHead className="w-px" />
                 </TableRow>
               </TableHeader>
@@ -102,6 +105,9 @@ export default async function ContentBriefTemplatesPage() {
                     <TableCell>v{template.version}</TableCell>
                     <TableCell className="app-muted">
                       {template.is_active ? "Yes" : "No"}
+                    </TableCell>
+                    <TableCell className="app-muted">
+                      {template.requires_consent ? "Yes" : "No"}
                     </TableCell>
                     <TableCell className="text-right">
                       <TemplateDetailsSheet

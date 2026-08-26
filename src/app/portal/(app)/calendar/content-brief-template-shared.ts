@@ -10,6 +10,7 @@ export type ContentBriefTemplateRow = {
   name: string;
   description: string | null;
   is_active: boolean;
+  requires_consent: boolean;
   current_version_id: string | null;
 };
 
@@ -28,6 +29,7 @@ export type ActiveContentBriefTemplate = {
   key: string;
   name: string;
   description: string | null;
+  requires_consent: boolean;
   version_id: string;
   version: number;
   fields: TemplateField[];

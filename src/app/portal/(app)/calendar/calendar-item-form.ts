@@ -30,6 +30,8 @@ export type CalendarItemFormData = {
   programIds: string[];
   decision: (typeof DECISION_VALUES)[number] | null;
   decisionNote: string | null;
+  isSensitiveTopic: boolean;
+  toneGuidance: string | null;
 };
 
 export function parseCalendarItemForm(
@@ -53,6 +55,9 @@ export function parseCalendarItemForm(
   const programIds = formData.getAll("programIds").map(String);
   const decisionRaw = String(formData.get("decision") ?? "").trim();
   const decisionNote = String(formData.get("decisionNote") ?? "").trim();
+  const isSensitiveTopic =
+    String(formData.get("isSensitiveTopic") ?? "false") === "true";
+  const toneGuidance = String(formData.get("toneGuidance") ?? "").trim();
 
   if (!title) return { error: "Title is required." };
   if (
@@ -134,6 +139,8 @@ export function parseCalendarItemForm(
       programIds,
       decision,
       decisionNote: decisionNote || null,
+      isSensitiveTopic,
+      toneGuidance: toneGuidance || null,
     },
   };
 }

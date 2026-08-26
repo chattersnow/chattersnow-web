@@ -89,6 +89,10 @@ export type CalendarItemRow = {
   source: string | null;
   region: string | null;
   exceptions: unknown[];
+  is_sensitive_topic: boolean;
+  tone_guidance: string | null;
+  sensitive_review_by: string | null;
+  sensitive_review_at: string | null;
   categories: string[];
   program_ids: string[];
   content_opportunity: ContentOpportunityRow | null;
@@ -115,6 +119,19 @@ export function isPastUndecided(
     new Date(item.starts_at) < now &&
     !item.decision &&
     item.calendar_status !== "complete" &&
+    item.calendar_status !== "archived"
+  );
+}
+
+export function needsSensitiveReview(
+  item: Pick<
+    CalendarItemRow,
+    "is_sensitive_topic" | "sensitive_review_by" | "calendar_status"
+  >,
+): boolean {
+  return (
+    item.is_sensitive_topic &&
+    !item.sensitive_review_by &&
     item.calendar_status !== "archived"
   );
 }

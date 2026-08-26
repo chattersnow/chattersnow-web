@@ -6,6 +6,7 @@ import { createTemplateAction } from "./actions";
 import { TemplateFieldsEditor } from "./template-fields-editor";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { TemplateField } from "../content-brief-template-shared";
 
 function getInitialFormState() {
-  return { key: "", name: "", description: "" };
+  return { key: "", name: "", description: "", requiresConsent: false };
 }
 
 export function NewTemplateDialog() {
@@ -59,6 +60,7 @@ export function NewTemplateDialog() {
     formData.set("name", form.name);
     formData.set("description", form.description);
     formData.set("isActive", "true");
+    formData.set("requiresConsent", String(form.requiresConsent));
     formData.set("fields", JSON.stringify(fields));
 
     startTransition(async () => {
@@ -129,6 +131,17 @@ export function NewTemplateDialog() {
                 <TemplateFieldsEditor fields={fields} onChange={setFields} />
               </div>
             </Field>
+
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={form.requiresConsent}
+                onCheckedChange={(checked) =>
+                  update("requiresConsent", checked === true)
+                }
+              />
+              Requires recorded consent before approval (e.g. a community-story
+              spotlight)
+            </label>
 
             {error && (
               <Alert variant="destructive">

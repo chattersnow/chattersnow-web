@@ -10,6 +10,7 @@ function formData(fields: Record<string, string>) {
 
 const validFields = {
   contentStatus: "draft",
+  chatterConnection: "Ties into our winter gear access program.",
   leadTimeDays: "21",
   publishDueAt: "2027-03-31T09:00",
   reviewDueAt: "2027-03-24T09:00",
@@ -53,6 +54,47 @@ describe("parseContentOpportunityForm", () => {
     );
     expect("data" in result && result.data.skipReason).toBe(
       "No capacity this year.",
+    );
+  });
+
+  test("requires a Chatter connection once work begins", () => {
+    const { chatterConnection, ...rest } = validFields;
+    void chatterConnection;
+    const result = parseContentOpportunityForm(formData(rest));
+    expect(result).toEqual({
+      error:
+        "A stated Chatter connection is required once work begins on this content.",
+    });
+  });
+
+  test("does not require a Chatter connection for not_planned, idea, or skipped", () => {
+    const { chatterConnection, ...rest } = validFields;
+    void chatterConnection;
+    for (const contentStatus of ["not_planned", "idea"]) {
+      const result = parseContentOpportunityForm(
+        formData({ ...rest, contentStatus }),
+      );
+      expect("data" in result).toBe(true);
+    }
+    const skippedResult = parseContentOpportunityForm(
+      formData({
+        ...rest,
+        contentStatus: "skipped",
+        skipReason: "No capacity this year.",
+      }),
+    );
+    expect("data" in skippedResult).toBe(true);
+  });
+
+  test("round-trips internal notes", () => {
+    const result = parseContentOpportunityForm(
+      formData({
+        ...validFields,
+        internalNotes: "  Waiting on final photo.  ",
+      }),
+    );
+    expect("data" in result && result.data.internalNotes).toBe(
+      "Waiting on final photo.",
     );
   });
 

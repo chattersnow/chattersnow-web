@@ -9,6 +9,7 @@ export type TemplateFormData = {
   name: string;
   description: string | null;
   isActive: boolean;
+  requiresConsent: boolean;
 };
 
 export function parseTemplateForm(
@@ -18,6 +19,8 @@ export function parseTemplateForm(
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const isActive = String(formData.get("isActive") ?? "true") === "true";
+  const requiresConsent =
+    String(formData.get("requiresConsent") ?? "false") === "true";
 
   if (!key) return { error: "Template key is required." };
   if (!isValidFieldKey(key)) {
@@ -28,7 +31,15 @@ export function parseTemplateForm(
   }
   if (!name) return { error: "Template name is required." };
 
-  return { data: { key, name, description: description || null, isActive } };
+  return {
+    data: {
+      key,
+      name,
+      description: description || null,
+      isActive,
+      requiresConsent,
+    },
+  };
 }
 
 export function parseTemplateFieldsForm(

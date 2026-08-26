@@ -53,6 +53,8 @@ function getInitialFormState() {
     programIds: [] as string[],
     decision: "",
     decisionNote: "",
+    isSensitiveTopic: false,
+    toneGuidance: "",
   };
 }
 
@@ -119,6 +121,8 @@ export function NewCalendarItemDialog({
       formData.append("programIds", programId);
     formData.set("decision", form.decision);
     formData.set("decisionNote", form.decisionNote);
+    formData.set("isSensitiveTopic", String(form.isSensitiveTopic));
+    formData.set("toneGuidance", form.toneGuidance);
 
     startTransition(async () => {
       const result = await createCalendarItemAction(formData);
@@ -455,6 +459,31 @@ export function NewCalendarItemDialog({
                 />
               </Field>
             </Field>
+
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={form.isSensitiveTopic}
+                onCheckedChange={(checked) =>
+                  update("isSensitiveTopic", checked === true)
+                }
+              />
+              Sensitive topic (requires reviewer sign-off distinct from content
+              approval)
+            </label>
+
+            {form.isSensitiveTopic && (
+              <Field>
+                <FieldLabel htmlFor="toneGuidance">Tone guidance</FieldLabel>
+                <Textarea
+                  id="toneGuidance"
+                  placeholder="How should staff write about this moment?"
+                  value={form.toneGuidance}
+                  onChange={(event) =>
+                    update("toneGuidance", event.target.value)
+                  }
+                />
+              </Field>
+            )}
 
             {error && (
               <Alert variant="destructive">
