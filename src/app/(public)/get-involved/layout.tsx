@@ -1,6 +1,6 @@
 import { PageShell } from "@/components/page-shell";
 
-export default function AboutLayout({
+export default function GetInvolvedLayout({
   children,
 }: {
   children: React.ReactNode;

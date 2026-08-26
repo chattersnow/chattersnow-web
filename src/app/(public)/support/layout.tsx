@@ -1,6 +1,6 @@
 import { PageShell } from "@/components/page-shell";
 
-export default function AboutLayout({
+export default function SupportLayout({
   children,
 }: {
   children: React.ReactNode;

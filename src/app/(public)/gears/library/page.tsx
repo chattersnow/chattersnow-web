@@ -19,28 +19,26 @@ export default async function GearLibraryPage() {
     .order("created_at", { ascending: false });
 
   return (
-    <main className="app-shell px-6 py-8 sm:px-10">
-      <div className="mx-auto max-w-6xl">
-        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-          Gear library
-        </h1>
-        <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-          Browse gear currently available to Chatter Snow members.
-        </p>
-        <Button
-          variant="outline"
-          size="sm"
-          className="mt-4"
-          nativeButton={false}
-          render={<Link href="/gears/sizing" />}
-        >
-          Sizing guide
-        </Button>
+    <div>
+      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+        Gear library
+      </h1>
+      <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
+        Browse gear currently available to Chatter Snow members.
+      </p>
+      <Button
+        variant="outline"
+        size="sm"
+        className="mt-4"
+        nativeButton={false}
+        render={<Link href="/gears/sizing" />}
+      >
+        Sizing guide
+      </Button>
 
-        <div className="mt-10">
-          <GearCatalog items={items ?? []} />
-        </div>
+      <div className="mt-10">
+        <GearCatalog items={items ?? []} />
       </div>
-    </main>
+    </div>
   );
 }

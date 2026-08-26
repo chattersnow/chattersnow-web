@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PageShell } from "@/components/page-shell";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { nowMs } from "@/lib/time";
 import { CommunityCalendar } from "./community-calendar";
@@ -18,23 +19,21 @@ export default async function CommunityCalendarPage() {
     .order("starts_at", { ascending: true });
 
   return (
-    <main className="app-shell px-6 py-8 sm:px-10">
-      <div className="mx-auto max-w-6xl">
-        <section>
-          <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-            Community Calendar
-          </h1>
-          <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-            Chatter-hosted events are marked as such. Other entries are
-            community observances, seasonal moments, and campaigns Chatter is
-            highlighting — not events Chatter hosts or organizes.
-          </p>
-        </section>
+    <PageShell>
+      <section>
+        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          Community Calendar
+        </h1>
+        <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
+          Chatter-hosted events are marked as such. Other entries are community
+          observances, seasonal moments, and campaigns Chatter is highlighting —
+          not events Chatter hosts or organizes.
+        </p>
+      </section>
 
-        <div className="mt-10">
-          <CommunityCalendar items={items ?? []} now={nowMs()} />
-        </div>
+      <div className="mt-10">
+        <CommunityCalendar items={items ?? []} now={nowMs()} />
       </div>
-    </main>
+    </PageShell>
   );
 }
