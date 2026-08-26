@@ -48,6 +48,7 @@ const NAV_GROUPS: readonly NavGroup[] = [
     label: "Gear",
     links: [
       { label: "Gear Library", href: "/gears/library" },
+      { label: "Sizing Guide", href: "/gears/sizing" },
       { label: "How It Works", href: "/gears/donate#how-it-works" },
       { label: "Request Gear", href: "/gears/donate#request" },
       { label: "Donate Gear", href: "/gears/donate#donate" },
