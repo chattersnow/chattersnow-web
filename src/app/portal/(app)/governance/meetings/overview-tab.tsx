@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
+import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
 import { updateMeetingAction } from "./actions";
@@ -9,6 +9,8 @@ import {
   MeetingTypeBadge,
   type MeetingRow,
 } from "./meeting-badges";
+import { PersonPicker, type PickedPerson } from "../../people/person-picker";
+import { listPeopleAction, type PersonListItem } from "../../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -75,8 +77,25 @@ function MeetingOverviewForm({
 }) {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(() => formStateFor(meeting));
+  const [people, setPeople] = useState<PersonListItem[]>([]);
+  const [facilitator, setFacilitator] = useState<PickedPerson | null>(
+    meeting.facilitator,
+  );
+  const [notetaker, setNotetaker] = useState<PickedPerson | null>(
+    meeting.notetaker,
+  );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    listPeopleAction().then((result) => {
+      if (!("error" in result)) setPeople(result.data);
+    });
+  }, []);
+
+  function handlePersonCreated(person: PickedPerson) {
+    setPeople((prev) => [...prev, { ...person, is_sponsor: false }]);
+  }
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -92,6 +111,8 @@ function MeetingOverviewForm({
     formData.set("status", form.status);
     formData.set("location", form.location);
     formData.set("notes", form.notes);
+    formData.set("facilitatorPersonId", facilitator?.id ?? "");
+    formData.set("notetakerPersonId", notetaker?.id ?? "");
 
     startTransition(async () => {
       const result = await updateMeetingAction(meeting.id, formData);
@@ -169,6 +190,27 @@ function MeetingOverviewForm({
           />
         </Field>
 
+        <Field orientation="responsive">
+          <Field>
+            <FieldLabel>Facilitator</FieldLabel>
+            <PersonPicker
+              people={people}
+              selected={facilitator}
+              onSelect={setFacilitator}
+              onPersonCreated={handlePersonCreated}
+            />
+          </Field>
+          <Field>
+            <FieldLabel>Notes-taker</FieldLabel>
+            <PersonPicker
+              people={people}
+              selected={notetaker}
+              onSelect={setNotetaker}
+              onPersonCreated={handlePersonCreated}
+            />
+          </Field>
+        </Field>
+
         <Field>
           <FieldLabel htmlFor="meeting-notes">Notes</FieldLabel>
           <Textarea
@@ -236,6 +278,12 @@ export function OverviewTab({
         </ReadOnlyField>
         <ReadOnlyField label="Location" htmlFor="meeting-location-view">
           {meeting.location || "—"}
+        </ReadOnlyField>
+        <ReadOnlyField label="Facilitator" htmlFor="meeting-facilitator-view">
+          {meeting.facilitator?.name || "—"}
+        </ReadOnlyField>
+        <ReadOnlyField label="Notes-taker" htmlFor="meeting-notetaker-view">
+          {meeting.notetaker?.name || "—"}
         </ReadOnlyField>
         <ReadOnlyField label="Notes" htmlFor="meeting-notes-view">
           {meeting.notes || "—"}

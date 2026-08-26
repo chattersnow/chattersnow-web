@@ -9,6 +9,8 @@ export type MeetingFormData = {
   status: string;
   location: string | null;
   notes: string | null;
+  facilitator_person_id: string | null;
+  notetaker_person_id: string | null;
 };
 
 export function parseMeetingForm(
@@ -19,6 +21,12 @@ export function parseMeetingForm(
   const status = String(formData.get("status") ?? "scheduled");
   const location = String(formData.get("location") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim();
+  const facilitatorPersonId = String(
+    formData.get("facilitatorPersonId") ?? "",
+  ).trim();
+  const notetakerPersonId = String(
+    formData.get("notetakerPersonId") ?? "",
+  ).trim();
 
   if (!meetingDate) return { error: "Meeting date and time are required." };
   if (!MEETING_TYPES.includes(meetingType as (typeof MEETING_TYPES)[number])) {
@@ -37,6 +45,8 @@ export function parseMeetingForm(
       status,
       location: location || null,
       notes: notes || null,
+      facilitator_person_id: facilitatorPersonId || null,
+      notetaker_person_id: notetakerPersonId || null,
     },
   };
 }

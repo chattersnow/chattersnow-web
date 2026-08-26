@@ -1,6 +1,13 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
+export type MeetingPerson = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+};
+
 export type MeetingRow = {
   id: string;
   meeting_date: string;
@@ -8,6 +15,8 @@ export type MeetingRow = {
   status: string;
   location: string | null;
   notes: string | null;
+  facilitator: MeetingPerson | null;
+  notetaker: MeetingPerson | null;
 };
 
 const TYPE_STYLES: Record<string, string> = {

@@ -11,6 +11,8 @@ export type Decision = {
   meeting_id: string;
   description: string;
   decision_date: string;
+  topic: string | null;
+  vote_result: string | null;
 };
 
 export type DecisionActionResult = { error: string } | { success: true };
@@ -28,7 +30,7 @@ export async function listDecisionsAction(
 
   const { data, error } = await supabase
     .from("governance_meeting_decisions")
-    .select("id, meeting_id, description, decision_date")
+    .select("id, meeting_id, description, decision_date, topic, vote_result")
     .eq("meeting_id", meetingId)
     .order("decision_date", { ascending: true });
 

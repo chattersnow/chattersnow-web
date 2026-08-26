@@ -328,16 +328,17 @@ Audit history should be append-only for normal application users. At minimum, st
 Authorized users shall be able to manage nonprofit governance records:
 
 - **Board members**: linked to `people`, with role/title, term start/end, and active status.
-- **Meetings**: date, type (board, committee, annual, other), attendees, and associated:
-  - **Agendas**
+- **Meetings**: date, type (board, committee, annual, other), facilitator and notes-taker (both `people`), attendees, and associated:
+  - **Agendas**: for board meetings, built from a versioned, seeded agenda template (issue #166) covering the standing "Ongoing Board Items" review sections (Finance & Fundraising, Legal & Nonprofit, Events, Community & Partnerships, Marketing & Social, Operations, Technology & Website — each with fixed discussion topics plus per-meeting updates/decisions-needed text), new business, upcoming dates, a parking lot, and next-meeting info, alongside the meeting's action items and decisions/votes.
   - **Minutes**
+  - **Action items** and **decisions**: list-based, per meeting; decisions carry an optional topic and vote result alongside the discussion description, so a decision can double as a lightweight "Decisions & Votes" agenda entry.
   - **Resolutions**: motion text, mover/seconder, vote outcome, and effective date
 - **Bylaws**: the governing document, with effective date and amendment history.
 - **Policies**: named policies (e.g. whistleblower, document retention, conflict of interest policy itself), each with a category and effective date.
 - **Conflict of interest**: per-person annual disclosure statements, on-file date, and any noted conflicts.
 - **Annual requirements**: recurring compliance items (e.g. annual report, IRS Form 990, state charitable registration renewal) with due date, completion status/date, and responsible party.
 
-The content of an individual governance record (a policy's text, a set of minutes, a signed bylaws amendment, etc.) is not required to take one fixed form. A record may hold an external link (e.g. to a file in the organization's Google Drive/OneDrive), a free-text body, or both, so staff can start with a quick note and add a link to the scanned/signed file once it exists. **For the initial release there is no in-app file upload option** — `agendas` and `minutes` are already implemented this way (`external_link`/`body_text` columns only, no `file_attachment_id`). The `file_attachments` table and an uploaded-file option are deferred past the initial release — see §2 and §6.
+The content of an individual governance record (a policy's text, a set of minutes, a signed bylaws amendment, etc.) is not required to take one fixed form. A record may hold an external link (e.g. to a file in the organization's Google Drive/OneDrive), a free-text body, or both, so staff can start with a quick note and add a link to the scanned/signed file once it exists. **For the initial release there is no in-app file upload option** — `minutes` is implemented this way (`external_link`/`body_text` columns only, no `file_attachment_id`); `agendas` keeps the same `external_link` field but replaced its single free-text body with the structured, template-driven columns described above (issue #166), pinned to the template version an agenda was built from so later template revisions don't retroactively change a saved agenda. The `file_attachments` table and an uploaded-file option are deferred past the initial release — see §2 and §6.
 
 Governance records contain sensitive organizational and personal information and must not be public. Access is limited to the `admin` and `board` roles — see the entitlement matrix in §5.3.
 
@@ -526,19 +527,22 @@ Impact rollups themselves (per-event, per-program, and season reports, including
 
 ### Governance
 
-Not yet implemented — the portal's Governance nav section renders placeholder pages only; none of the tables below exist in migrations.
+Meetings, agendas, minutes, action items, decisions, and board members are implemented; bylaws, policies, conflict-of-interest disclosures, and annual requirements remain placeholder pages with no backing tables yet.
 
 - `board_members`: links a `people` record with role/title, term start/end, and active status
-- `governance_meetings`: date, type (board, committee, annual, other), status; associated `governance_meeting_attendees` link table to `people`
-- `agendas`: linked to a `governance_meetings` row
+- `governance_meetings`: date, type (board, committee, annual, other), status, `facilitator_person_id`/`notetaker_person_id` (both → `people`, issue #166); associated `governance_meeting_attendees` link table to `people`
+- `agendas`: linked to a `governance_meetings` row (unique). `external_link` plus a structured, template-driven body (issue #166): `template_id`/`template_version_id` (pinned at save time, → `agenda_templates`/`agenda_template_versions`), `ongoing_items` (jsonb, keyed by template section, holding per-meeting updates/decisions-needed text), `new_business`/`parking_lot` (jsonb string arrays), `upcoming_dates` (jsonb array of date/description/owner), `next_meeting_date`/`next_meeting_topics`, and `body_text` (repurposed as free-form meeting notes).
+- `agenda_templates` / `agenda_template_versions`: a small versioned catalog (issue #166), mirroring `content_brief_templates`/`content_brief_template_versions` below — a template's `current_version_id` points at its live `sections` (each `{key, label, topics}`, one per standing "Ongoing Board Items" subsection); revising a template inserts a new version rather than mutating one an existing agenda is pinned to. Seeded with a single `board_meeting` template covering the seven standard sections.
 - `minutes`: linked to a `governance_meetings` row
+- `governance_meeting_action_items`: linked to a `governance_meetings` row, description, owner (`people`), due date, status (open/done)
+- `governance_meeting_decisions`: linked to a `governance_meetings` row, description (the discussion), decision date, and optional `topic`/`vote_result` (issue #166) so a decision can serve as an agenda's "Decisions & Votes" entry — distinct from `resolutions` below, which are formal motions
 - `resolutions`: linked to a `governance_meetings` row (optional), motion text, mover/seconder (`people`), vote outcome, effective date
 - `bylaws`: version, effective date, amendment history
 - `policies`: name, category, effective date, version
 - `conflict_of_interest_disclosures`: linked to a `people`/`board_members` record, disclosure period, on-file date, notes
 - `annual_requirements`: name, due date, completed-at, responsible `people` record
 
-`agendas`, `minutes`, `resolutions`, `bylaws`, `policies`, `conflict_of_interest_disclosures`, and `annual_requirements` each hold their substantive content via nullable `external_link` and `body_text` columns, populated in either or both, per §5.12. `agendas` and `minutes` are already built this way. A nullable `file_attachment_id` (→ `file_attachments`) is a later-release addition, not part of the initial-release column set.
+`minutes`, `resolutions`, `bylaws`, `policies`, `conflict_of_interest_disclosures`, and `annual_requirements` each hold their substantive content via nullable `external_link` and `body_text` columns, populated in either or both, per §5.12. `minutes` is already built this way; `agendas` moved to the structured, template-driven column set described above. A nullable `file_attachment_id` (→ `file_attachments`) is a later-release addition, not part of the initial-release column set.
 
 ### Content and community calendar
 
