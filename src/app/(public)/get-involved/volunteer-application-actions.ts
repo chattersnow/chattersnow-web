@@ -1,6 +1,7 @@
 "use server";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getClientIp } from "@/lib/get-client-ip";
 import { parseVolunteerApplicationForm } from "./volunteer-application-form";
 
 export type SubmitVolunteerApplicationResult =
@@ -11,6 +12,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   INVALID_EMAIL: "A valid email is required.",
   ALREADY_SUBMITTED:
     "We already have a recent application from this email — we'll be in touch soon.",
+  RATE_LIMITED: "Too many attempts — please try again in a few minutes.",
 };
 
 // Public, unauthenticated action: anyone can submit a volunteer application.
@@ -24,6 +26,7 @@ export async function submitVolunteerApplicationAction(
   if ("error" in parsed) return parsed;
 
   const honeypot = String(formData.get("company") ?? "");
+  const ipAddress = await getClientIp();
 
   const supabase = await createSupabaseServerClient();
 
@@ -34,6 +37,7 @@ export async function submitVolunteerApplicationAction(
     p_role_interest: parsed.data.role_interest,
     p_availability: parsed.data.availability,
     p_honeypot: honeypot,
+    p_ip_address: ipAddress,
   });
 
   if (error) {

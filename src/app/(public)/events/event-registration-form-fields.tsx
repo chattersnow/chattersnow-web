@@ -14,6 +14,7 @@ export function EventRegistrationForm({ eventId }: { eventId: string }) {
   const [phone, setPhone] = useState("");
   const [partySize, setPartySize] = useState("1");
   const [notes, setNotes] = useState("");
+  const [company, setCompany] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -28,6 +29,7 @@ export function EventRegistrationForm({ eventId }: { eventId: string }) {
     formData.set("phone", phone);
     formData.set("partySize", partySize);
     formData.set("notes", notes);
+    formData.set("company", company);
 
     startTransition(async () => {
       const result = await registerForEventAction(eventId, formData);
@@ -106,6 +108,21 @@ export function EventRegistrationForm({ eventId }: { eventId: string }) {
             onChange={(event) => setNotes(event.target.value)}
           />
         </Field>
+
+        {/* Honeypot: hidden from sighted/keyboard users, but bots that
+            autofill every field will fill this and get silently rejected
+            server-side. Not type="hidden" -- bots skip those. */}
+        <div className="sr-only" aria-hidden="true">
+          <label htmlFor="registration-company">Company</label>
+          <input
+            id="registration-company"
+            name="company"
+            tabIndex={-1}
+            autoComplete="off"
+            value={company}
+            onChange={(event) => setCompany(event.target.value)}
+          />
+        </div>
 
         {error && (
           <Alert variant="destructive">

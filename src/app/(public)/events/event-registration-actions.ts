@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getClientIp } from "@/lib/get-client-ip";
 import { parseEventRegistrationForm } from "./event-registration-form";
 
 export type RegisterForEventResult = { error: string } | { success: true };
@@ -14,6 +15,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   EVENT_AT_CAPACITY: "This event has reached capacity.",
   ALREADY_REGISTERED: "This email is already registered for this event.",
   INVALID_PARTY_SIZE: "Party size must be at least 1.",
+  RATE_LIMITED: "Too many attempts — please try again in a few minutes.",
 };
 
 // Public, unauthenticated action: anyone can register for a published event
@@ -29,6 +31,9 @@ export async function registerForEventAction(
   const parsed = parseEventRegistrationForm(formData);
   if ("error" in parsed) return parsed;
 
+  const honeypot = String(formData.get("company") ?? "");
+  const ipAddress = await getClientIp();
+
   const supabase = await createSupabaseServerClient();
 
   const { error } = await supabase.rpc("register_for_event", {
@@ -38,6 +43,8 @@ export async function registerForEventAction(
     p_phone: parsed.data.phone,
     p_party_size: parsed.data.party_size,
     p_notes: parsed.data.notes,
+    p_honeypot: honeypot,
+    p_ip_address: ipAddress,
   });
 
   if (error) {
