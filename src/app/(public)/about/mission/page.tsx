@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ImagePlaceholder } from "@/components/image-placeholder";
 
 export const metadata: Metadata = {
   title: "Mission & Values | Chatter Snow",
@@ -66,18 +67,23 @@ export default function MissionPage() {
         </p>
       </section>
 
-      <section id="values">
-        <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
-          Our Values
-        </h2>
-        <ul className="app-muted mt-4 max-w-3xl list-disc space-y-2 pl-5 text-sm leading-relaxed sm:text-base">
-          {VALUES.map((value) => (
-            <li key={value.name}>
-              <span className="text-foreground font-medium">{value.name}.</span>{" "}
-              {value.description}
-            </li>
-          ))}
-        </ul>
+      <section id="values" className="grid gap-8 sm:grid-cols-3 sm:items-start">
+        <div className="sm:col-span-2">
+          <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
+            Our Values
+          </h2>
+          <ul className="app-muted mt-4 max-w-3xl list-disc space-y-2 pl-5 text-sm leading-relaxed sm:text-base">
+            {VALUES.map((value) => (
+              <li key={value.name}>
+                <span className="text-foreground font-medium">
+                  {value.name}.
+                </span>{" "}
+                {value.description}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <ImagePlaceholder className="aspect-square rounded-2xl" />
       </section>
 
       <section id="why-lgbtq">

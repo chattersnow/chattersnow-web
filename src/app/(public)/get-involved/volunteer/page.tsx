@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { HandHeart } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ImagePlaceholder } from "@/components/image-placeholder";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { VolunteerApplicationForm } from "../volunteer-application-form-fields";
 
@@ -31,9 +32,7 @@ export default async function VolunteerPage() {
               {roleTypes.map((roleType) => (
                 <Card key={roleType.id}>
                   <CardHeader>
-                    <div className="flex aspect-square w-full items-center justify-center rounded-lg bg-muted ring-1 ring-foreground/10">
-                      <HandHeart className="size-12 text-muted-foreground/50" />
-                    </div>
+                    <ImagePlaceholder icon={HandHeart} />
                   </CardHeader>
                   <CardContent>
                     <CardTitle>{roleType.name}</CardTitle>
