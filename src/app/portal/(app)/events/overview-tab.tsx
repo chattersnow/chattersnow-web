@@ -9,7 +9,7 @@ import {
   useTransition,
 } from "react";
 import { useRouter } from "next/navigation";
-import { formatDateTimeInZone } from "@/lib/time";
+import { formatDateTimeInZone, TIMEZONE_OPTIONS } from "@/lib/time";
 import { updateEventAction } from "./actions";
 import type { Program } from "../programs/actions";
 import type { EventRow } from "./event-badges";
@@ -343,15 +343,32 @@ export function OverviewTab({
 
         <Field>
           <FieldLabel htmlFor="details-timezone">Timezone</FieldLabel>
-          <Input
-            id="details-timezone"
-            required
-            placeholder="e.g. America/Chicago"
+          <Select
             value={form.timezone}
-            onChange={(changeEvent) =>
-              update("timezone", changeEvent.target.value)
-            }
-          />
+            onValueChange={(value) => update("timezone", value ?? "")}
+          >
+            <SelectTrigger id="details-timezone" className="w-full">
+              <SelectValue placeholder="Select timezone">
+                {(value: string) =>
+                  TIMEZONE_OPTIONS.find((option) => option.value === value)
+                    ?.label ?? value
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {TIMEZONE_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+              {form.timezone &&
+                !TIMEZONE_OPTIONS.some(
+                  (option) => option.value === form.timezone,
+                ) && (
+                  <SelectItem value={form.timezone}>{form.timezone}</SelectItem>
+                )}
+            </SelectContent>
+          </Select>
         </Field>
 
         <Field orientation="responsive">
