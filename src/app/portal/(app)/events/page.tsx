@@ -18,6 +18,7 @@ import {
 import { NewEventDialog } from "./new-event-dialog";
 import { EventDetailsDialog } from "./event-details-dialog";
 import { StatusBadge, VisibilityBadge } from "./event-badges";
+import { WorkflowInfoCard } from "@/components/workflow-info-card";
 import { listProgramsAction } from "../programs/actions";
 
 const SORTABLE_COLUMNS = [
@@ -160,6 +161,27 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
       <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
         Events
       </h1>
+
+      <div className="mt-6">
+        <WorkflowInfoCard title="How status and visibility work">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">Status</strong> tracks where
+              an event is in its lifecycle: draft → published → completed, or
+              cancelled/archived along the way.
+            </li>
+            <li>
+              <strong className="text-foreground">Visibility</strong> controls
+              whether an event can appear on the public site.
+            </li>
+          </ol>
+          <p className="mt-3">
+            These are independent — a public event still won&apos;t show on the
+            public site while it&apos;s a draft, and a published event marked
+            private stays portal-only.
+          </p>
+        </WorkflowInfoCard>
+      </div>
 
       <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
         {canManage ? <NewEventDialog programs={programs} /> : <div />}
