@@ -1,6 +1,25 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  getCurrentUserPermissions,
+  hasPermission,
+} from "@/lib/auth/permissions";
+import { PoliciesTable } from "./policies-table";
+import type { Policy } from "./policies-actions";
 
-export default function PoliciesPage() {
+const POLICY_SELECT =
+  "id, name, category, effective_date, version, external_link, body_text";
+
+export default async function PoliciesPage() {
+  const supabase = await createSupabaseServerClient();
+  const permissions = await getCurrentUserPermissions(supabase);
+  const canManage = hasPermission(permissions, "governance", "manage");
+
+  const { data: policies } = await supabase
+    .from("policies")
+    .select(POLICY_SELECT)
+    .order("name", { ascending: true })
+    .order("effective_date", { ascending: false });
+
   return (
     <>
       <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
@@ -8,16 +27,10 @@ export default function PoliciesPage() {
       </h1>
 
       <div className="mt-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Coming soon</CardTitle>
-          </CardHeader>
-          <CardContent className="app-muted text-sm">
-            This area will list named organizational policies (e.g.
-            whistleblower, document retention), each with a category, effective
-            date, and version.
-          </CardContent>
-        </Card>
+        <PoliciesTable
+          policies={(policies ?? []) as unknown as Policy[]}
+          canManage={canManage}
+        />
       </div>
     </>
   );

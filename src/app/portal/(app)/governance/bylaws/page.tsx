@@ -1,6 +1,24 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  getCurrentUserPermissions,
+  hasPermission,
+} from "@/lib/auth/permissions";
+import { BylawsTable } from "./bylaws-table";
+import type { Bylaws } from "./bylaws-actions";
 
-export default function BylawsPage() {
+const BYLAWS_SELECT =
+  "id, version, effective_date, amendment_summary, external_link, body_text";
+
+export default async function BylawsPage() {
+  const supabase = await createSupabaseServerClient();
+  const permissions = await getCurrentUserPermissions(supabase);
+  const canManage = hasPermission(permissions, "governance", "manage");
+
+  const { data: bylaws } = await supabase
+    .from("bylaws")
+    .select(BYLAWS_SELECT)
+    .order("effective_date", { ascending: false });
+
   return (
     <>
       <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
@@ -8,15 +26,10 @@ export default function BylawsPage() {
       </h1>
 
       <div className="mt-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Coming soon</CardTitle>
-          </CardHeader>
-          <CardContent className="app-muted text-sm">
-            This area will hold the governing bylaws document, with version,
-            effective date, and amendment history.
-          </CardContent>
-        </Card>
+        <BylawsTable
+          bylaws={(bylaws ?? []) as unknown as Bylaws[]}
+          canManage={canManage}
+        />
       </div>
     </>
   );

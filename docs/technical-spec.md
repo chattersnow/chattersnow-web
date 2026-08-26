@@ -560,7 +560,7 @@ Impact rollups themselves (per-event, per-program, and season reports, including
 
 ### Governance
 
-Meetings, agendas, minutes, action items, decisions, board members, and nonprofit-status tracking are implemented; bylaws, policies, conflict-of-interest disclosures, and annual requirements remain placeholder pages with no backing tables yet.
+Meetings, agendas, minutes, action items, decisions, board members, nonprofit-status tracking, bylaws, and policies are implemented; conflict-of-interest disclosures and annual requirements remain placeholder pages with no backing tables yet.
 
 - `board_members`: links a `people` record with role/title, term start/end, and active status
 - `governance_meetings`: date, type (board, committee, annual, other), status, `facilitator_person_id`/`notetaker_person_id` (both → `people`, issue #166); associated `governance_meeting_attendees` link table to `people`
@@ -570,8 +570,8 @@ Meetings, agendas, minutes, action items, decisions, board members, and nonprofi
 - `governance_meeting_action_items`: linked to a `governance_meetings` row, description, owner (`people`), due date, status (open/done)
 - `governance_meeting_decisions`: linked to a `governance_meetings` row, description (the discussion), decision date, and optional `topic`/`vote_result` (issue #166) so a decision can serve as an agenda's "Decisions & Votes" entry — distinct from `resolutions` below, which are formal motions
 - `resolutions`: linked to a `governance_meetings` row (optional), motion text, mover/seconder (`people`), vote outcome, effective date
-- `bylaws`: version, effective date, amendment history
-- `policies`: name, category, effective date, version
+- `bylaws`: **implemented** (issue #38) — `version`, `effective_date`, `amendment_summary`. Each amendment is its own row rather than mutating a shared "current" record, per the app's records-with-history philosophy (§2 goal 4); the row with the latest `effective_date` is the current bylaws, and the full row list is the amendment history — no separate history table. `/portal/governance/bylaws` shows the current version plus a history table of prior versions.
+- `policies`: **implemented** (issue #38) — `name`, `category` (free text — spec gives examples, no fixed taxonomy), `effective_date`, `version`. Same one-row-per-revision approach as `bylaws`. `/portal/governance/policies` is a searchable/filterable list.
 - `conflict_of_interest_disclosures`: linked to a `people`/`board_members` record, disclosure period, on-file date, notes
 - `annual_requirements`: name, due date, completed-at, responsible `people` record
 - `nonprofit_status_milestones`: **implemented** (issues #145/#146) — `description`, `phase`, optional `owner_person_id` (→ `people`), `due_date`, `status` (not_started/in_progress/done). A plain checklist (no percent-complete meter, by design), seeded from `planning/governance/NONPROFIT_FORMATION.md`'s Phase 1–5 checklist, gated by the existing `governance` resource (no new resource needed) at `/portal/governance/nonprofit-status`.
