@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { UserRound } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ImagePlaceholder } from "@/components/image-placeholder";
 
 export const metadata: Metadata = {
   title: "Meet the Team | Chatter Snow",
@@ -26,9 +27,7 @@ export default function TeamPage() {
         {TEAM.map((member) => (
           <Card key={member.name}>
             <CardHeader>
-              <div className="flex aspect-square w-full items-center justify-center rounded-lg bg-muted ring-1 ring-foreground/10">
-                <UserRound className="size-12 text-muted-foreground/50" />
-              </div>
+              <ImagePlaceholder icon={UserRound} />
             </CardHeader>
             <CardContent>
               <CardTitle>{member.name}</CardTitle>

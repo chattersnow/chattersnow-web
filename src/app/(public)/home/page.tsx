@@ -1,6 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
+import { ImagePlaceholder } from "@/components/image-placeholder";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { nowMs } from "@/lib/time";
 
@@ -68,6 +76,20 @@ export default async function Home() {
             </Button>
           </div>
         </section>
+
+        <div className="mt-12">
+          <Carousel className="mx-auto max-w-md" opts={{ loop: true }}>
+            <CarouselContent>
+              {[0, 1, 2].map((slide) => (
+                <CarouselItem key={slide}>
+                  <ImagePlaceholder className="aspect-video rounded-2xl" />
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious className="hidden sm:flex" />
+            <CarouselNext className="hidden sm:flex" />
+          </Carousel>
+        </div>
 
         {nextEvent && (
           <section className="mt-16 rounded-xl border border-[var(--line)] p-6 text-center sm:p-8">

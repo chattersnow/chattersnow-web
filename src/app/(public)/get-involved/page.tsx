@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { ImagePlaceholder } from "@/components/image-placeholder";
 
 export const metadata: Metadata = {
   title: "Get Involved | Chatter Snow",
@@ -10,6 +11,12 @@ export default function GetInvolvedPage() {
   return (
     <main className="app-shell px-6 py-8 sm:px-10">
       <div className="mx-auto max-w-6xl space-y-12">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <ImagePlaceholder className="col-span-2 aspect-[2/1] rounded-2xl sm:aspect-[4/3]" />
+          <ImagePlaceholder className="aspect-square rounded-2xl" />
+          <ImagePlaceholder className="aspect-square rounded-2xl" />
+        </div>
+
         <section>
           <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
             Get involved

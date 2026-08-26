@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ImagePlaceholder } from "@/components/image-placeholder";
 
 export const metadata: Metadata = {
   title: "Donate Gear | Chatter Snow",
@@ -53,28 +54,31 @@ export default function DonateGearPage() {
           <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
             Donate gear
           </h2>
-          <Card className="mt-6 max-w-2xl">
-            <CardHeader>
-              <CardTitle>We accept gently used gear</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <ul className="app-muted list-disc space-y-1 pl-5 text-sm leading-relaxed">
-                {GEAR_EXAMPLES.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-              <p className="app-muted text-sm leading-relaxed">
-                Drop items off in person at any Chatter event, or contact us to
-                arrange a drop-off, mail-in, or collection.
-              </p>
-              <Button
-                nativeButton={false}
-                render={<Link href="/contact?topic=gear" />}
-              >
-                Contact us to donate gear
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="mt-6 flex max-w-2xl flex-col gap-6 sm:flex-row">
+            <ImagePlaceholder className="aspect-square rounded-xl sm:w-40" />
+            <Card className="flex-1">
+              <CardHeader>
+                <CardTitle>We accept gently used gear</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <ul className="app-muted list-disc space-y-1 pl-5 text-sm leading-relaxed">
+                  {GEAR_EXAMPLES.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+                <p className="app-muted text-sm leading-relaxed">
+                  Drop items off in person at any Chatter event, or contact us
+                  to arrange a drop-off, mail-in, or collection.
+                </p>
+                <Button
+                  nativeButton={false}
+                  render={<Link href="/contact?topic=gear" />}
+                >
+                  Contact us to donate gear
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </section>
 
         <section id="gear-drives">
