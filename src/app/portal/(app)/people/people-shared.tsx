@@ -4,6 +4,8 @@ export type PersonRow = {
   email: string | null;
   phone: string | null;
   notes: string | null;
+  logo_url: string | null;
+  website: string | null;
   is_donor: boolean;
   is_sponsor: boolean;
   is_volunteer: boolean;

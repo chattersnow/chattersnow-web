@@ -11,6 +11,8 @@ export type PersonFormState = {
   email: string;
   phone: string;
   notes: string;
+  logoUrl: string;
+  website: string;
   roles: Record<RoleKey, boolean>;
 };
 
@@ -20,6 +22,8 @@ export function emptyPersonForm(defaultRole?: RoleKey): PersonFormState {
     email: "",
     phone: "",
     notes: "",
+    logoUrl: "",
+    website: "",
     roles: {
       is_donor: defaultRole === "is_donor",
       is_sponsor: defaultRole === "is_sponsor",
@@ -92,6 +96,29 @@ export function PersonFormFields({
         </div>
       </Field>
 
+      <Field orientation="responsive">
+        <Field>
+          <FieldLabel htmlFor={`${idPrefix}-logoUrl`}>Logo URL</FieldLabel>
+          <Input
+            id={`${idPrefix}-logoUrl`}
+            type="url"
+            placeholder="https://..."
+            value={form.logoUrl}
+            onChange={(event) => update("logoUrl", event.target.value)}
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor={`${idPrefix}-website`}>Website</FieldLabel>
+          <Input
+            id={`${idPrefix}-website`}
+            type="url"
+            placeholder="https://..."
+            value={form.website}
+            onChange={(event) => update("website", event.target.value)}
+          />
+        </Field>
+      </Field>
+
       <Field>
         <FieldLabel htmlFor={`${idPrefix}-notes`}>Notes</FieldLabel>
         <Textarea
@@ -110,6 +137,8 @@ export function packPersonFormData(form: PersonFormState) {
   formData.set("email", form.email);
   formData.set("phone", form.phone);
   formData.set("notes", form.notes);
+  formData.set("logoUrl", form.logoUrl);
+  formData.set("website", form.website);
   formData.set("isDonor", String(form.roles.is_donor));
   formData.set("isSponsor", String(form.roles.is_sponsor));
   formData.set("isVolunteer", String(form.roles.is_volunteer));

@@ -91,7 +91,7 @@ Public routes must not expose donor contact details, private event data, interna
 
 **Implemented:** Gears (`/gears`) and Contact Us (`/contact`, form + published email/social) are fully built. Events (`/events`) lists upcoming/past events from Supabase but has no detail page or registration yet. About Us (`/about`) has real mission/story copy and has grown beyond the original team-only sub-page into four sub-pages: `/about/team` (roster, bios still "coming soon"), `/about/programs` (Access/Progression/Community pillars, six named programs), `/about/volunteer` (three volunteer opportunities), and `/about/donations` (in-kind donation info; monetary donations is a placeholder). Home (`/home`) is built: mission summary, Join/Get Involved/Donate CTAs, and an upcoming-event highlight.
 
-**What's next:** Add event detail pages and registration (§5.2, §9). Replace the monetary-donations placeholder with a real giving path, and add sponsorship/partnership content (currently absent). Write real team bios and an explicit values section. Consider promoting Programs and a consolidated Get Involved page to top-level nav instead of About Us sub-pages, since their content now stands on its own — this would also mean updating this section's five-item IA list, which does not currently name them. A sixth public surface, the Community Calendar, is specified in §5.20 but not yet built or added to this IA list.
+**What's next:** Replace the monetary-donations placeholder with a real giving path. Write real team bios and an explicit values section. Consider promoting Programs and a consolidated Get Involved page to top-level nav instead of About Us sub-pages, since their content now stands on its own — this would also mean updating this section's five-item IA list, which does not currently name them. A sixth public surface, the Community Calendar, is specified in §5.20 but not yet built or added to this IA list.
 
 ### Operations portal
 
@@ -121,7 +121,7 @@ Content management is not required to be self-service in the first release. The 
 
 **Implemented:** Home page content (mission summary, upcoming event highlight, Join/Get Involved/Donate CTAs — see §4), About Us (mission/story), team roster (bios pending), programs (`/about/programs`), volunteer opportunities (`/about/volunteer`), in-kind donation info (`/about/donations`), and a working contact form (`/contact`) with published email addresses and an Instagram link.
 
-**What's next:** real leadership bios and an explicit values section on About Us; a real monetary-donation path (currently a "coming soon" stub) and sponsorship/partnership content, neither of which exists yet.
+**What's next:** real leadership bios and an explicit values section on About Us; a real monetary-donation path (currently a "coming soon" stub).
 
 ### 5.2 Public events
 
@@ -136,7 +136,7 @@ The site shall allow visitors to:
 
 Events are presented as a list in the initial release. A calendar view is a possible future enhancement, pending research into a suitable approach; the data model should not preclude it.
 
-**Implemented:** `/events` lists upcoming and past events read live from Supabase (`public_events`). `/events/[id]` is the event detail page, with a public registration form (when `registration_enabled` and within the registration window) backed by `event_registrations` and the `register_for_event()` RPC (see §6).
+**Implemented:** `/events` lists upcoming and past events read live from Supabase (`public_events`) and opens event details in a sheet (with `/events/[id]` kept as a direct-link detail page) showing date/time, location, description, and public sponsors/partners (`public_event_sponsors`, sourced from `event_sponsors`/`people` and limited to sponsors marked `is_public`), plus a public registration form (when `registration_enabled` and within the registration window) backed by `event_registrations` and the `register_for_event()` RPC (see §6).
 
 An event must support these fields:
 

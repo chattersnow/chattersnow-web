@@ -22,6 +22,8 @@ const person: PersonRow = {
   email: "jane@example.com",
   phone: "555-1234",
   notes: "VIP",
+  logo_url: null,
+  website: null,
   is_donor: true,
   is_sponsor: false,
   is_volunteer: false,

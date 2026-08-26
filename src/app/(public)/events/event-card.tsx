@@ -1,4 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
+import type { PublicEventSponsor } from "./event-sponsors";
 
 export type PublicEvent = {
   id: string;
@@ -13,6 +14,7 @@ export type PublicEvent = {
   capacity: number | null;
   registration_enabled: boolean;
   registration_deadline: string | null;
+  sponsors: PublicEventSponsor[];
 };
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {

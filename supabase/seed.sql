@@ -16,6 +16,7 @@
 --   volunteer@example.test     volunteer
 --   multi@example.test         event_coordinator + volunteer (multi-role)
 --   noaccess@example.test      signed in, no role assigned (access-denied path)
+--   former@example.test        event_coordinator role, but deactivated (revoked-access path)
 
 with new_users(email, full_name) as (
   values
@@ -25,7 +26,8 @@ with new_users(email, full_name) as (
     ('board@example.test', 'Taylor Brooks'),
     ('volunteer@example.test', 'Casey Rivera'),
     ('multi@example.test', 'Riley Chen'),
-    ('noaccess@example.test', 'Sam Ellis')
+    ('noaccess@example.test', 'Sam Ellis'),
+    ('former@example.test', 'Drew Kowalski')
 ),
 inserted_users as (
   insert into auth.users (
@@ -60,11 +62,12 @@ join public.roles r on (
   (u.email = 'finance@example.test' and r.name = 'finance') or
   (u.email = 'board@example.test' and r.name = 'board') or
   (u.email = 'volunteer@example.test' and r.name = 'volunteer') or
-  (u.email = 'multi@example.test' and r.name in ('event_coordinator', 'volunteer'))
+  (u.email = 'multi@example.test' and r.name in ('event_coordinator', 'volunteer')) or
+  (u.email = 'former@example.test' and r.name = 'event_coordinator')
 )
 where u.email in (
   'admin@example.test', 'coordinator@example.test', 'finance@example.test',
-  'board@example.test', 'volunteer@example.test', 'multi@example.test'
+  'board@example.test', 'volunteer@example.test', 'multi@example.test', 'former@example.test'
 );
 -- noaccess@example.test intentionally gets no user_roles row.
 
@@ -97,8 +100,14 @@ declare
   v_role_type_id uuid;
   v_template_id uuid;
   v_template_version_id uuid;
+  v_agenda_template_id uuid;
+  v_agenda_template_version_id uuid;
+  v_former_id uuid;
+  v_person_applicant uuid;
+  v_item5 uuid;
 begin
   select id into v_admin_id from auth.users where email = 'admin@example.test';
+  select id into v_former_id from auth.users where email = 'former@example.test';
 
   -- People: donors, a sponsor org, and a volunteer.
   insert into public.people (name, is_anonymous, source_type, email, phone, notes, is_donor, created_by)
@@ -109,8 +118,8 @@ begin
   values ('Alex Chen', false, 'individual', 'alex.chen@example.test', '555-0102', null, true, v_admin_id)
   returning id into v_person_donor2;
 
-  insert into public.people (name, is_anonymous, source_type, email, phone, notes, is_sponsor, created_by)
-  values ('Summit Outdoor Co.', false, 'brand', 'partnerships@summitoutdoor.example.test', '555-0103', 'Local gear retailer, annual sponsor.', true, v_admin_id)
+  insert into public.people (name, is_anonymous, source_type, email, phone, notes, is_sponsor, logo_url, website, created_by)
+  values ('Summit Outdoor Co.', false, 'brand', 'partnerships@summitoutdoor.example.test', '555-0103', 'Local gear retailer, annual sponsor.', true, 'https://example.test/logos/summit-outdoor.png', 'https://summitoutdoor.example.test', v_admin_id)
   returning id into v_person_sponsor;
 
   insert into public.people (name, is_anonymous, source_type, email, phone, notes, is_volunteer, created_by)
@@ -167,6 +176,14 @@ begin
   insert into public.event_expenses (event_id, description, expense_date, amount, currency, notes, created_by, submitted_by)
   values (null, 'Storage unit rental — October', current_date - 10, 120.00, 'USD', 'Monthly inventory storage.', v_admin_id, v_admin_id);
 
+  -- Event revenue: non-sponsorship income tied to the past event.
+  insert into public.event_revenue (event_id, source, amount, received_date, notes, created_by)
+  values (v_event_past, 'onsite_donations', 214.50, current_date - 40, 'Cash jar at the trailhead cleanup.', v_admin_id);
+
+  -- Reimbursement: a volunteer's out-of-pocket spend, still awaiting approval.
+  insert into public.reimbursements (person_id, event_id, description, amount, notes, submitted_by, created_by)
+  values (v_person_volunteer, v_event_past, 'Gas for hauling donated gear to the trailhead.', 32.75, 'Receipt on file at the office.', v_admin_id, v_admin_id);
+
   -- Donations with items, plus receipt movements, tied to the upcoming event.
   insert into public.donations (donor_id, event_id, notes, created_by)
   values (v_person_donor1, v_event_upcoming, null, v_admin_id)
@@ -203,6 +220,17 @@ begin
   values (v_item3, 'distributed', 1, 'Given out at trailhead cleanup', v_event_past, v_admin_id);
   insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, created_by)
   values (v_item4, 'received', 1, 'Donation intake', v_admin_id);
+
+  -- Fifth item, held on the public gear library: requested and reserved via
+  -- the request_gear_item() flow (recipient is a person, not an event).
+  insert into public.inventory_items (donation_id, description, size, type, gender, condition, face_value, status, created_by)
+  values (v_donation2, 'Wool beanie', 'One size', 'accessory', 'unisex', 'good', 8.00, 'reserved', v_admin_id)
+  returning id into v_item5;
+
+  insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, created_by)
+  values (v_item5, 'received', 1, 'Donation intake', v_admin_id);
+  insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, recipient_person_id, created_by)
+  values (v_item5, 'reserved', 1, 'Public gear library request', v_person_volunteer, v_admin_id);
 
   -- Giveaway for the past event: two prizes, one claimed winner.
   insert into public.giveaways (event_id, name, tickets_sold, ticket_price, revenue_amount, drawing_date, created_by)
@@ -251,12 +279,21 @@ begin
   insert into public.event_volunteer_hours (event_id, person_id, hours, logged_date, notes, logged_by)
   values (v_event_past, v_person_volunteer, 4.50, current_date - 40, 'Cleanup and distribution support.', v_admin_id);
 
-  insert into public.volunteer_role_types (name, description, created_by)
-  values ('Ride Buddy', 'Supports participants during beginner outdoor activities.', v_admin_id)
+  insert into public.volunteer_role_types (name, description, is_public, created_by)
+  values ('Ride Buddy', 'Supports participants during beginner outdoor activities.', true, v_admin_id)
   returning id into v_role_type_id;
 
   insert into public.volunteer_hours (person_id, event_id, volunteer_role_type_id, hours, logged_date, notes, logged_by)
   values (v_person_volunteer, v_event_past, v_role_type_id, 3.00, current_date - 40, 'Paired with first-time participants.', v_admin_id);
+
+  -- Public volunteer application, submitted via the /get-involved intake
+  -- flow (not yet followed up on).
+  insert into public.people (name, is_anonymous, source_type, email, phone, is_volunteer, created_by)
+  values ('Morgan Ellis', false, 'individual', 'morgan.ellis@example.test', '555-0105', true, v_admin_id)
+  returning id into v_person_applicant;
+
+  insert into public.volunteer_applications (person_id, name, email, phone, role_interest, availability, status)
+  values (v_person_applicant, 'Morgan Ellis', 'morgan.ellis@example.test', '555-0105', 'Ride Buddy', 'Weekend mornings', 'new');
 
   insert into public.event_registrations (event_id, name, email, phone, party_size, notes, person_id, checked_in_at)
   values (v_event_upcoming, 'Jamie Rivera', 'jamie.rivera@example.test', '555-0101', 2, 'Needs one adult medium jacket.', v_person_donor1, null)
@@ -312,20 +349,33 @@ begin
   insert into public.board_members (person_id, role_title, term_start, term_end, notes, created_by)
   values (v_person_sponsor, 'Community advisor', current_date - 120, current_date + 245, 'Seeded governance example.', v_admin_id);
 
-  insert into public.governance_meetings (meeting_date, meeting_type, status, location, notes, created_by)
-  values (now() - interval '14 days', 'board', 'completed', 'Video conference', 'Reviewed winter access program launch.', v_admin_id)
+  insert into public.governance_meetings (meeting_date, meeting_type, status, location, notes, facilitator_person_id, notetaker_person_id, created_by)
+  values (now() - interval '14 days', 'board', 'completed', 'Video conference', 'Reviewed winter access program launch.', v_person_sponsor, v_person_volunteer, v_admin_id)
   returning id into v_meeting_id;
 
   insert into public.governance_meeting_attendees (meeting_id, person_id, attended, created_by)
   values (v_meeting_id, v_person_sponsor, true, v_admin_id);
-  insert into public.agendas (meeting_id, body_text, created_by)
-  values (v_meeting_id, '1. Program launch\n2. Nonprofit formation timeline', v_admin_id);
+
+  select id into v_agenda_template_id from public.agenda_templates where key = 'board_meeting';
+  select current_version_id into v_agenda_template_version_id from public.agenda_templates where id = v_agenda_template_id;
+
+  insert into public.agendas (
+    meeting_id, body_text, template_id, template_version_id, ongoing_items,
+    new_business, parking_lot, upcoming_dates, next_meeting_date, next_meeting_topics, created_by
+  )
+  values (
+    v_meeting_id, '1. Program launch\n2. Nonprofit formation timeline', v_agenda_template_id, v_agenda_template_version_id,
+    '{"finance_fundraising": "On track; see winter swap sponsorship.", "events": "Winter Gear Swap logistics confirmed."}'::jsonb,
+    '["Discuss Q1 grant applications"]'::jsonb, '["Revisit storage unit lease renewal"]'::jsonb,
+    '["Winter Gear Swap — 21 days out"]'::jsonb, current_date + 30, 'Post-event debrief; nonprofit formation update.',
+    v_admin_id
+  );
   insert into public.minutes (meeting_id, body_text, created_by)
   values (v_meeting_id, 'Approved the winter access program launch plan.', v_admin_id);
   insert into public.governance_meeting_action_items (meeting_id, description, owner_person_id, due_date, created_by)
   values (v_meeting_id, 'Confirm partner gear donation schedule.', v_person_sponsor, current_date + 14, v_admin_id);
-  insert into public.governance_meeting_decisions (meeting_id, description, decision_date, created_by)
-  values (v_meeting_id, 'Proceed with the winter gear swap pilot.', current_date - 14, v_admin_id);
+  insert into public.governance_meeting_decisions (meeting_id, description, decision_date, topic, vote_result, created_by)
+  values (v_meeting_id, 'Proceed with the winter gear swap pilot.', current_date - 14, 'Winter access program launch', 'Passed unanimously', v_admin_id);
   insert into public.resolutions (meeting_id, motion_text, mover_person_id, seconder_person_id, vote_outcome, effective_date, created_by)
   values (v_meeting_id, 'Adopt the winter access program as a core initiative.', v_person_sponsor, v_person_volunteer, 'passed', current_date - 14, v_admin_id);
 
@@ -333,5 +383,8 @@ begin
   insert into public.pending_role_grants (email, role_id, status, expires_at, name, created_by, invited_at, invited_by)
   select 'newvolunteer@example.test', r.id, 'pending', now() + interval '30 days', 'Quinn Harper', v_admin_id, now() - interval '1 day', v_admin_id
   from public.roles r where r.name = 'volunteer';
+
+  insert into public.deactivated_users (user_id, deactivated_at, deactivated_by)
+  values (v_former_id, now() - interval '5 days', v_admin_id);
 
 end $$;
