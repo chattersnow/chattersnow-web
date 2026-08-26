@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 export default function AttendPage() {
   return (
     <main className="app-shell px-6 py-8 sm:px-10">
-      <div className="mx-auto max-w-6xl space-y-8">
+      <div className="mx-auto max-w-6xl space-y-12">
         <section>
           <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
             Get involved
@@ -20,9 +20,9 @@ export default function AttendPage() {
           </p>
         </section>
         <section>
-          <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          <h2 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
             Attend
-          </h1>
+          </h2>
           <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
             The easiest way to get involved is to show up. Browse upcoming
             mountain days and community meetups and come ride with us.

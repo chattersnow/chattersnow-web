@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 export default function GetInvolvedPage() {
   return (
     <main className="app-shell px-6 py-8 sm:px-10">
-      <div className="mx-auto max-w-6xl space-y-16">
+      <div className="mx-auto max-w-6xl space-y-12">
         <section>
           <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
             Get involved
@@ -66,7 +66,7 @@ export default function GetInvolvedPage() {
             Have gear you&apos;re not using? Donating it helps another rider get
             on the mountain. See what we accept on our{" "}
             <Link
-              href="/gears#donate"
+              href="/gears/donate#donate"
               className="underline underline-offset-4 hover:text-foreground"
             >
               Gear page

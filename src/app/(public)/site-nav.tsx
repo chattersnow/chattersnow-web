@@ -43,7 +43,7 @@ const NAV_GROUPS: readonly NavGroup[] = [
       { label: "Community Calendar", href: "/events/community" },
     ],
   },
-  // { label: "Programs", href: "/programs" },
+  { label: "Programs", href: "/programs" },
   {
     label: "Gear",
     links: [

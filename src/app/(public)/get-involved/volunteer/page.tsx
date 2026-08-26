@@ -50,7 +50,7 @@ export default async function VolunteerPage() {
             </p>
           )}
           <div className="mt-10 max-w-xl">
-            <h2 className="brand-display text-xl font-semibold tracking-[-0.02em]">
+            <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
               Apply to volunteer
             </h2>
             <p className="app-muted mt-2 text-sm leading-relaxed">

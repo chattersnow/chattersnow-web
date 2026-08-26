@@ -72,9 +72,9 @@ export default async function Home() {
         {nextEvent && (
           <section className="mt-16 rounded-xl border border-[var(--line)] p-6 text-center sm:p-8">
             <span className="app-eyebrow">Next up</span>
-            <p className="brand-display mt-2 text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
+            <h2 className="brand-display mt-2 text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
               {nextEvent.name}
-            </p>
+            </h2>
             <p className="app-muted mt-2 text-sm">
               {dateFormatter.format(new Date(nextEvent.starts_at))}
               {nextEvent.location && ` · ${nextEvent.location}`}

@@ -90,7 +90,7 @@ export default async function EventDetailPage({
 
         {event.registration_enabled && (
           <section className="mt-10 max-w-lg">
-            <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em]">
+            <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
               Register
             </h2>
             <div className="mt-4">
