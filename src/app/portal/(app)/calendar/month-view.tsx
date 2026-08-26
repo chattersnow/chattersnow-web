@@ -12,6 +12,7 @@ import type {
   CalendarProgram,
 } from "./calendar-shared";
 import type { ActiveContentBriefTemplate } from "./content-brief-template-shared";
+import type { ProgramSuggestionRule } from "./program-suggestion-shared";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MAX_CHIPS_PER_DAY = 3;
@@ -32,6 +33,7 @@ export function MonthView({
   programs,
   activeTemplates,
   defaultLeadTimeDays,
+  programSuggestionRules,
   canManage,
   monthHref,
 }: {
@@ -41,6 +43,7 @@ export function MonthView({
   programs: CalendarProgram[];
   activeTemplates: ActiveContentBriefTemplate[];
   defaultLeadTimeDays: number;
+  programSuggestionRules: ProgramSuggestionRule[];
   canManage: boolean;
   monthHref: (month: string) => string;
 }) {
@@ -130,6 +133,7 @@ export function MonthView({
                       programs={programs}
                       activeTemplates={activeTemplates}
                       defaultLeadTimeDays={defaultLeadTimeDays}
+                      programSuggestionRules={programSuggestionRules}
                       canManage={canManage}
                       trigger="chip"
                     />

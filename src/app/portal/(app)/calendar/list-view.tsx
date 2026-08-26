@@ -31,6 +31,7 @@ import {
   type CalendarProgram,
 } from "./calendar-shared";
 import type { ActiveContentBriefTemplate } from "./content-brief-template-shared";
+import type { ProgramSuggestionRule } from "./program-suggestion-shared";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -55,6 +56,7 @@ export function ListView({
   programs,
   activeTemplates,
   defaultLeadTimeDays,
+  programSuggestionRules,
   canManage,
   sort,
   dir,
@@ -65,6 +67,7 @@ export function ListView({
   programs: CalendarProgram[];
   activeTemplates: ActiveContentBriefTemplate[];
   defaultLeadTimeDays: number;
+  programSuggestionRules: ProgramSuggestionRule[];
   canManage: boolean;
   sort: ListSortColumn;
   dir: "asc" | "desc";
@@ -162,6 +165,7 @@ export function ListView({
                       programs={programs}
                       activeTemplates={activeTemplates}
                       defaultLeadTimeDays={defaultLeadTimeDays}
+                      programSuggestionRules={programSuggestionRules}
                       canManage={canManage}
                     />
                   </TableCell>
