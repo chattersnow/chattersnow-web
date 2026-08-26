@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { WorkflowInfoCard } from "@/components/workflow-info-card";
 import { formatDateInZone } from "@/lib/time";
 import { getMissingCoverageSeriesForYear } from "../queries";
 import { GenerateMissingButton } from "./generate-missing-button";
@@ -28,14 +30,38 @@ export default async function CalendarImportPage({
       <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
         Calendar Import
       </h1>
-      <p className="app-muted mt-2 max-w-2xl text-sm">
-        Generate next year&apos;s instances of recurring Tier 1/2 observances,
-        and bulk-import new one-off dates from an external list. Everything
-        lands as an internal draft (idea status) pending the usual sign-off —
-        nothing is published automatically.
-      </p>
+      <div className="mt-6">
+        <WorkflowInfoCard title="How calendar import works">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">
+                Generate missing instances
+              </strong>{" "}
+              — for each recurring Tier 1/2 observance missing a date in the
+              target year, generate just that one series, or use Generate all to
+              fill in every missing one at once.
+            </li>
+            <li>
+              <strong className="text-foreground">Bulk import</strong> — the CSV
+              importer adds new one-off dates from an external list.
+            </li>
+          </ol>
+          <p className="mt-3">
+            Either path only creates internal <code>idea</code>-status drafts —
+            nothing is published automatically. Everything still goes through
+            the normal calendar sign-off on the main{" "}
+            <Link
+              href="/portal/calendar"
+              className="underline hover:text-foreground"
+            >
+              Calendar
+            </Link>{" "}
+            page.
+          </p>
+        </WorkflowInfoCard>
+      </div>
 
-      <Card className="mt-6">
+      <Card className="mt-4">
         <CardHeader>
           <CardTitle>Missing recurring instances for {targetYear}</CardTitle>
         </CardHeader>
