@@ -1,26 +1,22 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { ArrowLeft, Eye, Pencil } from "lucide-react";
 import type { Program } from "../programs/actions";
-import type { EventRow, PhaseStatus } from "./event-badges";
+import type { EventRow } from "./event-badges";
 import { PhaseStatusBadge } from "./event-badges";
-import { OverviewTab, type OverviewTabHandle } from "./overview-tab";
-import { PlanningTab, type PlanningTabHandle } from "./planning-tab";
-import { LogisticsTab, type LogisticsTabHandle } from "./logistics-tab";
-import { VolunteersTab } from "./volunteers-tab";
-import { SponsorsTab } from "./sponsors-tab";
-import { AttendanceTab } from "./attendance-tab";
-import { RegistrantsTab } from "./registrants-tab";
-import { DiscountCodesTab } from "./discount-codes-tab";
-import { DonationsTab } from "./donations-tab";
-import { DistributionsTab } from "./distributions-tab";
-import { IncidentsTab } from "./incidents-tab";
-import { EventExpensesTab } from "./event-expenses-tab";
-import { EventRevenueTab } from "./event-revenue-tab";
-import { GiveawayTab } from "./giveaway-tab";
-import { ReportTab, type ReportTabHandle } from "./report-tab";
-import { ImpactTab, type ImpactTabHandle } from "./impact-tab";
+import { phaseStatus } from "./phase-status";
+import {
+  FORM_ID_PREFIX,
+  FORM_TAB_VALUES,
+  PHASES,
+  TAB_CONFIG,
+  phaseForTab,
+  type Mode,
+  type TabRenderContext,
+  type TabValue,
+} from "./event-tabs-config";
+import { useFormTabState } from "./use-form-tab-state";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,121 +41,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
-const FORM_ID_PREFIX = "event-details-form";
-
-type TabValue =
-  | "overview"
-  | "planning"
-  | "logistics"
-  | "volunteers"
-  | "sponsors"
-  | "attendance"
-  | "registrants"
-  | "discount-codes"
-  | "distributions"
-  | "incidents"
-  | "giveaway"
-  | "expenses"
-  | "revenue"
-  | "report"
-  | "impact"
-  | "donations";
-
-// Tabs whose form submits through the sheet's shared footer Save button
-// (formId + dirty/discard tracking); everything else manages its own
-// inline add/edit/delete affordances, same as the pre-workflow tabs did.
-const FORM_TABS = new Set<TabValue>([
-  "overview",
-  "planning",
-  "logistics",
-  "report",
-  "impact",
-]);
-
-type Mode = "view" | "edit";
-
-type PhaseKey = "basic" | "planning" | "during" | "after";
-
-const PHASES: {
-  key: PhaseKey;
-  label: string;
-  tabs: { value: TabValue; label: string }[];
-}[] = [
-  {
-    key: "basic",
-    label: "Basic",
-    tabs: [{ value: "overview", label: "Overview" }],
-  },
-  {
-    key: "planning",
-    label: "Planning",
-    tabs: [
-      { value: "planning", label: "Planning" },
-      { value: "logistics", label: "Logistics" },
-      { value: "volunteers", label: "Volunteers" },
-      { value: "sponsors", label: "Sponsors" },
-    ],
-  },
-  {
-    key: "during",
-    label: "During",
-    tabs: [
-      { value: "attendance", label: "Attendance" },
-      { value: "registrants", label: "Registrants" },
-      { value: "discount-codes", label: "Discount codes" },
-      { value: "distributions", label: "Distributions" },
-      { value: "incidents", label: "Incidents" },
-      { value: "giveaway", label: "Giveaway" },
-    ],
-  },
-  {
-    key: "after",
-    label: "After",
-    tabs: [
-      { value: "expenses", label: "Expenses" },
-      { value: "revenue", label: "Revenue" },
-      { value: "report", label: "Report" },
-      { value: "impact", label: "Impact" },
-      { value: "donations", label: "Donations" },
-    ],
-  },
-];
-
-function phaseForTab(tab: TabValue): PhaseKey {
-  return PHASES.find((phase) => phase.tabs.some((t) => t.value === tab))!.key;
-}
-
-function planningStatus(event: EventRow): PhaseStatus {
-  const signals = [event.event_lead_id, event.capacity, event.budget_amount];
-  const present = signals.filter(
-    (value) => value !== null && value !== undefined,
-  ).length;
-  if (present === 0) return "not_started";
-  if (present === signals.length) return "done";
-  return "in_progress";
-}
-
-function duringStatus(event: EventRow): PhaseStatus {
-  if (event.attendance_count !== null) return "done";
-  return new Date(event.starts_at) <= new Date()
-    ? "in_progress"
-    : "not_started";
-}
-
-function afterStatus(event: EventRow): PhaseStatus {
-  return event.report_status === "submitted"
-    ? "done"
-    : event.report_status === "in_progress"
-      ? "in_progress"
-      : "not_started";
-}
-
-function phaseStatus(key: PhaseKey, event: EventRow): PhaseStatus | null {
-  if (key === "planning") return planningStatus(event);
-  if (key === "during") return duringStatus(event);
-  if (key === "after") return afterStatus(event);
-  return null;
-}
+const FORM_TAB_VALUE_SET = new Set<TabValue>(FORM_TAB_VALUES);
 
 export function EventDetailsDialog({
   event,
@@ -171,64 +53,12 @@ export function EventDetailsDialog({
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<TabValue>("overview");
   const [mode, setMode] = useState<Mode>("view");
-  const [pending, setPending] = useState<Partial<Record<TabValue, boolean>>>(
-    {},
-  );
-  const [dirty, setDirty] = useState<Partial<Record<TabValue, boolean>>>({});
   const [discardTarget, setDiscardTarget] = useState<"toggle" | "close" | null>(
     null,
   );
-  const overviewTabRef = useRef<OverviewTabHandle>(null);
-  const planningTabRef = useRef<PlanningTabHandle>(null);
-  const logisticsTabRef = useRef<LogisticsTabHandle>(null);
-  const reportTabRef = useRef<ReportTabHandle>(null);
-  const impactTabRef = useRef<ImpactTabHandle>(null);
 
-  const anyDirty = Object.values(dirty).some(Boolean);
-
-  // Stable per-tab callbacks — the child tabs use these as effect
-  // dependencies, so a new function identity every render (as an inline
-  // arrow prop would be) re-fires those effects every render and loops.
-  const onOverviewPending = useCallback(
-    (value: boolean) => setPending((prev) => ({ ...prev, overview: value })),
-    [],
-  );
-  const onOverviewDirty = useCallback(
-    (value: boolean) => setDirty((prev) => ({ ...prev, overview: value })),
-    [],
-  );
-  const onPlanningPending = useCallback(
-    (value: boolean) => setPending((prev) => ({ ...prev, planning: value })),
-    [],
-  );
-  const onPlanningDirty = useCallback(
-    (value: boolean) => setDirty((prev) => ({ ...prev, planning: value })),
-    [],
-  );
-  const onLogisticsPending = useCallback(
-    (value: boolean) => setPending((prev) => ({ ...prev, logistics: value })),
-    [],
-  );
-  const onLogisticsDirty = useCallback(
-    (value: boolean) => setDirty((prev) => ({ ...prev, logistics: value })),
-    [],
-  );
-  const onReportPending = useCallback(
-    (value: boolean) => setPending((prev) => ({ ...prev, report: value })),
-    [],
-  );
-  const onReportDirty = useCallback(
-    (value: boolean) => setDirty((prev) => ({ ...prev, report: value })),
-    [],
-  );
-  const onImpactPending = useCallback(
-    (value: boolean) => setPending((prev) => ({ ...prev, impact: value })),
-    [],
-  );
-  const onImpactDirty = useCallback(
-    (value: boolean) => setDirty((prev) => ({ ...prev, impact: value })),
-    [],
-  );
+  const formTabState = useFormTabState(FORM_TAB_VALUES);
+  const { pending, anyDirty } = formTabState;
 
   function handleOpenChange(nextOpen: boolean) {
     if (!nextOpen && mode === "edit" && anyDirty) {
@@ -251,11 +81,7 @@ export function EventDetailsDialog({
   }
 
   function confirmDiscard() {
-    overviewTabRef.current?.discard();
-    planningTabRef.current?.discard();
-    logisticsTabRef.current?.discard();
-    reportTabRef.current?.discard();
-    impactTabRef.current?.discard();
+    formTabState.discardAll();
     setMode("view");
     if (discardTarget === "close") {
       setOpen(false);
@@ -265,10 +91,23 @@ export function EventDetailsDialog({
 
   const activePhase = PHASES.find((phase) => phase.key === phaseForTab(tab))!;
 
-  function selectPhase(key: PhaseKey) {
+  function selectPhase(key: (typeof PHASES)[number]["key"]) {
     const phase = PHASES.find((p) => p.key === key)!;
     setTab(phase.tabs[0].value);
   }
+
+  const ctx: TabRenderContext = useMemo(
+    () => ({
+      event,
+      programs,
+      mode,
+      activeTab: tab,
+      formId: (tabValue) => `${FORM_ID_PREFIX}-${tabValue}-${event.id}`,
+      onSaved: () => setMode("view"),
+      formCallbacks: formTabState.callbacks,
+    }),
+    [event, programs, mode, tab, formTabState.callbacks],
+  );
 
   return (
     <>
@@ -370,148 +209,19 @@ export function EventDetailsDialog({
                 ))}
               </TabsList>
 
-              <TabsContent value="overview" className="mt-4">
-                <OverviewTab
-                  ref={overviewTabRef}
-                  event={event}
-                  programs={programs}
-                  formId={`${FORM_ID_PREFIX}-overview-${event.id}`}
-                  mode={mode}
-                  onSaved={() => setMode("view")}
-                  onPendingChange={onOverviewPending}
-                  onDirtyChange={onOverviewDirty}
-                />
-              </TabsContent>
-              <TabsContent value="planning" className="mt-4">
-                <PlanningTab
-                  ref={planningTabRef}
-                  event={event}
-                  formId={`${FORM_ID_PREFIX}-planning-${event.id}`}
-                  mode={mode}
-                  onSaved={() => setMode("view")}
-                  onPendingChange={onPlanningPending}
-                  onDirtyChange={onPlanningDirty}
-                />
-              </TabsContent>
-              <TabsContent value="logistics" className="mt-4">
-                <LogisticsTab
-                  ref={logisticsTabRef}
-                  eventId={event.id}
-                  formId={`${FORM_ID_PREFIX}-logistics-${event.id}`}
-                  active={tab === "logistics"}
-                  mode={mode}
-                  onSaved={() => setMode("view")}
-                  onPendingChange={onLogisticsPending}
-                  onDirtyChange={onLogisticsDirty}
-                />
-              </TabsContent>
-              <TabsContent value="volunteers" className="mt-4">
-                <VolunteersTab
-                  eventId={event.id}
-                  active={tab === "volunteers"}
-                  mode={mode}
-                />
-              </TabsContent>
-              <TabsContent value="sponsors" className="mt-4">
-                <SponsorsTab
-                  eventId={event.id}
-                  active={tab === "sponsors"}
-                  mode={mode}
-                />
-              </TabsContent>
-              <TabsContent value="attendance" className="mt-4">
-                <AttendanceTab
-                  event={event}
-                  mode={mode}
-                  active={tab === "attendance"}
-                />
-              </TabsContent>
-              <TabsContent value="registrants" className="mt-4">
-                <RegistrantsTab
-                  eventId={event.id}
-                  capacity={event.capacity}
-                  active={tab === "registrants"}
-                  mode={mode}
-                />
-              </TabsContent>
-              <TabsContent value="discount-codes" className="mt-4">
-                <DiscountCodesTab
-                  eventId={event.id}
-                  active={tab === "discount-codes"}
-                  mode={mode}
-                />
-              </TabsContent>
-              <TabsContent value="distributions" className="mt-4">
-                <DistributionsTab
-                  eventId={event.id}
-                  active={tab === "distributions"}
-                  mode={mode}
-                />
-              </TabsContent>
-              <TabsContent value="incidents" className="mt-4">
-                <IncidentsTab
-                  eventId={event.id}
-                  active={tab === "incidents"}
-                  mode={mode}
-                />
-              </TabsContent>
-              <TabsContent value="giveaway" className="mt-4">
-                <GiveawayTab
-                  eventId={event.id}
-                  active={tab === "giveaway"}
-                  mode={mode}
-                />
-              </TabsContent>
-              <TabsContent value="expenses" className="mt-4">
-                <EventExpensesTab
-                  eventId={event.id}
-                  eventName={event.name}
-                  active={tab === "expenses"}
-                  mode={mode}
-                />
-              </TabsContent>
-              <TabsContent value="revenue" className="mt-4">
-                <EventRevenueTab
-                  eventId={event.id}
-                  eventName={event.name}
-                  active={tab === "revenue"}
-                  mode={mode}
-                />
-              </TabsContent>
-              <TabsContent value="report" className="mt-4">
-                <ReportTab
-                  ref={reportTabRef}
-                  event={event}
-                  formId={`${FORM_ID_PREFIX}-report-${event.id}`}
-                  mode={mode}
-                  onSaved={() => setMode("view")}
-                  onPendingChange={onReportPending}
-                  onDirtyChange={onReportDirty}
-                />
-              </TabsContent>
-              <TabsContent value="impact" className="mt-4">
-                <ImpactTab
-                  ref={impactTabRef}
-                  eventId={event.id}
-                  formId={`${FORM_ID_PREFIX}-impact-${event.id}`}
-                  active={tab === "impact"}
-                  mode={mode}
-                  onSaved={() => setMode("view")}
-                  onPendingChange={onImpactPending}
-                  onDirtyChange={onImpactDirty}
-                />
-              </TabsContent>
-              <TabsContent value="donations" className="mt-4">
-                <DonationsTab
-                  eventId={event.id}
-                  active={tab === "donations"}
-                  mode={mode}
-                />
-              </TabsContent>
+              {TAB_CONFIG.map((entry) => (
+                <TabsContent
+                  key={entry.value}
+                  value={entry.value}
+                  className="mt-4"
+                >
+                  {entry.render(ctx)}
+                </TabsContent>
+              ))}
             </Tabs>
           </div>
 
-          {FORM_TABS.has(tab) && mode === "edit" && (
+          {FORM_TAB_VALUE_SET.has(tab) && mode === "edit" && (
             <SheetFooter className="flex-row justify-end border-t bg-muted/50">
               <Button
                 type="submit"
