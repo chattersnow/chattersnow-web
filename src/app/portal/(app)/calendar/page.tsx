@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { WorkflowInfoCard } from "@/components/workflow-info-card";
 import {
   getCurrentUserPermissions,
   hasPermission,
@@ -142,6 +144,39 @@ export default async function CalendarPage({
       <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
         Calendar
       </h1>
+
+      <div className="mt-6">
+        <WorkflowInfoCard title="How calendar items work">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">Priority tier</strong> — Tier
+              1 items need an explicit Plan, Skip, or Defer decision before
+              their date passes (once it&apos;s Tier 1, undecided, and not
+              archived, the item is flagged as needing one). Tiers 2 and 3
+              don&apos;t require a decision.
+            </li>
+            <li>
+              <strong className="text-foreground">Sensitive topic</strong> —
+              flagging an item this way surfaces tone guidance and requires
+              someone with manage access to record a review before it&apos;s
+              considered handled; unreviewed sensitive items are flagged the
+              same way as undecided Tier 1 items.
+            </li>
+            <li>
+              <strong className="text-foreground">Content opportunity</strong> —
+              items with a linked content opportunity move through their own
+              draft/review/publish stages, tracked on the{" "}
+              <Link
+                href="/portal/calendar/work-queue"
+                className="underline hover:text-foreground"
+              >
+                Work queue
+              </Link>{" "}
+              page.
+            </li>
+          </ol>
+        </WorkflowInfoCard>
+      </div>
 
       <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
         {canManage ? (

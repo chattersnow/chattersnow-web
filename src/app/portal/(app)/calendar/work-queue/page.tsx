@@ -5,6 +5,7 @@ import {
   hasPermission,
 } from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
+import { WorkflowInfoCard } from "@/components/workflow-info-card";
 import { listProgramsAction } from "../../programs/actions";
 import { listCalendarOwnersAction } from "../actions";
 import { listActiveContentBriefTemplatesAction } from "../templates/actions";
@@ -117,6 +118,37 @@ export default async function WorkQueuePage({
       <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
         Work queue
       </h1>
+
+      <div className="mt-6">
+        <WorkflowInfoCard title="How the work queue works">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">Draft</strong> — an
+              opportunity starts here (statuses <code>not_planned</code>,{" "}
+              <code>idea</code>, or <code>draft</code>), due two-thirds of the
+              way through its lead time, before the publish date.
+            </li>
+            <li>
+              <strong className="text-foreground">Review</strong> — once
+              it&apos;s <code>in_review</code> or sent back as{" "}
+              <code>changes_requested</code>, the due date shifts to the last
+              third of the lead time.
+            </li>
+            <li>
+              <strong className="text-foreground">Publish</strong> — once{" "}
+              <code>approved</code> or <code>scheduled</code>, the due date is
+              the publish date itself.
+            </li>
+          </ol>
+          <p className="mt-3">
+            An item is Overdue when its current stage&apos;s due date has
+            passed; nothing is ever overdue once it reaches{" "}
+            <code>published</code> or <code>skipped</code>. My work shows
+            anything where you&apos;re the owner or reviewer, excluding those
+            two terminal statuses.
+          </p>
+        </WorkflowInfoCard>
+      </div>
 
       <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
         <div className="flex gap-1 rounded-lg border border-input p-1">
