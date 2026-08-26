@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { formatDateTimeInZone } from "@/lib/time";
+import { resolveImageUrl } from "@/lib/inventory";
 import { EventRegistrationForm } from "../event-registration-form-fields";
 import { checkRegistrationWindow } from "../event-registration-form";
 import type { PublicEvent } from "../event-card";
@@ -41,7 +43,7 @@ export default async function EventDetailPage({
   const { data: event } = await supabase
     .from("public_events")
     .select(
-      "id, name, location, starts_at, ends_at, timezone, description, event_type, venue, capacity, registration_enabled, registration_deadline",
+      "id, name, location, starts_at, ends_at, timezone, description, event_type, venue, capacity, registration_enabled, registration_deadline, flier_url",
     )
     .eq("id", id)
     .maybeSingle<Omit<PublicEvent, "sponsors">>();
@@ -49,6 +51,7 @@ export default async function EventDetailPage({
   if (!event) notFound();
 
   const registrationWindow = checkRegistrationWindow(event);
+  const imageUrl = resolveImageUrl(event.flier_url);
 
   const { data: sponsors } = await supabase
     .from("public_event_sponsors")
@@ -59,6 +62,18 @@ export default async function EventDetailPage({
   return (
     <main className="app-shell px-6 py-8 sm:px-10">
       <div className="mx-auto max-w-3xl">
+        {imageUrl && (
+          <div className="relative mb-6 aspect-[16/9] w-full overflow-hidden rounded-lg bg-muted">
+            <Image
+              src={imageUrl}
+              alt={event.name}
+              fill
+              sizes="(min-width: 768px) 768px, 100vw"
+              className="object-cover"
+              priority
+            />
+          </div>
+        )}
         <section>
           <p className="app-eyebrow">{event.event_type ?? "Event"}</p>
           <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">

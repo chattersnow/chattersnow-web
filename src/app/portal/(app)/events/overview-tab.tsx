@@ -65,6 +65,7 @@ function formStateFor(event: EventRow) {
     visibility: event.visibility,
     status: event.status,
     programId: event.program_id ?? "",
+    flierUrl: event.flier_url ?? "",
   };
 }
 
@@ -140,6 +141,7 @@ export function OverviewTab({
     formData.set("visibility", form.visibility);
     formData.set("status", form.status);
     formData.set("programId", form.programId);
+    formData.set("flierUrl", form.flierUrl);
 
     startTransition(async () => {
       const result = await updateEventAction(event.id, formData);
@@ -182,6 +184,10 @@ export function OverviewTab({
 
         <ReadOnlyField label="Location" htmlFor="details-location">
           {form.location || "—"}
+        </ReadOnlyField>
+
+        <ReadOnlyField label="Flier image URL" htmlFor="details-flierUrl">
+          {form.flierUrl || "—"}
         </ReadOnlyField>
 
         <Field orientation="responsive">
@@ -311,6 +317,19 @@ export function OverviewTab({
             value={form.location}
             onChange={(changeEvent) =>
               update("location", changeEvent.target.value)
+            }
+          />
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="details-flierUrl">Flier image URL</FieldLabel>
+          <Input
+            id="details-flierUrl"
+            type="url"
+            placeholder="https://drive.google.com/file/d/..."
+            value={form.flierUrl}
+            onChange={(changeEvent) =>
+              update("flierUrl", changeEvent.target.value)
             }
           />
         </Field>
