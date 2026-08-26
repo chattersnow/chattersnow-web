@@ -97,6 +97,12 @@ const NAV_ITEMS: readonly NavItem[] = [
         href: "/portal/calendar/program-suggestions",
         access: [{ resource: "content_calendar", level: "manage" }],
       },
+      {
+        value: "reports",
+        label: "Annual Review",
+        href: "/portal/calendar/reports",
+        access: [{ resource: "content_calendar_reports", level: "view" }],
+      },
     ],
   },
   {
