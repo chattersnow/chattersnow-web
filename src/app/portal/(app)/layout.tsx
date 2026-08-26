@@ -7,7 +7,10 @@ import {
   getCurrentUserPermissions,
   hasPermission,
 } from "@/lib/auth/permissions";
-import { getPendingApprovalsSummary } from "@/lib/portal/attention-items";
+import {
+  getOpsInboxSummary,
+  getPendingApprovalsSummary,
+} from "@/lib/portal/attention-items";
 import {
   Sidebar,
   SidebarContent,
@@ -59,6 +62,28 @@ export default async function PortalAppLayout({
           canSeeReimbursementApprovals,
         })
       : { items: [] };
+
+  const canSeeVolunteerApplications = hasPermission(
+    permissions,
+    "volunteers",
+    "view",
+  );
+  const canSeeContactMessages = hasPermission(
+    permissions,
+    "communications",
+    "view",
+  );
+  const canSeeEventCheckins = hasPermission(permissions, "events", "view");
+  const opsInbox =
+    canSeeVolunteerApplications || canSeeContactMessages || canSeeEventCheckins
+      ? await getOpsInboxSummary(supabase, {
+          canSeeVolunteerApplications,
+          canSeeContactMessages,
+          canSeeEventCheckins,
+        })
+      : { items: [] };
+
+  const attentionItems = [...pendingApprovals.items, ...opsInbox.items];
 
   const displayName =
     (user.user_metadata?.full_name as string | undefined) ??
@@ -120,7 +145,7 @@ export default async function PortalAppLayout({
                   Hi, {displayName}
                 </span>
               )}
-              <NotificationsMenu items={pendingApprovals.items} />
+              <NotificationsMenu items={attentionItems} />
             </div>
           </header>
           <main className="app-shell flex-1 px-6 py-8 sm:px-10">
