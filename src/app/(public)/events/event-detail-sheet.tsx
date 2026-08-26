@@ -11,11 +11,12 @@ import { EventRegistrationForm } from "./event-registration-form-fields";
 import { checkRegistrationWindow } from "./event-registration-form";
 import type { PublicEvent } from "./event-card";
 import { EventSponsors } from "./event-sponsors";
+import { formatDateTimeInZone } from "@/lib/time";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
+const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
   dateStyle: "full",
   timeStyle: "short",
-});
+};
 
 export function EventDetailSheet({
   event,
@@ -37,9 +38,14 @@ export function EventDetailSheet({
               <p className="app-eyebrow">{event.event_type ?? "Event"}</p>
               <SheetTitle className="text-xl">{event.name}</SheetTitle>
               <SheetDescription>
-                {dateFormatter.format(new Date(event.starts_at))}
+                {formatDateTimeInZone(
+                  event.starts_at,
+                  event.timezone,
+                  DATE_FORMAT_OPTIONS,
+                  "en-US",
+                )}
                 {event.ends_at &&
-                  ` – ${dateFormatter.format(new Date(event.ends_at))}`}
+                  ` – ${formatDateTimeInZone(event.ends_at, event.timezone, DATE_FORMAT_OPTIONS, "en-US")}`}
               </SheetDescription>
             </SheetHeader>
 

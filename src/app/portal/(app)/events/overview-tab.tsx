@@ -9,6 +9,7 @@ import {
   useTransition,
 } from "react";
 import { useRouter } from "next/navigation";
+import { formatDateTimeInZone, TIMEZONE_OPTIONS } from "@/lib/time";
 import { updateEventAction } from "./actions";
 import type { Program } from "../programs/actions";
 import type { EventRow } from "./event-badges";
@@ -39,15 +40,10 @@ const STATUSES = [
   { value: "archived", label: "Archived" },
 ];
 
-const viewDateFormatter = new Intl.DateTimeFormat("en-US", {
+const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
   dateStyle: "medium",
   timeStyle: "short",
-});
-
-function formatDatetimeLocal(value: string) {
-  if (!value) return "—";
-  return viewDateFormatter.format(new Date(value));
-}
+};
 
 function toDatetimeLocalValue(iso: string | null) {
   if (!iso) return "";
@@ -190,10 +186,22 @@ export function OverviewTab({
 
         <Field orientation="responsive">
           <ReadOnlyField label="Starts" htmlFor="details-startsAt">
-            {formatDatetimeLocal(form.startsAt)}
+            {formatDateTimeInZone(
+              event.starts_at,
+              event.timezone,
+              DATE_FORMAT_OPTIONS,
+              "en-US",
+            )}
           </ReadOnlyField>
           <ReadOnlyField label="Ends" htmlFor="details-endsAt">
-            {formatDatetimeLocal(form.endsAt)}
+            {event.ends_at
+              ? formatDateTimeInZone(
+                  event.ends_at,
+                  event.timezone,
+                  DATE_FORMAT_OPTIONS,
+                  "en-US",
+                )
+              : "—"}
           </ReadOnlyField>
         </Field>
 
@@ -335,15 +343,32 @@ export function OverviewTab({
 
         <Field>
           <FieldLabel htmlFor="details-timezone">Timezone</FieldLabel>
-          <Input
-            id="details-timezone"
-            required
-            placeholder="e.g. America/Chicago"
+          <Select
             value={form.timezone}
-            onChange={(changeEvent) =>
-              update("timezone", changeEvent.target.value)
-            }
-          />
+            onValueChange={(value) => update("timezone", value ?? "")}
+          >
+            <SelectTrigger id="details-timezone" className="w-full">
+              <SelectValue placeholder="Select timezone">
+                {(value: string) =>
+                  TIMEZONE_OPTIONS.find((option) => option.value === value)
+                    ?.label ?? value
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {TIMEZONE_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+              {form.timezone &&
+                !TIMEZONE_OPTIONS.some(
+                  (option) => option.value === form.timezone,
+                ) && (
+                  <SelectItem value={form.timezone}>{form.timezone}</SelectItem>
+                )}
+            </SelectContent>
+          </Select>
         </Field>
 
         <Field orientation="responsive">
