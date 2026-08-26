@@ -34,7 +34,7 @@ export function EventDetailSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="data-[side=right]:sm:max-w-lg">
+      <SheetContent side="right">
         {event && (
           <>
             <SheetHeader>

@@ -77,11 +77,7 @@ export function VolunteerApplicationDetailsSheet({
       >
         <Eye />
       </SheetTrigger>
-      <SheetContent
-        side="right"
-        showCloseButton={false}
-        className="data-[side=right]:sm:max-w-lg"
-      >
+      <SheetContent side="right" showCloseButton={false}>
         <SheetHeader className="flex-row items-start gap-2 space-y-0">
           <SheetClose
             render={

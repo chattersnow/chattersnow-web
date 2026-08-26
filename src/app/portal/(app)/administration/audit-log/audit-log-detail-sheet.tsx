@@ -57,7 +57,7 @@ export function AuditLogDetailSheet({ row }: { row: AuditLogRow }) {
       >
         <Eye />
       </SheetTrigger>
-      <SheetContent side="right" className="data-[side=right]:sm:max-w-[520px]">
+      <SheetContent side="right">
         <SheetHeader>
           <SheetTitle>
             {TABLE_LABELS[row.table_name] ?? row.table_name} ·{" "}
