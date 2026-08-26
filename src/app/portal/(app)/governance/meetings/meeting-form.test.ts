@@ -42,6 +42,8 @@ describe("parseMeetingForm", () => {
         status: "scheduled",
         location: "Community Center",
         notes: "Quarterly meeting",
+        facilitatorPersonId: "11111111-1111-1111-1111-111111111111",
+        notetakerPersonId: "22222222-2222-2222-2222-222222222222",
       }),
     );
     expect("data" in result).toBe(true);
@@ -50,6 +52,12 @@ describe("parseMeetingForm", () => {
       expect(result.data.status).toBe("scheduled");
       expect(result.data.location).toBe("Community Center");
       expect(result.data.notes).toBe("Quarterly meeting");
+      expect(result.data.facilitator_person_id).toBe(
+        "11111111-1111-1111-1111-111111111111",
+      );
+      expect(result.data.notetaker_person_id).toBe(
+        "22222222-2222-2222-2222-222222222222",
+      );
       expect(new Date(result.data.meeting_date).toISOString()).toBe(
         result.data.meeting_date,
       );
@@ -67,6 +75,8 @@ describe("parseMeetingForm", () => {
         status: "scheduled",
         location: null,
         notes: null,
+        facilitator_person_id: null,
+        notetaker_person_id: null,
       },
     });
   });

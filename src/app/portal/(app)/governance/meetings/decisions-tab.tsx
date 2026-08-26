@@ -36,15 +36,19 @@ function AddDecisionForm({
   defaultDate,
   onSubmit,
   onCancel,
+  onSaved,
 }: {
   defaultDate: string;
   onSubmit: (
     formData: FormData,
   ) => Promise<{ error: string } | { success: true }>;
   onCancel: () => void;
+  onSaved: () => void;
 }) {
   const router = useRouter();
+  const [topic, setTopic] = useState("");
   const [description, setDescription] = useState("");
+  const [voteResult, setVoteResult] = useState("");
   const [decisionDate, setDecisionDate] = useState(defaultDate);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -54,7 +58,9 @@ function AddDecisionForm({
     setError(null);
 
     const formData = new FormData();
+    formData.set("topic", topic);
     formData.set("description", description);
+    formData.set("voteResult", voteResult);
     formData.set("decisionDate", decisionDate);
 
     startTransition(async () => {
@@ -64,7 +70,7 @@ function AddDecisionForm({
         return;
       }
       router.refresh();
-      onCancel();
+      onSaved();
     });
   }
 
@@ -75,14 +81,31 @@ function AddDecisionForm({
     >
       <FieldGroup>
         <Field>
-          <FieldLabel htmlFor="new-decision-description">
-            Description
-          </FieldLabel>
+          <FieldLabel htmlFor="new-decision-topic">Topic</FieldLabel>
+          <Input
+            id="new-decision-topic"
+            value={topic}
+            onChange={(event) => setTopic(event.target.value)}
+          />
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="new-decision-description">Discussion</FieldLabel>
           <Textarea
             id="new-decision-description"
             required
             value={description}
             onChange={(event) => setDescription(event.target.value)}
+          />
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="new-decision-vote">Vote</FieldLabel>
+          <Input
+            id="new-decision-vote"
+            placeholder="e.g. Passed 5-0"
+            value={voteResult}
+            onChange={(event) => setVoteResult(event.target.value)}
           />
         </Field>
 
@@ -180,7 +203,9 @@ export function DecisionsTab({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Description</TableHead>
+              <TableHead>Topic</TableHead>
+              <TableHead>Discussion</TableHead>
+              <TableHead>Vote</TableHead>
               <TableHead>Date</TableHead>
               <TableHead className="w-px" />
             </TableRow>
@@ -188,8 +213,14 @@ export function DecisionsTab({
           <TableBody>
             {decisions?.map((decision) => (
               <TableRow key={decision.id}>
+                <TableCell className="app-muted">
+                  {decision.topic || "—"}
+                </TableCell>
                 <TableCell className="whitespace-normal font-medium">
                   {decision.description}
+                </TableCell>
+                <TableCell className="app-muted">
+                  {decision.vote_result || "—"}
                 </TableCell>
                 <TableCell className="app-muted">
                   {formatDate(decision.decision_date)}
@@ -220,6 +251,10 @@ export function DecisionsTab({
             defaultDate={meetingDate}
             onSubmit={(formData) => createDecisionAction(meetingId, formData)}
             onCancel={() => setShowAdd(false)}
+            onSaved={() => {
+              setShowAdd(false);
+              refresh();
+            }}
           />
         ) : (
           <div>

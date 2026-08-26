@@ -143,8 +143,11 @@ export function MeetingDetailsSheet({ meeting }: { meeting: MeetingRow }) {
             <TabsContent value="agenda" className="mt-4">
               <AgendaTab
                 meetingId={meeting.id}
+                meetingDate={meeting.meeting_date}
                 active={tab === "agenda"}
                 mode={mode}
+                onViewActionItems={() => setTab("action-items")}
+                onViewDecisions={() => setTab("decisions")}
               />
             </TabsContent>
             <TabsContent value="minutes" className="mt-4">

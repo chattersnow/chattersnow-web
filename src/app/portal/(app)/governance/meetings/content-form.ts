@@ -5,9 +5,10 @@ export type ContentFormData = {
   body_text: string | null;
 };
 
-// Shared by agenda and minutes: both are a single flexible-content record
-// per meeting (external link and/or free text; file uploads are out of
-// scope, see docs/technical-spec.md §6 and issue #34).
+// Used by minutes: a single flexible-content record per meeting (external
+// link and/or free text; file uploads are out of scope, see
+// docs/technical-spec.md §6 and issue #34). Agendas moved to the structured
+// template form in agenda-form.ts (issue #166).
 export function parseContentForm(
   formData: FormData,
 ): ParseResult<ContentFormData> {

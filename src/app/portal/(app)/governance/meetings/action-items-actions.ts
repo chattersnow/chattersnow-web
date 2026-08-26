@@ -49,6 +49,51 @@ export async function listActionItemsAction(
   return { data: (data ?? []) as unknown as ActionItem[] };
 }
 
+/**
+ * Open action items from meetings before `beforeDate`, for the agenda's
+ * "Action Items From Previous Meeting" section. `meetingId` is excluded so a
+ * meeting never lists its own not-yet-saved items as carried over.
+ */
+export async function listCarriedOverActionItemsAction(
+  meetingId: string,
+  beforeDate: string,
+): Promise<{ data: ActionItem[] } | { error: string }> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(
+    supabase,
+    "governance",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  const { data: priorMeetings, error: priorMeetingsError } = await supabase
+    .from("governance_meetings")
+    .select("id")
+    .lt("meeting_date", beforeDate)
+    .neq("id", meetingId);
+
+  if (priorMeetingsError) {
+    return { error: "Could not load action items. Please try again." };
+  }
+
+  const priorMeetingIds = (priorMeetings ?? []).map((meeting) => meeting.id);
+  if (priorMeetingIds.length === 0) return { data: [] };
+
+  const { data, error } = await supabase
+    .from("governance_meeting_action_items")
+    .select(
+      "id, meeting_id, description, due_date, status, owner:people!owner_person_id(id, name, email, phone)",
+    )
+    .in("meeting_id", priorMeetingIds)
+    .eq("status", "open")
+    .order("due_date", { ascending: true });
+
+  if (error) {
+    return { error: "Could not load action items. Please try again." };
+  }
+  return { data: (data ?? []) as unknown as ActionItem[] };
+}
+
 export async function createActionItemAction(
   meetingId: string,
   ownerPersonId: string,
