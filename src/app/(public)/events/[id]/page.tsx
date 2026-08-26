@@ -61,62 +61,66 @@ export default async function EventDetailPage({
 
   return (
     <main className="app-shell px-6 py-8 sm:px-10">
-      <div className="mx-auto max-w-3xl">
-        {imageUrl && (
-          <div className="relative mb-6 aspect-[16/9] w-full overflow-hidden rounded-lg bg-muted">
-            <Image
-              src={imageUrl}
-              alt={event.name}
-              fill
-              sizes="(min-width: 768px) 768px, 100vw"
-              className="object-cover"
-              priority
-            />
-          </div>
-        )}
-        <section>
-          <p className="app-eyebrow">{event.event_type ?? "Event"}</p>
-          <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-            {event.name}
-          </h1>
-          <p className="app-muted mt-4 text-sm sm:text-base">
-            {formatDateTimeInZone(
-              event.starts_at,
-              event.timezone,
-              DATE_FORMAT_OPTIONS,
-              "en-US",
-            )}
-            {event.ends_at &&
-              ` – ${formatDateTimeInZone(event.ends_at, event.timezone, DATE_FORMAT_OPTIONS, "en-US")}`}
-          </p>
-          {(event.venue || event.location) && (
-            <p className="app-muted text-sm sm:text-base">
-              {event.venue ?? event.location}
-            </p>
-          )}
-          {event.description && (
-            <p className="mt-6 max-w-2xl text-sm leading-relaxed sm:text-base">
-              {event.description}
-            </p>
-          )}
-        </section>
-
-        <EventSponsors sponsors={sponsors ?? []} />
-
-        {event.registration_enabled && (
-          <section className="mt-10 max-w-lg">
-            <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
-              Register
-            </h2>
-            <div className="mt-4">
-              {registrationWindow.open ? (
-                <EventRegistrationForm eventId={event.id} />
-              ) : (
-                <p className="app-muted text-sm">{registrationWindow.reason}</p>
-              )}
+      <div className="mx-auto max-w-6xl">
+        <div className="mx-auto max-w-3xl">
+          {imageUrl && (
+            <div className="relative mb-6 aspect-[16/9] w-full overflow-hidden rounded-lg bg-muted">
+              <Image
+                src={imageUrl}
+                alt={event.name}
+                fill
+                sizes="(min-width: 768px) 768px, 100vw"
+                className="object-cover"
+                priority
+              />
             </div>
+          )}
+          <section>
+            <p className="app-eyebrow">{event.event_type ?? "Event"}</p>
+            <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+              {event.name}
+            </h1>
+            <p className="app-muted mt-4 text-sm sm:text-base">
+              {formatDateTimeInZone(
+                event.starts_at,
+                event.timezone,
+                DATE_FORMAT_OPTIONS,
+                "en-US",
+              )}
+              {event.ends_at &&
+                ` – ${formatDateTimeInZone(event.ends_at, event.timezone, DATE_FORMAT_OPTIONS, "en-US")}`}
+            </p>
+            {(event.venue || event.location) && (
+              <p className="app-muted text-sm sm:text-base">
+                {event.venue ?? event.location}
+              </p>
+            )}
+            {event.description && (
+              <p className="mt-6 max-w-2xl text-sm leading-relaxed sm:text-base">
+                {event.description}
+              </p>
+            )}
           </section>
-        )}
+
+          <EventSponsors sponsors={sponsors ?? []} />
+
+          {event.registration_enabled && (
+            <section className="mt-10 max-w-lg">
+              <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
+                Register
+              </h2>
+              <div className="mt-4">
+                {registrationWindow.open ? (
+                  <EventRegistrationForm eventId={event.id} />
+                ) : (
+                  <p className="app-muted text-sm">
+                    {registrationWindow.reason}
+                  </p>
+                )}
+              </div>
+            </section>
+          )}
+        </div>
       </div>
     </main>
   );
