@@ -38,11 +38,11 @@ export default async function EventsPage() {
   return (
     <main className="app-shell px-6 py-8 sm:px-10">
       <div className="mx-auto max-w-6xl">
-        <section>
+        <section className="mx-auto max-w-3xl">
           <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
             Upcoming &amp; past events
           </h1>
-          <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
+          <p className="app-muted mt-4 text-sm leading-relaxed sm:text-base">
             Browse Chatter Snow events happening on and off the mountain.
           </p>
         </section>

@@ -31,8 +31,8 @@ export default async function Home() {
   );
 
   return (
-    <main className="app-shell px-6 py-10 sm:px-10">
-      <div className="mx-auto max-w-3xl">
+    <main className="app-shell px-6 py-8 sm:px-10">
+      <div className="mx-auto max-w-6xl">
         <section className="flex flex-col items-center text-center">
           <div className="relative aspect-square w-[min(60vw,14rem)]">
             <Image
@@ -78,7 +78,7 @@ export default async function Home() {
         </section>
 
         <div className="mt-12">
-          <Carousel className="mx-auto max-w-md" opts={{ loop: true }}>
+          <Carousel className="mx-auto max-w-2xl" opts={{ loop: true }}>
             <CarouselContent>
               {[0, 1, 2].map((slide) => (
                 <CarouselItem key={slide}>
@@ -92,7 +92,7 @@ export default async function Home() {
         </div>
 
         {nextEvent && (
-          <section className="mt-16 rounded-xl border border-[var(--line)] p-6 text-center sm:p-8">
+          <section className="mx-auto mt-16 max-w-2xl rounded-xl border border-[var(--line)] p-6 text-center sm:p-8">
             <span className="app-eyebrow">Next up</span>
             <h2 className="brand-display mt-2 text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
               {nextEvent.name}

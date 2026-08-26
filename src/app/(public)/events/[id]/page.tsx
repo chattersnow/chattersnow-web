@@ -61,7 +61,7 @@ export default async function EventDetailPage({
 
   return (
     <main className="app-shell px-6 py-8 sm:px-10">
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-6xl">
         {imageUrl && (
           <div className="relative mb-6 aspect-[16/9] w-full overflow-hidden rounded-lg bg-muted">
             <Image

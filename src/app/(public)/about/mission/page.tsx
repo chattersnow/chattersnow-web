@@ -39,11 +39,11 @@ const VALUES = [
 export default function MissionPage() {
   return (
     <div className="space-y-12">
-      <section id="mission">
+      <section id="mission" className="mx-auto max-w-3xl">
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
           Our Mission
         </h1>
-        <div className="app-muted mt-4 max-w-3xl space-y-4 text-sm leading-relaxed sm:text-base">
+        <div className="app-muted mt-4 space-y-4 text-sm leading-relaxed sm:text-base">
           <p>
             Bringing together LGBTQ+ skiers and snowboarders on and off the
             mountain while creating inclusive, accessible spaces for everyone on
@@ -55,12 +55,12 @@ export default function MissionPage() {
             to make that possible by:
           </p>
         </div>
-        <ul className="app-muted mt-4 max-w-3xl list-disc space-y-2 pl-5 text-sm leading-relaxed sm:text-base">
+        <ul className="app-muted mt-4 list-disc space-y-2 pl-5 text-sm leading-relaxed sm:text-base">
           {MISSION_POINTS.map((point) => (
             <li key={point}>{point}</li>
           ))}
         </ul>
-        <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
+        <p className="app-muted mt-4 text-sm leading-relaxed sm:text-base">
           We&apos;re not just creating a place to ride. We&apos;re building a
           community that makes it easier for queer people to get there in the
           first place.
@@ -86,11 +86,11 @@ export default function MissionPage() {
         <ImagePlaceholder className="aspect-square rounded-2xl" />
       </section>
 
-      <section id="why-lgbtq">
+      <section id="why-lgbtq" className="mx-auto max-w-3xl">
         <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
           Why LGBTQ+ snow sports
         </h2>
-        <div className="app-muted mt-4 max-w-3xl space-y-4 text-sm leading-relaxed sm:text-base">
+        <div className="app-muted mt-4 space-y-4 text-sm leading-relaxed sm:text-base">
           <p>
             Ski towns and mountain culture haven&apos;t always felt welcoming to
             queer and trans people, and the cost of entry, gear, lift tickets,

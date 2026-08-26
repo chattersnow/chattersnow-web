@@ -12,11 +12,11 @@ export default function ContactPage() {
     <main className="app-shell px-6 py-8 sm:px-10">
       <div className="mx-auto max-w-6xl">
         <div className="space-y-12">
-          <section>
+          <section className="mx-auto max-w-3xl">
             <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
               Get in touch
             </h1>
-            <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
+            <p className="app-muted mt-4 text-sm leading-relaxed sm:text-base">
               Questions, ideas, or want to get involved? Send us a message and
               we&apos;ll get back to you.
             </p>

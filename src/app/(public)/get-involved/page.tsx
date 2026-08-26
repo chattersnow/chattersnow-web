@@ -17,11 +17,11 @@ export default function GetInvolvedPage() {
           <ImagePlaceholder className="aspect-square rounded-2xl" />
         </div>
 
-        <section>
+        <section className="mx-auto max-w-3xl">
           <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
             Get involved
           </h1>
-          <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
+          <p className="app-muted mt-4 text-sm leading-relaxed sm:text-base">
             Chatter runs on people showing up in whatever way works for them —
             on the mountain, behind the scenes, or by helping us grow.
           </p>
@@ -48,11 +48,11 @@ export default function GetInvolvedPage() {
           </Button>
         </section>
 
-        <section>
+        <section className="mx-auto max-w-3xl">
           <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
             Sponsor Chatter
           </h2>
-          <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
+          <p className="app-muted mt-4 text-sm leading-relaxed sm:text-base">
             Sponsorships help fund events, gear, and programs. See sponsorship
             details on our{" "}
             <Link
@@ -65,11 +65,11 @@ export default function GetInvolvedPage() {
           </p>
         </section>
 
-        <section>
+        <section className="mx-auto max-w-3xl">
           <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
             Donate gear
           </h2>
-          <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
+          <p className="app-muted mt-4 text-sm leading-relaxed sm:text-base">
             Have gear you&apos;re not using? Donating it helps another rider get
             on the mountain. See what we accept on our{" "}
             <Link
