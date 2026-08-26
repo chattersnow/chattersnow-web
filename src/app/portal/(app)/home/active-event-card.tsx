@@ -1,12 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatDateTimeInZone } from "@/lib/time";
 import { AddDonationModal } from "./add-donation-modal";
 import { RecordDistributionModal } from "./record-distribution-modal";
 import type { ActiveEventForPerson } from "./queries";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
+const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
   dateStyle: "medium",
   timeStyle: "short",
-});
+};
 
 export function ActiveEventCard({
   event,
@@ -24,7 +25,12 @@ export function ActiveEventCard({
       </CardHeader>
       <CardContent>
         <p className="app-muted text-sm">
-          {dateFormatter.format(new Date(event.starts_at))}
+          {formatDateTimeInZone(
+            event.starts_at,
+            event.timezone,
+            DATE_FORMAT_OPTIONS,
+            "en-US",
+          )}
           {event.location ? ` · ${event.location}` : ""}
         </p>
         {(canRecordDonation || canRecordDistribution) && (

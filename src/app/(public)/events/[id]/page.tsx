@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { formatDateTimeInZone } from "@/lib/time";
 import { EventRegistrationForm } from "../event-registration-form-fields";
 import { checkRegistrationWindow } from "../event-registration-form";
 import type { PublicEvent } from "../event-card";
 import { EventSponsors, type PublicEventSponsor } from "../event-sponsors";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
+const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
   dateStyle: "full",
   timeStyle: "short",
-});
+};
 
 export async function generateMetadata({
   params,
@@ -64,9 +65,14 @@ export default async function EventDetailPage({
             {event.name}
           </h1>
           <p className="app-muted mt-4 text-sm sm:text-base">
-            {dateFormatter.format(new Date(event.starts_at))}
+            {formatDateTimeInZone(
+              event.starts_at,
+              event.timezone,
+              DATE_FORMAT_OPTIONS,
+              "en-US",
+            )}
             {event.ends_at &&
-              ` – ${dateFormatter.format(new Date(event.ends_at))}`}
+              ` – ${formatDateTimeInZone(event.ends_at, event.timezone, DATE_FORMAT_OPTIONS, "en-US")}`}
           </p>
           {(event.venue || event.location) && (
             <p className="app-muted text-sm sm:text-base">

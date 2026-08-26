@@ -9,6 +9,7 @@ import {
   useTransition,
 } from "react";
 import { useRouter } from "next/navigation";
+import { formatDateTimeInZone } from "@/lib/time";
 import { updateEventAction } from "./actions";
 import type { Program } from "../programs/actions";
 import type { EventRow } from "./event-badges";
@@ -39,15 +40,10 @@ const STATUSES = [
   { value: "archived", label: "Archived" },
 ];
 
-const viewDateFormatter = new Intl.DateTimeFormat("en-US", {
+const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
   dateStyle: "medium",
   timeStyle: "short",
-});
-
-function formatDatetimeLocal(value: string) {
-  if (!value) return "—";
-  return viewDateFormatter.format(new Date(value));
-}
+};
 
 function toDatetimeLocalValue(iso: string | null) {
   if (!iso) return "";
@@ -190,10 +186,22 @@ export function OverviewTab({
 
         <Field orientation="responsive">
           <ReadOnlyField label="Starts" htmlFor="details-startsAt">
-            {formatDatetimeLocal(form.startsAt)}
+            {formatDateTimeInZone(
+              event.starts_at,
+              event.timezone,
+              DATE_FORMAT_OPTIONS,
+              "en-US",
+            )}
           </ReadOnlyField>
           <ReadOnlyField label="Ends" htmlFor="details-endsAt">
-            {formatDatetimeLocal(form.endsAt)}
+            {event.ends_at
+              ? formatDateTimeInZone(
+                  event.ends_at,
+                  event.timezone,
+                  DATE_FORMAT_OPTIONS,
+                  "en-US",
+                )
+              : "—"}
           </ReadOnlyField>
         </Field>
 

@@ -17,6 +17,26 @@ export function formatDateInZone(date: Date, timeZone: string): string {
   }).format(date);
 }
 
+/**
+ * Formats an ISO instant in the event's own timezone rather than the
+ * rendering environment's. Falls back to the given options without a zone
+ * if `timeZone` turns out not to be a valid IANA identifier.
+ */
+export function formatDateTimeInZone(
+  iso: string,
+  timeZone: string,
+  options: Intl.DateTimeFormatOptions,
+  locale?: string,
+): string {
+  try {
+    return new Intl.DateTimeFormat(locale, { ...options, timeZone }).format(
+      new Date(iso),
+    );
+  } catch {
+    return new Intl.DateTimeFormat(locale, options).format(new Date(iso));
+  }
+}
+
 export function addDays(date: Date, days: number): Date {
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 }

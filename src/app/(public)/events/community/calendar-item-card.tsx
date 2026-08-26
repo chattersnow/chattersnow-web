@@ -1,22 +1,17 @@
 import { ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { formatDateTimeInZone } from "@/lib/time";
 import { ItemTypeBadge } from "./calendar-item-badge";
 import { categoryLabel, type PublicCalendarItem } from "./calendar-shared";
 
+const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
+  dateStyle: "medium",
+  timeStyle: "short",
+};
+
 function formatInZone(iso: string, timeZone: string) {
-  try {
-    return new Intl.DateTimeFormat(undefined, {
-      dateStyle: "medium",
-      timeStyle: "short",
-      timeZone,
-    }).format(new Date(iso));
-  } catch {
-    return new Intl.DateTimeFormat(undefined, {
-      dateStyle: "medium",
-      timeStyle: "short",
-    }).format(new Date(iso));
-  }
+  return formatDateTimeInZone(iso, timeZone, DATE_FORMAT_OPTIONS);
 }
 
 export function CalendarItemCard({ item }: { item: PublicCalendarItem }) {
