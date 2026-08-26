@@ -86,6 +86,9 @@ export type CalendarItemRow = {
   owner_id: string | null;
   decision: string | null;
   decision_note: string | null;
+  source: string | null;
+  region: string | null;
+  exceptions: unknown[];
   categories: string[];
   program_ids: string[];
   content_opportunity: ContentOpportunityRow | null;

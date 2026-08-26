@@ -456,6 +456,27 @@ export function CalendarItemDetailsSheet({
                         )}
                       </div>
                     </Field>
+                    <Field orientation="responsive">
+                      <ReadOnlyField label="Source" htmlFor="item-source">
+                        {item.source || "—"}
+                      </ReadOnlyField>
+                      <ReadOnlyField label="Region" htmlFor="item-region">
+                        {item.region || "—"}
+                      </ReadOnlyField>
+                    </Field>
+                    <ReadOnlyField label="Exceptions" htmlFor="item-exceptions">
+                      {item.exceptions.length > 0
+                        ? item.exceptions
+                            .map((exception) =>
+                              exception &&
+                              typeof exception === "object" &&
+                              "note" in exception
+                                ? String((exception as { note: unknown }).note)
+                                : JSON.stringify(exception),
+                            )
+                            .join("; ")
+                        : "—"}
+                    </ReadOnlyField>
                   </FieldGroup>
                 </div>
               ) : (
