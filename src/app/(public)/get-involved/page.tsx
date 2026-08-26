@@ -1,40 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Camera, HandHeart, Mountain } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { VolunteerApplicationForm } from "./volunteer-application-form-fields";
 
 export const metadata: Metadata = {
   title: "Get Involved | Chatter Snow",
 };
-
-type Opportunity = {
-  icon: typeof Mountain;
-  name: string;
-  description: string;
-};
-
-const OPPORTUNITIES: Opportunity[] = [
-  {
-    icon: Mountain,
-    name: "On-Snow Mentor",
-    description:
-      "Ride alongside newer skiers or snowboarders, offering guidance and encouragement on the mountain.",
-  },
-  {
-    icon: Camera,
-    name: "Photographer / Videographer",
-    description:
-      "Capture events and meetups to help tell Chatter's story and grow the community.",
-  },
-  {
-    icon: HandHeart,
-    name: "Donations & Collection",
-    description:
-      "Help collect and organize donated gear during events and drives.",
-  },
-];
 
 export default function GetInvolvedPage() {
   return (
@@ -50,84 +20,24 @@ export default function GetInvolvedPage() {
           </p>
         </section>
 
-        <section>
-          <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
+        <section className="grid gap-4 sm:grid-cols-3">
+          <Button
+            nativeButton={false}
+            render={<Link href="/get-involved/attend" />}
+          >
             Attend
-          </h2>
-          <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-            The easiest way to get involved is to show up. Browse upcoming
-            mountain days and community meetups and come ride with us.
-          </p>
-          <Button
-            className="mt-4"
-            nativeButton={false}
-            render={<Link href="/events" />}
-          >
-            See upcoming events
           </Button>
-        </section>
-
-        <section id="volunteer">
-          <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
-            Volunteer
-          </h2>
-          <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-            Chatter runs on volunteers. Here are some of the ways you can get
-            involved.
-          </p>
-
-          <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {OPPORTUNITIES.map(({ icon: Icon, name, description }) => (
-              <Card key={name}>
-                <CardHeader>
-                  <div className="flex aspect-square w-full items-center justify-center rounded-lg bg-muted ring-1 ring-foreground/10">
-                    <Icon className="size-12 text-muted-foreground/50" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <CardTitle>{name}</CardTitle>
-                  <p className="app-muted mt-2 text-sm leading-relaxed">
-                    {description}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          <div className="mt-10 max-w-xl">
-            <h3 className="brand-display text-xl font-semibold tracking-[-0.02em]">
-              Apply to volunteer
-            </h3>
-            <p className="app-muted mt-2 text-sm leading-relaxed">
-              Tell us a bit about yourself and we&apos;ll follow up about
-              getting you plugged in.
-            </p>
-            <div className="mt-6">
-              <VolunteerApplicationForm />
-            </div>
-          </div>
-        </section>
-
-        <section id="partner">
-          <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
-            Become a partner
-          </h2>
-          <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-            We work with mountains, gear brands, and other organizations to make
-            events more affordable and accessible for our community. Partnership
-            can look like a lift ticket discount with a resort, a gear brand
-            supplying demo equipment for an event, a co-hosted meetup with
-            another LGBTQ+ or outdoor organization, or a venue donating space
-            for a gear drive. If your organization wants to collaborate with
-            Chatter in any of these ways, we&apos;d love to hear from you.
-          </p>
           <Button
-            variant="outline"
-            className="mt-4"
             nativeButton={false}
-            render={<Link href="/contact?topic=partnership" />}
+            render={<Link href="/get-involved/volunteer" />}
           >
-            Start a conversation
+            Volunteer
+          </Button>
+          <Button
+            nativeButton={false}
+            render={<Link href="/get-involved/partner" />}
+          >
+            Become a partner
           </Button>
         </section>
 
@@ -161,25 +71,6 @@ export default function GetInvolvedPage() {
             >
               Gear page
             </Link>
-            .
-          </p>
-        </section>
-
-        <section id="community">
-          <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
-            Join the community
-          </h2>
-          <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-            Follow along, meet other members, and hear about events first on
-            Instagram{" "}
-            <a
-              href="https://www.instagram.com/chattersnow"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline underline-offset-4 hover:text-foreground"
-            >
-              @chattersnow
-            </a>
             .
           </p>
         </section>

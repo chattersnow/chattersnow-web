@@ -3,52 +3,53 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = {
-  title: "Support Chatter | Chatter Snow",
+  title: "Donations | Chatter Snow",
 };
 
-export default function SupportPage() {
+export default function DonationsPage() {
   return (
     <main className="app-shell px-6 py-8 sm:px-10">
       <div className="mx-auto max-w-6xl space-y-12">
         <section>
           <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-            Support Chatter
+            Donations
           </h1>
           <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-            Chatter relies on donations, sponsorships, and gear to keep our
-            programs running and accessible.
+            Donations help Chatter keep programs running and make skiing and
+            snowboarding more accessible to LGBTQ+ riders.
           </p>
         </section>
 
         <section className="grid gap-4 sm:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>
-                <Link href="/support/donations" className="hover:underline">
-                  Donations
-                </Link>
-              </CardTitle>
+              <CardTitle>Monetary donations</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="app-muted text-sm leading-relaxed">
-                Support Chatter with a monetary or in-kind donation. Learn what
-                we accept and how your contribution helps make snow sports more
-                accessible.
+                Online monetary donations are coming soon. Contributions will
+                help fund accessible events, mountain days, and community
+                programs.
               </p>
             </CardContent>
           </Card>
+
           <Card>
             <CardHeader>
-              <CardTitle>
-                <Link href="/support/sponsorship" className="hover:underline">
-                  Sponsorship
-                </Link>
-              </CardTitle>
+              <CardTitle>In-kind donations</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="app-muted text-sm leading-relaxed">
-                Partner with Chatter through cash, in-kind, or combined support
-                for events, mountain days, and access programs.
+                We accept gently used ski and snowboard gear, which we
+                redistribute through our gear program. See what we accept and
+                how to donate on our{" "}
+                <Link
+                  href="/gears#donate"
+                  className="underline underline-offset-4 hover:text-foreground"
+                >
+                  Gear page
+                </Link>
+                .
               </p>
             </CardContent>
           </Card>
