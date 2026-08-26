@@ -5,6 +5,7 @@ import {
 } from "@/lib/auth/permissions";
 import { listDistributionsAction } from "../../home/distribution-actions";
 import { RecordDistributionModal } from "../../home/record-distribution-modal";
+import { WorkflowInfoCard } from "@/components/workflow-info-card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Table,
@@ -37,6 +38,27 @@ export default async function DistributionPage() {
       </h1>
 
       <div className="mt-6 flex flex-col gap-4">
+        <WorkflowInfoCard title="How distribution works">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">Item leaves inventory</strong>{" "}
+              — anyone with manage access to inventory records a distribution:
+              which item, how many, and when.
+            </li>
+            <li>
+              <strong className="text-foreground">
+                Event and recipient are optional
+              </strong>{" "}
+              — tie a distribution to an event and/or a recipient when it&apos;s
+              relevant, or leave them blank for a general distribution.
+            </li>
+          </ol>
+          <p className="mt-3">
+            There&apos;s no approval step — recording a distribution here
+            immediately reduces the item&apos;s on-hand quantity.
+          </p>
+        </WorkflowInfoCard>
+
         {canRecord && (
           <RecordDistributionModal
             triggerLabel="Record distribution"

@@ -4,6 +4,7 @@ import {
   hasPermission,
 } from "@/lib/auth/permissions";
 import { Card, CardContent } from "@/components/ui/card";
+import { WorkflowInfoCard } from "@/components/workflow-info-card";
 import { listVolunteerHoursAction } from "./actions";
 import { LogHoursDialog } from "./log-hours-dialog";
 import { HoursTable } from "./hours-table";
@@ -30,10 +31,31 @@ export default async function ParticipationPage() {
       <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
         Participation
       </h1>
-      <p className="app-muted mt-2 max-w-2xl text-sm">
-        Hours logged by volunteers, optionally tied to an event and role type.
-        Volunteer records link back to entries in People.
-      </p>
+      <div className="mt-6">
+        <WorkflowInfoCard title="How hours logging works">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">
+                Hours are logged directly
+              </strong>{" "}
+              — there&apos;s no approval step. A volunteer with logging access
+              can log their own hours; anyone with manage access can log hours
+              for another volunteer too.
+            </li>
+            <li>
+              <strong className="text-foreground">
+                Event and role type are optional
+              </strong>{" "}
+              — tie an entry to an event and a role type when it&apos;s
+              relevant, or leave them blank for general hours.
+            </li>
+          </ol>
+          <p className="mt-3">
+            Logged hours roll up into the total shown below and link back to the
+            volunteer&apos;s record in People.
+          </p>
+        </WorkflowInfoCard>
+      </div>
 
       <div className="mt-6 flex justify-end">
         {canManage || canLogOwn ? <LogHoursDialog /> : null}
