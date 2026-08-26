@@ -188,7 +188,10 @@ export function AttendeesTab({
           <TableBody>
             {attendees?.map((attendee) => (
               <TableRow key={attendee.id}>
-                <TableCell className="font-medium">
+                <TableCell
+                  className="max-w-xs truncate font-medium"
+                  title={attendee.person?.name ?? undefined}
+                >
                   {attendee.person?.name ?? "—"}
                 </TableCell>
                 <TableCell className="app-muted">

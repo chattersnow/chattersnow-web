@@ -94,8 +94,10 @@ export function DonationsTab({
           <TableBody>
             {items.map((item) => (
               <TableRow key={item.id}>
-                <TableCell className="font-medium">
-                  {item.description}
+                <TableCell className="max-w-xs font-medium">
+                  <span className="block truncate" title={item.description}>
+                    {item.description}
+                  </span>
                   <span className="app-muted block text-xs">{item.type}</span>
                 </TableCell>
                 <TableCell className="app-muted">{item.donorLabel}</TableCell>

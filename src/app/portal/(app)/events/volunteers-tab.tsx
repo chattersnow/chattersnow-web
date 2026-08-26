@@ -557,7 +557,12 @@ export function VolunteersTab({
                   assigned < shift.target_headcount;
                 return (
                   <TableRow key={shift.id}>
-                    <TableCell className="font-medium">{shift.label}</TableCell>
+                    <TableCell
+                      className="max-w-xs truncate font-medium"
+                      title={shift.label}
+                    >
+                      {shift.label}
+                    </TableCell>
                     <TableCell className="app-muted">
                       {formatShiftRange(shift)}
                     </TableCell>
@@ -632,7 +637,10 @@ export function VolunteersTab({
             <TableBody>
               {volunteers?.map((volunteer) => (
                 <TableRow key={volunteer.id}>
-                  <TableCell className="font-medium">
+                  <TableCell
+                    className="max-w-xs truncate font-medium"
+                    title={volunteer.person?.name ?? undefined}
+                  >
                     {volunteer.person?.name ?? "—"}
                   </TableCell>
                   <TableCell className="app-muted">
@@ -735,7 +743,10 @@ export function VolunteersTab({
             <TableBody>
               {hours?.map((entry) => (
                 <TableRow key={entry.id}>
-                  <TableCell className="font-medium">
+                  <TableCell
+                    className="max-w-xs truncate font-medium"
+                    title={entry.person?.name ?? undefined}
+                  >
                     {entry.person?.name ?? "—"}
                   </TableCell>
                   <TableCell className="app-muted">

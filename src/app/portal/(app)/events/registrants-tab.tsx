@@ -229,7 +229,12 @@ export function RegistrantsTab({
           <TableBody>
             {list.map((registrant) => (
               <TableRow key={registrant.id}>
-                <TableCell className="font-medium">{registrant.name}</TableCell>
+                <TableCell
+                  className="max-w-xs truncate font-medium"
+                  title={registrant.name}
+                >
+                  {registrant.name}
+                </TableCell>
                 <TableCell className="app-muted">
                   {registrant.email}
                   {registrant.phone && (

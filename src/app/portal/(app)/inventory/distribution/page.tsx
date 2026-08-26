@@ -65,8 +65,13 @@ export default async function DistributionPage() {
             <TableBody>
               {result.data.map((movement) => (
                 <TableRow key={movement.id}>
-                  <TableCell className="font-medium">
-                    {movement.inventory_item?.description ?? "—"}
+                  <TableCell className="max-w-xs font-medium">
+                    <span
+                      className="block truncate"
+                      title={movement.inventory_item?.description ?? undefined}
+                    >
+                      {movement.inventory_item?.description ?? "—"}
+                    </span>
                     <span className="app-muted block text-xs">
                       {movement.inventory_item?.type}
                     </span>
@@ -75,10 +80,16 @@ export default async function DistributionPage() {
                   <TableCell className="app-muted">
                     {dateFormatter.format(new Date(movement.occurred_at))}
                   </TableCell>
-                  <TableCell className="app-muted">
+                  <TableCell
+                    className="max-w-xs truncate app-muted"
+                    title={movement.event?.name ?? undefined}
+                  >
                     {movement.event?.name ?? "—"}
                   </TableCell>
-                  <TableCell className="app-muted">
+                  <TableCell
+                    className="max-w-xs truncate app-muted"
+                    title={movement.recipient?.name ?? undefined}
+                  >
                     {movement.recipient?.name ?? "—"}
                   </TableCell>
                   <TableCell className="app-muted">

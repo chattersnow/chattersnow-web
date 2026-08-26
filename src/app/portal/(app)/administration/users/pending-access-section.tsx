@@ -211,7 +211,10 @@ export function PendingAccessSection({
               <TableBody>
                 {grants.map((grant) => (
                   <TableRow key={grant.id}>
-                    <TableCell className="font-medium">
+                    <TableCell
+                      className="max-w-xs truncate font-medium"
+                      title={grant.name ?? grant.email}
+                    >
                       {grant.name ?? grant.email}
                     </TableCell>
                     <TableCell>{formatRoleLabel(grant.roles.name)}</TableCell>

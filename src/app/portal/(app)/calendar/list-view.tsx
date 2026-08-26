@@ -123,9 +123,11 @@ export function ListView({
             <TableBody>
               {items.map((item) => (
                 <TableRow key={item.id}>
-                  <TableCell className="font-medium">
+                  <TableCell className="max-w-xs font-medium">
                     <div className="flex flex-col gap-1">
-                      {item.title}
+                      <span className="block truncate" title={item.title}>
+                        {item.title}
+                      </span>
                       <div className="flex flex-wrap gap-1">
                         {needsDecision(item) && <NeedsDecisionFlag />}
                         {isPastUndecided(item) && <PastUndecidedFlag />}

@@ -87,8 +87,13 @@ export function DistributionsTab({
           <TableBody>
             {distributions?.map((movement) => (
               <TableRow key={movement.id}>
-                <TableCell className="font-medium">
-                  {movement.inventory_item?.description ?? "—"}
+                <TableCell className="max-w-xs font-medium">
+                  <span
+                    className="block truncate"
+                    title={movement.inventory_item?.description ?? undefined}
+                  >
+                    {movement.inventory_item?.description ?? "—"}
+                  </span>
                   <span className="app-muted block text-xs">
                     {movement.inventory_item?.type}
                   </span>

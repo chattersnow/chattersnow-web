@@ -330,7 +330,10 @@ export function InventoryTable({ items }: { items: InventoryItem[] }) {
                 ) : (
                   visibleItems.map((item) => (
                     <TableRow key={item.id}>
-                      <TableCell className="whitespace-normal">
+                      <TableCell
+                        className="max-w-xs whitespace-normal"
+                        title={item.description}
+                      >
                         {item.description}
                       </TableCell>
                       <TableCell>{item.type}</TableCell>

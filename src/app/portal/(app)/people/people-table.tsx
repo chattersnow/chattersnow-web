@@ -152,7 +152,10 @@ export function PeopleTable({
               ) : (
                 visiblePeople.map((person) => (
                   <TableRow key={person.id}>
-                    <TableCell className="font-medium">
+                    <TableCell
+                      className="max-w-xs truncate font-medium"
+                      title={person.name ?? undefined}
+                    >
                       {person.name ?? "—"}
                     </TableCell>
                     <TableCell className="app-muted">

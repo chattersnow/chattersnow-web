@@ -52,10 +52,16 @@ export function HoursTable({
       <TableBody>
         {entries.map((entry) => (
           <TableRow key={entry.id}>
-            <TableCell className="font-medium">
+            <TableCell
+              className="max-w-xs truncate font-medium"
+              title={entry.person?.name ?? undefined}
+            >
               {entry.person?.name ?? "—"}
             </TableCell>
-            <TableCell className="app-muted">
+            <TableCell
+              className="max-w-xs truncate app-muted"
+              title={entry.event?.name ?? undefined}
+            >
               {entry.event?.name ?? "—"}
             </TableCell>
             <TableCell className="app-muted">

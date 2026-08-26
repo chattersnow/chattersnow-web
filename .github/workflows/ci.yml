@@ -32,7 +32,7 @@ jobs:
         run: bun run format:check
 
       - name: Unit tests
-        run: bun test --coverage
+        run: bun test --coverage --path-ignore-patterns="e2e/**"
 
       - name: Build
         run: bun run build
