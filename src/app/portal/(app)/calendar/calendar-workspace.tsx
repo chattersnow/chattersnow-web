@@ -1,16 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Input } from "@/components/ui/input";
+import { CalendarFiltersSheet } from "./calendar-filters-sheet";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  RANGES,
   type CalendarItemRow,
   type CalendarOwner,
   type CalendarProgram,
@@ -35,6 +27,14 @@ export function CalendarWorkspace({
   filterQuery,
   sort,
   dir,
+  typeFilter,
+  categoryFilter,
+  priorityFilter,
+  programFilter,
+  ownerFilter,
+  visibilityFilter,
+  statusFilter,
+  decisionFilter,
 }: {
   view: CalendarView;
   month: string;
@@ -48,6 +48,14 @@ export function CalendarWorkspace({
   filterQuery: string;
   sort: ListSortColumn;
   dir: "asc" | "desc";
+  typeFilter: string;
+  categoryFilter: string;
+  priorityFilter: string;
+  programFilter: string;
+  ownerFilter: string;
+  visibilityFilter: string;
+  statusFilter: string;
+  decisionFilter: string;
 }) {
   const [search, setSearch] = useState("");
   const [range, setRange] = useState("all");
@@ -92,48 +100,26 @@ export function CalendarWorkspace({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-end gap-3">
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="calendar-search"
-            className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-          >
-            Search
-          </label>
-          <Input
-            id="calendar-search"
-            placeholder="Title or summary..."
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            className="w-56"
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="calendar-range"
-            className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-          >
-            Range
-          </label>
-          <Select
-            value={range}
-            onValueChange={(value) => setRange(value ?? "all")}
-          >
-            <SelectTrigger id="calendar-range" className="w-44">
-              <SelectValue placeholder="All upcoming">
-                {(value: string) =>
-                  RANGES.find((option) => option.value === value)?.label
-                }
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {RANGES.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <CalendarFiltersSheet
+          view={view}
+          month={month}
+          sort={sort}
+          dir={dir}
+          owners={owners}
+          programs={programs}
+          typeFilter={typeFilter}
+          categoryFilter={categoryFilter}
+          priorityFilter={priorityFilter}
+          programFilter={programFilter}
+          ownerFilter={ownerFilter}
+          visibilityFilter={visibilityFilter}
+          statusFilter={statusFilter}
+          decisionFilter={decisionFilter}
+          search={search}
+          onSearchChange={setSearch}
+          range={range}
+          onRangeChange={setRange}
+        />
       </div>
 
       {view === "list" && (
