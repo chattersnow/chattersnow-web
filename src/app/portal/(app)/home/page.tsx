@@ -10,6 +10,7 @@ import { ActiveEventCard } from "./active-event-card";
 import {
   DashboardAttentionRow,
   DashboardComingSoonRow,
+  DashboardEventRow,
   DashboardSectionCard,
   DashboardStatRow,
 } from "./dashboard-section-card";
@@ -190,80 +191,80 @@ export default async function PortalHomePage() {
         </DashboardSectionCard>
       )}
 
-      {canSeeUpcoming && upcoming && (
-        <DashboardSectionCard title="Upcoming">
-          <DashboardStatRow
-            label="Next event"
-            value={upcoming.nextEvent ? upcoming.nextEvent.name : "—"}
-            caption={
-              upcoming.nextEvent
-                ? `${dateFormatter.format(new Date(upcoming.nextEvent.starts_at))}${
-                    upcoming.nextEvent.location
-                      ? ` · ${upcoming.nextEvent.location}`
-                      : ""
-                  }`
-                : "No upcoming events"
-            }
-          />
-          <DashboardStatRow
-            label="Registrations"
-            value={upcoming.registrationCount}
-            caption="For upcoming events"
-          />
-          <DashboardStatRow
-            label="Volunteers"
-            value={upcoming.volunteerCount}
-            caption="Assigned to upcoming events"
-          />
-          <DashboardStatRow
-            label="Partners"
-            value={upcoming.partnerCount}
-            caption="Sponsoring upcoming events"
-          />
-          <DashboardComingSoonRow
-            label="Outstanding tasks"
-            description="Event checklists and tasks aren't tracked yet."
-          />
-        </DashboardSectionCard>
-      )}
+      <div className="grid items-start gap-x-6 lg:grid-cols-2">
+        {canSeeUpcoming && upcoming && (
+          <DashboardSectionCard className="lg:mt-6" title="Upcoming">
+            <DashboardEventRow
+              label="Next event"
+              eventName={upcoming.nextEvent ? upcoming.nextEvent.name : "—"}
+              caption={
+                upcoming.nextEvent
+                  ? `${dateFormatter.format(new Date(upcoming.nextEvent.starts_at))}${
+                      upcoming.nextEvent.location
+                        ? ` · ${upcoming.nextEvent.location}`
+                        : ""
+                    }`
+                  : "No upcoming events"
+              }
+            />
+            <DashboardStatRow
+              label="Registrations"
+              value={upcoming.registrationCount}
+              caption="For upcoming events"
+            />
+            <DashboardStatRow
+              label="Volunteers"
+              value={upcoming.volunteerCount}
+              caption="Assigned to upcoming events"
+            />
+            <DashboardStatRow
+              label="Partners"
+              value={upcoming.partnerCount}
+              caption="Sponsoring upcoming events"
+            />
+            <DashboardComingSoonRow
+              label="Outstanding tasks"
+              description="Event checklists and tasks aren't tracked yet."
+            />
+          </DashboardSectionCard>
+        )}
 
-      {canSeeFinancial && financial && (
-        <DashboardSectionCard title="Financial">
-          <DashboardComingSoonRow
-            label="Cash position & monthly income"
-            description="Only in-kind donations are tracked today; monetary donation tracking isn't built yet."
-          />
-          {canSeeExpenses && (
-            <DashboardStatRow
-              label="Expenses"
-              value={currencyFormatter.format(financial.expensesThisMonth)}
-              caption={`This month · ${currencyFormatter.format(financial.expensesThisYear)} this year`}
+        {canSeeFinancial && financial && (
+          <DashboardSectionCard className="lg:mt-6" title="Financial">
+            <DashboardComingSoonRow
+              label="Cash position & monthly income"
+              description="Only in-kind donations are tracked today; monetary donation tracking isn't built yet."
             />
-          )}
-          {canSeeRevenue && (
-            <DashboardStatRow
-              label="Revenue"
-              value={currencyFormatter.format(financial.revenueThisMonth)}
-              caption={`This month · ${currencyFormatter.format(financial.revenueThisYear)} this year`}
+            {canSeeExpenses && (
+              <DashboardStatRow
+                label="Expenses"
+                value={currencyFormatter.format(financial.expensesThisMonth)}
+                caption={`This month · ${currencyFormatter.format(financial.expensesThisYear)} this year`}
+              />
+            )}
+            {canSeeRevenue && (
+              <DashboardStatRow
+                label="Revenue"
+                value={currencyFormatter.format(financial.revenueThisMonth)}
+                caption={`This month · ${currencyFormatter.format(financial.revenueThisYear)} this year`}
+              />
+            )}
+            <DashboardComingSoonRow
+              label="Outstanding reimbursements"
+              description="Reimbursement tracking is planned in issue #51."
             />
-          )}
-          <DashboardComingSoonRow
-            label="Outstanding reimbursements"
-            description="Reimbursement tracking is planned in issue #51."
-          />
-          {canSeeEventBudgets && (
-            <DashboardStatRow
-              label="Event budgets"
-              value={currencyFormatter.format(financial.eventBudgetTotal)}
-              caption="Published, upcoming events"
-            />
-          )}
-        </DashboardSectionCard>
-      )}
+            {canSeeEventBudgets && (
+              <DashboardStatRow
+                label="Event budgets"
+                value={currencyFormatter.format(financial.eventBudgetTotal)}
+                caption="Published, upcoming events"
+              />
+            )}
+          </DashboardSectionCard>
+        )}
 
-      {canSeeInventory && inventory && (
-        <>
-          <DashboardSectionCard title="Inventory">
+        {canSeeInventory && inventory && (
+          <DashboardSectionCard className="lg:mt-6" title="Inventory">
             <DashboardStatRow
               label="Total items"
               value={inventory.totalItems}
@@ -282,44 +283,43 @@ export default async function PortalHomePage() {
               caption="Damaged or lost"
             />
           </DashboardSectionCard>
-          {canSeeRecentDonations && (
-            <Card className="mt-4">
-              <CardHeader>
-                <CardTitle className="app-muted text-sm font-semibold">
-                  Recent donations
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {recentDonations.length === 0 ? (
-                  <p className="app-muted text-sm">
-                    No donations recorded yet.
-                  </p>
-                ) : (
-                  <ul className="divide-border divide-y">
-                    {recentDonations.map((donation) => (
-                      <li
-                        key={donation.id}
-                        className="flex items-center justify-between py-2 text-sm"
-                      >
-                        <span>
-                          {donation.donor?.is_anonymous || !donation.donor?.name
-                            ? "Anonymous"
-                            : donation.donor.name}
-                        </span>
-                        <span className="app-muted">
-                          {dateFormatter.format(new Date(donation.donated_at))}{" "}
-                          · {donation.inventory_items.length} item
-                          {donation.inventory_items.length === 1 ? "" : "s"}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
-          )}
-        </>
-      )}
+        )}
+
+        {canSeeInventory && canSeeRecentDonations && (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="app-muted text-sm font-semibold">
+                Recent donations
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {recentDonations.length === 0 ? (
+                <p className="app-muted text-sm">No donations recorded yet.</p>
+              ) : (
+                <ul className="divide-border divide-y">
+                  {recentDonations.map((donation) => (
+                    <li
+                      key={donation.id}
+                      className="flex items-center justify-between py-2 text-sm"
+                    >
+                      <span>
+                        {donation.donor?.is_anonymous || !donation.donor?.name
+                          ? "Anonymous"
+                          : donation.donor.name}
+                      </span>
+                      <span className="app-muted">
+                        {dateFormatter.format(new Date(donation.donated_at))} ·{" "}
+                        {donation.inventory_items.length} item
+                        {donation.inventory_items.length === 1 ? "" : "s"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       {canSeeOrganization && (
         <DashboardSectionCard title="Organization">

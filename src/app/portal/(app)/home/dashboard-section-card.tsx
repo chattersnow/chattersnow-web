@@ -46,6 +46,26 @@ export function DashboardStatRow({
   );
 }
 
+export function DashboardEventRow({
+  label,
+  eventName,
+  caption,
+}: {
+  label: string;
+  eventName: string;
+  caption?: string;
+}) {
+  return (
+    <div className="py-3 first:pt-0 last:pb-0">
+      <p className="text-sm font-medium">{label}</p>
+      {caption && <p className="app-muted mt-0.5 text-xs">{caption}</p>}
+      <p className="brand-display mt-2 break-words text-xl font-semibold leading-tight tracking-[-0.02em]">
+        {eventName}
+      </p>
+    </div>
+  );
+}
+
 export function DashboardAttentionRow({
   label,
   count,
