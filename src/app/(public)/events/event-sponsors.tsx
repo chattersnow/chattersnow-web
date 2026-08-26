@@ -58,7 +58,7 @@ export function EventSponsors({
       <h3 className="brand-display text-lg font-semibold tracking-[-0.02em]">
         Sponsors
       </h3>
-      <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
+      <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {sponsors.map((sponsor) => (
           <SponsorTile key={sponsor.sponsor_id} sponsor={sponsor} />
         ))}

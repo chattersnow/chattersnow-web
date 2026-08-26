@@ -33,86 +33,84 @@ export default async function Home() {
   return (
     <main className="app-shell px-6 py-8 sm:px-10">
       <div className="mx-auto max-w-6xl">
-        <div className="mx-auto max-w-3xl">
-          <section className="flex flex-col items-center text-center">
-            <div className="relative aspect-square w-[min(60vw,14rem)]">
-              <Image
-                src="/chatter-logo-transparent.png"
-                alt="Chatter Snow logo"
-                width={224}
-                height={224}
-                priority
-                className="h-full w-full object-contain"
-              />
-            </div>
-
-            <div className="rainbow-accent mt-6 w-32" />
-
-            <h1 className="brand-display mt-6 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-              A queer ski &amp; snowboard community
-            </h1>
-            <p className="app-muted mt-4 max-w-xl text-sm leading-relaxed sm:text-base">
-              Chatter brings LGBTQ+ skiers and snowboarders together on and off
-              the East Coast mountains, and works to make snow sports more
-              accessible through gear, mentorship, and community.
-            </p>
-
-            <div className="mt-8 flex flex-wrap justify-center gap-3">
-              <Button nativeButton={false} render={<Link href="/events" />}>
-                Join an event
-              </Button>
-              <Button
-                variant="outline"
-                nativeButton={false}
-                render={<Link href="/get-involved" />}
-              >
-                Get involved
-              </Button>
-              <Button
-                variant="outline"
-                nativeButton={false}
-                render={<Link href="/support" />}
-              >
-                Donate
-              </Button>
-            </div>
-          </section>
-
-          <div className="mt-12">
-            <Carousel className="mx-auto max-w-md" opts={{ loop: true }}>
-              <CarouselContent>
-                {[0, 1, 2].map((slide) => (
-                  <CarouselItem key={slide}>
-                    <ImagePlaceholder className="aspect-video rounded-2xl" />
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-              <CarouselPrevious className="hidden sm:flex" />
-              <CarouselNext className="hidden sm:flex" />
-            </Carousel>
+        <section className="flex flex-col items-center text-center">
+          <div className="relative aspect-square w-[min(60vw,14rem)]">
+            <Image
+              src="/chatter-logo-transparent.png"
+              alt="Chatter Snow logo"
+              width={224}
+              height={224}
+              priority
+              className="h-full w-full object-contain"
+            />
           </div>
 
-          {nextEvent && (
-            <section className="mt-16 rounded-xl border border-[var(--line)] p-6 text-center sm:p-8">
-              <span className="app-eyebrow">Next up</span>
-              <h2 className="brand-display mt-2 text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
-                {nextEvent.name}
-              </h2>
-              <p className="app-muted mt-2 text-sm">
-                {dateFormatter.format(new Date(nextEvent.starts_at))}
-                {nextEvent.location && ` · ${nextEvent.location}`}
-              </p>
-              <Button
-                variant="outline"
-                className="mt-4"
-                nativeButton={false}
-                render={<Link href="/events" />}
-              >
-                See event details
-              </Button>
-            </section>
-          )}
+          <div className="rainbow-accent mt-6 w-32" />
+
+          <h1 className="brand-display mt-6 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+            A queer ski &amp; snowboard community
+          </h1>
+          <p className="app-muted mt-4 max-w-xl text-sm leading-relaxed sm:text-base">
+            Chatter brings LGBTQ+ skiers and snowboarders together on and off
+            the East Coast mountains, and works to make snow sports more
+            accessible through gear, mentorship, and community.
+          </p>
+
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Button nativeButton={false} render={<Link href="/events" />}>
+              Join an event
+            </Button>
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href="/get-involved" />}
+            >
+              Get involved
+            </Button>
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href="/support" />}
+            >
+              Donate
+            </Button>
+          </div>
+        </section>
+
+        <div className="mt-12">
+          <Carousel className="mx-auto max-w-2xl" opts={{ loop: true }}>
+            <CarouselContent>
+              {[0, 1, 2].map((slide) => (
+                <CarouselItem key={slide}>
+                  <ImagePlaceholder className="aspect-video rounded-2xl" />
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious className="hidden sm:flex" />
+            <CarouselNext className="hidden sm:flex" />
+          </Carousel>
         </div>
+
+        {nextEvent && (
+          <section className="mx-auto mt-16 max-w-2xl rounded-xl border border-[var(--line)] p-6 text-center sm:p-8">
+            <span className="app-eyebrow">Next up</span>
+            <h2 className="brand-display mt-2 text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
+              {nextEvent.name}
+            </h2>
+            <p className="app-muted mt-2 text-sm">
+              {dateFormatter.format(new Date(nextEvent.starts_at))}
+              {nextEvent.location && ` · ${nextEvent.location}`}
+            </p>
+            <Button
+              variant="outline"
+              className="mt-4"
+              nativeButton={false}
+              render={<Link href="/events" />}
+            >
+              See event details
+            </Button>
+          </section>
+        )}
       </div>
     </main>
   );
