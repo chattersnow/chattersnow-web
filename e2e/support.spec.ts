@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { clickNavLink } from "./helpers/nav";
 
 test.describe("public support pages", () => {
   test("support index page loads", async ({ page }) => {
@@ -10,9 +11,7 @@ test.describe("public support pages", () => {
 
   test("nav resolves to Donations", async ({ page }) => {
     await page.goto("/home");
-    const nav = page.getByRole("navigation");
-    await nav.getByRole("button", { name: "Support" }).click();
-    await nav.getByRole("link", { name: "Donations" }).click();
+    await clickNavLink(page, "Donations", { group: "Support" });
 
     await expect(page).toHaveURL(/\/support\/donations$/);
     await expect(
@@ -22,9 +21,7 @@ test.describe("public support pages", () => {
 
   test("nav resolves to Sponsorship", async ({ page }) => {
     await page.goto("/home");
-    const nav = page.getByRole("navigation");
-    await nav.getByRole("button", { name: "Support" }).click();
-    await nav.getByRole("link", { name: "Sponsorship" }).click();
+    await clickNavLink(page, "Sponsorship", { group: "Support" });
 
     await expect(page).toHaveURL(/\/support\/sponsorship$/);
     await expect(

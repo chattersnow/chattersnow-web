@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { clickNavLink } from "./helpers/nav";
 
 test.describe("public gears pages", () => {
   test("gears index redirects to the gear library", async ({ page }) => {
@@ -11,9 +12,7 @@ test.describe("public gears pages", () => {
 
   test("nav resolves to Gear Library", async ({ page }) => {
     await page.goto("/home");
-    const nav = page.getByRole("navigation");
-    await nav.getByRole("button", { name: "Gear" }).click();
-    await nav.getByRole("link", { name: "Gear Library" }).click();
+    await clickNavLink(page, "Gear Library", { group: "Gear" });
 
     await expect(page).toHaveURL(/\/gears\/library$/);
     await expect(
@@ -23,9 +22,7 @@ test.describe("public gears pages", () => {
 
   test("nav resolves to Sizing Guide", async ({ page }) => {
     await page.goto("/home");
-    const nav = page.getByRole("navigation");
-    await nav.getByRole("button", { name: "Gear" }).click();
-    await nav.getByRole("link", { name: "Sizing Guide" }).click();
+    await clickNavLink(page, "Sizing Guide", { group: "Gear" });
 
     await expect(page).toHaveURL(/\/gears\/sizing$/);
     await expect(
@@ -35,9 +32,7 @@ test.describe("public gears pages", () => {
 
   test("nav resolves to the gear donation page", async ({ page }) => {
     await page.goto("/home");
-    const nav = page.getByRole("navigation");
-    await nav.getByRole("button", { name: "Gear" }).click();
-    await nav.getByRole("link", { name: "How It Works" }).click();
+    await clickNavLink(page, "How It Works", { group: "Gear" });
 
     await expect(page).toHaveURL(/\/gears\/donate/);
     await expect(

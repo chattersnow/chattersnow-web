@@ -184,7 +184,7 @@ export function SiteNav() {
           <SheetHeader>
             <SheetTitle>Menu</SheetTitle>
           </SheetHeader>
-          <nav className="flex flex-col gap-2 px-4 pb-4">
+          <nav className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 pb-4">
             {NAV_GROUPS.map((group) =>
               !group.links ? (
                 <MobileNavLink
