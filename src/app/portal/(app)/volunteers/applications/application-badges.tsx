@@ -4,6 +4,7 @@ import type { VolunteerApplicationStatus } from "./application-types";
 
 const STATUS_STYLES: Record<VolunteerApplicationStatus, string> = {
   new: "bg-primary/10 text-primary",
+  "being reviewed": "bg-accent text-accent-foreground",
   contacted: "bg-muted text-muted-foreground",
   placed: "bg-secondary text-secondary-foreground",
   declined: "bg-destructive/10 text-destructive",
