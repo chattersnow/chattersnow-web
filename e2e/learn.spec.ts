@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { clickNavLink } from "./helpers/nav";
 
 test.describe("public learn page", () => {
   test("learn page loads", async ({ page }) => {
@@ -10,10 +11,7 @@ test.describe("public learn page", () => {
 
   test("nav resolves to Learn", async ({ page }) => {
     await page.goto("/home");
-    await page
-      .getByRole("navigation")
-      .getByRole("link", { name: "Learn", exact: true })
-      .click();
+    await clickNavLink(page, "Learn");
 
     await expect(page).toHaveURL(/\/learn$/);
     await expect(

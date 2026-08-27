@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { clickNavLink } from "./helpers/nav";
 
 test.describe("public get-involved pages", () => {
   test("get-involved index page loads", async ({ page }) => {
@@ -11,9 +12,7 @@ test.describe("public get-involved pages", () => {
 
   test("nav resolves to Attend", async ({ page }) => {
     await page.goto("/home");
-    const nav = page.getByRole("navigation");
-    await nav.getByRole("button", { name: "Get Involved" }).click();
-    await nav.getByRole("link", { name: "Attend" }).click();
+    await clickNavLink(page, "Attend", { group: "Get Involved" });
 
     await expect(page).toHaveURL(/\/get-involved\/attend$/);
     await expect(
@@ -23,9 +22,7 @@ test.describe("public get-involved pages", () => {
 
   test("nav resolves to Volunteer", async ({ page }) => {
     await page.goto("/home");
-    const nav = page.getByRole("navigation");
-    await nav.getByRole("button", { name: "Get Involved" }).click();
-    await nav.getByRole("link", { name: "Volunteer" }).click();
+    await clickNavLink(page, "Volunteer", { group: "Get Involved" });
 
     await expect(page).toHaveURL(/\/get-involved\/volunteer$/);
     await expect(
@@ -35,9 +32,7 @@ test.describe("public get-involved pages", () => {
 
   test("nav resolves to Become a Partner", async ({ page }) => {
     await page.goto("/home");
-    const nav = page.getByRole("navigation");
-    await nav.getByRole("button", { name: "Get Involved" }).click();
-    await nav.getByRole("link", { name: "Become a Partner" }).click();
+    await clickNavLink(page, "Become a Partner", { group: "Get Involved" });
 
     await expect(page).toHaveURL(/\/get-involved\/partner$/);
     await expect(
