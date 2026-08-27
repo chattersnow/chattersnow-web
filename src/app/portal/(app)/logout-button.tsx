@@ -2,11 +2,15 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { LogOut } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import {
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@/components/ui/sidebar";
 
-export function LogoutButton({ className }: { className?: string }) {
+export function LogoutButton() {
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -19,14 +23,17 @@ export function LogoutButton({ className }: { className?: string }) {
   }
 
   return (
-    <Button
-      type="button"
-      variant="outline"
-      onClick={handleLogout}
-      disabled={isSigningOut}
-      className={cn("shrink-0 whitespace-nowrap", className)}
-    >
-      {isSigningOut ? "Signing out..." : "Log out"}
-    </Button>
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          onClick={handleLogout}
+          disabled={isSigningOut}
+          tooltip={isSigningOut ? "Signing out..." : "Log out"}
+        >
+          <LogOut />
+          <span>{isSigningOut ? "Signing out..." : "Log out"}</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </SidebarMenu>
   );
 }
