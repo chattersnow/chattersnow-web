@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,32 +40,39 @@ export default async function Home() {
   );
 
   return (
-    <main className="app-shell px-6 py-10 sm:px-10">
-      <div className="mx-auto max-w-3xl">
+    <main className="app-shell px-6 py-8 sm:px-10">
+      <div className="mx-auto max-w-6xl">
         <section className="flex flex-col items-center text-center">
-          <div className="relative aspect-square w-[min(60vw,14rem)]">
-            <Image
-              src="/chatter-logo-transparent.png"
-              alt="Chatter Snow logo"
-              width={224}
-              height={224}
-              priority
-              className="h-full w-full object-contain"
-            />
-          </div>
+          <Carousel className="w-full max-w-5xl" opts={{ loop: true }}>
+            <CarouselContent>
+              {CAROUSEL_SLOTS.map((slot, index) => (
+                <CarouselItem key={slot}>
+                  <SiteImage
+                    url={siteImages[slot] ?? null}
+                    alt="Chatter Snow community"
+                    className="aspect-[21/9] rounded-2xl"
+                    sizes="(min-width: 1024px) 1024px, 100vw"
+                    priority={index === 0}
+                  />
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious className="hidden sm:flex" />
+            <CarouselNext className="hidden sm:flex" />
+          </Carousel>
 
-          <div className="rainbow-accent mt-6 w-32" />
+          <div className="rainbow-accent mt-5 w-32" />
 
-          <h1 className="brand-display mt-6 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
             A queer ski &amp; snowboard community
           </h1>
-          <p className="app-muted mt-4 max-w-xl text-sm leading-relaxed sm:text-base">
+          <p className="app-muted mt-3 max-w-xl text-sm leading-relaxed sm:text-base">
             Chatter brings LGBTQ+ skiers and snowboarders together on and off
             the East Coast mountains, and works to make snow sports more
             accessible through gear, mentorship, and community.
           </p>
 
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
             <Button nativeButton={false} render={<Link href="/events" />}>
               Join an event
             </Button>
@@ -86,24 +92,6 @@ export default async function Home() {
             </Button>
           </div>
         </section>
-
-        <div className="mt-12">
-          <Carousel className="mx-auto max-w-md" opts={{ loop: true }}>
-            <CarouselContent>
-              {CAROUSEL_SLOTS.map((slot) => (
-                <CarouselItem key={slot}>
-                  <SiteImage
-                    url={siteImages[slot] ?? null}
-                    alt="Chatter Snow community"
-                    className="aspect-video rounded-2xl"
-                  />
-                </CarouselItem>
-              ))}
-            </CarouselContent>
-            <CarouselPrevious className="hidden sm:flex" />
-            <CarouselNext className="hidden sm:flex" />
-          </Carousel>
-        </div>
 
         {nextEvent && (
           <section className="mt-16 rounded-xl border border-[var(--line)] p-6 text-center sm:p-8">
