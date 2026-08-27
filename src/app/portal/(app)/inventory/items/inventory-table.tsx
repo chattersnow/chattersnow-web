@@ -59,6 +59,22 @@ const SORT_COLUMNS: { key: SortKey; label: string }[] = [
 
 const FILTER_ALL = "all";
 
+const INVENTORY_VIEW_STORAGE_KEY = "chattersnow:inventory-items-view";
+
+function isViewMode(value: unknown): value is "list" | "gallery" {
+  return value === "list" || value === "gallery";
+}
+
+function readStoredView(): "list" | "gallery" {
+  if (typeof window === "undefined") return "list";
+  try {
+    const stored = window.localStorage.getItem(INVENTORY_VIEW_STORAGE_KEY);
+    return isViewMode(stored) ? stored : "list";
+  } catch {
+    return "list";
+  }
+}
+
 function compareNullableStrings(a: string | null, b: string | null) {
   if (a === b) return 0;
   if (a === null) return 1;
@@ -67,7 +83,16 @@ function compareNullableStrings(a: string | null, b: string | null) {
 }
 
 export function InventoryTable({ items }: { items: InventoryItem[] }) {
-  const [view, setView] = useState<"list" | "gallery">("list");
+  const [view, setView] = useState<"list" | "gallery">(readStoredView);
+
+  function setViewAndPersist(next: "list" | "gallery") {
+    setView(next);
+    try {
+      window.localStorage.setItem(INVENTORY_VIEW_STORAGE_KEY, next);
+    } catch {
+      // ignore storage failures (private browsing, disabled storage, etc.)
+    }
+  }
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [conditionFilter, setConditionFilter] = useState<string | null>(null);
@@ -250,7 +275,7 @@ export function InventoryTable({ items }: { items: InventoryItem[] }) {
             <ToggleGroup
               value={[view]}
               onValueChange={(value) => {
-                if (value[0]) setView(value[0] as "list" | "gallery");
+                if (value[0]) setViewAndPersist(value[0] as "list" | "gallery");
               }}
               variant="outline"
               className="h-8"
