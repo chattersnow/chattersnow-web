@@ -51,6 +51,7 @@ scripts
 /blob-report/
 /e2e/screenshots/
 /.playwright-cli/
+/e2e/a11y-report.json
 
 # supabase data backups (may contain live secrets, never commit)
 supabase/backups/
