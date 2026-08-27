@@ -3,6 +3,19 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeftIcon } from "lucide-react";
 import { LEARN_CATEGORIES, getLearnCategory } from "../learn-data";
+import { ParkRidingSafetySections } from "../park-riding-safety/park-riding-safety-sections";
+import { PARK_SAFETY_ARTICLES } from "../park-riding-safety/park-riding-safety-data";
+
+const CATEGORY_CONTENT: Record<string, () => React.ReactNode> = {
+  "park-riding-safety": () => <ParkRidingSafetySections />,
+};
+
+const CATEGORY_NAV: Record<string, { href: string; label: string }[]> = {
+  "park-riding-safety": PARK_SAFETY_ARTICLES.map((article) => ({
+    href: `#${article.id}`,
+    label: article.title,
+  })),
+};
 
 export function generateStaticParams() {
   return LEARN_CATEGORIES.map((category) => ({ slug: category.slug }));
@@ -25,6 +38,9 @@ export default async function LearnCategoryPage({
   const category = getLearnCategory((await params).slug);
   if (!category) notFound();
 
+  const nav = CATEGORY_NAV[category.slug];
+  const renderContent = CATEGORY_CONTENT[category.slug];
+
   return (
     <div>
       <Link
@@ -40,9 +56,31 @@ export default async function LearnCategoryPage({
       <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
         {category.description}
       </p>
-      <p className="app-muted mt-10 text-sm italic">
-        Articles for this category are coming soon.
-      </p>
+
+      {nav && (
+        <nav
+          aria-label={`${category.title} articles`}
+          className="mt-6 flex flex-wrap gap-x-4 gap-y-2 text-sm"
+        >
+          {nav.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="underline underline-offset-4 hover:text-foreground"
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+      )}
+
+      {renderContent ? (
+        <div className="mt-10 space-y-12">{renderContent()}</div>
+      ) : (
+        <p className="app-muted mt-10 text-sm italic">
+          Articles for this category are coming soon.
+        </p>
+      )}
     </div>
   );
 }
