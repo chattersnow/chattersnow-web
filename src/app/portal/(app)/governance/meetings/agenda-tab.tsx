@@ -2,7 +2,7 @@
 
 import { FormEvent, ReactNode, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil } from "lucide-react";
 import {
   getAgendaAction,
   listActiveAgendaTemplatesAction,
@@ -25,6 +25,8 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
+import { DatedListEditor } from "@/components/dated-list-editor";
+import { FreeformListEditor } from "@/components/freeform-list-editor";
 import {
   Table,
   TableBody,
@@ -50,132 +52,6 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 
 function formatDate(value: string) {
   return dateFormatter.format(new Date(value));
-}
-
-function FreeformListEditor({
-  label,
-  items,
-  onChange,
-}: {
-  label: string;
-  items: string[];
-  onChange: (items: string[]) => void;
-}) {
-  function updateItem(index: number, value: string) {
-    onChange(items.map((item, i) => (i === index ? value : item)));
-  }
-  function removeItem(index: number) {
-    onChange(items.filter((_, i) => i !== index));
-  }
-
-  return (
-    <Field>
-      <FieldLabel>{label}</FieldLabel>
-      <div className="flex flex-col gap-2">
-        {items.map((item, index) => (
-          <div key={index} className="flex items-center gap-2">
-            <Input
-              value={item}
-              onChange={(event) => updateItem(index, event.target.value)}
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={`Remove ${label.toLowerCase()} item`}
-              onClick={() => removeItem(index)}
-            >
-              <Trash2 />
-            </Button>
-          </div>
-        ))}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="self-start"
-          onClick={() => onChange([...items, ""])}
-        >
-          <Plus /> Add
-        </Button>
-      </div>
-    </Field>
-  );
-}
-
-function UpcomingDatesEditor({
-  items,
-  onChange,
-}: {
-  items: AgendaUpcomingDate[];
-  onChange: (items: AgendaUpcomingDate[]) => void;
-}) {
-  function updateItem(index: number, patch: Partial<AgendaUpcomingDate>) {
-    onChange(
-      items.map((item, i) => (i === index ? { ...item, ...patch } : item)),
-    );
-  }
-  function removeItem(index: number) {
-    onChange(items.filter((_, i) => i !== index));
-  }
-
-  return (
-    <Field>
-      <FieldLabel>Upcoming dates</FieldLabel>
-      <div className="flex flex-col gap-2">
-        {items.map((item, index) => (
-          <div
-            key={index}
-            className="flex flex-col gap-2 rounded-md border border-[var(--line)] p-2 sm:flex-row sm:items-center"
-          >
-            <Input
-              type="date"
-              className="sm:w-40"
-              value={item.date}
-              onChange={(event) =>
-                updateItem(index, { date: event.target.value })
-              }
-            />
-            <Input
-              placeholder="Event / deadline"
-              value={item.description}
-              onChange={(event) =>
-                updateItem(index, { description: event.target.value })
-              }
-            />
-            <Input
-              placeholder="Owner"
-              className="sm:w-40"
-              value={item.owner}
-              onChange={(event) =>
-                updateItem(index, { owner: event.target.value })
-              }
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Remove upcoming date"
-              onClick={() => removeItem(index)}
-            >
-              <Trash2 />
-            </Button>
-          </div>
-        ))}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="self-start"
-          onClick={() =>
-            onChange([...items, { date: "", description: "", owner: "" }])
-          }
-        >
-          <Plus /> Add date
-        </Button>
-      </div>
-    </Field>
-  );
 }
 
 function ReadOnlySection({
@@ -398,10 +274,7 @@ function AgendaForm({
           items={parkingLot}
           onChange={setParkingLot}
         />
-        <UpcomingDatesEditor
-          items={upcomingDates}
-          onChange={setUpcomingDates}
-        />
+        <DatedListEditor items={upcomingDates} onChange={setUpcomingDates} />
 
         <Field orientation="responsive">
           <Field>
