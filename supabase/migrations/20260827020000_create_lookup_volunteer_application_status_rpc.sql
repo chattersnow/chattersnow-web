@@ -21,19 +21,19 @@ begin
     raise exception 'RATE_LIMITED';
   end if;
 
-  if p_email is null or p_reference_code is null then
-    raise exception 'NOT_FOUND';
+  if p_email is not null and p_reference_code is not null then
+    select status into v_status
+    from public.volunteer_applications
+    where lower(email) = lower(p_email)
+      and reference_code = upper(btrim(p_reference_code));
   end if;
 
-  select status into v_status
-  from public.volunteer_applications
-  where lower(email) = lower(p_email)
-    and reference_code = upper(btrim(p_reference_code));
-
-  if v_status is null then
-    raise exception 'NOT_FOUND';
-  end if;
-
+  -- No exception on a miss: an unhandled exception aborts and rolls back
+  -- the whole call, which would also undo the rate_limit_hits row the
+  -- check above just committed toward -- silently letting every wrong
+  -- guess (the exact enumeration attempt this throttle exists to catch)
+  -- go uncounted. Returning null instead lets the transaction commit; the
+  -- caller treats a null result as "not found".
   return v_status;
 end;
 $$;

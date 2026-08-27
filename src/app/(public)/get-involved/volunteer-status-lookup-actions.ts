@@ -46,5 +46,11 @@ export async function lookupVolunteerApplicationStatusAction(
     };
   }
 
+  // A null result (no matching row) is a normal return, not an RPC error --
+  // see 20260827020000 for why the RPC can't raise an exception here.
+  if (!data) {
+    return { error: ERROR_MESSAGES.NOT_FOUND };
+  }
+
   return { statusLabel: mapVolunteerApplicationStatusToLabel(data as string) };
 }
