@@ -50,6 +50,7 @@ scripts
 /playwright/.cache/
 /blob-report/
 /e2e/screenshots/
+/.playwright-cli/
 
 # supabase data backups (may contain live secrets, never commit)
 supabase/backups/

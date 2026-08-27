@@ -1,9 +1,31 @@
+import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
   hasPermission,
 } from "@/lib/auth/permissions";
-import { ApplicationsTable } from "./applications-table";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/ui/pagination";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  buildHref,
+  escapeLikePattern,
+  pageRange,
+  parsePage,
+  quoteOrValue,
+  totalPagesFor,
+} from "@/lib/pagination";
+import { VolunteerApplicationDetailsSheet } from "./application-details-sheet";
+import { VolunteerApplicationStatusBadge } from "./application-badges";
 import {
   VOLUNTEER_APPLICATION_STATUSES,
   type VolunteerApplication,
@@ -23,6 +45,13 @@ function isVolunteerApplicationStatus(
   );
 }
 
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+});
+
+const selectClassName =
+  "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
+
 export default async function VolunteerApplicationsPage({
   searchParams,
 }: ApplicationsPageProps) {
@@ -31,19 +60,51 @@ export default async function VolunteerApplicationsPage({
   const canManage = hasPermission(permissions, "volunteers", "manage");
 
   const params = await searchParams;
-  const statusParam = params.status;
-  const initialStatusFilter = isVolunteerApplicationStatus(
-    Array.isArray(statusParam) ? statusParam[0] : statusParam,
-  )
-    ? (statusParam as VolunteerApplicationStatus)
-    : null;
+  const raw = (key: string) => {
+    const value = params[key];
+    return Array.isArray(value) ? value[0] : value;
+  };
 
-  const { data: applications, error } = await supabase
+  const search = raw("search") || "";
+  const statusRaw = raw("status");
+  const statusFilter: VolunteerApplicationStatus | "all" =
+    isVolunteerApplicationStatus(statusRaw) ? statusRaw : "all";
+
+  const page = parsePage(raw("page"));
+
+  let query = supabase
     .from("volunteer_applications")
     .select(
       "id, name, email, phone, role_interest, availability, status, created_at",
+      { count: "exact" },
     )
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: true });
+
+  if (search) {
+    const pattern = quoteOrValue(`%${escapeLikePattern(search)}%`);
+    query = query.or(`name.ilike.${pattern},email.ilike.${pattern}`);
+  }
+  if (statusFilter !== "all") {
+    query = query.eq("status", statusFilter);
+  }
+
+  const { offset, to } = pageRange(page);
+  const { data: applications, error, count } = await query.range(offset, to);
+  const applicationRows = (applications ?? []) as VolunteerApplication[];
+
+  const filterParams = new URLSearchParams();
+  if (search) filterParams.set("search", search);
+  if (statusFilter !== "all") filterParams.set("status", statusFilter);
+
+  function pageHref(nextPage: number) {
+    return buildHref("/portal/volunteers/applications", filterParams, {
+      page: nextPage,
+    });
+  }
+
+  const totalPages = totalPagesFor(count);
+  const hasActiveFilters = !!search || statusFilter !== "all";
 
   return (
     <>
@@ -55,17 +116,138 @@ export default async function VolunteerApplicationsPage({
         on.
       </p>
 
-      <div className="mt-6">
+      <div className="mt-6 space-y-4">
         {error ? (
           <p className="app-muted px-4 py-6 text-sm">
             Could not load volunteer applications. Please try again.
           </p>
         ) : (
-          <ApplicationsTable
-            applications={(applications ?? []) as VolunteerApplication[]}
-            canManage={canManage}
-            initialStatusFilter={initialStatusFilter}
-          />
+          <>
+            <div className="flex flex-wrap items-end justify-end gap-3">
+              <form method="get" className="flex flex-wrap items-end gap-3">
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="search"
+                    className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+                  >
+                    Search
+                  </label>
+                  <Input
+                    id="search"
+                    name="search"
+                    placeholder="Search name or email..."
+                    defaultValue={search}
+                    className="h-8 w-full sm:w-64"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="status"
+                    className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+                  >
+                    Status
+                  </label>
+                  <select
+                    id="status"
+                    name="status"
+                    defaultValue={statusFilter}
+                    className={selectClassName}
+                  >
+                    <option value="all">All statuses</option>
+                    {VOLUNTEER_APPLICATION_STATUSES.map((status) => (
+                      <option
+                        key={status}
+                        value={status}
+                        className="capitalize"
+                      >
+                        {status}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <Button type="submit" variant="outline">
+                  Filter
+                </Button>
+                {hasActiveFilters && (
+                  <Button
+                    variant="ghost"
+                    nativeButton={false}
+                    render={<Link href="/portal/volunteers/applications" />}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </form>
+            </div>
+
+            <Card>
+              <CardContent className="px-0">
+                {applicationRows.length === 0 ? (
+                  <p className="app-muted px-4 py-6 text-sm">
+                    {hasActiveFilters
+                      ? "No applications match your filters."
+                      : "No volunteer applications yet."}
+                  </p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Role interest</TableHead>
+                        <TableHead>Submitted</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="w-0">
+                          <span className="sr-only">Actions</span>
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {applicationRows.map((application) => (
+                        <TableRow key={application.id}>
+                          <TableCell className="font-medium">
+                            {application.name}
+                          </TableCell>
+                          <TableCell className="app-muted">
+                            {application.email}
+                          </TableCell>
+                          <TableCell className="app-muted max-w-sm truncate">
+                            {application.role_interest || "—"}
+                          </TableCell>
+                          <TableCell className="app-muted">
+                            {dateFormatter.format(
+                              new Date(application.created_at),
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <VolunteerApplicationStatusBadge
+                              status={application.status}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <VolunteerApplicationDetailsSheet
+                              application={application}
+                              canManage={canManage}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+
+            {applicationRows.length > 0 && (
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                hrefFor={pageHref}
+              />
+            )}
+          </>
         )}
       </div>
     </>
