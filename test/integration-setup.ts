@@ -172,6 +172,37 @@ export async function createAvailableGearItems(
   };
 }
 
+// A single fresh `donations` row (with its one backing item and donor
+// `people` row), for tests exercising `donations` table access directly --
+// unlike createAvailableGearItems, this exposes the donation id itself
+// rather than just its items' ids.
+export async function createDonation() {
+  const { data, error } = await adminClient.rpc("create_donation_with_items", {
+    p_donor_name: `Integration Test Donor ${crypto.randomUUID()}`,
+    p_donor_is_anonymous: false,
+    p_donor_source_type: "individual",
+    p_donor_email: null,
+    p_donor_phone: null,
+    p_donor_notes: null,
+    p_items: [
+      {
+        description: `Integration test item ${crypto.randomUUID()}`,
+        type: "coat",
+        condition: "good",
+      },
+    ],
+  });
+  if (error) throw error;
+
+  const row = data![0] as { donation_id: string };
+  return {
+    id: row.donation_id,
+    async cleanup() {
+      await cleanupDonation(row.donation_id);
+    },
+  };
+}
+
 export async function getInventoryItemStatus(itemId: string) {
   const { data, error } = await adminClient
     .from("inventory_items")
