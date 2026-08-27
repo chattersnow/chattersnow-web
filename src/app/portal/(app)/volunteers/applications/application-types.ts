@@ -1,5 +1,6 @@
 export const VOLUNTEER_APPLICATION_STATUSES = [
   "new",
+  "being reviewed",
   "contacted",
   "placed",
   "declined",

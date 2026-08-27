@@ -287,14 +287,22 @@ begin
   insert into public.volunteer_hours (person_id, event_id, volunteer_role_type_id, hours, logged_date, notes, logged_by)
   values (v_person_volunteer, v_event_past, v_role_type_id, 3.00, current_date - 40, 'Paired with first-time participants.', v_admin_id);
 
-  -- Public volunteer application, submitted via the /get-involved intake
-  -- flow (not yet followed up on).
+  -- Public volunteer applications, submitted via the /get-involved intake
+  -- flow: one not yet followed up on, one an admin has picked up but not
+  -- yet contacted.
   insert into public.people (name, is_anonymous, source_type, email, phone, is_volunteer, created_by)
   values ('Morgan Ellis', false, 'individual', 'morgan.ellis@example.test', '555-0105', true, v_admin_id)
   returning id into v_person_applicant;
 
   insert into public.volunteer_applications (person_id, name, email, phone, role_interest, availability, status)
   values (v_person_applicant, 'Morgan Ellis', 'morgan.ellis@example.test', '555-0105', 'Ride Buddy', 'Weekend mornings', 'new');
+
+  insert into public.people (name, is_anonymous, source_type, email, phone, is_volunteer, created_by)
+  values ('Taylor Kim', false, 'individual', 'taylor.kim@example.test', '555-0106', true, v_admin_id)
+  returning id into v_person_applicant;
+
+  insert into public.volunteer_applications (person_id, name, email, phone, role_interest, availability, status)
+  values (v_person_applicant, 'Taylor Kim', 'taylor.kim@example.test', '555-0106', 'Event Setup Crew', 'Weekday evenings', 'being reviewed');
 
   -- Public contact-form submissions, exercising the ops inbox (issue #173):
   -- one unread so the notification bell/dashboard card have something to
