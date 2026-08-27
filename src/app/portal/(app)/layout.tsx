@@ -136,7 +136,7 @@ export default async function PortalAppLayout({
             <PortalNav permissions={permissions} />
           </SidebarContent>
           <SidebarFooter>
-            <LogoutButton className="w-full justify-start group-data-[collapsible=icon]:justify-center" />
+            <LogoutButton />
           </SidebarFooter>
         </Sidebar>
         <SidebarInset>

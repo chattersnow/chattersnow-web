@@ -108,7 +108,7 @@ export function PoliciesTable({
               value={categoryFilter}
               onValueChange={(value) => setCategoryFilter(value ?? FILTER_ALL)}
             >
-              <SelectTrigger className="h-8">
+              <SelectTrigger className="h-8" aria-label="Filter by category">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>

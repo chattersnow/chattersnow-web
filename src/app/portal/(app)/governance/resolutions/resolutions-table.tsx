@@ -126,7 +126,10 @@ export function ResolutionsTable({
               value={outcomeFilter}
               onValueChange={(value) => setOutcomeFilter(value ?? FILTER_ALL)}
             >
-              <SelectTrigger className="h-8">
+              <SelectTrigger
+                className="h-8"
+                aria-label="Filter by vote outcome"
+              >
                 <SelectValue placeholder="Vote outcome" />
               </SelectTrigger>
               <SelectContent>

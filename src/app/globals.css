@@ -30,10 +30,10 @@
   --secondary: var(--purple-soft);
   --secondary-foreground: var(--purple-deep);
   --muted: var(--purple-soft);
-  --muted-foreground: rgb(50 19 79 / 64%);
+  --muted-foreground: rgb(50 19 79 / 72%);
   --accent: var(--purple-soft);
   --accent-foreground: var(--purple-deep);
-  --destructive: #e84855;
+  --destructive: #cc2936;
   --border: var(--line);
   --input: var(--line);
   --ring: var(--purple);

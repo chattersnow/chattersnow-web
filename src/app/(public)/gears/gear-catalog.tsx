@@ -110,7 +110,10 @@ export function GearCatalog({
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+          <label
+            htmlFor="gear-type-filter"
+            className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+          >
             Type
           </label>
           <Select
@@ -119,7 +122,7 @@ export function GearCatalog({
               setTypeFilter(value === FILTER_ALL ? null : value)
             }
           >
-            <SelectTrigger className="h-8">
+            <SelectTrigger id="gear-type-filter" className="h-8">
               <SelectValue placeholder="Type" />
             </SelectTrigger>
             <SelectContent>
@@ -134,7 +137,10 @@ export function GearCatalog({
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+          <label
+            htmlFor="gear-condition-filter"
+            className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+          >
             Condition
           </label>
           <Select
@@ -143,7 +149,7 @@ export function GearCatalog({
               setConditionFilter(value === FILTER_ALL ? null : value)
             }
           >
-            <SelectTrigger className="h-8">
+            <SelectTrigger id="gear-condition-filter" className="h-8">
               <SelectValue placeholder="Condition">
                 {(value: string) =>
                   value === FILTER_ALL
@@ -164,7 +170,10 @@ export function GearCatalog({
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+          <label
+            htmlFor="gear-gender-filter"
+            className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+          >
             Gender
           </label>
           <Select
@@ -173,7 +182,7 @@ export function GearCatalog({
               setGenderFilter(value === FILTER_ALL ? null : value)
             }
           >
-            <SelectTrigger className="h-8">
+            <SelectTrigger id="gear-gender-filter" className="h-8">
               <SelectValue placeholder="Gender">
                 {(value: string) =>
                   value === FILTER_ALL

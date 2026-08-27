@@ -128,12 +128,12 @@ export function NewResolutionDialog({
         <form onSubmit={handleSubmit}>
           <FieldGroup>
             <Field>
-              <FieldLabel>Meeting</FieldLabel>
+              <FieldLabel htmlFor="resolution-meeting">Meeting</FieldLabel>
               <Select
                 value={meetingId}
                 onValueChange={(value) => setMeetingId(value ?? NO_MEETING)}
               >
-                <SelectTrigger>
+                <SelectTrigger id="resolution-meeting">
                   <SelectValue placeholder="No meeting" />
                 </SelectTrigger>
                 <SelectContent>

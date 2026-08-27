@@ -207,7 +207,10 @@ export function UsersTable({
                               setPendingRole(value ?? "")
                             }
                           >
-                            <SelectTrigger className="h-8 w-40">
+                            <SelectTrigger
+                              className="h-8 w-40"
+                              aria-label="Add role"
+                            >
                               <SelectValue placeholder="Role" />
                             </SelectTrigger>
                             <SelectContent>

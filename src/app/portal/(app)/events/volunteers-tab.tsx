@@ -667,7 +667,11 @@ export function VolunteersTab({
                           handleShiftReassign(volunteer.id, value)
                         }
                       >
-                        <SelectTrigger className="w-full" size="sm">
+                        <SelectTrigger
+                          className="w-full"
+                          size="sm"
+                          aria-label={`Shift for ${volunteer.person?.name ?? "volunteer"}`}
+                        >
                           <SelectValue placeholder="No shift">
                             {(value: string) =>
                               shifts.find((s) => s.id === value)?.label ??
