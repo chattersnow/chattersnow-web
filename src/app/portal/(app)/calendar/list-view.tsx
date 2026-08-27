@@ -14,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CalendarItemDetailsSheet } from "./calendar-item-details-sheet";
-import { BulkVisibilityToolbar } from "./bulk-visibility-toolbar";
+import { BulkActionsToolbar } from "./bulk-actions-toolbar";
 import {
   CalendarStatusBadge,
   CalendarVisibilityBadge,
@@ -115,7 +115,7 @@ export function ListView({
     <Card className="mt-6">
       <CardContent className="px-0">
         {canManage && visibleSelectedIds.length > 0 && (
-          <BulkVisibilityToolbar
+          <BulkActionsToolbar
             selectedIds={visibleSelectedIds}
             onDone={() => setSelectedIds(new Set())}
           />
