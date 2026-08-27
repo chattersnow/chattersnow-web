@@ -109,7 +109,7 @@ export function NewEventDialog({ programs = [] }: { programs?: Program[] }) {
       <DialogTrigger
         render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
       >
-        New event
+        New Event
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>

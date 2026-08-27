@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { FiltersSheet } from "@/components/filters-sheet";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -76,6 +77,11 @@ export function MessagesTable({
     });
   }, [messages, search, statusFilter]);
 
+  const activeFilterCount = [
+    search.trim() !== "",
+    statusFilter !== null,
+  ].filter(Boolean).length;
+
   if (messages.length === 0) {
     return (
       <Card>
@@ -88,52 +94,57 @@ export function MessagesTable({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-end gap-3">
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="messages-search"
-            className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-          >
-            Search
-          </label>
-          <Input
-            id="messages-search"
-            placeholder="Search name or email..."
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            className="h-8 w-full sm:w-64"
-          />
-        </div>
+      <div className="flex justify-end">
+        <FiltersSheet activeCount={activeFilterCount}>
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="messages-search"
+              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+            >
+              Search
+            </label>
+            <Input
+              id="messages-search"
+              placeholder="Search name or email..."
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </div>
 
-        <div className="flex flex-col gap-1">
-          <span className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
-            Status
-          </span>
-          <Select
-            value={statusFilter ?? FILTER_ALL}
-            onValueChange={(value) =>
-              setStatusFilter(
-                value === FILTER_ALL ? null : (value as ContactMessageStatus),
-              )
-            }
-          >
-            <SelectTrigger className="h-8" aria-label="Filter by status">
-              <SelectValue placeholder="Status">
-                {(value: string) =>
-                  value === FILTER_ALL ? "All statuses" : value
-                }
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={FILTER_ALL}>All statuses</SelectItem>
-              {CONTACT_MESSAGE_STATUSES.map((status) => (
-                <SelectItem key={status} value={status} className="capitalize">
-                  {status}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+          <div className="flex flex-col gap-1">
+            <span className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+              Status
+            </span>
+            <Select
+              value={statusFilter ?? FILTER_ALL}
+              onValueChange={(value) =>
+                setStatusFilter(
+                  value === FILTER_ALL ? null : (value as ContactMessageStatus),
+                )
+              }
+            >
+              <SelectTrigger aria-label="Filter by status">
+                <SelectValue placeholder="Status">
+                  {(value: string) =>
+                    value === FILTER_ALL ? "All statuses" : value
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={FILTER_ALL}>All statuses</SelectItem>
+                {CONTACT_MESSAGE_STATUSES.map((status) => (
+                  <SelectItem
+                    key={status}
+                    value={status}
+                    className="capitalize"
+                  >
+                    {status}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </FiltersSheet>
       </div>
 
       <Card>

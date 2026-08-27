@@ -67,7 +67,7 @@ export function EventRevenueTab({
           events={eventOptions}
           defaultEventId={eventId}
           lockEventSelection
-          triggerLabel="Add revenue"
+          triggerLabel="New Revenue"
           onSaved={refresh}
         />
       )}

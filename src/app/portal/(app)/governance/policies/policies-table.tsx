@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { FiltersSheet } from "@/components/filters-sheet";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -19,7 +20,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EditPolicyModal } from "./edit-policy-modal";
-import { NewPolicyDialog } from "./new-policy-dialog";
 import type { Policy } from "./policies-actions";
 
 const FILTER_ALL = "all";
@@ -63,27 +63,27 @@ export function PoliciesTable({
     });
   }, [policies, search, categoryFilter]);
 
+  const activeFilterCount = [
+    search.trim() !== "",
+    categoryFilter !== FILTER_ALL,
+  ].filter(Boolean).length;
+
   if (policies.length === 0) {
     return (
-      <div className="space-y-4">
-        {canManage && <NewPolicyDialog />}
-        <Card>
-          <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No policies recorded yet.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardContent className="px-0">
+          <p className="app-muted px-4 py-6 text-sm">
+            No policies recorded yet.
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        {canManage && <NewPolicyDialog />}
-
-        <div className="flex flex-wrap items-end gap-3">
+      <div className="flex justify-end">
+        <FiltersSheet activeCount={activeFilterCount}>
           <div className="flex flex-col gap-1">
             <label
               htmlFor="policies-search"
@@ -96,7 +96,6 @@ export function PoliciesTable({
               placeholder="Search policy name..."
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              className="h-8 w-full sm:w-64"
             />
           </div>
 
@@ -108,7 +107,7 @@ export function PoliciesTable({
               value={categoryFilter}
               onValueChange={(value) => setCategoryFilter(value ?? FILTER_ALL)}
             >
-              <SelectTrigger className="h-8" aria-label="Filter by category">
+              <SelectTrigger aria-label="Filter by category">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
@@ -121,7 +120,7 @@ export function PoliciesTable({
               </SelectContent>
             </Select>
           </div>
-        </div>
+        </FiltersSheet>
       </div>
 
       <Card>

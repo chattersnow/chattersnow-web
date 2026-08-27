@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { RevenueTable } from "./revenue-table";
+import { NewRevenueDialog } from "./new-revenue-dialog";
 import {
   REVENUE_COLUMNS,
   type EventOption,
@@ -20,16 +21,21 @@ export default async function RevenuePage() {
       .order("name", { ascending: true }),
   ]);
 
+  const eventOptions = (events ?? []) as EventOption[];
+
   return (
     <>
-      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-        Revenue
-      </h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          Revenue
+        </h1>
+        <NewRevenueDialog events={eventOptions} />
+      </div>
 
       <div className="mt-6 space-y-4">
         <RevenueTable
           revenue={(revenue ?? []) as unknown as RevenueRow[]}
-          events={(events ?? []) as EventOption[]}
+          events={eventOptions}
         />
       </div>
     </>

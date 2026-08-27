@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { FiltersSheet } from "@/components/filters-sheet";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -21,7 +22,6 @@ import {
 } from "@/components/ui/table";
 import { EditRevenueModal } from "./edit-revenue-modal";
 import { RevenueSourceBadge } from "./revenue-badges";
-import { NewRevenueDialog } from "./new-revenue-dialog";
 import {
   REVENUE_SOURCES,
   formatAmount,
@@ -94,27 +94,28 @@ export function RevenueTable({
     });
   }, [revenue, search, eventFilter, sourceFilter, sortKey, sortDirection]);
 
+  const activeFilterCount = [
+    search.trim() !== "",
+    eventFilter !== null,
+    sourceFilter !== null,
+  ].filter(Boolean).length;
+
   if (revenue.length === 0) {
     return (
-      <div className="space-y-4">
-        <NewRevenueDialog events={events} />
-        <Card>
-          <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No revenue recorded yet.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardContent className="px-0">
+          <p className="app-muted px-4 py-6 text-sm">
+            No revenue recorded yet.
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <NewRevenueDialog events={events} />
-
-        <div className="flex flex-wrap items-end gap-3">
+      <div className="flex justify-end">
+        <FiltersSheet activeCount={activeFilterCount}>
           <div className="flex flex-col gap-1">
             <label
               htmlFor="revenue-search"
@@ -127,7 +128,6 @@ export function RevenueTable({
               placeholder="Search source..."
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              className="h-8 w-full sm:w-64"
             />
           </div>
 
@@ -141,7 +141,7 @@ export function RevenueTable({
                 setEventFilter(value === FILTER_ALL ? null : value)
               }
             >
-              <SelectTrigger className="h-8" aria-label="Filter by event">
+              <SelectTrigger aria-label="Filter by event">
                 <SelectValue placeholder="Event">
                   {(value: string) => {
                     if (value === FILTER_ALL) return "All revenue";
@@ -177,7 +177,7 @@ export function RevenueTable({
                 )
               }
             >
-              <SelectTrigger className="h-8" aria-label="Filter by source">
+              <SelectTrigger aria-label="Filter by source">
                 <SelectValue placeholder="Source">
                   {(value: string) =>
                     value === FILTER_ALL
@@ -196,7 +196,7 @@ export function RevenueTable({
               </SelectContent>
             </Select>
           </div>
-        </div>
+        </FiltersSheet>
       </div>
 
       <Card>

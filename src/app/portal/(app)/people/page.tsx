@@ -24,6 +24,7 @@ import {
   quoteOrValue,
   totalPagesFor,
 } from "@/lib/pagination";
+import { FiltersSheet } from "@/components/filters-sheet";
 import { EditPersonModal } from "./edit-person-modal";
 import { NewPersonDialog } from "./new-person-dialog";
 import {
@@ -94,69 +95,76 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
 
   const totalPages = totalPagesFor(count);
   const hasActiveFilters = !!search || roleFilter !== "all";
+  const activeFilterCount = [!!search, roleFilter !== "all"].filter(
+    Boolean,
+  ).length;
 
   return (
     <>
-      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-        People
-      </h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          People
+        </h1>
+        {canManage && <NewPersonDialog />}
+      </div>
 
       <div className="mt-6 space-y-4">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          {canManage && <NewPersonDialog />}
+        <div className="flex justify-end">
+          <FiltersSheet activeCount={activeFilterCount}>
+            <form method="get" className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor="search"
+                  className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+                >
+                  Search
+                </label>
+                <Input
+                  id="search"
+                  name="search"
+                  placeholder="Search name, email, phone..."
+                  defaultValue={search}
+                />
+              </div>
 
-          <form method="get" className="flex flex-wrap items-end gap-3">
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor="search"
-                className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-              >
-                Search
-              </label>
-              <Input
-                id="search"
-                name="search"
-                placeholder="Search name, email, phone..."
-                defaultValue={search}
-                className="h-8 w-full sm:w-64"
-              />
-            </div>
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor="role"
+                  className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+                >
+                  Role
+                </label>
+                <select
+                  id="role"
+                  name="role"
+                  defaultValue={roleFilter}
+                  className={selectClassName}
+                >
+                  <option value="all">All people</option>
+                  {ROLE_OPTIONS.map((option) => (
+                    <option key={option.key} value={option.key}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor="role"
-                className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-              >
-                Role
-              </label>
-              <select
-                id="role"
-                name="role"
-                defaultValue={roleFilter}
-                className={selectClassName}
-              >
-                <option value="all">All people</option>
-                {ROLE_OPTIONS.map((option) => (
-                  <option key={option.key} value={option.key}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <Button type="submit" variant="outline">
-              Filter
-            </Button>
-            {hasActiveFilters && (
-              <Button
-                variant="ghost"
-                nativeButton={false}
-                render={<Link href="/portal/people" />}
-              >
-                Clear
-              </Button>
-            )}
-          </form>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="submit" variant="outline">
+                  Filter
+                </Button>
+                {hasActiveFilters && (
+                  <Button
+                    variant="ghost"
+                    nativeButton={false}
+                    render={<Link href="/portal/people" />}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+            </form>
+          </FiltersSheet>
         </div>
 
         <Card>

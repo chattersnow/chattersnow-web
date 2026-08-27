@@ -4,6 +4,7 @@ import {
   hasPermission,
 } from "@/lib/auth/permissions";
 import { DisclosuresTable } from "./disclosures-table";
+import { NewDisclosureDialog } from "./new-disclosure-dialog";
 import type { Disclosure } from "./disclosures-actions";
 import type { PersonListItem } from "../../people/actions";
 
@@ -26,16 +27,21 @@ export default async function ConflictOfInterestPage() {
       .order("name", { ascending: true }),
   ]);
 
+  const peopleOptions = (people ?? []) as PersonListItem[];
+
   return (
     <>
-      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-        Conflict of Interest
-      </h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          Conflict of Interest
+        </h1>
+        {canManage && <NewDisclosureDialog people={peopleOptions} />}
+      </div>
 
       <div className="mt-6">
         <DisclosuresTable
           disclosures={(disclosures ?? []) as unknown as Disclosure[]}
-          people={(people ?? []) as PersonListItem[]}
+          people={peopleOptions}
           canManage={canManage}
         />
       </div>

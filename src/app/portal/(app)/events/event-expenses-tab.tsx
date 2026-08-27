@@ -75,7 +75,7 @@ export function EventExpensesTab({
           events={eventOptions}
           defaultEventId={eventId}
           lockEventSelection
-          triggerLabel="Add expense"
+          triggerLabel="New Expense"
           onSaved={refresh}
         />
       )}
