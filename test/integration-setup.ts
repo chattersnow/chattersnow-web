@@ -181,3 +181,27 @@ export async function getInventoryItemStatus(itemId: string) {
   if (error) throw error;
   return data.status as string;
 }
+
+// A bare `people` row, for tests that just need a valid FK target (a
+// resolution's mover/seconder, a distribution's recipient, a reimbursement's
+// payee) without the donor-specific fields `createAvailableGearItems` sets up
+// via `create_donation_with_items`.
+export async function createPerson(overrides: { name?: string } = {}) {
+  const { data, error } = await adminClient
+    .from("people")
+    .insert({
+      name: overrides.name ?? `Integration Test Person ${crypto.randomUUID()}`,
+      source_type: "individual",
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+
+  const id = data.id as string;
+  return {
+    id,
+    async cleanup() {
+      await adminClient.from("people").delete().eq("id", id);
+    },
+  };
+}
