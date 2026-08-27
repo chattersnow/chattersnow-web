@@ -1,8 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
-  getCurrentUserPermissions,
-  hasPermission,
-} from "@/lib/auth/permissions";
+  formatAmount,
+  getApprovalContext,
+  getApprovalNextStepMessage,
+  isSelfApprovalEligible,
+  type ApprovalContext,
+} from "@/lib/finance/approval-workflow";
+
+export { formatAmount, isSelfApprovalEligible };
 
 export type ReimbursementStatus =
   "submitted" | "approved" | "rejected" | "paid";
@@ -51,56 +56,20 @@ export const CURRENCIES = [{ value: "USD", label: "USD" }];
 export const REIMBURSEMENT_COLUMNS =
   "id, person_id, event_id, description, amount, currency, receipt_url, notes, people(name, email), events(name), status, submitted_by, approved_by, approved_at, rejected_at, rejection_reason, paid_by, paid_at, created_at";
 
-/** Below the threshold, `finance` may self-approve its own submission. */
-export function isSelfApprovalEligible(
-  amount: number | string,
-  threshold: number,
-): boolean {
-  const numericAmount = typeof amount === "string" ? Number(amount) : amount;
-  if (!Number.isFinite(numericAmount) || !Number.isFinite(threshold))
-    return false;
-  return numericAmount < threshold;
-}
-
-export type ReimbursementApprovalContext = {
-  userId: string | null;
-  canApprove: boolean;
-  canSelfApprove: boolean;
-  canMarkPaid: boolean;
-  threshold: number | null;
-};
+export type ReimbursementApprovalContext = ApprovalContext;
 
 export async function getReimbursementApprovalContext(
   supabase: SupabaseClient,
 ): Promise<ReimbursementApprovalContext> {
-  const [{ data: userData }, permissions, { data: settingRow }] =
-    await Promise.all([
-      supabase.auth.getUser(),
-      getCurrentUserPermissions(supabase),
-      supabase
-        .from("app_settings")
-        .select("value")
-        .eq("key", "finance.reimbursement_approval_threshold")
-        .maybeSingle(),
-    ]);
-
-  const thresholdValue = settingRow?.value;
-  const threshold =
-    typeof thresholdValue === "number"
-      ? thresholdValue
-      : Number(thresholdValue ?? NaN);
-
-  return {
-    userId: userData.user?.id ?? null,
-    canApprove: hasPermission(permissions, "reimbursement_approvals", "manage"),
-    canSelfApprove: hasPermission(
-      permissions,
-      "reimbursement_self_approval",
-      "manage",
-    ),
-    canMarkPaid: hasPermission(permissions, "reimbursements", "manage"),
-    threshold: Number.isFinite(threshold) ? threshold : null,
-  };
+  return getApprovalContext(
+    supabase,
+    "finance.reimbursement_approval_threshold",
+    {
+      approve: "reimbursement_approvals",
+      selfApprove: "reimbursement_self_approval",
+      markPaid: "reimbursements",
+    },
+  );
 }
 
 /**
@@ -115,61 +84,11 @@ export function getReimbursementNextStepMessage(
   >,
   approvalContext: ReimbursementApprovalContext,
 ): string {
-  const isSubmitter =
-    approvalContext.userId !== null &&
-    approvalContext.userId === reimbursement.submitted_by;
-  const thresholdLabel =
-    approvalContext.threshold !== null
-      ? formatAmount(approvalContext.threshold, reimbursement.currency)
-      : null;
-
-  if (reimbursement.status === "submitted") {
-    if (isSubmitter) {
-      if (approvalContext.canSelfApprove) {
-        if (
-          thresholdLabel !== null &&
-          isSelfApprovalEligible(
-            reimbursement.amount,
-            approvalContext.threshold!,
-          )
-        ) {
-          return `Below the ${thresholdLabel} approval threshold — you can self-approve this.`;
-        }
-        return thresholdLabel !== null
-          ? `At or above the ${thresholdLabel} approval threshold — needs approval from an admin or board member.`
-          : "Needs approval from an admin or board member.";
-      }
-      return "Awaiting approval from an admin or board member.";
-    }
-    return approvalContext.canApprove
-      ? "Awaiting approval — you can approve or reject this."
-      : "Awaiting approval from an admin or board member.";
-  }
-
-  if (reimbursement.status === "approved") {
-    return approvalContext.canMarkPaid
-      ? "Approved — mark it as paid once payment has been sent."
-      : "Approved — awaiting payment.";
-  }
-
-  if (reimbursement.status === "rejected") {
-    return "Rejected. See the reason below.";
-  }
-
-  return "Paid. This reimbursement is complete.";
-}
-
-export function formatAmount(amount: number | string, currency: string) {
-  const numeric = typeof amount === "string" ? Number(amount) : amount;
-  if (!Number.isFinite(numeric)) return "—";
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency,
-    }).format(numeric);
-  } catch {
-    return `${currency} ${numeric.toFixed(2)}`;
-  }
+  return getApprovalNextStepMessage(
+    reimbursement,
+    approvalContext,
+    "reimbursement",
+  );
 }
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
