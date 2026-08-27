@@ -34,6 +34,11 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 function formStateFor(person: PersonRow): PersonFormState {
   return {
@@ -138,32 +143,46 @@ export function EditPersonModal({ person }: { person: PersonRow }) {
   return (
     <>
       <Sheet open={open} onOpenChange={handleOpenChange}>
-        <SheetTrigger
-          render={
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label="View person"
-            />
-          }
-        >
-          <Eye />
-        </SheetTrigger>
+        <Tooltip>
+          <SheetTrigger
+            render={
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="View person"
+                  />
+                }
+              />
+            }
+          >
+            <Eye />
+          </SheetTrigger>
+          <TooltipContent>View person</TooltipContent>
+        </Tooltip>
         <SheetContent side="right" showCloseButton={false}>
           <SheetHeader className="flex-row items-start gap-2 space-y-0">
-            <SheetClose
-              render={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Close"
-                />
-              }
-            >
-              <ArrowLeft />
-            </SheetClose>
+            <Tooltip>
+              <SheetClose
+                render={
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Close"
+                      />
+                    }
+                  />
+                }
+              >
+                <ArrowLeft />
+              </SheetClose>
+              <TooltipContent>Close</TooltipContent>
+            </Tooltip>
             <div className="flex flex-1 flex-col gap-0.5">
               <SheetTitle>
                 {mode === "edit" ? "Edit person" : "Person"}
@@ -175,15 +194,22 @@ export function EditPersonModal({ person }: { person: PersonRow }) {
               </SheetDescription>
             </div>
             {mode === "view" ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Edit person"
-                onClick={() => setMode("edit")}
-              >
-                <Pencil />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Edit person"
+                      onClick={() => setMode("edit")}
+                    />
+                  }
+                >
+                  <Pencil />
+                </TooltipTrigger>
+                <TooltipContent>Edit person</TooltipContent>
+              </Tooltip>
             ) : (
               <Button
                 type="button"

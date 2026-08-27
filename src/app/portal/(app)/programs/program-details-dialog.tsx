@@ -44,6 +44,11 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Table,
   TableBody,
   TableCell,
@@ -173,32 +178,46 @@ export function ProgramDetailsDialog({
   return (
     <>
       <Sheet open={open} onOpenChange={handleOpenChange}>
-        <SheetTrigger
-          render={
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={`View ${program.name}`}
-            />
-          }
-        >
-          <Eye />
-        </SheetTrigger>
+        <Tooltip>
+          <SheetTrigger
+            render={
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`View ${program.name}`}
+                  />
+                }
+              />
+            }
+          >
+            <Eye />
+          </SheetTrigger>
+          <TooltipContent>{`View ${program.name}`}</TooltipContent>
+        </Tooltip>
         <SheetContent side="right" showCloseButton={false} size="xl">
           <SheetHeader className="flex-row items-start gap-2 space-y-0">
-            <SheetClose
-              render={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Close"
-                />
-              }
-            >
-              <ArrowLeft />
-            </SheetClose>
+            <Tooltip>
+              <SheetClose
+                render={
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Close"
+                      />
+                    }
+                  />
+                }
+              >
+                <ArrowLeft />
+              </SheetClose>
+              <TooltipContent>Close</TooltipContent>
+            </Tooltip>
             <div className="flex flex-1 flex-col gap-0.5">
               <SheetTitle>{program.name}</SheetTitle>
               <SheetDescription>
@@ -209,15 +228,22 @@ export function ProgramDetailsDialog({
             </div>
             {canManage &&
               (mode === "view" ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Edit program"
-                  onClick={() => setMode("edit")}
-                >
-                  <Pencil />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Edit program"
+                        onClick={() => setMode("edit")}
+                      />
+                    }
+                  >
+                    <Pencil />
+                  </TooltipTrigger>
+                  <TooltipContent>Edit program</TooltipContent>
+                </Tooltip>
               ) : (
                 <Button
                   type="button"

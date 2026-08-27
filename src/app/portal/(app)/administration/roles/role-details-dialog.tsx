@@ -32,6 +32,11 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export type RoleRow = { id: string; name: string; description: string | null };
 
@@ -134,32 +139,46 @@ export function RoleDetailsDialog({ role }: { role: RoleRow }) {
   return (
     <>
       <Sheet open={open} onOpenChange={handleOpenChange}>
-        <SheetTrigger
-          render={
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={`View ${role.name}`}
-            />
-          }
-        >
-          <Eye />
-        </SheetTrigger>
+        <Tooltip>
+          <SheetTrigger
+            render={
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`View ${role.name}`}
+                  />
+                }
+              />
+            }
+          >
+            <Eye />
+          </SheetTrigger>
+          <TooltipContent>{`View ${role.name}`}</TooltipContent>
+        </Tooltip>
         <SheetContent side="right" showCloseButton={false}>
           <SheetHeader className="flex-row items-start gap-2 space-y-0">
-            <SheetClose
-              render={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Close"
-                />
-              }
-            >
-              <ArrowLeft />
-            </SheetClose>
+            <Tooltip>
+              <SheetClose
+                render={
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Close"
+                      />
+                    }
+                  />
+                }
+              >
+                <ArrowLeft />
+              </SheetClose>
+              <TooltipContent>Close</TooltipContent>
+            </Tooltip>
             <div className="flex flex-1 flex-col gap-0.5">
               <SheetTitle>{mode === "edit" ? "Edit role" : "Role"}</SheetTitle>
               <SheetDescription>
@@ -169,15 +188,22 @@ export function RoleDetailsDialog({ role }: { role: RoleRow }) {
               </SheetDescription>
             </div>
             {mode === "view" ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Edit role"
-                onClick={() => setMode("edit")}
-              >
-                <Pencil />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Edit role"
+                      onClick={() => setMode("edit")}
+                    />
+                  }
+                >
+                  <Pencil />
+                </TooltipTrigger>
+                <TooltipContent>Edit role</TooltipContent>
+              </Tooltip>
             ) : (
               <Button
                 type="button"

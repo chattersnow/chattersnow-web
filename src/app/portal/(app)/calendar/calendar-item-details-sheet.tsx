@@ -80,6 +80,11 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ContentOpportunityTab } from "./content-opportunity-tab";
 import { RelatedItemsTab } from "./related-items-tab";
 import type { ActiveContentBriefTemplate } from "./content-brief-template-shared";
@@ -348,28 +353,40 @@ export function CalendarItemDetailsSheet({
   return (
     <>
       <Sheet open={open} onOpenChange={handleOpenChange}>
-        <SheetTrigger
-          render={
-            trigger === "chip" ? (
-              <button
-                type="button"
-                className={cn(
-                  "w-full truncate rounded px-1 py-0.5 text-left text-[0.7rem] hover:bg-muted",
-                  needsDecision(item) && "bg-destructive/10 text-destructive",
-                )}
-              />
-            ) : (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label={`View ${item.title}`}
-              />
-            )
-          }
-        >
-          {trigger === "chip" ? item.title : <Eye />}
-        </SheetTrigger>
+        <Tooltip>
+          <SheetTrigger
+            render={
+              trigger === "chip" ? (
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      className={cn(
+                        "w-full truncate rounded px-1 py-0.5 text-left text-[0.7rem] hover:bg-muted",
+                        needsDecision(item) &&
+                          "bg-destructive/10 text-destructive",
+                      )}
+                    />
+                  }
+                />
+              ) : (
+                <TooltipTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`View ${item.title}`}
+                    />
+                  }
+                />
+              )
+            }
+          >
+            {trigger === "chip" ? item.title : <Eye />}
+          </SheetTrigger>
+          <TooltipContent>{`View ${item.title}`}</TooltipContent>
+        </Tooltip>
         <SheetContent
           side="right"
           showCloseButton={false}
@@ -377,18 +394,25 @@ export function CalendarItemDetailsSheet({
           className="flex min-h-0 flex-1 flex-col"
         >
           <SheetHeader className="flex-row items-start gap-2 space-y-0">
-            <SheetClose
-              render={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Close"
-                />
-              }
-            >
-              <ArrowLeft />
-            </SheetClose>
+            <Tooltip>
+              <SheetClose
+                render={
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Close"
+                      />
+                    }
+                  />
+                }
+              >
+                <ArrowLeft />
+              </SheetClose>
+              <TooltipContent>Close</TooltipContent>
+            </Tooltip>
             <div className="flex flex-1 flex-col gap-0.5">
               <SheetTitle>{item.title}</SheetTitle>
               <SheetDescription>
@@ -400,46 +424,74 @@ export function CalendarItemDetailsSheet({
             {canManage && mode === "view" && (
               <div className="flex items-center gap-1">
                 {hasStructuredRecurrence(item) && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Generate next year"
-                    disabled={isPending}
-                    onClick={handleGenerateNextYear}
-                  >
-                    <CalendarPlus />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Generate next year"
+                          disabled={isPending}
+                          onClick={handleGenerateNextYear}
+                        />
+                      }
+                    >
+                      <CalendarPlus />
+                    </TooltipTrigger>
+                    <TooltipContent>Generate next year</TooltipContent>
+                  </Tooltip>
                 )}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Duplicate"
-                  disabled={isPending}
-                  onClick={handleDuplicate}
-                >
-                  <Copy />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Edit calendar item"
-                  onClick={() => setMode("edit")}
-                >
-                  <Pencil />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Delete calendar item"
-                  disabled={isPending}
-                  onClick={() => setConfirmDelete(true)}
-                >
-                  <Trash2 />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Duplicate"
+                        disabled={isPending}
+                        onClick={handleDuplicate}
+                      />
+                    }
+                  >
+                    <Copy />
+                  </TooltipTrigger>
+                  <TooltipContent>Duplicate</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Edit calendar item"
+                        onClick={() => setMode("edit")}
+                      />
+                    }
+                  >
+                    <Pencil />
+                  </TooltipTrigger>
+                  <TooltipContent>Edit calendar item</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Delete calendar item"
+                        disabled={isPending}
+                        onClick={() => setConfirmDelete(true)}
+                      />
+                    }
+                  >
+                    <Trash2 />
+                  </TooltipTrigger>
+                  <TooltipContent>Delete calendar item</TooltipContent>
+                </Tooltip>
               </div>
             )}
             {canManage && mode === "edit" && (

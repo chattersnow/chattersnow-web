@@ -30,6 +30,11 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -71,32 +76,46 @@ export function MessageDetailsSheet({
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger
-        render={
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label={`View message from ${message.name}`}
-          />
-        }
-      >
-        <Eye />
-      </SheetTrigger>
+      <Tooltip>
+        <SheetTrigger
+          render={
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`View message from ${message.name}`}
+                />
+              }
+            />
+          }
+        >
+          <Eye />
+        </SheetTrigger>
+        <TooltipContent>{`View message from ${message.name}`}</TooltipContent>
+      </Tooltip>
       <SheetContent side="right" showCloseButton={false}>
         <SheetHeader className="flex-row items-start gap-2 space-y-0">
-          <SheetClose
-            render={
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Close"
-              />
-            }
-          >
-            <ArrowLeft />
-          </SheetClose>
+          <Tooltip>
+            <SheetClose
+              render={
+                <TooltipTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Close"
+                    />
+                  }
+                />
+              }
+            >
+              <ArrowLeft />
+            </SheetClose>
+            <TooltipContent>Close</TooltipContent>
+          </Tooltip>
           <div className="flex flex-1 flex-col gap-0.5">
             <SheetTitle>Contact message</SheetTitle>
             <SheetDescription>
