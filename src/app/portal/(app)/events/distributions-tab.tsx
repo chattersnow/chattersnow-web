@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
   listEventDistributionsAction,
   type EventDistributionRow,
 } from "../home/distribution-actions";
 import { RecordDistributionModal } from "../home/record-distribution-modal";
+import { useTabData } from "@/hooks/use-tab-data";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Table,
@@ -30,27 +30,15 @@ export function DistributionsTab({
   active: boolean;
   mode: "view" | "edit";
 }) {
-  const [distributions, setDistributions] = useState<
-    EventDistributionRow[] | null
-  >(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  function refresh() {
-    listEventDistributionsAction(eventId).then((result) => {
-      if ("error" in result) {
-        setLoadError(result.error);
-      } else {
-        setLoadError(null);
-        setDistributions(result.data);
-      }
-    });
-  }
-
-  useEffect(() => {
-    if (!active) return;
-    refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, eventId]);
+  const {
+    data: distributions,
+    loadError,
+    refresh,
+  } = useTabData<EventDistributionRow[]>(
+    () => listEventDistributionsAction(eventId),
+    active,
+    [eventId],
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -68,7 +56,7 @@ export function DistributionsTab({
         />
       )}
 
-      {distributions === null ? (
+      {distributions === undefined ? (
         <p className="app-muted text-sm">Loading distributions...</p>
       ) : distributions.length === 0 ? (
         <p className="app-muted text-sm">

@@ -14,6 +14,7 @@ import {
   upsertEventImpactAction,
   type EventImpactNote,
 } from "./impact-actions";
+import { useTabData } from "@/hooks/use-tab-data";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -180,39 +181,37 @@ export function ImpactTab({
   ref?: Ref<ImpactTabHandle>;
 }) {
   const router = useRouter();
-  const [note, setNote] = useState<EventImpactNote | null>(null);
-  const [loaded, setLoaded] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const {
+    data: note,
+    loadError,
+    refresh,
+  } = useTabData<EventImpactNote | null>(
+    () => getEventImpactAction(eventId),
+    active,
+    [eventId],
+  );
   const [form, setForm] = useState<FormState>(emptyForm());
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [prevNote, setPrevNote] = useState(note);
+
+  if (note !== prevNote) {
+    setPrevNote(note);
+    if (note !== undefined) setForm(formStateFor(note));
+  }
 
   useEffect(() => {
     onPendingChange?.(isPending);
   }, [isPending, onPendingChange]);
 
   useEffect(() => {
-    if (!active) return;
-    getEventImpactAction(eventId).then((result) => {
-      if ("error" in result) {
-        setLoadError(result.error);
-      } else {
-        setLoadError(null);
-        setNote(result.data);
-        setForm(formStateFor(result.data));
-      }
-      setLoaded(true);
-    });
-  }, [active, eventId]);
-
-  useEffect(() => {
-    onDirtyChange?.(isDirty(form, note));
+    onDirtyChange?.(isDirty(form, note ?? null));
   }, [form, note, onDirtyChange]);
 
   useImperativeHandle(ref, () => ({
     discard: () => {
       setError(null);
-      setForm(formStateFor(note));
+      setForm(formStateFor(note ?? null));
     },
   }));
 
@@ -235,17 +234,13 @@ export function ImpactTab({
         setError(result.error);
         return;
       }
-      const refreshed = await getEventImpactAction(eventId);
-      if (!("error" in refreshed)) {
-        setNote(refreshed.data);
-        setForm(formStateFor(refreshed.data));
-      }
+      refresh();
       router.refresh();
       onSaved();
     });
   }
 
-  if (!loaded) {
+  if (note === undefined) {
     return <p className="app-muted text-sm">Loading impact notes...</p>;
   }
 

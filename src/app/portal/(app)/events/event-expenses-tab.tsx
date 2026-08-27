@@ -15,6 +15,7 @@ import {
   type ExpenseApprovalContext,
   type ExpenseRow,
 } from "../finance/expenses/expenses-shared";
+import { useTabData } from "@/hooks/use-tab-data";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Table,
@@ -44,29 +45,21 @@ export function EventExpensesTab({
   active: boolean;
   mode: "view" | "edit";
 }) {
-  const [expenses, setExpenses] = useState<ExpenseRow[] | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const {
+    data: expenses,
+    loadError,
+    refresh,
+  } = useTabData<ExpenseRow[]>(() => listEventExpensesAction(eventId), active, [
+    eventId,
+  ]);
   const [approvalContext, setApprovalContext] =
     useState<ExpenseApprovalContext>(EMPTY_APPROVAL_CONTEXT);
 
   const eventOptions: EventOption[] = [{ id: eventId, name: eventName }];
 
-  function refresh() {
-    listEventExpensesAction(eventId).then((result) => {
-      if ("error" in result) {
-        setLoadError(result.error);
-      } else {
-        setLoadError(null);
-        setExpenses(result.data);
-      }
-    });
-  }
-
   useEffect(() => {
     if (!active) return;
-    refresh();
     getExpenseApprovalContextAction().then(setApprovalContext);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, eventId]);
 
   return (
@@ -87,7 +80,7 @@ export function EventExpensesTab({
         />
       )}
 
-      {expenses === null ? (
+      {expenses === undefined ? (
         <p className="app-muted text-sm">Loading expenses...</p>
       ) : expenses.length === 0 ? (
         <p className="app-muted text-sm">
