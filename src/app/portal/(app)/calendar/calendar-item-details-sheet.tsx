@@ -2,9 +2,17 @@
 
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CalendarPlus, Copy, Eye, Pencil } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarPlus,
+  Copy,
+  Eye,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import {
   archiveCalendarItemAction,
+  deleteCalendarItemAction,
   duplicateCalendarItemAction,
   recordSensitiveTopicReviewAction,
   restoreCalendarItemAction,
@@ -177,6 +185,7 @@ export function CalendarItemDetailsSheet({
   const [discardTarget, setDiscardTarget] = useState<"toggle" | "close" | null>(
     null,
   );
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const formId = `edit-calendar-item-form-${item.id}`;
   const dirty = isDirty(form, item);
 
@@ -322,6 +331,20 @@ export function CalendarItemDetailsSheet({
     });
   }
 
+  function handleDelete() {
+    startTransition(async () => {
+      const result = await deleteCalendarItemAction(item.id);
+      if ("error" in result) {
+        setConfirmDelete(false);
+        setError(result.error);
+        return;
+      }
+      setConfirmDelete(false);
+      setOpen(false);
+      router.refresh();
+    });
+  }
+
   return (
     <>
       <Sheet open={open} onOpenChange={handleOpenChange}>
@@ -347,7 +370,12 @@ export function CalendarItemDetailsSheet({
         >
           {trigger === "chip" ? item.title : <Eye />}
         </SheetTrigger>
-        <SheetContent side="right" showCloseButton={false} size="xl">
+        <SheetContent
+          side="right"
+          showCloseButton={false}
+          size="xl"
+          className="flex min-h-0 flex-1 flex-col"
+        >
           <SheetHeader className="flex-row items-start gap-2 space-y-0">
             <SheetClose
               render={
@@ -402,6 +430,16 @@ export function CalendarItemDetailsSheet({
                 >
                   <Pencil />
                 </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Delete calendar item"
+                  disabled={isPending}
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  <Trash2 />
+                </Button>
               </div>
             )}
             {canManage && mode === "edit" && (
@@ -427,16 +465,19 @@ export function CalendarItemDetailsSheet({
             </Alert>
           )}
 
-          <Tabs defaultValue="details">
+          <Tabs defaultValue="details" className="flex min-h-0 flex-1 flex-col">
             <TabsList variant="line">
               <TabsTrigger value="details">Details</TabsTrigger>
               <TabsTrigger value="brief">Content brief</TabsTrigger>
               <TabsTrigger value="related">Related</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="details" className="mt-3">
+            <TabsContent
+              value="details"
+              className="mt-3 flex min-h-0 flex-1 flex-col"
+            >
               {mode === "view" ? (
-                <div className="flex-1 overflow-y-auto px-4 pb-4">
+                <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
                   <FieldGroup>
                     <ReadOnlyField label="Item type" htmlFor="item-type">
                       {labelFor(ITEM_TYPES, item.item_type)}
@@ -587,7 +628,7 @@ export function CalendarItemDetailsSheet({
                   onSubmit={handleSubmit}
                   className="flex min-h-0 flex-1 flex-col"
                 >
-                  <div className="flex-1 overflow-y-auto px-4 pb-4">
+                  <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
                     <FieldGroup>
                       <Field>
                         <FieldLabel htmlFor="edit-title">Title</FieldLabel>
@@ -1065,8 +1106,11 @@ export function CalendarItemDetailsSheet({
               )}
             </TabsContent>
 
-            <TabsContent value="brief" className="mt-3">
-              <div className="flex-1 overflow-y-auto px-4 pb-4">
+            <TabsContent
+              value="brief"
+              className="mt-3 flex min-h-0 flex-1 flex-col"
+            >
+              <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
                 <ContentOpportunityTab
                   calendarItemId={item.id}
                   itemStartsAt={item.starts_at}
@@ -1081,8 +1125,11 @@ export function CalendarItemDetailsSheet({
               </div>
             </TabsContent>
 
-            <TabsContent value="related" className="mt-3">
-              <div className="flex-1 overflow-y-auto px-4 pb-4">
+            <TabsContent
+              value="related"
+              className="mt-3 flex min-h-0 flex-1 flex-col"
+            >
+              <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
                 <RelatedItemsTab
                   itemId={item.id}
                   canManage={canManage}
@@ -1112,6 +1159,35 @@ export function CalendarItemDetailsSheet({
             </AlertDialogCancel>
             <AlertDialogAction onClick={confirmDiscard}>
               Discard changes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={confirmDelete}
+        onOpenChange={(next) => !next && setConfirmDelete(false)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this calendar item?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes &ldquo;{item.title}&rdquo; along with its
+              content brief and related-item links. This can&apos;t be undone —
+              to keep it out of active views without losing it, archive it
+              instead.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConfirmDelete(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={isPending}
+              onClick={handleDelete}
+            >
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

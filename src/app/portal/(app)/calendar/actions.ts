@@ -311,6 +311,106 @@ export async function updateCalendarItemsVisibilityAction(
   return { success: true };
 }
 
+export async function updateCalendarItemsStatusAction(
+  ids: string[],
+  calendarStatus: string,
+): Promise<CalendarActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update calendar item status.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(
+    supabase,
+    "content_calendar",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  if (ids.length === 0) {
+    return { error: "Select at least one calendar item to update." };
+  }
+
+  const { error } = await supabase
+    .from("calendar_items")
+    .update({ calendar_status: calendarStatus })
+    .in("id", ids);
+
+  if (error) {
+    return {
+      error:
+        "Could not update status for the selected items. Please try again.",
+    };
+  }
+
+  revalidatePath("/portal/calendar");
+  return { success: true };
+}
+
+export async function updateCalendarItemsDecisionAction(
+  ids: string[],
+  decision: string,
+): Promise<CalendarActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update calendar item decisions.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(
+    supabase,
+    "content_calendar",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  if (ids.length === 0) {
+    return { error: "Select at least one calendar item to update." };
+  }
+
+  const { error } = await supabase
+    .from("calendar_items")
+    .update({ decision })
+    .in("id", ids);
+
+  if (error) {
+    return {
+      error:
+        "Could not update the decision for the selected items. Please try again.",
+    };
+  }
+
+  revalidatePath("/portal/calendar");
+  return { success: true };
+}
+
+export async function deleteCalendarItemAction(
+  id: string,
+): Promise<CalendarActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to delete a calendar item.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(
+    supabase,
+    "content_calendar",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  const { error } = await supabase.from("calendar_items").delete().eq("id", id);
+
+  if (error) {
+    return { error: "Could not delete the calendar item. Please try again." };
+  }
+
+  revalidatePath("/portal/calendar");
+  return { success: true };
+}
+
 export async function duplicateCalendarItemAction(
   id: string,
 ): Promise<CalendarActionResult> {
