@@ -9,6 +9,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
 import {
   CONDITIONS,
   GENDERS,
@@ -26,10 +27,14 @@ export function GearDetailSheet({
   item,
   open,
   onOpenChange,
+  inCart,
+  onToggleCart,
 }: {
   item: GearItem | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  inCart: boolean;
+  onToggleCart: () => void;
 }) {
   const genderLabel = item ? labelFor(GENDERS, item.gender) : null;
   const imageUrl = item ? resolveImageUrl(item.photo_url) : null;
@@ -71,6 +76,15 @@ export function GearDetailSheet({
                   </div>
                 )}
               </div>
+
+              <Button
+                type="button"
+                variant={inCart ? "secondary" : "outline"}
+                className="mt-4 w-full sm:w-fit"
+                onClick={onToggleCart}
+              >
+                {inCart ? "Remove from cart" : "Add to cart"}
+              </Button>
 
               <h3 className="brand-display mt-6 text-lg font-semibold tracking-[-0.02em]">
                 Request this item
