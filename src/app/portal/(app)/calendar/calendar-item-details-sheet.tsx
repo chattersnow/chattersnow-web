@@ -548,49 +548,32 @@ export function CalendarItemDetailsSheet({
                       {item.summary || "—"}
                     </ReadOnlyField>
                     <Field orientation="responsive">
-                      <Field>
-                        <FieldLabel htmlFor="item-priority">
-                          Priority
-                        </FieldLabel>
-                        <div id="item-priority">
-                          <PriorityTierBadge tier={item.priority_tier} />
-                        </div>
-                      </Field>
-                      <Field>
-                        <FieldLabel htmlFor="item-status">
-                          Calendar status
-                        </FieldLabel>
-                        <div id="item-status">
-                          <CalendarStatusBadge status={item.calendar_status} />
-                        </div>
-                      </Field>
+                      <ReadOnlyField label="Priority" htmlFor="item-priority">
+                        <PriorityTierBadge tier={item.priority_tier} />
+                      </ReadOnlyField>
+                      <ReadOnlyField
+                        label="Calendar status"
+                        htmlFor="item-status"
+                      >
+                        <CalendarStatusBadge status={item.calendar_status} />
+                      </ReadOnlyField>
                     </Field>
                     <Field orientation="responsive">
-                      <Field>
-                        <FieldLabel htmlFor="item-visibility">
-                          Visibility
-                        </FieldLabel>
-                        <div id="item-visibility">
-                          <CalendarVisibilityBadge
-                            visibility={item.visibility}
-                          />
-                        </div>
-                      </Field>
+                      <ReadOnlyField
+                        label="Visibility"
+                        htmlFor="item-visibility"
+                      >
+                        <CalendarVisibilityBadge visibility={item.visibility} />
+                      </ReadOnlyField>
                       <ReadOnlyField label="Owner" htmlFor="item-owner">
                         {ownerEmail(owners, item.owner_id)}
                       </ReadOnlyField>
                     </Field>
-                    <Field>
-                      <FieldLabel htmlFor="item-categories">
-                        Categories
-                      </FieldLabel>
-                      <div id="item-categories">
-                        <CategoryBadges categories={item.categories} />
-                      </div>
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor="item-decision">Decision</FieldLabel>
-                      <div id="item-decision" className="flex flex-col gap-1">
+                    <ReadOnlyField label="Categories" htmlFor="item-categories">
+                      <CategoryBadges categories={item.categories} />
+                    </ReadOnlyField>
+                    <ReadOnlyField label="Decision" htmlFor="item-decision">
+                      <div className="flex flex-col gap-1">
                         <DecisionBadge decision={item.decision} />
                         {item.decision_note && (
                           <p className="app-muted text-sm">
@@ -598,15 +581,12 @@ export function CalendarItemDetailsSheet({
                           </p>
                         )}
                       </div>
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor="item-sensitive-topic">
-                        Sensitive topic
-                      </FieldLabel>
-                      <div
-                        id="item-sensitive-topic"
-                        className="flex flex-col gap-2"
-                      >
+                    </ReadOnlyField>
+                    <ReadOnlyField
+                      label="Sensitive topic"
+                      htmlFor="item-sensitive-topic"
+                    >
+                      <div className="flex flex-col gap-2">
                         {item.is_sensitive_topic ? (
                           <>
                             <div className="flex flex-wrap items-center gap-2">
@@ -650,7 +630,7 @@ export function CalendarItemDetailsSheet({
                           <span className="app-muted text-sm">Not flagged</span>
                         )}
                       </div>
-                    </Field>
+                    </ReadOnlyField>
                     <Field orientation="responsive">
                       <ReadOnlyField label="Source" htmlFor="item-source">
                         {item.source || "—"}

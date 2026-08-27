@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { Field, FieldLabel } from "@/components/ui/field";
 
 export function ReadOnlyField({
   label,
@@ -11,11 +10,13 @@ export function ReadOnlyField({
   children: ReactNode;
 }) {
   return (
-    <Field>
-      <FieldLabel htmlFor={htmlFor}>{label}</FieldLabel>
-      <p id={htmlFor} className="text-sm text-foreground">
+    <div data-slot="read-only-field" className="flex flex-col gap-1">
+      <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+        {label}
+      </span>
+      <div id={htmlFor} className="text-sm break-words text-foreground">
         {children}
-      </p>
-    </Field>
+      </div>
+    </div>
   );
 }
