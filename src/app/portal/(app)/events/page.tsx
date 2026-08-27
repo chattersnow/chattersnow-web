@@ -7,6 +7,7 @@ import {
 } from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Pagination } from "@/components/ui/pagination";
 import {
   Table,
   TableBody,
@@ -15,6 +16,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  buildHref,
+  pageRange,
+  parsePage,
+  totalPagesFor,
+} from "@/lib/pagination";
 import { NewEventDialog } from "./new-event-dialog";
 import { EventDetailsDialog } from "./event-details-dialog";
 import { StatusBadge, VisibilityBadge } from "./event-badges";
@@ -97,12 +104,14 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
     ? (whenRaw as (typeof WHEN_VALUES)[number])
     : "all";
 
+  const page = parsePage(raw("page"));
   const nowIso = new Date().toISOString();
 
   let query = supabase
     .from("events")
     .select(
       "id, name, location, starts_at, ends_at, timezone, visibility, status, attendance_count, attendance_notes, description, event_type, venue, capacity, registration_enabled, registration_deadline, budget_amount, event_lead_id, report_status, report_summary, lessons_learned, feedback_notes, content_notes, report_submitted_at, report_submitted_by, program_id, flier_url",
+      { count: "exact" },
     )
     .order(sort, { ascending: dir === "asc" })
     .order("id", { ascending: true });
@@ -119,7 +128,8 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
     query = query.lt("starts_at", nowIso);
   }
 
-  const { data: events, error } = await query;
+  const { offset, to } = pageRange(page);
+  const { data: events, error, count } = await query.range(offset, to);
   const programsResult = await listProgramsAction();
   const programs = "data" in programsResult ? programsResult.data : [];
 
@@ -131,11 +141,21 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
 
   function sortHref(column: SortColumn) {
     const nextDir = sort === column && dir === "asc" ? "desc" : "asc";
-    const sp = new URLSearchParams(filterParams);
-    sp.set("sort", column);
-    sp.set("dir", nextDir);
-    return `/portal/events?${sp.toString()}`;
+    return buildHref("/portal/events", filterParams, {
+      sort: column,
+      dir: nextDir,
+    });
   }
+
+  function pageHref(nextPage: number) {
+    return buildHref("/portal/events", filterParams, {
+      sort,
+      dir,
+      page: nextPage,
+    });
+  }
+
+  const totalPages = totalPagesFor(count);
 
   function SortIcon({ column }: { column: SortColumn }) {
     if (sort !== column) {
@@ -324,6 +344,10 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
           )}
         </CardContent>
       </Card>
+
+      {events && events.length > 0 && (
+        <Pagination page={page} totalPages={totalPages} hrefFor={pageHref} />
+      )}
     </>
   );
 }

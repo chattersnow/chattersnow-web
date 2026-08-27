@@ -27,6 +27,29 @@ export type InventoryItem = {
   } | null;
 };
 
+export type SortColumn =
+  | "description"
+  | "type"
+  | "size"
+  | "gender"
+  | "condition"
+  | "face_value"
+  | "status";
+
+export const SORT_COLUMNS: { key: SortColumn; label: string }[] = [
+  { key: "description", label: "Description" },
+  { key: "type", label: "Type" },
+  { key: "size", label: "Size" },
+  { key: "gender", label: "Gender" },
+  { key: "condition", label: "Condition" },
+  { key: "face_value", label: "Face value" },
+  { key: "status", label: "Status" },
+];
+
+export function isSortColumn(value: string | undefined): value is SortColumn {
+  return !!value && SORT_COLUMNS.some((column) => column.key === value);
+}
+
 export const STATUSES = [
   { value: "available", label: "Available" },
   { value: "reserved", label: "Reserved" },

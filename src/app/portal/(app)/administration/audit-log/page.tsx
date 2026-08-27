@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Pagination } from "@/components/ui/pagination";
 import {
   Table,
   TableBody,
@@ -11,14 +12,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  buildHref,
+  pageRange,
+  parsePage,
+  totalPagesFor,
+} from "@/lib/pagination";
 import { listUsersAction } from "../users/actions";
 import { ActionBadge, TABLE_LABELS } from "./audit-log-badges";
 import {
   AuditLogDetailSheet,
   type AuditLogRow,
 } from "./audit-log-detail-sheet";
-
-const PAGE_SIZE = 50;
 
 const TABLE_VALUES = [
   "donations",
@@ -88,8 +93,7 @@ export default async function AuditLogPage({
   const fromDate = raw("from") || "";
   const toDate = raw("to") || "";
 
-  const pageRaw = Number.parseInt(raw("page") ?? "1", 10);
-  const page = Number.isFinite(pageRaw) && pageRaw > 0 ? pageRaw : 1;
+  const page = parsePage(raw("page"));
 
   const usersResult = await listUsersAction();
   const users = "data" in usersResult ? usersResult.data : [];
@@ -114,12 +118,8 @@ export default async function AuditLogPage({
   if (fromDate) query = query.gte("occurred_at", `${fromDate}T00:00:00.000Z`);
   if (toDate) query = query.lte("occurred_at", `${toDate}T23:59:59.999Z`);
 
-  const offset = (page - 1) * PAGE_SIZE;
-  const {
-    data: entries,
-    error,
-    count,
-  } = await query.range(offset, offset + PAGE_SIZE - 1);
+  const { offset, to } = pageRange(page);
+  const { data: entries, error, count } = await query.range(offset, to);
 
   const filterParams = new URLSearchParams();
   if (tableFilter !== "all") filterParams.set("table", tableFilter);
@@ -130,18 +130,18 @@ export default async function AuditLogPage({
 
   function sortHref(column: SortColumn) {
     const nextDir = sort === column && dir === "desc" ? "asc" : "desc";
-    const sp = new URLSearchParams(filterParams);
-    sp.set("sort", column);
-    sp.set("dir", nextDir);
-    return `/portal/administration/audit-log?${sp.toString()}`;
+    return buildHref("/portal/administration/audit-log", filterParams, {
+      sort: column,
+      dir: nextDir,
+    });
   }
 
   function pageHref(nextPage: number) {
-    const sp = new URLSearchParams(filterParams);
-    sp.set("sort", sort);
-    sp.set("dir", dir);
-    sp.set("page", String(nextPage));
-    return `/portal/administration/audit-log?${sp.toString()}`;
+    return buildHref("/portal/administration/audit-log", filterParams, {
+      sort,
+      dir,
+      page: nextPage,
+    });
   }
 
   function SortIcon({ column }: { column: SortColumn }) {
@@ -162,7 +162,7 @@ export default async function AuditLogPage({
     !!fromDate ||
     !!toDate;
 
-  const totalPages = count ? Math.max(1, Math.ceil(count / PAGE_SIZE)) : 1;
+  const totalPages = totalPagesFor(count);
 
   const selectClassName =
     "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
@@ -365,41 +365,7 @@ export default async function AuditLogPage({
       </Card>
 
       {entries && entries.length > 0 && (
-        <div className="mt-3 flex items-center justify-between">
-          <p className="app-muted text-sm">
-            Page {page} of {totalPages}
-          </p>
-          <div className="flex gap-2">
-            {page > 1 ? (
-              <Button
-                variant="outline"
-                size="sm"
-                nativeButton={false}
-                render={<Link href={pageHref(page - 1)} />}
-              >
-                Previous
-              </Button>
-            ) : (
-              <Button variant="outline" size="sm" disabled>
-                Previous
-              </Button>
-            )}
-            {page < totalPages ? (
-              <Button
-                variant="outline"
-                size="sm"
-                nativeButton={false}
-                render={<Link href={pageHref(page + 1)} />}
-              >
-                Next
-              </Button>
-            ) : (
-              <Button variant="outline" size="sm" disabled>
-                Next
-              </Button>
-            )}
-          </div>
-        </div>
+        <Pagination page={page} totalPages={totalPages} hrefFor={pageHref} />
       )}
     </>
   );

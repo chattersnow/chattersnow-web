@@ -1,26 +1,83 @@
+import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/ui/pagination";
+import {
+  buildHref,
+  escapeLikePattern,
+  pageRange,
+  parsePage,
+  totalPagesFor,
+} from "@/lib/pagination";
 import { InventoryTable } from "./inventory-table";
-import type { InventoryItem } from "./inventory-shared";
+import {
+  CONDITIONS,
+  STATUSES,
+  isSortColumn,
+  type InventoryItem,
+  type SortColumn,
+} from "./inventory-shared";
 
-export default async function InventoryPage() {
+type InventoryPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+const selectClassName =
+  "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
+
+export default async function InventoryPage({
+  searchParams,
+}: InventoryPageProps) {
   const supabase = await createSupabaseServerClient();
 
-  const { data: items } = await supabase
+  const params = await searchParams;
+  const raw = (key: string) => {
+    const value = params[key];
+    return Array.isArray(value) ? value[0] : value;
+  };
+
+  const search = raw("search") || "";
+  const typeFilter = raw("type") || "all";
+  const conditionFilter = raw("condition") || "all";
+  const statusFilter = raw("status") || "all";
+
+  const sortParam = raw("sort");
+  const sort: SortColumn = isSortColumn(sortParam) ? sortParam : "description";
+  const dir: "asc" | "desc" = raw("dir") === "desc" ? "desc" : "asc";
+
+  const page = parsePage(raw("page"));
+
+  const { data: typeRows } = await supabase
+    .from("inventory_items")
+    .select("type")
+    .order("type", { ascending: true });
+  const typeOptions = Array.from(
+    new Set((typeRows ?? []).map((row) => row.type)),
+  );
+
+  let query = supabase
     .from("inventory_items")
     .select(
       "id, description, type, size, gender, condition, face_value, status, photo_url, notes",
+      { count: "exact" },
     )
-    .order("created_at", { ascending: false });
+    .order(sort, { ascending: dir === "asc" })
+    .order("id", { ascending: true });
+
+  if (search) {
+    query = query.ilike("description", `%${escapeLikePattern(search)}%`);
+  }
+  if (typeFilter !== "all") query = query.eq("type", typeFilter);
+  if (conditionFilter !== "all") query = query.eq("condition", conditionFilter);
+  if (statusFilter !== "all") query = query.eq("status", statusFilter);
+
+  const { offset, to } = pageRange(page);
+  const { data: items, count } = await query.range(offset, to);
 
   const reservedIds = (items ?? [])
     .filter((item) => item.status === "reserved")
     .map((item) => item.id);
-
-  type HoldMovement = {
-    inventory_item_id: string;
-    occurred_at: string;
-    recipient: NonNullable<InventoryItem["holdRequester"]> | null;
-  };
 
   const holdByItemId = new Map<
     string,
@@ -36,6 +93,12 @@ export default async function InventoryPage() {
       .in("inventory_item_id", reservedIds)
       .order("occurred_at", { ascending: false });
 
+    type HoldMovement = {
+      inventory_item_id: string;
+      occurred_at: string;
+      recipient: NonNullable<InventoryItem["holdRequester"]> | null;
+    };
+
     for (const movement of (movements ?? []) as unknown as HoldMovement[]) {
       if (movement.recipient && !holdByItemId.has(movement.inventory_item_id)) {
         holdByItemId.set(movement.inventory_item_id, movement.recipient);
@@ -48,15 +111,148 @@ export default async function InventoryPage() {
     holdRequester: holdByItemId.get(item.id) ?? null,
   }));
 
+  const filterParams = new URLSearchParams();
+  if (search) filterParams.set("search", search);
+  if (typeFilter !== "all") filterParams.set("type", typeFilter);
+  if (conditionFilter !== "all") filterParams.set("condition", conditionFilter);
+  if (statusFilter !== "all") filterParams.set("status", statusFilter);
+
+  function pageHref(nextPage: number) {
+    return buildHref("/portal/inventory/items", filterParams, {
+      sort,
+      dir,
+      page: nextPage,
+    });
+  }
+
+  const totalPages = totalPagesFor(count);
+  const hasActiveFilters =
+    !!search ||
+    typeFilter !== "all" ||
+    conditionFilter !== "all" ||
+    statusFilter !== "all";
+
   return (
     <>
       <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
         Inventory
       </h1>
 
-      <div className="mt-6">
-        <InventoryTable items={itemsWithHolds} />
+      <div className="mt-6 flex flex-wrap items-end justify-end gap-3">
+        <form method="get" className="flex flex-wrap items-end gap-3">
+          <input type="hidden" name="sort" value={sort} />
+          <input type="hidden" name="dir" value={dir} />
+
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="search"
+              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+            >
+              Search
+            </label>
+            <Input
+              id="search"
+              name="search"
+              placeholder="Search description..."
+              defaultValue={search}
+              className="h-8 w-full sm:w-64"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="type"
+              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+            >
+              Type
+            </label>
+            <select
+              id="type"
+              name="type"
+              defaultValue={typeFilter}
+              className={selectClassName}
+            >
+              <option value="all">All types</option>
+              {typeOptions.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="condition"
+              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+            >
+              Condition
+            </label>
+            <select
+              id="condition"
+              name="condition"
+              defaultValue={conditionFilter}
+              className={selectClassName}
+            >
+              <option value="all">All conditions</option>
+              {CONDITIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="status"
+              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+            >
+              Status
+            </label>
+            <select
+              id="status"
+              name="status"
+              defaultValue={statusFilter}
+              className={selectClassName}
+            >
+              <option value="all">All statuses</option>
+              {STATUSES.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <Button type="submit" variant="outline">
+            Filter
+          </Button>
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              nativeButton={false}
+              render={<Link href="/portal/inventory/items" />}
+            >
+              Clear
+            </Button>
+          )}
+        </form>
       </div>
+
+      <div className="mt-6">
+        <InventoryTable
+          items={itemsWithHolds}
+          sort={sort}
+          dir={dir}
+          filterQueryString={filterParams.toString()}
+          hasActiveFilters={hasActiveFilters}
+        />
+      </div>
+
+      {itemsWithHolds.length > 0 && (
+        <Pagination page={page} totalPages={totalPages} hrefFor={pageHref} />
+      )}
     </>
   );
 }
