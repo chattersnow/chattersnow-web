@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useResetOnModeChange } from "@/hooks/use-tab-data";
 
 const MEETING_TYPES = [
   { value: "board", label: "Board" },
@@ -247,12 +248,8 @@ export function OverviewTab({
   mode: "view" | "edit";
 }) {
   const [editing, setEditing] = useState(false);
-  const [prevMode, setPrevMode] = useState(mode);
 
-  if (mode !== prevMode) {
-    setPrevMode(mode);
-    if (mode === "view") setEditing(false);
-  }
+  useResetOnModeChange(mode, () => setEditing(false));
 
   if (editing) {
     return (

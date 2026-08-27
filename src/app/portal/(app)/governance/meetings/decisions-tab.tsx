@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState, useTransition } from "react";
+import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import {
@@ -22,6 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -151,32 +152,20 @@ export function DecisionsTab({
   mode: "view" | "edit";
 }) {
   const router = useRouter();
-  const [decisions, setDecisions] = useState<Decision[] | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const {
+    data: decisions,
+    loadError,
+    refresh: refreshDecisions,
+  } = useTabData<Decision[]>(() => listDecisionsAction(meetingId), active, [
+    meetingId,
+  ]);
   const [showAdd, setShowAdd] = useState(false);
   const [isDeleting, startDeleteTransition] = useTransition();
-  const [prevMode, setPrevMode] = useState(mode);
 
-  if (mode !== prevMode) {
-    setPrevMode(mode);
-    if (mode === "view") setShowAdd(false);
-  }
-
-  function load() {
-    listDecisionsAction(meetingId).then((result) => {
-      if ("error" in result) setLoadError(result.error);
-      else setDecisions(result.data);
-    });
-  }
-
-  useEffect(() => {
-    if (!active) return;
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, meetingId]);
+  useResetOnModeChange(mode, () => setShowAdd(false));
 
   function refresh() {
-    load();
+    refreshDecisions();
     router.refresh();
   }
 
@@ -195,7 +184,7 @@ export function DecisionsTab({
         </Alert>
       )}
 
-      {decisions === null ? (
+      {decisions === undefined ? (
         <p className="app-muted text-sm">Loading decisions...</p>
       ) : decisions.length === 0 && !showAdd ? (
         <p className="app-muted text-sm">No decisions recorded yet.</p>
