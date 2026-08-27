@@ -1,12 +1,25 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
+export function resolveDestination(
+  next: string | null,
+  origin: string,
+): string {
+  if (!next) return "/portal/home";
+  try {
+    const url = new URL(next, origin);
+    return url.origin === origin ? url.pathname + url.search : "/portal/home";
+  } catch {
+    return "/portal/home";
+  }
+}
+
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
   const next = requestUrl.searchParams.get("next");
   const providerError = requestUrl.searchParams.get("error");
-  const destination = next?.startsWith("/") ? next : "/portal/home";
+  const destination = resolveDestination(next, requestUrl.origin);
   const loginWithError = new URL(
     "/portal/login?error=oauth_failed",
     requestUrl.origin,
