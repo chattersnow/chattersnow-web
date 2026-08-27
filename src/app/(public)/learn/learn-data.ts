@@ -36,6 +36,12 @@ export const LEARN_CATEGORIES: LearnCategory[] = [
       "Unwritten rules for sharing lifts, lines, and trails with everyone else out there.",
   },
   {
+    slug: "park-riding-safety",
+    title: "Park Riding & Safety",
+    description:
+      "Terrain park etiquette, feature progression, and staying safe out there — with links to the official rules and resources.",
+  },
+  {
     slug: "gear-care",
     title: "Gear Care",
     description:
