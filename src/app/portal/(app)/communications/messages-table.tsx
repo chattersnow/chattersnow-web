@@ -49,6 +49,19 @@ export function MessagesTable({
     initialStatusFilter,
   );
 
+  // `initialStatusFilter` comes from the URL's `status` search param. Next.js
+  // client transitions between pages that render this same component tree
+  // position (e.g. following a notifications-menu link while already on this
+  // page) re-render with a new prop instead of remounting, so `useState`'s
+  // initializer alone won't pick up the change. Adjust state during render
+  // (React's documented pattern for this) rather than in an effect, so the
+  // stale filter never has a chance to flash on screen.
+  const [prevStatusFilter, setPrevStatusFilter] = useState(initialStatusFilter);
+  if (initialStatusFilter !== prevStatusFilter) {
+    setPrevStatusFilter(initialStatusFilter);
+    setStatusFilter(initialStatusFilter);
+  }
+
   const visibleMessages = useMemo(() => {
     const query = search.trim().toLowerCase();
     return messages.filter((message) => {
