@@ -1,13 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ImagePlaceholder } from "@/components/image-placeholder";
+import { SiteImage } from "@/components/site-image";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSiteImageUrls } from "@/lib/site-images";
 
 export const metadata: Metadata = {
   title: "Become a Partner | Chatter Snow",
 };
 
-export default function PartnerPage() {
+export default async function PartnerPage() {
+  const supabase = await createSupabaseServerClient();
+  const siteImages = await getSiteImageUrls(supabase);
+
   return (
     <div>
       <section>
@@ -31,7 +36,11 @@ export default function PartnerPage() {
         >
           Start a conversation
         </Button>
-        <ImagePlaceholder className="mt-8 aspect-video max-w-md rounded-2xl" />
+        <SiteImage
+          url={siteImages.get_involved_partner_photo ?? null}
+          alt="Chatter Snow partnership"
+          className="mt-8 aspect-video max-w-md rounded-2xl"
+        />
       </section>
     </div>
   );

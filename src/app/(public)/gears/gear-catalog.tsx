@@ -28,7 +28,13 @@ export type GearItem = {
 
 const FILTER_ALL = "all";
 
-export function GearCatalog({ items }: { items: GearItem[] }) {
+export function GearCatalog({
+  items,
+  placeholderUrl,
+}: {
+  items: GearItem[];
+  placeholderUrl: string | null;
+}) {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [conditionFilter, setConditionFilter] = useState<string | null>(null);
@@ -204,6 +210,7 @@ export function GearCatalog({ items }: { items: GearItem[] }) {
               }}
               inCart={cartIds.has(item.id)}
               onToggleCart={() => toggleCartItem(item.id)}
+              placeholderUrl={placeholderUrl}
             />
           ))}
         </div>
@@ -215,6 +222,7 @@ export function GearCatalog({ items }: { items: GearItem[] }) {
         onOpenChange={setDetailOpen}
         inCart={selectedItem ? cartIds.has(selectedItem.id) : false}
         onToggleCart={() => selectedItem && toggleCartItem(selectedItem.id)}
+        placeholderUrl={placeholderUrl}
       />
 
       <GearCartTray count={cartItems.length} onOpen={openCart} />
@@ -228,6 +236,7 @@ export function GearCatalog({ items }: { items: GearItem[] }) {
           setCartSuccess(true);
           setCartIds(new Set());
         }}
+        placeholderUrl={placeholderUrl}
       />
     </div>
   );

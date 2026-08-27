@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { UserRound } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ImagePlaceholder } from "@/components/image-placeholder";
+import { SiteImage } from "@/components/site-image";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSiteImageUrls } from "@/lib/site-images";
 
 export const metadata: Metadata = {
   title: "Meet the Team | Chatter Snow",
@@ -13,7 +15,10 @@ const TEAM = [
   { name: "Rickie Cruz" },
 ];
 
-export default function TeamPage() {
+export default async function TeamPage() {
+  const supabase = await createSupabaseServerClient();
+  const siteImages = await getSiteImageUrls(supabase);
+
   return (
     <div>
       <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
@@ -27,7 +32,11 @@ export default function TeamPage() {
         {TEAM.map((member) => (
           <Card key={member.name}>
             <CardHeader>
-              <ImagePlaceholder icon={UserRound} />
+              <SiteImage
+                url={siteImages.about_team_photo ?? null}
+                alt={member.name}
+                icon={UserRound}
+              />
             </CardHeader>
             <CardContent>
               <CardTitle>{member.name}</CardTitle>

@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { HandHeart } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ImagePlaceholder } from "@/components/image-placeholder";
+import { SiteImage } from "@/components/site-image";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSiteImageUrls } from "@/lib/site-images";
 import { VolunteerApplicationSheet } from "../volunteer-application-sheet";
 
 export const metadata: Metadata = {
@@ -11,10 +12,13 @@ export const metadata: Metadata = {
 
 export default async function VolunteerPage() {
   const supabase = await createSupabaseServerClient();
-  const { data: roleTypes } = await supabase
-    .from("public_volunteer_role_types")
-    .select("id, name, description")
-    .order("name", { ascending: true });
+  const [{ data: roleTypes }, siteImages] = await Promise.all([
+    supabase
+      .from("public_volunteer_role_types")
+      .select("id, name, description")
+      .order("name", { ascending: true }),
+    getSiteImageUrls(supabase),
+  ]);
 
   return (
     <div>
@@ -31,7 +35,11 @@ export default async function VolunteerPage() {
             {roleTypes.map((roleType) => (
               <Card key={roleType.id}>
                 <CardHeader>
-                  <ImagePlaceholder icon={HandHeart} />
+                  <SiteImage
+                    url={siteImages.get_involved_volunteer_photo ?? null}
+                    alt={roleType.name}
+                    icon={HandHeart}
+                  />
                 </CardHeader>
                 <CardContent>
                   <CardTitle>{roleType.name}</CardTitle>

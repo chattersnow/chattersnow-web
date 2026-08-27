@@ -8,9 +8,16 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import { ImagePlaceholder } from "@/components/image-placeholder";
+import { SiteImage } from "@/components/site-image";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSiteImageUrls } from "@/lib/site-images";
 import { nowMs } from "@/lib/time";
+
+const CAROUSEL_SLOTS = [
+  "home_carousel_1",
+  "home_carousel_2",
+  "home_carousel_3",
+] as const;
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -20,10 +27,13 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 export default async function Home() {
   const supabase = await createSupabaseServerClient();
 
-  const { data: events } = await supabase
-    .from("public_events")
-    .select("id, name, location, starts_at, ends_at")
-    .order("starts_at", { ascending: true });
+  const [{ data: events }, siteImages] = await Promise.all([
+    supabase
+      .from("public_events")
+      .select("id, name, location, starts_at, ends_at")
+      .order("starts_at", { ascending: true }),
+    getSiteImageUrls(supabase),
+  ]);
 
   const now = nowMs();
   const nextEvent = (events ?? []).find(
@@ -80,9 +90,13 @@ export default async function Home() {
         <div className="mt-12">
           <Carousel className="mx-auto max-w-md" opts={{ loop: true }}>
             <CarouselContent>
-              {[0, 1, 2].map((slide) => (
-                <CarouselItem key={slide}>
-                  <ImagePlaceholder className="aspect-video rounded-2xl" />
+              {CAROUSEL_SLOTS.map((slot) => (
+                <CarouselItem key={slot}>
+                  <SiteImage
+                    url={siteImages[slot] ?? null}
+                    alt="Chatter Snow community"
+                    className="aspect-video rounded-2xl"
+                  />
                 </CarouselItem>
               ))}
             </CarouselContent>

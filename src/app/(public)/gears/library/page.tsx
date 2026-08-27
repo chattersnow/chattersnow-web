@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
+import { getSiteImageUrls } from "@/lib/site-images";
 import { GearCatalog } from "../gear-catalog";
 
 export const metadata: Metadata = {
@@ -11,12 +12,15 @@ export const metadata: Metadata = {
 export default async function GearLibraryPage() {
   const supabase = await createSupabaseServerClient();
 
-  const { data: items } = await supabase
-    .from("public_gear_catalog")
-    .select(
-      "id, description, size, type, gender, condition, photo_url, created_at",
-    )
-    .order("created_at", { ascending: false });
+  const [{ data: items }, siteImages] = await Promise.all([
+    supabase
+      .from("public_gear_catalog")
+      .select(
+        "id, description, size, type, gender, condition, photo_url, created_at",
+      )
+      .order("created_at", { ascending: false }),
+    getSiteImageUrls(supabase),
+  ]);
 
   return (
     <div>
@@ -37,7 +41,10 @@ export default async function GearLibraryPage() {
       </Button>
 
       <div className="mt-10">
-        <GearCatalog items={items ?? []} />
+        <GearCatalog
+          items={items ?? []}
+          placeholderUrl={siteImages.gear_placeholder ?? null}
+        />
       </div>
     </div>
   );

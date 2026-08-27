@@ -1,13 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ImagePlaceholder } from "@/components/image-placeholder";
+import { SiteImage } from "@/components/site-image";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSiteImageUrls } from "@/lib/site-images";
 
 export const metadata: Metadata = {
   title: "Attend | Chatter Snow",
 };
 
-export default function AttendPage() {
+export default async function AttendPage() {
+  const supabase = await createSupabaseServerClient();
+  const siteImages = await getSiteImageUrls(supabase);
+
   return (
     <div className="space-y-12">
       <section>
@@ -36,7 +41,11 @@ export default function AttendPage() {
             See upcoming events
           </Button>
         </div>
-        <ImagePlaceholder className="aspect-[4/5] rounded-2xl sm:w-56 sm:shrink-0" />
+        <SiteImage
+          url={siteImages.get_involved_attend_photo ?? null}
+          alt="Chatter Snow community members"
+          className="aspect-[4/5] rounded-2xl sm:w-56 sm:shrink-0"
+        />
       </section>
 
       <section id="community">
