@@ -11,6 +11,7 @@
     "test:integration": "bun --env-file=.env.local test integration.test.ts",
     "test:e2e": "playwright test",
     "test:e2e:pr": "playwright test --project=chromium --project=mobile-chromium",
+    "test:a11y": "bun run e2e/a11y-scan.ts",
     "verify": "bun run e2e/verify-page.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
