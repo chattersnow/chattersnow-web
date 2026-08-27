@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState, useTransition } from "react";
+import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
 import {
@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -611,54 +612,40 @@ export function GiveawayTab({
   mode: "view" | "edit";
 }) {
   const router = useRouter();
-  const [giveaway, setGiveaway] = useState<Giveaway | null | undefined>(
-    undefined,
+  const {
+    data: giveaway,
+    loadError,
+    refresh: refreshGiveaway,
+  } = useTabData<Giveaway | null>(
+    () => getEventGiveawayAction(eventId),
+    active,
+    [eventId],
   );
-  const [people, setPeople] = useState<PersonListItem[]>([]);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const { data: peopleData, refresh: refreshPeople } = useTabData<
+    PersonListItem[]
+  >(() => listPeopleAction(), active, [eventId]);
+  const [newPeople, setNewPeople] = useState<PersonListItem[]>([]);
+  const people = [...(peopleData ?? []), ...newPeople];
   const [isDeleting, startDeleteTransition] = useTransition();
   const [editingSales, setEditingSales] = useState(false);
   const [editingWinnerId, setEditingWinnerId] = useState<string | null>(null);
   const [showAddPrize, setShowAddPrize] = useState(false);
-  const [prevMode, setPrevMode] = useState(mode);
   const canEdit = mode === "edit";
 
-  if (mode !== prevMode) {
-    setPrevMode(mode);
-    if (mode === "view") {
-      setEditingSales(false);
-      setEditingWinnerId(null);
-      setShowAddPrize(false);
-    }
-  }
-
-  function load() {
-    getEventGiveawayAction(eventId).then((result) => {
-      if ("error" in result) {
-        setLoadError(result.error);
-      } else {
-        setLoadError(null);
-        setGiveaway(result.data);
-      }
-    });
-    listPeopleAction().then((result) => {
-      if (!("error" in result)) setPeople(result.data);
-    });
-  }
+  useResetOnModeChange(mode, () => {
+    setEditingSales(false);
+    setEditingWinnerId(null);
+    setShowAddPrize(false);
+  });
 
   function refresh() {
-    load();
+    refreshGiveaway();
+    refreshPeople();
     router.refresh();
   }
 
-  useEffect(() => {
-    if (!active) return;
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, eventId]);
-
   function handlePersonCreated(person: PickedPerson) {
-    setPeople((prev) => [...prev, { ...person, is_sponsor: false }]);
+    setNewPeople((prev) => [...prev, { ...person, is_sponsor: false }]);
   }
 
   function handleDeletePrize(id: string) {
