@@ -5,7 +5,7 @@ import { getClientIp } from "@/lib/get-client-ip";
 import { parseVolunteerApplicationForm } from "./volunteer-application-form";
 
 export type SubmitVolunteerApplicationResult =
-  { error: string } | { success: true };
+  { error: string } | { success: true; referenceCode: string };
 
 const ERROR_MESSAGES: Record<string, string> = {
   NAME_REQUIRED: "Name is required.",
@@ -30,7 +30,7 @@ export async function submitVolunteerApplicationAction(
 
   const supabase = await createSupabaseServerClient();
 
-  const { error } = await supabase.rpc("submit_volunteer_application", {
+  const { data, error } = await supabase.rpc("submit_volunteer_application", {
     p_name: parsed.data.name,
     p_email: parsed.data.email,
     p_phone: parsed.data.phone,
@@ -48,5 +48,5 @@ export async function submitVolunteerApplicationAction(
     };
   }
 
-  return { success: true };
+  return { success: true, referenceCode: data as string };
 }

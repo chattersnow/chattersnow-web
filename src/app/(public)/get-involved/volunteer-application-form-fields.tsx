@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState, useTransition } from "react";
+import Link from "next/link";
 import { submitVolunteerApplicationAction } from "./volunteer-application-actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,7 @@ export function VolunteerApplicationForm() {
   const [availability, setAvailability] = useState("");
   const [company, setCompany] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [referenceCode, setReferenceCode] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -37,15 +38,27 @@ export function VolunteerApplicationForm() {
         setError(result.error);
         return;
       }
-      setSuccess(true);
+      setReferenceCode(result.referenceCode);
     });
   }
 
-  if (success) {
+  if (referenceCode) {
     return (
       <Alert>
         <AlertDescription>
-          Thanks for applying! We&apos;ll be in touch about next steps.
+          <p>Thanks for applying! We&apos;ll be in touch about next steps.</p>
+          <p className="mt-2">
+            Save your reference code to check your status later:{" "}
+            <strong>{referenceCode}</strong>
+          </p>
+          <p className="mt-2">
+            <Link
+              href="/get-involved/volunteer/status"
+              className="underline underline-offset-4"
+            >
+              Check your status
+            </Link>
+          </p>
         </AlertDescription>
       </Alert>
     );
