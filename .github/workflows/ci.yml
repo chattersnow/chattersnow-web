@@ -115,7 +115,7 @@ jobs:
         run: bunx playwright install --with-deps chromium
 
       - name: E2E tests
-        run: bun run test:e2e
+        run: bun run test:e2e:pr
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ env.API_URL }}
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ env.PUBLISHABLE_KEY }}
