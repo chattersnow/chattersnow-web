@@ -44,6 +44,7 @@ const NAV_GROUPS: readonly NavGroup[] = [
     ],
   },
   { label: "Programs", href: "/programs" },
+  { label: "Learn", href: "/learn" },
   {
     label: "Gear",
     links: [

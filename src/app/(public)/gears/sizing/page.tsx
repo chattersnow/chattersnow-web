@@ -37,7 +37,15 @@ export default function GearSizingPage() {
             </Link>
             ? These charts use standard, widely published industry sizing
             guidelines to help you find a good starting point for skis,
-            snowboards, boots, and bindings.
+            snowboards, boots, and bindings. New to snow sports altogether?
+            Start with{" "}
+            <Link
+              href="/learn"
+              className="underline underline-offset-4 hover:text-foreground"
+            >
+              Learn
+            </Link>
+            .
           </p>
 
           <nav
