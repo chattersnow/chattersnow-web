@@ -20,16 +20,19 @@ export default function PublicLayout({
     <>
       <header className="border-b border-[var(--line)] px-6 py-4 sm:px-10">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4">
-          <Link href="/home" className="shrink-0">
+          <Link href="/home" className="flex shrink-0 items-center gap-2">
             <Image
               src="/chatter-logo-transparent.png"
               alt="Chatter Snow"
-              width={150}
-              height={200}
+              width={643}
+              height={492}
               className="h-10 w-auto"
               style={{ width: "auto" }}
               priority
             />
+            <span className="brand-display text-lg font-semibold tracking-[-0.02em] sm:text-xl">
+              Chatter Snow
+            </span>
           </Link>
           <SiteNav />
         </div>
