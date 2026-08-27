@@ -12,6 +12,8 @@ import {
 import { CONDITIONS, GENDERS, labelFor } from "@/lib/inventory";
 import { GearCard } from "./gear-card";
 import { GearDetailSheet } from "./gear-detail-sheet";
+import { GearCartTray } from "./gear-cart-tray";
+import { GearCartSheet } from "./gear-cart-sheet";
 
 export type GearItem = {
   id: string;
@@ -33,6 +35,28 @@ export function GearCatalog({ items }: { items: GearItem[] }) {
   const [genderFilter, setGenderFilter] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<GearItem | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [cartIds, setCartIds] = useState<Set<string>>(new Set());
+  const [cartOpen, setCartOpen] = useState(false);
+  const [cartSuccess, setCartSuccess] = useState(false);
+
+  const openCart = () => {
+    setCartSuccess(false);
+    setCartOpen(true);
+  };
+
+  const toggleCartItem = (itemId: string) => {
+    setCartIds((current) => {
+      const next = new Set(current);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
+  };
+
+  const cartItems = items.filter((item) => cartIds.has(item.id));
 
   const typeOptions = useMemo(
     () => Array.from(new Set(items.map((item) => item.type))).sort(),
@@ -178,6 +202,8 @@ export function GearCatalog({ items }: { items: GearItem[] }) {
                 setSelectedItem(item);
                 setDetailOpen(true);
               }}
+              inCart={cartIds.has(item.id)}
+              onToggleCart={() => toggleCartItem(item.id)}
             />
           ))}
         </div>
@@ -187,6 +213,21 @@ export function GearCatalog({ items }: { items: GearItem[] }) {
         item={selectedItem}
         open={detailOpen}
         onOpenChange={setDetailOpen}
+        inCart={selectedItem ? cartIds.has(selectedItem.id) : false}
+        onToggleCart={() => selectedItem && toggleCartItem(selectedItem.id)}
+      />
+
+      <GearCartTray count={cartItems.length} onOpen={openCart} />
+      <GearCartSheet
+        items={cartItems}
+        open={cartOpen}
+        onOpenChange={setCartOpen}
+        onRemove={toggleCartItem}
+        success={cartSuccess}
+        onSubmitted={() => {
+          setCartSuccess(true);
+          setCartIds(new Set());
+        }}
       />
     </div>
   );

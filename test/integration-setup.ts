@@ -138,3 +138,46 @@ export async function cleanupDonation(donationId: string) {
     await adminClient.from("people").delete().eq("id", donation.donor_id);
   }
 }
+
+// Creates `count` fresh, available inventory items via the real
+// create_donation_with_items RPC (same path portal donation intake uses),
+// for tests exercising the public gear request/cart flows.
+export async function createAvailableGearItems(
+  count: number,
+  overrides: { type?: string; condition?: string } = {},
+) {
+  const items = Array.from({ length: count }, () => ({
+    description: `Integration test item ${crypto.randomUUID()}`,
+    type: overrides.type ?? "snowboard",
+    condition: overrides.condition ?? "good",
+  }));
+
+  const { data, error } = await adminClient.rpc("create_donation_with_items", {
+    p_donor_name: `Integration Test Donor ${crypto.randomUUID()}`,
+    p_donor_is_anonymous: false,
+    p_donor_source_type: "individual",
+    p_donor_email: null,
+    p_donor_phone: null,
+    p_donor_notes: null,
+    p_items: items,
+  });
+  if (error) throw error;
+
+  const row = data![0] as { donation_id: string; inventory_item_ids: string[] };
+  return {
+    itemIds: row.inventory_item_ids,
+    async cleanup() {
+      await cleanupDonation(row.donation_id);
+    },
+  };
+}
+
+export async function getInventoryItemStatus(itemId: string) {
+  const { data, error } = await adminClient
+    .from("inventory_items")
+    .select("status")
+    .eq("id", itemId)
+    .single();
+  if (error) throw error;
+  return data.status as string;
+}
