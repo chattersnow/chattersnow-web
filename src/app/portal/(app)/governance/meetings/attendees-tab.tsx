@@ -23,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 
 function AddAttendeeForm({
   people,
@@ -120,36 +121,30 @@ export function AttendeesTab({
   mode: "view" | "edit";
 }) {
   const router = useRouter();
-  const [attendees, setAttendees] = useState<MeetingAttendee[] | null>(null);
+  const {
+    data: attendees,
+    loadError,
+    refresh: refreshAttendees,
+  } = useTabData<MeetingAttendee[]>(
+    () => listMeetingAttendeesAction(meetingId),
+    active,
+    [meetingId],
+  );
   const [people, setPeople] = useState<PersonListItem[]>([]);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [isDeleting, startDeleteTransition] = useTransition();
-  const [prevMode, setPrevMode] = useState(mode);
 
-  if (mode !== prevMode) {
-    setPrevMode(mode);
-    if (mode === "view") setShowAdd(false);
-  }
-
-  function load() {
-    listMeetingAttendeesAction(meetingId).then((result) => {
-      if ("error" in result) setLoadError(result.error);
-      else setAttendees(result.data);
-    });
-    listPeopleAction().then((result) => {
-      if (!("error" in result)) setPeople(result.data);
-    });
-  }
+  useResetOnModeChange(mode, () => setShowAdd(false));
 
   useEffect(() => {
     if (!active) return;
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    listPeopleAction().then((result) => {
+      if (!("error" in result)) setPeople(result.data);
+    });
   }, [active, meetingId]);
 
   function refresh() {
-    load();
+    refreshAttendees();
     router.refresh();
   }
 
@@ -172,7 +167,7 @@ export function AttendeesTab({
         </Alert>
       )}
 
-      {attendees === null ? (
+      {attendees === undefined ? (
         <p className="app-muted text-sm">Loading attendees...</p>
       ) : attendees.length === 0 && !showAdd ? (
         <p className="app-muted text-sm">No attendees recorded yet.</p>

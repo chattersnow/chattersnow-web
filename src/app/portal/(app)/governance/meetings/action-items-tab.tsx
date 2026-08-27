@@ -39,6 +39,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -255,40 +256,32 @@ export function ActionItemsTab({
   mode: "view" | "edit";
 }) {
   const router = useRouter();
-  const [actionItems, setActionItems] = useState<ActionItem[] | null>(null);
+  const {
+    data: actionItems,
+    loadError,
+    refresh: refreshActionItems,
+  } = useTabData<ActionItem[]>(() => listActionItemsAction(meetingId), active, [
+    meetingId,
+  ]);
   const [people, setPeople] = useState<PersonListItem[]>([]);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isMutating, startMutation] = useTransition();
-  const [prevMode, setPrevMode] = useState(mode);
 
-  if (mode !== prevMode) {
-    setPrevMode(mode);
-    if (mode === "view") {
-      setShowAdd(false);
-      setEditingId(null);
-    }
-  }
-
-  function load() {
-    listActionItemsAction(meetingId).then((result) => {
-      if ("error" in result) setLoadError(result.error);
-      else setActionItems(result.data);
-    });
-    listPeopleAction().then((result) => {
-      if (!("error" in result)) setPeople(result.data);
-    });
-  }
+  useResetOnModeChange(mode, () => {
+    setShowAdd(false);
+    setEditingId(null);
+  });
 
   useEffect(() => {
     if (!active) return;
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    listPeopleAction().then((result) => {
+      if (!("error" in result)) setPeople(result.data);
+    });
   }, [active, meetingId]);
 
   function refresh() {
-    load();
+    refreshActionItems();
     router.refresh();
   }
 
@@ -324,7 +317,7 @@ export function ActionItemsTab({
         </Alert>
       )}
 
-      {actionItems === null ? (
+      {actionItems === undefined ? (
         <p className="app-muted text-sm">Loading action items...</p>
       ) : actionItems.length === 0 && !showAdd ? (
         <p className="app-muted text-sm">No action items recorded yet.</p>
