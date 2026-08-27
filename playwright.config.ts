@@ -1,4 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
+import { config } from "dotenv";
+
+config({ path: ".env.local" });
 
 const baseURL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://127.0.0.1:3000";
 
