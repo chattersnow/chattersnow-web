@@ -325,7 +325,10 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
                     <TableCell>
                       {dateFormatter.format(new Date(event.starts_at))}
                     </TableCell>
-                    <TableCell className="app-muted">
+                    <TableCell
+                      className="app-muted max-w-xs truncate"
+                      title={event.location ?? undefined}
+                    >
                       {event.location || "—"}
                     </TableCell>
                     <TableCell>
