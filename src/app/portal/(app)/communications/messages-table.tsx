@@ -104,7 +104,7 @@ export function MessagesTable({
               )
             }
           >
-            <SelectTrigger className="h-8">
+            <SelectTrigger className="h-8" aria-label="Filter by status">
               <SelectValue placeholder="Status">
                 {(value: string) =>
                   value === FILTER_ALL ? "All statuses" : value

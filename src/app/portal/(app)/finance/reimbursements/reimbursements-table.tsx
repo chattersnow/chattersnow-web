@@ -164,7 +164,7 @@ export function ReimbursementsTable({
                 setEventFilter(value === FILTER_ALL ? null : value)
               }
             >
-              <SelectTrigger className="h-8">
+              <SelectTrigger className="h-8" aria-label="Filter by event">
                 <SelectValue placeholder="Event">
                   {(value: string) => {
                     if (value === FILTER_ALL) return "All reimbursements";
@@ -200,7 +200,7 @@ export function ReimbursementsTable({
                 )
               }
             >
-              <SelectTrigger className="h-8">
+              <SelectTrigger className="h-8" aria-label="Filter by status">
                 <SelectValue placeholder="Status">
                   {(value: string) =>
                     value === FILTER_ALL ? "All statuses" : value

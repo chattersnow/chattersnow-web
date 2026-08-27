@@ -130,7 +130,7 @@ export function MessageDetailsSheet({
                   }
                   disabled={isPending}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger aria-label="Message status">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

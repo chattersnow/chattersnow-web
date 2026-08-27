@@ -175,7 +175,7 @@ export function PendingAccessSection({
               value={role}
               onValueChange={(value) => setRole(value ?? "")}
             >
-              <SelectTrigger className="h-9 w-40">
+              <SelectTrigger className="h-9 w-40" aria-label="Grant role">
                 <SelectValue placeholder="Role" />
               </SelectTrigger>
               <SelectContent>

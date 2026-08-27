@@ -256,7 +256,10 @@ export function DiscountCodesTab({
                       }
                       disabled={isPending}
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger
+                        className="w-full"
+                        aria-label={`Registrant assigned to discount code ${code.code}`}
+                      >
                         <SelectValue placeholder="Unassigned">
                           {() =>
                             code.registration

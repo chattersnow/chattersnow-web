@@ -90,7 +90,10 @@ function MilestoneStatusSelect({ milestone }: { milestone: Milestone }) {
       onValueChange={handleChange}
       disabled={isPending}
     >
-      <SelectTrigger className="h-8 w-40">
+      <SelectTrigger
+        className="h-8 w-40"
+        aria-label={`Status for ${milestone.description}`}
+      >
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

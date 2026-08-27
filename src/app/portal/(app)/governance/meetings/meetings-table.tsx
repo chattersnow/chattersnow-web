@@ -74,7 +74,7 @@ export function MeetingsTable({
             value={typeFilter}
             onValueChange={(value) => setTypeFilter(value ?? FILTER_ALL)}
           >
-            <SelectTrigger className="h-8">
+            <SelectTrigger className="h-8" aria-label="Filter by type">
               <SelectValue placeholder="Type" />
             </SelectTrigger>
             <SelectContent>

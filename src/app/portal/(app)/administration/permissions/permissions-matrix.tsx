@@ -301,6 +301,7 @@ export function PermissionsMatrix({
                                   <SelectTrigger
                                     className="h-8 w-28"
                                     disabled={isSaving}
+                                    aria-label={`Permission for ${formatRoleLabel(role.name)} on ${resource.label}`}
                                   >
                                     <SelectValue />
                                   </SelectTrigger>

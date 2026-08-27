@@ -112,14 +112,20 @@ export function CommunityCalendar({
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+          <label
+            htmlFor="community-calendar-category-filter"
+            className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+          >
             Category
           </label>
           <Select
             value={categoryFilter}
             onValueChange={(value) => setCategoryFilter(value ?? FILTER_ALL)}
           >
-            <SelectTrigger className="h-8">
+            <SelectTrigger
+              id="community-calendar-category-filter"
+              className="h-8"
+            >
               <SelectValue placeholder="Category">
                 {(value: string) =>
                   value === FILTER_ALL ? "All categories" : categoryLabel(value)
@@ -139,14 +145,20 @@ export function CommunityCalendar({
 
         {viewMode === "list" && (
           <div className="flex flex-col gap-1">
-            <label className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+            <label
+              htmlFor="community-calendar-month-filter"
+              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+            >
               Month
             </label>
             <Select
               value={selectedMonth}
               onValueChange={(value) => setSelectedMonth(value ?? FILTER_ALL)}
             >
-              <SelectTrigger className="h-8">
+              <SelectTrigger
+                id="community-calendar-month-filter"
+                className="h-8"
+              >
                 <SelectValue placeholder="Month">
                   {(value: string) =>
                     value === FILTER_ALL

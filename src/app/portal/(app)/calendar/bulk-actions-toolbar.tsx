@@ -83,7 +83,11 @@ export function BulkActionsToolbar({
             handleFieldChange((next ?? field) as FieldKey)
           }
         >
-          <SelectTrigger size="sm" className="w-40">
+          <SelectTrigger
+            size="sm"
+            className="w-40"
+            aria-label="Field to update"
+          >
             <SelectValue placeholder="Set field…" />
           </SelectTrigger>
           <SelectContent>
@@ -95,7 +99,11 @@ export function BulkActionsToolbar({
           </SelectContent>
         </Select>
         <Select value={value} onValueChange={(next) => setValue(next ?? "")}>
-          <SelectTrigger size="sm" className="w-48">
+          <SelectTrigger
+            size="sm"
+            className="w-48"
+            aria-label={`Set ${activeField.label.toLowerCase()} to`}
+          >
             <SelectValue
               placeholder={`Set ${activeField.label.toLowerCase()} to…`}
             />

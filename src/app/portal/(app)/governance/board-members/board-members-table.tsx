@@ -118,7 +118,7 @@ export function BoardMembersTable({
                 )
               }
             >
-              <SelectTrigger className="h-8">
+              <SelectTrigger className="h-8" aria-label="Filter by status">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>

@@ -131,7 +131,7 @@ export function VolunteerApplicationDetailsSheet({
                   onValueChange={handleStatusChange}
                   disabled={isPending}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger aria-label="Application status">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

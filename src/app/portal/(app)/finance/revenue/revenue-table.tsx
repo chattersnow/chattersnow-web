@@ -141,7 +141,7 @@ export function RevenueTable({
                 setEventFilter(value === FILTER_ALL ? null : value)
               }
             >
-              <SelectTrigger className="h-8">
+              <SelectTrigger className="h-8" aria-label="Filter by event">
                 <SelectValue placeholder="Event">
                   {(value: string) => {
                     if (value === FILTER_ALL) return "All revenue";
@@ -177,7 +177,7 @@ export function RevenueTable({
                 )
               }
             >
-              <SelectTrigger className="h-8">
+              <SelectTrigger className="h-8" aria-label="Filter by source">
                 <SelectValue placeholder="Source">
                   {(value: string) =>
                     value === FILTER_ALL
