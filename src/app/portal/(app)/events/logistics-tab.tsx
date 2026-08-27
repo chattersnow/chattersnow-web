@@ -14,6 +14,7 @@ import {
   upsertEventLogisticsAction,
   type EventLogistics,
 } from "./logistics-actions";
+import { useTabData } from "@/hooks/use-tab-data";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -72,30 +73,24 @@ export function LogisticsTab({
   ref?: Ref<LogisticsTabHandle>;
 }) {
   const router = useRouter();
-  const [logistics, setLogistics] = useState<EventLogistics | null | undefined>(
-    undefined,
+  const { data: logistics, loadError } = useTabData<EventLogistics | null>(
+    () => getEventLogisticsAction(eventId),
+    active,
+    [eventId],
   );
   const [form, setForm] = useState<FormState>(() => formStateFor(null));
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [prevLogistics, setPrevLogistics] = useState(logistics);
+
+  if (logistics !== prevLogistics) {
+    setPrevLogistics(logistics);
+    if (logistics !== undefined) setForm(formStateFor(logistics));
+  }
 
   useEffect(() => {
     onPendingChange?.(isPending);
   }, [isPending, onPendingChange]);
-
-  useEffect(() => {
-    if (!active) return;
-    getEventLogisticsAction(eventId).then((result) => {
-      if ("error" in result) {
-        setLoadError(result.error);
-      } else {
-        setLoadError(null);
-        setLogistics(result.data);
-        setForm(formStateFor(result.data));
-      }
-    });
-  }, [active, eventId]);
 
   useEffect(() => {
     onDirtyChange?.(
