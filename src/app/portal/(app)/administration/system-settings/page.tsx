@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { WorkflowInfoCard } from "@/components/workflow-info-card";
+import { SITE_IMAGE_SLOTS, siteImageSettingKey } from "@/lib/site-images";
 import { SystemSettingsForm } from "./system-settings-form";
+import { SiteImagesForm } from "./site-images-form";
 
 function parseThreshold(value: unknown): number | null {
   const threshold = typeof value === "number" ? value : Number(value ?? NaN);
@@ -10,19 +12,34 @@ function parseThreshold(value: unknown): number | null {
 
 export default async function SystemSettingsPage() {
   const supabase = await createSupabaseServerClient();
-  const [{ data: expenseSetting }, { data: reimbursementSetting }] =
-    await Promise.all([
-      supabase
-        .from("app_settings")
-        .select("value")
-        .eq("key", "finance.expense_approval_threshold")
-        .maybeSingle(),
-      supabase
-        .from("app_settings")
-        .select("value")
-        .eq("key", "finance.reimbursement_approval_threshold")
-        .maybeSingle(),
-    ]);
+  const [
+    { data: expenseSetting },
+    { data: reimbursementSetting },
+    { data: siteImageSettings },
+  ] = await Promise.all([
+    supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", "finance.expense_approval_threshold")
+      .maybeSingle(),
+    supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", "finance.reimbursement_approval_threshold")
+      .maybeSingle(),
+    supabase
+      .from("app_settings")
+      .select("key, value")
+      .like("key", "site_images.%"),
+  ]);
+
+  const siteImageUrls: Record<string, string | null> = {};
+  for (const slot of SITE_IMAGE_SLOTS) {
+    const row = siteImageSettings?.find(
+      (setting) => setting.key === siteImageSettingKey(slot.key),
+    );
+    siteImageUrls[slot.key] = typeof row?.value === "string" ? row.value : null;
+  }
 
   return (
     <>
@@ -74,6 +91,17 @@ export default async function SystemSettingsPage() {
             reimbursementSetting?.value,
           )}
         />
+      </div>
+
+      <h2 className="brand-display mt-12 text-3xl font-semibold tracking-[-0.03em]">
+        Site images
+      </h2>
+      <p className="app-muted mt-2 max-w-3xl text-sm leading-relaxed">
+        Set a Google Drive image for each placeholder slot on the public site.
+        Leave a slot blank to fall back to the default icon placeholder.
+      </p>
+      <div className="mt-6">
+        <SiteImagesForm slots={SITE_IMAGE_SLOTS} urls={siteImageUrls} />
       </div>
     </>
   );

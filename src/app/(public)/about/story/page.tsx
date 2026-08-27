@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
-import { ImagePlaceholder } from "@/components/image-placeholder";
+import { SiteImage } from "@/components/site-image";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSiteImageUrls } from "@/lib/site-images";
 
 export const metadata: Metadata = {
   title: "Our Story | Chatter Snow",
 };
 
-export default function StoryPage() {
+export default async function StoryPage() {
+  const supabase = await createSupabaseServerClient();
+  const siteImages = await getSiteImageUrls(supabase);
+
   return (
     <div>
       <section>
@@ -36,7 +41,11 @@ export default function StoryPage() {
           Our Story
         </h2>
         <div className="app-muted mt-4 max-w-3xl space-y-4 text-sm leading-relaxed sm:text-base sm:flow-root">
-          <ImagePlaceholder className="mb-4 aspect-[3/4] w-40 rounded-xl sm:float-right sm:mb-2 sm:ml-6 sm:w-56" />
+          <SiteImage
+            url={siteImages.about_story_photo ?? null}
+            alt="Chatter Snow community members"
+            className="mb-4 aspect-[3/4] w-40 rounded-xl sm:float-right sm:mb-2 sm:ml-6 sm:w-56"
+          />
           <p>
             Chatter started three summers ago when a group of friends wanted to
             create a space where queer skiers and snowboarders could find each

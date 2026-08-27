@@ -29,15 +29,19 @@ export function GearDetailSheet({
   onOpenChange,
   inCart,
   onToggleCart,
+  placeholderUrl,
 }: {
   item: GearItem | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   inCart: boolean;
   onToggleCart: () => void;
+  placeholderUrl: string | null;
 }) {
   const genderLabel = item ? labelFor(GENDERS, item.gender) : null;
-  const imageUrl = item ? resolveImageUrl(item.photo_url) : null;
+  const imageUrl = item
+    ? (resolveImageUrl(item.photo_url) ?? placeholderUrl)
+    : null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

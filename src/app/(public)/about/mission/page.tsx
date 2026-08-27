@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { ImagePlaceholder } from "@/components/image-placeholder";
+import { SiteImage } from "@/components/site-image";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSiteImageUrls } from "@/lib/site-images";
 
 export const metadata: Metadata = {
   title: "Mission & Values | Chatter Snow",
@@ -36,7 +38,10 @@ const VALUES = [
   },
 ];
 
-export default function MissionPage() {
+export default async function MissionPage() {
+  const supabase = await createSupabaseServerClient();
+  const siteImages = await getSiteImageUrls(supabase);
+
   return (
     <div className="space-y-12">
       <section id="mission">
@@ -83,7 +88,11 @@ export default function MissionPage() {
             ))}
           </ul>
         </div>
-        <ImagePlaceholder className="aspect-square rounded-2xl" />
+        <SiteImage
+          url={siteImages.about_mission_photo ?? null}
+          alt="Chatter Snow community members"
+          className="aspect-square rounded-2xl"
+        />
       </section>
 
       <section id="why-lgbtq">

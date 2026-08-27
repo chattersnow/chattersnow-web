@@ -15,14 +15,16 @@ export function GearCard({
   onSelect,
   inCart,
   onToggleCart,
+  placeholderUrl,
 }: {
   item: GearItem;
   onSelect: () => void;
   inCart: boolean;
   onToggleCart: () => void;
+  placeholderUrl: string | null;
 }) {
   const genderLabel = labelFor(GENDERS, item.gender);
-  const imageUrl = resolveImageUrl(item.photo_url);
+  const imageUrl = resolveImageUrl(item.photo_url) ?? placeholderUrl;
 
   return (
     <Card

@@ -22,6 +22,7 @@ export function GearCartSheet({
   onRemove,
   success,
   onSubmitted,
+  placeholderUrl,
 }: {
   items: GearItem[];
   open: boolean;
@@ -29,6 +30,7 @@ export function GearCartSheet({
   onRemove: (itemId: string) => void;
   success: boolean;
   onSubmitted: () => void;
+  placeholderUrl: string | null;
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -57,7 +59,8 @@ export function GearCartSheet({
             <>
               <ul className="space-y-2">
                 {items.map((item) => {
-                  const imageUrl = resolveImageUrl(item.photo_url);
+                  const imageUrl =
+                    resolveImageUrl(item.photo_url) ?? placeholderUrl;
                   return (
                     <li
                       key={item.id}

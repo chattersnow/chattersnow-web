@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkPermission } from "@/lib/auth/permissions";
+import { siteImageSettingKey } from "@/lib/site-images";
 
 export type SettingActionResult = { error: string } | { success: true };
 
@@ -55,4 +56,17 @@ export async function updateReimbursementApprovalThresholdAction(
     "finance.reimbursement_approval_threshold",
     value,
   );
+}
+
+export async function updateSiteImageAction(
+  slot: string,
+  formData: FormData,
+): Promise<SettingActionResult> {
+  const url = String(formData.get("url") ?? "").trim();
+  const key = siteImageSettingKey(slot);
+
+  // app_settings only grants insert/update (no delete), so clearing a slot
+  // upserts an empty string rather than removing the row; getSiteImageUrls
+  // and resolveImageUrl both already treat an empty/non-string value as unset.
+  return updateAppSettingAction(key, url);
 }

@@ -1,19 +1,36 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ImagePlaceholder } from "@/components/image-placeholder";
+import { SiteImage } from "@/components/site-image";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSiteImageUrls } from "@/lib/site-images";
 
 export const metadata: Metadata = {
   title: "Get Involved | Chatter Snow",
 };
 
-export default function GetInvolvedPage() {
+export default async function GetInvolvedPage() {
+  const supabase = await createSupabaseServerClient();
+  const siteImages = await getSiteImageUrls(supabase);
+
   return (
     <div className="space-y-12">
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <ImagePlaceholder className="col-span-2 aspect-[2/1] rounded-2xl sm:aspect-[4/3]" />
-        <ImagePlaceholder className="aspect-square rounded-2xl" />
-        <ImagePlaceholder className="aspect-square rounded-2xl" />
+        <SiteImage
+          url={siteImages.get_involved_hero_1 ?? null}
+          alt="Chatter Snow community members"
+          className="col-span-2 aspect-[2/1] rounded-2xl sm:aspect-[4/3]"
+        />
+        <SiteImage
+          url={siteImages.get_involved_hero_2 ?? null}
+          alt="Chatter Snow community members"
+          className="aspect-square rounded-2xl"
+        />
+        <SiteImage
+          url={siteImages.get_involved_hero_3 ?? null}
+          alt="Chatter Snow community members"
+          className="aspect-square rounded-2xl"
+        />
       </div>
 
       <section>

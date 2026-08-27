@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ImagePlaceholder } from "@/components/image-placeholder";
+import { SiteImage } from "@/components/site-image";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSiteImageUrls } from "@/lib/site-images";
 
 export const metadata: Metadata = {
   title: "Donate Gear | Chatter Snow",
@@ -15,7 +17,10 @@ const GEAR_EXAMPLES = [
   "Gloves & accessories",
 ];
 
-export default function DonateGearPage() {
+export default async function DonateGearPage() {
+  const supabase = await createSupabaseServerClient();
+  const siteImages = await getSiteImageUrls(supabase);
+
   return (
     <div className="space-y-12">
       <section id="how-it-works">
@@ -54,7 +59,11 @@ export default function DonateGearPage() {
           Donate gear
         </h2>
         <div className="mt-6 flex max-w-2xl flex-col gap-6 sm:flex-row">
-          <ImagePlaceholder className="aspect-square rounded-xl sm:w-40" />
+          <SiteImage
+            url={siteImages.gears_donate_photo ?? null}
+            alt="Donated ski and snowboard gear"
+            className="aspect-square rounded-xl sm:w-40"
+          />
           <Card className="flex-1">
             <CardHeader>
               <CardTitle>We accept gently used gear</CardTitle>
