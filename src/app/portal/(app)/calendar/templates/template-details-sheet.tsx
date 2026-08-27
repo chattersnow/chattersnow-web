@@ -35,6 +35,11 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { TemplateField } from "../content-brief-template-shared";
 
 export type TemplateListRow = {
@@ -189,32 +194,46 @@ export function TemplateDetailsSheet({
   return (
     <>
       <Sheet open={open} onOpenChange={handleOpenChange}>
-        <SheetTrigger
-          render={
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={`View ${template.name}`}
-            />
-          }
-        >
-          <Eye />
-        </SheetTrigger>
+        <Tooltip>
+          <SheetTrigger
+            render={
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`View ${template.name}`}
+                  />
+                }
+              />
+            }
+          >
+            <Eye />
+          </SheetTrigger>
+          <TooltipContent>{`View ${template.name}`}</TooltipContent>
+        </Tooltip>
         <SheetContent side="right" showCloseButton={false} size="lg">
           <SheetHeader className="flex-row items-start gap-2 space-y-0">
-            <SheetClose
-              render={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Close"
-                />
-              }
-            >
-              <ArrowLeft />
-            </SheetClose>
+            <Tooltip>
+              <SheetClose
+                render={
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Close"
+                      />
+                    }
+                  />
+                }
+              >
+                <ArrowLeft />
+              </SheetClose>
+              <TooltipContent>Close</TooltipContent>
+            </Tooltip>
             <div className="flex flex-1 flex-col gap-0.5">
               <SheetTitle>
                 {mode === "edit-details"
@@ -233,24 +252,38 @@ export function TemplateDetailsSheet({
             </div>
             {canManage && mode === "view" && (
               <div className="flex items-center gap-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Edit template details"
-                  onClick={() => setMode("edit-details")}
-                >
-                  <Pencil />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Revise template fields"
-                  onClick={() => setMode("edit-fields")}
-                >
-                  <FileEdit />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Edit template details"
+                        onClick={() => setMode("edit-details")}
+                      />
+                    }
+                  >
+                    <Pencil />
+                  </TooltipTrigger>
+                  <TooltipContent>Edit template details</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Revise template fields"
+                        onClick={() => setMode("edit-fields")}
+                      />
+                    }
+                  >
+                    <FileEdit />
+                  </TooltipTrigger>
+                  <TooltipContent>Revise template fields</TooltipContent>
+                </Tooltip>
               </div>
             )}
             {canManage && mode !== "view" && (

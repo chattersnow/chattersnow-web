@@ -48,6 +48,11 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 function formStateFor(item: InventoryItem) {
   return {
@@ -153,32 +158,46 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
   return (
     <>
       <Sheet open={open} onOpenChange={handleOpenChange}>
-        <SheetTrigger
-          render={
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label="View item"
-            />
-          }
-        >
-          <Eye />
-        </SheetTrigger>
+        <Tooltip>
+          <SheetTrigger
+            render={
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="View item"
+                  />
+                }
+              />
+            }
+          >
+            <Eye />
+          </SheetTrigger>
+          <TooltipContent>View item</TooltipContent>
+        </Tooltip>
         <SheetContent side="right" showCloseButton={false} size="lg">
           <SheetHeader className="flex-row items-start gap-2 space-y-0">
-            <SheetClose
-              render={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Close"
-                />
-              }
-            >
-              <ArrowLeft />
-            </SheetClose>
+            <Tooltip>
+              <SheetClose
+                render={
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Close"
+                      />
+                    }
+                  />
+                }
+              >
+                <ArrowLeft />
+              </SheetClose>
+              <TooltipContent>Close</TooltipContent>
+            </Tooltip>
             <div className="flex flex-1 flex-col gap-0.5">
               <SheetTitle>{mode === "edit" ? "Edit item" : "Item"}</SheetTitle>
               <SheetDescription>
@@ -188,15 +207,22 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
               </SheetDescription>
             </div>
             {mode === "view" ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Edit item"
-                onClick={() => setMode("edit")}
-              >
-                <Pencil />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Edit item"
+                      onClick={() => setMode("edit")}
+                    />
+                  }
+                >
+                  <Pencil />
+                </TooltipTrigger>
+                <TooltipContent>Edit item</TooltipContent>
+              </Tooltip>
             ) : (
               <Button
                 type="button"
