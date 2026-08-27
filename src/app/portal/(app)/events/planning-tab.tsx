@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useTabData } from "@/hooks/use-tab-data";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -98,15 +99,13 @@ export function PlanningTab({
 }) {
   const router = useRouter();
   const [form, setForm] = useState(() => formStateFor(event));
-  const [leads, setLeads] = useState<EventLead[]>([]);
+  const { data: leadsData } = useTabData<EventLead[]>(
+    () => listEventLeadsAction(),
+    true,
+  );
+  const leads = leadsData ?? [];
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-
-  useEffect(() => {
-    listEventLeadsAction().then((result) => {
-      if (!("error" in result)) setLeads(result.data);
-    });
-  }, []);
 
   useEffect(() => {
     onPendingChange?.(isPending);

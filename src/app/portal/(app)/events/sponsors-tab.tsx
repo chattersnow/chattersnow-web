@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState, useTransition } from "react";
+import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Trash2 } from "lucide-react";
 import {
@@ -35,6 +35,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 
 const SUPPORT_TYPES = [
   { value: "cash", label: "Cash" },
@@ -336,49 +337,37 @@ export function SponsorsTab({
   mode: "view" | "edit";
 }) {
   const router = useRouter();
-  const [sponsors, setSponsors] = useState<EventSponsor[] | null>(null);
-  const [people, setPeople] = useState<PersonListItem[]>([]);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const {
+    data: sponsors,
+    loadError,
+    refresh: refreshSponsors,
+  } = useTabData<EventSponsor[]>(
+    () => listEventSponsorsAction(eventId),
+    active,
+    [eventId],
+  );
+  const { data: peopleData, refresh: refreshPeople } = useTabData<
+    PersonListItem[]
+  >(() => listPeopleAction(), active, [eventId]);
+  const [newPeople, setNewPeople] = useState<PersonListItem[]>([]);
+  const people = [...(peopleData ?? []), ...newPeople];
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isDeleting, startDeleteTransition] = useTransition();
-  const [prevMode, setPrevMode] = useState(mode);
 
-  if (mode !== prevMode) {
-    setPrevMode(mode);
-    if (mode === "view") {
-      setShowAdd(false);
-      setEditingId(null);
-    }
-  }
-
-  function load() {
-    listEventSponsorsAction(eventId).then((result) => {
-      if ("error" in result) {
-        setLoadError(result.error);
-      } else {
-        setLoadError(null);
-        setSponsors(result.data);
-      }
-    });
-    listPeopleAction().then((result) => {
-      if (!("error" in result)) setPeople(result.data);
-    });
-  }
-
-  useEffect(() => {
-    if (!active) return;
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, eventId]);
+  useResetOnModeChange(mode, () => {
+    setShowAdd(false);
+    setEditingId(null);
+  });
 
   function refresh() {
-    load();
+    refreshSponsors();
+    refreshPeople();
     router.refresh();
   }
 
   function handlePersonCreated(person: PickedPerson) {
-    setPeople((prev) => [...prev, { ...person, is_sponsor: true }]);
+    setNewPeople((prev) => [...prev, { ...person, is_sponsor: true }]);
   }
 
   function handleDelete(id: string) {
@@ -400,7 +389,7 @@ export function SponsorsTab({
         </Alert>
       )}
 
-      {sponsors === null ? (
+      {sponsors === undefined ? (
         <p className="app-muted text-sm">Loading sponsors...</p>
       ) : sortedSponsors.length === 0 && !showAdd ? (
         <p className="app-muted text-sm">

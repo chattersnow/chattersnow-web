@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState, useTransition } from "react";
+import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import {
@@ -42,6 +42,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
 const shiftTimeFormatter = new Intl.DateTimeFormat("en-US", {
@@ -422,6 +423,38 @@ function AddHoursForm({
   );
 }
 
+type VolunteersTabData = {
+  volunteers: EventVolunteer[];
+  hours: EventVolunteerHours[];
+  shifts: EventShift[];
+  people: PersonListItem[];
+};
+
+async function fetchVolunteersTabData(
+  eventId: string,
+): Promise<{ error: string } | { data: VolunteersTabData }> {
+  const [volunteersResult, hoursResult, shiftsResult, peopleResult] =
+    await Promise.all([
+      listEventVolunteersAction(eventId),
+      listEventVolunteerHoursAction(eventId),
+      listEventShiftsAction(eventId),
+      listPeopleAction(),
+    ]);
+
+  if ("error" in volunteersResult) {
+    return { error: volunteersResult.error };
+  }
+
+  return {
+    data: {
+      volunteers: volunteersResult.data,
+      hours: "error" in hoursResult ? [] : hoursResult.data,
+      shifts: "error" in shiftsResult ? [] : shiftsResult.data,
+      people: "error" in peopleResult ? [] : peopleResult.data,
+    },
+  };
+}
+
 export function VolunteersTab({
   eventId,
   active,
@@ -432,55 +465,38 @@ export function VolunteersTab({
   mode: "view" | "edit";
 }) {
   const router = useRouter();
-  const [volunteers, setVolunteers] = useState<EventVolunteer[] | null>(null);
-  const [hours, setHours] = useState<EventVolunteerHours[] | null>(null);
-  const [shifts, setShifts] = useState<EventShift[]>([]);
-  const [people, setPeople] = useState<PersonListItem[]>([]);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const {
+    data: tabData,
+    loadError,
+    refresh: refreshTabData,
+  } = useTabData<VolunteersTabData>(
+    () => fetchVolunteersTabData(eventId),
+    active,
+    [eventId],
+  );
+  const volunteers = tabData?.volunteers ?? [];
+  const hours = tabData?.hours ?? [];
+  const shifts = tabData?.shifts ?? [];
+  const [newPeople, setNewPeople] = useState<PersonListItem[]>([]);
+  const people = [...(tabData?.people ?? []), ...newPeople];
   const [showAddVolunteer, setShowAddVolunteer] = useState(false);
   const [showAddHours, setShowAddHours] = useState(false);
   const [showAddShift, setShowAddShift] = useState(false);
   const [isDeleting, startDeleteTransition] = useTransition();
-  const [prevMode, setPrevMode] = useState(mode);
 
-  if (mode !== prevMode) {
-    setPrevMode(mode);
-    if (mode === "view") {
-      setShowAddVolunteer(false);
-      setShowAddHours(false);
-      setShowAddShift(false);
-    }
-  }
-
-  function load() {
-    listEventVolunteersAction(eventId).then((result) => {
-      if ("error" in result) setLoadError(result.error);
-      else setVolunteers(result.data);
-    });
-    listEventVolunteerHoursAction(eventId).then((result) => {
-      if (!("error" in result)) setHours(result.data);
-    });
-    listEventShiftsAction(eventId).then((result) => {
-      if (!("error" in result)) setShifts(result.data);
-    });
-    listPeopleAction().then((result) => {
-      if (!("error" in result)) setPeople(result.data);
-    });
-  }
-
-  useEffect(() => {
-    if (!active) return;
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, eventId]);
+  useResetOnModeChange(mode, () => {
+    setShowAddVolunteer(false);
+    setShowAddHours(false);
+    setShowAddShift(false);
+  });
 
   function refresh() {
-    load();
+    refreshTabData();
     router.refresh();
   }
 
   function handlePersonCreated(person: PickedPerson) {
-    setPeople((prev) => [...prev, { ...person, is_sponsor: false }]);
+    setNewPeople((prev) => [...prev, { ...person, is_sponsor: false }]);
   }
 
   function handleDeleteVolunteer(id: string) {
@@ -620,7 +636,7 @@ export function VolunteersTab({
 
       <div className="flex flex-col gap-3 border-t border-[var(--line)] pt-4">
         <h3 className="text-sm font-semibold">Volunteers signed up</h3>
-        {volunteers === null ? (
+        {tabData === undefined ? (
           <p className="app-muted text-sm">Loading volunteers...</p>
         ) : volunteers.length === 0 && !showAddVolunteer ? (
           <p className="app-muted text-sm">No volunteers recorded yet.</p>
@@ -635,7 +651,7 @@ export function VolunteersTab({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {volunteers?.map((volunteer) => (
+              {volunteers.map((volunteer) => (
                 <TableRow key={volunteer.id}>
                   <TableCell
                     className="max-w-xs truncate font-medium"
@@ -726,7 +742,7 @@ export function VolunteersTab({
           Hours logged
           {hours && hours.length > 0 ? ` (${totalHours} total)` : ""}
         </h3>
-        {hours === null ? (
+        {tabData === undefined ? (
           <p className="app-muted text-sm">Loading hours...</p>
         ) : hours.length === 0 && !showAddHours ? (
           <p className="app-muted text-sm">No hours logged yet.</p>
@@ -741,7 +757,7 @@ export function VolunteersTab({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {hours?.map((entry) => (
+              {hours.map((entry) => (
                 <TableRow key={entry.id}>
                   <TableCell
                     className="max-w-xs truncate font-medium"
