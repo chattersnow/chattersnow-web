@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { WorkflowInfoCard } from "@/components/workflow-info-card";
+import { FiltersSheet } from "@/components/filters-sheet";
 import {
   buildHref,
   escapeLikePattern,
@@ -162,12 +163,20 @@ export default async function ReimbursementsPage({
   const totalPages = totalPagesFor(count);
   const hasActiveFilters =
     !!search || eventFilter !== "all" || statusFilter !== "all";
+  const activeFilterCount = [
+    !!search,
+    eventFilter !== "all",
+    statusFilter !== "all",
+  ].filter(Boolean).length;
 
   return (
     <>
-      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-        Reimbursements
-      </h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          Reimbursements
+        </h1>
+        <NewReimbursementDialog people={peopleOptions} events={eventOptions} />
+      </div>
 
       <div className="mt-6 space-y-4">
         <WorkflowInfoCard title="How reimbursement approval works">
@@ -216,90 +225,88 @@ export default async function ReimbursementsPage({
           </p>
         </WorkflowInfoCard>
 
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <NewReimbursementDialog
-            people={peopleOptions}
-            events={eventOptions}
-          />
+        <div className="flex justify-end">
+          <FiltersSheet activeCount={activeFilterCount}>
+            <form method="get" className="flex flex-col gap-4">
+              <input type="hidden" name="sort" value={sort} />
+              <input type="hidden" name="dir" value={dir} />
 
-          <form method="get" className="flex flex-wrap items-end gap-3">
-            <input type="hidden" name="sort" value={sort} />
-            <input type="hidden" name="dir" value={dir} />
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor="search"
+                  className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+                >
+                  Search
+                </label>
+                <Input
+                  id="search"
+                  name="search"
+                  placeholder="Search description..."
+                  defaultValue={search}
+                />
+              </div>
 
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor="search"
-                className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-              >
-                Search
-              </label>
-              <Input
-                id="search"
-                name="search"
-                placeholder="Search description..."
-                defaultValue={search}
-                className="h-8 w-full sm:w-64"
-              />
-            </div>
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor="event"
+                  className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+                >
+                  Event
+                </label>
+                <select
+                  id="event"
+                  name="event"
+                  defaultValue={eventFilter}
+                  className={selectClassName}
+                >
+                  <option value="all">All reimbursements</option>
+                  <option value="none">No event</option>
+                  {eventOptions.map((event) => (
+                    <option key={event.id} value={event.id}>
+                      {event.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor="event"
-                className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-              >
-                Event
-              </label>
-              <select
-                id="event"
-                name="event"
-                defaultValue={eventFilter}
-                className={selectClassName}
-              >
-                <option value="all">All reimbursements</option>
-                <option value="none">No event</option>
-                {eventOptions.map((event) => (
-                  <option key={event.id} value={event.id}>
-                    {event.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor="status"
+                  className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+                >
+                  Status
+                </label>
+                <select
+                  id="status"
+                  name="status"
+                  defaultValue={statusFilter}
+                  className={selectClassName}
+                >
+                  <option value="all">All statuses</option>
+                  {STATUS_OPTIONS.map((status) => (
+                    <option key={status} value={status} className="capitalize">
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor="status"
-                className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-              >
-                Status
-              </label>
-              <select
-                id="status"
-                name="status"
-                defaultValue={statusFilter}
-                className={selectClassName}
-              >
-                <option value="all">All statuses</option>
-                {STATUS_OPTIONS.map((status) => (
-                  <option key={status} value={status} className="capitalize">
-                    {status}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <Button type="submit" variant="outline">
-              Filter
-            </Button>
-            {hasActiveFilters && (
-              <Button
-                variant="ghost"
-                nativeButton={false}
-                render={<Link href="/portal/finance/reimbursements" />}
-              >
-                Clear
-              </Button>
-            )}
-          </form>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="submit" variant="outline">
+                  Filter
+                </Button>
+                {hasActiveFilters && (
+                  <Button
+                    variant="ghost"
+                    nativeButton={false}
+                    render={<Link href="/portal/finance/reimbursements" />}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+            </form>
+          </FiltersSheet>
         </div>
 
         <Card>

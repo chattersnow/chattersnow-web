@@ -94,7 +94,7 @@ export function NewReimbursementDialog({
       <DialogTrigger
         render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
       >
-        Add reimbursement
+        New Reimbursement
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>

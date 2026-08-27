@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
+import { FiltersSheet } from "@/components/filters-sheet";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import {
@@ -131,6 +132,12 @@ export default async function InventoryPage({
     typeFilter !== "all" ||
     conditionFilter !== "all" ||
     statusFilter !== "all";
+  const activeFilterCount = [
+    !!search,
+    typeFilter !== "all",
+    conditionFilter !== "all",
+    statusFilter !== "all",
+  ].filter(Boolean).length;
 
   return (
     <>
@@ -138,106 +145,109 @@ export default async function InventoryPage({
         Inventory
       </h1>
 
-      <div className="mt-6 flex flex-wrap items-end justify-end gap-3">
-        <form method="get" className="flex flex-wrap items-end gap-3">
-          <input type="hidden" name="sort" value={sort} />
-          <input type="hidden" name="dir" value={dir} />
+      <div className="mt-6 flex justify-end">
+        <FiltersSheet activeCount={activeFilterCount}>
+          <form method="get" className="flex flex-col gap-4">
+            <input type="hidden" name="sort" value={sort} />
+            <input type="hidden" name="dir" value={dir} />
 
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="search"
-              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-            >
-              Search
-            </label>
-            <Input
-              id="search"
-              name="search"
-              placeholder="Search description..."
-              defaultValue={search}
-              className="h-8 w-full sm:w-64"
-            />
-          </div>
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor="search"
+                className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+              >
+                Search
+              </label>
+              <Input
+                id="search"
+                name="search"
+                placeholder="Search description..."
+                defaultValue={search}
+              />
+            </div>
 
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="type"
-              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-            >
-              Type
-            </label>
-            <select
-              id="type"
-              name="type"
-              defaultValue={typeFilter}
-              className={selectClassName}
-            >
-              <option value="all">All types</option>
-              {typeOptions.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
-          </div>
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor="type"
+                className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+              >
+                Type
+              </label>
+              <select
+                id="type"
+                name="type"
+                defaultValue={typeFilter}
+                className={selectClassName}
+              >
+                <option value="all">All types</option>
+                {typeOptions.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="condition"
-              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-            >
-              Condition
-            </label>
-            <select
-              id="condition"
-              name="condition"
-              defaultValue={conditionFilter}
-              className={selectClassName}
-            >
-              <option value="all">All conditions</option>
-              {CONDITIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor="condition"
+                className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+              >
+                Condition
+              </label>
+              <select
+                id="condition"
+                name="condition"
+                defaultValue={conditionFilter}
+                className={selectClassName}
+              >
+                <option value="all">All conditions</option>
+                {CONDITIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="status"
-              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-            >
-              Status
-            </label>
-            <select
-              id="status"
-              name="status"
-              defaultValue={statusFilter}
-              className={selectClassName}
-            >
-              <option value="all">All statuses</option>
-              {STATUSES.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor="status"
+                className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+              >
+                Status
+              </label>
+              <select
+                id="status"
+                name="status"
+                defaultValue={statusFilter}
+                className={selectClassName}
+              >
+                <option value="all">All statuses</option>
+                {STATUSES.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <Button type="submit" variant="outline">
-            Filter
-          </Button>
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              nativeButton={false}
-              render={<Link href="/portal/inventory/items" />}
-            >
-              Clear
-            </Button>
-          )}
-        </form>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="submit" variant="outline">
+                Filter
+              </Button>
+              {hasActiveFilters && (
+                <Button
+                  variant="ghost"
+                  nativeButton={false}
+                  render={<Link href="/portal/inventory/items" />}
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
+          </form>
+        </FiltersSheet>
       </div>
 
       <div className="mt-6">

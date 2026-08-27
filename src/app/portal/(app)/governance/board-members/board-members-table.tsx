@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { FiltersSheet } from "@/components/filters-sheet";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -19,9 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EditBoardMemberModal } from "./edit-board-member-modal";
-import { NewBoardMemberDialog } from "./new-board-member-dialog";
 import type { BoardMemberRow } from "./board-members-shared";
-import type { PersonListItem } from "../../people/actions";
 
 const FILTER_ALL = "all";
 const FILTER_ACTIVE = "active";
@@ -39,11 +38,9 @@ function formatDate(value: string | null) {
 
 export function BoardMembersTable({
   boardMembers,
-  people,
   canManage,
 }: {
   boardMembers: BoardMemberRow[];
-  people: PersonListItem[];
   canManage: boolean;
 }) {
   const [search, setSearch] = useState("");
@@ -66,27 +63,27 @@ export function BoardMembersTable({
     });
   }, [boardMembers, search, statusFilter]);
 
+  const activeFilterCount = [
+    search.trim() !== "",
+    statusFilter !== FILTER_ACTIVE,
+  ].filter(Boolean).length;
+
   if (boardMembers.length === 0) {
     return (
-      <div className="space-y-4">
-        {canManage && <NewBoardMemberDialog people={people} />}
-        <Card>
-          <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No board members added yet.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardContent className="px-0">
+          <p className="app-muted px-4 py-6 text-sm">
+            No board members added yet.
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        {canManage && <NewBoardMemberDialog people={people} />}
-
-        <div className="flex flex-wrap items-end gap-3">
+      <div className="flex justify-end">
+        <FiltersSheet activeCount={activeFilterCount}>
           <div className="flex flex-col gap-1">
             <label
               htmlFor="board-members-search"
@@ -99,7 +96,6 @@ export function BoardMembersTable({
               placeholder="Search name or role..."
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              className="h-8 w-full sm:w-64"
             />
           </div>
 
@@ -118,7 +114,7 @@ export function BoardMembersTable({
                 )
               }
             >
-              <SelectTrigger className="h-8" aria-label="Filter by status">
+              <SelectTrigger aria-label="Filter by status">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -128,7 +124,7 @@ export function BoardMembersTable({
               </SelectContent>
             </Select>
           </div>
-        </div>
+        </FiltersSheet>
       </div>
 
       <Card>

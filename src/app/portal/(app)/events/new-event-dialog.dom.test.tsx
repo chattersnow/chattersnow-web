@@ -17,7 +17,7 @@ const { NewEventDialog } = await import("./new-event-dialog");
 
 async function openDialog(user: ReturnType<typeof userEvent.setup>) {
   render(<NewEventDialog />);
-  await user.click(screen.getByRole("button", { name: "New event" }));
+  await user.click(screen.getByRole("button", { name: "New Event" }));
 }
 
 describe("NewEventDialog", () => {
@@ -51,7 +51,7 @@ describe("NewEventDialog", () => {
     await user.type(screen.getByLabelText("Starts"), "2026-12-01T10:00");
     await user.click(screen.getByRole("button", { name: "Create event" }));
 
-    await screen.findByRole("button", { name: "New event" });
+    await screen.findByRole("button", { name: "New Event" });
     expect(createEventActionMock).toHaveBeenCalledTimes(1);
 
     const submitted = createEventActionMock.mock.calls[0][0];
@@ -84,7 +84,7 @@ describe("NewEventDialog", () => {
     await user.type(screen.getByLabelText("Event name"), "Draft event");
     await user.keyboard("{Escape}");
 
-    await user.click(screen.getByRole("button", { name: "New event" }));
+    await user.click(screen.getByRole("button", { name: "New Event" }));
     expect(screen.getByLabelText("Event name")).toHaveValue("");
   });
 });

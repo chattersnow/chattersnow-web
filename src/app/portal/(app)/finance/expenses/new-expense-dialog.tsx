@@ -27,7 +27,7 @@ export function NewExpenseDialog({
   events,
   defaultEventId,
   lockEventSelection,
-  triggerLabel = "Add expense",
+  triggerLabel = "New Expense",
   onSaved,
 }: {
   events: EventOption[];

@@ -4,6 +4,7 @@ import {
   hasPermission,
 } from "@/lib/auth/permissions";
 import { PoliciesTable } from "./policies-table";
+import { NewPolicyDialog } from "./new-policy-dialog";
 import type { Policy } from "./policies-actions";
 
 const POLICY_SELECT =
@@ -22,9 +23,12 @@ export default async function PoliciesPage() {
 
   return (
     <>
-      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-        Policies
-      </h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          Policies
+        </h1>
+        {canManage && <NewPolicyDialog />}
+      </div>
 
       <div className="mt-6">
         <PoliciesTable

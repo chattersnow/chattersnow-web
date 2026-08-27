@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { FiltersSheet } from "@/components/filters-sheet";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -19,7 +20,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EditResolutionModal } from "./edit-resolution-modal";
-import { NewResolutionDialog } from "./new-resolution-dialog";
 import { VoteOutcomeBadge } from "./resolution-badges";
 import type { Resolution } from "./resolutions-actions";
 import type { ResolutionMeetingOption } from "./resolutions-shared";
@@ -77,31 +77,27 @@ export function ResolutionsTable({
     });
   }, [resolutions, search, outcomeFilter]);
 
+  const activeFilterCount = [
+    search.trim() !== "",
+    outcomeFilter !== FILTER_ALL,
+  ].filter(Boolean).length;
+
   if (resolutions.length === 0) {
     return (
-      <div className="space-y-4">
-        {canManage && (
-          <NewResolutionDialog people={people} meetings={meetings} />
-        )}
-        <Card>
-          <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No resolutions recorded yet.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardContent className="px-0">
+          <p className="app-muted px-4 py-6 text-sm">
+            No resolutions recorded yet.
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        {canManage && (
-          <NewResolutionDialog people={people} meetings={meetings} />
-        )}
-
-        <div className="flex flex-wrap items-end gap-3">
+      <div className="flex justify-end">
+        <FiltersSheet activeCount={activeFilterCount}>
           <div className="flex flex-col gap-1">
             <label
               htmlFor="resolutions-search"
@@ -114,7 +110,6 @@ export function ResolutionsTable({
               placeholder="Search motion or mover..."
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              className="h-8 w-full sm:w-64"
             />
           </div>
 
@@ -126,10 +121,7 @@ export function ResolutionsTable({
               value={outcomeFilter}
               onValueChange={(value) => setOutcomeFilter(value ?? FILTER_ALL)}
             >
-              <SelectTrigger
-                className="h-8"
-                aria-label="Filter by vote outcome"
-              >
+              <SelectTrigger aria-label="Filter by vote outcome">
                 <SelectValue placeholder="Vote outcome" />
               </SelectTrigger>
               <SelectContent>
@@ -141,7 +133,7 @@ export function ResolutionsTable({
               </SelectContent>
             </Select>
           </div>
-        </div>
+        </FiltersSheet>
       </div>
 
       <Card>

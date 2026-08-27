@@ -4,6 +4,7 @@ import {
   hasPermission,
 } from "@/lib/auth/permissions";
 import { BoardMembersTable } from "./board-members-table";
+import { NewBoardMemberDialog } from "./new-board-member-dialog";
 import type { BoardMemberRow } from "./board-members-shared";
 import type { PersonListItem } from "../../people/actions";
 
@@ -26,16 +27,20 @@ export default async function BoardMembersPage() {
       .order("name", { ascending: true }),
   ]);
 
+  const peopleOptions = (people ?? []) as PersonListItem[];
+
   return (
     <>
-      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-        Board Members
-      </h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          Board Members
+        </h1>
+        {canManage && <NewBoardMemberDialog people={peopleOptions} />}
+      </div>
 
       <div className="mt-6">
         <BoardMembersTable
           boardMembers={(boardMembers ?? []) as unknown as BoardMemberRow[]}
-          people={(people ?? []) as PersonListItem[]}
           canManage={canManage}
         />
       </div>

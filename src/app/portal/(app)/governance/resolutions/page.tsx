@@ -4,6 +4,7 @@ import {
   hasPermission,
 } from "@/lib/auth/permissions";
 import { ResolutionsTable } from "./resolutions-table";
+import { NewResolutionDialog } from "./new-resolution-dialog";
 import type { Resolution } from "./resolutions-actions";
 import type { ResolutionMeetingOption } from "./resolutions-shared";
 import type { PersonListItem } from "../../people/actions";
@@ -32,17 +33,28 @@ export default async function ResolutionsPage() {
         .order("meeting_date", { ascending: false }),
     ]);
 
+  const peopleOptions = (people ?? []) as PersonListItem[];
+  const meetingOptions = (meetings ?? []) as ResolutionMeetingOption[];
+
   return (
     <>
-      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-        Resolutions
-      </h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          Resolutions
+        </h1>
+        {canManage && (
+          <NewResolutionDialog
+            people={peopleOptions}
+            meetings={meetingOptions}
+          />
+        )}
+      </div>
 
       <div className="mt-6">
         <ResolutionsTable
           resolutions={(resolutions ?? []) as unknown as Resolution[]}
-          people={(people ?? []) as PersonListItem[]}
-          meetings={(meetings ?? []) as ResolutionMeetingOption[]}
+          people={peopleOptions}
+          meetings={meetingOptions}
           canManage={canManage}
         />
       </div>

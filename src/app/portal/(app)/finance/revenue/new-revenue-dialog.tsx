@@ -27,7 +27,7 @@ export function NewRevenueDialog({
   events,
   defaultEventId,
   lockEventSelection,
-  triggerLabel = "Add revenue",
+  triggerLabel = "New Revenue",
   onSaved,
 }: {
   events: EventOption[];

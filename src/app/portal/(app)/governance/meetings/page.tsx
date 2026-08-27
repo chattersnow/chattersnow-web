@@ -5,6 +5,7 @@ import {
 } from "@/lib/auth/permissions";
 import { WorkflowInfoCard } from "@/components/workflow-info-card";
 import { MeetingsTable } from "./meetings-table";
+import { NewMeetingDialog } from "./new-meeting-dialog";
 import type { MeetingRow } from "./meeting-badges";
 
 export default async function MeetingsPage() {
@@ -21,9 +22,12 @@ export default async function MeetingsPage() {
 
   return (
     <>
-      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-        Meetings
-      </h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          Meetings
+        </h1>
+        {canManage && <NewMeetingDialog />}
+      </div>
 
       <div className="mt-6 space-y-4">
         <WorkflowInfoCard title="How meeting records work">
@@ -53,10 +57,7 @@ export default async function MeetingsPage() {
             independent of the meeting&apos;s overall status.
           </p>
         </WorkflowInfoCard>
-        <MeetingsTable
-          meetings={(meetings ?? []) as unknown as MeetingRow[]}
-          canManage={canManage}
-        />
+        <MeetingsTable meetings={(meetings ?? []) as unknown as MeetingRow[]} />
       </div>
     </>
   );

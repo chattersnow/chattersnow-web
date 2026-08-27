@@ -26,6 +26,7 @@ import { NewEventDialog } from "./new-event-dialog";
 import { EventDetailsDialog } from "./event-details-dialog";
 import { StatusBadge, VisibilityBadge } from "./event-badges";
 import { WorkflowInfoCard } from "@/components/workflow-info-card";
+import { FiltersSheet } from "@/components/filters-sheet";
 import { listProgramsAction } from "../programs/actions";
 
 const SORTABLE_COLUMNS = [
@@ -172,15 +173,23 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
     statusFilter !== "all" ||
     visibilityFilter !== "all" ||
     whenFilter !== "all";
+  const activeFilterCount = [
+    statusFilter !== "all",
+    visibilityFilter !== "all",
+    whenFilter !== "all",
+  ].filter(Boolean).length;
 
   const selectClassName =
     "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
   return (
     <>
-      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-        Events
-      </h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          Events
+        </h1>
+        {canManage && <NewEventDialog programs={programs} />}
+      </div>
 
       <div className="mt-6">
         <WorkflowInfoCard title="How status and visibility work">
@@ -203,86 +212,88 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
         </WorkflowInfoCard>
       </div>
 
-      <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
-        {canManage ? <NewEventDialog programs={programs} /> : <div />}
+      <div className="mt-6 flex justify-end">
+        <FiltersSheet activeCount={activeFilterCount}>
+          <form method="get" className="flex flex-col gap-4">
+            <input type="hidden" name="sort" value={sort} />
+            <input type="hidden" name="dir" value={dir} />
 
-        <form method="get" className="flex flex-wrap items-end gap-3">
-          <input type="hidden" name="sort" value={sort} />
-          <input type="hidden" name="dir" value={dir} />
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor="when"
+                className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+              >
+                When
+              </label>
+              <select
+                id="when"
+                name="when"
+                defaultValue={whenFilter}
+                className={selectClassName}
+              >
+                <option value="all">All events</option>
+                <option value="upcoming">Upcoming</option>
+                <option value="past">Past</option>
+              </select>
+            </div>
 
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="when"
-              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-            >
-              When
-            </label>
-            <select
-              id="when"
-              name="when"
-              defaultValue={whenFilter}
-              className={selectClassName}
-            >
-              <option value="all">All events</option>
-              <option value="upcoming">Upcoming</option>
-              <option value="past">Past</option>
-            </select>
-          </div>
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor="status"
+                className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+              >
+                Status
+              </label>
+              <select
+                id="status"
+                name="status"
+                defaultValue={statusFilter}
+                className={selectClassName}
+              >
+                <option value="all">All statuses</option>
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
 
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="status"
-              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-            >
-              Status
-            </label>
-            <select
-              id="status"
-              name="status"
-              defaultValue={statusFilter}
-              className={selectClassName}
-            >
-              <option value="all">All statuses</option>
-              <option value="draft">Draft</option>
-              <option value="published">Published</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-              <option value="archived">Archived</option>
-            </select>
-          </div>
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor="visibility"
+                className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+              >
+                Visibility
+              </label>
+              <select
+                id="visibility"
+                name="visibility"
+                defaultValue={visibilityFilter}
+                className={selectClassName}
+              >
+                <option value="all">All</option>
+                <option value="public">Public</option>
+                <option value="private">Private</option>
+              </select>
+            </div>
 
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="visibility"
-              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-            >
-              Visibility
-            </label>
-            <select
-              id="visibility"
-              name="visibility"
-              defaultValue={visibilityFilter}
-              className={selectClassName}
-            >
-              <option value="all">All</option>
-              <option value="public">Public</option>
-              <option value="private">Private</option>
-            </select>
-          </div>
-
-          <Button type="submit" variant="outline">
-            Filter
-          </Button>
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              nativeButton={false}
-              render={<Link href="/portal/events" />}
-            >
-              Clear
-            </Button>
-          )}
-        </form>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="submit" variant="outline">
+                Filter
+              </Button>
+              {hasActiveFilters && (
+                <Button
+                  variant="ghost"
+                  nativeButton={false}
+                  render={<Link href="/portal/events" />}
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
+          </form>
+        </FiltersSheet>
       </div>
 
       <Card className="mt-6">
