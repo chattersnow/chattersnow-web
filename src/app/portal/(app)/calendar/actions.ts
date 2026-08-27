@@ -274,6 +274,43 @@ export async function updateCalendarItemAction(
   return warning ? { success: true, warning } : { success: true };
 }
 
+export async function updateCalendarItemsVisibilityAction(
+  ids: string[],
+  visibility: string,
+): Promise<CalendarActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update calendar item visibility.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(
+    supabase,
+    "content_calendar",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  if (ids.length === 0) {
+    return { error: "Select at least one calendar item to update." };
+  }
+
+  const { error } = await supabase
+    .from("calendar_items")
+    .update({ visibility })
+    .in("id", ids);
+
+  if (error) {
+    return {
+      error:
+        "Could not update visibility for the selected items. Please try again.",
+    };
+  }
+
+  revalidatePath("/portal/calendar");
+  return { success: true };
+}
+
 export async function duplicateCalendarItemAction(
   id: string,
 ): Promise<CalendarActionResult> {

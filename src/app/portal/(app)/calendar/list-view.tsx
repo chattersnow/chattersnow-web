@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -12,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CalendarItemDetailsSheet } from "./calendar-item-details-sheet";
+import { BulkVisibilityToolbar } from "./bulk-visibility-toolbar";
 import {
   CalendarStatusBadge,
   CalendarVisibilityBadge,
@@ -83,9 +86,40 @@ export function ListView({
     );
   }
 
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Stale ids can linger in `selectedIds` after a filter/sort narrows `items`
+  // (e.g. a selected row scrolls out of the current filters); intersect with
+  // the currently visible rows here rather than syncing state in an effect.
+  const visibleSelectedIds = items
+    .map((item) => item.id)
+    .filter((id) => selectedIds.has(id));
+  const allSelected =
+    items.length > 0 && visibleSelectedIds.length === items.length;
+  const someSelected = visibleSelectedIds.length > 0 && !allSelected;
+
+  function toggleAll(checked: boolean) {
+    setSelectedIds(checked ? new Set(items.map((item) => item.id)) : new Set());
+  }
+
+  function toggleRow(id: string, checked: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
   return (
     <Card className="mt-6">
       <CardContent className="px-0">
+        {canManage && visibleSelectedIds.length > 0 && (
+          <BulkVisibilityToolbar
+            selectedIds={visibleSelectedIds}
+            onDone={() => setSelectedIds(new Set())}
+          />
+        )}
         {items.length === 0 ? (
           <p className="app-muted px-4 py-6 text-sm">
             No calendar items match these filters.
@@ -94,6 +128,16 @@ export function ListView({
           <Table>
             <TableHeader>
               <TableRow>
+                {canManage && (
+                  <TableHead className="w-px">
+                    <Checkbox
+                      checked={allSelected}
+                      indeterminate={someSelected}
+                      onCheckedChange={(checked) => toggleAll(checked)}
+                      aria-label="Select all"
+                    />
+                  </TableHead>
+                )}
                 {SORT_COLUMN_BEFORE_TYPE.map((column) => (
                   <TableHead key={column.key}>
                     <Link
@@ -126,6 +170,17 @@ export function ListView({
             <TableBody>
               {items.map((item) => (
                 <TableRow key={item.id}>
+                  {canManage && (
+                    <TableCell className="w-px">
+                      <Checkbox
+                        checked={selectedIds.has(item.id)}
+                        onCheckedChange={(checked) =>
+                          toggleRow(item.id, checked)
+                        }
+                        aria-label={`Select ${item.title}`}
+                      />
+                    </TableCell>
+                  )}
                   <TableCell className="max-w-xs font-medium">
                     <div className="flex flex-col gap-1">
                       <span className="block truncate" title={item.title}>
