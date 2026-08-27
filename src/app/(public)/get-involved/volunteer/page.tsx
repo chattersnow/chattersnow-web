@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { HandHeart } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SiteImage } from "@/components/site-image";
@@ -55,8 +56,14 @@ export default async function VolunteerPage() {
             Check back soon for open volunteer roles.
           </p>
         )}
-        <div className="mt-10">
+        <div className="mt-10 flex flex-wrap items-center gap-4">
           <VolunteerApplicationSheet />
+          <Link
+            href="/get-involved/volunteer/status"
+            className="app-muted text-sm underline underline-offset-4"
+          >
+            Already applied? Check your status
+          </Link>
         </div>
       </section>
     </div>

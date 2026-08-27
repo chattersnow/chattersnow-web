@@ -294,15 +294,15 @@ begin
   values ('Morgan Ellis', false, 'individual', 'morgan.ellis@example.test', '555-0105', true, v_admin_id)
   returning id into v_person_applicant;
 
-  insert into public.volunteer_applications (person_id, name, email, phone, role_interest, availability, status)
-  values (v_person_applicant, 'Morgan Ellis', 'morgan.ellis@example.test', '555-0105', 'Ride Buddy', 'Weekend mornings', 'new');
+  insert into public.volunteer_applications (person_id, name, email, phone, role_interest, availability, status, reference_code)
+  values (v_person_applicant, 'Morgan Ellis', 'morgan.ellis@example.test', '555-0105', 'Ride Buddy', 'Weekend mornings', 'new', 'MRGNELLS');
 
   insert into public.people (name, is_anonymous, source_type, email, phone, is_volunteer, created_by)
   values ('Taylor Kim', false, 'individual', 'taylor.kim@example.test', '555-0106', true, v_admin_id)
   returning id into v_person_applicant;
 
-  insert into public.volunteer_applications (person_id, name, email, phone, role_interest, availability, status)
-  values (v_person_applicant, 'Taylor Kim', 'taylor.kim@example.test', '555-0106', 'Event Setup Crew', 'Weekday evenings', 'being reviewed');
+  insert into public.volunteer_applications (person_id, name, email, phone, role_interest, availability, status, reference_code)
+  values (v_person_applicant, 'Taylor Kim', 'taylor.kim@example.test', '555-0106', 'Event Setup Crew', 'Weekday evenings', 'being reviewed', 'TYLRKIM2');
 
   -- Public contact-form submissions, exercising the ops inbox (issue #173):
   -- one unread so the notification bell/dashboard card have something to
