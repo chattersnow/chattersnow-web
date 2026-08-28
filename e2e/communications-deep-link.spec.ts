@@ -55,20 +55,23 @@ test("a message opened from a ?status=new deep link stays visible after being ma
     const sheet = page.getByRole("dialog");
     await expect(sheet.getByText("Contact message")).toBeVisible();
 
-    // Opening the sheet auto-marks the message read via a Server Action --
-    // the row must stay visible throughout (this is the bug: the pinned
-    // status=new filter used to hide it the instant this landed). The
-    // mutation's round trip plus Next's revalidation can take longer than
-    // the default assertion timeout under CI load, so give the status
-    // badge more headroom while continuously checking the row itself never
-    // disappears.
+    // Opening the sheet auto-marks the message read via a Server Action.
+    // The background table is legitimately marked inert (aria-hidden)
+    // while the modal sheet is open, so the row isn't expected to be
+    // "visible" (Playwright respects aria-hidden) until it closes -- the
+    // bug this test guards is about what happens after: does the row stay
+    // in the status=new-filtered table once its status has moved off
+    // "new", instead of the pinned filter hiding it.
+    await sheet.getByRole("button", { name: "Close" }).click();
+
+    // The mutation's round trip plus Next's revalidation can take longer
+    // than the default assertion timeout under CI load, so give the
+    // status badge more headroom while continuously checking the row
+    // itself never disappears.
     await expect(row).toBeVisible();
     await expect(row.getByText("read", { exact: true })).toBeVisible({
       timeout: 15_000,
     });
-    await expect(row).toBeVisible();
-
-    await sheet.getByRole("button", { name: "Close" }).click();
     await expect(row).toBeVisible();
   } finally {
     await fixture.cleanup();
