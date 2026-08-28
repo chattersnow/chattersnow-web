@@ -104,6 +104,7 @@ export default async function PortalHomePage() {
     "view",
   );
   const canSeeEventCheckins = canSeeUpcoming;
+  const canCheckIn = hasPermission(permissions, "events", "manage");
   const canRecordDonation = hasAnyPermission(permissions, [
     { resource: "finance", level: "manage" },
     { resource: "inventory_intake", level: "manage" },
@@ -224,6 +225,7 @@ export default async function PortalHomePage() {
               <ActiveEventCard
                 key={event.id}
                 event={event}
+                canCheckIn={canCheckIn}
                 canRecordDonation={canRecordDonation}
                 canRecordDistribution={canRecordDistribution}
               />
