@@ -368,3 +368,32 @@ export async function createPerson(overrides: { name?: string } = {}) {
     },
   };
 }
+
+// A single `governance_meetings` row, for tests exercising a meeting's child
+// records (agenda, minutes, action items). Every table keyed on `meeting_id`
+// declares `on delete cascade`, so deleting the meeting is sufficient
+// cleanup for its children too.
+export async function createGovernanceMeeting(
+  overrides: { meetingDate?: string; status?: string } = {},
+) {
+  const { data, error } = await adminClient
+    .from("governance_meetings")
+    .insert({
+      meeting_date:
+        overrides.meetingDate ??
+        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      meeting_type: "board",
+      status: overrides.status ?? "scheduled",
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+
+  const id = data.id as string;
+  return {
+    id,
+    async cleanup() {
+      await adminClient.from("governance_meetings").delete().eq("id", id);
+    },
+  };
+}
