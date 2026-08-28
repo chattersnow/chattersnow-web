@@ -29,20 +29,19 @@ export default async function DonateGearPage() {
         </h1>
         <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
           Chatter collects donated ski and snowboard gear and makes it available
-          to community members who need it. Browse the library, then reach out
-          to request an item. We&apos;ll help coordinate pickup or drop-off at
-          an upcoming event.
+          to community members who need it. Browse the library, add what you
+          need to your cart, and submit one request for everything at once.
+          We&apos;ll help coordinate pickup or drop-off at an upcoming event.
         </p>
       </section>
 
       <section id="request">
         <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
-          Request gear
+          Don&apos;t see what you need?
         </h2>
         <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-          See something in the library you need, or don&apos;t see your size?
-          Send us a message and we&apos;ll do our best to match you with
-          available gear.
+          If your size or item isn&apos;t currently in the library, send us a
+          message and we&apos;ll do our best to match you with available gear.
         </p>
         <Button
           variant="outline"
@@ -50,7 +49,7 @@ export default async function DonateGearPage() {
           nativeButton={false}
           render={<Link href="/contact?topic=gear" />}
         >
-          Request gear
+          Contact us
         </Button>
       </section>
 
