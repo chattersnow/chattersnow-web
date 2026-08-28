@@ -124,6 +124,27 @@ test.describe("public learn page", () => {
     await expect(page.getByText("coming soon")).toHaveCount(0);
   });
 
+  test("gear and sizing category renders its articles", async ({ page }) => {
+    await page.goto("/learn/gear-and-sizing");
+
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Gear & Sizing" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        level: 2,
+        name: "Gear 101: what you actually need for your first day",
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        level: 2,
+        name: "Understanding binding DIN settings",
+      }),
+    ).toBeVisible();
+    await expect(page.getByText("coming soon")).toHaveCount(0);
+  });
+
   test("community and inclusion category renders its articles", async ({
     page,
   }) => {
