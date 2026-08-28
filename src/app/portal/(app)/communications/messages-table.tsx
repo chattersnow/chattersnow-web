@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import { useStickyStatusFilter } from "./use-sticky-status-filter";
 import { Card, CardContent } from "@/components/ui/card";
 import { FiltersSheet } from "@/components/filters-sheet";
 import { Input } from "@/components/ui/input";
@@ -46,36 +47,28 @@ export function MessagesTable({
   initialStatusFilter?: ContactMessageStatus | null;
 }) {
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<ContactMessageStatus | null>(
-    initialStatusFilter,
-  );
+  const {
+    status: statusFilter,
+    setStatus: setStatusFilter,
+    isVisible,
+  } = useStickyStatusFilter(messages, initialStatusFilter);
 
-  // `initialStatusFilter` comes from the URL's `status` search param. Next.js
-  // client transitions between pages that render this same component tree
-  // position (e.g. following a notifications-menu link while already on this
-  // page) re-render with a new prop instead of remounting, so `useState`'s
-  // initializer alone won't pick up the change. Adjust state during render
-  // (React's documented pattern for this) rather than in an effect, so the
-  // stale filter never has a chance to flash on screen.
-  const [prevStatusFilter, setPrevStatusFilter] = useState(initialStatusFilter);
-  if (initialStatusFilter !== prevStatusFilter) {
-    setPrevStatusFilter(initialStatusFilter);
-    setStatusFilter(initialStatusFilter);
-  }
-
-  const visibleMessages = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return messages.filter((message) => {
-      if (statusFilter && message.status !== statusFilter) return false;
-      if (
-        query &&
-        !message.name.toLowerCase().includes(query) &&
-        !message.email.toLowerCase().includes(query)
-      )
-        return false;
-      return true;
-    });
-  }, [messages, search, statusFilter]);
+  // Not memoized: isVisible closes over useStickyStatusFilter's internal
+  // sticky-id state, which can change via a same-render state update (see
+  // that hook) that a memo keyed on messages/search/statusFilter alone
+  // wouldn't pick up. The table is small enough that filtering on every
+  // render is cheap.
+  const query = search.trim().toLowerCase();
+  const visibleMessages = messages.filter((message) => {
+    if (!isVisible(message)) return false;
+    if (
+      query &&
+      !message.name.toLowerCase().includes(query) &&
+      !message.email.toLowerCase().includes(query)
+    )
+      return false;
+    return true;
+  });
 
   const activeFilterCount = [
     search.trim() !== "",
