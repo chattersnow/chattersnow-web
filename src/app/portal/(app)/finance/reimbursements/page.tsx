@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { WorkflowInfoCard } from "@/components/workflow-info-card";
+import { HowToSection, HowToSheet } from "@/components/how-to-sheet";
 import { FiltersSheet } from "@/components/filters-sheet";
 import {
   buildHref,
@@ -175,56 +175,98 @@ export default async function ReimbursementsPage({
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
           Reimbursements
         </h1>
-        <NewReimbursementDialog people={peopleOptions} events={eventOptions} />
+        <div className="flex items-center gap-2">
+          <HowToSheet title="How reimbursement approval works">
+            <HowToSection heading="Steps">
+              <ol className="list-decimal space-y-2 pl-4">
+                <li>
+                  <strong className="text-foreground">Submitted</strong> —
+                  finance, an event coordinator, or admin records a
+                  reimbursement request on behalf of the person who spent the
+                  money. Every reimbursement starts here.
+                </li>
+                <li>
+                  <strong className="text-foreground">
+                    Approved or rejected
+                  </strong>{" "}
+                  —
+                  {approvalContext.threshold !== null ? (
+                    <>
+                      {" "}
+                      below {formatAmount(approvalContext.threshold, "USD")},
+                      finance can approve their own submission. At or above
+                      that, an admin or board member — someone other than
+                      whoever submitted it — has to approve or reject it.
+                    </>
+                  ) : (
+                    <>
+                      {" "}
+                      an admin or board member, other than whoever submitted it,
+                      approves or rejects it.
+                    </>
+                  )}
+                </li>
+                <li>
+                  <strong className="text-foreground">Paid</strong> — once
+                  approved, finance or admin marks it as paid after payment has
+                  actually been sent.
+                </li>
+              </ol>
+            </HowToSection>
+            <HowToSection heading="Who can do this">
+              <p>
+                <strong className="text-foreground">finance</strong>, an{" "}
+                <strong className="text-foreground">event_coordinator</strong>,
+                or <strong className="text-foreground">admin</strong> can submit
+                on someone&apos;s behalf; approval mirrors expenses — finance
+                self-approves below the threshold, admin or board approve at or
+                above it.
+              </p>
+            </HowToSection>
+            <HowToSection heading="What happens downstream">
+              <ul className="list-disc space-y-2 pl-4">
+                <li>
+                  The threshold is a setting, not a fixed rule — admin or board
+                  can change it anytime in{" "}
+                  <Link
+                    href="/portal/administration/system-settings"
+                    className="underline hover:text-foreground"
+                  >
+                    Administration &gt; System Settings
+                  </Link>
+                  , and it takes effect here immediately, without a code change.
+                  Reimbursements use their own threshold, separate from the
+                  expense threshold.
+                </li>
+                <li>
+                  Every submit, approve, reject, or paid transition is written
+                  to the audit log, including who acted and when.
+                </li>
+              </ul>
+            </HowToSection>
+            <HowToSection heading="Common mistakes">
+              <ul className="list-disc space-y-2 pl-4">
+                <li>
+                  Recording under the wrong person — the reimbursement tracks
+                  the requesting person separately from whoever enters the
+                  record, so double-check the Requester field.
+                </li>
+                <li>
+                  Resubmitting a new request instead of editing an
+                  already-submitted one creates a duplicate rather than
+                  correcting it.
+                </li>
+              </ul>
+            </HowToSection>
+          </HowToSheet>
+          <NewReimbursementDialog
+            people={peopleOptions}
+            events={eventOptions}
+          />
+        </div>
       </div>
 
       <div className="mt-6 space-y-4">
-        <WorkflowInfoCard title="How reimbursement approval works">
-          <ol className="list-decimal space-y-2 pl-4">
-            <li>
-              <strong className="text-foreground">Submitted</strong> — finance,
-              an event coordinator, or admin records a reimbursement request on
-              behalf of the person who spent the money. Every reimbursement
-              starts here.
-            </li>
-            <li>
-              <strong className="text-foreground">Approved or rejected</strong>{" "}
-              —
-              {approvalContext.threshold !== null ? (
-                <>
-                  {" "}
-                  below {formatAmount(approvalContext.threshold, "USD")},
-                  finance can approve their own submission. At or above that, an
-                  admin or board member — someone other than whoever submitted
-                  it — has to approve or reject it.
-                </>
-              ) : (
-                <>
-                  {" "}
-                  an admin or board member, other than whoever submitted it,
-                  approves or rejects it.
-                </>
-              )}
-            </li>
-            <li>
-              <strong className="text-foreground">Paid</strong> — once approved,
-              finance or admin marks it as paid after payment has actually been
-              sent.
-            </li>
-          </ol>
-          <p className="mt-3">
-            The threshold is a setting, not a fixed rule — admin or board can
-            change it anytime in{" "}
-            <Link
-              href="/portal/administration/system-settings"
-              className="underline hover:text-foreground"
-            >
-              Administration &gt; System Settings
-            </Link>{" "}
-            without a code change.
-          </p>
-        </WorkflowInfoCard>
-
         <div className="flex justify-end">
           <FiltersSheet activeCount={activeFilterCount}>
             <form method="get" className="flex flex-col gap-4">

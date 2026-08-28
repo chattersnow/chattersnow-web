@@ -25,7 +25,7 @@ import {
 import { NewEventDialog } from "./new-event-dialog";
 import { EventDetailsDialog } from "./event-details-dialog";
 import { StatusBadge, VisibilityBadge } from "./event-badges";
-import { WorkflowInfoCard } from "@/components/workflow-info-card";
+import { HowToSection, HowToSheet } from "@/components/how-to-sheet";
 import { FiltersSheet } from "@/components/filters-sheet";
 import { listProgramsAction } from "../programs/actions";
 
@@ -188,28 +188,62 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
           Events
         </h1>
-        {canManage && <NewEventDialog programs={programs} />}
-      </div>
-
-      <div className="mt-6">
-        <WorkflowInfoCard title="How status and visibility work">
-          <ol className="list-decimal space-y-2 pl-4">
-            <li>
-              <strong className="text-foreground">Status</strong> tracks where
-              an event is in its lifecycle: draft → published → completed, or
-              cancelled/archived along the way.
-            </li>
-            <li>
-              <strong className="text-foreground">Visibility</strong> controls
-              whether an event can appear on the public site.
-            </li>
-          </ol>
-          <p className="mt-3">
-            These are independent — a public event still won&apos;t show on the
-            public site while it&apos;s a draft, and a published event marked
-            private stays portal-only.
-          </p>
-        </WorkflowInfoCard>
+        <div className="flex items-center gap-2">
+          <HowToSheet title="How status and visibility work">
+            <HowToSection heading="Steps">
+              <ol className="list-decimal space-y-2 pl-4">
+                <li>
+                  <strong className="text-foreground">Status</strong> tracks
+                  where an event is in its lifecycle: draft → published →
+                  completed, or cancelled/archived along the way.
+                </li>
+                <li>
+                  <strong className="text-foreground">Visibility</strong>{" "}
+                  controls whether an event can appear on the public site.
+                </li>
+                <li>Both are set independently from the event editor.</li>
+              </ol>
+            </HowToSection>
+            <HowToSection heading="Who can do this">
+              <p>
+                <strong className="text-foreground">admin</strong> and{" "}
+                <strong className="text-foreground">event_coordinator</strong>{" "}
+                manage events;{" "}
+                <strong className="text-foreground">finance</strong> has
+                view-only access for expense and sponsor reconciliation;
+                volunteers can view and sign up; board has no access to this
+                page.
+              </p>
+            </HowToSection>
+            <HowToSection heading="What happens downstream">
+              <ul className="list-disc space-y-2 pl-4">
+                <li>
+                  These two fields are independent — a public event still
+                  won&apos;t show on the public site while it&apos;s draft, and
+                  a published event marked private stays portal-only.
+                </li>
+                <li>
+                  Event edits are not yet written to the audit log (unlike
+                  expenses, calendar items, and most other portal records).
+                </li>
+              </ul>
+            </HowToSection>
+            <HowToSection heading="Common mistakes">
+              <ul className="list-disc space-y-2 pl-4">
+                <li>
+                  Publishing an event without also setting Visibility to public
+                  — the event moves past draft but still won&apos;t show
+                  publicly.
+                </li>
+                <li>
+                  Forgetting to mark a past event Completed leaves it showing as
+                  upcoming in reports that key off status.
+                </li>
+              </ul>
+            </HowToSection>
+          </HowToSheet>
+          {canManage && <NewEventDialog programs={programs} />}
+        </div>
       </div>
 
       <div className="mt-6 flex justify-end">
