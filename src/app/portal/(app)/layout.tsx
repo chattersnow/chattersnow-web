@@ -8,6 +8,7 @@ import {
   hasPermission,
 } from "@/lib/auth/permissions";
 import {
+  getAccessManagementAttentionSummary,
   getCalendarCoverageReminderSummary,
   getOpsInboxSummary,
   getPendingApprovalsSummary,
@@ -94,10 +95,21 @@ export default async function PortalAppLayout({
     { canManageContentCalendar },
   );
 
+  const canSeeAccessManagement = hasPermission(
+    permissions,
+    "access_management_assets",
+    "view",
+  );
+  const accessManagementAlerts = await getAccessManagementAttentionSummary(
+    supabase,
+    { canSeeAccessManagement },
+  );
+
   const attentionItems = [
     ...pendingApprovals.items,
     ...opsInbox.items,
     ...calendarCoverageReminder.items,
+    ...accessManagementAlerts.items,
   ];
 
   const displayName =

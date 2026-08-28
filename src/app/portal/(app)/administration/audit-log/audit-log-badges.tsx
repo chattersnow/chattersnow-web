@@ -11,6 +11,9 @@ export const TABLE_LABELS: Record<string, string> = {
   calendar_items: "Calendar items",
   content_opportunities: "Content opportunities",
   content_permissions: "Content permissions",
+  services: "Services",
+  assets: "Assets",
+  access_grants: "Access grants",
 };
 
 const ACTION_STYLES: Record<string, string> = {

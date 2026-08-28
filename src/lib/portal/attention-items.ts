@@ -194,3 +194,90 @@ export async function getOpsInboxSummary(
 
   return { items };
 }
+
+/**
+ * Access management alerts (issue #424): active assets whose review is due,
+ * active critical-sensitivity assets without MFA enabled, and active assets
+ * (medium sensitivity and up, per the requirement matrix -- "two
+ * administrators" doesn't apply to low) with at most one active
+ * owner/admin-level grant. Administrator-count tallying is done in JS
+ * (same approach as getOpsInboxSummary's per-event check-in tally) rather
+ * than a DB-side group-by -- the org's asset count is small (well under a
+ * few dozen) per docs/technical-spec.md §17.4.
+ */
+export async function getAccessManagementAttentionSummary(
+  supabase: SupabaseClient,
+  options: { canSeeAccessManagement: boolean },
+  nowIso: string = new Date().toISOString(),
+): Promise<PendingApprovalsSummary> {
+  if (!options.canSeeAccessManagement) return { items: [] };
+
+  const items: PendingApprovalItem[] = [];
+  const today = nowIso.slice(0, 10);
+
+  const { count: reviewsDueCount } = await supabase
+    .from("assets")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "active")
+    .lte("next_review", today);
+  if ((reviewsDueCount ?? 0) > 0) {
+    items.push({
+      key: "access_management_reviews_due",
+      label: `${reviewsDueCount} asset review${reviewsDueCount === 1 ? "" : "s"} due`,
+      count: reviewsDueCount ?? 0,
+      href: "/portal/administration/access-management?filter=reviews_due",
+    });
+  }
+
+  const { count: criticalNoMfaCount } = await supabase
+    .from("assets")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "active")
+    .eq("sensitivity", "critical")
+    .neq("mfa_status", "enabled");
+  if ((criticalNoMfaCount ?? 0) > 0) {
+    items.push({
+      key: "access_management_critical_no_mfa",
+      label: `${criticalNoMfaCount} critical asset${criticalNoMfaCount === 1 ? "" : "s"} without MFA enabled`,
+      count: criticalNoMfaCount ?? 0,
+      href: "/portal/administration/access-management?filter=critical_no_mfa",
+    });
+  }
+
+  const { data: assetsNeedingTwoAdmins } = await supabase
+    .from("assets")
+    .select("id")
+    .eq("status", "active")
+    .neq("sensitivity", "low");
+  if (assetsNeedingTwoAdmins && assetsNeedingTwoAdmins.length > 0) {
+    const assetIds = assetsNeedingTwoAdmins.map((asset) => asset.id as string);
+    const { data: adminGrants } = await supabase
+      .from("access_grants")
+      .select("asset_id")
+      .eq("status", "active")
+      .in("access_level", ["owner", "admin"])
+      .in("asset_id", assetIds);
+
+    const adminCountByAsset = new Map<string, number>();
+    for (const grant of (adminGrants ?? []) as { asset_id: string }[]) {
+      adminCountByAsset.set(
+        grant.asset_id,
+        (adminCountByAsset.get(grant.asset_id) ?? 0) + 1,
+      );
+    }
+
+    const singleAdministratorCount = assetIds.filter(
+      (assetId) => (adminCountByAsset.get(assetId) ?? 0) <= 1,
+    ).length;
+    if (singleAdministratorCount > 0) {
+      items.push({
+        key: "access_management_single_administrator",
+        label: `${singleAdministratorCount} asset${singleAdministratorCount === 1 ? "" : "s"} with only one administrator`,
+        count: singleAdministratorCount,
+        href: "/portal/administration/access-management?filter=single_administrator",
+      });
+    }
+  }
+
+  return { items };
+}

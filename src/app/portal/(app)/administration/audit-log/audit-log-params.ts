@@ -9,6 +9,9 @@ export const TABLE_VALUES = [
   "app_settings",
   "calendar_items",
   "content_opportunities",
+  "services",
+  "assets",
+  "access_grants",
 ] as const;
 
 export const ACTION_VALUES = ["insert", "update", "delete"] as const;
