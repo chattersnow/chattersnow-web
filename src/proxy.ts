@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 const PRODUCTION_HOSTS = new Set(["chattersnow.org", "www.chattersnow.org"]);
 const PORTAL_HOST = "portal.chattersnow.org";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const hostname = request.headers.get("host") ?? "";
   const { pathname } = request.nextUrl;
   const isPortalPath =
