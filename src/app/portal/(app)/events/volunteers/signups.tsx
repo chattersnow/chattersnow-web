@@ -64,7 +64,7 @@ export function AddVolunteerForm({
     }
 
     const formData = new FormData();
-    formData.set("role", role);
+    formData.set("role", shiftId ? "" : role);
     formData.set("notes", notes);
     formData.set("shiftId", shiftId ?? "");
 
@@ -125,15 +125,25 @@ export function AddVolunteerForm({
           </Field>
         )}
 
-        <Field>
-          <FieldLabel htmlFor="volunteer-role">Role</FieldLabel>
-          <Input
-            id="volunteer-role"
-            placeholder="e.g. Ride Buddy, Event Setup, Basecamp Staffing"
-            value={role}
-            onChange={(event) => setRole(event.target.value)}
-          />
-        </Field>
+        {shiftId ? (
+          <Field>
+            <FieldLabel>Role</FieldLabel>
+            <p className="app-muted rounded-md border border-[var(--line)] px-3 py-2 text-sm">
+              {shifts.find((s) => s.id === shiftId)?.role_type?.name ??
+                "No role"}
+            </p>
+          </Field>
+        ) : (
+          <Field>
+            <FieldLabel htmlFor="volunteer-role">Role</FieldLabel>
+            <Input
+              id="volunteer-role"
+              placeholder="e.g. Ride Buddy, Event Setup, Basecamp Staffing"
+              value={role}
+              onChange={(event) => setRole(event.target.value)}
+            />
+          </Field>
+        )}
 
         <Field>
           <FieldLabel htmlFor="volunteer-notes">Notes</FieldLabel>
@@ -211,70 +221,76 @@ export function SignupsSection({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {volunteers.map((volunteer) => (
-              <TableRow key={volunteer.id}>
-                <TableCell
-                  className="max-w-xs truncate font-medium"
-                  title={volunteer.person?.name ?? undefined}
-                >
-                  {volunteer.person?.name ?? "—"}
-                </TableCell>
-                <TableCell className="app-muted">
-                  {mode === "edit" && shifts.length > 0 ? (
-                    <Select
-                      value={volunteer.shift_id ?? "none"}
-                      onValueChange={(value) =>
-                        onShiftReassign(
-                          volunteer.id,
-                          value === "none" ? null : value,
-                        )
-                      }
-                    >
-                      <SelectTrigger
-                        className="w-full"
-                        size="sm"
-                        aria-label={`Shift for ${volunteer.person?.name ?? "volunteer"}`}
+            {volunteers.map((volunteer) => {
+              const assignedShift = shifts.find(
+                (s) => s.id === volunteer.shift_id,
+              );
+              const roleLabel = assignedShift
+                ? (assignedShift.role_type?.name ?? "No role")
+                : volunteer.role || "—";
+              return (
+                <TableRow key={volunteer.id}>
+                  <TableCell
+                    className="max-w-xs truncate font-medium"
+                    title={volunteer.person?.name ?? undefined}
+                  >
+                    {volunteer.person?.name ?? "—"}
+                  </TableCell>
+                  <TableCell className="app-muted">
+                    {mode === "edit" && shifts.length > 0 ? (
+                      <Select
+                        value={volunteer.shift_id ?? "none"}
+                        onValueChange={(value) =>
+                          onShiftReassign(
+                            volunteer.id,
+                            value === "none" ? null : value,
+                          )
+                        }
                       >
-                        <SelectValue placeholder="No shift">
-                          {(value: string) =>
-                            shifts.find((s) => s.id === value)?.label ??
-                            "No shift"
-                          }
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No shift</SelectItem>
-                        {shifts.map((shift) => (
-                          <SelectItem key={shift.id} value={shift.id}>
-                            {shift.label} ({formatShiftRange(shift)})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    (shifts.find((s) => s.id === volunteer.shift_id)?.label ??
-                    "—")
-                  )}
-                </TableCell>
-                <TableCell className="app-muted">
-                  {volunteer.role || "—"}
-                </TableCell>
-                <TableCell className="text-right">
-                  {mode === "edit" && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Remove volunteer"
-                      disabled={isDeleting}
-                      onClick={() => onDeleteVolunteer(volunteer.id)}
-                    >
-                      <Trash2 />
-                    </Button>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
+                        <SelectTrigger
+                          className="w-full"
+                          size="sm"
+                          aria-label={`Shift for ${volunteer.person?.name ?? "volunteer"}`}
+                        >
+                          <SelectValue placeholder="No shift">
+                            {(value: string) =>
+                              shifts.find((s) => s.id === value)?.label ??
+                              "No shift"
+                            }
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No shift</SelectItem>
+                          {shifts.map((shift) => (
+                            <SelectItem key={shift.id} value={shift.id}>
+                              {shift.label} ({formatShiftRange(shift)})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      (shifts.find((s) => s.id === volunteer.shift_id)?.label ??
+                      "—")
+                    )}
+                  </TableCell>
+                  <TableCell className="app-muted">{roleLabel}</TableCell>
+                  <TableCell className="text-right">
+                    {mode === "edit" && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Remove volunteer"
+                        disabled={isDeleting}
+                        onClick={() => onDeleteVolunteer(volunteer.id)}
+                      >
+                        <Trash2 />
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       )}

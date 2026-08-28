@@ -17,6 +17,7 @@ import {
   createEventShiftAction,
   deleteEventShiftAction,
   listEventShiftsAction,
+  updateEventShiftAction,
   type EventShift,
 } from "./shifts-actions";
 import { type PickedPerson } from "../people/person-picker";
@@ -163,6 +164,11 @@ export function VolunteersTab({
           if (!show) refresh();
         }}
         onCreateShift={(formData) => createEventShiftAction(eventId, formData)}
+        onUpdateShift={async (id, formData) => {
+          const result = await updateEventShiftAction(id, formData);
+          if (!("error" in result)) refresh();
+          return result;
+        }}
         onDeleteShift={handleDeleteShift}
       />
 
@@ -188,7 +194,8 @@ export function VolunteersTab({
 
       <HoursSection
         hours={hours}
-        people={people}
+        volunteers={volunteers}
+        shifts={shifts}
         mode={mode}
         isDeleting={isDeleting}
         loading={tabData === undefined}
@@ -198,7 +205,6 @@ export function VolunteersTab({
           setShowAddHours(show);
           if (!show) refresh();
         }}
-        onPersonCreated={handlePersonCreated}
         onCreateHours={(personId, formData) =>
           createEventVolunteerHoursAction(eventId, personId, formData)
         }
