@@ -55,6 +55,10 @@ export default async function ProgramImpactReportPage({
   let loadError: string | null = null;
 
   if (programId) {
+    // Intentionally no date-range param: `programs` has no date columns
+    // (each season is its own programs row, per
+    // 20260825020000_add_programs_reports_resource.sql), so the rollup
+    // includes every event ever tied to this program_id.
     const { data, error } = await supabase.rpc(
       "get_program_impact_rollup_data",
       {

@@ -155,8 +155,9 @@ export function PlanningTab({
   const leadLabel = selectedLead
     ? (selectedLead.full_name ?? selectedLead.email)
     : undefined;
+  const locked = event.report_status === "submitted";
 
-  if (mode === "view") {
+  if (mode === "view" || locked) {
     return (
       <FieldGroup>
         <ReadOnlyField label="Event lead" htmlFor="planning-eventLeadId">

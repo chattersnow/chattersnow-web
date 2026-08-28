@@ -157,8 +157,9 @@ export function OverviewTab({
   const programName = programs.find(
     (program) => program.id === form.programId,
   )?.name;
+  const locked = event.report_status === "submitted";
 
-  if (mode === "view") {
+  if (mode === "view" || locked) {
     return (
       <FieldGroup>
         <Field orientation="responsive">
