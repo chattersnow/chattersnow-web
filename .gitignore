@@ -43,3 +43,6 @@ next-env.d.ts
 
 # scripts
 scripts
+
+# claude code (local overrides)
+.claude/settings.local.json
