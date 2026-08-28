@@ -98,7 +98,7 @@ export default async function Home() {
         </section>
 
         {nextEvent && (
-          <section className="mt-16 rounded-xl border border-[var(--line)] bg-[var(--surface-muted)] p-6 text-center shadow-md sm:p-8">
+          <section className="rainbow-surface mt-16 rounded-xl border border-[var(--line)] p-6 text-center shadow-md sm:p-8">
             <span className="app-eyebrow">Next up</span>
             <h2 className="brand-display mt-2 text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
               {nextEvent.name}

@@ -20,6 +20,15 @@
     #38a5db 80%,
     #8f55ba 100%
   );
+  --rainbow-soft: linear-gradient(
+    90deg,
+    rgb(232 72 85 / 12%) 0%,
+    rgb(245 158 66 / 12%) 20%,
+    rgb(244 211 94 / 12%) 40%,
+    rgb(80 184 120 / 12%) 60%,
+    rgb(56 165 219 / 12%) 80%,
+    rgb(143 85 186 / 12%) 100%
+  );
   --background: #f7f0ff;
   --foreground: #32134f;
   --card: var(--surface);
@@ -152,6 +161,11 @@ body {
     background-image: linear-gradient(var(--card), var(--card)), var(--rainbow);
     background-origin: border-box;
     background-clip: padding-box, border-box;
+  }
+
+  .rainbow-surface {
+    background-color: var(--surface);
+    background-image: var(--rainbow-soft);
   }
 
   .rainbow-cta {

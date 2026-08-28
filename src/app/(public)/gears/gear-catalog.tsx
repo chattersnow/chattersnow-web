@@ -128,7 +128,7 @@ export function GearCatalog({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end gap-4 rounded-xl border border-[var(--line)] bg-[var(--surface-muted)] p-4 shadow-md">
+      <div className="rainbow-surface flex flex-wrap items-end gap-4 rounded-xl border border-[var(--line)] p-4 shadow-md">
         <div className="flex flex-col gap-1">
           <label
             htmlFor="gear-search"

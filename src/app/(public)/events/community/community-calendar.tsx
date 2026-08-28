@@ -83,7 +83,7 @@ export function CommunityCalendar({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end gap-4 rounded-xl border border-[var(--line)] bg-[var(--surface-muted)] p-4 shadow-md">
+      <div className="rainbow-surface flex flex-wrap items-end gap-4 rounded-xl border border-[var(--line)] p-4 shadow-md">
         <div className="flex flex-col gap-1">
           <span className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
             View

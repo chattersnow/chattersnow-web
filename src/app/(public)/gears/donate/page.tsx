@@ -64,7 +64,7 @@ export default async function DonateGearPage() {
             alt="Donated ski and snowboard gear"
             className="aspect-square rounded-xl"
           />
-          <Card className="sm:col-span-2">
+          <Card className="rainbow-surface sm:col-span-2">
             <CardHeader>
               <CardTitle>We accept gently used gear</CardTitle>
             </CardHeader>

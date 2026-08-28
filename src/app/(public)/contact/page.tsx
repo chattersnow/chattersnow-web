@@ -28,7 +28,7 @@ export default async function ContactPage() {
       </section>
 
       <section className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        <Card>
+        <Card className="rainbow-surface">
           <CardContent>
             <Suspense fallback={null}>
               <ContactForm />
