@@ -161,33 +161,27 @@ export function OverviewTab({
   if (mode === "view") {
     return (
       <FieldGroup>
-        <ReadOnlyField label="Event name" htmlFor="details-name">
-          {form.name}
-        </ReadOnlyField>
-
-        <ReadOnlyField label="Description" htmlFor="details-description">
-          {form.description || "—"}
-        </ReadOnlyField>
+        <Field orientation="responsive">
+          <Field>
+            <FieldLabel htmlFor="details-visibility">Visibility</FieldLabel>
+            <div id="details-visibility">
+              <VisibilityBadge visibility={form.visibility} />
+            </div>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="details-status">Status</FieldLabel>
+            <div id="details-status">
+              <StatusBadge status={form.status} />
+            </div>
+          </Field>
+        </Field>
 
         <ReadOnlyField label="Program" htmlFor="details-programId">
           {programName ?? "—"}
         </ReadOnlyField>
 
-        <Field orientation="responsive">
-          <ReadOnlyField label="Event type" htmlFor="details-eventType">
-            {form.eventType || "—"}
-          </ReadOnlyField>
-          <ReadOnlyField label="Venue / mountain" htmlFor="details-venue">
-            {form.venue || "—"}
-          </ReadOnlyField>
-        </Field>
-
         <ReadOnlyField label="Location" htmlFor="details-location">
           {form.location || "—"}
-        </ReadOnlyField>
-
-        <ReadOnlyField label="Flier image URL" htmlFor="details-flierUrl">
-          {form.flierUrl || "—"}
         </ReadOnlyField>
 
         <Field orientation="responsive">
@@ -215,20 +209,17 @@ export function OverviewTab({
           {form.timezone}
         </ReadOnlyField>
 
-        <Field orientation="responsive">
-          <Field>
-            <FieldLabel htmlFor="details-visibility">Visibility</FieldLabel>
-            <div id="details-visibility">
-              <VisibilityBadge visibility={form.visibility} />
-            </div>
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="details-status">Status</FieldLabel>
-            <div id="details-status">
-              <StatusBadge status={form.status} />
-            </div>
-          </Field>
-        </Field>
+        <ReadOnlyField label="Event name" htmlFor="details-name">
+          {form.name}
+        </ReadOnlyField>
+
+        <ReadOnlyField label="Description" htmlFor="details-description">
+          {form.description || "—"}
+        </ReadOnlyField>
+
+        <ReadOnlyField label="Flier image URL" htmlFor="details-flierUrl">
+          {form.flierUrl || "—"}
+        </ReadOnlyField>
       </FieldGroup>
     );
   }
@@ -236,25 +227,55 @@ export function OverviewTab({
   return (
     <form id={formId} onSubmit={handleSubmit}>
       <FieldGroup>
-        <Field>
-          <FieldLabel htmlFor="details-name">Event name</FieldLabel>
-          <Input
-            id="details-name"
-            required
-            value={form.name}
-            onChange={(changeEvent) => update("name", changeEvent.target.value)}
-          />
-        </Field>
-
-        <Field>
-          <FieldLabel htmlFor="details-description">Description</FieldLabel>
-          <Textarea
-            id="details-description"
-            value={form.description}
-            onChange={(changeEvent) =>
-              update("description", changeEvent.target.value)
-            }
-          />
+        <Field orientation="responsive">
+          <Field>
+            <FieldLabel htmlFor="details-visibility">Visibility</FieldLabel>
+            <Select
+              value={form.visibility}
+              onValueChange={(value) =>
+                update("visibility", value ?? "private")
+              }
+            >
+              <SelectTrigger id="details-visibility" className="w-full">
+                <SelectValue placeholder="Select visibility">
+                  {(value: string) =>
+                    VISIBILITIES.find((option) => option.value === value)
+                      ?.label ?? "Select visibility"
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {VISIBILITIES.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="details-status">Status</FieldLabel>
+            <Select
+              value={form.status}
+              onValueChange={(value) => update("status", value ?? "draft")}
+            >
+              <SelectTrigger id="details-status" className="w-full">
+                <SelectValue placeholder="Select status">
+                  {(value: string) =>
+                    STATUSES.find((option) => option.value === value)?.label ??
+                    "Select status"
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {STATUSES.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
         </Field>
 
         <Field>
@@ -286,30 +307,6 @@ export function OverviewTab({
           </Select>
         </Field>
 
-        <Field orientation="responsive">
-          <Field>
-            <FieldLabel htmlFor="details-eventType">Event type</FieldLabel>
-            <Input
-              id="details-eventType"
-              placeholder="e.g. Access Day, Gear Exchange, Community Ride"
-              value={form.eventType}
-              onChange={(changeEvent) =>
-                update("eventType", changeEvent.target.value)
-              }
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="details-venue">Venue / mountain</FieldLabel>
-            <Input
-              id="details-venue"
-              value={form.venue}
-              onChange={(changeEvent) =>
-                update("venue", changeEvent.target.value)
-              }
-            />
-          </Field>
-        </Field>
-
         <Field>
           <FieldLabel htmlFor="details-location">Location</FieldLabel>
           <Input
@@ -317,19 +314,6 @@ export function OverviewTab({
             value={form.location}
             onChange={(changeEvent) =>
               update("location", changeEvent.target.value)
-            }
-          />
-        </Field>
-
-        <Field>
-          <FieldLabel htmlFor="details-flierUrl">Flier image URL</FieldLabel>
-          <Input
-            id="details-flierUrl"
-            type="url"
-            placeholder="https://drive.google.com/file/d/..."
-            value={form.flierUrl}
-            onChange={(changeEvent) =>
-              update("flierUrl", changeEvent.target.value)
             }
           />
         </Field>
@@ -390,55 +374,38 @@ export function OverviewTab({
           </Select>
         </Field>
 
-        <Field orientation="responsive">
-          <Field>
-            <FieldLabel htmlFor="details-visibility">Visibility</FieldLabel>
-            <Select
-              value={form.visibility}
-              onValueChange={(value) =>
-                update("visibility", value ?? "private")
-              }
-            >
-              <SelectTrigger id="details-visibility" className="w-full">
-                <SelectValue placeholder="Select visibility">
-                  {(value: string) =>
-                    VISIBILITIES.find((option) => option.value === value)
-                      ?.label ?? "Select visibility"
-                  }
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {VISIBILITIES.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="details-status">Status</FieldLabel>
-            <Select
-              value={form.status}
-              onValueChange={(value) => update("status", value ?? "draft")}
-            >
-              <SelectTrigger id="details-status" className="w-full">
-                <SelectValue placeholder="Select status">
-                  {(value: string) =>
-                    STATUSES.find((option) => option.value === value)?.label ??
-                    "Select status"
-                  }
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {STATUSES.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
+        <Field>
+          <FieldLabel htmlFor="details-name">Event name</FieldLabel>
+          <Input
+            id="details-name"
+            required
+            value={form.name}
+            onChange={(changeEvent) => update("name", changeEvent.target.value)}
+          />
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="details-description">Description</FieldLabel>
+          <Textarea
+            id="details-description"
+            value={form.description}
+            onChange={(changeEvent) =>
+              update("description", changeEvent.target.value)
+            }
+          />
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="details-flierUrl">Flier image URL</FieldLabel>
+          <Input
+            id="details-flierUrl"
+            type="url"
+            placeholder="https://drive.google.com/file/d/..."
+            value={form.flierUrl}
+            onChange={(changeEvent) =>
+              update("flierUrl", changeEvent.target.value)
+            }
+          />
         </Field>
 
         {error && (

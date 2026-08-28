@@ -100,8 +100,10 @@ export function AddVolunteerForm({
           <Field>
             <FieldLabel htmlFor="volunteer-shift">Shift</FieldLabel>
             <Select
-              value={shiftId}
-              onValueChange={(value) => setShiftId(value)}
+              value={shiftId ?? "none"}
+              onValueChange={(value) =>
+                setShiftId(value === "none" ? null : value)
+              }
             >
               <SelectTrigger id="volunteer-shift" className="w-full">
                 <SelectValue placeholder="No shift (whole event)">
@@ -112,6 +114,7 @@ export function AddVolunteerForm({
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="none">No shift (whole event)</SelectItem>
                 {shifts.map((shift) => (
                   <SelectItem key={shift.id} value={shift.id}>
                     {shift.label} ({formatShiftRange(shift)})
@@ -219,9 +222,12 @@ export function SignupsSection({
                 <TableCell className="app-muted">
                   {mode === "edit" && shifts.length > 0 ? (
                     <Select
-                      value={volunteer.shift_id}
+                      value={volunteer.shift_id ?? "none"}
                       onValueChange={(value) =>
-                        onShiftReassign(volunteer.id, value)
+                        onShiftReassign(
+                          volunteer.id,
+                          value === "none" ? null : value,
+                        )
                       }
                     >
                       <SelectTrigger
@@ -237,6 +243,7 @@ export function SignupsSection({
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="none">No shift</SelectItem>
                         {shifts.map((shift) => (
                           <SelectItem key={shift.id} value={shift.id}>
                             {shift.label} ({formatShiftRange(shift)})

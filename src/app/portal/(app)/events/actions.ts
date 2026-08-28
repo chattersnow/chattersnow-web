@@ -200,7 +200,11 @@ export async function updateEventPlanningAction(
   return { success: true };
 }
 
-export type EventLead = { user_id: string; email: string | null };
+export type EventLead = {
+  user_id: string;
+  email: string | null;
+  full_name: string | null;
+};
 
 export async function listEventLeadsAction(): Promise<
   { data: EventLead[] } | { error: string }
