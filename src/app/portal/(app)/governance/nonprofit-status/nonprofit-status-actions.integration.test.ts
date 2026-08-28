@@ -24,6 +24,7 @@ mock.module("@/lib/supabase/server", () => ({
 
 const {
   createMilestoneAction,
+  deleteMilestoneAction,
   updateMilestoneAction,
   updateMilestoneStatusAction,
 } = await import("./nonprofit-status-actions");
@@ -104,6 +105,9 @@ describe("nonprofit status milestone actions (integration)", () => {
     expect(
       await updateMilestoneStatusAction(crypto.randomUUID(), "done"),
     ).toEqual({ error: "You must be signed in to update this milestone." });
+    expect(await deleteMilestoneAction(crypto.randomUUID())).toEqual({
+      error: "You must be signed in to delete this milestone.",
+    });
   });
 
   test("admin role (governance manage) can add, update and re-status a milestone", async () => {
@@ -146,6 +150,33 @@ describe("nonprofit status milestone actions (integration)", () => {
 
     await cleanupMilestone(description);
     await owner.cleanup();
+  });
+
+  test("admin role (governance manage) can mark a milestone cancelled (#407)", async () => {
+    const description = uniqueDescription();
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+    const id = await seedMilestone(description, null);
+
+    expect(await updateMilestoneStatusAction(id, "cancelled")).toEqual({
+      success: true,
+    });
+    expect(await milestoneFor(description)).toMatchObject({
+      status: "cancelled",
+    });
+
+    await cleanupMilestone(description);
+  });
+
+  test("admin role (governance manage) can delete a milestone (#407)", async () => {
+    const description = uniqueDescription();
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+    const id = await seedMilestone(description, null);
+
+    expect(await deleteMilestoneAction(id)).toEqual({ success: true });
+    expect(revalidatePathMock).toHaveBeenCalledWith(
+      "/portal/governance/nonprofit-status",
+    );
+    expect(await milestoneFor(description)).toBeNull();
   });
 
   test("a new milestone's sort_order appends it after every existing row (#356)", async () => {
@@ -238,9 +269,10 @@ describe("nonprofit status milestone actions (integration)", () => {
       ),
     ).toEqual(DENIED);
     expect(await updateMilestoneStatusAction(id, "done")).toEqual(DENIED);
+    expect(await deleteMilestoneAction(id)).toEqual(DENIED);
 
-    // Neither denied write landed: the actions refuse them, and the
-    // `nonprofit_status_milestones update` policy would too.
+    // None of the denied writes landed: the actions refuse them, and the
+    // `nonprofit_status_milestones update`/`delete` policies would too.
     expect(await milestoneFor(description)).toMatchObject({
       phase: "federal",
       status: "not_started",

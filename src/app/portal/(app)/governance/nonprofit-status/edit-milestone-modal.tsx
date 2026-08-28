@@ -2,8 +2,9 @@
 
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Eye, Pencil } from "lucide-react";
+import { ArrowLeft, Eye, Pencil, Trash2 } from "lucide-react";
 import {
+  deleteMilestoneAction,
   updateMilestoneAction,
   type Milestone,
 } from "./nonprofit-status-actions";
@@ -103,6 +104,7 @@ export function EditMilestoneModal({
   const [discardTarget, setDiscardTarget] = useState<"toggle" | "close" | null>(
     null,
   );
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const formId = `edit-milestone-form-${milestone.id}`;
   const dirty = isDirty(form, selectedOwner, milestone);
 
@@ -168,6 +170,20 @@ export function EditMilestoneModal({
         return;
       }
       setMode("view");
+      router.refresh();
+    });
+  }
+
+  function handleDelete() {
+    setError(null);
+    startTransition(async () => {
+      const result = await deleteMilestoneAction(milestone.id);
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+      setDeleteDialogOpen(false);
+      setOpen(false);
       router.refresh();
     });
   }
@@ -280,6 +296,12 @@ export function EditMilestoneModal({
                 <ReadOnlyField label="Status" htmlFor="edit-milestone-status">
                   <MilestoneStatusBadge status={milestone.status} />
                 </ReadOnlyField>
+
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
               </FieldGroup>
             </div>
           ) : (
@@ -324,6 +346,19 @@ export function EditMilestoneModal({
               </Button>
             </SheetFooter>
           )}
+
+          {mode === "view" && (
+            <SheetFooter className="flex-row justify-end border-t bg-muted/50">
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={isPending}
+                onClick={() => setDeleteDialogOpen(true)}
+              >
+                <Trash2 /> Delete
+              </Button>
+            </SheetFooter>
+          )}
         </SheetContent>
       </Sheet>
 
@@ -345,6 +380,27 @@ export function EditMilestoneModal({
             </AlertDialogCancel>
             <AlertDialogAction onClick={confirmDiscard}>
               Discard changes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this milestone?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This can&apos;t be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isPending}
+            >
+              {isPending ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

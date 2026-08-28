@@ -73,4 +73,23 @@ describe("parseMilestoneForm", () => {
       },
     });
   });
+
+  test("accepts the cancelled status", () => {
+    expect(
+      parseMilestoneForm(
+        formData({
+          description: "File the EIN application",
+          phase: "Phase 2",
+          status: "cancelled",
+        }),
+      ),
+    ).toEqual({
+      data: {
+        description: "File the EIN application",
+        phase: "Phase 2",
+        status: "cancelled",
+        due_date: null,
+      },
+    });
+  });
 });

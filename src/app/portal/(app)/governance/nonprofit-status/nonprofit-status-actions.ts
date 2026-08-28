@@ -105,6 +105,35 @@ export async function updateMilestoneAction(
   return { success: true };
 }
 
+export async function deleteMilestoneAction(
+  id: string,
+): Promise<MilestoneActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to delete this milestone.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(
+    supabase,
+    "governance",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  const { error } = await supabase
+    .from("nonprofit_status_milestones")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    return { error: "Could not delete this milestone. Please try again." };
+  }
+
+  revalidatePath("/portal/governance/nonprofit-status");
+  return { success: true };
+}
+
 export async function updateMilestoneStatusAction(
   id: string,
   status: MilestoneStatus,
