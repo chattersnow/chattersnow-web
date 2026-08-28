@@ -112,12 +112,17 @@ test("checks in a registrant from the Happening Now quick action", async ({
     await page.goto("/portal/home");
 
     await expect(page.getByText("Happening now")).toBeVisible();
-    const card = page
-      .locator('[data-slot="card"]')
-      .filter({ hasText: fixture.eventName });
+    // Scope to the card's own title rather than any text in the card
+    // (the "Needs your attention" card also mentions this event, via the
+    // deep-linked check-in attention item this same issue adds).
+    const card = page.locator('[data-slot="card"]').filter({
+      has: page.locator('[data-slot="card-title"]', {
+        hasText: fixture.eventName,
+      }),
+    });
     await expect(card).toBeVisible();
 
-    await card.getByRole("button", { name: "Check in" }).click();
+    await card.getByRole("button", { name: "Check in", exact: true }).click();
 
     const sheet = page.getByRole("dialog");
     await expect(
@@ -125,7 +130,8 @@ test("checks in a registrant from the Happening Now quick action", async ({
     ).toBeVisible();
     await expect(sheet.getByText(fixture.registrantName)).toBeVisible();
 
-    await sheet.getByRole("button", { name: "Check in" }).click();
+    // exact: true -- otherwise this also matches "+ Check in walk-in".
+    await sheet.getByRole("button", { name: "Check in", exact: true }).click();
     await expect(
       sheet.getByRole("button", { name: "Undo check-in" }),
     ).toBeVisible();
@@ -160,7 +166,10 @@ test("deep-links from the awaiting check-in attention item to the event's Regist
     const sheet = page.getByRole("dialog");
     await expect(sheet.getByText(fixture.eventName)).toBeVisible();
     await expect(sheet.getByText(fixture.registrantName)).toBeVisible();
-    await expect(sheet.getByRole("button", { name: "Check in" })).toBeVisible();
+    // exact: true -- otherwise this also matches "+ Check in walk-in".
+    await expect(
+      sheet.getByRole("button", { name: "Check in", exact: true }),
+    ).toBeVisible();
   } finally {
     await fixture.cleanup();
   }
