@@ -38,7 +38,7 @@ export default async function StoryPage() {
       </section>
       <section className="grid gap-8 sm:grid-cols-3 sm:items-start">
         <div className="sm:col-span-2">
-          <h2 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
             Our Story
           </h2>
           <div className="app-muted mt-4 space-y-4 text-sm leading-relaxed sm:text-base">
