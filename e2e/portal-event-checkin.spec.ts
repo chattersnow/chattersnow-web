@@ -60,6 +60,10 @@ async function seedCheckinFixture(admin: ReturnType<typeof createAdminClient>) {
       timezone: "UTC",
       status: "published",
       visibility: "private",
+      // events.created_by is `not null default auth.uid()`, which resolves
+      // to null over the service-role admin client (no user JWT), so it
+      // must be set explicitly here.
+      created_by: userId,
     })
     .select("id")
     .single();
@@ -67,7 +71,7 @@ async function seedCheckinFixture(admin: ReturnType<typeof createAdminClient>) {
 
   const { error: volunteerError } = await admin
     .from("event_volunteers")
-    .insert({ event_id: event.id, person_id: person.id });
+    .insert({ event_id: event.id, person_id: person.id, created_by: userId });
   if (volunteerError) throw volunteerError;
 
   const registrantName = `E2E Registrant ${suffix}`;
