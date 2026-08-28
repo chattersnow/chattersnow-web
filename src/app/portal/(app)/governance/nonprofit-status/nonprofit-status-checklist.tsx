@@ -29,10 +29,10 @@ import type { MilestoneStatus } from "./nonprofit-status-form";
 import type { PersonListItem } from "../../people/actions";
 
 // The Phase 1-5 checklist from supabase/migrations/20260824210000_create_nonprofit_status_milestones.sql,
-// in migration order. All 40 seeded rows share one INSERT-statement `created_at`
-// (Postgres evaluates `now()` once per statement, not once per row), so an
-// `order by created_at` fetch is a full tie today and gives no ordering
-// guarantee once rows start getting updated — group order is pinned here instead.
+// in migration order. `milestones` already arrives sorted by `sort_order`
+// (see page.tsx's query), which keeps rows stable within a phase; this array
+// pins the phase *group* (card) order, since `sort_order` only orders within
+// a group, not across phases.
 const PHASE_ORDER = [
   "Phase 1 — Now (founding/legal package)",
   "Phase 2 — Incorporation (NJ)",

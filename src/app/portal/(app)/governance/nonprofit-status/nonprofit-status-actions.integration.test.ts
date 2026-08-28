@@ -56,14 +56,19 @@ function uniqueDescription() {
 async function milestoneFor(description: string) {
   const { data, error } = await adminClient
     .from("nonprofit_status_milestones")
-    .select("id, description, phase, status, due_date, owner_person_id")
+    .select(
+      "id, description, phase, status, due_date, owner_person_id, sort_order",
+    )
     .eq("description", description)
     .maybeSingle();
   if (error) throw error;
   return data;
 }
 
-async function seedMilestone(description: string, ownerPersonId: string) {
+async function seedMilestone(
+  description: string,
+  ownerPersonId: string | null,
+) {
   currentSupabase = await signInAs(SEEDED_USERS.admin);
   const result = await createMilestoneAction(
     ownerPersonId,
@@ -141,6 +146,59 @@ describe("nonprofit status milestone actions (integration)", () => {
 
     await cleanupMilestone(description);
     await owner.cleanup();
+  });
+
+  test("a new milestone's sort_order appends it after every existing row (#356)", async () => {
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+    const { data: current, error } = await adminClient
+      .from("nonprofit_status_milestones")
+      .select("sort_order")
+      .order("sort_order", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    const maxSortOrder = current?.sort_order ?? 0;
+
+    const description = uniqueDescription();
+    expect(
+      await createMilestoneAction(null, milestoneForm(description)),
+    ).toEqual({ success: true });
+
+    const created = await milestoneFor(description);
+    expect((created?.sort_order as number) ?? 0).toBeGreaterThan(maxSortOrder);
+
+    await cleanupMilestone(description);
+  });
+
+  test("updating a milestone's status does not change its sort_order or the order of other rows (#356)", async () => {
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+    const descriptionA = uniqueDescription();
+    const descriptionB = uniqueDescription();
+    const idA = await seedMilestone(descriptionA, null);
+    const idB = await seedMilestone(descriptionB, null);
+
+    async function orderedIds() {
+      const { data, error } = await adminClient
+        .from("nonprofit_status_milestones")
+        .select("id")
+        .in("id", [idA, idB])
+        .order("sort_order", { ascending: true });
+      if (error) throw error;
+      return data.map((row) => row.id);
+    }
+
+    const before = await orderedIds();
+    expect(before).toEqual([idA, idB]);
+
+    expect(await updateMilestoneStatusAction(idA, "done")).toEqual({
+      success: true,
+    });
+
+    expect(await orderedIds()).toEqual(before);
+
+    await cleanupMilestone(descriptionA);
+    await cleanupMilestone(descriptionB);
   });
 
   test("board role (governance manage) can add a milestone", async () => {

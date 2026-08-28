@@ -49,8 +49,17 @@ export async function createMilestoneAction(
   const parsed = parseMilestoneForm(formData);
   if ("error" in parsed) return parsed;
 
+  const { data: lastMilestone } = await supabase
+    .from("nonprofit_status_milestones")
+    .select("sort_order")
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const sortOrder = (lastMilestone?.sort_order ?? 0) + 10;
+
   const { error } = await supabase.from("nonprofit_status_milestones").insert({
     owner_person_id: ownerPersonId,
+    sort_order: sortOrder,
     ...parsed.data,
   });
 
