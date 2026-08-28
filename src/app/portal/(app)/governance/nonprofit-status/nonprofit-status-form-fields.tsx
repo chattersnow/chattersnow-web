@@ -88,6 +88,7 @@ export function NonprofitStatusFormFields({
               <SelectItem value="not_started">Not started</SelectItem>
               <SelectItem value="in_progress">In progress</SelectItem>
               <SelectItem value="done">Done</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
         </Field>

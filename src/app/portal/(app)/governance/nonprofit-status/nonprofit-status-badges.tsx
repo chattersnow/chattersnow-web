@@ -6,12 +6,14 @@ const MILESTONE_STATUS_STYLES: Record<MilestoneStatus, string> = {
   not_started: "bg-muted text-muted-foreground",
   in_progress: "bg-primary/10 text-primary",
   done: "bg-secondary text-secondary-foreground",
+  cancelled: "bg-destructive/10 text-destructive",
 };
 
 const MILESTONE_STATUS_LABELS: Record<MilestoneStatus, string> = {
   not_started: "Not started",
   in_progress: "In progress",
   done: "Done",
+  cancelled: "Cancelled",
 };
 
 function Pill({

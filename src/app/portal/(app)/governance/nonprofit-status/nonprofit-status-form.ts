@@ -1,11 +1,13 @@
 import type { ParseResult } from "@/lib/forms";
 
-export type MilestoneStatus = "not_started" | "in_progress" | "done";
+export type MilestoneStatus =
+  "not_started" | "in_progress" | "done" | "cancelled";
 
 const MILESTONE_STATUSES: readonly MilestoneStatus[] = [
   "not_started",
   "in_progress",
   "done",
+  "cancelled",
 ];
 
 export type MilestoneFormData = {
