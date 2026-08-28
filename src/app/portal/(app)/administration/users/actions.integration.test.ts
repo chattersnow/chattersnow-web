@@ -130,9 +130,12 @@ async function createPendingGrant(role = "volunteer") {
 
 describe("administration/users actions (integration)", () => {
   test("requires a signed-in user", async () => {
-    currentSupabase = anonClient();
+    // createPendingGrant() signs in as admin to stage its fixture, which
+    // reassigns the shared currentSupabase -- so the anon client must be
+    // set *after* fixture setup, not before.
     const user = await createThrowawayUser();
     const grant = await createPendingGrant();
+    currentSupabase = anonClient();
 
     // No checkUser guard on these -- an anonymous client holds no
     // permissions, so each falls through to the permission check.
