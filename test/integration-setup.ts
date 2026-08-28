@@ -1,7 +1,7 @@
 // Shared fixtures for *.integration.test.ts files, which run against a real
 // local Supabase stack (`bun run db:start && bun run db:reset`) rather than
 // mocking the Supabase client. Run via `bun run test:integration`.
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_PUBLISHABLE_KEY =
@@ -25,6 +25,22 @@ export async function signIn(email: string, password = "password123") {
   const client = anonClient();
   const { error } = await client.auth.signInWithPassword({ email, password });
   if (error) throw error;
+  return client;
+}
+
+const roleClients = new Map<string, Promise<SupabaseClient>>();
+
+// Memoized signIn(): GoTrue rate-limits sign-ins per IP over a 5-minute
+// window (auth.rate_limit.sign_in_sign_ups in supabase/config.toml), and a
+// seeded role account's session carries no per-test state, so files that
+// exercise a whole permission matrix should reuse one client per account
+// instead of re-authenticating in every case.
+export function signInAs(email: string): Promise<SupabaseClient> {
+  let client = roleClients.get(email);
+  if (!client) {
+    client = signIn(email);
+    roleClients.set(email, client);
+  }
   return client;
 }
 
