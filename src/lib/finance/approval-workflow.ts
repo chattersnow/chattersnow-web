@@ -112,10 +112,10 @@ export function getApprovalNextStepMessage(
           return `Below the ${thresholdLabel} approval threshold — you can self-approve this.`;
         }
         return thresholdLabel !== null
-          ? `At or above the ${thresholdLabel} approval threshold — needs approval from an admin or board member.`
-          : "Needs approval from an admin or board member.";
+          ? `At or above the ${thresholdLabel} approval threshold — you submitted this, so it needs approval from another admin or board member.`
+          : "You submitted this, so it needs approval from another admin or board member.";
       }
-      return "Awaiting approval from an admin or board member.";
+      return "You submitted this, so it needs approval from another admin or board member.";
     }
     return approvalContext.canApprove
       ? "Awaiting approval — you can approve or reject this."

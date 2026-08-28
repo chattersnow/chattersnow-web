@@ -87,13 +87,13 @@ describe("getExpenseNextStepMessage", () => {
         context({ canSelfApprove: true }),
       ),
     ).toBe(
-      "At or above the $500.00 approval threshold — needs approval from an admin or board member.",
+      "At or above the $500.00 approval threshold — you submitted this, so it needs approval from another admin or board member.",
     );
   });
 
   test("submitter without self-approval rights awaits approval", () => {
     expect(getExpenseNextStepMessage(baseExpense, context({}))).toBe(
-      "Awaiting approval from an admin or board member.",
+      "You submitted this, so it needs approval from another admin or board member.",
     );
   });
 
@@ -118,7 +118,9 @@ describe("getExpenseNextStepMessage", () => {
         baseExpense,
         context({ canSelfApprove: true, threshold: null }),
       ),
-    ).toBe("Needs approval from an admin or board member.");
+    ).toBe(
+      "You submitted this, so it needs approval from another admin or board member.",
+    );
   });
 
   test("approved and markable as paid", () => {
