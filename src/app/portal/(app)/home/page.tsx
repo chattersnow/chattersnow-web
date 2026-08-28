@@ -22,10 +22,12 @@ import {
   getMyActiveEvents,
 } from "./queries";
 import {
+  getAccessManagementAttentionSummary,
   getCalendarCoverageReminderSummary,
   getOpsInboxSummary,
   getPendingApprovalsSummary,
 } from "@/lib/portal/attention-items";
+import { getAccessManagementStatsSummary } from "@/lib/portal/access-management/queries";
 import { listRecentDonationsAction } from "./actions";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -104,6 +106,11 @@ export default async function PortalHomePage() {
     "view",
   );
   const canSeeEventCheckins = canSeeUpcoming;
+  const canSeeAccessManagement = hasPermission(
+    permissions,
+    "access_management_assets",
+    "view",
+  );
   const canCheckIn = hasPermission(permissions, "events", "manage");
   const canRecordDonation = hasAnyPermission(permissions, [
     { resource: "finance", level: "manage" },
@@ -128,6 +135,7 @@ export default async function PortalHomePage() {
     upcoming,
     financial,
     inventory,
+    accessManagementStats,
     recentDonationsResult,
     pendingApprovals,
     personId,
@@ -140,6 +148,9 @@ export default async function PortalHomePage() {
       ? getFinancialSummary(supabase, startOfMonthDate, startOfYearDate, nowIso)
       : Promise.resolve(null),
     canSeeInventory ? getInventorySummary(supabase) : Promise.resolve(null),
+    canSeeAccessManagement
+      ? getAccessManagementStatsSummary(supabase)
+      : Promise.resolve(null),
     canSeeInventory && canSeeRecentDonations
       ? listRecentDonationsAction(5)
       : Promise.resolve(null),
@@ -179,6 +190,12 @@ export default async function PortalHomePage() {
       })
     : null;
 
+  const accessManagementAlerts = canSeeAccessManagement
+    ? await getAccessManagementAttentionSummary(supabase, {
+        canSeeAccessManagement,
+      })
+    : null;
+
   const recentDonations =
     recentDonationsResult && "data" in recentDonationsResult
       ? recentDonationsResult.data
@@ -188,6 +205,7 @@ export default async function PortalHomePage() {
     ...(contentWork?.items ?? []),
     ...(opsInbox?.items ?? []),
     ...(calendarCoverageReminder?.items ?? []),
+    ...(accessManagementAlerts?.items ?? []),
   ];
   const activeEvents =
     personId || canCheckIn
@@ -198,6 +216,7 @@ export default async function PortalHomePage() {
     canSeeUpcoming ||
     canSeeFinancial ||
     canSeeInventory ||
+    canSeeAccessManagement ||
     canSeeOrganization ||
     activeEvents.length > 0;
 
@@ -343,6 +362,19 @@ export default async function PortalHomePage() {
               label="Needing attention"
               value={inventory.itemsNeedingAttention}
               caption="Damaged or lost"
+            />
+          </DashboardSectionCard>
+        )}
+
+        {canSeeAccessManagement && accessManagementStats && (
+          <DashboardSectionCard className="lg:mt-6" title="Access management">
+            <DashboardStatRow
+              label="Active assets"
+              value={accessManagementStats.assetsCount}
+            />
+            <DashboardStatRow
+              label="Active access grants"
+              value={accessManagementStats.activeGrantsCount}
             />
           </DashboardSectionCard>
         )}
