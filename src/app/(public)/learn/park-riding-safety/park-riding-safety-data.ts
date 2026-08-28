@@ -1,23 +1,6 @@
-export type LearnListItem = {
-  label: string;
-  text: string;
-};
+import type { LearnArticle } from "../learn-data";
 
-export type LearnLink = {
-  label: string;
-  href: string;
-  internal?: boolean;
-};
-
-export type ParkSafetyArticle = {
-  id: string;
-  title: string;
-  description: string;
-  paragraphs: string[];
-  list: LearnListItem[];
-  links: LearnLink[];
-  disclaimer: string;
-};
+export type ParkSafetyArticle = LearnArticle;
 
 export const PARK_SAFETY_ARTICLES: ParkSafetyArticle[] = [
   {

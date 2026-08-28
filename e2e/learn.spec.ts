@@ -18,4 +18,25 @@ test.describe("public learn page", () => {
       page.getByRole("heading", { level: 1, name: "Learn" }),
     ).toBeVisible();
   });
+
+  test("getting started category renders its articles", async ({ page }) => {
+    await page.goto("/learn/getting-started");
+
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Getting Started" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        level: 2,
+        name: "First day guide: what to expect at the mountain",
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        level: 2,
+        name: "Booking a lesson vs. going it alone",
+      }),
+    ).toBeVisible();
+    await expect(page.getByText("coming soon")).toHaveCount(0);
+  });
 });

@@ -58,3 +58,24 @@ export const LEARN_CATEGORIES: LearnCategory[] = [
 export function getLearnCategory(slug: string): LearnCategory | undefined {
   return LEARN_CATEGORIES.find((category) => category.slug === slug);
 }
+
+export type LearnListItem = {
+  label: string;
+  text: string;
+};
+
+export type LearnLink = {
+  label: string;
+  href: string;
+  internal?: boolean;
+};
+
+export type LearnArticle = {
+  id: string;
+  title: string;
+  description: string;
+  paragraphs: string[];
+  list: LearnListItem[];
+  links: LearnLink[];
+  disclaimer: string;
+};
