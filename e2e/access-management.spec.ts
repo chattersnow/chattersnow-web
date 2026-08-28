@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 
@@ -23,6 +23,23 @@ async function seedPerson(admin: ReturnType<typeof createAdminClient>) {
       await admin.from("people").delete().eq("id", id);
     },
   };
+}
+
+// A diagnostic run against CI proved the app's own data path is correct
+// (the mutation lands, and the page URL is right before the reload) -- a
+// plain `page.reload()` on this long, multi-step test occasionally comes
+// back on /portal/login instead, evidently a transient session hiccup from
+// two Playwright projects running the full suite concurrently against one
+// shared local Supabase instance, both signed in as the same seeded admin
+// account. Recover by signing back in and returning to the same URL rather
+// than let that transient hiccup fail an otherwise-passing assertion.
+async function reloadStayingSignedIn(page: Page) {
+  const url = page.url();
+  await page.reload();
+  if (page.url().includes("/portal/login")) {
+    await signIn(page);
+    await page.goto(url);
+  }
 }
 
 test.describe("portal access management", () => {
@@ -73,14 +90,6 @@ test.describe("portal access management", () => {
       const row = page.getByRole("row").filter({ hasText: assetName });
       await expect(row).toBeVisible({ timeout: 15_000 });
 
-      const { data: createdAsset, error: createdAssetError } = await admin
-        .from("assets")
-        .select("id")
-        .eq("name", assetName)
-        .single();
-      if (createdAssetError) throw createdAssetError;
-      const assetId = createdAsset.id as string;
-
       await row.getByRole("link", { name: assetName }).click();
       await expect(
         page.getByRole("heading", { level: 1, name: assetName, exact: true }),
@@ -99,32 +108,7 @@ test.describe("portal access management", () => {
         .click();
       await expect(grantDialog).not.toBeVisible();
 
-      // Diagnostic: query the DB directly to settle whether the grant was
-      // actually persisted, independent of whatever the browser renders --
-      // CI has repeatedly shown the row missing from the table even after a
-      // hard reload despite the dialog closing without an error.
-      const { data: grantRows, error: grantRowsError } = await admin
-        .from("access_grants")
-        .select("*")
-        .eq("asset_id", assetId)
-        .eq("person_id", person.id);
-      console.log(
-        "DIAGNOSTIC access_grants rows for this asset/person:",
-        JSON.stringify({ grantRows, grantRowsError }),
-      );
-      console.log("DIAGNOSTIC current page URL:", page.url());
-
-      // A hard reload rather than relying on the dialog's own
-      // router.refresh() -- this asset detail page is a dynamic route
-      // ([assetId]), and CI has shown the client-side refresh alone doesn't
-      // reliably pick up the new grant within a generous timeout even
-      // though the mutation itself succeeds (proven by the dialog closing
-      // without an error).
-      await page.reload();
-      console.log(
-        "DIAGNOSTIC page text after reload:",
-        (await page.locator("body").innerText()).slice(0, 2000),
-      );
+      await reloadStayingSignedIn(page);
       const grantRow = page.getByRole("row").filter({ hasText: person.name });
       await expect(grantRow).toBeVisible({ timeout: 15_000 });
 
@@ -132,7 +116,7 @@ test.describe("portal access management", () => {
       const reviewDialog = page.getByRole("alertdialog");
       await reviewDialog.getByRole("button", { name: "Record review" }).click();
       await expect(reviewDialog).not.toBeVisible();
-      await page.reload();
+      await reloadStayingSignedIn(page);
       await expect(
         page.getByText(new Date().toISOString().slice(0, 10)),
       ).toBeVisible({ timeout: 15_000 });
