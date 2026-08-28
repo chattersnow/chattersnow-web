@@ -17,6 +17,8 @@ import { CommunityAndInclusionSections } from "../community-and-inclusion/commun
 import { COMMUNITY_AND_INCLUSION_ARTICLES } from "../community-and-inclusion/community-and-inclusion-data";
 import { BudgetSections } from "../budget/budget-sections";
 import { BUDGET_ARTICLES } from "../budget/budget-data";
+import { GearAndSizingSections } from "../gear-and-sizing/gear-and-sizing-sections";
+import { GEAR_AND_SIZING_ARTICLES } from "../gear-and-sizing/gear-and-sizing-data";
 
 const CATEGORY_CONTENT: Record<string, () => React.ReactNode> = {
   "getting-started": () => <GettingStartedSections />,
@@ -26,6 +28,7 @@ const CATEGORY_CONTENT: Record<string, () => React.ReactNode> = {
   "gear-care": () => <GearCareSections />,
   "community-and-inclusion": () => <CommunityAndInclusionSections />,
   budget: () => <BudgetSections />,
+  "gear-and-sizing": () => <GearAndSizingSections />,
 };
 
 const CATEGORY_NAV: Record<string, { href: string; label: string }[]> = {
@@ -56,6 +59,10 @@ const CATEGORY_NAV: Record<string, { href: string; label: string }[]> = {
     }),
   ),
   budget: BUDGET_ARTICLES.map((article) => ({
+    href: `#${article.id}`,
+    label: article.title,
+  })),
+  "gear-and-sizing": GEAR_AND_SIZING_ARTICLES.map((article) => ({
     href: `#${article.id}`,
     label: article.title,
   })),
