@@ -39,4 +39,25 @@ test.describe("public learn page", () => {
     ).toBeVisible();
     await expect(page.getByText("coming soon")).toHaveCount(0);
   });
+
+  test("gear care category renders its articles", async ({ page }) => {
+    await page.goto("/learn/gear-care");
+
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Gear Care" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        level: 2,
+        name: "Gear care 101: between-trip basics",
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        level: 2,
+        name: "Edge tuning: what it is and when to see a shop",
+      }),
+    ).toBeVisible();
+    await expect(page.getByText("coming soon")).toHaveCount(0);
+  });
 });
