@@ -18,10 +18,12 @@ export function GiveawayTab({
   eventId,
   active,
   mode,
+  onExitEdit,
 }: {
   eventId: string;
   active: boolean;
   mode: "view" | "edit";
+  onExitEdit: () => void;
 }) {
   const router = useRouter();
   const {
@@ -39,13 +41,11 @@ export function GiveawayTab({
   const [newPeople, setNewPeople] = useState<PersonListItem[]>([]);
   const people = [...(peopleData ?? []), ...newPeople];
   const [isDeleting, startDeleteTransition] = useTransition();
-  const [editingSales, setEditingSales] = useState(false);
   const [editingWinnerId, setEditingWinnerId] = useState<string | null>(null);
   const [showAddPrize, setShowAddPrize] = useState(false);
   const canEdit = mode === "edit";
 
   useResetOnModeChange(mode, () => {
-    setEditingSales(false);
     setEditingWinnerId(null);
     setShowAddPrize(false);
   });
@@ -88,13 +88,11 @@ export function GiveawayTab({
             eventId={eventId}
             giveaway={giveaway}
             canEdit={canEdit}
-            editing={editingSales}
-            onEdit={() => setEditingSales(true)}
-            onCancelEdit={() => setEditingSales(false)}
             onSaved={() => {
-              setEditingSales(false);
               refresh();
+              onExitEdit();
             }}
+            onCancel={onExitEdit}
           />
 
           {giveaway && (

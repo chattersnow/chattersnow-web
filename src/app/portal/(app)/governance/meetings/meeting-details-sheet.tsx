@@ -153,7 +153,11 @@ export function MeetingDetailsSheet({ meeting }: { meeting: MeetingRow }) {
             </TabsList>
 
             <TabsContent value="overview" className="mt-4">
-              <OverviewTab meeting={meeting} mode={mode} />
+              <OverviewTab
+                meeting={meeting}
+                mode={mode}
+                onExitEdit={() => setMode("view")}
+              />
             </TabsContent>
             <TabsContent value="attendees" className="mt-4">
               <AttendeesTab
@@ -170,6 +174,7 @@ export function MeetingDetailsSheet({ meeting }: { meeting: MeetingRow }) {
                 mode={mode}
                 onViewActionItems={() => setTab("action-items")}
                 onViewDecisions={() => setTab("decisions")}
+                onExitEdit={() => setMode("view")}
               />
             </TabsContent>
             <TabsContent value="minutes" className="mt-4">
@@ -177,6 +182,7 @@ export function MeetingDetailsSheet({ meeting }: { meeting: MeetingRow }) {
                 meetingId={meeting.id}
                 active={tab === "minutes"}
                 mode={mode}
+                onExitEdit={() => setMode("view")}
               />
             </TabsContent>
             <TabsContent value="action-items" className="mt-4">

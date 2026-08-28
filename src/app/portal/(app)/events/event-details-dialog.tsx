@@ -9,6 +9,7 @@ import { phaseStatus } from "./phase-status";
 import {
   FORM_ID_PREFIX,
   FORM_TAB_VALUES,
+  LOCKED_ON_REPORT_SUBMIT_TABS,
   PHASES,
   TAB_CONFIG,
   phaseForTab,
@@ -95,6 +96,9 @@ export function EventDetailsDialog({
   }
 
   const activePhase = PHASES.find((phase) => phase.key === phaseForTab(tab))!;
+  const activeTabLocked =
+    LOCKED_ON_REPORT_SUBMIT_TABS.has(tab) &&
+    event.report_status === "submitted";
 
   function selectPhase(key: (typeof PHASES)[number]["key"]) {
     const phase = PHASES.find((p) => p.key === key)!;
@@ -243,17 +247,19 @@ export function EventDetailsDialog({
             </Tabs>
           </div>
 
-          {FORM_TAB_VALUE_SET.has(tab) && mode === "edit" && (
-            <SheetFooter className="flex-row justify-end border-t bg-muted/50">
-              <Button
-                type="submit"
-                form={`${FORM_ID_PREFIX}-${tab}-${event.id}`}
-                disabled={pending[tab]}
-              >
-                {pending[tab] ? "Saving..." : "Save changes"}
-              </Button>
-            </SheetFooter>
-          )}
+          {FORM_TAB_VALUE_SET.has(tab) &&
+            mode === "edit" &&
+            !activeTabLocked && (
+              <SheetFooter className="flex-row justify-end border-t bg-muted/50">
+                <Button
+                  type="submit"
+                  form={`${FORM_ID_PREFIX}-${tab}-${event.id}`}
+                  disabled={pending[tab]}
+                >
+                  {pending[tab] ? "Saving..." : "Save changes"}
+                </Button>
+              </SheetFooter>
+            )}
         </SheetContent>
       </Sheet>
 

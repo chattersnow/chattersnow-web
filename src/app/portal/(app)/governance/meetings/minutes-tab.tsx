@@ -2,7 +2,6 @@
 
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil } from "lucide-react";
 import {
   getMinutesAction,
   upsertMinutesAction,
@@ -14,7 +13,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { Textarea } from "@/components/ui/textarea";
-import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
+import { useTabData } from "@/hooks/use-tab-data";
 
 function MinutesForm({
   minutes,
@@ -104,31 +103,30 @@ export function MinutesTab({
   meetingId,
   active,
   mode,
+  onExitEdit,
 }: {
   meetingId: string;
   active: boolean;
   mode: "view" | "edit";
+  onExitEdit: () => void;
 }) {
   const { data: minutes, loadError } = useTabData<Minutes | null>(
     () => getMinutesAction(meetingId),
     active,
     [meetingId],
   );
-  const [editing, setEditing] = useState(false);
-
-  useResetOnModeChange(mode, () => setEditing(false));
 
   if (minutes === undefined) {
     return <p className="app-muted text-sm">Loading minutes...</p>;
   }
 
-  if (editing) {
+  if (mode === "edit") {
     return (
       <MinutesForm
         minutes={minutes}
         meetingId={meetingId}
-        onSaved={() => setEditing(false)}
-        onCancel={() => setEditing(false)}
+        onSaved={onExitEdit}
+        onCancel={onExitEdit}
       />
     );
   }
@@ -142,20 +140,7 @@ export function MinutesTab({
       )}
 
       {!minutes ? (
-        <div className="flex flex-col gap-3">
-          <p className="app-muted text-sm">No minutes recorded yet.</p>
-          {mode === "edit" && (
-            <div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setEditing(true)}
-              >
-                + Add minutes
-              </Button>
-            </div>
-          )}
-        </div>
+        <p className="app-muted text-sm">No minutes recorded yet.</p>
       ) : (
         <FieldGroup>
           <ReadOnlyField label="External link" htmlFor="minutes-link-view">
@@ -178,20 +163,6 @@ export function MinutesTab({
             </span>
           </ReadOnlyField>
         </FieldGroup>
-      )}
-
-      {minutes && mode === "edit" && (
-        <div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Edit minutes"
-            onClick={() => setEditing(true)}
-          >
-            <Pencil />
-          </Button>
-        </div>
       )}
     </div>
   );
