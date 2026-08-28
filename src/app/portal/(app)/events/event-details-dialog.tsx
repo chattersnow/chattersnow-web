@@ -52,13 +52,20 @@ const FORM_TAB_VALUE_SET = new Set<TabValue>(FORM_TAB_VALUES);
 export function EventDetailsDialog({
   event,
   programs,
+  autoOpenTab,
 }: {
   event: EventRow;
   programs: Program[];
+  /**
+   * Opens the sheet straight to this tab in edit mode on mount, for
+   * deep links (e.g. the "awaiting check-in" attention item) that should
+   * land directly on the relevant tab instead of the closed sheet.
+   */
+  autoOpenTab?: TabValue;
 }) {
-  const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<TabValue>("overview");
-  const [mode, setMode] = useState<Mode>("view");
+  const [open, setOpen] = useState(!!autoOpenTab);
+  const [tab, setTab] = useState<TabValue>(autoOpenTab ?? "overview");
+  const [mode, setMode] = useState<Mode>(autoOpenTab ? "edit" : "view");
   const [discardTarget, setDiscardTarget] = useState<"toggle" | "close" | null>(
     null,
   );

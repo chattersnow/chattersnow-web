@@ -79,20 +79,29 @@ export function uniqueEmail(tag: string) {
 }
 
 type EventOverrides = {
+  name?: string;
   visibility?: "public" | "private";
   status?: "draft" | "published" | "completed" | "cancelled" | "archived";
   registration_enabled?: boolean;
   registration_deadline?: string | null;
   capacity?: number | null;
+  startsAt?: string;
+  endsAt?: string | null;
+  timezone?: string;
 };
 
 export async function createPublishedEvent(overrides: EventOverrides = {}) {
+  const name =
+    overrides.name ?? `Integration test event ${crypto.randomUUID()}`;
   const { data, error } = await adminClient
     .from("events")
     .insert({
-      name: `Integration test event ${crypto.randomUUID()}`,
-      starts_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-      timezone: "America/Chicago",
+      name,
+      starts_at:
+        overrides.startsAt ??
+        new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      ends_at: overrides.endsAt ?? null,
+      timezone: overrides.timezone ?? "America/Chicago",
       visibility: overrides.visibility ?? "public",
       status: overrides.status ?? "published",
       registration_enabled: overrides.registration_enabled ?? true,
@@ -106,6 +115,7 @@ export async function createPublishedEvent(overrides: EventOverrides = {}) {
   const id = data.id as string;
   return {
     id,
+    name,
     // event_registrations references events with `on delete cascade`, so
     // deleting the event is sufficient cleanup for its registrations too.
     async cleanup() {

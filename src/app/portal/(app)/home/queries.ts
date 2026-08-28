@@ -181,6 +181,7 @@ export type ActiveEventForPerson = EventWindow & {
   id: string;
   name: string;
   location: string | null;
+  capacity: number | null;
 };
 type ActiveEventJoinRow = { events: ActiveEventForPerson };
 
@@ -206,7 +207,9 @@ export async function getMyActiveEvents(
 
   const { data } = await supabase
     .from("event_volunteers")
-    .select("events!inner(id, name, starts_at, ends_at, timezone, location)")
+    .select(
+      "events!inner(id, name, starts_at, ends_at, timezone, location, capacity)",
+    )
     .eq("person_id", personId)
     .eq("events.status", "published")
     .gte("events.starts_at", windowStart)

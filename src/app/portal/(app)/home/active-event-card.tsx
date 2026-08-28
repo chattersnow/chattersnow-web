@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDateTimeInZone } from "@/lib/time";
 import { AddDonationModal } from "./add-donation-modal";
+import { CheckInModal } from "./check-in-modal";
 import { RecordDistributionModal } from "./record-distribution-modal";
 import type { ActiveEventForPerson } from "./queries";
 
@@ -11,10 +12,12 @@ const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
 
 export function ActiveEventCard({
   event,
+  canCheckIn,
   canRecordDonation,
   canRecordDistribution,
 }: {
   event: ActiveEventForPerson;
+  canCheckIn: boolean;
   canRecordDonation: boolean;
   canRecordDistribution: boolean;
 }) {
@@ -33,8 +36,16 @@ export function ActiveEventCard({
           )}
           {event.location ? ` · ${event.location}` : ""}
         </p>
-        {(canRecordDonation || canRecordDistribution) && (
+        {(canCheckIn || canRecordDonation || canRecordDistribution) && (
           <div className="mt-3 flex flex-wrap gap-2">
+            {canCheckIn && (
+              <CheckInModal
+                eventId={event.id}
+                eventName={event.name}
+                capacity={event.capacity}
+                triggerLabel="Check in"
+              />
+            )}
             {canRecordDonation && (
               <AddDonationModal
                 eventId={event.id}

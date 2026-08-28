@@ -303,6 +303,14 @@ export const FORM_TAB_VALUES: TabValue[] = TAB_CONFIG.filter(
   (t) => t.kind === "form",
 ).map((t) => t.value);
 
+const TAB_VALUE_SET: ReadonlySet<TabValue> = new Set(
+  TAB_CONFIG.map((entry) => entry.value),
+);
+
+export function isTabValue(value: string | undefined): value is TabValue {
+  return !!value && TAB_VALUE_SET.has(value as TabValue);
+}
+
 // Tabs that must revert to read-only once the event's report has been
 // submitted, since submitted report data shouldn't shift underneath it.
 export const LOCKED_ON_REPORT_SUBMIT_TABS: ReadonlySet<TabValue> = new Set([

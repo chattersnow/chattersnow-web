@@ -84,7 +84,7 @@ export async function getCalendarCoverageReminderSummary(
   };
 }
 
-type TodaysEventRow = EventWindow & { id: string };
+type TodaysEventRow = EventWindow & { id: string; name: string };
 
 /**
  * Ops-inbox items (issue #173): new volunteer applications, new contact
@@ -97,6 +97,11 @@ type TodaysEventRow = EventWindow & { id: string };
  * Check-ins are scoped to "today" rather than all pending registrations --
  * every future registration is pending until its event happens, so an
  * unscoped count would always be large and not actionable.
+ *
+ * One item per today's event (issue #418), each deep-linking straight to
+ * that event's Registrants tab -- a single item pointing at the generic
+ * events list forced staff to hunt for the right event themselves, even
+ * though the query already knows exactly which one(s) need attention.
  */
 export async function getOpsInboxSummary(
   supabase: SupabaseClient,
@@ -146,28 +151,43 @@ export async function getOpsInboxSummary(
 
     const { data: candidateEvents } = await supabase
       .from("events")
-      .select("id, starts_at, ends_at, timezone")
+      .select("id, name, starts_at, ends_at, timezone")
       .eq("status", "published")
       .gte("starts_at", windowStart)
       .lte("starts_at", windowEnd);
 
-    const todaysEventIds = ((candidateEvents ?? []) as TodaysEventRow[])
-      .filter((event) => isEventActiveToday(event, now))
-      .map((event) => event.id);
+    const todaysEvents = ((candidateEvents ?? []) as TodaysEventRow[]).filter(
+      (event) => isEventActiveToday(event, now),
+    );
 
-    if (todaysEventIds.length > 0) {
-      const { count } = await supabase
+    if (todaysEvents.length > 0) {
+      const todaysEventIds = todaysEvents.map((event) => event.id);
+      const { data: pendingRegistrations } = await supabase
         .from("event_registrations")
-        .select("id", { count: "exact", head: true })
+        .select("event_id")
         .in("event_id", todaysEventIds)
         .is("checked_in_at", null);
-      if ((count ?? 0) > 0) {
-        items.push({
-          key: "event_checkins_pending",
-          label: "Registrations awaiting check-in today",
-          count: count ?? 0,
-          href: "/portal/events",
-        });
+
+      const pendingCountByEvent = new Map<string, number>();
+      for (const row of (pendingRegistrations ?? []) as {
+        event_id: string;
+      }[]) {
+        pendingCountByEvent.set(
+          row.event_id,
+          (pendingCountByEvent.get(row.event_id) ?? 0) + 1,
+        );
+      }
+
+      for (const event of todaysEvents) {
+        const count = pendingCountByEvent.get(event.id) ?? 0;
+        if (count > 0) {
+          items.push({
+            key: `event_checkins_pending_${event.id}`,
+            label: `${count} awaiting check-in · ${event.name}`,
+            count,
+            href: `/portal/events?eventId=${event.id}&tab=registrants`,
+          });
+        }
       }
     }
   }
