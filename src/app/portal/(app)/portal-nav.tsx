@@ -334,6 +334,16 @@ const NAV_ITEMS: readonly NavItem[] = [
         access: [{ resource: "administration", level: "manage" }],
       },
       {
+        value: "access-management",
+        label: "Access Management",
+        href: "/portal/administration/access-management",
+        access: [
+          { resource: "administration", level: "manage" },
+          { resource: "access_management_assets", level: "view" },
+          { resource: "access_management_reviews", level: "view" },
+        ],
+      },
+      {
         value: "permissions",
         label: "Permissions",
         href: "/portal/administration/permissions",
