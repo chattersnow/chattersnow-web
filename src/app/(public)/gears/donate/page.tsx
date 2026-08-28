@@ -44,7 +44,7 @@ export default async function DonateGearPage() {
           message and we&apos;ll do our best to match you with available gear.
         </p>
         <Button
-          variant="outline"
+          variant="secondary"
           className="mt-4"
           nativeButton={false}
           render={<Link href="/contact?topic=gear" />}
@@ -57,13 +57,13 @@ export default async function DonateGearPage() {
         <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
           Donate gear
         </h2>
-        <div className="mt-6 flex max-w-2xl flex-col gap-6 sm:flex-row">
+        <div className="mt-6 grid gap-6 sm:grid-cols-3 sm:items-start">
           <SiteImage
             url={siteImages.gears_donate_photo ?? null}
             alt="Donated ski and snowboard gear"
-            className="aspect-square rounded-xl sm:w-40"
+            className="aspect-square rounded-xl"
           />
-          <Card className="flex-1">
+          <Card className="sm:col-span-2">
             <CardHeader>
               <CardTitle>We accept gently used gear</CardTitle>
             </CardHeader>
@@ -103,6 +103,14 @@ export default async function DonateGearPage() {
           </Link>{" "}
           for what&apos;s coming up.
         </p>
+      </section>
+
+      <section>
+        <SiteImage
+          url={siteImages.gears_donate_bottom_photo ?? null}
+          alt="Chatter Snow community members"
+          className="aspect-[16/9] rounded-2xl"
+        />
       </section>
     </div>
   );

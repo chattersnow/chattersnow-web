@@ -81,7 +81,7 @@ export function CalendarMonthView({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <Button
-          variant="outline"
+          variant="secondary"
           size="icon-sm"
           onClick={() => onMonthChange(addMonths(month, -1))}
           aria-label="Previous month"
@@ -92,7 +92,7 @@ export function CalendarMonthView({
           {monthLabel(month)}
         </p>
         <Button
-          variant="outline"
+          variant="secondary"
           size="icon-sm"
           onClick={() => onMonthChange(addMonths(month, 1))}
           aria-label="Next month"

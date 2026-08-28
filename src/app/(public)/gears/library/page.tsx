@@ -31,7 +31,7 @@ export default async function GearLibraryPage() {
         Browse gear currently available to the community.
       </p>
       <Button
-        variant="outline"
+        variant="secondary"
         size="sm"
         className="mt-4"
         nativeButton={false}

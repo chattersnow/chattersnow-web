@@ -29,7 +29,7 @@ export default async function PartnerPage() {
           of these ways, we&apos;d love to hear from you.
         </p>
         <Button
-          variant="outline"
+          variant="secondary"
           className="mt-4"
           nativeButton={false}
           render={<Link href="/contact?topic=partnership" />}
@@ -39,7 +39,7 @@ export default async function PartnerPage() {
         <SiteImage
           url={siteImages.get_involved_partner_photo ?? null}
           alt="Chatter Snow partnership"
-          className="mt-8 aspect-video max-w-md rounded-2xl"
+          className="mt-8 aspect-[21/9] rounded-2xl"
         />
       </section>
     </div>

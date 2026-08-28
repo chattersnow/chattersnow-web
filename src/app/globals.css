@@ -6,6 +6,7 @@
 
 :root {
   --surface: #ffffff;
+  --surface-muted: color-mix(in oklch, var(--foreground) 8%, var(--surface));
   --purple: #70419a;
   --purple-deep: #32134f;
   --purple-soft: #ede1fb;
