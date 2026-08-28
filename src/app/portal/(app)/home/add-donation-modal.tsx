@@ -6,15 +6,6 @@ import { createDonationAction, type CreateDonationInput } from "./actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -24,6 +15,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 
 const SOURCE_TYPES = [
@@ -90,10 +90,12 @@ function createEmptyItem(): ItemDraft {
 export function AddDonationModal({
   triggerLabel = "Record donation",
   eventId,
+  events,
   onSaved,
 }: {
   triggerLabel?: string;
   eventId?: string;
+  events?: { id: string; name: string }[];
   onSaved?: () => void;
 }) {
   const router = useRouter();
@@ -101,8 +103,10 @@ export function AddDonationModal({
   const [step, setStep] = useState<Step>("donor");
   const [donor, setDonor] = useState<DonorState>(initialDonorState);
   const [items, setItems] = useState<ItemDraft[]>([createEmptyItem()]);
+  const [sourceEventId, setSourceEventId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const showEventPicker = !eventId && !!events?.length;
 
   function updateDonor<K extends keyof DonorState>(
     key: K,
@@ -139,6 +143,7 @@ export function AddDonationModal({
       setStep("donor");
       setDonor(initialDonorState);
       setItems([createEmptyItem()]);
+      setSourceEventId("");
       setError(null);
     }
   }
@@ -176,7 +181,7 @@ export function AddDonationModal({
         faceValue: item.faceValue ? Number(item.faceValue) : null,
         notes: item.notes || undefined,
       })),
-      eventId,
+      eventId: eventId ?? (sourceEventId || undefined),
     };
 
     startTransition(async () => {
@@ -192,319 +197,363 @@ export function AddDonationModal({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
+    <Sheet open={open} onOpenChange={handleOpenChange}>
+      <SheetTrigger
         render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
       >
         {triggerLabel}
-      </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Record a donation</DialogTitle>
-          <DialogDescription>
+      </SheetTrigger>
+      <SheetContent side="right" size="lg">
+        <SheetHeader>
+          <SheetTitle>Record a donation</SheetTitle>
+          <SheetDescription>
             {step === "donor"
               ? "Capture who the donation is from."
               : "Add each item being added to inventory."}
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
 
-        <p className="app-muted text-sm">
-          {step === "donor"
-            ? "Step 1 of 2 · Donor details"
-            : "Step 2 of 2 · Donated items"}
-        </p>
+        <div className="flex-1 overflow-y-auto px-4 pb-4">
+          <p className="app-muted text-sm">
+            {step === "donor"
+              ? "Step 1 of 2 · Donor details"
+              : "Step 2 of 2 · Donated items"}
+          </p>
 
-        <form onSubmit={handleSubmit}>
-          {step === "donor" ? (
-            <FieldGroup>
-              <Field orientation="horizontal">
-                <Checkbox
-                  id="isAnonymous"
-                  checked={donor.isAnonymous}
-                  onCheckedChange={(checked) =>
-                    updateDonor("isAnonymous", Boolean(checked))
-                  }
-                />
-                <FieldLabel htmlFor="isAnonymous">Anonymous donor</FieldLabel>
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="donorName">Donor name</FieldLabel>
-                <Input
-                  id="donorName"
-                  required={!donor.isAnonymous}
-                  disabled={donor.isAnonymous}
-                  value={donor.donorName}
-                  onChange={(event) =>
-                    updateDonor("donorName", event.target.value)
-                  }
-                />
-              </Field>
-
-              <Field orientation="responsive">
-                <Field>
-                  <FieldLabel htmlFor="donorEmail">Donor email</FieldLabel>
-                  <Input
-                    id="donorEmail"
-                    type="email"
-                    disabled={donor.isAnonymous}
-                    value={donor.donorEmail}
-                    onChange={(event) =>
-                      updateDonor("donorEmail", event.target.value)
-                    }
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="donorPhone">Donor phone</FieldLabel>
-                  <Input
-                    id="donorPhone"
-                    type="tel"
-                    disabled={donor.isAnonymous}
-                    value={donor.donorPhone}
-                    onChange={(event) =>
-                      updateDonor("donorPhone", event.target.value)
-                    }
-                  />
-                </Field>
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="sourceType">Donor source</FieldLabel>
-                <Select
-                  value={donor.sourceType || null}
-                  onValueChange={(value) =>
-                    updateDonor("sourceType", value ?? "")
-                  }
-                >
-                  <SelectTrigger id="sourceType" className="w-full">
-                    <SelectValue placeholder="Select a source">
-                      {(value: string) =>
-                        SOURCE_TYPES.find((option) => option.value === value)
-                          ?.label ?? "Select a source"
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SOURCE_TYPES.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="donorNotes">Donor notes</FieldLabel>
-                <Textarea
-                  id="donorNotes"
-                  value={donor.donorNotes}
-                  onChange={(event) =>
-                    updateDonor("donorNotes", event.target.value)
-                  }
-                />
-              </Field>
-
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-            </FieldGroup>
-          ) : (
-            <FieldGroup>
-              {items.map((item, index) => (
-                <FieldGroup
-                  key={item.key}
-                  className="rounded-md border border-[var(--line)] p-4"
-                >
-                  <div className="flex items-center justify-between">
-                    <FieldLabel className="text-sm font-medium">
-                      Item {index + 1}
-                    </FieldLabel>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      disabled={items.length === 1}
-                      onClick={() => removeItem(item.key)}
-                    >
-                      Remove
-                    </Button>
-                  </div>
-
-                  <Field>
-                    <FieldLabel htmlFor={`itemDescription-${item.key}`}>
-                      Item description
-                    </FieldLabel>
-                    <Textarea
-                      id={`itemDescription-${item.key}`}
-                      required
-                      value={item.description}
-                      onChange={(event) =>
-                        updateItem(item.key, "description", event.target.value)
-                      }
-                    />
-                  </Field>
-
-                  <Field orientation="responsive">
-                    <Field>
-                      <FieldLabel htmlFor={`itemType-${item.key}`}>
-                        Item type
-                      </FieldLabel>
-                      <Input
-                        id={`itemType-${item.key}`}
-                        required
-                        placeholder="e.g. Jacket"
-                        value={item.type}
-                        onChange={(event) =>
-                          updateItem(item.key, "type", event.target.value)
-                        }
-                      />
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor={`itemSize-${item.key}`}>
-                        Size
-                      </FieldLabel>
-                      <Input
-                        id={`itemSize-${item.key}`}
-                        value={item.size}
-                        onChange={(event) =>
-                          updateItem(item.key, "size", event.target.value)
-                        }
-                      />
-                    </Field>
-                  </Field>
-
-                  <Field orientation="responsive">
-                    <Field>
-                      <FieldLabel htmlFor={`itemGender-${item.key}`}>
-                        Gender
-                      </FieldLabel>
-                      <Select
-                        value={item.gender || null}
-                        onValueChange={(value) =>
-                          updateItem(item.key, "gender", value ?? "")
-                        }
-                      >
-                        <SelectTrigger
-                          id={`itemGender-${item.key}`}
-                          className="w-full"
-                        >
-                          <SelectValue placeholder="Select a gender">
-                            {(value: string) =>
-                              GENDERS.find((option) => option.value === value)
-                                ?.label ?? "Select a gender"
-                            }
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {GENDERS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor={`condition-${item.key}`}>
-                        Condition
-                      </FieldLabel>
-                      <Select
-                        value={item.condition || null}
-                        onValueChange={(value) =>
-                          updateItem(item.key, "condition", value ?? "")
-                        }
-                      >
-                        <SelectTrigger
-                          id={`condition-${item.key}`}
-                          className="w-full"
-                        >
-                          <SelectValue placeholder="Select a condition">
-                            {(value: string) =>
-                              CONDITIONS.find(
-                                (option) => option.value === value,
-                              )?.label ?? "Select a condition"
-                            }
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {CONDITIONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor={`faceValue-${item.key}`}>
-                      Face value ($)
-                    </FieldLabel>
-                    <Input
-                      id={`faceValue-${item.key}`}
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={item.faceValue}
-                      onChange={(event) =>
-                        updateItem(item.key, "faceValue", event.target.value)
-                      }
-                    />
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor={`itemNotes-${item.key}`}>
-                      Item notes
-                    </FieldLabel>
-                    <Textarea
-                      id={`itemNotes-${item.key}`}
-                      value={item.notes}
-                      onChange={(event) =>
-                        updateItem(item.key, "notes", event.target.value)
-                      }
-                    />
-                  </Field>
-                </FieldGroup>
-              ))}
-
-              <Button type="button" variant="outline" onClick={addItem}>
-                + Add another item
-              </Button>
-
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-            </FieldGroup>
-          )}
-
-          <DialogFooter>
+          <form id="add-donation-form" onSubmit={handleSubmit} className="mt-4">
             {step === "donor" ? (
-              <Button type="button" onClick={handleContinue}>
-                Continue
-              </Button>
+              <FieldGroup>
+                <Field orientation="horizontal">
+                  <Checkbox
+                    id="isAnonymous"
+                    checked={donor.isAnonymous}
+                    onCheckedChange={(checked) =>
+                      updateDonor("isAnonymous", Boolean(checked))
+                    }
+                  />
+                  <FieldLabel htmlFor="isAnonymous">Anonymous donor</FieldLabel>
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="donorName">Donor name</FieldLabel>
+                  <Input
+                    id="donorName"
+                    required={!donor.isAnonymous}
+                    disabled={donor.isAnonymous}
+                    value={donor.donorName}
+                    onChange={(event) =>
+                      updateDonor("donorName", event.target.value)
+                    }
+                  />
+                </Field>
+
+                <Field orientation="responsive">
+                  <Field>
+                    <FieldLabel htmlFor="donorEmail">Donor email</FieldLabel>
+                    <Input
+                      id="donorEmail"
+                      type="email"
+                      disabled={donor.isAnonymous}
+                      value={donor.donorEmail}
+                      onChange={(event) =>
+                        updateDonor("donorEmail", event.target.value)
+                      }
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="donorPhone">Donor phone</FieldLabel>
+                    <Input
+                      id="donorPhone"
+                      type="tel"
+                      disabled={donor.isAnonymous}
+                      value={donor.donorPhone}
+                      onChange={(event) =>
+                        updateDonor("donorPhone", event.target.value)
+                      }
+                    />
+                  </Field>
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="sourceType">Donor source</FieldLabel>
+                  <Select
+                    value={donor.sourceType || null}
+                    onValueChange={(value) =>
+                      updateDonor("sourceType", value ?? "")
+                    }
+                  >
+                    <SelectTrigger id="sourceType" className="w-full">
+                      <SelectValue placeholder="Select a source">
+                        {(value: string) =>
+                          SOURCE_TYPES.find((option) => option.value === value)
+                            ?.label ?? "Select a source"
+                        }
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SOURCE_TYPES.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+
+                {showEventPicker && (
+                  <Field>
+                    <FieldLabel htmlFor="sourceEventId">
+                      Source event (optional)
+                    </FieldLabel>
+                    <Select
+                      value={sourceEventId || null}
+                      onValueChange={(value) => setSourceEventId(value ?? "")}
+                    >
+                      <SelectTrigger id="sourceEventId" className="w-full">
+                        <SelectValue placeholder="No event">
+                          {(value: string) =>
+                            events?.find((event) => event.id === value)?.name ??
+                            "No event"
+                          }
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {events?.map((event) => (
+                          <SelectItem key={event.id} value={event.id}>
+                            {event.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                )}
+
+                <Field>
+                  <FieldLabel htmlFor="donorNotes">Donor notes</FieldLabel>
+                  <Textarea
+                    id="donorNotes"
+                    value={donor.donorNotes}
+                    onChange={(event) =>
+                      updateDonor("donorNotes", event.target.value)
+                    }
+                  />
+                </Field>
+
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+              </FieldGroup>
             ) : (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setStep("donor")}
-                >
-                  Back
+              <FieldGroup>
+                {items.map((item, index) => (
+                  <FieldGroup
+                    key={item.key}
+                    className="rounded-md border border-[var(--line)] p-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <FieldLabel className="text-sm font-medium">
+                        Item {index + 1}
+                      </FieldLabel>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={items.length === 1}
+                        onClick={() => removeItem(item.key)}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+
+                    <Field>
+                      <FieldLabel htmlFor={`itemDescription-${item.key}`}>
+                        Item description
+                      </FieldLabel>
+                      <Textarea
+                        id={`itemDescription-${item.key}`}
+                        required
+                        value={item.description}
+                        onChange={(event) =>
+                          updateItem(
+                            item.key,
+                            "description",
+                            event.target.value,
+                          )
+                        }
+                      />
+                    </Field>
+
+                    <Field orientation="responsive">
+                      <Field>
+                        <FieldLabel htmlFor={`itemType-${item.key}`}>
+                          Item type
+                        </FieldLabel>
+                        <Input
+                          id={`itemType-${item.key}`}
+                          required
+                          placeholder="e.g. Jacket"
+                          value={item.type}
+                          onChange={(event) =>
+                            updateItem(item.key, "type", event.target.value)
+                          }
+                        />
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor={`itemSize-${item.key}`}>
+                          Size
+                        </FieldLabel>
+                        <Input
+                          id={`itemSize-${item.key}`}
+                          value={item.size}
+                          onChange={(event) =>
+                            updateItem(item.key, "size", event.target.value)
+                          }
+                        />
+                      </Field>
+                    </Field>
+
+                    <Field orientation="responsive">
+                      <Field>
+                        <FieldLabel htmlFor={`itemGender-${item.key}`}>
+                          Gender
+                        </FieldLabel>
+                        <Select
+                          value={item.gender || null}
+                          onValueChange={(value) =>
+                            updateItem(item.key, "gender", value ?? "")
+                          }
+                        >
+                          <SelectTrigger
+                            id={`itemGender-${item.key}`}
+                            className="w-full"
+                          >
+                            <SelectValue placeholder="Select a gender">
+                              {(value: string) =>
+                                GENDERS.find((option) => option.value === value)
+                                  ?.label ?? "Select a gender"
+                              }
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {GENDERS.map((option) => (
+                              <SelectItem
+                                key={option.value}
+                                value={option.value}
+                              >
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor={`condition-${item.key}`}>
+                          Condition
+                        </FieldLabel>
+                        <Select
+                          value={item.condition || null}
+                          onValueChange={(value) =>
+                            updateItem(item.key, "condition", value ?? "")
+                          }
+                        >
+                          <SelectTrigger
+                            id={`condition-${item.key}`}
+                            className="w-full"
+                          >
+                            <SelectValue placeholder="Select a condition">
+                              {(value: string) =>
+                                CONDITIONS.find(
+                                  (option) => option.value === value,
+                                )?.label ?? "Select a condition"
+                              }
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {CONDITIONS.map((option) => (
+                              <SelectItem
+                                key={option.value}
+                                value={option.value}
+                              >
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor={`faceValue-${item.key}`}>
+                        Face value ($)
+                      </FieldLabel>
+                      <Input
+                        id={`faceValue-${item.key}`}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={item.faceValue}
+                        onChange={(event) =>
+                          updateItem(item.key, "faceValue", event.target.value)
+                        }
+                      />
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor={`itemNotes-${item.key}`}>
+                        Item notes
+                      </FieldLabel>
+                      <Textarea
+                        id={`itemNotes-${item.key}`}
+                        value={item.notes}
+                        onChange={(event) =>
+                          updateItem(item.key, "notes", event.target.value)
+                        }
+                      />
+                    </Field>
+                  </FieldGroup>
+                ))}
+
+                <Button type="button" variant="outline" onClick={addItem}>
+                  + Add another item
                 </Button>
-                <Button type="submit" disabled={isPending}>
-                  {isPending ? "Saving..." : "Save donation"}
-                </Button>
-              </>
+
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+              </FieldGroup>
             )}
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+          </form>
+        </div>
+
+        <SheetFooter className="flex-row justify-end border-t bg-muted/50">
+          {step === "donor" ? (
+            <Button type="button" onClick={handleContinue}>
+              Continue
+            </Button>
+          ) : (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setStep("donor")}
+              >
+                Back
+              </Button>
+              <Button
+                type="submit"
+                form="add-donation-form"
+                disabled={isPending}
+              >
+                {isPending ? "Saving..." : "Save donation"}
+              </Button>
+            </>
+          )}
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
