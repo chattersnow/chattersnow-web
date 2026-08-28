@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { EventShift } from "../shifts-actions";
@@ -18,6 +18,14 @@ mock.module("../../volunteers/roles/actions", () => ({
   ...RoleActions,
   listRoleTypesAction: listRoleTypesActionMock,
 }));
+
+// mock.module patches bun's shared module registry for the whole test run,
+// not just this file, so restore the real listRoleTypesAction once this
+// file's tests finish — otherwise roles/actions.test.ts (which exercises
+// the real implementation) inherits this mock when it runs afterward.
+afterAll(() => {
+  mock.module("../../volunteers/roles/actions", () => RoleActions);
+});
 
 const { ShiftForm, ShiftsSection, NONE_VALUE } = await import("./shifts");
 
