@@ -189,9 +189,10 @@ export default async function PortalHomePage() {
     ...(opsInbox?.items ?? []),
     ...(calendarCoverageReminder?.items ?? []),
   ];
-  const activeEvents = personId
-    ? await getMyActiveEvents(supabase, personId, nowIso)
-    : [];
+  const activeEvents =
+    personId || canCheckIn
+      ? await getMyActiveEvents(supabase, personId, nowIso, canCheckIn)
+      : [];
 
   const anySectionVisible =
     canSeeUpcoming ||
