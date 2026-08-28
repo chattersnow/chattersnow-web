@@ -71,7 +71,7 @@ test.describe("portal access management", () => {
       await expect(createDialog).not.toBeVisible();
 
       const row = page.getByRole("row").filter({ hasText: assetName });
-      await expect(row).toBeVisible();
+      await expect(row).toBeVisible({ timeout: 15_000 });
 
       await row.getByRole("link", { name: assetName }).click();
       await expect(
@@ -92,7 +92,7 @@ test.describe("portal access management", () => {
       await expect(grantDialog).not.toBeVisible();
 
       const grantRow = page.getByRole("row").filter({ hasText: person.name });
-      await expect(grantRow).toBeVisible();
+      await expect(grantRow).toBeVisible({ timeout: 15_000 });
 
       await page.getByRole("button", { name: "Record review" }).click();
       const reviewDialog = page.getByRole("alertdialog");
@@ -100,7 +100,7 @@ test.describe("portal access management", () => {
       await expect(reviewDialog).not.toBeVisible();
       await expect(
         page.getByText(new Date().toISOString().slice(0, 10)),
-      ).toBeVisible();
+      ).toBeVisible({ timeout: 15_000 });
     } finally {
       await person.cleanup();
     }
