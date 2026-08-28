@@ -189,7 +189,7 @@ describe("DonationSheet", () => {
       await screen.findByText("Could not save the donation. Please try again."),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Save changes" }),
+      await screen.findByRole("button", { name: "Save changes" }),
     ).toBeInTheDocument();
   });
 });
