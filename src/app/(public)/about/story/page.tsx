@@ -36,47 +36,50 @@ export default async function StoryPage() {
           </p>
         </div>
       </section>
-      <section>
-        <h2 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-          Our Story
-        </h2>
-        <div className="app-muted mt-4 max-w-3xl space-y-4 text-sm leading-relaxed sm:text-base sm:flow-root">
-          <SiteImage
-            url={siteImages.about_story_photo ?? null}
-            alt="Chatter Snow community members"
-            className="mb-4 aspect-[3/4] w-40 rounded-xl sm:float-right sm:mb-2 sm:ml-6 sm:w-56"
-          />
-          <p>
-            Chatter started three summers ago when a group of friends wanted to
-            create a space where queer skiers and snowboarders could find each
-            other, ride together, and feel like they belonged on the mountain.
-          </p>
-          <p>
-            Since then, that idea has grown into an East Coast community.
-            We&apos;ve brought people together through indoor snow sessions,
-            mountain meetups, park days, collaborations, and events with partner
-            organizations. Our community is largely centered around the NYC
-            area, but we&apos;re continuing to grow our reach across the East
-            Coast.
-          </p>
-          <p>
-            As we&apos;ve grown, we&apos;ve realized that simply creating
-            opportunities to ride together isn&apos;t enough. Snow sports can be
-            expensive and intimidating to get into, especially for someone who
-            doesn&apos;t already have the equipment, knowledge, or community
-            around them.
-          </p>
-          <p>That&apos;s where Chatter&apos;s bigger purpose comes in.</p>
-          <p>
-            We&apos;re working to make skiing and snowboarding more accessible
-            to LGBTQ+ people by helping remove some of the financial and social
-            barriers that keep people off the mountain. Through gear donations
-            and swaps, beginner mentorship, affordable group events, and
-            partnerships with mountains and other organizations, we&apos;re
-            building a community where people can get into snow sports, improve
-            their skills, and find people to ride with.
-          </p>
+      <section className="grid gap-8 sm:grid-cols-3 sm:items-start">
+        <div className="sm:col-span-2">
+          <h2 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+            Our Story
+          </h2>
+          <div className="app-muted mt-4 space-y-4 text-sm leading-relaxed sm:text-base">
+            <p>
+              Chatter started three summers ago when a group of friends wanted
+              to create a space where queer skiers and snowboarders could find
+              each other, ride together, and feel like they belonged on the
+              mountain.
+            </p>
+            <p>
+              Since then, that idea has grown into an East Coast community.
+              We&apos;ve brought people together through indoor snow sessions,
+              mountain meetups, park days, collaborations, and events with
+              partner organizations. Our community is largely centered around
+              the NYC area, but we&apos;re continuing to grow our reach across
+              the East Coast.
+            </p>
+            <p>
+              As we&apos;ve grown, we&apos;ve realized that simply creating
+              opportunities to ride together isn&apos;t enough. Snow sports can
+              be expensive and intimidating to get into, especially for someone
+              who doesn&apos;t already have the equipment, knowledge, or
+              community around them.
+            </p>
+            <p>That&apos;s where Chatter&apos;s bigger purpose comes in.</p>
+            <p>
+              We&apos;re working to make skiing and snowboarding more accessible
+              to LGBTQ+ people by helping remove some of the financial and
+              social barriers that keep people off the mountain. Through gear
+              donations and swaps, beginner mentorship, affordable group events,
+              and partnerships with mountains and other organizations,
+              we&apos;re building a community where people can get into snow
+              sports, improve their skills, and find people to ride with.
+            </p>
+          </div>
         </div>
+        <SiteImage
+          url={siteImages.about_story_photo ?? null}
+          alt="Chatter Snow community members"
+          className="aspect-[3/4] rounded-xl sm:sticky sm:top-24"
+        />
       </section>
     </div>
   );

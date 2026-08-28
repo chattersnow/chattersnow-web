@@ -15,8 +15,9 @@ const rockSalt = Rock_Salt({
 });
 
 export const metadata: Metadata = {
-  title: "Chatter Snow | Coming soon",
-  description: "Chatter is currently a work in progress.",
+  title: "Chatter Snow",
+  description:
+    "Chatter Snow is a queer ski and snowboard community bringing LGBTQ+ skiers and snowboarders together on and off the East Coast mountains.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
