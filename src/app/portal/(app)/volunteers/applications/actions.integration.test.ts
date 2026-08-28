@@ -41,7 +41,7 @@ const DENIED = { error: "You don't have permission to perform this action." };
 // Each fixture gets a fresh email (never deduped, never throttled) and a
 // fresh IP for the per-IP rate limit.
 async function createApplication() {
-  const { data, error } = await anonClient().rpc(
+  const { data: referenceCode, error } = await anonClient().rpc(
     "submit_volunteer_application",
     {
       p_name: `Integration Test Applicant ${crypto.randomUUID()}`,
@@ -55,21 +55,24 @@ async function createApplication() {
   );
   if (error) throw error;
 
-  const id = data as string;
+  // The RPC returns the applicant-facing reference code, not the row id
+  // (see 20260827010000), so resolve the actual row from it.
+  const { data: row, error: rowError } = await adminClient
+    .from("volunteer_applications")
+    .select("id, person_id")
+    .eq("reference_code", referenceCode as string)
+    .single();
+  if (rowError) throw rowError;
+
+  const id = row.id as string;
+  const personId = row.person_id as string;
   return {
     id,
     // The RPC also creates a backing `people` row; nothing else references
     // it, so delete it once the application row is gone.
     async cleanup() {
-      const { data: row } = await adminClient
-        .from("volunteer_applications")
-        .select("person_id")
-        .eq("id", id)
-        .maybeSingle();
       await adminClient.from("volunteer_applications").delete().eq("id", id);
-      if (row?.person_id) {
-        await adminClient.from("people").delete().eq("id", row.person_id);
-      }
+      await adminClient.from("people").delete().eq("id", personId);
     },
   };
 }
