@@ -2,12 +2,9 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
-// Shared requester contact fields (name/email/phone/notes), used by both
-// the single-item request form (gear-request-form-fields.tsx) and the cart
-// checkout form (gear-cart-checkout-form.tsx) so the two flows stay
-// visually and behaviorally identical. idPrefix keeps input ids unique
-// since both forms can exist in the DOM in the same page (detail sheet +
-// cart sheet).
+// Shared requester contact fields (name/email/phone/notes), used by the
+// cart checkout form (gear-cart-checkout-form.tsx). idPrefix keeps input
+// ids unique in case the form is rendered more than once on a page.
 export function GearRequesterFields({
   idPrefix,
   name,

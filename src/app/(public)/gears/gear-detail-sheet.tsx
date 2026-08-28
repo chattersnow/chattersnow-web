@@ -16,7 +16,6 @@ import {
   labelFor,
   resolveImageUrl,
 } from "@/lib/inventory";
-import { GearRequestForm } from "./gear-request-form-fields";
 import type { GearItem } from "./gear-catalog";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -89,13 +88,6 @@ export function GearDetailSheet({
               >
                 {inCart ? "Remove from cart" : "Add to cart"}
               </Button>
-
-              <h3 className="brand-display mt-6 text-lg font-semibold tracking-[-0.02em]">
-                Request this item
-              </h3>
-              <div className="mt-4">
-                <GearRequestForm itemId={item.id} />
-              </div>
             </div>
           </>
         )}
