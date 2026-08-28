@@ -28,7 +28,7 @@ export default async function GearLibraryPage() {
         Gear library
       </h1>
       <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-        Browse gear currently available to Chatter Snow members.
+        Browse gear currently available to the community.
       </p>
       <Button
         variant="outline"

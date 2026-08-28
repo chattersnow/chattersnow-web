@@ -29,8 +29,8 @@ export default async function DonateGearPage() {
         </h1>
         <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
           Chatter collects donated ski and snowboard gear and makes it available
-          to community members who need it. Browse the library, add what you
-          need to your cart, and submit one request for everything at once.
+          to people in the community who need it. Browse the library, add what
+          you need to your cart, and submit one request for everything at once.
           We&apos;ll help coordinate pickup or drop-off at an upcoming event.
         </p>
       </section>
@@ -93,8 +93,8 @@ export default async function DonateGearPage() {
           Gear drives
         </h2>
         <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-          We periodically run gear drives and swap events where members can
-          donate, trade, and pick up gear in person. See{" "}
+          We periodically run gear drives and swap events where the community
+          can donate, trade, and pick up gear in person. See{" "}
           <Link
             href="/events"
             className="underline underline-offset-4 hover:text-foreground"
