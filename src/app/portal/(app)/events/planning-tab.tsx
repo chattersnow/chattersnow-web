@@ -151,15 +151,16 @@ export function PlanningTab({
     });
   }
 
-  const leadEmail = leads.find(
-    (lead) => lead.user_id === form.eventLeadId,
-  )?.email;
+  const selectedLead = leads.find((lead) => lead.user_id === form.eventLeadId);
+  const leadLabel = selectedLead
+    ? (selectedLead.full_name ?? selectedLead.email)
+    : undefined;
 
   if (mode === "view") {
     return (
       <FieldGroup>
         <ReadOnlyField label="Event lead" htmlFor="planning-eventLeadId">
-          {leadEmail ?? "—"}
+          {leadLabel ?? "—"}
         </ReadOnlyField>
         <Field orientation="responsive">
           <ReadOnlyField label="Capacity" htmlFor="planning-capacity">
@@ -198,13 +199,13 @@ export function PlanningTab({
           >
             <SelectTrigger id="planning-eventLeadId" className="w-full">
               <SelectValue placeholder="Select an event lead">
-                {() => leadEmail ?? "Select an event lead"}
+                {() => leadLabel ?? "Select an event lead"}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {leads.map((lead) => (
                 <SelectItem key={lead.user_id} value={lead.user_id}>
-                  {lead.email}
+                  {lead.full_name ?? lead.email}
                 </SelectItem>
               ))}
             </SelectContent>
