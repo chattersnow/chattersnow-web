@@ -174,10 +174,7 @@ export default async function InventoryDonationsPage({
           </form>
         </FiltersSheet>
 
-        <AddDonationModal
-          triggerLabel="Record donation"
-          events={eventOptions}
-        />
+        <AddDonationModal triggerLabel="Add donation" events={eventOptions} />
       </div>
 
       <div className="mt-6">

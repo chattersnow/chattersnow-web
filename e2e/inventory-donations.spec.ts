@@ -24,7 +24,7 @@ test.describe("portal inventory donations", () => {
     const donorName = `E2E Donor ${Date.now()}`;
     const itemDescription = `E2E Test Jacket ${Date.now()}`;
 
-    await page.getByRole("button", { name: "Record donation" }).click();
+    await page.getByRole("button", { name: "Add donation" }).click();
     const addSheet = page.getByRole("dialog");
     await expect(
       addSheet.getByRole("heading", { name: "Record a donation" }),
