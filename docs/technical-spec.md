@@ -501,10 +501,11 @@ Implemented (see §5.3):
 
 Implemented for the tables listed below (see §5.11, issue #18):
 
-- `audit_log`: `id`, `table_name` (check-constrained to the audited table set), `record_id`, `action` (`insert`/`update`/`delete`), `actor_id` (nullable FK → `auth.users`, null for non-request-scoped writes), `occurred_at`, `old_data`/`new_data` (full-row `jsonb` snapshots; no precomputed diff column — diffing two small `jsonb` objects is computed on read instead)
-- `audit_log_row()`: a generic `security definer` `plpgsql` trigger function (`to_jsonb(OLD)`/`to_jsonb(NEW)` keyed on `TG_TABLE_NAME`/`TG_OP`) fired `AFTER INSERT OR UPDATE OR DELETE` on `donations`, `inventory_items`, `inventory_movements`, `event_expenses`, and `user_roles`
+- `audit_log`: `id`, `table_name` (FK → `audited_tables.table_name`, issue #421), `record_id`, `action` (`insert`/`update`/`delete`), `actor_id` (nullable FK → `auth.users`, null for non-request-scoped writes), `occurred_at`, `old_data`/`new_data` (full-row `jsonb` snapshots; no precomputed diff column — diffing two small `jsonb` objects is computed on read instead)
+- `audited_tables`: registry table (`table_name` PK, `pk_column` defaulting to `'id'`) that both the FK above and `audit_log_row()` key off of — not exposed to the API (RLS enabled, no policies/grants), read only by the trigger function and by migrations. Onboarding a newly-audited table is one additive `insert` into this table plus a `create trigger`, not a check-constraint drop/recreate of the full accumulated list
+- `audit_log_row()`: a generic `security definer` `plpgsql` trigger function fired `AFTER INSERT OR UPDATE OR DELETE` on each audited table; looks up the table's `pk_column` from `audited_tables` via `TG_TABLE_NAME` and reads `to_jsonb(NEW/OLD) ->> pk_column` for `record_id` (raising if the table isn't registered or the resolved column doesn't exist on the row), instead of assuming every table's primary key is named `id`
 - RLS: select-only, restricted to `has_permission('administration', 'manage')`; no insert/update/delete policy exists for any role, so writes only ever happen through the trigger
-- Not yet covered: `events`, `giveaways`/`giveaway_prizes`/`giveaway_winners` — named in §5.11's requirement but out of scope for the v1 build; adding a table later only needs a new `create trigger` statement plus widening the `table_name` check constraint, not a new function
+- Currently audited: `donations`, `inventory_items`, `inventory_movements`, `event_expenses`, `user_roles`, `app_settings`, `calendar_items`, `pending_role_grants`, `content_opportunities`, `deactivated_users` (`pk_column = 'user_id'`), `event_revenue`, `reimbursements`, `content_permissions`. Not yet covered: `events`, `giveaways`/`giveaway_prizes`/`giveaway_winners` — named in §5.11's requirement but out of scope for the v1 build
 
 ### Public and events
 
