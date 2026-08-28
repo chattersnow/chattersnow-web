@@ -27,7 +27,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { formatShiftRange } from "./shifts";
+import { formatShiftRange, NONE_VALUE } from "./shifts";
 
 export function AddVolunteerForm({
   people,
@@ -100,9 +100,9 @@ export function AddVolunteerForm({
           <Field>
             <FieldLabel htmlFor="volunteer-shift">Shift</FieldLabel>
             <Select
-              value={shiftId ?? "none"}
+              value={shiftId ?? NONE_VALUE}
               onValueChange={(value) =>
-                setShiftId(value === "none" ? null : value)
+                setShiftId(value === NONE_VALUE ? null : value)
               }
             >
               <SelectTrigger id="volunteer-shift" className="w-full">
@@ -114,7 +114,9 @@ export function AddVolunteerForm({
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">No shift (whole event)</SelectItem>
+                <SelectItem value={NONE_VALUE}>
+                  No shift (whole event)
+                </SelectItem>
                 {shifts.map((shift) => (
                   <SelectItem key={shift.id} value={shift.id}>
                     {shift.label} ({formatShiftRange(shift)})
@@ -239,11 +241,11 @@ export function SignupsSection({
                   <TableCell className="app-muted">
                     {mode === "edit" && shifts.length > 0 ? (
                       <Select
-                        value={volunteer.shift_id ?? "none"}
+                        value={volunteer.shift_id ?? NONE_VALUE}
                         onValueChange={(value) =>
                           onShiftReassign(
                             volunteer.id,
-                            value === "none" ? null : value,
+                            value === NONE_VALUE ? null : value,
                           )
                         }
                       >
@@ -260,7 +262,7 @@ export function SignupsSection({
                           </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">No shift</SelectItem>
+                          <SelectItem value={NONE_VALUE}>No shift</SelectItem>
                           {shifts.map((shift) => (
                             <SelectItem key={shift.id} value={shift.id}>
                               {shift.label} ({formatShiftRange(shift)})
