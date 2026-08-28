@@ -1,0 +1,139 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { checkPermission } from "@/lib/auth/permissions";
+import { checkUser } from "@/lib/auth/current-user";
+
+export type EventRegistrant = {
+  id: string;
+  event_id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  party_size: number;
+  notes: string | null;
+  created_at: string;
+  person_id: string | null;
+  checked_in_at: string | null;
+};
+
+export async function listEventRegistrantsAction(
+  eventId: string,
+): Promise<{ data: EventRegistrant[] } | { error: string }> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "events", "view");
+  if (permissionError) return permissionError;
+
+  const { data, error } = await supabase
+    .from("event_registrations")
+    .select(
+      "id, event_id, name, email, phone, party_size, notes, created_at, person_id, checked_in_at",
+    )
+    .eq("event_id", eventId)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    return { error: "Could not load registrants. Please try again." };
+  }
+  return { data: (data ?? []) as EventRegistrant[] };
+}
+
+export type RegistrantActionResult = { error: string } | { success: true };
+
+export async function checkInRegistrantAction(
+  id: string,
+): Promise<RegistrantActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to check in a registrant.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
+
+  const { error } = await supabase
+    .from("event_registrations")
+    .update({ checked_in_at: new Date().toISOString() })
+    .eq("id", id);
+
+  if (error) {
+    return { error: "Could not check in this registrant. Please try again." };
+  }
+
+  revalidatePath("/portal/events");
+  return { success: true };
+}
+
+export async function undoCheckInAction(
+  id: string,
+): Promise<RegistrantActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to undo a check-in.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
+
+  const { error } = await supabase
+    .from("event_registrations")
+    .update({ checked_in_at: null })
+    .eq("id", id);
+
+  if (error) {
+    return { error: "Could not undo this check-in. Please try again." };
+  }
+
+  revalidatePath("/portal/events");
+  return { success: true };
+}
+
+export async function createWalkInCheckInAction(
+  eventId: string,
+  person: {
+    id: string;
+    name: string | null;
+    email: string | null;
+    phone: string | null;
+  },
+  partySize: number,
+): Promise<RegistrantActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to check in a walk-in.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
+
+  if (!Number.isInteger(partySize) || partySize < 1) {
+    return { error: "Party size must be at least 1." };
+  }
+
+  const { error } = await supabase.from("event_registrations").insert({
+    event_id: eventId,
+    person_id: person.id,
+    name: person.name ?? "Walk-in",
+    email: person.email ?? "",
+    phone: person.phone,
+    party_size: partySize,
+    checked_in_at: new Date().toISOString(),
+  });
+
+  if (error) {
+    if (error.code === "23505") {
+      return {
+        error:
+          "This person already has a registration for this event. Check them in from the existing row instead.",
+      };
+    }
+    return { error: "Could not check in this walk-in. Please try again." };
+  }
+
+  revalidatePath("/portal/events");
+  return { success: true };
+}

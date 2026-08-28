@@ -1,0 +1,71 @@
+import Image from "next/image";
+import { ImageOff } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  CONDITIONS,
+  GENDERS,
+  labelFor,
+  resolveImageUrl,
+} from "@/lib/inventory";
+import type { GearItem } from "./gear-catalog";
+
+export function GearCard({
+  item,
+  onSelect,
+  inCart,
+  onToggleCart,
+  placeholderUrl,
+}: {
+  item: GearItem;
+  onSelect: () => void;
+  inCart: boolean;
+  onToggleCart: () => void;
+  placeholderUrl: string | null;
+}) {
+  const genderLabel = labelFor(GENDERS, item.gender);
+  const imageUrl = resolveImageUrl(item.photo_url) ?? placeholderUrl;
+
+  return (
+    <Card className="relative gap-0 overflow-hidden py-0 transition-colors focus-within:border-[var(--purple-deep)] hover:border-[var(--purple-deep)]">
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-label={`View details for ${item.description}`}
+        className="flex w-full cursor-pointer flex-col text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset"
+      >
+        <div className="relative aspect-square w-full bg-muted">
+          {imageUrl ? (
+            <Image
+              src={imageUrl}
+              alt={item.description}
+              fill
+              sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
+              className="object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center">
+              <ImageOff className="size-8 text-muted-foreground" aria-hidden />
+            </div>
+          )}
+        </div>
+        <CardContent className="space-y-1.5 px-4 py-3">
+          <p className="line-clamp-2 text-sm font-medium">{item.description}</p>
+          <p className="app-muted text-xs">
+            {[item.type, item.size, genderLabel].filter(Boolean).join(" · ")}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {labelFor(CONDITIONS, item.condition)}
+          </p>
+        </CardContent>
+      </button>
+      <div className="absolute top-2 left-2 z-10 flex size-6 items-center justify-center rounded-md bg-background/80 backdrop-blur-xs">
+        <Checkbox
+          checked={inCart}
+          onCheckedChange={() => onToggleCart()}
+          aria-label={inCart ? "Remove from cart" : "Add to cart"}
+        />
+      </div>
+    </Card>
+  );
+}
