@@ -7,10 +7,13 @@ import { ParkRidingSafetySections } from "../park-riding-safety/park-riding-safe
 import { PARK_SAFETY_ARTICLES } from "../park-riding-safety/park-riding-safety-data";
 import { GettingStartedSections } from "../getting-started/getting-started-sections";
 import { GETTING_STARTED_ARTICLES } from "../getting-started/getting-started-data";
+import { CommunityAndInclusionSections } from "../community-and-inclusion/community-and-inclusion-sections";
+import { COMMUNITY_AND_INCLUSION_ARTICLES } from "../community-and-inclusion/community-and-inclusion-data";
 
 const CATEGORY_CONTENT: Record<string, () => React.ReactNode> = {
   "getting-started": () => <GettingStartedSections />,
   "park-riding-safety": () => <ParkRidingSafetySections />,
+  "community-and-inclusion": () => <CommunityAndInclusionSections />,
 };
 
 const CATEGORY_NAV: Record<string, { href: string; label: string }[]> = {
@@ -22,6 +25,12 @@ const CATEGORY_NAV: Record<string, { href: string; label: string }[]> = {
     href: `#${article.id}`,
     label: article.title,
   })),
+  "community-and-inclusion": COMMUNITY_AND_INCLUSION_ARTICLES.map(
+    (article) => ({
+      href: `#${article.id}`,
+      label: article.title,
+    }),
+  ),
 };
 
 export function generateStaticParams() {

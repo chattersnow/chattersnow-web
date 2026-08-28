@@ -39,4 +39,27 @@ test.describe("public learn page", () => {
     ).toBeVisible();
     await expect(page.getByText("coming soon")).toHaveCount(0);
   });
+
+  test("community and inclusion category renders its articles", async ({
+    page,
+  }) => {
+    await page.goto("/learn/community-and-inclusion");
+
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Community & Inclusion" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        level: 2,
+        name: "Finding your place in the snow sports community",
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        level: 2,
+        name: "Overcoming first-timer intimidation",
+      }),
+    ).toBeVisible();
+    await expect(page.getByText("coming soon")).toHaveCount(0);
+  });
 });
