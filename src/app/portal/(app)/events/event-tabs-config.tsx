@@ -150,6 +150,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         event={ctx.event}
         mode={ctx.mode}
         active={ctx.activeTab === "attendance"}
+        onExitEdit={ctx.onSaved}
       />
     ),
   },
@@ -216,6 +217,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         eventId={ctx.event.id}
         active={ctx.activeTab === "giveaway"}
         mode={ctx.mode}
+        onExitEdit={ctx.onSaved}
       />
     ),
   },
