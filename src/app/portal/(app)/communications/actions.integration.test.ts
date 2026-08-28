@@ -27,10 +27,9 @@ mock.module("@/lib/supabase/server", () => ({
 
 // admin.ts imports "server-only", which throws outside Next's bundler --
 // stub it so this plain `bun test` run can import the real module. Needed
-// here because `authenticated` is granted only select+update on
-// contact_messages (rows arrive via the security-definer
-// submit_contact_message RPC), so no signed-in client -- admin included --
-// can delete its own fixtures.
+// here because contact_messages carries only select and update policies
+// (rows arrive via the security-definer submit_contact_message RPC), so no
+// signed-in client -- admin included -- can delete its own fixtures.
 mock.module("server-only", () => ({}));
 const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
 const serviceRoleClient = createSupabaseAdminClient();
@@ -229,9 +228,11 @@ describe("contact_messages table RLS (integration)", () => {
     const message = await createContactMessage();
     const anon = anonClient();
 
+    // Both policies are `to authenticated`, so anon matches none and the
+    // table reads back empty rather than erroring.
     const { data, error } = await anon.from("contact_messages").select("id");
-    expect(error).not.toBeNull();
-    expect(data).toBeNull();
+    expect(error).toBeNull();
+    expect(data).toEqual([]);
 
     // The submission itself still landed -- anon's only write path is the
     // security-definer RPC, not table access.
@@ -254,7 +255,7 @@ describe("contact_messages table RLS (integration)", () => {
     await message.cleanup();
   });
 
-  test("even admin cannot insert a message directly (no grant to authenticated)", async () => {
+  test("even admin cannot insert a message directly (no insert policy)", async () => {
     const { error } = await adminClient.from("contact_messages").insert({
       name: "Direct insert",
       email: uniqueEmail("direct"),
@@ -270,14 +271,16 @@ describe("contact_messages table RLS (integration)", () => {
     expect(data).toEqual([]);
   });
 
-  test("even admin cannot delete a message directly (no grant to authenticated)", async () => {
+  test("even admin cannot delete a message directly (no delete policy)", async () => {
     const message = await createContactMessage();
 
+    // Unlike the insert above (which trips the RLS with-check and errors), a
+    // delete with no matching policy simply matches no rows.
     const { error } = await adminClient
       .from("contact_messages")
       .delete()
       .eq("id", message.id);
-    expect(error).not.toBeNull();
+    expect(error).toBeNull();
 
     // Still there: submissions are retained until a purge path exists.
     expect((await readMessage(message.id)).id).toBe(message.id);
