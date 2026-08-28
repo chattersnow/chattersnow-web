@@ -14,6 +14,7 @@ import {
   createPublishedEvent,
   getInventoryItemStatus,
   signIn,
+  signInAs,
 } from "../../../../../test/integration-setup";
 import type { RecordDistributionInput } from "./distribution-form";
 
@@ -223,5 +224,172 @@ describe("recordEventDistributionAction (integration)", () => {
     await cleanup();
     await recipient.cleanup();
     await event.cleanup();
+  });
+});
+
+// The action tests above only reach `inventory_movements` through
+// record_event_distribution, i.e. the insert path. No Server Action exposes
+// selecting, updating or deleting a movement row directly, so these tests hit
+// the table with the real signed-in client (same client the app uses) to cover
+// the remaining policies from 20260822100000_role_scoped_rls_data_driven.sql:
+// select -> inventory:manage OR inventory_reports:view; update/delete ->
+// inventory:manage only.
+describe("inventory_movements table RLS (integration, no Server Action to exercise)", () => {
+  // create_donation_with_items records a 'received' movement per item, so a
+  // fresh gear item is enough to get a real movement row to assert against.
+  async function createMovement() {
+    const { itemIds, cleanup } = await createAvailableGearItems(1);
+    const { data, error } = await adminClient
+      .from("inventory_movements")
+      .select("id")
+      .eq("inventory_item_id", itemIds[0])
+      .single();
+    if (error) throw error;
+    return { id: data.id as string, itemId: itemIds[0], cleanup };
+  }
+
+  async function readReason(movementId: string) {
+    const { data } = await adminClient
+      .from("inventory_movements")
+      .select("reason")
+      .eq("id", movementId)
+      .maybeSingle();
+    return data?.reason ?? null;
+  }
+
+  test("finance role (inventory_reports:view) can select a movement directly", async () => {
+    const movement = await createMovement();
+    const client = await signInAs(SEEDED_USERS.finance);
+
+    const { data, error } = await client
+      .from("inventory_movements")
+      .select("id, movement_type")
+      .eq("id", movement.id);
+    expect(error).toBeNull();
+    expect(data).toHaveLength(1);
+    expect(data![0].movement_type).toBe("received");
+
+    await movement.cleanup();
+  });
+
+  test("admin role (inventory:manage) can select a movement directly", async () => {
+    const movement = await createMovement();
+    const client = await signInAs(SEEDED_USERS.admin);
+
+    const { data, error } = await client
+      .from("inventory_movements")
+      .select("id")
+      .eq("id", movement.id);
+    expect(error).toBeNull();
+    expect(data).toHaveLength(1);
+
+    await movement.cleanup();
+  });
+
+  // A denied select is an empty result rather than an error: RLS filters the
+  // rows out instead of rejecting the statement.
+  test("board role (neither inventory:manage nor inventory_reports:view) cannot select a movement", async () => {
+    const movement = await createMovement();
+    const client = await signInAs(SEEDED_USERS.board);
+
+    const { data, error } = await client
+      .from("inventory_movements")
+      .select("id")
+      .eq("id", movement.id);
+    expect(error).toBeNull();
+    expect(data).toEqual([]);
+
+    await movement.cleanup();
+  });
+
+  test("volunteer role (inventory_intake:manage, insert-only) cannot select a movement", async () => {
+    const movement = await createMovement();
+    const client = await signInAs(SEEDED_USERS.volunteer);
+
+    const { data } = await client
+      .from("inventory_movements")
+      .select("id")
+      .eq("id", movement.id);
+    expect(data).toEqual([]);
+
+    await movement.cleanup();
+  });
+
+  test("admin role (inventory:manage) can update a movement directly", async () => {
+    const movement = await createMovement();
+    const client = await signInAs(SEEDED_USERS.admin);
+
+    const { error } = await client
+      .from("inventory_movements")
+      .update({ reason: "Corrected by admin" })
+      .eq("id", movement.id);
+    expect(error).toBeNull();
+    expect(await readReason(movement.id)).toBe("Corrected by admin");
+
+    await movement.cleanup();
+  });
+
+  test("finance role (inventory_reports:view only) cannot update a movement directly", async () => {
+    const movement = await createMovement();
+    const client = await signInAs(SEEDED_USERS.finance);
+
+    await client
+      .from("inventory_movements")
+      .update({ reason: "Attempted finance edit" })
+      .eq("id", movement.id);
+
+    expect(await readReason(movement.id)).toBe("Donation intake");
+
+    await movement.cleanup();
+  });
+
+  test("volunteer role (inventory_intake:manage, insert-only) cannot update a movement directly", async () => {
+    const movement = await createMovement();
+    const client = await signInAs(SEEDED_USERS.volunteer);
+
+    await client
+      .from("inventory_movements")
+      .update({ reason: "Attempted volunteer edit" })
+      .eq("id", movement.id);
+
+    expect(await readReason(movement.id)).toBe("Donation intake");
+
+    await movement.cleanup();
+  });
+
+  test("admin role (inventory:manage) can delete a movement directly", async () => {
+    const movement = await createMovement();
+    const client = await signInAs(SEEDED_USERS.admin);
+
+    const { error } = await client
+      .from("inventory_movements")
+      .delete()
+      .eq("id", movement.id);
+    expect(error).toBeNull();
+
+    const { data } = await adminClient
+      .from("inventory_movements")
+      .select("id")
+      .eq("id", movement.id)
+      .maybeSingle();
+    expect(data).toBeNull();
+
+    await movement.cleanup();
+  });
+
+  test("finance role (inventory_reports:view only) cannot delete a movement directly", async () => {
+    const movement = await createMovement();
+    const client = await signInAs(SEEDED_USERS.finance);
+
+    await client.from("inventory_movements").delete().eq("id", movement.id);
+
+    const { data } = await adminClient
+      .from("inventory_movements")
+      .select("id")
+      .eq("id", movement.id)
+      .maybeSingle();
+    expect(data?.id).toBe(movement.id);
+
+    await movement.cleanup();
   });
 });
