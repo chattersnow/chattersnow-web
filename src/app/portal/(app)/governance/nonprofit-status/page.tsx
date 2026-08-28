@@ -19,6 +19,7 @@ export default async function NonprofitStatusPage() {
     supabase
       .from("nonprofit_status_milestones")
       .select(MILESTONE_SELECT)
+      .order("sort_order", { ascending: true })
       .order("created_at", { ascending: true }),
     supabase
       .from("people")

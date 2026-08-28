@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { WorkflowInfoCard } from "@/components/workflow-info-card";
+import { HowToSection, HowToSheet } from "@/components/how-to-sheet";
 import { FiltersSheet } from "@/components/filters-sheet";
 import {
   buildHref,
@@ -164,55 +164,97 @@ export default async function ExpensesPage({
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
           Expenses
         </h1>
-        <NewExpenseDialog events={eventOptions} />
+        <div className="flex items-center gap-2">
+          <HowToSheet title="How expense approval works">
+            <HowToSection heading="Steps">
+              <ol className="list-decimal space-y-2 pl-4">
+                <li>
+                  <strong className="text-foreground">Submitted</strong> —
+                  finance or an event coordinator records an expense. Every
+                  expense starts here.
+                </li>
+                <li>
+                  <strong className="text-foreground">
+                    Approved or rejected
+                  </strong>{" "}
+                  —
+                  {approvalContext.threshold !== null ? (
+                    <>
+                      {" "}
+                      below {formatAmount(approvalContext.threshold, "USD")},
+                      finance can approve their own submission. At or above
+                      that, an admin or board member — someone other than
+                      whoever submitted it — has to approve or reject it.
+                    </>
+                  ) : (
+                    <>
+                      {" "}
+                      an admin or board member, other than whoever submitted it,
+                      approves or rejects it.
+                    </>
+                  )}
+                </li>
+                <li>
+                  <strong className="text-foreground">Paid</strong> — once
+                  approved, finance or admin marks it as paid after payment has
+                  actually been sent.
+                </li>
+              </ol>
+            </HowToSection>
+            <HowToSection heading="Who can do this">
+              <p>
+                <strong className="text-foreground">finance</strong> (and{" "}
+                <strong className="text-foreground">event_coordinator</strong>{" "}
+                for event-level expenses) records; below the threshold, finance
+                can approve their own; at or above it, an{" "}
+                <strong className="text-foreground">admin</strong> or{" "}
+                <strong className="text-foreground">board</strong> member other
+                than the submitter approves or rejects.
+              </p>
+            </HowToSection>
+            <HowToSection heading="What happens downstream">
+              <ul className="list-disc space-y-2 pl-4">
+                <li>
+                  The threshold is a setting, not a fixed rule — admin or board
+                  can change it anytime in{" "}
+                  <Link
+                    href="/portal/administration/system-settings"
+                    className="underline hover:text-foreground"
+                  >
+                    Administration &gt; System Settings
+                  </Link>
+                  , and it takes effect here immediately, without a code change.
+                </li>
+                <li>
+                  Every submit, approve, reject, or paid transition is written
+                  to the audit log, including who acted and when.
+                </li>
+                <li>
+                  RLS blocks a submitter from approving their own submission at
+                  the database level too, not just in the UI.
+                </li>
+              </ul>
+            </HowToSection>
+            <HowToSection heading="Common mistakes">
+              <ul className="list-disc space-y-2 pl-4">
+                <li>
+                  Submitting an expense without a receipt link — nothing blocks
+                  it, but it slows the approver down since there&apos;s no
+                  upload, only a link field.
+                </li>
+                <li>
+                  Trying to approve your own submission when it&apos;s at or
+                  above the threshold — the action is rejected even for an admin
+                  account if they&apos;re the submitter.
+                </li>
+              </ul>
+            </HowToSection>
+          </HowToSheet>
+          <NewExpenseDialog events={eventOptions} />
+        </div>
       </div>
 
       <div className="mt-6 space-y-4">
-        <WorkflowInfoCard title="How expense approval works">
-          <ol className="list-decimal space-y-2 pl-4">
-            <li>
-              <strong className="text-foreground">Submitted</strong> — finance
-              or an event coordinator records an expense. Every expense starts
-              here.
-            </li>
-            <li>
-              <strong className="text-foreground">Approved or rejected</strong>{" "}
-              —
-              {approvalContext.threshold !== null ? (
-                <>
-                  {" "}
-                  below {formatAmount(approvalContext.threshold, "USD")},
-                  finance can approve their own submission. At or above that, an
-                  admin or board member — someone other than whoever submitted
-                  it — has to approve or reject it.
-                </>
-              ) : (
-                <>
-                  {" "}
-                  an admin or board member, other than whoever submitted it,
-                  approves or rejects it.
-                </>
-              )}
-            </li>
-            <li>
-              <strong className="text-foreground">Paid</strong> — once approved,
-              finance or admin marks it as paid after payment has actually been
-              sent.
-            </li>
-          </ol>
-          <p className="mt-3">
-            The threshold is a setting, not a fixed rule — admin or board can
-            change it anytime in{" "}
-            <Link
-              href="/portal/administration/system-settings"
-              className="underline hover:text-foreground"
-            >
-              Administration &gt; System Settings
-            </Link>{" "}
-            without a code change.
-          </p>
-        </WorkflowInfoCard>
-
         <div className="flex justify-end">
           <FiltersSheet activeCount={activeFilterCount}>
             <form method="get" className="flex flex-col gap-4">

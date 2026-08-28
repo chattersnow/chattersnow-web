@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { WorkflowInfoCard } from "@/components/workflow-info-card";
+import { HowToSection, HowToSheet } from "@/components/how-to-sheet";
 import {
   formatAmount,
   isRevenueSource,
@@ -130,14 +130,89 @@ export default async function FinancialReportsPage({
 
   return (
     <>
-      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-        Financial Reports
-      </h1>
-      <p className="app-muted mt-2 max-w-2xl text-sm">
-        Summary of income, expenses, and donations across the selected period,
-        computed live from event revenue, expenses, reimbursements, and donation
-        intake.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+            Financial Reports
+          </h1>
+          <p className="app-muted mt-2 max-w-2xl text-sm">
+            Summary of income, expenses, and donations across the selected
+            period, computed live from event revenue, expenses, reimbursements,
+            and donation intake.
+          </p>
+        </div>
+        <HowToSheet title="How these figures are counted">
+          <HowToSection heading="What counts">
+            <ul className="list-disc space-y-2 pl-4">
+              <li>
+                <strong className="text-foreground">Income</strong> is event
+                revenue by the date it was received. Sponsorship commitments are
+                tracked separately and are not counted here.
+              </li>
+              <li>
+                <strong className="text-foreground">Expenses paid</strong>{" "}
+                counts only{" "}
+                <Link
+                  href="/portal/finance/expenses"
+                  className="underline hover:text-foreground"
+                >
+                  expenses
+                </Link>{" "}
+                and{" "}
+                <Link
+                  href="/portal/finance/reimbursements"
+                  className="underline hover:text-foreground"
+                >
+                  reimbursements
+                </Link>{" "}
+                marked paid, so the net reflects money that has actually left
+                the account. Submitted and approved-but-unpaid spend is listed
+                below it, and rejected spend never counts toward any total.
+              </li>
+              <li>
+                <strong className="text-foreground">In-kind donations</strong>{" "}
+                is the face value of items donated in the period. It is not
+                cash, so it stays out of the net. Monetary donations are not
+                tracked yet.
+              </li>
+              <li>
+                Expenses count by the date the cost was incurred; reimbursements
+                have no such date, so they count by the date the request was
+                recorded.
+              </li>
+            </ul>
+          </HowToSection>
+          <HowToSection heading="Who can do this">
+            <p>
+              <strong className="text-foreground">admin</strong> and{" "}
+              <strong className="text-foreground">finance</strong> see the live
+              figures; <strong className="text-foreground">board</strong> gets a
+              view-only version for oversight; other roles have no access to
+              Finance reports.
+            </p>
+          </HowToSection>
+          <HowToSection heading="What happens downstream">
+            <p>
+              Changing the date range re-runs the same report live — nothing is
+              cached, so figures always reflect the current state of expenses,
+              reimbursements, revenue, and donations.
+            </p>
+          </HowToSection>
+          <HowToSection heading="Common mistakes">
+            <ul className="list-disc space-y-2 pl-4">
+              <li>
+                Reading Net as cash-on-hand — it only reflects paid spend, so an
+                approved-but-unpaid expense doesn&apos;t reduce Net yet, even
+                though it&apos;s committed.
+              </li>
+              <li>
+                Picking a From date after the To date returns nothing; the page
+                will tell you to fix the range.
+              </li>
+            </ul>
+          </HowToSection>
+        </HowToSheet>
+      </div>
 
       {rangeInverted ? (
         <Card className="mt-6">
@@ -229,50 +304,6 @@ export default async function FinancialReportsPage({
 
       {summary && (
         <div className="mt-4 space-y-4">
-          <WorkflowInfoCard
-            title="How these figures are counted"
-            defaultOpen={false}
-          >
-            <ul className="list-disc space-y-2 pl-4">
-              <li>
-                <strong className="text-foreground">Income</strong> is event
-                revenue by the date it was received. Sponsorship commitments are
-                tracked separately and are not counted here.
-              </li>
-              <li>
-                <strong className="text-foreground">Expenses paid</strong>{" "}
-                counts only{" "}
-                <Link
-                  href="/portal/finance/expenses"
-                  className="underline hover:text-foreground"
-                >
-                  expenses
-                </Link>{" "}
-                and{" "}
-                <Link
-                  href="/portal/finance/reimbursements"
-                  className="underline hover:text-foreground"
-                >
-                  reimbursements
-                </Link>{" "}
-                marked paid, so the net reflects money that has actually left
-                the account. Submitted and approved-but-unpaid spend is listed
-                below it, and rejected spend never counts toward any total.
-              </li>
-              <li>
-                <strong className="text-foreground">In-kind donations</strong>{" "}
-                is the face value of items donated in the period. It is not
-                cash, so it stays out of the net. Monetary donations are not
-                tracked yet.
-              </li>
-              <li>
-                Expenses count by the date the cost was incurred; reimbursements
-                have no such date, so they count by the date the request was
-                recorded.
-              </li>
-            </ul>
-          </WorkflowInfoCard>
-
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
               <CardHeader>

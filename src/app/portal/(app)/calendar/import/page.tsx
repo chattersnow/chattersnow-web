@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { WorkflowInfoCard } from "@/components/workflow-info-card";
+import { HowToSection, HowToSheet } from "@/components/how-to-sheet";
 import { formatDateInZone } from "@/lib/time";
 import { getMissingCoverageSeriesForYear } from "../queries";
 import { GenerateMissingButton } from "./generate-missing-button";
@@ -27,38 +27,66 @@ export default async function CalendarImportPage({
 
   return (
     <>
-      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-        Calendar Import
-      </h1>
-      <div className="mt-6">
-        <WorkflowInfoCard title="How calendar import works">
-          <ol className="list-decimal space-y-2 pl-4">
-            <li>
-              <strong className="text-foreground">
-                Generate missing instances
-              </strong>{" "}
-              — for each recurring Tier 1/2 observance missing a date in the
-              target year, generate just that one series, or use Generate all to
-              fill in every missing one at once.
-            </li>
-            <li>
-              <strong className="text-foreground">Bulk import</strong> — the CSV
-              importer adds new one-off dates from an external list.
-            </li>
-          </ol>
-          <p className="mt-3">
-            Either path only creates internal <code>idea</code>-status drafts —
-            nothing is published automatically. Everything still goes through
-            the normal calendar sign-off on the main{" "}
-            <Link
-              href="/portal/calendar"
-              className="underline hover:text-foreground"
-            >
-              Calendar
-            </Link>{" "}
-            page.
-          </p>
-        </WorkflowInfoCard>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          Calendar Import
+        </h1>
+        <HowToSheet title="How calendar import works">
+          <HowToSection heading="Steps">
+            <ol className="list-decimal space-y-2 pl-4">
+              <li>
+                <strong className="text-foreground">
+                  Generate missing instances
+                </strong>{" "}
+                — for each recurring Tier 1/2 observance missing a date in the
+                target year, generate just that one series, or use Generate all
+                to fill in every missing one at once.
+              </li>
+              <li>
+                <strong className="text-foreground">Bulk import</strong> — the
+                CSV importer adds new one-off dates from an external list.
+              </li>
+            </ol>
+          </HowToSection>
+          <HowToSection heading="Who can do this">
+            <p>Anyone with manage access to the content calendar.</p>
+          </HowToSection>
+          <HowToSection heading="What happens downstream">
+            <ul className="list-disc space-y-2 pl-4">
+              <li>
+                Either path only creates internal <code>idea</code>-status
+                drafts — nothing is published automatically. Everything still
+                goes through the normal sign-off on the main{" "}
+                <Link
+                  href="/portal/calendar"
+                  className="underline hover:text-foreground"
+                >
+                  Calendar
+                </Link>{" "}
+                page.
+              </li>
+              <li>
+                New rows count toward that same page&apos;s audit log, just like
+                any other calendar item.
+              </li>
+            </ul>
+          </HowToSection>
+          <HowToSection heading="Common mistakes">
+            <ul className="list-disc space-y-2 pl-4">
+              <li>
+                Assuming a generated or imported item is already public — it
+                isn&apos;t, until someone reviews it and sets its status and
+                visibility on the Calendar page.
+              </li>
+              <li>
+                Re-importing the same CSV can create duplicate one-off items —
+                check the target year&apos;s coverage first. Re-running Generate
+                all for an already-covered year is harmless, since it only fills
+                gaps.
+              </li>
+            </ul>
+          </HowToSection>
+        </HowToSheet>
       </div>
 
       <Card className="mt-4">
