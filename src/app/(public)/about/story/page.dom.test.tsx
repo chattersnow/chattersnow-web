@@ -72,4 +72,20 @@ describe("StoryPage", () => {
     expect(intro).not.toBeNull();
     expect(intro!.textContent).toContain("queer ski and snowboard community");
   });
+
+  test("sizes the Our Story heading as a section heading, matching Mission page's Our Values", async () => {
+    const { container } = render(await StoryPage());
+
+    const storyHeading = Array.from(container.querySelectorAll("h2")).find(
+      (heading) => heading.textContent === "Our Story",
+    );
+    expect(storyHeading).toBeDefined();
+    // Same section-heading classes as Our Values on the Mission page, not
+    // the page-title-sized text-4xl/text-5xl the <h1> above it uses.
+    expect(storyHeading!.className).toContain("text-2xl");
+    expect(storyHeading!.className).toContain("sm:text-3xl");
+    expect(storyHeading!.className).toContain("tracking-[-0.03em]");
+    expect(storyHeading!.className).not.toContain("text-4xl");
+    expect(storyHeading!.className).not.toContain("sm:text-5xl");
+  });
 });
