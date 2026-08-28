@@ -4,6 +4,7 @@ export default function StoryLoading() {
   return (
     <div>
       <section>
+        <div className="rainbow-accent mb-4 w-16" />
         <Skeleton className="h-10 w-64 sm:h-12" />
         <div className="mt-4 max-w-3xl space-y-2">
           <Skeleton className="h-4 w-full" />

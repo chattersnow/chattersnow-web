@@ -135,6 +135,55 @@ body {
     border-radius: 999px;
     background: var(--rainbow);
   }
+
+  .rainbow-strip {
+    height: 0.25rem;
+    width: 100%;
+    background: var(--rainbow);
+  }
+
+  .rainbow-ring-hover {
+    border: 2px solid transparent;
+    transition: background-image 0.15s ease;
+  }
+
+  .rainbow-ring-hover:hover,
+  .rainbow-ring-hover:focus-within {
+    background-image: linear-gradient(var(--card), var(--card)), var(--rainbow);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
+
+  .rainbow-cta {
+    background: var(--rainbow);
+    color: #ffffff;
+  }
+
+  .rainbow-cta:hover {
+    opacity: 0.9;
+  }
+
+  .rainbow-underline {
+    position: relative;
+  }
+
+  .rainbow-underline::after {
+    content: "";
+    position: absolute;
+    left: 0.5rem;
+    right: 0.5rem;
+    bottom: 0.25rem;
+    height: 2px;
+    border-radius: 999px;
+    background: var(--rainbow);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  .rainbow-underline:hover::after,
+  .rainbow-underline[data-active]::after {
+    opacity: 1;
+  }
 }
 
 .dark {

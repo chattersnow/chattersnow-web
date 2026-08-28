@@ -5,6 +5,7 @@ export default function CommunityCalendarLoading() {
   return (
     <PageShell>
       <section>
+        <div className="rainbow-accent mb-4 w-16" />
         <Skeleton className="h-10 w-80 sm:h-12" />
         <Skeleton className="mt-4 h-4 w-full max-w-3xl" />
         <Skeleton className="mt-2 h-4 w-2/3 max-w-3xl" />

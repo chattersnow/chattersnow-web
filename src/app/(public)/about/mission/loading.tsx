@@ -5,6 +5,7 @@ export default function MissionLoading() {
     <div className="space-y-12">
       <section className="grid gap-8 sm:grid-cols-3">
         <div className="sm:col-span-2">
+          <div className="rainbow-accent mb-4 w-16" />
           <Skeleton className="h-10 w-56 sm:h-12" />
           <div className="mt-4 space-y-2">
             <Skeleton className="h-4 w-full" />

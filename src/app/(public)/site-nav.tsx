@@ -138,6 +138,7 @@ export function SiteNav() {
               !group.links ? (
                 <NavigationMenuItem key={group.label}>
                   <NavigationMenuLink
+                    className="rainbow-underline"
                     render={<Link href={group.href} />}
                     active={isActive(pathname, group.href)}
                   >
@@ -147,6 +148,7 @@ export function SiteNav() {
               ) : (
                 <NavigationMenuItem key={group.label}>
                   <NavigationMenuTrigger
+                    className="rainbow-underline"
                     data-active={isGroupActive(pathname, group) || undefined}
                   >
                     {group.label}

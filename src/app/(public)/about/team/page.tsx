@@ -21,7 +21,8 @@ export default async function TeamPage() {
 
   return (
     <div>
-      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+      <div className="rainbow-accent w-16" />
+      <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
         Meet the team
       </h1>
 

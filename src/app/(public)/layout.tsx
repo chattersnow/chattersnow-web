@@ -18,6 +18,7 @@ export default function PublicLayout({
 }) {
   return (
     <>
+      <div className="rainbow-strip" />
       <header className="border-b border-[var(--line)] px-6 py-4 sm:px-10">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4">
           <Link href="/home" className="flex shrink-0 items-center gap-2">
@@ -38,7 +39,8 @@ export default function PublicLayout({
         </div>
       </header>
       {children}
-      <footer className="mt-16 border-t border-[var(--line)] px-6 py-10 sm:px-10">
+      <footer className="mt-16 px-6 py-10 sm:px-10">
+        <div className="rainbow-strip -mt-10 mb-10" />
         <div className="mx-auto flex max-w-6xl flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex flex-wrap gap-x-6 gap-y-2">
             {FOOTER_LINKS.map((link) => (

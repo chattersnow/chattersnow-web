@@ -3,6 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function TeamLoading() {
   return (
     <div>
+      <div className="rainbow-accent mb-4 w-16" />
       <Skeleton className="h-10 w-48 sm:h-12" />
       <Skeleton className="mt-6 aspect-[21/9] w-full rounded-2xl" />
 

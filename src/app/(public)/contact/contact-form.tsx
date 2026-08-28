@@ -65,6 +65,7 @@ export function ContactForm() {
   if (success) {
     return (
       <Alert>
+        <div className="rainbow-accent mb-2 w-10" />
         <AlertDescription>
           Thanks for reaching out! We&apos;ll get back to you soon.
         </AlertDescription>

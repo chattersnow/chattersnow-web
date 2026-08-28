@@ -3,6 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function GearLibraryLoading() {
   return (
     <div>
+      <div className="rainbow-accent mb-4 w-16" />
       <Skeleton className="h-10 w-64 sm:h-12" />
       <Skeleton className="mt-4 h-4 w-full max-w-3xl" />
       <Skeleton className="mt-4 h-8 w-32" />

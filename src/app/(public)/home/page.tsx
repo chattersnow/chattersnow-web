@@ -73,7 +73,11 @@ export default async function Home() {
           </p>
 
           <div className="mt-6 flex flex-wrap justify-center gap-3">
-            <Button nativeButton={false} render={<Link href="/events" />}>
+            <Button
+              variant="rainbow"
+              nativeButton={false}
+              render={<Link href="/events" />}
+            >
               Join an event
             </Button>
             <Button

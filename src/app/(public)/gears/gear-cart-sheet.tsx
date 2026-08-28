@@ -45,6 +45,7 @@ export function GearCartSheet({
         <div className="flex-1 overflow-y-auto px-4 pb-4">
           {success ? (
             <Alert>
+              <div className="rainbow-accent mb-2 w-10" />
               <AlertDescription>
                 Request received! These items are now on hold for you and no
                 longer available to others. We&apos;ll be in touch to arrange
