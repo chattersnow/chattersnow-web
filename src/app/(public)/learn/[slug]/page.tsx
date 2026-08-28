@@ -7,14 +7,21 @@ import { ParkRidingSafetySections } from "../park-riding-safety/park-riding-safe
 import { PARK_SAFETY_ARTICLES } from "../park-riding-safety/park-riding-safety-data";
 import { GettingStartedSections } from "../getting-started/getting-started-sections";
 import { GETTING_STARTED_ARTICLES } from "../getting-started/getting-started-data";
+import { EtiquetteSections } from "../etiquette/etiquette-sections";
+import { ETIQUETTE_ARTICLES } from "../etiquette/etiquette-data";
 
 const CATEGORY_CONTENT: Record<string, () => React.ReactNode> = {
   "getting-started": () => <GettingStartedSections />,
+  etiquette: () => <EtiquetteSections />,
   "park-riding-safety": () => <ParkRidingSafetySections />,
 };
 
 const CATEGORY_NAV: Record<string, { href: string; label: string }[]> = {
   "getting-started": GETTING_STARTED_ARTICLES.map((article) => ({
+    href: `#${article.id}`,
+    label: article.title,
+  })),
+  etiquette: ETIQUETTE_ARTICLES.map((article) => ({
     href: `#${article.id}`,
     label: article.title,
   })),
