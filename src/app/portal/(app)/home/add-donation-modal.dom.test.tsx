@@ -161,4 +161,52 @@ describe("AddDonationModal", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Step 2 of 2 · Donated items")).toBeInTheDocument();
   });
+
+  test("hides the source event picker when no events are provided", async () => {
+    const user = userEvent.setup();
+    await openModal(user);
+
+    expect(screen.queryByLabelText("Source event (optional)")).toBeNull();
+  });
+
+  test("hides the source event picker when a fixed eventId is given", async () => {
+    const user = userEvent.setup();
+    render(
+      <AddDonationModal
+        eventId="event-1"
+        events={[{ id: "event-1", name: "Winter Gear Drive" }]}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Record donation" }));
+
+    expect(screen.queryByLabelText("Source event (optional)")).toBeNull();
+  });
+
+  test("submits the selected source event when no fixed eventId is given", async () => {
+    const user = userEvent.setup();
+    render(
+      <AddDonationModal
+        events={[
+          { id: "event-1", name: "Winter Gear Drive" },
+          { id: "event-2", name: "Spring Cleanup" },
+        ]}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Record donation" }));
+    await fillDonorAndContinue(user, "Jane Donor");
+
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    await user.click(screen.getByLabelText("Source event (optional)"));
+    const listbox = await screen.findByRole("listbox");
+    await user.click(within(listbox).getByText("Spring Cleanup"));
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+
+    await user.type(screen.getByLabelText("Item description"), "Winter jacket");
+    await user.type(screen.getByLabelText("Item type"), "Jacket");
+    await user.click(screen.getByRole("button", { name: "Save donation" }));
+
+    await screen.findByRole("button", { name: "Record donation" });
+    const payload = createDonationActionMock.mock.calls[0][0];
+    expect(payload.eventId).toBe("event-2");
+  });
 });
