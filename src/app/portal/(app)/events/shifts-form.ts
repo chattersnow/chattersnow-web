@@ -6,6 +6,7 @@ export type ShiftFormData = {
   endsAt: string;
   targetHeadcount: number | null;
   notes: string | null;
+  volunteerRoleTypeId: string | null;
 };
 
 export function parseShiftForm(formData: FormData): ParseResult<ShiftFormData> {
@@ -16,6 +17,9 @@ export function parseShiftForm(formData: FormData): ParseResult<ShiftFormData> {
     formData.get("targetHeadcount") ?? "",
   ).trim();
   const notes = String(formData.get("notes") ?? "").trim();
+  const volunteerRoleTypeId = String(
+    formData.get("volunteerRoleTypeId") ?? "",
+  ).trim();
 
   if (!label) {
     return { error: "Label is required." };
@@ -45,6 +49,7 @@ export function parseShiftForm(formData: FormData): ParseResult<ShiftFormData> {
       endsAt: endsAtIso,
       targetHeadcount,
       notes: notes || null,
+      volunteerRoleTypeId: volunteerRoleTypeId || null,
     },
   };
 }

@@ -30,6 +30,7 @@ export function PersonPicker({
   onPersonCreated,
   newPersonRole = "is_sponsor",
   placeholder = "Search by name or email...",
+  allowCreate = true,
 }: {
   people: PersonListItem[];
   selected: PickedPerson | null;
@@ -37,6 +38,7 @@ export function PersonPicker({
   onPersonCreated: (person: PickedPerson) => void;
   newPersonRole?: RoleKey;
   placeholder?: string;
+  allowCreate?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [showCreate, setShowCreate] = useState(false);
@@ -134,7 +136,7 @@ export function PersonPicker({
         <p className="app-muted text-sm">No matches for &quot;{query}&quot;.</p>
       )}
 
-      {!showCreate ? (
+      {!allowCreate ? null : !showCreate ? (
         <Button
           type="button"
           variant="outline"

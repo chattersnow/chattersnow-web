@@ -195,6 +195,19 @@ export async function createEventVolunteerHoursAction(
     return { error: "Select or create a person to log hours for." };
   }
 
+  const { data: signup } = await supabase
+    .from("event_volunteers")
+    .select("id")
+    .eq("event_id", eventId)
+    .eq("person_id", personId)
+    .maybeSingle();
+  if (!signup) {
+    return {
+      error:
+        "This person must be signed up as a volunteer for this event before hours can be logged.",
+    };
+  }
+
   const parsed = parseEventVolunteerHoursForm(formData);
   if ("error" in parsed) return parsed;
   const { hours, loggedDate, notes } = parsed.data;

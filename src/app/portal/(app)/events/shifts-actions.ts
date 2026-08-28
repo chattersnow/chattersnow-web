@@ -14,6 +14,8 @@ export type EventShift = {
   ends_at: string;
   target_headcount: number | null;
   notes: string | null;
+  volunteer_role_type_id: string | null;
+  role_type: { id: string; name: string } | null;
 };
 
 export type ShiftActionResult = { error: string } | { success: true };
@@ -27,14 +29,16 @@ export async function listEventShiftsAction(
 
   const { data, error } = await supabase
     .from("event_shifts")
-    .select("id, event_id, label, starts_at, ends_at, target_headcount, notes")
+    .select(
+      "id, event_id, label, starts_at, ends_at, target_headcount, notes, volunteer_role_type_id, role_type:volunteer_role_types(id, name)",
+    )
     .eq("event_id", eventId)
     .order("starts_at", { ascending: true });
 
   if (error) {
     return { error: "Could not load shifts. Please try again." };
   }
-  return { data: (data ?? []) as EventShift[] };
+  return { data: (data ?? []) as unknown as EventShift[] };
 }
 
 export async function createEventShiftAction(
@@ -52,7 +56,14 @@ export async function createEventShiftAction(
 
   const parsed = parseShiftForm(formData);
   if ("error" in parsed) return parsed;
-  const { label, startsAt, endsAt, targetHeadcount, notes } = parsed.data;
+  const {
+    label,
+    startsAt,
+    endsAt,
+    targetHeadcount,
+    notes,
+    volunteerRoleTypeId,
+  } = parsed.data;
 
   const { error } = await supabase.from("event_shifts").insert({
     event_id: eventId,
@@ -61,10 +72,55 @@ export async function createEventShiftAction(
     ends_at: endsAt,
     target_headcount: targetHeadcount,
     notes,
+    volunteer_role_type_id: volunteerRoleTypeId,
   });
 
   if (error) {
     return { error: "Could not save the shift. Please try again." };
+  }
+
+  revalidatePath("/portal/events");
+  return { success: true };
+}
+
+export async function updateEventShiftAction(
+  id: string,
+  formData: FormData,
+): Promise<ShiftActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update a shift.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
+
+  const parsed = parseShiftForm(formData);
+  if ("error" in parsed) return parsed;
+  const {
+    label,
+    startsAt,
+    endsAt,
+    targetHeadcount,
+    notes,
+    volunteerRoleTypeId,
+  } = parsed.data;
+
+  const { error } = await supabase
+    .from("event_shifts")
+    .update({
+      label,
+      starts_at: startsAt,
+      ends_at: endsAt,
+      target_headcount: targetHeadcount,
+      notes,
+      volunteer_role_type_id: volunteerRoleTypeId,
+    })
+    .eq("id", id);
+
+  if (error) {
+    return { error: "Could not update the shift. Please try again." };
   }
 
   revalidatePath("/portal/events");

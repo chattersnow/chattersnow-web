@@ -55,6 +55,7 @@ describe("parseShiftForm", () => {
         endsAt: "2026-01-05T13:00",
         targetHeadcount: "2",
         notes: "Bring radios",
+        volunteerRoleTypeId: "role-type-1",
       }),
     );
     expect("data" in result && result.data).toEqual({
@@ -63,10 +64,11 @@ describe("parseShiftForm", () => {
       endsAt: new Date("2026-01-05T13:00").toISOString(),
       targetHeadcount: 2,
       notes: "Bring radios",
+      volunteerRoleTypeId: "role-type-1",
     });
   });
 
-  test("allows an empty target headcount and notes", () => {
+  test("allows an empty target headcount, notes, and role type", () => {
     const result = parseShiftForm(
       formData({
         label: "Basecamp AM",
@@ -76,5 +78,6 @@ describe("parseShiftForm", () => {
     );
     expect("data" in result && result.data.targetHeadcount).toBeNull();
     expect("data" in result && result.data.notes).toBeNull();
+    expect("data" in result && result.data.volunteerRoleTypeId).toBeNull();
   });
 });

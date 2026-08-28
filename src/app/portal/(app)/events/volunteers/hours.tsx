@@ -3,7 +3,11 @@
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
-import { type EventVolunteerHours } from "../volunteers-actions";
+import {
+  type EventVolunteer,
+  type EventVolunteerHours,
+} from "../volunteers-actions";
+import { type EventShift } from "../shifts-actions";
 import { PersonPicker, type PickedPerson } from "../../people/person-picker";
 import { type PersonListItem } from "../../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -22,14 +26,25 @@ import { Textarea } from "@/components/ui/textarea";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
 
+function shiftHoursAndDate(shift: EventShift) {
+  const durationHours =
+    (new Date(shift.ends_at).getTime() - new Date(shift.starts_at).getTime()) /
+    3_600_000;
+  const roundedHours = Math.round(durationHours * 4) / 4;
+  return {
+    hours: String(roundedHours),
+    loggedDate: shift.starts_at.slice(0, 10),
+  };
+}
+
 export function AddHoursForm({
-  people,
-  onPersonCreated,
+  volunteers,
+  shifts,
   onSubmit,
   onCancel,
 }: {
-  people: PersonListItem[];
-  onPersonCreated: (person: PickedPerson) => void;
+  volunteers: EventVolunteer[];
+  shifts: EventShift[];
   onSubmit: (
     personId: string,
     formData: FormData,
@@ -37,6 +52,10 @@ export function AddHoursForm({
   onCancel: () => void;
 }) {
   const router = useRouter();
+  const people: PersonListItem[] = volunteers.map((volunteer) => ({
+    ...volunteer.person,
+    is_sponsor: false,
+  }));
   const [selectedPerson, setSelectedPerson] = useState<PickedPerson | null>(
     null,
   );
@@ -48,11 +67,25 @@ export function AddHoursForm({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  function handleSelectPerson(person: PickedPerson | null) {
+    setSelectedPerson(person);
+    const volunteer = person
+      ? volunteers.find((v) => v.person_id === person.id)
+      : undefined;
+    const shift = volunteer?.shift_id
+      ? shifts.find((s) => s.id === volunteer.shift_id)
+      : undefined;
+    if (!shift) return;
+    const defaults = shiftHoursAndDate(shift);
+    setHours(defaults.hours);
+    setLoggedDate(defaults.loggedDate);
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     if (!selectedPerson) {
-      setError("Select or create a person to log hours for.");
+      setError("Select a signed-up volunteer to log hours for.");
       return;
     }
 
@@ -83,9 +116,10 @@ export function AddHoursForm({
           <PersonPicker
             people={people}
             selected={selectedPerson}
-            onSelect={setSelectedPerson}
-            onPersonCreated={onPersonCreated}
-            newPersonRole="is_volunteer"
+            onSelect={handleSelectPerson}
+            onPersonCreated={() => {}}
+            allowCreate={false}
+            placeholder="Search signed-up volunteers..."
           />
         </Field>
 
@@ -142,26 +176,26 @@ export function AddHoursForm({
 
 export function HoursSection({
   hours,
-  people,
+  volunteers,
+  shifts,
   mode,
   isDeleting,
   loading,
   totalHours,
   showAddHours,
   onToggleAddHours,
-  onPersonCreated,
   onCreateHours,
   onDeleteHours,
 }: {
   hours: EventVolunteerHours[];
-  people: PersonListItem[];
+  volunteers: EventVolunteer[];
+  shifts: EventShift[];
   mode: "view" | "edit";
   isDeleting: boolean;
   loading: boolean;
   totalHours: number;
   showAddHours: boolean;
   onToggleAddHours: (show: boolean) => void;
-  onPersonCreated: (person: PickedPerson) => void;
   onCreateHours: (
     personId: string,
     formData: FormData,
@@ -224,8 +258,8 @@ export function HoursSection({
       {mode === "edit" &&
         (showAddHours ? (
           <AddHoursForm
-            people={people}
-            onPersonCreated={onPersonCreated}
+            volunteers={volunteers}
+            shifts={shifts}
             onSubmit={onCreateHours}
             onCancel={() => onToggleAddHours(false)}
           />
