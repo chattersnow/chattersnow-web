@@ -124,7 +124,7 @@ export function CommunityCalendar({
           >
             <SelectTrigger
               id="community-calendar-category-filter"
-              className="h-8"
+              className="h-8 w-56"
             >
               <SelectValue placeholder="Category">
                 {(value: string) =>
