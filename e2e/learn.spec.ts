@@ -40,6 +40,30 @@ test.describe("public learn page", () => {
     await expect(page.getByText("coming soon")).toHaveCount(0);
   });
 
+  test("etiquette category renders its articles", async ({ page }) => {
+    await page.goto("/learn/etiquette");
+
+    await expect(
+      page.getByRole("heading", {
+        level: 1,
+        name: "Mountain & Lift Etiquette",
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        level: 2,
+        name: "Mountain & lift etiquette basics",
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        level: 2,
+        name: "Uphill/downhill traffic & the Responsibility Code",
+      }),
+    ).toBeVisible();
+    await expect(page.getByText("coming soon")).toHaveCount(0);
+  });
+
   test("gear care category renders its articles", async ({ page }) => {
     await page.goto("/learn/gear-care");
 
