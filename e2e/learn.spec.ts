@@ -103,6 +103,27 @@ test.describe("public learn page", () => {
     await expect(page.getByText("coming soon")).toHaveCount(0);
   });
 
+  test("budget category renders its articles", async ({ page }) => {
+    await page.goto("/learn/budget");
+
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Snow Sports on a Budget" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        level: 2,
+        name: "What skiing and snowboarding actually cost",
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        level: 2,
+        name: "Finding used gear without overpaying",
+      }),
+    ).toBeVisible();
+    await expect(page.getByText("coming soon")).toHaveCount(0);
+  });
+
   test("community and inclusion category renders its articles", async ({
     page,
   }) => {

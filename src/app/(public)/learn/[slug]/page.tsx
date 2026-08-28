@@ -15,6 +15,8 @@ import { MountainBasicsSections } from "../mountain-basics/mountain-basics-secti
 import { MOUNTAIN_BASICS_ARTICLES } from "../mountain-basics/mountain-basics-data";
 import { CommunityAndInclusionSections } from "../community-and-inclusion/community-and-inclusion-sections";
 import { COMMUNITY_AND_INCLUSION_ARTICLES } from "../community-and-inclusion/community-and-inclusion-data";
+import { BudgetSections } from "../budget/budget-sections";
+import { BUDGET_ARTICLES } from "../budget/budget-data";
 
 const CATEGORY_CONTENT: Record<string, () => React.ReactNode> = {
   "getting-started": () => <GettingStartedSections />,
@@ -23,6 +25,7 @@ const CATEGORY_CONTENT: Record<string, () => React.ReactNode> = {
   "mountain-basics": () => <MountainBasicsSections />,
   "gear-care": () => <GearCareSections />,
   "community-and-inclusion": () => <CommunityAndInclusionSections />,
+  budget: () => <BudgetSections />,
 };
 
 const CATEGORY_NAV: Record<string, { href: string; label: string }[]> = {
@@ -52,6 +55,10 @@ const CATEGORY_NAV: Record<string, { href: string; label: string }[]> = {
       label: article.title,
     }),
   ),
+  budget: BUDGET_ARTICLES.map((article) => ({
+    href: `#${article.id}`,
+    label: article.title,
+  })),
 };
 
 export function generateStaticParams() {
