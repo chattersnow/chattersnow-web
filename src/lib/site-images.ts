@@ -45,9 +45,21 @@ export const SITE_IMAGE_SLOTS: SiteImageSlot[] = [
     description: "Photo alongside the Our Values section on the Mission page.",
   },
   {
+    key: "about_mission_bottom_photo",
+    label: "Mission page — bottom photo",
+    description:
+      "Photo shown at the bottom of the Mission page, below the Why LGBTQ+ Snow Sports section.",
+  },
+  {
     key: "about_team_photo",
     label: "Team member photo",
     description: "Shown for any team member who doesn't have their own photo.",
+  },
+  {
+    key: "about_team_hero_photo",
+    label: "Meet the Team — top photo",
+    description:
+      "Photo between the Meet the Team heading and the team member cards.",
   },
   {
     key: "get_involved_hero_1",
@@ -76,6 +88,12 @@ export const SITE_IMAGE_SLOTS: SiteImageSlot[] = [
     description: "Photo on the Attend page.",
   },
   {
+    key: "get_involved_community_photo",
+    label: "Attend page — community photo",
+    description:
+      "Photo alongside the Join the Community section on the Attend page.",
+  },
+  {
     key: "get_involved_partner_photo",
     label: "Partner page photo",
     description: "Photo on the Become a Partner page.",
@@ -84,6 +102,50 @@ export const SITE_IMAGE_SLOTS: SiteImageSlot[] = [
     key: "gears_donate_photo",
     label: "Donate gear page photo",
     description: "Photo on the Donate Gear page.",
+  },
+  {
+    key: "gears_donate_bottom_photo",
+    label: "Donate gear page — bottom photo",
+    description:
+      "Photo at the bottom of the Donate Gear page, below Gear drives.",
+  },
+  {
+    key: "sponsorship_photo_1",
+    label: "Sponsorship page — photo 1",
+    description:
+      "First of two small photos at the bottom of the Sponsorship page.",
+  },
+  {
+    key: "sponsorship_photo_2",
+    label: "Sponsorship page — photo 2",
+    description:
+      "Second of two small photos at the bottom of the Sponsorship page.",
+  },
+  {
+    key: "donations_photo",
+    label: "Donations page photo",
+    description: "Photo at the bottom of the Donations page.",
+  },
+  {
+    key: "contact_photo_1",
+    label: "Contact page — photo 1",
+    description: "First of three photos at the bottom of the Contact page.",
+  },
+  {
+    key: "contact_photo_2",
+    label: "Contact page — photo 2",
+    description: "Second of three photos at the bottom of the Contact page.",
+  },
+  {
+    key: "contact_photo_3",
+    label: "Contact page — photo 3",
+    description: "Third of three photos at the bottom of the Contact page.",
+  },
+  {
+    key: "learn_photo",
+    label: "Learn section photo",
+    description:
+      "Photo shown at the bottom of every Learn page (the Learn index and each category page).",
   },
 ];
 

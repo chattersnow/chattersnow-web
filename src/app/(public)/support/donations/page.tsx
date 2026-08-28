@@ -1,12 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SiteImage } from "@/components/site-image";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSiteImageUrls } from "@/lib/site-images";
 
 export const metadata: Metadata = {
   title: "Donations | Chatter Snow",
 };
 
-export default function DonationsPage() {
+export default async function DonationsPage() {
+  const supabase = await createSupabaseServerClient();
+  const siteImages = await getSiteImageUrls(supabase);
+
   return (
     <div className="space-y-12">
       <section>
@@ -51,6 +57,14 @@ export default function DonationsPage() {
             </p>
           </CardContent>
         </Card>
+      </section>
+
+      <section>
+        <SiteImage
+          url={siteImages.donations_photo ?? null}
+          alt="Chatter Snow community members"
+          className="aspect-[16/9] rounded-2xl"
+        />
       </section>
     </div>
   );

@@ -117,6 +117,14 @@ export default async function MissionPage() {
           </p>
         </div>
       </section>
+
+      <section id="mission-photo">
+        <SiteImage
+          url={siteImages.about_mission_bottom_photo ?? null}
+          alt="Chatter Snow community members"
+          className="aspect-[16/9] rounded-2xl"
+        />
+      </section>
     </div>
   );
 }

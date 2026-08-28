@@ -36,7 +36,7 @@ export default async function StoryPage() {
           </p>
         </div>
       </section>
-      <section className="grid gap-8 sm:grid-cols-3 sm:items-start">
+      <section className="mt-12 grid gap-8 sm:grid-cols-3 sm:items-start">
         <div className="sm:col-span-2">
           <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
             Our Story
@@ -78,7 +78,7 @@ export default async function StoryPage() {
         <SiteImage
           url={siteImages.about_story_photo ?? null}
           alt="Chatter Snow community members"
-          className="aspect-[3/4] rounded-xl sm:sticky sm:top-24"
+          className="aspect-[3/4] self-start rounded-xl sm:sticky sm:top-24"
         />
       </section>
     </div>
