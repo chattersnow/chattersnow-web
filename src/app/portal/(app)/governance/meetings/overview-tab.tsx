@@ -2,7 +2,6 @@
 
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil } from "lucide-react";
 import { updateMeetingAction } from "./actions";
 import {
   MeetingStatusBadge,
@@ -24,7 +23,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useResetOnModeChange } from "@/hooks/use-tab-data";
 
 const MEETING_TYPES = [
   { value: "board", label: "Board" },
@@ -243,62 +241,45 @@ function MeetingOverviewForm({
 export function OverviewTab({
   meeting,
   mode,
+  onExitEdit,
 }: {
   meeting: MeetingRow;
   mode: "view" | "edit";
+  onExitEdit: () => void;
 }) {
-  const [editing, setEditing] = useState(false);
-
-  useResetOnModeChange(mode, () => setEditing(false));
-
-  if (editing) {
+  if (mode === "edit") {
     return (
       <MeetingOverviewForm
         meeting={meeting}
-        onSaved={() => setEditing(false)}
-        onCancel={() => setEditing(false)}
+        onSaved={onExitEdit}
+        onCancel={onExitEdit}
       />
     );
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <FieldGroup>
-        <ReadOnlyField label="Date & time" htmlFor="meeting-date-view">
-          {formatDatetimeLocal(meeting.meeting_date)}
-        </ReadOnlyField>
-        <ReadOnlyField label="Type" htmlFor="meeting-type-view">
-          <MeetingTypeBadge type={meeting.meeting_type} />
-        </ReadOnlyField>
-        <ReadOnlyField label="Status" htmlFor="meeting-status-view">
-          <MeetingStatusBadge status={meeting.status} />
-        </ReadOnlyField>
-        <ReadOnlyField label="Location" htmlFor="meeting-location-view">
-          {meeting.location || "—"}
-        </ReadOnlyField>
-        <ReadOnlyField label="Facilitator" htmlFor="meeting-facilitator-view">
-          {meeting.facilitator?.name || "—"}
-        </ReadOnlyField>
-        <ReadOnlyField label="Notes-taker" htmlFor="meeting-notetaker-view">
-          {meeting.notetaker?.name || "—"}
-        </ReadOnlyField>
-        <ReadOnlyField label="Notes" htmlFor="meeting-notes-view">
-          {meeting.notes || "—"}
-        </ReadOnlyField>
-      </FieldGroup>
-      {mode === "edit" && (
-        <div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Edit meeting"
-            onClick={() => setEditing(true)}
-          >
-            <Pencil />
-          </Button>
-        </div>
-      )}
-    </div>
+    <FieldGroup>
+      <ReadOnlyField label="Date & time" htmlFor="meeting-date-view">
+        {formatDatetimeLocal(meeting.meeting_date)}
+      </ReadOnlyField>
+      <ReadOnlyField label="Type" htmlFor="meeting-type-view">
+        <MeetingTypeBadge type={meeting.meeting_type} />
+      </ReadOnlyField>
+      <ReadOnlyField label="Status" htmlFor="meeting-status-view">
+        <MeetingStatusBadge status={meeting.status} />
+      </ReadOnlyField>
+      <ReadOnlyField label="Location" htmlFor="meeting-location-view">
+        {meeting.location || "—"}
+      </ReadOnlyField>
+      <ReadOnlyField label="Facilitator" htmlFor="meeting-facilitator-view">
+        {meeting.facilitator?.name || "—"}
+      </ReadOnlyField>
+      <ReadOnlyField label="Notes-taker" htmlFor="meeting-notetaker-view">
+        {meeting.notetaker?.name || "—"}
+      </ReadOnlyField>
+      <ReadOnlyField label="Notes" htmlFor="meeting-notes-view">
+        {meeting.notes || "—"}
+      </ReadOnlyField>
+    </FieldGroup>
   );
 }

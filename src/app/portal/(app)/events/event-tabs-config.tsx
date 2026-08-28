@@ -150,6 +150,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         event={ctx.event}
         mode={ctx.mode}
         active={ctx.activeTab === "attendance"}
+        onExitEdit={ctx.onSaved}
       />
     ),
   },
@@ -216,6 +217,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         eventId={ctx.event.id}
         active={ctx.activeTab === "giveaway"}
         mode={ctx.mode}
+        onExitEdit={ctx.onSaved}
       />
     ),
   },
@@ -300,6 +302,14 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
 export const FORM_TAB_VALUES: TabValue[] = TAB_CONFIG.filter(
   (t) => t.kind === "form",
 ).map((t) => t.value);
+
+// Tabs that must revert to read-only once the event's report has been
+// submitted, since submitted report data shouldn't shift underneath it.
+export const LOCKED_ON_REPORT_SUBMIT_TABS: ReadonlySet<TabValue> = new Set([
+  "overview",
+  "planning",
+  "report",
+]);
 
 const PHASE_LABELS: Record<PhaseKey, string> = {
   basic: "Basic",
