@@ -55,3 +55,6 @@ scripts
 
 # supabase data backups (may contain live secrets, never commit)
 supabase/backups/
+
+# claude code (local overrides)
+.claude/settings.local.json
