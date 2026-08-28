@@ -17,6 +17,9 @@ test.describe("portal inventory donations", () => {
     page,
   }) => {
     await page.goto("/portal/inventory/donations");
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Donations", exact: true }),
+    ).toBeVisible();
 
     const donorName = `E2E Donor ${Date.now()}`;
     const itemDescription = `E2E Test Jacket ${Date.now()}`;
