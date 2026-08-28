@@ -37,10 +37,9 @@ export default async function MeetingsPage() {
                 </li>
                 <li>
                   <strong className="text-foreground">During and after</strong>{" "}
-                  — opening a meeting&apos;s row shows seven tabs covering the
-                  whole record: Overview, Attendees, Agenda, Minutes, Action
-                  Items, Decisions, and Resolutions — all keyed to that same
-                  meeting.
+                  — opening a meeting&apos;s row shows six tabs covering the
+                  whole record: Overview, Attendees, Agenda, Action Items,
+                  Decisions, and Resolutions — all keyed to that same meeting.
                 </li>
                 <li>
                   <strong className="text-foreground">
@@ -63,9 +62,8 @@ export default async function MeetingsPage() {
               <ul className="list-disc space-y-2 pl-4">
                 <li>
                   Attendees, agenda items, decisions (with votes), action items
-                  (with owners), minutes, and resolutions are all logged from
-                  their own tab, independent of the meeting&apos;s overall
-                  status.
+                  (with owners), and resolutions are all logged from their own
+                  tab, independent of the meeting&apos;s overall status.
                 </li>
                 <li>
                   Governance records aren&apos;t written to the audit log yet,
