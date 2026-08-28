@@ -185,18 +185,25 @@ export type ActiveEventForPerson = EventWindow & {
 };
 type ActiveEventJoinRow = { events: ActiveEventForPerson };
 
+const ACTIVE_EVENT_COLUMNS =
+  "id, name, starts_at, ends_at, timezone, location, capacity";
+
 /**
- * Events the given person is signed up for (event_volunteers) that are
- * happening today or currently in progress, in the event's own timezone.
- * Bounded to a +/-2 day starts_at window in SQL (event_volunteers/events
- * select only requires events:view, which volunteer has); the exact
- * per-timezone "today/in progress" check runs in JS since it can't be
- * expressed as a single SQL predicate across events in different zones.
+ * Events happening today or currently in progress, in each event's own
+ * timezone, that the signed-in user is allowed to act on:
+ *  - events the given person is signed up for via event_volunteers, plus
+ *  - (when hasManagePermission is set, per #429) every active event, so a
+ *    manager/admin isn't limited to events they're personally rostered on.
+ * Bounded to a +/-2 day starts_at window in SQL (both branches only need
+ * events:view, which every caller here has); the exact per-timezone
+ * "today/in progress" check runs in JS since it can't be expressed as a
+ * single SQL predicate across events in different zones.
  */
 export async function getMyActiveEvents(
   supabase: SupabaseClient,
-  personId: string,
+  personId: string | null,
   nowIso: string,
+  hasManagePermission = false,
 ): Promise<ActiveEventForPerson[]> {
   const windowStart = new Date(
     new Date(nowIso).getTime() - 2 * 86_400_000,
@@ -205,21 +212,41 @@ export async function getMyActiveEvents(
     new Date(nowIso).getTime() + 2 * 86_400_000,
   ).toISOString();
 
-  const { data } = await supabase
-    .from("event_volunteers")
-    .select(
-      "events!inner(id, name, starts_at, ends_at, timezone, location, capacity)",
-    )
-    .eq("person_id", personId)
-    .eq("events.status", "published")
-    .gte("events.starts_at", windowStart)
-    .lte("events.starts_at", windowEnd);
+  const [{ data: volunteerData }, { data: managedData }] = await Promise.all([
+    personId
+      ? supabase
+          .from("event_volunteers")
+          .select(`events!inner(${ACTIVE_EVENT_COLUMNS})`)
+          .eq("person_id", personId)
+          .eq("events.status", "published")
+          .gte("events.starts_at", windowStart)
+          .lte("events.starts_at", windowEnd)
+      : Promise.resolve({ data: null }),
+    hasManagePermission
+      ? supabase
+          .from("events")
+          .select(ACTIVE_EVENT_COLUMNS)
+          .eq("status", "published")
+          .gte("starts_at", windowStart)
+          .lte("starts_at", windowEnd)
+      : Promise.resolve({ data: null }),
+  ]);
 
-  const events = ((data ?? []) as unknown as ActiveEventJoinRow[]).map(
-    (row) => row.events,
-  );
+  const volunteerEvents = (
+    (volunteerData ?? []) as unknown as ActiveEventJoinRow[]
+  ).map((row) => row.events);
+  const managedEvents = (managedData ??
+    []) as unknown as ActiveEventForPerson[];
+
+  const eventsById = new Map<string, ActiveEventForPerson>();
+  for (const event of [...volunteerEvents, ...managedEvents]) {
+    eventsById.set(event.id, event);
+  }
+
   const now = new Date(nowIso);
-  return events.filter((event) => isEventActiveToday(event, now));
+  return Array.from(eventsById.values()).filter((event) =>
+    isEventActiveToday(event, now),
+  );
 }
 
 /**
