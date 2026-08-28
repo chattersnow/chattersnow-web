@@ -5,12 +5,19 @@ import { ArrowLeftIcon } from "lucide-react";
 import { LEARN_CATEGORIES, getLearnCategory } from "../learn-data";
 import { ParkRidingSafetySections } from "../park-riding-safety/park-riding-safety-sections";
 import { PARK_SAFETY_ARTICLES } from "../park-riding-safety/park-riding-safety-data";
+import { GettingStartedSections } from "../getting-started/getting-started-sections";
+import { GETTING_STARTED_ARTICLES } from "../getting-started/getting-started-data";
 
 const CATEGORY_CONTENT: Record<string, () => React.ReactNode> = {
+  "getting-started": () => <GettingStartedSections />,
   "park-riding-safety": () => <ParkRidingSafetySections />,
 };
 
 const CATEGORY_NAV: Record<string, { href: string; label: string }[]> = {
+  "getting-started": GETTING_STARTED_ARTICLES.map((article) => ({
+    href: `#${article.id}`,
+    label: article.title,
+  })),
   "park-riding-safety": PARK_SAFETY_ARTICLES.map((article) => ({
     href: `#${article.id}`,
     label: article.title,
