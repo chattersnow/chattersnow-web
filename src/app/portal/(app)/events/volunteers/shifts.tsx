@@ -228,6 +228,7 @@ export function ShiftsSection({
   onCreateShift,
   onUpdateShift,
   onDeleteShift,
+  fetchRoleTypes = listRoleTypesAction,
 }: {
   shifts: EventShift[];
   shiftHeadcounts: Map<string, number>;
@@ -243,20 +244,21 @@ export function ShiftsSection({
     formData: FormData,
   ) => Promise<{ error: string } | { success: true }>;
   onDeleteShift: (id: string) => void;
+  fetchRoleTypes?: typeof listRoleTypesAction;
 }) {
   const [roleTypes, setRoleTypes] = useState<RoleType[]>([]);
   const [roleTypesError, setRoleTypesError] = useState<string | null>(null);
   const [editingShiftId, setEditingShiftId] = useState<string | null>(null);
 
   useEffect(() => {
-    listRoleTypesAction().then((result) => {
+    fetchRoleTypes().then((result) => {
       if ("error" in result) {
         setRoleTypesError(result.error);
       } else {
         setRoleTypes(result.data);
       }
     });
-  }, []);
+  }, [fetchRoleTypes]);
 
   return (
     <div className="flex flex-col gap-3">

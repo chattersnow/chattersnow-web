@@ -1,33 +1,9 @@
-import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { EventShift } from "../shifts-actions";
 import type { RoleType } from "../../volunteers/roles/actions";
-import * as RoleActions from "../../volunteers/roles/actions";
-
-const listRoleTypesActionMock = mock(
-  async (): Promise<{ data: RoleType[] } | { error: string }> => ({
-    data: [
-      { id: "role-1", name: "Ride Buddy" },
-      { id: "role-2", name: "Basecamp Staffing" },
-    ],
-  }),
-);
-
-mock.module("../../volunteers/roles/actions", () => ({
-  ...RoleActions,
-  listRoleTypesAction: listRoleTypesActionMock,
-}));
-
-// mock.module patches bun's shared module registry for the whole test run,
-// not just this file, so restore the real listRoleTypesAction once this
-// file's tests finish — otherwise roles/actions.test.ts (which exercises
-// the real implementation) inherits this mock when it runs afterward.
-afterAll(() => {
-  mock.module("../../volunteers/roles/actions", () => RoleActions);
-});
-
-const { ShiftForm, ShiftsSection, NONE_VALUE } = await import("./shifts");
+import { ShiftForm, ShiftsSection, NONE_VALUE } from "./shifts";
 
 const roleTypes: RoleType[] = [
   { id: "role-1", name: "Ride Buddy" },
@@ -49,10 +25,6 @@ const baseShift: EventShift = {
 function noop() {}
 
 describe("ShiftForm", () => {
-  beforeEach(() => {
-    listRoleTypesActionMock.mockClear();
-  });
-
   test("defaults to no role and omits volunteerRoleTypeId when unset", async () => {
     const onSubmit = mock(
       async (
@@ -102,13 +74,6 @@ describe("ShiftForm", () => {
 });
 
 describe("ShiftsSection", () => {
-  beforeEach(() => {
-    listRoleTypesActionMock.mockClear();
-    listRoleTypesActionMock.mockImplementation(async () => ({
-      data: roleTypes,
-    }));
-  });
-
   test("shows the shift's live-joined role in the table", async () => {
     render(
       <ShiftsSection
@@ -127,6 +92,7 @@ describe("ShiftsSection", () => {
         onCreateShift={async () => ({ success: true })}
         onUpdateShift={async () => ({ success: true })}
         onDeleteShift={noop}
+        fetchRoleTypes={async () => ({ data: roleTypes })}
       />,
     );
 
@@ -134,12 +100,6 @@ describe("ShiftsSection", () => {
   });
 
   test("surfaces an error when the role catalog fails to load", async () => {
-    listRoleTypesActionMock.mockImplementation(
-      async (): Promise<{ data: RoleType[] } | { error: string }> => ({
-        error: "You do not have permission to view volunteer roles.",
-      }),
-    );
-
     render(
       <ShiftsSection
         shifts={[]}
@@ -151,6 +111,9 @@ describe("ShiftsSection", () => {
         onCreateShift={async () => ({ success: true })}
         onUpdateShift={async () => ({ success: true })}
         onDeleteShift={noop}
+        fetchRoleTypes={async () => ({
+          error: "You do not have permission to view volunteer roles.",
+        })}
       />,
     );
 
