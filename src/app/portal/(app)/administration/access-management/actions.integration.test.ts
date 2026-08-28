@@ -15,6 +15,11 @@ import {
 } from "../../../../../../test/integration-setup";
 import { getAccessManagementAttentionSummary } from "@/lib/portal/attention-items";
 import { computeNextReviewDate } from "@/lib/portal/access-management/review-cadence";
+import {
+  getAssetDetail,
+  listAccessGrantsForAsset,
+  listAssets,
+} from "./queries";
 
 const revalidatePathMock = mock(() => {});
 mock.module("next/cache", () => ({ revalidatePath: revalidatePathMock }));
@@ -495,5 +500,99 @@ describe("getAccessManagementAttentionSummary (integration)", () => {
       canSeeAccessManagement: false,
     });
     expect(summary).toEqual({ items: [] });
+  });
+});
+
+// The read helpers in queries.ts embed related rows (assets.service,
+// access_grants.person, and assets' four separate people FKs on
+// getAssetDetail) via PostgREST's automatic foreign-key embedding -- not
+// exercised anywhere else, since actions.integration.test.ts above reads
+// raw rows straight off adminClient rather than through these functions.
+describe("access-management read queries (integration)", () => {
+  test("listAssets embeds each asset's service", async () => {
+    const service = await createTestService();
+    const asset = await createTestAsset(service.id, { name: "IT List Asset" });
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+    const result = await listAssets(currentSupabase);
+    if ("error" in result) throw new Error(result.error);
+    const row = result.data.find((a) => a.id === asset.id);
+    expect(row).toMatchObject({
+      name: "IT List Asset",
+      service: { id: service.id, name: service.name },
+    });
+
+    await asset.cleanup();
+    await service.cleanup();
+  });
+
+  test("getAssetDetail embeds the service and all four people FKs", async () => {
+    const service = await createTestService();
+    const owner = await createPerson({ name: "IT Owner" });
+    const primaryAdmin = await createPerson({ name: "IT Primary Admin" });
+    const backupAdmin = await createPerson({ name: "IT Backup Admin" });
+    const recoveryOwner = await createPerson({ name: "IT Recovery Owner" });
+    const asset = await createTestAsset(service.id);
+    const { error: updateError } = await adminClient
+      .from("assets")
+      .update({
+        owner_person_id: owner.id,
+        primary_admin_person_id: primaryAdmin.id,
+        backup_admin_person_id: backupAdmin.id,
+        recovery_owner_person_id: recoveryOwner.id,
+      })
+      .eq("id", asset.id);
+    if (updateError) throw updateError;
+
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+    const result = await getAssetDetail(currentSupabase, asset.id);
+    if ("error" in result) throw new Error(result.error);
+    expect(result.data).toMatchObject({
+      service: { id: service.id, name: service.name },
+      owner: { id: owner.id, name: "IT Owner" },
+      primary_admin: { id: primaryAdmin.id, name: "IT Primary Admin" },
+      backup_admin: { id: backupAdmin.id, name: "IT Backup Admin" },
+      recovery_owner: { id: recoveryOwner.id, name: "IT Recovery Owner" },
+    });
+
+    await asset.cleanup();
+    await owner.cleanup();
+    await primaryAdmin.cleanup();
+    await backupAdmin.cleanup();
+    await recoveryOwner.cleanup();
+    await service.cleanup();
+  });
+
+  test("getAssetDetail reports a missing asset", async () => {
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+    const result = await getAssetDetail(currentSupabase, crypto.randomUUID());
+    expect(result).toEqual({ error: "Asset not found." });
+  });
+
+  test("listAccessGrantsForAsset embeds the grant's person", async () => {
+    const service = await createTestService();
+    const asset = await createTestAsset(service.id);
+    const person = await createPerson({ name: "IT Grant Person" });
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+    const created = await createAccessGrantAction(
+      asset.id,
+      grantFormData(person.id, { access_level: "editor" }),
+    );
+    expect(created).toEqual({ success: true });
+
+    const result = await listAccessGrantsForAsset(currentSupabase, asset.id);
+    if ("error" in result) throw new Error(result.error);
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0]).toMatchObject({
+      access_level: "editor",
+      status: "active",
+      person: { id: person.id, name: "IT Grant Person" },
+    });
+
+    await adminClient.from("access_grants").delete().eq("asset_id", asset.id);
+    await person.cleanup();
+    await asset.cleanup();
+    await service.cleanup();
   });
 });
