@@ -6,7 +6,6 @@ import type { MeetingRow } from "./meeting-badges";
 import { OverviewTab } from "./overview-tab";
 import { AttendeesTab } from "./attendees-tab";
 import { AgendaTab } from "./agenda-tab";
-import { MinutesTab } from "./minutes-tab";
 import { ActionItemsTab } from "./action-items-tab";
 import { DecisionsTab } from "./decisions-tab";
 import { ResolutionsTab } from "./resolutions-tab";
@@ -31,7 +30,6 @@ type TabValue =
   | "overview"
   | "attendees"
   | "agenda"
-  | "minutes"
   | "action-items"
   | "decisions"
   | "resolutions";
@@ -40,7 +38,6 @@ const TABS: { value: TabValue; label: string }[] = [
   { value: "overview", label: "Overview" },
   { value: "attendees", label: "Attendees" },
   { value: "agenda", label: "Agenda" },
-  { value: "minutes", label: "Minutes" },
   { value: "action-items", label: "Action Items" },
   { value: "decisions", label: "Decisions" },
   { value: "resolutions", label: "Resolutions" },
@@ -80,7 +77,7 @@ export function MeetingDetailsSheet({ meeting }: { meeting: MeetingRow }) {
         </SheetTrigger>
         <TooltipContent>View meeting details</TooltipContent>
       </Tooltip>
-      <SheetContent side="right" showCloseButton={false} size="xl">
+      <SheetContent side="right" showCloseButton={false} size="2xl">
         <SheetHeader className="flex-row items-start gap-2 space-y-0">
           <Tooltip>
             <SheetClose
@@ -174,14 +171,6 @@ export function MeetingDetailsSheet({ meeting }: { meeting: MeetingRow }) {
                 mode={mode}
                 onViewActionItems={() => setTab("action-items")}
                 onViewDecisions={() => setTab("decisions")}
-                onExitEdit={() => setMode("view")}
-              />
-            </TabsContent>
-            <TabsContent value="minutes" className="mt-4">
-              <MinutesTab
-                meetingId={meeting.id}
-                active={tab === "minutes"}
-                mode={mode}
                 onExitEdit={() => setMode("view")}
               />
             </TabsContent>

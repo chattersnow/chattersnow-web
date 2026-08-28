@@ -425,8 +425,6 @@ begin
     '["Winter Gear Swap — 21 days out"]'::jsonb, current_date + 30, 'Post-event debrief; nonprofit formation update.',
     v_admin_id
   );
-  insert into public.minutes (meeting_id, body_text, created_by)
-  values (v_meeting_id, 'Approved the winter access program launch plan.', v_admin_id);
   insert into public.governance_meeting_action_items (meeting_id, description, owner_person_id, due_date, created_by)
   values (v_meeting_id, 'Confirm partner gear donation schedule.', v_person_sponsor, current_date + 14, v_admin_id);
   insert into public.governance_meeting_decisions (meeting_id, description, decision_date, topic, vote_result, created_by)

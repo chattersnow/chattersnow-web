@@ -97,8 +97,7 @@ export function NewMeetingDialog() {
         <DialogHeader>
           <DialogTitle>Schedule meeting</DialogTitle>
           <DialogDescription>
-            Basic meeting details — agenda, minutes, and attendees are added
-            separately.
+            Basic meeting details — agenda and attendees are added separately.
           </DialogDescription>
         </DialogHeader>
 

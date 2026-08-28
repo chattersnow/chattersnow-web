@@ -51,6 +51,8 @@ const sheetContentVariants = cva(
         md: "data-[side=left]:sm:max-w-lg data-[side=right]:sm:max-w-lg",
         lg: "data-[side=left]:sm:max-w-xl data-[side=right]:sm:max-w-xl",
         xl: "data-[side=left]:sm:max-w-[640px] data-[side=right]:sm:max-w-[640px]",
+        "2xl":
+          "data-[side=left]:sm:max-w-[880px] data-[side=right]:sm:max-w-[880px]",
       },
     },
     defaultVariants: {
