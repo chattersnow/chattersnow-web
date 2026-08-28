@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 
-const NONE_VALUE = "none";
+export const NONE_VALUE = "none";
 
 const shiftTimeFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -228,6 +228,7 @@ export function ShiftsSection({
   onCreateShift,
   onUpdateShift,
   onDeleteShift,
+  fetchRoleTypes = listRoleTypesAction,
 }: {
   shifts: EventShift[];
   shiftHeadcounts: Map<string, number>;
@@ -243,19 +244,30 @@ export function ShiftsSection({
     formData: FormData,
   ) => Promise<{ error: string } | { success: true }>;
   onDeleteShift: (id: string) => void;
+  fetchRoleTypes?: typeof listRoleTypesAction;
 }) {
   const [roleTypes, setRoleTypes] = useState<RoleType[]>([]);
+  const [roleTypesError, setRoleTypesError] = useState<string | null>(null);
   const [editingShiftId, setEditingShiftId] = useState<string | null>(null);
 
   useEffect(() => {
-    listRoleTypesAction().then((result) => {
-      if (!("error" in result)) setRoleTypes(result.data);
+    fetchRoleTypes().then((result) => {
+      if ("error" in result) {
+        setRoleTypesError(result.error);
+      } else {
+        setRoleTypes(result.data);
+      }
     });
-  }, []);
+  }, [fetchRoleTypes]);
 
   return (
     <div className="flex flex-col gap-3">
       <h3 className="text-sm font-semibold">Shifts</h3>
+      {roleTypesError && (
+        <Alert variant="destructive">
+          <AlertDescription>{roleTypesError}</AlertDescription>
+        </Alert>
+      )}
       {shifts.length === 0 && !showAddShift ? (
         <p className="app-muted text-sm">
           No shifts defined. Volunteers can still be signed up for the whole
