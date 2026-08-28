@@ -85,6 +85,24 @@ test.describe("public learn page", () => {
     await expect(page.getByText("coming soon")).toHaveCount(0);
   });
 
+  test("mountain basics category renders its articles", async ({ page }) => {
+    await page.goto("/learn/mountain-basics");
+
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Mountain Basics" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        level: 2,
+        name: "Trail ratings explained: green, blue, black & beyond",
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 2, name: "Reading a trail map" }),
+    ).toBeVisible();
+    await expect(page.getByText("coming soon")).toHaveCount(0);
+  });
+
   test("community and inclusion category renders its articles", async ({
     page,
   }) => {
