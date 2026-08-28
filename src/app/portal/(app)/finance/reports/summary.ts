@@ -1,6 +1,6 @@
 // Aggregation for the Financial Reports page (issue #353). Rows arrive raw
 // from the get_finance_report_data RPC
-// (20260828000000_create_finance_report_rollup_rpc.sql) and every total is
+// (20260828010000_create_finance_report_rollup_rpc.sql) and every total is
 // computed here, in unit-tested TypeScript rather than SQL -- the same split
 // the inventory (valuation.ts) and program impact (impact-rollup.ts) reports
 // already use.

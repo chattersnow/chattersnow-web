@@ -1,5 +1,5 @@
 // Integration test: exercises the real get_finance_report_data RPC
-// (20260828000000_create_finance_report_rollup_rpc.sql) against a real local
+// (20260828010000_create_finance_report_rollup_rpc.sql) against a real local
 // Supabase stack, so the seeded role matrix and the function's own
 // finance_reports:view check decide each outcome rather than a mock.
 //
