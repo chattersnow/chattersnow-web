@@ -73,6 +73,14 @@ test.describe("portal access management", () => {
       const row = page.getByRole("row").filter({ hasText: assetName });
       await expect(row).toBeVisible({ timeout: 15_000 });
 
+      const { data: createdAsset, error: createdAssetError } = await admin
+        .from("assets")
+        .select("id")
+        .eq("name", assetName)
+        .single();
+      if (createdAssetError) throw createdAssetError;
+      const assetId = createdAsset.id as string;
+
       await row.getByRole("link", { name: assetName }).click();
       await expect(
         page.getByRole("heading", { level: 1, name: assetName, exact: true }),
@@ -91,6 +99,21 @@ test.describe("portal access management", () => {
         .click();
       await expect(grantDialog).not.toBeVisible();
 
+      // Diagnostic: query the DB directly to settle whether the grant was
+      // actually persisted, independent of whatever the browser renders --
+      // CI has repeatedly shown the row missing from the table even after a
+      // hard reload despite the dialog closing without an error.
+      const { data: grantRows, error: grantRowsError } = await admin
+        .from("access_grants")
+        .select("*")
+        .eq("asset_id", assetId)
+        .eq("person_id", person.id);
+      console.log(
+        "DIAGNOSTIC access_grants rows for this asset/person:",
+        JSON.stringify({ grantRows, grantRowsError }),
+      );
+      console.log("DIAGNOSTIC current page URL:", page.url());
+
       // A hard reload rather than relying on the dialog's own
       // router.refresh() -- this asset detail page is a dynamic route
       // ([assetId]), and CI has shown the client-side refresh alone doesn't
@@ -98,6 +121,10 @@ test.describe("portal access management", () => {
       // though the mutation itself succeeds (proven by the dialog closing
       // without an error).
       await page.reload();
+      console.log(
+        "DIAGNOSTIC page text after reload:",
+        (await page.locator("body").innerText()).slice(0, 2000),
+      );
       const grantRow = page.getByRole("row").filter({ hasText: person.name });
       await expect(grantRow).toBeVisible({ timeout: 15_000 });
 
