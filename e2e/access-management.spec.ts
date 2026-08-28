@@ -117,9 +117,13 @@ test.describe("portal access management", () => {
       await reviewDialog.getByRole("button", { name: "Record review" }).click();
       await expect(reviewDialog).not.toBeVisible();
       await reloadStayingSignedIn(page);
-      await expect(
-        page.getByText(new Date().toISOString().slice(0, 10)),
-      ).toBeVisible({ timeout: 15_000 });
+      // Scoped to the "Last reviewed" field specifically -- today's date
+      // also appears in the grant's "Granted" column, since the grant was
+      // created moments earlier in this same test.
+      await expect(page.locator("#asset-detail-last-reviewed")).toHaveText(
+        new Date().toISOString().slice(0, 10),
+        { timeout: 15_000 },
+      );
     } finally {
       await person.cleanup();
     }
