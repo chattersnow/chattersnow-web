@@ -3,6 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { EventShift } from "../shifts-actions";
 import type { RoleType } from "../../volunteers/roles/actions";
+import * as RoleActions from "../../volunteers/roles/actions";
 
 const listRoleTypesActionMock = mock(
   async (): Promise<{ data: RoleType[] } | { error: string }> => ({
@@ -14,6 +15,7 @@ const listRoleTypesActionMock = mock(
 );
 
 mock.module("../../volunteers/roles/actions", () => ({
+  ...RoleActions,
   listRoleTypesAction: listRoleTypesActionMock,
 }));
 
