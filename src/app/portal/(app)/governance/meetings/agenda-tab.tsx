@@ -2,7 +2,6 @@
 
 import { FormEvent, ReactNode, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil } from "lucide-react";
 import {
   getAgendaAction,
   listActiveAgendaTemplatesAction,
@@ -36,7 +35,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
+import { useTabData } from "@/hooks/use-tab-data";
 
 const OPENING_CHECKLIST = [
   "Welcome and call to order",
@@ -336,6 +335,7 @@ export function AgendaTab({
   mode,
   onViewActionItems,
   onViewDecisions,
+  onExitEdit,
 }: {
   meetingId: string;
   meetingDate: string;
@@ -343,8 +343,8 @@ export function AgendaTab({
   mode: "view" | "edit";
   onViewActionItems: () => void;
   onViewDecisions: () => void;
+  onExitEdit: () => void;
 }) {
-  const [editing, setEditing] = useState(false);
   const {
     data: agenda,
     loadError,
@@ -373,8 +373,6 @@ export function AgendaTab({
     [meetingId],
   );
 
-  useResetOnModeChange(mode, () => setEditing(false));
-
   if (agenda === undefined) {
     return <p className="app-muted text-sm">Loading agenda...</p>;
   }
@@ -387,7 +385,7 @@ export function AgendaTab({
   const templateVersionId =
     agenda?.template_version_id ?? activeTemplate?.version_id ?? null;
 
-  if (editing) {
+  if (mode === "edit") {
     return (
       <AgendaForm
         agenda={agenda}
@@ -396,10 +394,10 @@ export function AgendaTab({
         templateVersionId={templateVersionId}
         meetingId={meetingId}
         onSaved={() => {
-          setEditing(false);
+          onExitEdit();
           refreshAgenda();
         }}
-        onCancel={() => setEditing(false)}
+        onCancel={onExitEdit}
       />
     );
   }
@@ -413,20 +411,7 @@ export function AgendaTab({
       )}
 
       {!agenda ? (
-        <div className="flex flex-col gap-3">
-          <p className="app-muted text-sm">No agenda added yet.</p>
-          {mode === "edit" && (
-            <div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setEditing(true)}
-              >
-                + Add agenda
-              </Button>
-            </div>
-          )}
-        </div>
+        <p className="app-muted text-sm">No agenda added yet.</p>
       ) : (
         <>
           <div>
@@ -628,20 +613,6 @@ export function AgendaTab({
             </ReadOnlyField>
           </FieldGroup>
         </>
-      )}
-
-      {agenda && mode === "edit" && (
-        <div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Edit agenda"
-            onClick={() => setEditing(true)}
-          >
-            <Pencil />
-          </Button>
-        </div>
       )}
     </div>
   );

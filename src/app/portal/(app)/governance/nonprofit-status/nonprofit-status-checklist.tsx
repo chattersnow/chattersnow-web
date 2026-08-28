@@ -175,7 +175,7 @@ export function NonprofitStatusChecklist({
                             <MilestoneStatusBadge status={milestone.status} />
                           )}
                         </TableCell>
-                        <TableCell className="max-w-md">
+                        <TableCell className="max-w-md whitespace-normal">
                           {milestone.description}
                         </TableCell>
                         <TableCell className="app-muted">

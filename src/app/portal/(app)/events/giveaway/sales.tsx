@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Pencil } from "lucide-react";
 import { formatDate, formatMoney, toDateInputValue } from "./format";
 
 export function GiveawaySalesForm({
@@ -162,15 +161,7 @@ export function GiveawaySalesForm({
   );
 }
 
-export function GiveawaySummary({
-  giveaway,
-  onEdit,
-  canEdit,
-}: {
-  giveaway: Giveaway;
-  onEdit: () => void;
-  canEdit: boolean;
-}) {
+export function GiveawaySummary({ giveaway }: { giveaway: Giveaway }) {
   return (
     <div className="rounded-md border border-[var(--line)] p-4">
       <FieldGroup>
@@ -200,20 +191,6 @@ export function GiveawaySummary({
           {giveaway.notes || "—"}
         </ReadOnlyField>
       </FieldGroup>
-
-      {canEdit && (
-        <div className="mt-3 flex justify-end">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Edit giveaway"
-            onClick={onEdit}
-          >
-            <Pencil />
-          </Button>
-        </div>
-      )}
     </div>
   );
 }
@@ -222,46 +199,29 @@ export function SalesSection({
   eventId,
   giveaway,
   canEdit,
-  editing,
-  onEdit,
-  onCancelEdit,
   onSaved,
+  onCancel,
 }: {
   eventId: string;
   giveaway: Giveaway | null;
   canEdit: boolean;
-  editing: boolean;
-  onEdit: () => void;
-  onCancelEdit: () => void;
   onSaved: () => void;
+  onCancel: () => void;
 }) {
-  if (editing) {
+  if (canEdit) {
     return (
       <GiveawaySalesForm
         eventId={eventId}
         giveaway={giveaway}
         onSaved={onSaved}
-        onCancel={onCancelEdit}
+        onCancel={onCancel}
       />
     );
   }
 
   if (giveaway) {
-    return (
-      <GiveawaySummary giveaway={giveaway} onEdit={onEdit} canEdit={canEdit} />
-    );
+    return <GiveawaySummary giveaway={giveaway} />;
   }
 
-  return (
-    <div className="flex flex-col gap-3">
-      <p className="app-muted text-sm">No giveaway set up yet.</p>
-      {canEdit && (
-        <div>
-          <Button type="button" variant="outline" onClick={onEdit}>
-            + Set up giveaway
-          </Button>
-        </div>
-      )}
-    </div>
-  );
+  return <p className="app-muted text-sm">No giveaway set up yet.</p>;
 }

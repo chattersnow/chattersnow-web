@@ -114,7 +114,9 @@ export function ReportTab({
     });
   }
 
-  if (mode === "view") {
+  const locked = event.report_status === "submitted";
+
+  if (mode === "view" || locked) {
     return (
       <FieldGroup>
         <Field>

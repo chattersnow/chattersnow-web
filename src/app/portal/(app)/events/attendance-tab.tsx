@@ -2,7 +2,6 @@
 
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil } from "lucide-react";
 import { updateEventAttendanceAction } from "./actions";
 import type { EventRow } from "./event-badges";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
@@ -99,73 +98,38 @@ function AttendanceForm({
 export function AttendanceTab({
   event,
   mode,
+  onExitEdit,
 }: {
   event: EventRow;
   mode: "view" | "edit";
   active: boolean;
+  onExitEdit: () => void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [prevMode, setPrevMode] = useState(mode);
   const hasAttendance =
     event.attendance_count !== null || Boolean(event.attendance_notes);
 
-  if (mode !== prevMode) {
-    setPrevMode(mode);
-    if (mode === "view") setEditing(false);
-  }
-
-  if (editing) {
+  if (mode === "edit") {
     return (
       <AttendanceForm
         event={event}
-        onSaved={() => setEditing(false)}
-        onCancel={() => setEditing(false)}
+        onSaved={onExitEdit}
+        onCancel={onExitEdit}
       />
     );
   }
 
   if (!hasAttendance) {
-    return (
-      <div className="flex flex-col gap-3">
-        <p className="app-muted text-sm">No attendance recorded yet.</p>
-        {mode === "edit" && (
-          <div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setEditing(true)}
-            >
-              + Record attendance
-            </Button>
-          </div>
-        )}
-      </div>
-    );
+    return <p className="app-muted text-sm">No attendance recorded yet.</p>;
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <FieldGroup>
-        <ReadOnlyField label="Attendance headcount" htmlFor="attendance-count">
-          {event.attendance_count ?? "—"}
-        </ReadOnlyField>
-        <ReadOnlyField label="Notes" htmlFor="attendance-notes">
-          {event.attendance_notes || "—"}
-        </ReadOnlyField>
-      </FieldGroup>
-      {mode === "edit" && (
-        <div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Edit attendance"
-            onClick={() => setEditing(true)}
-          >
-            <Pencil />
-          </Button>
-        </div>
-      )}
-    </div>
+    <FieldGroup>
+      <ReadOnlyField label="Attendance headcount" htmlFor="attendance-count">
+        {event.attendance_count ?? "—"}
+      </ReadOnlyField>
+      <ReadOnlyField label="Notes" htmlFor="attendance-notes">
+        {event.attendance_notes || "—"}
+      </ReadOnlyField>
+    </FieldGroup>
   );
 }

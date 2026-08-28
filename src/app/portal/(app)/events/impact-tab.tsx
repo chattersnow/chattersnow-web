@@ -14,9 +14,10 @@ import {
   upsertEventImpactAction,
   type EventImpactNote,
 } from "./impact-actions";
+import { InfoIcon } from "lucide-react";
 import { useTabData } from "@/hooks/use-tab-data";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -252,6 +253,16 @@ export function ImpactTab({
             <AlertDescription>{loadError}</AlertDescription>
           </Alert>
         )}
+        <Alert>
+          <InfoIcon />
+          <AlertTitle>How these numbers are calculated</AlertTitle>
+          <AlertDescription>
+            These figures are entered manually per event by staff — they
+            aren&apos;t derived automatically from attendance or registrations.
+            Post-event survey percentages are the yes-count divided by the
+            number of survey respondents, rounded to the nearest whole percent.
+          </AlertDescription>
+        </Alert>
         <div className="flex flex-col gap-3">
           <h4 className="text-sm font-semibold">Participation</h4>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
