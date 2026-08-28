@@ -8,7 +8,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { EventRegistrationForm } from "./event-registration-form-fields";
+import { Button } from "@/components/ui/button";
 import { checkRegistrationWindow } from "./event-registration-form";
 import type { PublicEvent } from "./event-card";
 import { EventSponsors } from "./event-sponsors";
@@ -24,10 +24,12 @@ export function EventDetailSheet({
   event,
   open,
   onOpenChange,
+  onRegister,
 }: {
   event: PublicEvent | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onRegister: (event: PublicEvent) => void;
 }) {
   const registrationWindow = event ? checkRegistrationWindow(event) : null;
   const imageUrl = event ? resolveImageUrl(event.flier_url) : null;
@@ -84,7 +86,9 @@ export function EventDetailSheet({
                   </h3>
                   <div className="mt-4">
                     {registrationWindow?.open ? (
-                      <EventRegistrationForm eventId={event.id} />
+                      <Button onClick={() => onRegister(event)}>
+                        Register for this event
+                      </Button>
                     ) : (
                       <p className="app-muted text-sm">
                         {registrationWindow?.reason}
