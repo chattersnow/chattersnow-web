@@ -40,6 +40,8 @@ test.describe("portal inventory donations", () => {
 
     await addSheet.getByLabel("Item description").fill(itemDescription);
     await addSheet.getByLabel("Item type").fill("Jacket");
+    await addSheet.getByLabel("Condition").click();
+    await page.getByRole("listbox").getByText("Good", { exact: true }).click();
     await addSheet.getByRole("button", { name: "Save donation" }).click();
 
     await expect(addSheet).not.toBeVisible();
