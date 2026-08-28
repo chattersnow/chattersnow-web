@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -44,14 +45,21 @@ function getInitialFormState() {
   };
 }
 
-export function LogHoursDialog() {
+export function LogHoursDialog({
+  canManage,
+  selfPerson,
+}: {
+  canManage: boolean;
+  selfPerson: PickedPerson | null;
+}) {
   const router = useRouter();
+  const lockedToSelf = !canManage && selfPerson !== null;
   const [open, setOpen] = useState(false);
   const [people, setPeople] = useState<PersonListItem[]>([]);
   const [events, setEvents] = useState<EventOption[]>([]);
   const [roleTypes, setRoleTypes] = useState<RoleType[]>([]);
   const [selectedPerson, setSelectedPerson] = useState<PickedPerson | null>(
-    null,
+    lockedToSelf ? selfPerson : null,
   );
   const [form, setForm] = useState(getInitialFormState);
   const [error, setError] = useState<string | null>(null);
@@ -59,16 +67,18 @@ export function LogHoursDialog() {
 
   useEffect(() => {
     if (!open) return;
-    listPeopleAction().then((result) => {
-      if (!("error" in result)) setPeople(result.data);
-    });
+    if (!lockedToSelf) {
+      listPeopleAction().then((result) => {
+        if (!("error" in result)) setPeople(result.data);
+      });
+    }
     listEventOptionsAction().then((result) => {
       if (!("error" in result)) setEvents(result.data);
     });
     listRoleTypesAction().then((result) => {
       if (!("error" in result)) setRoleTypes(result.data);
     });
-  }, [open]);
+  }, [open, lockedToSelf]);
 
   function update<K extends keyof ReturnType<typeof getInitialFormState>>(
     key: K,
@@ -80,7 +90,7 @@ export function LogHoursDialog() {
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
     if (!nextOpen) {
-      setSelectedPerson(null);
+      setSelectedPerson(lockedToSelf ? selfPerson : null);
       setForm(getInitialFormState());
       setError(null);
     }
@@ -136,19 +146,27 @@ export function LogHoursDialog() {
         <form onSubmit={handleSubmit}>
           <FieldGroup>
             <Field>
-              <FieldLabel>Volunteer</FieldLabel>
-              <PersonPicker
-                people={people}
-                selected={selectedPerson}
-                onSelect={setSelectedPerson}
-                onPersonCreated={(person) =>
-                  setPeople((prev) => [
-                    ...prev,
-                    { ...person, is_sponsor: false },
-                  ])
-                }
-                newPersonRole="is_volunteer"
-              />
+              {lockedToSelf && selfPerson ? (
+                <ReadOnlyField label="Volunteer" htmlFor="hours-volunteer">
+                  {selfPerson.name ?? "—"}
+                </ReadOnlyField>
+              ) : (
+                <>
+                  <FieldLabel>Volunteer</FieldLabel>
+                  <PersonPicker
+                    people={people}
+                    selected={selectedPerson}
+                    onSelect={setSelectedPerson}
+                    onPersonCreated={(person) =>
+                      setPeople((prev) => [
+                        ...prev,
+                        { ...person, is_sponsor: false },
+                      ])
+                    }
+                    newPersonRole="is_volunteer"
+                  />
+                </>
+              )}
             </Field>
 
             <Field orientation="responsive">

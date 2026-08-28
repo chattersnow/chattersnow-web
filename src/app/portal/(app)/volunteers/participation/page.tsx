@@ -3,6 +3,7 @@ import {
   getCurrentUserPermissions,
   hasPermission,
 } from "@/lib/auth/permissions";
+import { resolveCurrentPerson } from "@/lib/auth/current-person";
 import { Card, CardContent } from "@/components/ui/card";
 import { HowToSection, HowToSheet } from "@/components/how-to-sheet";
 import { listVolunteerHoursAction } from "./actions";
@@ -18,8 +19,12 @@ export default async function ParticipationPage() {
     "volunteer_hours_logging",
     "manage",
   );
+  const selfLogOnly = canLogOwn && !canManage;
 
-  const result = await listVolunteerHoursAction();
+  const [result, selfPerson] = await Promise.all([
+    listVolunteerHoursAction(),
+    selfLogOnly ? resolveCurrentPerson(supabase) : Promise.resolve(null),
+  ]);
   const entries = "data" in result ? result.data : [];
   const totalHours = entries.reduce(
     (sum, entry) => sum + Number(entry.hours),
@@ -90,7 +95,9 @@ export default async function ParticipationPage() {
       </div>
 
       <div className="mt-6 flex justify-end">
-        {canManage || canLogOwn ? <LogHoursDialog /> : null}
+        {canManage || canLogOwn ? (
+          <LogHoursDialog canManage={canManage} selfPerson={selfPerson} />
+        ) : null}
       </div>
 
       <Card className="mt-6">
