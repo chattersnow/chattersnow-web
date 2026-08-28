@@ -8,6 +8,7 @@
 // run via `bun run test:integration`. Not picked up by `bun run test`.
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   SEEDED_USERS,
   adminClient,
@@ -15,6 +16,12 @@ import {
   createPerson,
   signInAs,
 } from "../../../../../../test/integration-setup";
+
+// volunteer_applications has no INSERT policy for authenticated users --
+// the only write path is the submit_volunteer_application() RPC (public
+// intake). Fixtures need direct inserts, so they go through the
+// service-role client, which bypasses RLS.
+const serviceRoleClient = createSupabaseAdminClient();
 
 const revalidatePathMock = mock(() => {});
 mock.module("next/cache", () => ({ revalidatePath: revalidatePathMock }));
@@ -37,7 +44,7 @@ const DENIED = { error: "You don't have permission to perform this action." };
 // both rows.
 async function seedApplication() {
   const person = await createPerson();
-  const { data, error } = await adminClient
+  const { data, error } = await serviceRoleClient
     .from("volunteer_applications")
     .insert({
       person_id: person.id,
@@ -53,7 +60,10 @@ async function seedApplication() {
   return {
     id,
     async cleanup() {
-      await adminClient.from("volunteer_applications").delete().eq("id", id);
+      await serviceRoleClient
+        .from("volunteer_applications")
+        .delete()
+        .eq("id", id);
       await person.cleanup();
     },
   };
