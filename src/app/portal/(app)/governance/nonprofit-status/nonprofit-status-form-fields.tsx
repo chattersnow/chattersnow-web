@@ -17,6 +17,7 @@ export type MilestoneFormState = {
   phase: string;
   status: MilestoneStatus;
   dueDate: string;
+  notes: string;
 };
 
 export function emptyMilestoneForm(phase: string = ""): MilestoneFormState {
@@ -25,6 +26,7 @@ export function emptyMilestoneForm(phase: string = ""): MilestoneFormState {
     phase,
     status: "not_started",
     dueDate: "",
+    notes: "",
   };
 }
 
@@ -102,6 +104,15 @@ export function NonprofitStatusFormFields({
           />
         </Field>
       </Field>
+
+      <Field>
+        <FieldLabel htmlFor={`${idPrefix}-notes`}>Notes</FieldLabel>
+        <Textarea
+          id={`${idPrefix}-notes`}
+          value={form.notes}
+          onChange={(event) => update("notes", event.target.value)}
+        />
+      </Field>
     </>
   );
 }
@@ -112,5 +123,6 @@ export function packMilestoneFormData(form: MilestoneFormState) {
   formData.set("phase", form.phase);
   formData.set("status", form.status);
   formData.set("dueDate", form.dueDate);
+  formData.set("notes", form.notes);
   return formData;
 }

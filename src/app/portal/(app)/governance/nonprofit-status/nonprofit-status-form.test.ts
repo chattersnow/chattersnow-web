@@ -50,6 +50,7 @@ describe("parseMilestoneForm", () => {
         phase: "Phase 2",
         status: "not_started",
         due_date: null,
+        notes: null,
       },
     });
   });
@@ -70,6 +71,27 @@ describe("parseMilestoneForm", () => {
         phase: "Phase 2",
         status: "in_progress",
         due_date: "2026-09-01",
+        notes: null,
+      },
+    });
+  });
+
+  test("trims notes and blanks to null", () => {
+    expect(
+      parseMilestoneForm(
+        formData({
+          description: "File the EIN application",
+          phase: "Phase 2",
+          notes: "  Waiting on the accountant  ",
+        }),
+      ),
+    ).toEqual({
+      data: {
+        description: "File the EIN application",
+        phase: "Phase 2",
+        status: "not_started",
+        due_date: null,
+        notes: "Waiting on the accountant",
       },
     });
   });
@@ -89,6 +111,7 @@ describe("parseMilestoneForm", () => {
         phase: "Phase 2",
         status: "cancelled",
         due_date: null,
+        notes: null,
       },
     });
   });

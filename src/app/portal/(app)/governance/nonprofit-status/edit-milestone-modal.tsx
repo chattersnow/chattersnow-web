@@ -62,6 +62,7 @@ function formStateFor(milestone: Milestone): MilestoneFormState {
     phase: milestone.phase,
     status: milestone.status,
     dueDate: milestone.due_date ?? "",
+    notes: milestone.notes ?? "",
   };
 }
 
@@ -76,6 +77,7 @@ function isDirty(
     form.phase !== baseline.phase ||
     form.status !== baseline.status ||
     form.dueDate !== baseline.dueDate ||
+    form.notes !== baseline.notes ||
     (owner?.id ?? null) !== (milestone.owner?.id ?? null)
   );
 }
@@ -295,6 +297,11 @@ export function EditMilestoneModal({
                 </ReadOnlyField>
                 <ReadOnlyField label="Status" htmlFor="edit-milestone-status">
                   <MilestoneStatusBadge status={milestone.status} />
+                </ReadOnlyField>
+                <ReadOnlyField label="Notes" htmlFor="edit-milestone-notes">
+                  <span className="whitespace-pre-wrap">
+                    {milestone.notes || "—"}
+                  </span>
                 </ReadOnlyField>
 
                 {error && (
