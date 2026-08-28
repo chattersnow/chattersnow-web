@@ -219,6 +219,122 @@ export async function createDonation() {
   };
 }
 
+type CalendarItemOverrides = {
+  title?: string;
+  itemType?: string;
+  startsAt?: string;
+  timeZone?: string;
+  priorityTier?: 1 | 2 | 3;
+  calendarStatus?: "idea" | "active" | "complete" | "archived";
+  visibility?: "public" | "internal" | "unlisted_draft";
+  isSensitiveTopic?: boolean;
+  toneGuidance?: string | null;
+  categories?: string[];
+  seriesKey?: string | null;
+  recurrenceStartMonth?: number | null;
+  recurrenceStartDay?: number | null;
+  recurrenceEndMonth?: number | null;
+  recurrenceEndDay?: number | null;
+  recurrenceEndIsMonthEnd?: boolean;
+};
+
+// A fresh `calendar_items` row, for the content/community calendar action
+// tests. Junction rows (categories/programs/links) and the item's
+// content_opportunities row all reference calendar_items with
+// `on delete cascade`, so deleting the item is sufficient cleanup.
+export async function createCalendarItem(
+  overrides: CalendarItemOverrides = {},
+) {
+  const { data, error } = await adminClient
+    .from("calendar_items")
+    .insert({
+      title:
+        overrides.title ??
+        `Integration test calendar item ${crypto.randomUUID()}`,
+      item_type: overrides.itemType ?? "community_observance",
+      starts_at:
+        overrides.startsAt ??
+        new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      time_zone: overrides.timeZone ?? "America/Denver",
+      priority_tier: overrides.priorityTier ?? 3,
+      calendar_status: overrides.calendarStatus ?? "idea",
+      visibility: overrides.visibility ?? "internal",
+      is_sensitive_topic: overrides.isSensitiveTopic ?? false,
+      tone_guidance: overrides.toneGuidance ?? null,
+      series_key: overrides.seriesKey ?? null,
+      recurrence_start_month: overrides.recurrenceStartMonth ?? null,
+      recurrence_start_day: overrides.recurrenceStartDay ?? null,
+      recurrence_end_month: overrides.recurrenceEndMonth ?? null,
+      recurrence_end_day: overrides.recurrenceEndDay ?? null,
+      recurrence_end_is_month_end: overrides.recurrenceEndIsMonthEnd ?? false,
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+
+  const id = data.id as string;
+  if (overrides.categories?.length) {
+    const { error: categoryError } = await adminClient
+      .from("calendar_item_categories")
+      .insert(
+        overrides.categories.map((category) => ({ item_id: id, category })),
+      );
+    if (categoryError) throw categoryError;
+  }
+
+  return {
+    id,
+    async cleanup() {
+      await adminClient.from("calendar_items").delete().eq("id", id);
+    },
+  };
+}
+
+// A content_opportunities row for an existing calendar item (one-to-one),
+// for tests exercising the content-permission (consent) actions. Its
+// content_permissions row references it with `on delete cascade`, and the
+// row itself cascades from the calendar item, so callers usually only need
+// the parent item's cleanup.
+export async function createContentOpportunity(calendarItemId: string) {
+  const { data, error } = await adminClient
+    .from("content_opportunities")
+    .insert({ calendar_item_id: calendarItemId, content_status: "idea" })
+    .select("id")
+    .single();
+  if (error) throw error;
+
+  const id = data.id as string;
+  return {
+    id,
+    async cleanup() {
+      await adminClient.from("content_opportunities").delete().eq("id", id);
+    },
+  };
+}
+
+// A fresh `programs` row, for tests that need a valid program FK target
+// (e.g. calendar_program_suggestion_rules) without colliding with seeded
+// rules on the seeded program.
+export async function createProgram() {
+  const { data, error } = await adminClient
+    .from("programs")
+    .insert({
+      name: `Integration Test Program ${crypto.randomUUID()}`,
+      status: "active",
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+
+  const id = data.id as string;
+  return {
+    id,
+    async cleanup() {
+      await adminClient.from("programs").delete().eq("id", id);
+    },
+  };
+}
+
 export async function getInventoryItemStatus(itemId: string) {
   const { data, error } = await adminClient
     .from("inventory_items")
