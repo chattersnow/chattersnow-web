@@ -43,7 +43,9 @@ const NAV_GROUPS: readonly NavGroup[] = [
       { label: "Community Calendar", href: "/events/community" },
     ],
   },
-  { label: "Programs", href: "/programs" },
+  // TODO(#360): re-add once the public Programs page/listing has been
+  // reviewed with the board.
+  // { label: "Programs", href: "/programs" },
   { label: "Learn", href: "/learn" },
   {
     label: "Gear",
