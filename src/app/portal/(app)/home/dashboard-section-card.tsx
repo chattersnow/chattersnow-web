@@ -1,5 +1,3 @@
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -62,38 +60,6 @@ export function DashboardEventRow({
       <p className="brand-display mt-2 break-words text-xl font-semibold leading-tight tracking-[-0.02em]">
         {eventName}
       </p>
-    </div>
-  );
-}
-
-export function DashboardAttentionRow({
-  label,
-  count,
-  href,
-}: {
-  label: string;
-  count: number;
-  href: string;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
-      <div>
-        <p className="text-sm font-medium">{label}</p>
-        <p className="app-muted mt-0.5 text-xs">Awaiting your review</p>
-      </div>
-      <div className="flex shrink-0 items-center gap-3">
-        <p className="brand-display text-xl font-semibold tracking-[-0.02em]">
-          {count}
-        </p>
-        <Button
-          variant="secondary"
-          size="sm"
-          nativeButton={false}
-          render={<Link href={href} />}
-        >
-          Review
-        </Button>
-      </div>
     </div>
   );
 }

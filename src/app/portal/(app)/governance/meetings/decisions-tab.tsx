@@ -9,10 +9,12 @@ import {
   listDecisionsAction,
   type Decision,
 } from "./decisions-actions";
+import { TabLoadingSkeleton } from "./tab-loading-skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
   TableBody,
@@ -132,7 +134,13 @@ function AddDecisionForm({
             Cancel
           </Button>
           <Button type="submit" disabled={isPending}>
-            {isPending ? "Saving..." : "Add decision"}
+            {isPending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : (
+              "Add decision"
+            )}
           </Button>
         </div>
       </FieldGroup>
@@ -185,7 +193,7 @@ export function DecisionsTab({
       )}
 
       {decisions === undefined ? (
-        <p className="app-muted text-sm">Loading decisions...</p>
+        <TabLoadingSkeleton />
       ) : decisions.length === 0 && !showAdd ? (
         <p className="app-muted text-sm">No decisions recorded yet.</p>
       ) : (
@@ -224,7 +232,7 @@ export function DecisionsTab({
                       disabled={isDeleting}
                       onClick={() => handleDelete(decision.id)}
                     >
-                      <Trash2 />
+                      {isDeleting ? <Spinner /> : <Trash2 />}
                     </Button>
                   )}
                 </TableCell>

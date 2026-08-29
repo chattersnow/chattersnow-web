@@ -9,12 +9,14 @@ import {
   listMeetingAttendeesAction,
   type MeetingAttendee,
 } from "./attendees-actions";
+import { TabLoadingSkeleton } from "./tab-loading-skeleton";
 import { PersonPicker, type PickedPerson } from "../../people/person-picker";
 import { listPeopleAction, type PersonListItem } from "../../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
   TableBody,
@@ -103,7 +105,13 @@ function AddAttendeeForm({
             Cancel
           </Button>
           <Button type="submit" disabled={isPending}>
-            {isPending ? "Saving..." : "Add attendee"}
+            {isPending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : (
+              "Add attendee"
+            )}
           </Button>
         </div>
       </FieldGroup>
@@ -168,7 +176,7 @@ export function AttendeesTab({
       )}
 
       {attendees === undefined ? (
-        <p className="app-muted text-sm">Loading attendees...</p>
+        <TabLoadingSkeleton />
       ) : attendees.length === 0 && !showAdd ? (
         <p className="app-muted text-sm">No attendees recorded yet.</p>
       ) : (
@@ -202,7 +210,7 @@ export function AttendeesTab({
                       disabled={isDeleting}
                       onClick={() => handleDelete(attendee.id)}
                     >
-                      <Trash2 />
+                      {isDeleting ? <Spinner /> : <Trash2 />}
                     </Button>
                   )}
                 </TableCell>

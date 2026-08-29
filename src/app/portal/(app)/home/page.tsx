@@ -8,7 +8,6 @@ import { resolveCurrentPersonId } from "@/lib/auth/current-person";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ActiveEventCard } from "./active-event-card";
 import {
-  DashboardAttentionRow,
   DashboardComingSoonRow,
   DashboardEventRow,
   DashboardSectionCard,
@@ -18,15 +17,8 @@ import {
   getUpcomingSummary,
   getFinancialSummary,
   getInventorySummary,
-  getContentWorkSummary,
   getMyActiveEvents,
 } from "./queries";
-import {
-  getAccessManagementAttentionSummary,
-  getCalendarCoverageReminderSummary,
-  getOpsInboxSummary,
-  getPendingApprovalsSummary,
-} from "@/lib/portal/attention-items";
 import { getAccessManagementStatsSummary } from "@/lib/portal/access-management/queries";
 import { listRecentDonationsAction } from "./actions";
 
@@ -75,37 +67,6 @@ export default async function PortalHomePage() {
     { resource: "inventory_reports", level: "view" },
   ]);
   const canSeeOrganization = hasPermission(permissions, "governance", "manage");
-  const canSeeExpenseApprovals = hasPermission(
-    permissions,
-    "finance_approvals",
-    "manage",
-  );
-  const canSeeReimbursementApprovals = hasPermission(
-    permissions,
-    "reimbursement_approvals",
-    "manage",
-  );
-  const canSeeContentCalendar = hasPermission(
-    permissions,
-    "content_calendar",
-    "view",
-  );
-  const canManageContentCalendar = hasPermission(
-    permissions,
-    "content_calendar",
-    "manage",
-  );
-  const canSeeVolunteerApplications = hasPermission(
-    permissions,
-    "volunteers",
-    "view",
-  );
-  const canSeeContactMessages = hasPermission(
-    permissions,
-    "communications",
-    "view",
-  );
-  const canSeeEventCheckins = canSeeUpcoming;
   const canSeeAccessManagement = hasPermission(
     permissions,
     "access_management_assets",
@@ -137,9 +98,7 @@ export default async function PortalHomePage() {
     inventory,
     accessManagementStats,
     recentDonationsResult,
-    pendingApprovals,
     personId,
-    { data: userData },
   ] = await Promise.all([
     canSeeUpcoming
       ? getUpcomingSummary(supabase, nowIso)
@@ -154,59 +113,13 @@ export default async function PortalHomePage() {
     canSeeInventory && canSeeRecentDonations
       ? listRecentDonationsAction(5)
       : Promise.resolve(null),
-    canSeeExpenseApprovals || canSeeReimbursementApprovals
-      ? getPendingApprovalsSummary(supabase, {
-          canSeeExpenseApprovals,
-          canSeeReimbursementApprovals,
-        })
-      : Promise.resolve(null),
     resolveCurrentPersonId(supabase),
-    supabase.auth.getUser(),
   ]);
-
-  const contentWork = canSeeContentCalendar
-    ? await getContentWorkSummary(supabase, {
-        canSeeContentCalendar,
-        userId: userData.user?.id ?? null,
-      })
-    : null;
-
-  const opsInbox =
-    canSeeVolunteerApplications || canSeeContactMessages || canSeeEventCheckins
-      ? await getOpsInboxSummary(
-          supabase,
-          {
-            canSeeVolunteerApplications,
-            canSeeContactMessages,
-            canSeeEventCheckins,
-          },
-          nowIso,
-        )
-      : null;
-
-  const calendarCoverageReminder = canManageContentCalendar
-    ? await getCalendarCoverageReminderSummary(supabase, {
-        canManageContentCalendar,
-      })
-    : null;
-
-  const accessManagementAlerts = canSeeAccessManagement
-    ? await getAccessManagementAttentionSummary(supabase, {
-        canSeeAccessManagement,
-      })
-    : null;
 
   const recentDonations =
     recentDonationsResult && "data" in recentDonationsResult
       ? recentDonationsResult.data
       : [];
-  const attentionItems = [
-    ...(pendingApprovals?.items ?? []),
-    ...(contentWork?.items ?? []),
-    ...(opsInbox?.items ?? []),
-    ...(calendarCoverageReminder?.items ?? []),
-    ...(accessManagementAlerts?.items ?? []),
-  ];
   const activeEvents =
     personId || canCheckIn
       ? await getMyActiveEvents(supabase, personId, nowIso, canCheckIn)
@@ -253,19 +166,6 @@ export default async function PortalHomePage() {
             ))}
           </div>
         </div>
-      )}
-
-      {attentionItems.length > 0 && (
-        <DashboardSectionCard title="Needs your attention">
-          {attentionItems.map((item) => (
-            <DashboardAttentionRow
-              key={item.key}
-              label={item.label}
-              count={item.count}
-              href={item.href}
-            />
-          ))}
-        </DashboardSectionCard>
       )}
 
       <div className="grid items-start gap-x-6 lg:grid-cols-2">

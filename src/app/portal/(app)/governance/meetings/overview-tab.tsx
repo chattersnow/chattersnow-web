@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 
 const MEETING_TYPES = [
@@ -42,7 +43,7 @@ const viewDateFormatter = new Intl.DateTimeFormat("en-US", {
   timeStyle: "short",
 });
 
-function formatDatetimeLocal(value: string) {
+export function formatDatetimeLocal(value: string) {
   if (!value) return "—";
   return viewDateFormatter.format(new Date(value));
 }
@@ -65,7 +66,7 @@ function formStateFor(meeting: MeetingRow) {
 
 type FormState = ReturnType<typeof formStateFor>;
 
-function MeetingOverviewForm({
+export function MeetingOverviewForm({
   meeting,
   onSaved,
   onCancel,
@@ -125,10 +126,7 @@ function MeetingOverviewForm({
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="rounded-md border border-[var(--line)] p-4"
-    >
+    <form onSubmit={handleSubmit} className="max-w-xl">
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="meeting-date">Date &amp; time</FieldLabel>
@@ -189,25 +187,23 @@ function MeetingOverviewForm({
           />
         </Field>
 
-        <Field orientation="responsive">
-          <Field>
-            <FieldLabel>Facilitator</FieldLabel>
-            <PersonPicker
-              people={people}
-              selected={facilitator}
-              onSelect={setFacilitator}
-              onPersonCreated={handlePersonCreated}
-            />
-          </Field>
-          <Field>
-            <FieldLabel>Notes-taker</FieldLabel>
-            <PersonPicker
-              people={people}
-              selected={notetaker}
-              onSelect={setNotetaker}
-              onPersonCreated={handlePersonCreated}
-            />
-          </Field>
+        <Field>
+          <FieldLabel>Facilitator</FieldLabel>
+          <PersonPicker
+            people={people}
+            selected={facilitator}
+            onSelect={setFacilitator}
+            onPersonCreated={handlePersonCreated}
+          />
+        </Field>
+        <Field>
+          <FieldLabel>Notes-taker</FieldLabel>
+          <PersonPicker
+            people={people}
+            selected={notetaker}
+            onSelect={setNotetaker}
+            onPersonCreated={handlePersonCreated}
+          />
         </Field>
 
         <Field>
@@ -230,7 +226,13 @@ function MeetingOverviewForm({
             Cancel
           </Button>
           <Button type="submit" disabled={isPending}>
-            {isPending ? "Saving..." : "Save meeting"}
+            {isPending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : (
+              "Save meeting"
+            )}
           </Button>
         </div>
       </FieldGroup>
@@ -258,7 +260,7 @@ export function OverviewTab({
   }
 
   return (
-    <FieldGroup>
+    <FieldGroup className="max-w-xl">
       <ReadOnlyField label="Date & time" htmlFor="meeting-date-view">
         {formatDatetimeLocal(meeting.meeting_date)}
       </ReadOnlyField>

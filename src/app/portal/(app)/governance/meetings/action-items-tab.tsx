@@ -17,6 +17,7 @@ import {
   packActionItemFormData,
   type ActionItemFormState,
 } from "./action-item-form-fields";
+import { TabLoadingSkeleton } from "./tab-loading-skeleton";
 import { PersonPicker, type PickedPerson } from "../../people/person-picker";
 import { listPeopleAction, type PersonListItem } from "../../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -31,6 +32,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
   TableBody,
@@ -139,7 +141,13 @@ function AddActionItemForm({
             Cancel
           </Button>
           <Button type="submit" disabled={isPending}>
-            {isPending ? "Saving..." : "Add action item"}
+            {isPending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : (
+              "Add action item"
+            )}
           </Button>
         </div>
       </FieldGroup>
@@ -237,7 +245,13 @@ function EditActionItemDialog({
 
           <DialogFooter>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "Saving..." : "Save changes"}
+              {isPending ? (
+                <>
+                  <Spinner /> Saving...
+                </>
+              ) : (
+                "Save changes"
+              )}
             </Button>
           </DialogFooter>
         </form>
@@ -318,7 +332,7 @@ export function ActionItemsTab({
       )}
 
       {actionItems === undefined ? (
-        <p className="app-muted text-sm">Loading action items...</p>
+        <TabLoadingSkeleton />
       ) : actionItems.length === 0 && !showAdd ? (
         <p className="app-muted text-sm">No action items recorded yet.</p>
       ) : (
@@ -371,7 +385,7 @@ export function ActionItemsTab({
                         disabled={isMutating}
                         onClick={() => handleDelete(actionItem.id)}
                       >
-                        <Trash2 />
+                        {isMutating ? <Spinner /> : <Trash2 />}
                       </Button>
                     </>
                   )}

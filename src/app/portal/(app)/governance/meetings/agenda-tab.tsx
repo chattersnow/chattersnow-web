@@ -19,11 +19,13 @@ import {
   type ActionItem,
 } from "./action-items-actions";
 import { listDecisionsAction, type Decision } from "./decisions-actions";
+import { TabLoadingSkeleton } from "./tab-loading-skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Tooltip,
   TooltipContent,
@@ -216,10 +218,7 @@ function AgendaForm({
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="rounded-md border border-[var(--line)] p-4"
-    >
+    <form onSubmit={handleSubmit}>
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="agenda-link">External link</FieldLabel>
@@ -344,7 +343,13 @@ function AgendaForm({
             Cancel
           </Button>
           <Button type="submit" disabled={isPending}>
-            {isPending ? "Saving..." : "Save agenda"}
+            {isPending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : (
+              "Save agenda"
+            )}
           </Button>
         </div>
       </FieldGroup>
@@ -398,7 +403,7 @@ export function AgendaTab({
   );
 
   if (agenda === undefined) {
-    return <p className="app-muted text-sm">Loading agenda...</p>;
+    return <TabLoadingSkeleton />;
   }
 
   const activeTemplate = templates?.[0] ?? null;
