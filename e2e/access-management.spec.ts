@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { signIn, reloadStayingSignedIn } from "./helpers/auth";
+import { reloadStayingSignedIn, signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 
 // Pre-creates the person directly (rather than exercising PersonPicker's
