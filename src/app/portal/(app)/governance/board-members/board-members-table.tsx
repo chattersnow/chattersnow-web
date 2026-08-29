@@ -82,7 +82,7 @@ export function BoardMembersTable({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="rainbow-surface flex justify-end rounded-xl border border-[var(--line)] p-4 shadow-md">
         <FiltersSheet activeCount={activeFilterCount}>
           <div className="flex flex-col gap-1">
             <label

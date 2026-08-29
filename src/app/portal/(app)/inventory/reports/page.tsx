@@ -2,7 +2,6 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FiltersSheet } from "@/components/filters-sheet";
 import {
   Table,
   TableBody,
@@ -82,6 +81,7 @@ export default async function InventoryReportsPage({
 
   return (
     <>
+      <div className="rainbow-accent w-16" />
       <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
         Inventory Reports
       </h1>
@@ -148,57 +148,55 @@ export default async function InventoryReportsPage({
         </Card>
       </div>
 
-      <div className="mt-6 flex justify-end">
-        <FiltersSheet activeCount={hasCustomRange ? 1 : 0}>
-          <form method="get" className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor="from"
-                className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-              >
-                From
-              </label>
-              <input
-                id="from"
-                name="from"
-                type="date"
-                defaultValue={fromDate}
-                className={selectClassName}
-              />
-            </div>
+      <div className="rainbow-surface mt-6 flex flex-wrap items-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+        <form method="get" className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="from"
+              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+            >
+              From
+            </label>
+            <input
+              id="from"
+              name="from"
+              type="date"
+              defaultValue={fromDate}
+              className={selectClassName}
+            />
+          </div>
 
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor="to"
-                className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-              >
-                To
-              </label>
-              <input
-                id="to"
-                name="to"
-                type="date"
-                defaultValue={toDate}
-                className={selectClassName}
-              />
-            </div>
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="to"
+              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+            >
+              To
+            </label>
+            <input
+              id="to"
+              name="to"
+              type="date"
+              defaultValue={toDate}
+              className={selectClassName}
+            />
+          </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <Button type="submit" variant="outline">
-                Filter
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="submit" variant="secondary">
+              Filter
+            </Button>
+            {hasCustomRange && (
+              <Button
+                variant="ghost"
+                nativeButton={false}
+                render={<Link href="/portal/inventory/reports" />}
+              >
+                Reset to this month
               </Button>
-              {hasCustomRange && (
-                <Button
-                  variant="ghost"
-                  nativeButton={false}
-                  render={<Link href="/portal/inventory/reports" />}
-                >
-                  Reset to this month
-                </Button>
-              )}
-            </div>
-          </form>
-        </FiltersSheet>
+            )}
+          </div>
+        </form>
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">

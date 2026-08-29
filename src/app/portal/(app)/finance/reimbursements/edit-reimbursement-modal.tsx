@@ -494,7 +494,7 @@ export function EditReimbursementModal({
               {canReject && (
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   disabled={isPending}
                   onClick={() => setRejectDialogOpen(true)}
                 >

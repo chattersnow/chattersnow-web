@@ -154,7 +154,7 @@ export function CalendarFiltersSheet({
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
-      <SheetTrigger render={<Button type="button" variant="outline" />}>
+      <SheetTrigger render={<Button type="button" variant="secondary" />}>
         <ListFilter className="size-4" />
         Filters
         {activeCount > 0 && <Badge variant="secondary">{activeCount}</Badge>}

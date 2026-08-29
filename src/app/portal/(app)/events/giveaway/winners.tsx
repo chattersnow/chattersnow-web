@@ -143,7 +143,12 @@ export function WinnerForm({
         )}
 
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={onCancel}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={onCancel}
+          >
             Cancel
           </Button>
           <Button type="submit" size="sm" disabled={isPending}>
@@ -238,7 +243,7 @@ export function PrizeWinnerSection({
   if (!winner) {
     return canEdit ? (
       <div className="mt-3">
-        <Button type="button" variant="outline" size="sm" onClick={onEdit}>
+        <Button type="button" variant="secondary" size="sm" onClick={onEdit}>
           + Record winner
         </Button>
       </div>

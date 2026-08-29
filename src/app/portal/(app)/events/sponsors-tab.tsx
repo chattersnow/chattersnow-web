@@ -314,7 +314,7 @@ function SponsorForm({
 
         <div className="flex justify-end gap-2">
           {onCancel && (
-            <Button type="button" variant="outline" onClick={onCancel}>
+            <Button type="button" variant="secondary" onClick={onCancel}>
               Cancel
             </Button>
           )}
@@ -494,7 +494,7 @@ export function SponsorsTab({
         ) : (
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             onClick={() => setShowAdd(true)}
           >
             + Add sponsor

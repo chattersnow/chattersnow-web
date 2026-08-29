@@ -73,7 +73,7 @@ export function ServiceSelect({
       {!showCreate ? (
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
           size="sm"
           className="self-start"
           onClick={() => setShowCreate(true)}
@@ -109,7 +109,7 @@ export function ServiceSelect({
             <div className="flex justify-end gap-2">
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 onClick={() => setShowCreate(false)}
               >
                 Cancel

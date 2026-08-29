@@ -169,7 +169,7 @@ export function RelatedItemsTab({
                   </div>
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     disabled={isPending}
                     onClick={() => handleLink(candidate)}

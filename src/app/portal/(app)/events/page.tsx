@@ -196,10 +196,21 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-          Events
-        </h1>
+      <div className="rainbow-accent w-16" />
+      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+        Events
+      </h1>
+
+      {eventIdParam && (
+        <div className="mt-6 flex items-center justify-between gap-3 rounded-lg border border-[var(--line)] bg-[var(--purple-soft)]/40 px-4 py-2 text-sm">
+          <span>Showing a single event from a check-in link.</span>
+          <Link href="/portal/events" className="font-medium underline">
+            View all events
+          </Link>
+        </div>
+      )}
+
+      <div className="rainbow-surface mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
         <div className="flex items-center gap-2">
           <HowToSheet title="How status and visibility work">
             <HowToSection heading="Steps">
@@ -256,18 +267,7 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
           </HowToSheet>
           {canManage && <NewEventDialog programs={programs} />}
         </div>
-      </div>
 
-      {eventIdParam && (
-        <div className="mt-6 flex items-center justify-between gap-3 rounded-lg border border-[var(--line)] bg-[var(--purple-soft)]/40 px-4 py-2 text-sm">
-          <span>Showing a single event from a check-in link.</span>
-          <Link href="/portal/events" className="font-medium underline">
-            View all events
-          </Link>
-        </div>
-      )}
-
-      <div className="mt-6 flex justify-end">
         <FiltersSheet activeCount={activeFilterCount}>
           <form method="get" className="flex flex-col gap-4">
             <input type="hidden" name="sort" value={sort} />
@@ -334,7 +334,7 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <Button type="submit" variant="outline">
+              <Button type="submit" variant="secondary">
                 Filter
               </Button>
               {hasActiveFilters && (

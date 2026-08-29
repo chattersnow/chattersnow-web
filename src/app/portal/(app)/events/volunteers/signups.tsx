@@ -163,7 +163,7 @@ export function AddVolunteerForm({
         )}
 
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onCancel}>
+          <Button type="button" variant="secondary" onClick={onCancel}>
             Cancel
           </Button>
           <Button type="submit" disabled={isPending}>
@@ -309,7 +309,7 @@ export function SignupsSection({
         ) : (
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             className="self-start"
             onClick={() => onToggleAddVolunteer(true)}
           >

@@ -91,11 +91,12 @@ export default async function InventoryDonationsPage({
 
   return (
     <>
+      <div className="rainbow-accent w-16" />
       <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
         Donations
       </h1>
 
-      <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
+      <div className="rainbow-surface mt-6 flex flex-wrap items-center justify-end gap-2 rounded-xl border border-[var(--line)] p-4 shadow-md">
         <FiltersSheet activeCount={activeFilterCount}>
           <form method="get" className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
@@ -158,7 +159,7 @@ export default async function InventoryDonationsPage({
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <Button type="submit" variant="outline">
+              <Button type="submit" variant="secondary">
                 Filter
               </Button>
               {hasActiveFilters && (

@@ -39,7 +39,7 @@ export function NotificationsMenu({ items }: { items: PendingApprovalItem[] }) {
           {totalCount}
         </Badge>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" className="w-80">
         <DropdownMenuGroup>
           <DropdownMenuLabel>Needs your attention</DropdownMenuLabel>
           {items.map((item) => (

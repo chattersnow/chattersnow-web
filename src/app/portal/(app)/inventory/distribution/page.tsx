@@ -7,6 +7,7 @@ import { listDistributionsAction } from "../../home/distribution-actions";
 import { RecordDistributionModal } from "../../home/record-distribution-modal";
 import { HowToSection, HowToSheet } from "@/components/how-to-sheet";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -33,10 +34,21 @@ export default async function DistributionPage() {
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-          Distribution
-        </h1>
+      <div className="rainbow-accent w-16" />
+      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+        Distribution
+      </h1>
+
+      <div className="rainbow-surface mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+        {canRecord ? (
+          <RecordDistributionModal
+            triggerLabel="Record distribution"
+            showRecipientField
+          />
+        ) : (
+          <div />
+        )}
+
         <HowToSheet title="How distribution works">
           <HowToSection heading="Steps">
             <ol className="list-decimal space-y-2 pl-4">
@@ -94,69 +106,72 @@ export default async function DistributionPage() {
         </HowToSheet>
       </div>
 
-      <div className="mt-6 flex flex-col gap-4">
-        {canRecord && (
-          <RecordDistributionModal
-            triggerLabel="Record distribution"
-            showRecipientField
-          />
-        )}
-
+      <div className="mt-6">
         {"error" in result ? (
           <Alert variant="destructive">
             <AlertDescription>{result.error}</AlertDescription>
           </Alert>
-        ) : result.data.length === 0 ? (
-          <p className="app-muted text-sm">No distributions recorded yet.</p>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Item</TableHead>
-                <TableHead>Qty</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Event</TableHead>
-                <TableHead>Recipient</TableHead>
-                <TableHead>Reason</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {result.data.map((movement) => (
-                <TableRow key={movement.id}>
-                  <TableCell className="max-w-xs font-medium">
-                    <span
-                      className="block truncate"
-                      title={movement.inventory_item?.description ?? undefined}
-                    >
-                      {movement.inventory_item?.description ?? "—"}
-                    </span>
-                    <span className="app-muted block text-xs">
-                      {movement.inventory_item?.type}
-                    </span>
-                  </TableCell>
-                  <TableCell>{movement.quantity}</TableCell>
-                  <TableCell className="app-muted">
-                    {dateFormatter.format(new Date(movement.occurred_at))}
-                  </TableCell>
-                  <TableCell
-                    className="max-w-xs truncate app-muted"
-                    title={movement.event?.name ?? undefined}
-                  >
-                    {movement.event?.name ?? "—"}
-                  </TableCell>
-                  <TableCell
-                    className="max-w-xs truncate app-muted"
-                    title={movement.recipient?.name ?? undefined}
-                  >
-                    {movement.recipient?.name ?? "—"}
-                  </TableCell>
-                  <TableCell className="app-muted">
-                    {movement.reason || "—"}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <Card>
+            <CardContent className="px-0">
+              {result.data.length === 0 ? (
+                <p className="app-muted px-4 py-6 text-sm">
+                  No distributions recorded yet.
+                </p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Item</TableHead>
+                      <TableHead>Qty</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Event</TableHead>
+                      <TableHead>Recipient</TableHead>
+                      <TableHead>Reason</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {result.data.map((movement) => (
+                      <TableRow key={movement.id}>
+                        <TableCell className="max-w-xs font-medium">
+                          <span
+                            className="block truncate"
+                            title={
+                              movement.inventory_item?.description ?? undefined
+                            }
+                          >
+                            {movement.inventory_item?.description ?? "—"}
+                          </span>
+                          <span className="app-muted block text-xs">
+                            {movement.inventory_item?.type}
+                          </span>
+                        </TableCell>
+                        <TableCell>{movement.quantity}</TableCell>
+                        <TableCell className="app-muted">
+                          {dateFormatter.format(new Date(movement.occurred_at))}
+                        </TableCell>
+                        <TableCell
+                          className="max-w-xs truncate app-muted"
+                          title={movement.event?.name ?? undefined}
+                        >
+                          {movement.event?.name ?? "—"}
+                        </TableCell>
+                        <TableCell
+                          className="max-w-xs truncate app-muted"
+                          title={movement.recipient?.name ?? undefined}
+                        >
+                          {movement.recipient?.name ?? "—"}
+                        </TableCell>
+                        <TableCell className="app-muted">
+                          {movement.reason || "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
         )}
       </div>
     </>

@@ -29,7 +29,7 @@ export function AuditLogFilterForm({
   ].filter(Boolean).length;
 
   return (
-    <div className="mt-6 flex justify-end">
+    <div className="rainbow-surface mt-6 flex justify-end rounded-xl border border-[var(--line)] p-4 shadow-md">
       <FiltersSheet activeCount={activeFilterCount}>
         <form method="get" className="flex flex-col gap-4">
           <input type="hidden" name="sort" value={filters.sort} />
@@ -134,7 +134,7 @@ export function AuditLogFilterForm({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="submit" variant="outline">
+            <Button type="submit" variant="secondary">
               Filter
             </Button>
             {hasActiveFilters && (

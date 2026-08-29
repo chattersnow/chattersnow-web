@@ -145,7 +145,7 @@ function AddResolutionForm({
         )}
 
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onCancel}>
+          <Button type="button" variant="secondary" onClick={onCancel}>
             Cancel
           </Button>
           <Button type="submit" disabled={isPending}>
@@ -399,21 +399,23 @@ export function ResolutionsTab({
           <AddResolutionForm
             people={people}
             onPersonCreated={handlePersonCreated}
-            onSubmit={(moverPersonId, seconderPersonId, formData) =>
-              createResolutionAction(
+            onSubmit={async (moverPersonId, seconderPersonId, formData) => {
+              const result = await createResolutionAction(
                 meetingId,
                 moverPersonId,
                 seconderPersonId,
                 formData,
-              )
-            }
+              );
+              if (!("error" in result)) refresh();
+              return result;
+            }}
             onCancel={() => setShowAdd(false)}
           />
         ) : (
           <div>
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               onClick={() => setShowAdd(true)}
             >
               + Add resolution

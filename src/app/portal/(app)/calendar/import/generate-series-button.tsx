@@ -26,7 +26,7 @@ export function GenerateSeriesButton({ itemId }: { itemId: string }) {
     <div className="flex flex-col items-end gap-1">
       <Button
         type="button"
-        variant="outline"
+        variant="secondary"
         size="sm"
         onClick={handleGenerate}
         disabled={isPending}

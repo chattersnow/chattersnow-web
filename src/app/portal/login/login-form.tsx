@@ -72,7 +72,7 @@ export function LoginForm() {
     <>
       <Button
         type="button"
-        variant="outline"
+        variant="secondary"
         onClick={handleGoogleSignIn}
         disabled={isGoogleSubmitting || isSubmitting}
         className="w-full"

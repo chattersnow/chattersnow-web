@@ -50,7 +50,7 @@ export function AttentionTile({
         </p>
         <p className="app-muted mt-2 text-sm">Awaiting your review</p>
         <Button
-          variant="outline"
+          variant="secondary"
           size="sm"
           className="mt-3"
           nativeButton={false}

@@ -135,7 +135,7 @@ function AddActionItemForm({
         )}
 
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onCancel}>
+          <Button type="button" variant="secondary" onClick={onCancel}>
             Cancel
           </Button>
           <Button type="submit" disabled={isPending}>
@@ -387,16 +387,22 @@ export function ActionItemsTab({
           <AddActionItemForm
             people={people}
             onPersonCreated={handlePersonCreated}
-            onSubmit={(ownerPersonId, formData) =>
-              createActionItemAction(meetingId, ownerPersonId, formData)
-            }
+            onSubmit={async (ownerPersonId, formData) => {
+              const result = await createActionItemAction(
+                meetingId,
+                ownerPersonId,
+                formData,
+              );
+              if (!("error" in result)) refresh();
+              return result;
+            }}
             onCancel={() => setShowAdd(false)}
           />
         ) : (
           <div>
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               onClick={() => setShowAdd(true)}
             >
               + Add action item

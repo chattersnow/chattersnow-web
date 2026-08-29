@@ -22,6 +22,7 @@ export default async function MeetingsPage() {
 
   return (
     <>
+      <div className="rainbow-accent w-16" />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
           Meetings

@@ -23,6 +23,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { getContentWorkSummary } from "./home/queries";
 import { LogoutButton } from "./logout-button";
 import { NotificationsMenu } from "./notifications-menu";
 import { PortalNav } from "./portal-nav";
@@ -85,6 +86,18 @@ export default async function PortalAppLayout({
         })
       : { items: [] };
 
+  const canSeeContentCalendar = hasPermission(
+    permissions,
+    "content_calendar",
+    "view",
+  );
+  const contentWork = canSeeContentCalendar
+    ? await getContentWorkSummary(supabase, {
+        canSeeContentCalendar,
+        userId: user.id,
+      })
+    : { items: [] };
+
   const canManageContentCalendar = hasPermission(
     permissions,
     "content_calendar",
@@ -107,6 +120,7 @@ export default async function PortalAppLayout({
 
   const attentionItems = [
     ...pendingApprovals.items,
+    ...contentWork.items,
     ...opsInbox.items,
     ...calendarCoverageReminder.items,
     ...accessManagementAlerts.items,
@@ -138,8 +152,8 @@ export default async function PortalAppLayout({
                 className="size-8 shrink-0"
                 priority
               />
-              <span className="app-muted min-w-0 truncate text-xs font-semibold uppercase tracking-[0.16em] group-data-[collapsible=icon]:hidden">
-                Operations portal
+              <span className="app-muted min-w-0 truncate text-sm font-semibold uppercase tracking-[0.14em] group-data-[collapsible=icon]:hidden">
+                Chatter Snow
               </span>
             </Link>
           </SidebarHeader>
@@ -154,21 +168,14 @@ export default async function PortalAppLayout({
         <SidebarInset>
           <header className="flex items-center gap-3 border-b border-[var(--line)] px-6 py-4 sm:px-10">
             <SidebarTrigger />
-            <Link href="/portal/home" className="flex items-center gap-2">
-              <Image
-                src="/chatter-logo-transparent.png"
-                alt="Chatter Snow"
-                width={28}
-                height={28}
-                className="size-7"
-              />
-              <span className="app-muted hidden text-xs font-semibold uppercase tracking-[0.16em] sm:inline">
-                Operations portal
+            <Link href="/portal/home" className="flex items-center">
+              <span className="app-muted hidden text-sm font-semibold uppercase tracking-[0.14em] sm:inline">
+                Operations Portal
               </span>
             </Link>
             <div className="ml-auto flex items-center gap-3">
               {displayName && (
-                <span className="app-muted hidden max-w-40 truncate text-sm sm:inline">
+                <span className="hidden max-w-40 truncate text-sm text-foreground sm:inline">
                   Hi, {displayName}
                 </span>
               )}

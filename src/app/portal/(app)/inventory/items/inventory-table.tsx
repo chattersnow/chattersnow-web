@@ -1,14 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import {
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
-  LayoutGrid,
-  List,
-} from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -18,10 +11,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { buildHref } from "@/lib/pagination";
 import { EditInventoryModal } from "./edit-inventory-modal";
 import { InventoryCard } from "./inventory-card";
+import { useInventoryView } from "./inventory-view-context";
 import {
   CONDITIONS,
   GENDERS,
@@ -32,22 +25,6 @@ import {
   type InventoryItem,
   type SortColumn,
 } from "./inventory-shared";
-
-const INVENTORY_VIEW_STORAGE_KEY = "chattersnow:inventory-items-view";
-
-function isViewMode(value: unknown): value is "list" | "gallery" {
-  return value === "list" || value === "gallery";
-}
-
-function readStoredView(): "list" | "gallery" {
-  if (typeof window === "undefined") return "list";
-  try {
-    const stored = window.localStorage.getItem(INVENTORY_VIEW_STORAGE_KEY);
-    return isViewMode(stored) ? stored : "list";
-  } catch {
-    return "list";
-  }
-}
 
 export function InventoryTable({
   items,
@@ -62,7 +39,7 @@ export function InventoryTable({
   filterQueryString: string;
   hasActiveFilters: boolean;
 }) {
-  const [view, setView] = useState<"list" | "gallery">(readStoredView);
+  const { view } = useInventoryView();
 
   function sortHref(column: SortColumn) {
     const nextDir = sort === column && dir === "asc" ? "desc" : "asc";
@@ -71,15 +48,6 @@ export function InventoryTable({
       new URLSearchParams(filterQueryString),
       { sort: column, dir: nextDir },
     );
-  }
-
-  function setViewAndPersist(next: "list" | "gallery") {
-    setView(next);
-    try {
-      window.localStorage.setItem(INVENTORY_VIEW_STORAGE_KEY, next);
-    } catch {
-      // ignore storage failures (private browsing, disabled storage, etc.)
-    }
   }
 
   if (items.length === 0) {
@@ -100,37 +68,6 @@ export function InventoryTable({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <div className="flex flex-col gap-1">
-          <span className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
-            View
-          </span>
-          <ToggleGroup
-            value={[view]}
-            onValueChange={(value) => {
-              if (value[0]) setViewAndPersist(value[0] as "list" | "gallery");
-            }}
-            variant="outline"
-            className="h-8"
-          >
-            <ToggleGroupItem
-              value="list"
-              aria-label="List view"
-              className="h-8 px-2.5"
-            >
-              <List className="size-4" />
-            </ToggleGroupItem>
-            <ToggleGroupItem
-              value="gallery"
-              aria-label="Gallery view"
-              className="h-8 px-2.5"
-            >
-              <LayoutGrid className="size-4" />
-            </ToggleGroupItem>
-          </ToggleGroup>
-        </div>
-      </div>
-
       {view === "gallery" ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {items.map((item) => (

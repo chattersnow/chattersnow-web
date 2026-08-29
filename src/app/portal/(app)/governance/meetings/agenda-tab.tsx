@@ -24,6 +24,11 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { DatedListEditor } from "@/components/dated-list-editor";
 import { FreeformListEditor } from "@/components/freeform-list-editor";
 import {
@@ -43,6 +48,31 @@ const OPENING_CHECKLIST = [
   "Approve previous meeting minutes",
   "Review agenda",
 ];
+
+function OngoingTopicsTooltip({ topics }: { topics: string[] }) {
+  if (topics.length === 0) return null;
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            className="app-muted mt-1 text-xs underline decoration-dotted underline-offset-2"
+          />
+        }
+      >
+        {topics.length} reference topic{topics.length === 1 ? "" : "s"}
+      </TooltipTrigger>
+      <TooltipContent side="bottom" align="start">
+        <ul className="list-disc pl-4">
+          {topics.map((topic) => (
+            <li key={topic}>{topic}</li>
+          ))}
+        </ul>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -216,13 +246,7 @@ function AgendaForm({
                   className="rounded-md border border-[var(--line)] p-3"
                 >
                   <p className="text-sm font-semibold">{section.label}</p>
-                  {section.topics.length > 0 && (
-                    <ul className="app-muted mt-1 list-disc pl-5 text-sm">
-                      {section.topics.map((topic) => (
-                        <li key={topic}>{topic}</li>
-                      ))}
-                    </ul>
-                  )}
+                  <OngoingTopicsTooltip topics={section.topics} />
                   <div className="mt-3 flex flex-col gap-3">
                     <Field>
                       <FieldLabel htmlFor={`agenda-updates-${section.key}`}>
@@ -316,7 +340,7 @@ function AgendaForm({
         )}
 
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onCancel}>
+          <Button type="button" variant="secondary" onClick={onCancel}>
             Cancel
           </Button>
           <Button type="submit" disabled={isPending}>
@@ -477,13 +501,7 @@ export function AgendaTab({
                       className="rounded-md border border-[var(--line)] p-3"
                     >
                       <p className="text-sm font-semibold">{section.label}</p>
-                      {section.topics.length > 0 && (
-                        <ul className="app-muted mt-1 list-disc pl-5 text-sm">
-                          {section.topics.map((topic) => (
-                            <li key={topic}>{topic}</li>
-                          ))}
-                        </ul>
-                      )}
+                      <OngoingTopicsTooltip topics={section.topics} />
                       <div className="mt-2 grid gap-2 sm:grid-cols-2">
                         <div>
                           <p className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">

@@ -115,7 +115,12 @@ export function CsvImportPanel() {
           onChange={(event) => setCsvText(event.target.value)}
           placeholder="title,item_type,starts_at,ends_at,time_zone,recurrence_rule,priority_tier,category,region"
         />
-        <Button type="button" variant="outline" size="sm" onClick={handleParse}>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={handleParse}
+        >
           Parse
         </Button>
       </Field>

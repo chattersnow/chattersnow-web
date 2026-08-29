@@ -73,7 +73,7 @@ export function PersonPicker({
         </div>
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
           size="sm"
           onClick={() => {
             onSelect(null);
@@ -139,7 +139,7 @@ export function PersonPicker({
       {!allowCreate ? null : !showCreate ? (
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
           size="sm"
           className="self-start"
           onClick={() => setShowCreate(true)}
@@ -164,7 +164,7 @@ export function PersonPicker({
             <div className="flex justify-end gap-2">
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 onClick={() => setShowCreate(false)}
               >
                 Cancel

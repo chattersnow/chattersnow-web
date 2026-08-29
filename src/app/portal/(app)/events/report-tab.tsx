@@ -143,7 +143,7 @@ export function ReportTab({
         {event.report_status !== "submitted" && (
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             className="self-start"
             onClick={handleSubmitReport}
             disabled={isSubmitting}
@@ -225,7 +225,7 @@ export function ReportTab({
         {event.report_status !== "submitted" && (
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             className="self-start"
             onClick={handleSubmitReport}
             disabled={isSubmitting}

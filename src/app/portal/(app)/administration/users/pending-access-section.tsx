@@ -225,7 +225,7 @@ export function PendingAccessSection({
                           <Button
                             type="button"
                             size="sm"
-                            variant="outline"
+                            variant="secondary"
                             disabled={isPending}
                             onClick={() => handleInvite(grant)}
                           >
@@ -234,7 +234,7 @@ export function PendingAccessSection({
                           <Button
                             type="button"
                             size="sm"
-                            variant="outline"
+                            variant="secondary"
                             disabled={isPending}
                             onClick={() => setRevokeTarget(grant)}
                           >

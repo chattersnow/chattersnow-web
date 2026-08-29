@@ -290,7 +290,7 @@ export function ContentOpportunityTab({
         {toneGuidanceBanner}
         <p className="app-muted text-sm">No content brief yet for this item.</p>
         {canManage && (
-          <Button type="button" variant="outline" onClick={startEditing}>
+          <Button type="button" variant="secondary" onClick={startEditing}>
             Start content brief
           </Button>
         )}
@@ -465,7 +465,7 @@ export function ContentOpportunityTab({
                       {canManage && (
                         <Button
                           type="button"
-                          variant="outline"
+                          variant="secondary"
                           size="sm"
                           className="self-start"
                           onClick={startEditingConsent}
@@ -785,7 +785,7 @@ export function ContentOpportunityTab({
             <div>
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={applyLeadTimeDefaults}
               >
