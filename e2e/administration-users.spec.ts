@@ -91,14 +91,15 @@ test.describe("portal administration users", () => {
   test("stages pending access, generates an invite link, and revokes it", async ({
     page,
   }) => {
-    // Generating the invite link is a round trip through Supabase's admin
-    // API, which is slower than the rest of this page's actions.
-    test.slow();
+    // By far the heaviest test here: five server round trips (stage, invite,
+    // resend-label refresh, revoke, reload), each re-running the page's three
+    // server actions, against a dev server shared with the other Playwright
+    // project. Budget for that rather than shave the assertions.
+    test.setTimeout(180_000);
 
     // Staged against an address with no account behind it -- the plain
     // invite path. Supabase creates the (unconfirmed) account as a side
     // effect of generating the link, which `invite.cleanup` removes.
-
     const admin = createAdminClient();
     const invite = await seedInviteEmail(admin);
 
@@ -122,7 +123,7 @@ test.describe("portal administration users", () => {
       await page.getByRole("button", { name: "Stage access" }).click();
 
       const grantRow = page.getByRole("row").filter({ hasText: invite.email });
-      await expect(grantRow).toBeVisible({ timeout: 15_000 });
+      await expect(grantRow).toBeVisible({ timeout: 30_000 });
       await expect(grantRow).toContainText("Volunteer");
       await expect(grantRow).toContainText("Pending");
 
@@ -132,9 +133,13 @@ test.describe("portal administration users", () => {
       // labelled "Resend link".
       const inviteDialog = page.getByRole("dialog");
       await expect(async () => {
-        await grantRow
-          .getByRole("button", { name: /^(Invite|Resend link)$/ })
-          .click();
+        // Guarded so a retry triggered by a slow (but successful) generation
+        // doesn't click again through the dialog it already opened.
+        if (!(await inviteDialog.isVisible())) {
+          await grantRow
+            .getByRole("button", { name: /^(Invite|Resend link)$/ })
+            .click();
+        }
         await expect(inviteDialog).toBeVisible({ timeout: 5_000 });
       }).toPass({ timeout: 45_000 });
 
@@ -147,7 +152,7 @@ test.describe("portal administration users", () => {
 
       await expect(
         grantRow.getByRole("button", { name: "Resend link" }),
-      ).toBeVisible({ timeout: 15_000 });
+      ).toBeVisible({ timeout: 30_000 });
 
       await grantRow.getByRole("button", { name: "Revoke" }).click();
       const confirm = page.getByRole("alertdialog");
@@ -159,7 +164,7 @@ test.describe("portal administration users", () => {
       // section replaced by its "could not load" card, so the row is gone
       // rather than merely stale.
       await reloadStayingSignedIn(page);
-      await expect(grantRow).toContainText("Revoked", { timeout: 15_000 });
+      await expect(grantRow).toContainText("Revoked", { timeout: 30_000 });
     } finally {
       await invite.cleanup();
     }
