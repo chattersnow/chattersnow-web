@@ -119,11 +119,21 @@ test.describe("portal governance board, meetings, and resolutions", () => {
       await expect(row).toBeVisible({ timeout: 15_000 });
       await expect(row).toContainText("scheduled");
 
-      await row.getByRole("button", { name: "View meeting details" }).click();
-      const sheet = page.getByRole("dialog");
-      await expect(sheet.getByText(location)).toBeVisible();
+      await row.getByRole("button", { name: "View meeting on" }).click();
+      await expect(page).toHaveURL(/\/portal\/governance\/meetings\/[^/]+$/, {
+        timeout: 15_000,
+      });
+      // The detail page's sections are flat and always visible (no dialog
+      // to scope into), so assert straight against the page.
+      await expect(page.getByText(location)).toBeVisible({
+        timeout: 15_000,
+      });
 
-      // Every tab in the details sheet shares one view/edit mode, and the
+      // Editing still happens in a sheet, opened from the detail page.
+      await page.getByRole("button", { name: "Edit", exact: true }).click();
+      const sheet = page.getByRole("dialog");
+
+      // Every tab in the sheet shares one view/edit mode, and the
       // sub-record tabs only offer their add controls while it's edit. The
       // Overview form's submit button only exists in edit mode, so it's the
       // signal that the switch landed before the tabs are touched.
@@ -180,10 +190,13 @@ test.describe("portal governance board, meetings, and resolutions", () => {
         sheet.getByRole("button", { name: "Edit meeting" }),
       ).toBeVisible({ timeout: 15_000 });
 
+      // Reload the detail page (not the list -- #462 moved this flow off
+      // it) to prove the status update round-tripped to the database.
       await reloadStayingSignedIn(page);
-      await expect(
-        page.getByRole("row").filter({ hasText: location }),
-      ).toContainText("completed", { timeout: 15_000 });
+      await expect(page.locator("#meeting-status-view")).toContainText(
+        "completed",
+        { timeout: 15_000 },
+      );
     } finally {
       // governance_meeting_action_items cascades from the meeting.
       await admin.from("governance_meetings").delete().eq("location", location);
