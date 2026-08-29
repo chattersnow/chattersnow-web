@@ -94,7 +94,7 @@ export function EditAssetSheet({
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
-      <SheetTrigger render={<Button type="button" variant="outline" />}>
+      <SheetTrigger render={<Button type="button" variant="secondary" />}>
         <Pencil /> Edit
       </SheetTrigger>
       <SheetContent side="right" className="sm:max-w-lg">

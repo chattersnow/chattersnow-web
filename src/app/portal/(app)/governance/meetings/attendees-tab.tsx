@@ -99,7 +99,7 @@ function AddAttendeeForm({
         )}
 
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onCancel}>
+          <Button type="button" variant="secondary" onClick={onCancel}>
             Cancel
           </Button>
           <Button type="submit" disabled={isPending}>
@@ -217,16 +217,22 @@ export function AttendeesTab({
           <AddAttendeeForm
             people={people}
             onPersonCreated={handlePersonCreated}
-            onSubmit={(personId, attended) =>
-              createMeetingAttendeeAction(meetingId, personId, attended)
-            }
+            onSubmit={async (personId, attended) => {
+              const result = await createMeetingAttendeeAction(
+                meetingId,
+                personId,
+                attended,
+              );
+              if (!("error" in result)) refresh();
+              return result;
+            }}
             onCancel={() => setShowAdd(false)}
           />
         ) : (
           <div>
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               onClick={() => setShowAdd(true)}
             >
               + Add attendee

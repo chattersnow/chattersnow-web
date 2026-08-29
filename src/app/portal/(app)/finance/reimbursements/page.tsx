@@ -171,6 +171,7 @@ export default async function ReimbursementsPage({
 
   return (
     <>
+      <div className="rainbow-accent w-16" />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
           Reimbursements
@@ -267,7 +268,7 @@ export default async function ReimbursementsPage({
       </div>
 
       <div className="mt-6 space-y-4">
-        <div className="flex justify-end">
+        <div className="rainbow-surface flex justify-end rounded-xl border border-[var(--line)] p-4 shadow-md">
           <FiltersSheet activeCount={activeFilterCount}>
             <form method="get" className="flex flex-col gap-4">
               <input type="hidden" name="sort" value={sort} />
@@ -334,7 +335,7 @@ export default async function ReimbursementsPage({
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <Button type="submit" variant="outline">
+                <Button type="submit" variant="secondary">
                   Filter
                 </Button>
                 {hasActiveFilters && (

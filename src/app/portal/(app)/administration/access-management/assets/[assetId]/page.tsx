@@ -51,6 +51,7 @@ export default async function AssetDetailPage({
 
   return (
     <>
+      <div className="rainbow-accent w-16" />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">

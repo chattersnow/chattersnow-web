@@ -49,7 +49,7 @@ export function ReviewAssetButton({
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger render={<Button type="button" variant="outline" />}>
+      <AlertDialogTrigger render={<Button type="button" variant="secondary" />}>
         Record review
       </AlertDialogTrigger>
       <AlertDialogContent>

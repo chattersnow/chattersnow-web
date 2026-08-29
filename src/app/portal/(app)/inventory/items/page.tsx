@@ -12,6 +12,8 @@ import {
   totalPagesFor,
 } from "@/lib/pagination";
 import { InventoryTable } from "./inventory-table";
+import { InventoryViewProvider } from "./inventory-view-context";
+import { InventoryViewToggle } from "./inventory-view-toggle";
 import {
   CONDITIONS,
   STATUSES,
@@ -141,124 +143,129 @@ export default async function InventoryPage({
 
   return (
     <>
+      <div className="rainbow-accent w-16" />
       <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
         Inventory
       </h1>
 
-      <div className="mt-6 flex justify-end">
-        <FiltersSheet activeCount={activeFilterCount}>
-          <form method="get" className="flex flex-col gap-4">
-            <input type="hidden" name="sort" value={sort} />
-            <input type="hidden" name="dir" value={dir} />
+      <InventoryViewProvider>
+        <div className="rainbow-surface mt-6 flex flex-wrap items-end justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+          <InventoryViewToggle />
 
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor="search"
-                className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-              >
-                Search
-              </label>
-              <Input
-                id="search"
-                name="search"
-                placeholder="Search description..."
-                defaultValue={search}
-              />
-            </div>
+          <FiltersSheet activeCount={activeFilterCount}>
+            <form method="get" className="flex flex-col gap-4">
+              <input type="hidden" name="sort" value={sort} />
+              <input type="hidden" name="dir" value={dir} />
 
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor="type"
-                className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-              >
-                Type
-              </label>
-              <select
-                id="type"
-                name="type"
-                defaultValue={typeFilter}
-                className={selectClassName}
-              >
-                <option value="all">All types</option>
-                {typeOptions.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor="condition"
-                className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-              >
-                Condition
-              </label>
-              <select
-                id="condition"
-                name="condition"
-                defaultValue={conditionFilter}
-                className={selectClassName}
-              >
-                <option value="all">All conditions</option>
-                {CONDITIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor="status"
-                className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-              >
-                Status
-              </label>
-              <select
-                id="status"
-                name="status"
-                defaultValue={statusFilter}
-                className={selectClassName}
-              >
-                <option value="all">All statuses</option>
-                {STATUSES.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Button type="submit" variant="outline">
-                Filter
-              </Button>
-              {hasActiveFilters && (
-                <Button
-                  variant="ghost"
-                  nativeButton={false}
-                  render={<Link href="/portal/inventory/items" />}
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor="search"
+                  className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
                 >
-                  Clear
-                </Button>
-              )}
-            </div>
-          </form>
-        </FiltersSheet>
-      </div>
+                  Search
+                </label>
+                <Input
+                  id="search"
+                  name="search"
+                  placeholder="Search description..."
+                  defaultValue={search}
+                />
+              </div>
 
-      <div className="mt-6">
-        <InventoryTable
-          items={itemsWithHolds}
-          sort={sort}
-          dir={dir}
-          filterQueryString={filterParams.toString()}
-          hasActiveFilters={hasActiveFilters}
-        />
-      </div>
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor="type"
+                  className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+                >
+                  Type
+                </label>
+                <select
+                  id="type"
+                  name="type"
+                  defaultValue={typeFilter}
+                  className={selectClassName}
+                >
+                  <option value="all">All types</option>
+                  {typeOptions.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor="condition"
+                  className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+                >
+                  Condition
+                </label>
+                <select
+                  id="condition"
+                  name="condition"
+                  defaultValue={conditionFilter}
+                  className={selectClassName}
+                >
+                  <option value="all">All conditions</option>
+                  {CONDITIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor="status"
+                  className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+                >
+                  Status
+                </label>
+                <select
+                  id="status"
+                  name="status"
+                  defaultValue={statusFilter}
+                  className={selectClassName}
+                >
+                  <option value="all">All statuses</option>
+                  {STATUSES.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="submit" variant="secondary">
+                  Filter
+                </Button>
+                {hasActiveFilters && (
+                  <Button
+                    variant="ghost"
+                    nativeButton={false}
+                    render={<Link href="/portal/inventory/items" />}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+            </form>
+          </FiltersSheet>
+        </div>
+
+        <div className="mt-6">
+          <InventoryTable
+            items={itemsWithHolds}
+            sort={sort}
+            dir={dir}
+            filterQueryString={filterParams.toString()}
+            hasActiveFilters={hasActiveFilters}
+          />
+        </div>
+      </InventoryViewProvider>
 
       {itemsWithHolds.length > 0 && (
         <Pagination page={page} totalPages={totalPages} hrefFor={pageHref} />

@@ -115,10 +115,55 @@ export default async function WorkQueuePage({
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-          Work queue
-        </h1>
+      <div className="rainbow-accent w-16" />
+      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+        Work queue
+      </h1>
+
+      <div className="rainbow-surface mt-6 flex flex-wrap items-end justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex gap-1 rounded-lg border border-input p-1">
+            <Button
+              type="button"
+              size="sm"
+              variant={tab === "my-work" ? "default" : "ghost"}
+              nativeButton={false}
+              render={<Link href={tabHref("my-work")} />}
+            >
+              My work
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={tab === "queue" ? "default" : "ghost"}
+              nativeButton={false}
+              render={<Link href={tabHref("queue")} />}
+            >
+              Upcoming queue
+            </Button>
+          </div>
+
+          {tab === "queue" && (
+            <Button
+              type="button"
+              size="sm"
+              variant={overdueOnly ? "default" : "secondary"}
+              nativeButton={false}
+              render={
+                <Link
+                  href={
+                    overdueOnly
+                      ? "/portal/calendar/work-queue?tab=queue"
+                      : "/portal/calendar/work-queue?tab=queue&filter=overdue"
+                  }
+                />
+              }
+            >
+              Overdue only
+            </Button>
+          )}
+        </div>
+
         <HowToSheet title="How the work queue works">
           <HowToSection heading="Steps">
             <ol className="list-decimal space-y-2 pl-4">
@@ -178,49 +223,6 @@ export default async function WorkQueuePage({
             </ul>
           </HowToSection>
         </HowToSheet>
-      </div>
-
-      <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
-        <div className="flex gap-1 rounded-lg border border-input p-1">
-          <Button
-            type="button"
-            size="sm"
-            variant={tab === "my-work" ? "default" : "ghost"}
-            nativeButton={false}
-            render={<Link href={tabHref("my-work")} />}
-          >
-            My work
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant={tab === "queue" ? "default" : "ghost"}
-            nativeButton={false}
-            render={<Link href={tabHref("queue")} />}
-          >
-            Upcoming queue
-          </Button>
-        </div>
-
-        {tab === "queue" && (
-          <Button
-            type="button"
-            size="sm"
-            variant={overdueOnly ? "default" : "outline"}
-            nativeButton={false}
-            render={
-              <Link
-                href={
-                  overdueOnly
-                    ? "/portal/calendar/work-queue?tab=queue"
-                    : "/portal/calendar/work-queue?tab=queue&filter=overdue"
-                }
-              />
-            }
-          >
-            Overdue only
-          </Button>
-        )}
       </div>
 
       {tab === "my-work" ? (

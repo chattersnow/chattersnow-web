@@ -115,6 +115,7 @@ export default async function CalendarAnnualReviewPage({
 
   return (
     <>
+      <div className="rainbow-accent w-16" />
       <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
         Annual Planning Review
       </h1>
@@ -124,7 +125,7 @@ export default async function CalendarAnnualReviewPage({
         and recorded publication permissions.
       </p>
 
-      <div className="mt-6 flex flex-wrap items-end justify-end gap-3">
+      <div className="rainbow-surface mt-6 flex flex-wrap items-end justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
         <form method="get" className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1">
             <label
@@ -146,7 +147,7 @@ export default async function CalendarAnnualReviewPage({
               ))}
             </select>
           </div>
-          <Button type="submit" variant="outline">
+          <Button type="submit" variant="secondary">
             View
           </Button>
         </form>

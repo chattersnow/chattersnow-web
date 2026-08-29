@@ -86,7 +86,7 @@ export function DashboardAttentionRow({
           {count}
         </p>
         <Button
-          variant="outline"
+          variant="secondary"
           size="sm"
           nativeButton={false}
           render={<Link href={href} />}

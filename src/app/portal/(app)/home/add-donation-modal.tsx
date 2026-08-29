@@ -515,7 +515,7 @@ export function AddDonationModal({
                   </FieldGroup>
                 ))}
 
-                <Button type="button" variant="outline" onClick={addItem}>
+                <Button type="button" variant="secondary" onClick={addItem}>
                   + Add another item
                 </Button>
 
@@ -538,7 +538,7 @@ export function AddDonationModal({
             <>
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 onClick={() => setStep("donor")}
               >
                 Back

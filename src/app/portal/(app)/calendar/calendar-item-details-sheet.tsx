@@ -615,7 +615,7 @@ export function CalendarItemDetailsSheet({
                               canManage && (
                                 <Button
                                   type="button"
-                                  variant="outline"
+                                  variant="secondary"
                                   size="sm"
                                   className="self-start"
                                   disabled={isPending}
@@ -1114,7 +1114,7 @@ export function CalendarItemDetailsSheet({
                     {item.calendar_status === "archived" ? (
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="secondary"
                         disabled={isPending}
                         onClick={handleRestore}
                       >
@@ -1123,7 +1123,7 @@ export function CalendarItemDetailsSheet({
                     ) : (
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="secondary"
                         disabled={isPending}
                         onClick={handleArchive}
                       >

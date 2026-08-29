@@ -101,6 +101,7 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
 
   return (
     <>
+      <div className="rainbow-accent w-16" />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
           People
@@ -109,7 +110,7 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
       </div>
 
       <div className="mt-6 space-y-4">
-        <div className="flex justify-end">
+        <div className="rainbow-surface flex justify-end rounded-xl border border-[var(--line)] p-4 shadow-md">
           <FiltersSheet activeCount={activeFilterCount}>
             <form method="get" className="flex flex-col gap-4">
               <div className="flex flex-col gap-1">
@@ -150,7 +151,7 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <Button type="submit" variant="outline">
+                <Button type="submit" variant="secondary">
                   Filter
                 </Button>
                 {hasActiveFilters && (

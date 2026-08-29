@@ -124,7 +124,7 @@ export function TemplateFieldsEditor({
 
       <Button
         type="button"
-        variant="outline"
+        variant="secondary"
         size="sm"
         className="self-start"
         onClick={addField}

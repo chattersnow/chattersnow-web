@@ -222,6 +222,7 @@ export default async function PortalHomePage() {
 
   return (
     <section>
+      <div className="rainbow-accent mb-2 w-16" />
       <p className="app-muted text-sm font-semibold uppercase tracking-[0.16em]">
         Dashboard
       </p>

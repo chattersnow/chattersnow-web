@@ -124,7 +124,7 @@ export function RecordDistributionModal({
         render={
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             className="shrink-0 whitespace-nowrap"
           />
         }
@@ -244,7 +244,7 @@ export function RecordDistributionModal({
           <DialogFooter>
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               onClick={() => handleOpenChange(false)}
             >
               Cancel

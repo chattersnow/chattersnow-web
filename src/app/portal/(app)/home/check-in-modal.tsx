@@ -31,7 +31,7 @@ export function CheckInModal({
         render={
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             className="shrink-0 whitespace-nowrap"
           />
         }

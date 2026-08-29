@@ -8,6 +8,7 @@ export default async function RolesPage() {
 
   return (
     <>
+      <div className="rainbow-accent w-16" />
       <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
         Roles
       </h1>

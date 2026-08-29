@@ -210,7 +210,7 @@ export function PermissionsMatrix({
         <div className="flex gap-2">
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             size="sm"
             disabled={changedCells.length === 0 || isSaving}
             onClick={handleDiscard}
@@ -355,7 +355,7 @@ export function PermissionsMatrix({
           <DialogFooter>
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               onClick={() => setSaveDialogOpen(false)}
               disabled={isSaving}
             >

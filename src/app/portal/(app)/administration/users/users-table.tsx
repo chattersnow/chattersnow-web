@@ -253,7 +253,7 @@ export function UsersTable({
                         <Button
                           type="button"
                           size="sm"
-                          variant="outline"
+                          variant="secondary"
                           disabled={assignableRoles.length === 0}
                           onClick={() => {
                             setAddingFor(portalUser.user_id);
@@ -269,7 +269,7 @@ export function UsersTable({
                         <Button
                           type="button"
                           size="sm"
-                          variant="outline"
+                          variant="secondary"
                           disabled={isPending}
                           onClick={() =>
                             runAction(reactivateUserAction(portalUser.user_id))
@@ -281,7 +281,7 @@ export function UsersTable({
                         <Button
                           type="button"
                           size="sm"
-                          variant="outline"
+                          variant="secondary"
                           disabled={isPending || isSelf}
                           title={
                             isSelf

@@ -395,20 +395,16 @@ export function PortalNav({ permissions }: { permissions: PermissionMap }) {
   const { state: sidebarState } = useSidebar();
   const activeSection = activeSectionFor(pathname);
 
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>(
-    () => ({
-      [activeSection]: true,
-    }),
-  );
+  const [openSection, setOpenSection] = useState<string | null>(activeSection);
   const [syncedSection, setSyncedSection] = useState(activeSection);
 
   if (activeSection !== syncedSection) {
     setSyncedSection(activeSection);
-    setOpenSections((prev) => ({ ...prev, [activeSection]: true }));
+    setOpenSection(activeSection);
   }
 
   function toggleSection(value: string) {
-    setOpenSections((prev) => ({ ...prev, [value]: !prev[value] }));
+    setOpenSection((prev) => (prev === value ? null : value));
   }
 
   const visibleItems = NAV_ITEMS.filter((item) => {
@@ -438,7 +434,7 @@ export function PortalNav({ permissions }: { permissions: PermissionMap }) {
     <SidebarMenu>
       {visibleItems.map((item) => {
         const isSectionActive = activeSection === item.value;
-        const isOpen = Boolean(item.subItems && openSections[item.value]);
+        const isOpen = Boolean(item.subItems && openSection === item.value);
         const activeSub = isSectionActive
           ? activeSubItemFor(pathname, item)
           : undefined;
