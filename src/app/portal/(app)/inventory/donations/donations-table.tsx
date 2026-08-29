@@ -1,5 +1,8 @@
 "use client";
 
+import Link from "next/link";
+import { Eye } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -9,7 +12,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { DonationSheet } from "./donation-sheet";
 import { dateFormatter, donorLabel, type DonationRow } from "./donation-shared";
 
 export function DonationsTable({
@@ -69,7 +71,19 @@ export function DonationsTable({
                     {dateFormatter.format(new Date(donation.donated_at))}
                   </TableCell>
                   <TableCell>
-                    <DonationSheet donation={donation} />
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      nativeButton={false}
+                      aria-label="View donation"
+                      render={
+                        <Link
+                          href={`/portal/inventory/donations/${donation.id}`}
+                        />
+                      }
+                    >
+                      <Eye />
+                    </Button>
                   </TableCell>
                 </TableRow>
               );

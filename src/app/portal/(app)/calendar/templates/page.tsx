@@ -1,8 +1,11 @@
+import Link from "next/link";
+import { Eye } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
   hasPermission,
 } from "@/lib/auth/permissions";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -13,11 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { NewTemplateDialog } from "./new-template-dialog";
-import {
-  TemplateDetailsSheet,
-  type TemplateListRow,
-} from "./template-details-sheet";
-import type { TemplateField } from "../content-brief-template-shared";
+import { TEMPLATE_ROW_SELECT, mapTemplateRow } from "./template-shared";
 
 export default async function ContentBriefTemplatesPage() {
   const supabase = await createSupabaseServerClient();
@@ -26,37 +25,12 @@ export default async function ContentBriefTemplatesPage() {
 
   const { data: rows, error } = await supabase
     .from("content_brief_templates")
-    .select(
-      "id, key, name, description, is_active, requires_consent, content_brief_template_versions!content_brief_templates_current_version_id_fkey(version, fields)",
-    )
+    .select(TEMPLATE_ROW_SELECT)
     .order("name", { ascending: true });
 
-  const templates: TemplateListRow[] = (rows ?? []).flatMap((row) => {
-    const r = row as unknown as {
-      id: string;
-      key: string;
-      name: string;
-      description: string | null;
-      is_active: boolean;
-      requires_consent: boolean;
-      content_brief_template_versions: {
-        version: number;
-        fields: TemplateField[];
-      } | null;
-    };
-    if (!r.content_brief_template_versions) return [];
-    return [
-      {
-        id: r.id,
-        key: r.key,
-        name: r.name,
-        description: r.description,
-        is_active: r.is_active,
-        requires_consent: r.requires_consent,
-        version: r.content_brief_template_versions.version,
-        fields: r.content_brief_template_versions.fields,
-      },
-    ];
+  const templates = (rows ?? []).flatMap((row) => {
+    const template = mapTemplateRow(row);
+    return template ? [template] : [];
   });
 
   return (
@@ -114,10 +88,19 @@ export default async function ContentBriefTemplatesPage() {
                       {template.requires_consent ? "Yes" : "No"}
                     </TableCell>
                     <TableCell className="text-right">
-                      <TemplateDetailsSheet
-                        template={template}
-                        canManage={canManage}
-                      />
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        nativeButton={false}
+                        aria-label={`View ${template.name}`}
+                        render={
+                          <Link
+                            href={`/portal/calendar/templates/${template.id}`}
+                          />
+                        }
+                      >
+                        <Eye />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}

@@ -1,0 +1,140 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FieldGroup, Field } from "@/components/ui/field";
+import { ReadOnlyField } from "@/components/ui/read-only-field";
+import {
+  CONDITIONS,
+  GENDERS,
+  SOURCE_TYPES,
+  dateFormatter,
+  donorLabel,
+  formatFaceValue,
+  labelFor,
+  type DonationRow,
+} from "../donation-shared";
+import { EditDonationSheet } from "./edit-donation-sheet";
+
+export function DonationDetailView({ donation }: { donation: DonationRow }) {
+  return (
+    <>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+            {donorLabel(donation.donor)}
+          </h1>
+          <p className="app-muted mt-2 text-sm">
+            Donation received{" "}
+            {dateFormatter.format(new Date(donation.donated_at))}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <EditDonationSheet donation={donation} />
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="app-muted text-sm font-semibold">
+              Donation details
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <FieldGroup>
+              <ReadOnlyField label="Donor" htmlFor="donation-donor">
+                {donorLabel(donation.donor)}
+              </ReadOnlyField>
+              <Field orientation="responsive">
+                <ReadOnlyField label="Donor source" htmlFor="donation-source">
+                  {labelFor(SOURCE_TYPES, donation.donor.source_type) || "—"}
+                </ReadOnlyField>
+                <ReadOnlyField label="Source event" htmlFor="donation-event">
+                  {donation.event?.name ?? "—"}
+                </ReadOnlyField>
+              </Field>
+              <ReadOnlyField label="Date received" htmlFor="donation-donatedAt">
+                {donation.donated_at
+                  ? dateFormatter.format(new Date(donation.donated_at))
+                  : "—"}
+              </ReadOnlyField>
+              <ReadOnlyField label="Donation notes" htmlFor="donation-notes">
+                {donation.notes || "—"}
+              </ReadOnlyField>
+            </FieldGroup>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="app-muted text-sm font-semibold">
+              Items ({donation.inventory_items.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {donation.inventory_items.length === 0 ? (
+              <p className="app-muted text-sm">
+                No items recorded for this donation.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {donation.inventory_items.map((item, index) => (
+                  <FieldGroup
+                    key={item.id}
+                    className="rounded-md border border-[var(--line)] p-4"
+                  >
+                    <p className="text-sm font-medium">Item {index + 1}</p>
+                    <ReadOnlyField
+                      label="Item description"
+                      htmlFor={`item-description-${item.id}`}
+                    >
+                      {item.description}
+                    </ReadOnlyField>
+                    <Field orientation="responsive">
+                      <ReadOnlyField
+                        label="Item type"
+                        htmlFor={`item-type-${item.id}`}
+                      >
+                        {item.type}
+                      </ReadOnlyField>
+                      <ReadOnlyField
+                        label="Size"
+                        htmlFor={`item-size-${item.id}`}
+                      >
+                        {item.size || "—"}
+                      </ReadOnlyField>
+                    </Field>
+                    <Field orientation="responsive">
+                      <ReadOnlyField
+                        label="Gender"
+                        htmlFor={`item-gender-${item.id}`}
+                      >
+                        {labelFor(GENDERS, item.gender) || "—"}
+                      </ReadOnlyField>
+                      <ReadOnlyField
+                        label="Condition"
+                        htmlFor={`item-condition-${item.id}`}
+                      >
+                        {labelFor(CONDITIONS, item.condition) || "—"}
+                      </ReadOnlyField>
+                    </Field>
+                    <ReadOnlyField
+                      label="Face value"
+                      htmlFor={`item-faceValue-${item.id}`}
+                    >
+                      {formatFaceValue(item.face_value)}
+                    </ReadOnlyField>
+                    <ReadOnlyField
+                      label="Item notes"
+                      htmlFor={`item-notes-${item.id}`}
+                    >
+                      {item.notes || "—"}
+                    </ReadOnlyField>
+                  </FieldGroup>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </>
+  );
+}

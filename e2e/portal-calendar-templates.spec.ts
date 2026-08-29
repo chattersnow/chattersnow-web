@@ -7,7 +7,7 @@
 // suite runs fully parallel across two Playwright projects against one
 // database -- anything shared would race.
 import { test, expect } from "@playwright/test";
-import { signIn } from "./helpers/auth";
+import { reloadStayingSignedIn, signIn } from "./helpers/auth";
 
 function uniqueSuffix() {
   return `${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
@@ -47,36 +47,49 @@ test.describe("portal calendar brief templates", () => {
     ).toBeVisible();
   });
 
-  test("opens a seeded template's details including its pinned field list", async ({
+  test("links a seeded template to its detail page including its pinned field list", async ({
     page,
   }) => {
     await page.goto("/portal/calendar/templates");
 
+    // Since #469 the row's View action is a link to the template's
+    // dedicated detail page rather than a sheet trigger.
     await page
       .getByRole("button", { name: "View Community spotlight" })
       .click();
 
-    const sheet = page.getByRole("dialog");
+    await expect(page).toHaveURL(
+      /\/portal\/calendar\/templates\/[0-9a-f-]{36}$/,
+      { timeout: 15_000 },
+    );
     await expect(
-      sheet.getByRole("heading", { name: "Content brief template" }),
+      page.getByRole("heading", { level: 1, name: "Community spotlight" }),
     ).toBeVisible();
     // ReadOnlyField renders a labelled <div> rather than a form control, so
     // these read by id instead of by label.
-    await expect(sheet.locator("#template-view-key")).toHaveText(
+    await expect(page.locator("#template-view-key")).toHaveText(
       "community_spotlight",
     );
-    await expect(sheet.locator("#template-view-active")).toHaveText("Yes");
-    await expect(sheet.locator("#template-view-requires-consent")).toHaveText(
+    await expect(page.locator("#template-view-active")).toHaveText("Yes");
+    await expect(page.locator("#template-view-requires-consent")).toHaveText(
       "Yes",
     );
 
-    await expect(sheet.getByText("Current fields (v1)")).toBeVisible();
-    await expect(sheet.locator("#template-view-fields")).toContainText(
+    await expect(page.getByText("Current fields (v1)")).toBeVisible();
+    await expect(page.locator("#template-view-fields")).toContainText(
       "Person or group",
     );
-    await expect(sheet.locator("#template-view-fields")).toContainText(
+    await expect(page.locator("#template-view-fields")).toContainText(
       "Permission to publish + usage limits",
     );
+
+    // The back link returns to the list (a Link rendered through the Button
+    // primitive, so it's exposed as a button).
+    await page
+      .getByRole("main")
+      .getByRole("button", { name: "Brief templates", exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/portal\/calendar\/templates$/);
   });
 
   test("creates a template, edits its details, and revises its fields into a new version", async ({
@@ -103,53 +116,67 @@ test.describe("portal calendar brief templates", () => {
 
     await expect(dialog).not.toBeVisible();
 
+    // Creating triggers a router.refresh() that re-renders the table; a
+    // click racing that re-render can land on a node React just replaced
+    // and go nowhere. Reload so the list is settled before navigating.
+    await reloadStayingSignedIn(page);
+
     const row = page.getByRole("row").filter({ hasText: templateName });
     await expect(row).toBeVisible();
     await expect(row).toContainText(templateKey);
     await expect(row).toContainText("v1");
 
+    // Since #469 details live on a dedicated page; both edit flows stay on
+    // sheets opened from the page header.
     await row.getByRole("button", { name: `View ${templateName}` }).click();
-    const sheet = page.getByRole("dialog");
-    await expect(sheet.locator("#template-view-fields")).toContainText(
+    await expect(page).toHaveURL(
+      /\/portal\/calendar\/templates\/[0-9a-f-]{36}$/,
+      { timeout: 15_000 },
+    );
+    await expect(page.locator("#template-view-fields")).toContainText(
       "Headline",
     );
     // Not opted into the consent gate on create.
-    await expect(sheet.locator("#template-view-requires-consent")).toHaveText(
+    await expect(page.locator("#template-view-requires-consent")).toHaveText(
       "No",
     );
 
     // Editing metadata leaves the pinned version alone.
-    await sheet.getByRole("button", { name: "Edit template details" }).click();
+    await page.getByRole("button", { name: "Edit details" }).click();
+    const detailsSheet = page.getByRole("dialog");
     const updatedDescription = `E2E updated description ${suffix}`;
-    await sheet.getByLabel("Description").fill(updatedDescription);
-    await sheet.getByRole("button", { name: "Save changes" }).click();
+    await detailsSheet.getByLabel("Description").fill(updatedDescription);
+    await detailsSheet.getByRole("button", { name: "Save changes" }).click();
+    await expect(detailsSheet).not.toBeVisible();
 
-    await expect(
-      sheet.getByRole("button", { name: "Edit template details" }),
-    ).toBeVisible();
-    await expect(sheet.locator("#template-view-description")).toHaveText(
+    await expect(page.locator("#template-view-description")).toHaveText(
       updatedDescription,
     );
-    await expect(sheet.getByText("Current fields (v1)")).toBeVisible();
+    await expect(page.getByText("Current fields (v1)")).toBeVisible();
 
     // Revising the field list publishes v2 instead of mutating v1.
-    await sheet.getByRole("button", { name: "Revise template fields" }).click();
-    await sheet.getByRole("button", { name: "Add field" }).click();
-    await sheet.locator("#field-key-1").fill("call_to_action");
-    await sheet.locator("#field-label-1").fill("Call to action");
-    await sheet.getByRole("button", { name: "Save changes" }).click();
+    await page.getByRole("button", { name: "Revise fields" }).click();
+    const fieldsSheet = page.getByRole("dialog");
+    await fieldsSheet.getByRole("button", { name: "Add field" }).click();
+    await fieldsSheet.locator("#field-key-1").fill("call_to_action");
+    await fieldsSheet.locator("#field-label-1").fill("Call to action");
+    await fieldsSheet.getByRole("button", { name: "Save changes" }).click();
+    await expect(fieldsSheet).not.toBeVisible();
 
-    await expect(sheet.getByText("Current fields (v2)")).toBeVisible();
-    await expect(sheet.locator("#template-view-fields")).toContainText(
+    await expect(page.getByText("Current fields (v2)")).toBeVisible();
+    await expect(page.locator("#template-view-fields")).toContainText(
       "Call to action",
     );
 
-    // The sheet is modal, so while it's open the table behind it is out of
-    // the accessibility tree and getByRole("row") can't see it. Close it
-    // before checking the row picked up the new version.
-    await sheet.getByRole("button", { name: "Close" }).click();
-    await expect(sheet).toHaveCount(0);
-    await expect(row).toContainText("v2");
+    // Back on the list, the row picked up the new version.
+    await page
+      .getByRole("main")
+      .getByRole("button", { name: "Brief templates", exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/portal\/calendar\/templates$/);
+    await expect(
+      page.getByRole("row").filter({ hasText: templateName }),
+    ).toContainText("v2");
   });
 
   test("rejects a template key that isn't a valid identifier", async ({
