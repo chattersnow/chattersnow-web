@@ -5,14 +5,13 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { addDays } from "@/lib/time";
-import { CalendarItemDetailsSheet } from "./calendar-item-details-sheet";
-import type {
-  CalendarItemRow,
-  CalendarOwner,
-  CalendarProgram,
-} from "./calendar-shared";
-import type { ActiveContentBriefTemplate } from "./content-brief-template-shared";
-import type { ProgramSuggestionRule } from "./program-suggestion-shared";
+import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { needsDecision, type CalendarItemRow } from "./calendar-shared";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MAX_CHIPS_PER_DAY = 3;
@@ -29,22 +28,10 @@ function ymd(date: Date): string {
 export function MonthView({
   month,
   items,
-  owners,
-  programs,
-  activeTemplates,
-  defaultLeadTimeDays,
-  programSuggestionRules,
-  canManage,
   monthHref,
 }: {
   month: string;
   items: CalendarItemRow[];
-  owners: CalendarOwner[];
-  programs: CalendarProgram[];
-  activeTemplates: ActiveContentBriefTemplate[];
-  defaultLeadTimeDays: number;
-  programSuggestionRules: ProgramSuggestionRule[];
-  canManage: boolean;
   monthHref: (month: string) => string;
 }) {
   const monthStart = parseMonthParam(month);
@@ -126,17 +113,23 @@ export function MonthView({
                 </div>
                 <div className="flex flex-col gap-0.5">
                   {dayItems.slice(0, MAX_CHIPS_PER_DAY).map((item) => (
-                    <CalendarItemDetailsSheet
-                      key={item.id}
-                      item={item}
-                      owners={owners}
-                      programs={programs}
-                      activeTemplates={activeTemplates}
-                      defaultLeadTimeDays={defaultLeadTimeDays}
-                      programSuggestionRules={programSuggestionRules}
-                      canManage={canManage}
-                      trigger="chip"
-                    />
+                    <Tooltip key={item.id}>
+                      <TooltipTrigger
+                        render={
+                          <Link
+                            href={`/portal/calendar/${item.id}`}
+                            className={cn(
+                              "w-full truncate rounded px-1 py-0.5 text-left text-[0.7rem] hover:bg-muted",
+                              needsDecision(item) &&
+                                "bg-destructive/10 text-destructive",
+                            )}
+                          />
+                        }
+                      >
+                        {item.title}
+                      </TooltipTrigger>
+                      <TooltipContent>{`View ${item.title}`}</TooltipContent>
+                    </Tooltip>
                   ))}
                   {dayItems.length > MAX_CHIPS_PER_DAY && (
                     <span className="app-muted px-1 text-[0.7rem]">

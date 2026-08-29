@@ -107,6 +107,21 @@ export function mapCalendarItemRow(row: unknown): CalendarItemRow {
   };
 }
 
+/** One calendar item with its content opportunity, for the detail page. */
+export async function getCalendarItem(
+  supabase: SupabaseClient,
+  itemId: string,
+): Promise<{ item: CalendarItemRow | null; error: boolean }> {
+  const { data, error } = await supabase
+    .from("calendar_items")
+    .select(CALENDAR_ITEM_WITH_CONTENT_OPPORTUNITY_SELECT)
+    .eq("id", itemId)
+    .maybeSingle();
+
+  if (error) return { item: null, error: true };
+  return { item: data ? mapCalendarItemRow(data) : null, error: false };
+}
+
 /**
  * All non-archived calendar items with their content opportunity, for the
  * work-queue view. Intentionally not inner-joined to content_opportunities:

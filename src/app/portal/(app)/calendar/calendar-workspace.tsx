@@ -9,7 +9,6 @@ import {
   type CalendarOwner,
   type CalendarProgram,
 } from "./calendar-shared";
-import type { ActiveContentBriefTemplate } from "./content-brief-template-shared";
 import type { ProgramSuggestionRule } from "./program-suggestion-shared";
 import { ListView, type ListSortColumn } from "./list-view";
 import { AgendaView } from "./agenda-view";
@@ -23,8 +22,6 @@ export function CalendarWorkspace({
   items,
   owners,
   programs,
-  activeTemplates,
-  defaultLeadTimeDays,
   programSuggestionRules,
   canManage,
   filterQuery,
@@ -44,8 +41,6 @@ export function CalendarWorkspace({
   items: CalendarItemRow[];
   owners: CalendarOwner[];
   programs: CalendarProgram[];
-  activeTemplates: ActiveContentBriefTemplate[];
-  defaultLeadTimeDays: number;
   programSuggestionRules: ProgramSuggestionRule[];
   canManage: boolean;
   filterQuery: string;
@@ -221,39 +216,15 @@ export function CalendarWorkspace({
         <ListView
           items={filtered}
           owners={owners}
-          programs={programs}
-          activeTemplates={activeTemplates}
-          defaultLeadTimeDays={defaultLeadTimeDays}
-          programSuggestionRules={programSuggestionRules}
           canManage={canManage}
           sort={sort}
           dir={dir}
           sortHref={sortHref}
         />
       )}
-      {view === "agenda" && (
-        <AgendaView
-          items={filtered}
-          owners={owners}
-          programs={programs}
-          activeTemplates={activeTemplates}
-          defaultLeadTimeDays={defaultLeadTimeDays}
-          programSuggestionRules={programSuggestionRules}
-          canManage={canManage}
-        />
-      )}
+      {view === "agenda" && <AgendaView items={filtered} />}
       {view === "month" && (
-        <MonthView
-          month={month}
-          items={filtered}
-          owners={owners}
-          programs={programs}
-          activeTemplates={activeTemplates}
-          defaultLeadTimeDays={defaultLeadTimeDays}
-          programSuggestionRules={programSuggestionRules}
-          canManage={canManage}
-          monthHref={monthHref}
-        />
+        <MonthView month={month} items={filtered} monthHref={monthHref} />
       )}
     </div>
   );
