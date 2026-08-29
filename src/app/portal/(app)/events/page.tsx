@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Eye } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
@@ -23,8 +23,6 @@ import {
   totalPagesFor,
 } from "@/lib/pagination";
 import { NewEventDialog } from "./new-event-dialog";
-import { EventDetailsDialog } from "./event-details-dialog";
-import { isTabValue, type TabValue } from "./event-tabs-config";
 import { StatusBadge, VisibilityBadge } from "./event-badges";
 import { HowToSection, HowToSheet } from "@/components/how-to-sheet";
 import { FiltersSheet } from "@/components/filters-sheet";
@@ -109,14 +107,6 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
   const page = parsePage(raw("page"));
   const nowIso = new Date().toISOString();
 
-  // Deep link from the "awaiting check-in" attention item (issue #418):
-  // when eventId is present, pin the list to that single event regardless
-  // of the current filters/sort/page so it's guaranteed to be visible, and
-  // auto-open its details sheet to the requested tab.
-  const eventIdParam = raw("eventId");
-  const tabParam = raw("tab");
-  const autoOpenTab: TabValue = isTabValue(tabParam) ? tabParam : "registrants";
-
   let query = supabase
     .from("events")
     .select(
@@ -136,9 +126,6 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
     query = query.gte("starts_at", nowIso);
   } else if (whenFilter === "past") {
     query = query.lt("starts_at", nowIso);
-  }
-  if (eventIdParam) {
-    query = query.eq("id", eventIdParam);
   }
 
   const { offset, to } = pageRange(page);
@@ -200,15 +187,6 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
       <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
         Events
       </h1>
-
-      {eventIdParam && (
-        <div className="mt-6 flex items-center justify-between gap-3 rounded-lg border border-[var(--line)] bg-[var(--purple-soft)]/40 px-4 py-2 text-sm">
-          <span>Showing a single event from a check-in link.</span>
-          <Link href="/portal/events" className="font-medium underline">
-            View all events
-          </Link>
-        </div>
-      )}
 
       <div className="rainbow-surface mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
         <div className="flex items-center gap-2">
@@ -404,13 +382,15 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
                       <VisibilityBadge visibility={event.visibility} />
                     </TableCell>
                     <TableCell className="text-right">
-                      <EventDetailsDialog
-                        event={event}
-                        programs={programs}
-                        autoOpenTab={
-                          event.id === eventIdParam ? autoOpenTab : undefined
-                        }
-                      />
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        nativeButton={false}
+                        aria-label={`View ${event.name}`}
+                        render={<Link href={`/portal/events/${event.id}`} />}
+                      >
+                        <Eye />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}

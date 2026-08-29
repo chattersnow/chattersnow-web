@@ -150,22 +150,29 @@ test("deep-links from the awaiting check-in attention item to the event's Regist
     await signIn(page, { email: fixture.email, password: fixture.password });
     await page.goto("/portal/home");
 
+    await page
+      .getByRole("button", { name: /items? needing attention/ })
+      .click();
+
     const reviewLink = page.locator(
-      `a[href="/portal/events?eventId=${fixture.eventId}&tab=registrants"]`,
+      `a[href="/portal/events/${fixture.eventId}?tab=registrants"]`,
     );
     await expect(reviewLink).toBeVisible();
     await reviewLink.click();
 
+    // A generous timeout here: this is the first navigation to the
+    // [eventId] detail route in the whole e2e run, so `next dev` needs to
+    // compile it on demand before it can respond.
     await expect(page).toHaveURL(
-      new RegExp(`/portal/events\\?eventId=${fixture.eventId}&tab=registrants`),
+      new RegExp(`/portal/events/${fixture.eventId}\\?tab=registrants`),
+      { timeout: 15000 },
     );
-    await expect(
-      page.getByText("Showing a single event from a check-in link."),
-    ).toBeVisible();
 
     const sheet = page.getByRole("dialog");
     await expect(sheet.getByText(fixture.eventName)).toBeVisible();
-    await expect(sheet.getByText(fixture.registrantName)).toBeVisible();
+    await expect(sheet.getByText(fixture.registrantName)).toBeVisible({
+      timeout: 10000,
+    });
     // exact: true -- otherwise this also matches "+ Check in walk-in".
     await expect(
       sheet.getByRole("button", { name: "Check in", exact: true }),

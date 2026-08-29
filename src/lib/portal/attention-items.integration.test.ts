@@ -54,9 +54,7 @@ describe("getOpsInboxSummary event check-ins (integration)", () => {
     expect(itemA).toBeDefined();
     expect(itemA?.count).toBe(2);
     expect(itemA?.label).toBe(`2 awaiting check-in · ${eventA.name}`);
-    expect(itemA?.href).toBe(
-      `/portal/events?eventId=${eventA.id}&tab=registrants`,
-    );
+    expect(itemA?.href).toBe(`/portal/events/${eventA.id}?tab=registrants`);
 
     expect(result.items.some((item) => item.href.includes(eventB.id))).toBe(
       false,
