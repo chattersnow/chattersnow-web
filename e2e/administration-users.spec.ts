@@ -116,6 +116,27 @@ test.describe("portal administration users", () => {
     const admin = createAdminClient();
     const invite = await seedInviteEmail(admin);
 
+    // The revoke has failed on CI with the dialog closed, no inline error,
+    // and no write -- a combination the component can't produce on its own.
+    // Collect what the page reports so the assertion below can say what
+    // actually went wrong instead of just "still pending".
+    const pageIssues: string[] = [];
+    page.on("pageerror", (error) =>
+      pageIssues.push(`pageerror: ${error.message}`),
+    );
+    page.on("requestfailed", (request) =>
+      pageIssues.push(
+        `requestfailed: ${request.method()} ${request.url()} (${request.failure()?.errorText})`,
+      ),
+    );
+    page.on("response", (response) => {
+      if (response.status() >= 400) {
+        pageIssues.push(
+          `${response.status()} ${response.request().method()} ${response.url()}`,
+        );
+      }
+    });
+
     try {
       await page.goto("/portal/administration/users");
 
@@ -165,8 +186,13 @@ test.describe("portal administration users", () => {
           .select("status")
           .eq("email", invite.email)
           .single();
-        expect(data?.status).toBe("revoked");
-      }).toPass({ timeout: 15_000 });
+        if (data?.status !== "revoked") {
+          throw new Error(
+            `Revoke did not land: grant is still "${data?.status}", with no ` +
+              `inline error. Page issues: ${pageIssues.join(" | ") || "none"}`,
+          );
+        }
+      }).toPass({ timeout: 20_000 });
 
       await reloadStayingSignedIn(page);
       await expect(pendingCard).not.toContainText("No pending access staged.");
