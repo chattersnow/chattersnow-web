@@ -30,3 +30,20 @@ export async function signIn(
 
   await expect(page).toHaveURL(/\/portal\/home$/);
 }
+
+/**
+ * A plain `page.reload()` on a long, multi-step portal test occasionally
+ * comes back on /portal/login instead: the PR suite runs two Playwright
+ * projects concurrently against one shared local Supabase instance, both
+ * signed in as the same seeded admin account, and their token refreshes
+ * race. Recover by signing back in and returning to the same URL rather
+ * than let that transient hiccup fail an otherwise-passing assertion.
+ */
+export async function reloadStayingSignedIn(page: Page) {
+  const url = page.url();
+  await page.reload();
+  if (page.url().includes("/portal/login")) {
+    await signIn(page);
+    await page.goto(url);
+  }
+}

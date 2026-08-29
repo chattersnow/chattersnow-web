@@ -72,11 +72,18 @@ test.describe("portal administration audit log", () => {
       await expect(entryRow).toContainText("User roles");
       await expect(entryRow).toContainText("admin@example.test");
 
-      await entryRow
-        .getByRole("button", { name: "View entry details" })
-        .click();
+      // Submitting the filters is a full page load, so this click can land
+      // before the page has hydrated -- the trigger has no handler yet and
+      // the click is simply lost. Retry until the sheet actually opens.
       const detailSheet = page.getByRole("dialog");
-      await expect(detailSheet).toContainText(recordId, { timeout: 15_000 });
+      await expect(async () => {
+        await entryRow
+          .getByRole("button", { name: "View entry details" })
+          .click();
+        await expect(detailSheet).toBeVisible({ timeout: 2_000 });
+      }).toPass({ timeout: 30_000 });
+
+      await expect(detailSheet).toContainText(recordId);
       await expect(detailSheet).toContainText(user.userId);
     } finally {
       await user.cleanup();

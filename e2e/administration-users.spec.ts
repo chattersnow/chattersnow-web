@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { signIn } from "./helpers/auth";
+import { reloadStayingSignedIn, signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { seedInviteEmail, seedPortalUser } from "./helpers/rbac";
 
@@ -105,11 +105,20 @@ test.describe("portal administration users", () => {
     try {
       await page.goto("/portal/administration/users");
 
-      await page.getByPlaceholder("name@example.com").fill(invite.email);
-      await page.getByRole("combobox", { name: "Grant role" }).click();
+      // Opening the role select doubles as the hydration check: until the
+      // client bundle takes over it doesn't open at all, and anything typed
+      // into the email input before then is wiped when React re-renders it
+      // from its own (still empty) state.
+      const roleSelect = page.getByRole("combobox", { name: "Grant role" });
+      await expect(async () => {
+        await roleSelect.click();
+        await expect(page.getByRole("listbox")).toBeVisible({ timeout: 2_000 });
+      }).toPass({ timeout: 30_000 });
       await page
         .getByRole("option", { name: "Volunteer", exact: true })
         .click();
+
+      await page.getByPlaceholder("name@example.com").fill(invite.email);
       await page.getByRole("button", { name: "Stage access" }).click();
 
       const grantRow = page.getByRole("row").filter({ hasText: invite.email });
@@ -137,7 +146,12 @@ test.describe("portal administration users", () => {
       await confirm.getByRole("button", { name: "Revoke" }).click();
 
       await expect(confirm).not.toBeVisible();
-      await expect(grantRow).toContainText("Revoked");
+      // The refresh after this many mutations is where the shared-admin
+      // session hiccup tends to bite: the page comes back with the pending
+      // section replaced by its "could not load" card, so the row is gone
+      // rather than merely stale.
+      await reloadStayingSignedIn(page);
+      await expect(grantRow).toContainText("Revoked", { timeout: 15_000 });
     } finally {
       await invite.cleanup();
     }
