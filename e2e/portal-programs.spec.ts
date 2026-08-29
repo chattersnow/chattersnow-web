@@ -19,7 +19,9 @@ test.describe("portal programs", () => {
       .getByRole("row")
       .filter({ hasText: "Winter Access Program" });
     await expect(row).toBeVisible();
-    await expect(row).toContainText("Active");
+    // The status badge renders the raw status value ("active") and only
+    // capitalizes it via CSS, so match the DOM text.
+    await expect(row).toContainText("active");
   });
 
   test("opens a program's details including its tagged events", async ({
@@ -73,7 +75,8 @@ test.describe("portal programs", () => {
 
     const row = page.getByRole("row").filter({ hasText: programName });
     await expect(row).toBeVisible();
-    await expect(row).toContainText("Active");
+    // Status badge text is lowercase in the DOM (capitalized via CSS).
+    await expect(row).toContainText("active");
 
     await row.getByRole("button", { name: `View ${programName}` }).click();
     const sheet = page.getByRole("dialog");
@@ -126,9 +129,8 @@ test.describe("portal program impact report", () => {
     await expect(
       page.getByText("Select a program above to view its impact rollup."),
     ).toHaveCount(0);
-    await expect(
-      page.getByRole("heading", { name: "All metrics" }),
-    ).toBeVisible();
+    // CardTitle renders a plain div, not a heading element.
+    await expect(page.getByText("All metrics")).toBeVisible();
 
     // The seeded program has at least one tagged event, so the rollup
     // renders metric rows rather than the "no events yet" empty state.

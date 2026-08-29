@@ -76,7 +76,13 @@ test.describe("portal people directory", () => {
     ).toHaveCount(0);
 
     await page.getByRole("button", { name: "Filters" }).click();
-    await page.getByRole("dialog").getByRole("link", { name: "Clear" }).click();
+    const reopened = page.getByRole("dialog");
+    await expect(
+      reopened.getByRole("heading", { name: "Filters" }),
+    ).toBeVisible();
+    // The Clear control is a Next Link rendered through Base UI's Button
+    // (nativeButton={false}), which gives the anchor role="button".
+    await reopened.getByRole("button", { name: "Clear" }).click();
     await expect(page).toHaveURL(/\/portal\/people$/);
     await expect(
       page.getByRole("row").filter({ hasText: "Priya Natarajan" }),
