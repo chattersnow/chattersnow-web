@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowLeft, Eye, Pencil } from "lucide-react";
-import type { Program } from "../programs/actions";
-import type { EventRow } from "./event-badges";
-import { PhaseStatusBadge } from "./event-badges";
-import { phaseStatus } from "./phase-status";
+import { ArrowLeft, Pencil } from "lucide-react";
+import type { Program } from "../../programs/actions";
+import type { EventRow } from "../event-badges";
+import { PhaseStatusBadge } from "../event-badges";
+import { phaseStatus } from "../phase-status";
 import {
   FORM_ID_PREFIX,
   FORM_TAB_VALUES,
@@ -16,8 +16,8 @@ import {
   type Mode,
   type TabRenderContext,
   type TabValue,
-} from "./event-tabs-config";
-import { useFormTabState } from "./use-form-tab-state";
+} from "../event-tabs-config";
+import { useFormTabState } from "../use-form-tab-state";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,7 +49,7 @@ import { cn } from "@/lib/utils";
 
 const FORM_TAB_VALUE_SET = new Set<TabValue>(FORM_TAB_VALUES);
 
-export function EventDetailsDialog({
+export function EditEventSheet({
   event,
   programs,
   autoOpenTab,
@@ -128,25 +128,9 @@ export function EventDetailsDialog({
   return (
     <>
       <Sheet open={open} onOpenChange={handleOpenChange}>
-        <Tooltip>
-          <SheetTrigger
-            render={
-              <TooltipTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="View event details"
-                  />
-                }
-              />
-            }
-          >
-            <Eye />
-          </SheetTrigger>
-          <TooltipContent>View event details</TooltipContent>
-        </Tooltip>
+        <SheetTrigger render={<Button type="button" variant="secondary" />}>
+          <Pencil /> Edit
+        </SheetTrigger>
         <SheetContent side="right" showCloseButton={false} size="xl">
           <SheetHeader className="flex-row items-start gap-2 space-y-0">
             <Tooltip>

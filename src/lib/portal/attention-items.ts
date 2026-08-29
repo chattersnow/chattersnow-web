@@ -185,7 +185,7 @@ export async function getOpsInboxSummary(
             key: `event_checkins_pending_${event.id}`,
             label: `${count} awaiting check-in · ${event.name}`,
             count,
-            href: `/portal/events?eventId=${event.id}&tab=registrants`,
+            href: `/portal/events/${event.id}?tab=registrants`,
           });
         }
       }
