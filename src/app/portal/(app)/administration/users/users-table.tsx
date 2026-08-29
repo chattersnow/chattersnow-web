@@ -149,13 +149,7 @@ export function UsersTable({
                       {portalUser.full_name ?? portalUser.email ?? "—"}
                     </TableCell>
                     <TableCell>
-                      <div
-                        className={
-                          isDeactivated
-                            ? "flex flex-wrap gap-1.5 opacity-60"
-                            : "flex flex-wrap gap-1.5"
-                        }
-                      >
+                      <div className="flex flex-wrap gap-1.5">
                         {portalUser.roles.length === 0 ? (
                           <span className="app-muted text-sm">No access</span>
                         ) : (
