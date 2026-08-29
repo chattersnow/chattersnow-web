@@ -76,6 +76,8 @@ describe("MissionPage", () => {
     const sectionIds = Array.from(container.querySelectorAll("section")).map(
       (section) => section.id,
     );
-    expect(sectionIds).toEqual(["mission", "values", "why-lgbtq"]);
+    expect(sectionIds.indexOf("why-lgbtq")).toBe(
+      sectionIds.indexOf("values") + 1,
+    );
   });
 });

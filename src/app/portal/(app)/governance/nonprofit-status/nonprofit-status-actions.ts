@@ -24,6 +24,7 @@ export type Milestone = {
   phase: string;
   due_date: string | null;
   status: MilestoneStatus;
+  notes: string | null;
   owner: MilestoneOwner | null;
 };
 

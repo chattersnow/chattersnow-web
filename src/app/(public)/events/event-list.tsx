@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { EventCard, type PublicEvent } from "./event-card";
 import { EventDetailSheet } from "./event-detail-sheet";
+import { EventRegistrationSheet } from "./event-registration-sheet";
 
 export function EventList({
   events,
@@ -13,10 +14,19 @@ export function EventList({
 }) {
   const [selectedEvent, setSelectedEvent] = useState<PublicEvent | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [registrationEvent, setRegistrationEvent] =
+    useState<PublicEvent | null>(null);
+  const [registrationOpen, setRegistrationOpen] = useState(false);
 
   function openEvent(event: PublicEvent) {
     setSelectedEvent(event);
     setDetailOpen(true);
+  }
+
+  function openRegistration(event: PublicEvent) {
+    setDetailOpen(false);
+    setRegistrationEvent(event);
+    setRegistrationOpen(true);
   }
 
   if (events.length === 0) {
@@ -88,6 +98,13 @@ export function EventList({
         event={selectedEvent}
         open={detailOpen}
         onOpenChange={setDetailOpen}
+        onRegister={openRegistration}
+      />
+
+      <EventRegistrationSheet
+        event={registrationEvent}
+        open={registrationOpen}
+        onOpenChange={setRegistrationOpen}
       />
     </div>
   );

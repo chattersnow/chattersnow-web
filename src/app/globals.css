@@ -6,6 +6,7 @@
 
 :root {
   --surface: #ffffff;
+  --surface-muted: color-mix(in oklch, var(--foreground) 8%, var(--surface));
   --purple: #70419a;
   --purple-deep: #32134f;
   --purple-soft: #ede1fb;
@@ -18,6 +19,15 @@
     #50b878 60%,
     #38a5db 80%,
     #8f55ba 100%
+  );
+  --rainbow-soft: linear-gradient(
+    90deg,
+    rgb(232 72 85 / 12%) 0%,
+    rgb(245 158 66 / 12%) 20%,
+    rgb(244 211 94 / 12%) 40%,
+    rgb(80 184 120 / 12%) 60%,
+    rgb(56 165 219 / 12%) 80%,
+    rgb(143 85 186 / 12%) 100%
   );
   --background: #f7f0ff;
   --foreground: #32134f;
@@ -133,6 +143,60 @@ body {
     width: 8rem;
     border-radius: 999px;
     background: var(--rainbow);
+  }
+
+  .rainbow-strip {
+    height: 0.25rem;
+    width: 100%;
+    background: var(--rainbow);
+  }
+
+  .rainbow-ring-hover {
+    border: 2px solid transparent;
+    transition: background-image 0.15s ease;
+  }
+
+  .rainbow-ring-hover:hover,
+  .rainbow-ring-hover:focus-within {
+    background-image: linear-gradient(var(--card), var(--card)), var(--rainbow);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
+
+  .rainbow-surface {
+    background-color: var(--surface);
+    background-image: var(--rainbow-soft);
+  }
+
+  .rainbow-cta {
+    background: var(--rainbow);
+    color: #ffffff;
+  }
+
+  .rainbow-cta:hover {
+    opacity: 0.9;
+  }
+
+  .rainbow-underline {
+    position: relative;
+  }
+
+  .rainbow-underline::after {
+    content: "";
+    position: absolute;
+    left: 0.5rem;
+    right: 0.5rem;
+    bottom: 0.25rem;
+    height: 2px;
+    border-radius: 999px;
+    background: var(--rainbow);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  .rainbow-underline:hover::after,
+  .rainbow-underline[data-active]::after {
+    opacity: 1;
   }
 }
 

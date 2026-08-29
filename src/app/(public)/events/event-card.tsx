@@ -47,7 +47,7 @@ export function EventCard({
           onSelect();
         }
       }}
-      className="cursor-pointer gap-0 overflow-hidden py-0 transition-colors hover:border-[var(--purple-deep)]"
+      className="rainbow-ring-hover cursor-pointer gap-0 overflow-hidden py-0"
     >
       <div className="relative aspect-[16/9] w-full bg-muted">
         {imageUrl ? (

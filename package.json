@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "bun test --path-ignore-patterns=\"e2e/**\" --path-ignore-patterns=\"**/*.integration.test.ts\"",
+    "test": "bun test --isolate --path-ignore-patterns=\"e2e/**\" --path-ignore-patterns=\"**/*.integration.test.ts\"",
     "test:integration": "bun --env-file=.env.local test integration.test.ts",
     "test:e2e": "playwright test",
     "test:e2e:pr": "playwright test --project=chromium --project=mobile-chromium",

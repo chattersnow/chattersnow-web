@@ -2,16 +2,23 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SiteImage } from "@/components/site-image";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSiteImageUrls } from "@/lib/site-images";
 
 export const metadata: Metadata = {
   title: "Sponsorship | Chatter Snow",
 };
 
-export default function SponsorshipPage() {
+export default async function SponsorshipPage() {
+  const supabase = await createSupabaseServerClient();
+  const siteImages = await getSiteImageUrls(supabase);
+
   return (
     <div className="space-y-12">
       <section>
-        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+        <div className="rainbow-accent w-16" />
+        <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
           Sponsorship
         </h1>
         <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
@@ -65,12 +72,25 @@ export default function SponsorshipPage() {
       </section>
 
       <Button
-        variant="outline"
+        variant="rainbow"
         nativeButton={false}
         render={<Link href="/contact?topic=partnership" />}
       >
         Talk to us about sponsoring
       </Button>
+
+      <section className="grid gap-6 sm:grid-cols-2">
+        <SiteImage
+          url={siteImages.sponsorship_photo_1 ?? null}
+          alt="Chatter Snow community members"
+          className="aspect-[4/3] rounded-2xl"
+        />
+        <SiteImage
+          url={siteImages.sponsorship_photo_2 ?? null}
+          alt="Chatter Snow community members"
+          className="aspect-[4/3] rounded-2xl"
+        />
+      </section>
     </div>
   );
 }

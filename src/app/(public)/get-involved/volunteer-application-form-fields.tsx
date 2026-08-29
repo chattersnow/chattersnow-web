@@ -45,6 +45,7 @@ export function VolunteerApplicationForm() {
   if (referenceCode) {
     return (
       <Alert>
+        <div className="rainbow-accent mb-2 w-10" />
         <AlertDescription>
           <p>Thanks for applying! We&apos;ll be in touch about next steps.</p>
           <p className="mt-2">
@@ -143,7 +144,12 @@ export function VolunteerApplicationForm() {
           </Alert>
         )}
 
-        <Button type="submit" disabled={isPending} className="w-full sm:w-fit">
+        <Button
+          type="submit"
+          variant="rainbow"
+          disabled={isPending}
+          className="w-full sm:w-fit"
+        >
           {isPending ? "Submitting..." : "Apply to volunteer"}
         </Button>
       </FieldGroup>

@@ -128,7 +128,7 @@ export function GearCatalog({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="rainbow-surface flex flex-wrap items-end gap-4 rounded-xl border border-[var(--line)] p-4 shadow-md">
         <div className="flex flex-col gap-1">
           <label
             htmlFor="gear-search"
@@ -141,7 +141,7 @@ export function GearCatalog({
             placeholder="Search description..."
             value={search}
             onChange={(event) => handleSearchChange(event.target.value)}
-            className="h-8 w-full sm:w-64"
+            className="h-8 w-full bg-white sm:w-64"
           />
         </div>
 
@@ -271,7 +271,7 @@ export function GearCatalog({
               <div className="flex gap-2">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   disabled={currentPage <= 1}
                   onClick={() => setPage(currentPage - 1)}
@@ -280,7 +280,7 @@ export function GearCatalog({
                 </Button>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   disabled={currentPage >= totalPages}
                   onClick={() => setPage(currentPage + 1)}

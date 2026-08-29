@@ -83,32 +83,37 @@ export function CommunityCalendar({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end gap-3">
-        <div
-          role="group"
-          aria-label="Calendar view"
-          className="flex overflow-hidden rounded-lg border border-input"
-        >
-          <Button
-            type="button"
-            variant={viewMode === "list" ? "secondary" : "ghost"}
-            size="sm"
-            aria-pressed={viewMode === "list"}
-            className="rounded-none"
-            onClick={() => setViewMode("list")}
+      <div className="rainbow-surface flex flex-wrap items-end gap-4 rounded-xl border border-[var(--line)] p-4 shadow-md">
+        <div className="flex flex-col gap-1">
+          <span className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+            View
+          </span>
+          <div
+            role="group"
+            aria-label="Calendar view"
+            className="flex overflow-hidden rounded-lg border border-input bg-white"
           >
-            List
-          </Button>
-          <Button
-            type="button"
-            variant={viewMode === "month" ? "secondary" : "ghost"}
-            size="sm"
-            aria-pressed={viewMode === "month"}
-            className="rounded-none"
-            onClick={() => setViewMode("month")}
-          >
-            Month
-          </Button>
+            <Button
+              type="button"
+              variant={viewMode === "list" ? "secondary" : "ghost"}
+              size="sm"
+              aria-pressed={viewMode === "list"}
+              className="rounded-none"
+              onClick={() => setViewMode("list")}
+            >
+              List
+            </Button>
+            <Button
+              type="button"
+              variant={viewMode === "month" ? "secondary" : "ghost"}
+              size="sm"
+              aria-pressed={viewMode === "month"}
+              className="rounded-none"
+              onClick={() => setViewMode("month")}
+            >
+              Month
+            </Button>
+          </div>
         </div>
 
         <div className="flex flex-col gap-1">
@@ -124,7 +129,7 @@ export function CommunityCalendar({
           >
             <SelectTrigger
               id="community-calendar-category-filter"
-              className="h-8 w-56"
+              className="h-8 w-56 bg-white"
             >
               <SelectValue placeholder="Category">
                 {(value: string) =>
@@ -157,7 +162,7 @@ export function CommunityCalendar({
             >
               <SelectTrigger
                 id="community-calendar-month-filter"
-                className="h-8"
+                className="h-8 bg-white"
               >
                 <SelectValue placeholder="Month">
                   {(value: string) =>

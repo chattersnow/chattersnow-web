@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Card, CardContent } from "@/components/ui/card";
 import { VolunteerStatusLookupForm } from "../../volunteer-status-lookup-form-fields";
 
 export const metadata: Metadata = {
@@ -9,7 +10,8 @@ export default function VolunteerStatusPage() {
   return (
     <div>
       <section>
-        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+        <div className="rainbow-accent w-16" />
+        <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
           Check your application status
         </h1>
         <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
@@ -17,7 +19,11 @@ export default function VolunteerStatusPage() {
           submitted your volunteer application.
         </p>
         <div className="mt-6 max-w-md">
-          <VolunteerStatusLookupForm />
+          <Card className="shadow-md">
+            <CardContent>
+              <VolunteerStatusLookupForm />
+            </CardContent>
+          </Card>
         </div>
       </section>
     </div>

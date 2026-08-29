@@ -39,7 +39,8 @@ export default async function EventsPage() {
   return (
     <PageShell>
       <section>
-        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+        <div className="rainbow-accent w-16" />
+        <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
           Upcoming &amp; past events
         </h1>
         <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">

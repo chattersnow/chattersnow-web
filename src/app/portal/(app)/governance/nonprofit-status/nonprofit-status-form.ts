@@ -15,6 +15,7 @@ export type MilestoneFormData = {
   phase: string;
   status: MilestoneStatus;
   due_date: string | null;
+  notes: string | null;
 };
 
 export function parseMilestoneForm(
@@ -24,6 +25,7 @@ export function parseMilestoneForm(
   const phase = String(formData.get("phase") ?? "").trim();
   const status = String(formData.get("status") ?? "not_started").trim();
   const dueDate = String(formData.get("dueDate") ?? "").trim();
+  const notes = String(formData.get("notes") ?? "").trim();
 
   if (!description) return { error: "Description is required." };
   if (!phase) return { error: "Phase is required." };
@@ -37,6 +39,7 @@ export function parseMilestoneForm(
       phase,
       status: status as MilestoneStatus,
       due_date: dueDate || null,
+      notes: notes || null,
     },
   };
 }

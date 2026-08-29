@@ -73,18 +73,22 @@ export default async function Home() {
           </p>
 
           <div className="mt-6 flex flex-wrap justify-center gap-3">
-            <Button nativeButton={false} render={<Link href="/events" />}>
+            <Button
+              variant="rainbow"
+              nativeButton={false}
+              render={<Link href="/events" />}
+            >
               Join an event
             </Button>
             <Button
-              variant="outline"
+              variant="secondary"
               nativeButton={false}
               render={<Link href="/get-involved" />}
             >
               Get involved
             </Button>
             <Button
-              variant="outline"
+              variant="secondary"
               nativeButton={false}
               render={<Link href="/support" />}
             >
@@ -94,7 +98,7 @@ export default async function Home() {
         </section>
 
         {nextEvent && (
-          <section className="mt-16 rounded-xl border border-[var(--line)] p-6 text-center sm:p-8">
+          <section className="rainbow-surface mt-16 rounded-xl border border-[var(--line)] p-6 text-center shadow-md sm:p-8">
             <span className="app-eyebrow">Next up</span>
             <h2 className="brand-display mt-2 text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
               {nextEvent.name}
@@ -104,7 +108,7 @@ export default async function Home() {
               {nextEvent.location && ` · ${nextEvent.location}`}
             </p>
             <Button
-              variant="outline"
+              variant="secondary"
               className="mt-4"
               nativeButton={false}
               render={<Link href="/events" />}

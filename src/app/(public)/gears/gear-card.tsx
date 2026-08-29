@@ -27,7 +27,7 @@ export function GearCard({
   const imageUrl = resolveImageUrl(item.photo_url) ?? placeholderUrl;
 
   return (
-    <Card className="relative gap-0 overflow-hidden py-0 transition-colors focus-within:border-[var(--purple-deep)] hover:border-[var(--purple-deep)]">
+    <Card className="rainbow-ring-hover relative gap-0 overflow-hidden py-0">
       <button
         type="button"
         onClick={onSelect}

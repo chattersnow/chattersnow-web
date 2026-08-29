@@ -8,7 +8,7 @@ import type { Milestone } from "./nonprofit-status-actions";
 import type { PersonListItem } from "../../people/actions";
 
 const MILESTONE_SELECT =
-  "id, description, phase, due_date, status, owner:people!owner_person_id(id, name, email, phone)";
+  "id, description, phase, due_date, status, notes, owner:people!owner_person_id(id, name, email, phone)";
 
 export default async function NonprofitStatusPage() {
   const supabase = await createSupabaseServerClient();

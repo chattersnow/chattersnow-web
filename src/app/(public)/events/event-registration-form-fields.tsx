@@ -44,6 +44,7 @@ export function EventRegistrationForm({ eventId }: { eventId: string }) {
   if (success) {
     return (
       <Alert>
+        <div className="rainbow-accent mb-2 w-10" />
         <AlertDescription>
           You&apos;re registered! We look forward to seeing you there.
         </AlertDescription>
@@ -130,7 +131,12 @@ export function EventRegistrationForm({ eventId }: { eventId: string }) {
           </Alert>
         )}
 
-        <Button type="submit" disabled={isPending} className="w-full sm:w-fit">
+        <Button
+          type="submit"
+          variant="rainbow"
+          disabled={isPending}
+          className="w-full sm:w-fit"
+        >
           {isPending ? "Registering..." : "Register"}
         </Button>
       </FieldGroup>
