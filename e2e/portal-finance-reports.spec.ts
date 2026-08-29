@@ -77,9 +77,13 @@ test.describe("portal finance reports", () => {
     ).toBeVisible();
 
     await page.getByRole("button", { name: "Filters" }).click();
+    // Rendered as an <a>, but the Button primitive it's built from sets an
+    // explicit role="button" whenever nativeButton={false} -- see
+    // src/components/ui/button.tsx and node_modules/@base-ui/react's
+    // useButton -- so this is exposed as "button", not "link".
     await page
       .getByRole("dialog")
-      .getByRole("link", { name: "Reset to this year" })
+      .getByRole("button", { name: "Reset to this year" })
       .click();
 
     await expect(page).toHaveURL(/\/portal\/finance\/reports$/);

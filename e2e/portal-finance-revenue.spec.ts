@@ -31,7 +31,13 @@ test.describe("portal finance revenue", () => {
     await addDialog.getByLabel("Amount").fill("88.13");
 
     const notes = `E2E revenue notes ${Date.now()}`;
-    await addDialog.getByLabel("Notes").fill(notes);
+    const notesField = addDialog.getByLabel("Notes");
+    await notesField.fill(notes);
+    // Confirms the value actually landed in the field before submitting,
+    // so a mismatch here (rather than the later view-sheet assertion)
+    // points straight at the fill instead of the round trip through the
+    // server.
+    await expect(notesField).toHaveValue(notes);
     await addDialog.getByRole("button", { name: "Add revenue" }).click();
 
     await expect(addDialog).not.toBeVisible();
