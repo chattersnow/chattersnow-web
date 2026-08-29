@@ -124,8 +124,13 @@ test.describe("portal governance board, meetings, and resolutions", () => {
       await expect(sheet.getByText(location)).toBeVisible();
 
       // Every tab in the details sheet shares one view/edit mode, and the
-      // sub-record tabs only offer their add controls while it's edit.
+      // sub-record tabs only offer their add controls while it's edit. The
+      // Overview form's submit button only exists in edit mode, so it's the
+      // signal that the switch landed before the tabs are touched.
       await sheet.getByRole("button", { name: "Edit meeting" }).click();
+      await expect(
+        sheet.getByRole("button", { name: "Save meeting" }),
+      ).toBeVisible();
 
       await sheet.getByRole("tab", { name: "Action Items" }).click();
       await sheet.getByRole("button", { name: "+ Add action item" }).click();
@@ -157,16 +162,23 @@ test.describe("portal governance board, meetings, and resolutions", () => {
       });
 
       await sheet.getByRole("tab", { name: "Overview" }).click();
-      await sheet.getByLabel("Status").click();
+      const statusSelect = sheet.getByLabel("Status");
+      await statusSelect.click();
       await page
         .getByRole("listbox")
-        .getByText("Completed", { exact: true })
+        .getByRole("option", { name: "Completed" })
         .click();
-      await sheet.getByRole("button", { name: "Save meeting" }).click();
+      // Confirm the selection actually landed in form state before
+      // submitting -- the trigger renders the selected item's label.
+      await expect(statusSelect).toContainText("Completed");
 
-      await expect(sheet.getByText("completed")).toBeVisible({
-        timeout: 15_000,
-      });
+      await sheet.getByRole("button", { name: "Save meeting" }).click();
+      // Saving drops back to view mode, where the Edit button reappears and
+      // the Save button is gone; a rejected action would instead keep the
+      // form up with an error alert.
+      await expect(
+        sheet.getByRole("button", { name: "Edit meeting" }),
+      ).toBeVisible({ timeout: 15_000 });
 
       await reloadStayingSignedIn(page);
       await expect(
@@ -211,11 +223,13 @@ test.describe("portal governance board, meetings, and resolutions", () => {
       await addDialog.getByRole("button", { name: mover.name }).click();
 
       await addDialog.getByLabel("Motion text").fill(motionText);
-      await addDialog.getByLabel("Vote outcome").click();
+      const newOutcome = addDialog.getByLabel("Vote outcome");
+      await newOutcome.click();
       await page
         .getByRole("listbox")
-        .getByText("Passed", { exact: true })
+        .getByRole("option", { name: "Passed" })
         .click();
+      await expect(newOutcome).toContainText("Passed");
       await addDialog.getByRole("button", { name: "Add resolution" }).click();
       await expect(addDialog).not.toBeVisible();
 
@@ -228,15 +242,29 @@ test.describe("portal governance board, meetings, and resolutions", () => {
       const sheet = page.getByRole("dialog");
       await expect(sheet.getByText(motionText)).toBeVisible();
 
+      // The Save button only renders in edit mode, so it doubles as the
+      // confirmation that the mode switch landed.
       await sheet.getByRole("button", { name: "Edit resolution" }).click();
-      await sheet.getByLabel("Vote outcome").click();
+      const editOutcome = sheet.getByLabel("Vote outcome");
+      await expect(
+        sheet.getByRole("button", { name: "Save changes" }),
+      ).toBeVisible();
+
+      await editOutcome.click();
       await page
         .getByRole("listbox")
-        .getByText("Tabled", { exact: true })
+        .getByRole("option", { name: "Tabled" })
         .click();
-      await sheet.getByRole("button", { name: "Save changes" }).click();
+      // Confirm the selection actually landed in form state before
+      // submitting -- the trigger renders the selected item's label.
+      await expect(editOutcome).toContainText("Tabled");
 
-      await expect(sheet.getByText("tabled")).toBeVisible({ timeout: 15_000 });
+      await sheet.getByRole("button", { name: "Save changes" }).click();
+      // Saving drops back to view mode, where the Edit button reappears; a
+      // rejected action would instead keep the form up with an error alert.
+      await expect(
+        sheet.getByRole("button", { name: "Edit resolution" }),
+      ).toBeVisible({ timeout: 15_000 });
 
       await reloadStayingSignedIn(page);
       await expect(
