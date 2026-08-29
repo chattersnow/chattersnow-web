@@ -229,6 +229,44 @@ export async function createDonation() {
   };
 }
 
+// A single fresh `monetary_donations` row (a cash gift, not in-kind intake),
+// for tests exercising the Finance > Donations actions and the finance
+// report rollup. Anonymous by default (donor_id null); pass overrides to
+// link a donor or event, or to place it in a specific reporting period.
+export async function createMonetaryDonation(
+  overrides: {
+    donorId?: string | null;
+    eventId?: string | null;
+    amount?: number;
+    method?: string;
+    receivedDate?: string;
+    notes?: string | null;
+  } = {},
+) {
+  const { data, error } = await adminClient
+    .from("monetary_donations")
+    .insert({
+      donor_id: overrides.donorId ?? null,
+      event_id: overrides.eventId ?? null,
+      amount: overrides.amount ?? 25,
+      method: overrides.method ?? "cash",
+      received_date:
+        overrides.receivedDate ?? new Date().toISOString().slice(0, 10),
+      notes: overrides.notes ?? `Integration test gift ${crypto.randomUUID()}`,
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+
+  const id = data.id as string;
+  return {
+    id,
+    async cleanup() {
+      await adminClient.from("monetary_donations").delete().eq("id", id);
+    },
+  };
+}
+
 type CalendarItemOverrides = {
   title?: string;
   itemType?: string;

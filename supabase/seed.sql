@@ -181,6 +181,16 @@ begin
   insert into public.event_revenue (event_id, source, amount, received_date, notes, created_by)
   values (v_event_past, 'onsite_donations', 214.50, current_date - 40, 'Cash jar at the trailhead cleanup.', v_admin_id);
 
+  -- Monetary donations: cash gifts recorded from the portal — one from a
+  -- known donor, one anonymous, one tied to the past event. All within the
+  -- current year so the finance report's year-to-date default sees them.
+  insert into public.monetary_donations (donor_id, event_id, amount, method, received_date, notes, created_by)
+  values (v_person_donor1, null, 100.00, 'check', current_date - 21, 'Annual gift.', v_admin_id);
+  insert into public.monetary_donations (donor_id, event_id, amount, method, received_date, notes, created_by)
+  values (null, null, 25.00, 'cash', current_date - 14, 'Dropped in the office donation box.', v_admin_id);
+  insert into public.monetary_donations (donor_id, event_id, amount, method, received_date, notes, created_by)
+  values (v_person_donor2, v_event_past, 50.00, 'card', current_date - 40, 'Pledged at the trailhead cleanup.', v_admin_id);
+
   -- Reimbursement: a volunteer's out-of-pocket spend, still awaiting approval.
   insert into public.reimbursements (person_id, event_id, description, amount, notes, submitted_by, created_by)
   values (v_person_volunteer, v_event_past, 'Gas for hauling donated gear to the trailhead.', 32.75, 'Receipt on file at the office.', v_admin_id, v_admin_id);

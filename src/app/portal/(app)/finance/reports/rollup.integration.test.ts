@@ -37,6 +37,10 @@ type ReportPayload = {
   expenses: { amount: string | number; status: string }[];
   reimbursements: { amount: string | number; status: string }[];
   in_kind_items: { face_value: string | number | null }[];
+  monetary_donations: {
+    amount: string | number;
+    donor_name: string | null;
+  }[];
 };
 
 async function report(
@@ -68,6 +72,7 @@ async function insertFixture(
 const revenueAmount = uniqueAmount();
 const expenseAmount = uniqueAmount();
 const reimbursementAmount = uniqueAmount();
+const donationAmount = uniqueAmount();
 
 const event = await createPublishedEvent();
 const person = await createPerson();
@@ -95,10 +100,18 @@ const reimbursementId = await insertFixture("reimbursements", {
   amount: reimbursementAmount,
 });
 
+const donationId = await insertFixture("monetary_donations", {
+  donor_id: person.id,
+  amount: donationAmount,
+  method: "check",
+  received_date: IN_RANGE_DATE,
+});
+
 afterAll(async () => {
-  // Ordered by dependency: the reimbursement references the person, and both
-  // the revenue and expense rows reference the event.
+  // Ordered by dependency: the reimbursement and donation reference the
+  // person, and both the revenue and expense rows reference the event.
   await adminClient.from("reimbursements").delete().eq("id", reimbursementId);
+  await adminClient.from("monetary_donations").delete().eq("id", donationId);
   await person.cleanup();
   await adminClient.from("event_revenue").delete().eq("id", revenueId);
   await adminClient.from("event_expenses").delete().eq("id", expenseId);
@@ -124,6 +137,7 @@ describe("get_finance_report_data access", () => {
     expect(boardPayload).toEqual(adminPayload);
     expect(amounts(boardPayload.revenue)).toContain(revenueAmount);
     expect(amounts(boardPayload.expenses)).toContain(expenseAmount);
+    expect(amounts(boardPayload.monetary_donations)).toContain(donationAmount);
   });
 
   test.each([
@@ -150,6 +164,21 @@ describe("get_finance_report_data period filtering", () => {
     expect(amounts(payload.expenses)).not.toContain(expenseAmount);
   });
 
+  test("buckets monetary donations by received date and carries the donor name", async () => {
+    const [marchPayload, aprilPayload] = await Promise.all([
+      report(adminClient, IN_RANGE),
+      report(adminClient, OUT_OF_RANGE),
+    ]);
+    const donation = marchPayload.monetary_donations.find(
+      (row) => Number(row.amount) === donationAmount,
+    );
+    expect(donation).toBeDefined();
+    expect(donation?.donor_name).toBeTruthy();
+    expect(amounts(aprilPayload.monetary_donations)).not.toContain(
+      donationAmount,
+    );
+  });
+
   test("buckets reimbursements by the date the request was recorded", async () => {
     const [todayPayload, marchPayload] = await Promise.all([
       report(adminClient, TODAY_RANGE),
@@ -171,6 +200,7 @@ describe("get_finance_report_data period filtering", () => {
       expenses: [],
       reimbursements: [],
       in_kind_items: [],
+      monetary_donations: [],
     });
   });
 
