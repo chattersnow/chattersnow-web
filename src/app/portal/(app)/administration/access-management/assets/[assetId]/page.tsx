@@ -1,6 +1,9 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { FieldGroup } from "@/components/ui/field";
@@ -16,6 +19,7 @@ import { AssetAuditHistory } from "./asset-audit-history";
 import { EditAssetSheet } from "./edit-asset-sheet";
 import { NewAccessGrantDialog } from "./new-access-grant-dialog";
 import { ReviewAssetButton } from "./review-asset-button";
+import { DeleteAssetButton } from "../../delete-asset-button";
 
 export default async function AssetDetailPage({
   params,
@@ -52,6 +56,15 @@ export default async function AssetDetailPage({
   return (
     <>
       <div className="rainbow-accent w-16" />
+      <Button
+        variant="ghost"
+        size="sm"
+        nativeButton={false}
+        className="mb-2"
+        render={<Link href="/portal/administration/access-management" />}
+      >
+        <ArrowLeft /> Access management
+      </Button>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
@@ -76,6 +89,15 @@ export default async function AssetDetailPage({
             sensitivity={asset.sensitivity}
           />
           <EditAssetSheet asset={asset} services={services} people={people} />
+          <DeleteAssetButton
+            assetId={asset.id}
+            assetName={asset.name}
+            activeGrantCount={
+              grants.filter((grant) => grant.status === "active").length
+            }
+            variant="button"
+            redirectTo="/portal/administration/access-management"
+          />
         </div>
       </div>
 

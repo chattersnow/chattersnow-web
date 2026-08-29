@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 
 export type AssetFormState = Omit<
@@ -131,207 +132,242 @@ export function AssetFormFields({
   const [services, setServices] = useState(initialServices);
 
   return (
-    <FieldGroup>
-      <Field>
-        <FieldLabel htmlFor={`${idPrefix}-name`}>Name</FieldLabel>
-        <Input
-          id={`${idPrefix}-name`}
-          required
-          value={form.name}
-          onChange={(event) => update("name", event.target.value)}
-        />
-      </Field>
+    <Tabs defaultValue="overview">
+      <TabsList variant="line" className="flex-wrap">
+        <TabsTrigger value="overview">Overview</TabsTrigger>
+        <TabsTrigger value="ownership">Ownership</TabsTrigger>
+        <TabsTrigger value="security">Security &amp; recovery</TabsTrigger>
+        <TabsTrigger value="notes">Notes</TabsTrigger>
+      </TabsList>
 
-      <Field>
-        <FieldLabel htmlFor={`${idPrefix}-service`}>Service</FieldLabel>
-        <ServiceSelect
-          id={`${idPrefix}-service`}
-          services={services}
-          value={form.service_id}
-          onChange={(serviceId) => update("service_id", serviceId)}
-          onServiceCreated={(service) =>
-            setServices((prev) => [...prev, service as ServiceRow])
-          }
-        />
-      </Field>
+      <TabsContent value="overview" className="mt-4">
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor={`${idPrefix}-name`}>Name</FieldLabel>
+            <Input
+              id={`${idPrefix}-name`}
+              required
+              value={form.name}
+              onChange={(event) => update("name", event.target.value)}
+            />
+          </Field>
 
-      <Field>
-        <FieldLabel htmlFor={`${idPrefix}-category`}>Category</FieldLabel>
-        <EnumSelect
-          id={`${idPrefix}-category`}
-          value={form.category}
-          onChange={(value) =>
-            update("category", value as AssetFormState["category"])
-          }
-          options={CATEGORY_OPTIONS}
-        />
-      </Field>
+          <Field>
+            <FieldLabel htmlFor={`${idPrefix}-service`}>Service</FieldLabel>
+            <ServiceSelect
+              id={`${idPrefix}-service`}
+              services={services}
+              value={form.service_id}
+              onChange={(serviceId) => update("service_id", serviceId)}
+              onServiceCreated={(service) =>
+                setServices((prev) => [...prev, service as ServiceRow])
+              }
+            />
+          </Field>
 
-      <Field>
-        <FieldLabel htmlFor={`${idPrefix}-url`}>URL</FieldLabel>
-        <Input
-          id={`${idPrefix}-url`}
-          type="url"
-          placeholder="https://"
-          value={form.url}
-          onChange={(event) => update("url", event.target.value)}
-        />
-      </Field>
+          <Field>
+            <FieldLabel htmlFor={`${idPrefix}-category`}>Category</FieldLabel>
+            <EnumSelect
+              id={`${idPrefix}-category`}
+              value={form.category}
+              onChange={(value) =>
+                update("category", value as AssetFormState["category"])
+              }
+              options={CATEGORY_OPTIONS}
+            />
+          </Field>
 
-      <Field>
-        <FieldLabel htmlFor={`${idPrefix}-description`}>Description</FieldLabel>
-        <Textarea
-          id={`${idPrefix}-description`}
-          value={form.description}
-          onChange={(event) => update("description", event.target.value)}
-          rows={2}
-        />
-      </Field>
+          <Field>
+            <FieldLabel htmlFor={`${idPrefix}-url`}>URL</FieldLabel>
+            <Input
+              id={`${idPrefix}-url`}
+              type="url"
+              placeholder="https://"
+              value={form.url}
+              onChange={(event) => update("url", event.target.value)}
+            />
+          </Field>
 
-      <Field>
-        <label className="flex items-center gap-2 text-sm">
-          <Checkbox
-            checked={form.is_org_owned}
-            onCheckedChange={(checked) =>
-              update("is_org_owned", checked === true)
-            }
-          />
-          Organization-owned
-        </label>
-      </Field>
+          <Field>
+            <FieldLabel htmlFor={`${idPrefix}-description`}>
+              Description
+            </FieldLabel>
+            <Textarea
+              id={`${idPrefix}-description`}
+              value={form.description}
+              onChange={(event) => update("description", event.target.value)}
+              rows={2}
+            />
+          </Field>
+        </FieldGroup>
+      </TabsContent>
 
-      <Field>
-        <FieldLabel htmlFor={`${idPrefix}-owner`}>Owner</FieldLabel>
-        <PersonSelect
-          id={`${idPrefix}-owner`}
-          people={people}
-          value={form.owner_person_id}
-          onChange={(personId) => update("owner_person_id", personId)}
-        />
-      </Field>
+      <TabsContent value="ownership" className="mt-4">
+        <FieldGroup>
+          <Field>
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={form.is_org_owned}
+                onCheckedChange={(checked) =>
+                  update("is_org_owned", checked === true)
+                }
+              />
+              Organization-owned
+            </label>
+          </Field>
 
-      <Field>
-        <FieldLabel htmlFor={`${idPrefix}-primary-admin`}>
-          Primary administrator
-        </FieldLabel>
-        <PersonSelect
-          id={`${idPrefix}-primary-admin`}
-          people={people}
-          value={form.primary_admin_person_id}
-          onChange={(personId) => update("primary_admin_person_id", personId)}
-        />
-      </Field>
+          <Field>
+            <FieldLabel htmlFor={`${idPrefix}-owner`}>Owner</FieldLabel>
+            <PersonSelect
+              id={`${idPrefix}-owner`}
+              people={people}
+              value={form.owner_person_id}
+              onChange={(personId) => update("owner_person_id", personId)}
+            />
+          </Field>
 
-      <Field>
-        <FieldLabel htmlFor={`${idPrefix}-backup-admin`}>
-          Backup administrator
-        </FieldLabel>
-        <PersonSelect
-          id={`${idPrefix}-backup-admin`}
-          people={people}
-          value={form.backup_admin_person_id}
-          onChange={(personId) => update("backup_admin_person_id", personId)}
-        />
-      </Field>
+          <Field>
+            <FieldLabel htmlFor={`${idPrefix}-primary-admin`}>
+              Primary administrator
+            </FieldLabel>
+            <PersonSelect
+              id={`${idPrefix}-primary-admin`}
+              people={people}
+              value={form.primary_admin_person_id}
+              onChange={(personId) =>
+                update("primary_admin_person_id", personId)
+              }
+            />
+          </Field>
 
-      <Field>
-        <FieldLabel htmlFor={`${idPrefix}-status`}>Status</FieldLabel>
-        <EnumSelect
-          id={`${idPrefix}-status`}
-          value={form.status}
-          onChange={(value) =>
-            update("status", value as AssetFormState["status"])
-          }
-          options={ASSET_STATUS_OPTIONS}
-        />
-      </Field>
+          <Field>
+            <FieldLabel htmlFor={`${idPrefix}-backup-admin`}>
+              Backup administrator
+            </FieldLabel>
+            <PersonSelect
+              id={`${idPrefix}-backup-admin`}
+              people={people}
+              value={form.backup_admin_person_id}
+              onChange={(personId) =>
+                update("backup_admin_person_id", personId)
+              }
+            />
+          </Field>
+        </FieldGroup>
+      </TabsContent>
 
-      <Field>
-        <FieldLabel htmlFor={`${idPrefix}-sensitivity`}>Sensitivity</FieldLabel>
-        <EnumSelect
-          id={`${idPrefix}-sensitivity`}
-          value={form.sensitivity}
-          onChange={(value) =>
-            update("sensitivity", value as AssetFormState["sensitivity"])
-          }
-          options={SENSITIVITY_OPTIONS}
-        />
-      </Field>
+      <TabsContent value="security" className="mt-4">
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor={`${idPrefix}-status`}>Status</FieldLabel>
+            <EnumSelect
+              id={`${idPrefix}-status`}
+              value={form.status}
+              onChange={(value) =>
+                update("status", value as AssetFormState["status"])
+              }
+              options={ASSET_STATUS_OPTIONS}
+            />
+          </Field>
 
-      <Field>
-        <label className="flex items-center gap-2 text-sm">
-          <Checkbox
-            checked={form.mfa_required}
-            onCheckedChange={(checked) =>
-              update("mfa_required", checked === true)
-            }
-          />
-          MFA required
-        </label>
-      </Field>
+          <Field>
+            <FieldLabel htmlFor={`${idPrefix}-sensitivity`}>
+              Sensitivity
+            </FieldLabel>
+            <EnumSelect
+              id={`${idPrefix}-sensitivity`}
+              value={form.sensitivity}
+              onChange={(value) =>
+                update("sensitivity", value as AssetFormState["sensitivity"])
+              }
+              options={SENSITIVITY_OPTIONS}
+            />
+          </Field>
 
-      <Field>
-        <FieldLabel htmlFor={`${idPrefix}-mfa-status`}>MFA status</FieldLabel>
-        <EnumSelect
-          id={`${idPrefix}-mfa-status`}
-          value={form.mfa_status}
-          onChange={(value) =>
-            update("mfa_status", value as AssetFormState["mfa_status"])
-          }
-          options={MFA_STATUS_OPTIONS}
-        />
-      </Field>
+          <Field>
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={form.mfa_required}
+                onCheckedChange={(checked) =>
+                  update("mfa_required", checked === true)
+                }
+              />
+              MFA required
+            </label>
+          </Field>
 
-      <Field>
-        <label className="flex items-center gap-2 text-sm">
-          <Checkbox
-            checked={form.recovery_documented}
-            onCheckedChange={(checked) =>
-              update("recovery_documented", checked === true)
-            }
-          />
-          Recovery process documented
-        </label>
-      </Field>
+          <Field>
+            <FieldLabel htmlFor={`${idPrefix}-mfa-status`}>
+              MFA status
+            </FieldLabel>
+            <EnumSelect
+              id={`${idPrefix}-mfa-status`}
+              value={form.mfa_status}
+              onChange={(value) =>
+                update("mfa_status", value as AssetFormState["mfa_status"])
+              }
+              options={MFA_STATUS_OPTIONS}
+            />
+          </Field>
 
-      <Field>
-        <FieldLabel htmlFor={`${idPrefix}-recovery-owner`}>
-          Recovery owner
-        </FieldLabel>
-        <PersonSelect
-          id={`${idPrefix}-recovery-owner`}
-          people={people}
-          value={form.recovery_owner_person_id}
-          onChange={(personId) => update("recovery_owner_person_id", personId)}
-        />
-      </Field>
+          <Field>
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={form.recovery_documented}
+                onCheckedChange={(checked) =>
+                  update("recovery_documented", checked === true)
+                }
+              />
+              Recovery process documented
+            </label>
+          </Field>
 
-      <Field>
-        <FieldLabel htmlFor={`${idPrefix}-credential-location`}>
-          Credential management location
-        </FieldLabel>
-        <EnumSelect
-          id={`${idPrefix}-credential-location`}
-          value={form.credential_management_location}
-          onChange={(value) =>
-            update(
-              "credential_management_location",
-              value as AssetFormState["credential_management_location"],
-            )
-          }
-          options={CREDENTIAL_MANAGEMENT_LOCATION_OPTIONS}
-        />
-      </Field>
+          <Field>
+            <FieldLabel htmlFor={`${idPrefix}-recovery-owner`}>
+              Recovery owner
+            </FieldLabel>
+            <PersonSelect
+              id={`${idPrefix}-recovery-owner`}
+              people={people}
+              value={form.recovery_owner_person_id}
+              onChange={(personId) =>
+                update("recovery_owner_person_id", personId)
+              }
+            />
+          </Field>
 
-      <Field>
-        <FieldLabel htmlFor={`${idPrefix}-notes`}>Notes</FieldLabel>
-        <Textarea
-          id={`${idPrefix}-notes`}
-          value={form.notes}
-          onChange={(event) => update("notes", event.target.value)}
-          rows={2}
-        />
-      </Field>
-    </FieldGroup>
+          <Field>
+            <FieldLabel htmlFor={`${idPrefix}-credential-location`}>
+              Credential management location
+            </FieldLabel>
+            <EnumSelect
+              id={`${idPrefix}-credential-location`}
+              value={form.credential_management_location}
+              onChange={(value) =>
+                update(
+                  "credential_management_location",
+                  value as AssetFormState["credential_management_location"],
+                )
+              }
+              options={CREDENTIAL_MANAGEMENT_LOCATION_OPTIONS}
+            />
+          </Field>
+        </FieldGroup>
+      </TabsContent>
+
+      <TabsContent value="notes" className="mt-4">
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor={`${idPrefix}-notes`}>Notes</FieldLabel>
+            <Textarea
+              id={`${idPrefix}-notes`}
+              value={form.notes}
+              onChange={(event) => update("notes", event.target.value)}
+              rows={4}
+            />
+          </Field>
+        </FieldGroup>
+      </TabsContent>
+    </Tabs>
   );
 }

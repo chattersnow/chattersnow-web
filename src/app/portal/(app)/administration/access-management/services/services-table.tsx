@@ -1,0 +1,57 @@
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import type { ServiceManageRow } from "@/lib/portal/access-management/types";
+import { ServiceDetailsSheet } from "./service-details-sheet";
+
+export function ServicesTable({ services }: { services: ServiceManageRow[] }) {
+  if (services.length === 0) {
+    return (
+      <Card>
+        <CardContent className="app-muted px-4 py-6 text-sm">
+          No services yet. Add one before creating assets that belong to it.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardContent className="px-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Website</TableHead>
+              <TableHead>Assets</TableHead>
+              <TableHead className="w-px" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {services.map((service) => (
+              <TableRow key={service.id}>
+                <TableCell className="font-medium">{service.name}</TableCell>
+                <TableCell className="app-muted">
+                  {service.website || "—"}
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline">{service.assetCount}</Badge>
+                </TableCell>
+                <TableCell className="text-right">
+                  <ServiceDetailsSheet service={service} />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
