@@ -122,15 +122,23 @@ test.describe("portal administration users", () => {
       await page.getByRole("button", { name: "Stage access" }).click();
 
       const grantRow = page.getByRole("row").filter({ hasText: invite.email });
-      await expect(grantRow).toBeVisible();
+      await expect(grantRow).toBeVisible({ timeout: 15_000 });
       await expect(grantRow).toContainText("Volunteer");
       await expect(grantRow).toContainText("Pending");
 
-      await grantRow.getByRole("button", { name: "Invite" }).click();
+      // Generating the link goes out to Supabase's admin API, so it can fail
+      // in ways a click alone can't distinguish from a slow one. Retry until
+      // the dialog is actually up; after the first success the button is
+      // labelled "Resend link".
       const inviteDialog = page.getByRole("dialog");
-      await expect(inviteDialog).toContainText(invite.email, {
-        timeout: 15_000,
-      });
+      await expect(async () => {
+        await grantRow
+          .getByRole("button", { name: /^(Invite|Resend link)$/ })
+          .click();
+        await expect(inviteDialog).toBeVisible({ timeout: 5_000 });
+      }).toPass({ timeout: 45_000 });
+
+      await expect(inviteDialog).toContainText(invite.email);
       await expect(inviteDialog.getByRole("textbox")).toHaveValue(
         /\/auth\/confirm\?token_hash=/,
       );
