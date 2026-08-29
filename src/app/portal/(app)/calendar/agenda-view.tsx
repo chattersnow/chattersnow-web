@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
+import { Eye } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDateInZone } from "@/lib/time";
-import { CalendarItemDetailsSheet } from "./calendar-item-details-sheet";
 import {
   CalendarStatusBadge,
   NeedsDecisionFlag,
@@ -15,11 +17,7 @@ import {
   needsDecision,
   ITEM_TYPES,
   type CalendarItemRow,
-  type CalendarOwner,
-  type CalendarProgram,
 } from "./calendar-shared";
-import type { ActiveContentBriefTemplate } from "./content-brief-template-shared";
-import type { ProgramSuggestionRule } from "./program-suggestion-shared";
 
 const dayHeadingFormatter = new Intl.DateTimeFormat("en-US", {
   weekday: "long",
@@ -47,23 +45,7 @@ function groupByDay(
     .map(([dayKey, dayItems]) => ({ dayKey, items: dayItems }));
 }
 
-export function AgendaView({
-  items,
-  owners,
-  programs,
-  activeTemplates,
-  defaultLeadTimeDays,
-  programSuggestionRules,
-  canManage,
-}: {
-  items: CalendarItemRow[];
-  owners: CalendarOwner[];
-  programs: CalendarProgram[];
-  activeTemplates: ActiveContentBriefTemplate[];
-  defaultLeadTimeDays: number;
-  programSuggestionRules: ProgramSuggestionRule[];
-  canManage: boolean;
-}) {
+export function AgendaView({ items }: { items: CalendarItemRow[] }) {
   const groups = groupByDay(items);
 
   if (groups.length === 0) {
@@ -107,15 +89,15 @@ export function AgendaView({
                       {isPastUndecided(item) && <PastUndecidedFlag />}
                     </div>
                   </div>
-                  <CalendarItemDetailsSheet
-                    item={item}
-                    owners={owners}
-                    programs={programs}
-                    activeTemplates={activeTemplates}
-                    defaultLeadTimeDays={defaultLeadTimeDays}
-                    programSuggestionRules={programSuggestionRules}
-                    canManage={canManage}
-                  />
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    nativeButton={false}
+                    aria-label={`View ${item.title}`}
+                    render={<Link href={`/portal/calendar/${item.id}`} />}
+                  >
+                    <Eye />
+                  </Button>
                 </div>
               ))}
             </div>

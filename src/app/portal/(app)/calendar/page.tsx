@@ -5,7 +5,6 @@ import {
 } from "@/lib/auth/permissions";
 import { listProgramsAction } from "../programs/actions";
 import { listCalendarOwnersAction } from "./actions";
-import { listActiveContentBriefTemplatesAction } from "./templates/actions";
 import { listActiveProgramSuggestionRulesAction } from "./program-suggestions/actions";
 import { CalendarWorkspace } from "./calendar-workspace";
 import type { CalendarView } from "./view-toggle";
@@ -104,19 +103,9 @@ export default async function CalendarPage({
   const owners = "data" in ownersResult ? ownersResult.data : [];
   const programsResult = await listProgramsAction();
   const programs = "data" in programsResult ? programsResult.data : [];
-  const templatesResult = await listActiveContentBriefTemplatesAction();
-  const activeTemplates = "data" in templatesResult ? templatesResult.data : [];
   const suggestionRulesResult = await listActiveProgramSuggestionRulesAction();
   const programSuggestionRules =
     "data" in suggestionRulesResult ? suggestionRulesResult.data : [];
-
-  const { data: leadTimeSetting } = await supabase
-    .from("app_settings")
-    .select("value")
-    .eq("key", "content.default_lead_time_days")
-    .maybeSingle();
-  const defaultLeadTimeDays =
-    typeof leadTimeSetting?.value === "number" ? leadTimeSetting.value : 21;
 
   const filterParams = new URLSearchParams();
   if (typeFilter !== "all") filterParams.set("type", typeFilter);
@@ -148,8 +137,6 @@ export default async function CalendarPage({
             items={items}
             owners={owners}
             programs={programs}
-            activeTemplates={activeTemplates}
-            defaultLeadTimeDays={defaultLeadTimeDays}
             programSuggestionRules={programSuggestionRules}
             canManage={canManage}
             filterQuery={filterParams.toString()}

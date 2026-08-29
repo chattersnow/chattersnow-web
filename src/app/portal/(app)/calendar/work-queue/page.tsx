@@ -1,15 +1,8 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import {
-  getCurrentUserPermissions,
-  hasPermission,
-} from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
 import { HowToSection, HowToSheet } from "@/components/how-to-sheet";
-import { listProgramsAction } from "../../programs/actions";
 import { listCalendarOwnersAction } from "../actions";
-import { listActiveContentBriefTemplatesAction } from "../templates/actions";
-import { listActiveProgramSuggestionRulesAction } from "../program-suggestions/actions";
 import { listWorkQueueItems } from "../queries";
 import { WorkQueueTable } from "../work-queue-table";
 import {
@@ -28,8 +21,6 @@ export default async function WorkQueuePage({
   searchParams,
 }: WorkQueuePageProps) {
   const supabase = await createSupabaseServerClient();
-  const permissions = await getCurrentUserPermissions(supabase);
-  const canManage = hasPermission(permissions, "content_calendar", "manage");
 
   const params = await searchParams;
   const raw = (key: string) => {
@@ -40,36 +31,14 @@ export default async function WorkQueuePage({
   const tab: WorkQueueTab = raw("tab") === "queue" ? "queue" : "my-work";
   const overdueOnly = raw("filter") === "overdue";
 
-  const [
-    { data: userData },
-    items,
-    ownersResult,
-    programsResult,
-    templatesResult,
-    suggestionRulesResult,
-    { data: leadTimeSetting },
-  ] = await Promise.all([
+  const [{ data: userData }, items, ownersResult] = await Promise.all([
     supabase.auth.getUser(),
     listWorkQueueItems(supabase),
     listCalendarOwnersAction(),
-    listProgramsAction(),
-    listActiveContentBriefTemplatesAction(),
-    listActiveProgramSuggestionRulesAction(),
-    supabase
-      .from("app_settings")
-      .select("value")
-      .eq("key", "content.default_lead_time_days")
-      .maybeSingle(),
   ]);
 
   const currentUserId = userData.user?.id ?? null;
   const owners = "data" in ownersResult ? ownersResult.data : [];
-  const programs = "data" in programsResult ? programsResult.data : [];
-  const activeTemplates = "data" in templatesResult ? templatesResult.data : [];
-  const programSuggestionRules =
-    "data" in suggestionRulesResult ? suggestionRulesResult.data : [];
-  const defaultLeadTimeDays =
-    typeof leadTimeSetting?.value === "number" ? leadTimeSetting.value : 21;
 
   const myWorkItems = currentUserId
     ? items
@@ -229,11 +198,6 @@ export default async function WorkQueuePage({
         <WorkQueueTable
           items={myWorkItems}
           owners={owners}
-          programs={programs}
-          activeTemplates={activeTemplates}
-          defaultLeadTimeDays={defaultLeadTimeDays}
-          programSuggestionRules={programSuggestionRules}
-          canManage={canManage}
           currentUserId={currentUserId}
           emptyMessage="Nothing is assigned to you as an owner or reviewer right now."
         />
@@ -241,11 +205,6 @@ export default async function WorkQueuePage({
         <WorkQueueTable
           items={queueItems}
           owners={owners}
-          programs={programs}
-          activeTemplates={activeTemplates}
-          defaultLeadTimeDays={defaultLeadTimeDays}
-          programSuggestionRules={programSuggestionRules}
-          canManage={canManage}
           currentUserId={currentUserId}
           emptyMessage={
             overdueOnly

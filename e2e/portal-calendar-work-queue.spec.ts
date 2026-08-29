@@ -98,7 +98,7 @@ test.describe("portal calendar work queue", () => {
     ).toBeVisible();
   });
 
-  test("opens a queued item's details sheet and its content brief", async ({
+  test("links a queued item to its detail page, content brief included", async ({
     page,
   }) => {
     await page.goto("/portal/calendar/work-queue");
@@ -107,23 +107,26 @@ test.describe("portal calendar work queue", () => {
       .getByRole("button", { name: `View ${SEEDED_OPPORTUNITY}` })
       .click();
 
-    const sheet = page.getByRole("dialog");
+    // Since #467 the row's View action is a link to the item's dedicated
+    // detail page, where the content brief is a flat always-visible section
+    // rather than a sheet tab.
+    await expect(page).toHaveURL(/\/portal\/calendar\/[0-9a-f-]{36}$/, {
+      timeout: 15_000,
+    });
     await expect(
-      sheet.getByRole("heading", { name: SEEDED_OPPORTUNITY }),
+      page.getByRole("heading", { level: 1, name: SEEDED_OPPORTUNITY }),
     ).toBeVisible();
     await expect(
-      sheet.getByText("Promote the upcoming gear swap and registration link."),
+      page.getByText("Promote the upcoming gear swap and registration link."),
     ).toBeVisible();
-
-    await sheet.getByRole("tab", { name: "Content brief" }).click();
     await expect(
-      sheet.getByText(
+      page.getByText(
         "Show how shared gear helps neighbors participate outdoors.",
       ),
     ).toBeVisible();
     // ReadOnlyField renders a labelled <div>, not a form control, so this
     // reads the value by its id rather than by label.
-    await expect(sheet.locator("#brief-outstanding")).toContainText(
+    await expect(page.locator("#brief-outstanding")).toContainText(
       "Confirm final registration link and accessibility details.",
     );
   });

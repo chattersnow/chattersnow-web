@@ -1,4 +1,7 @@
+import Link from "next/link";
+import { Eye } from "lucide-react";
 import { formatDueRelative } from "@/lib/time";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -8,7 +11,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CalendarItemDetailsSheet } from "./calendar-item-details-sheet";
 import {
   NeedsDecisionFlag,
   PastUndecidedFlag,
@@ -27,34 +29,21 @@ import {
   ITEM_TYPES,
   type CalendarItemRow,
   type CalendarOwner,
-  type CalendarProgram,
 } from "./calendar-shared";
 import {
   effectiveDueDate,
   isChangesRequestedForMe,
   overdueStage,
 } from "./content-opportunity-shared";
-import type { ActiveContentBriefTemplate } from "./content-brief-template-shared";
-import type { ProgramSuggestionRule } from "./program-suggestion-shared";
 
 export function WorkQueueTable({
   items,
   owners,
-  programs,
-  activeTemplates,
-  defaultLeadTimeDays,
-  programSuggestionRules,
-  canManage,
   currentUserId,
   emptyMessage,
 }: {
   items: CalendarItemRow[];
   owners: CalendarOwner[];
-  programs: CalendarProgram[];
-  activeTemplates: ActiveContentBriefTemplate[];
-  defaultLeadTimeDays: number;
-  programSuggestionRules: ProgramSuggestionRule[];
-  canManage: boolean;
   currentUserId: string | null;
   emptyMessage: string;
 }) {
@@ -124,15 +113,15 @@ export function WorkQueueTable({
                       {opp ? ownerEmail(owners, opp.reviewer_id) : "—"}
                     </TableCell>
                     <TableCell className="text-right">
-                      <CalendarItemDetailsSheet
-                        item={item}
-                        owners={owners}
-                        programs={programs}
-                        activeTemplates={activeTemplates}
-                        defaultLeadTimeDays={defaultLeadTimeDays}
-                        programSuggestionRules={programSuggestionRules}
-                        canManage={canManage}
-                      />
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        nativeButton={false}
+                        aria-label={`View ${item.title}`}
+                        render={<Link href={`/portal/calendar/${item.id}`} />}
+                      >
+                        <Eye />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 );

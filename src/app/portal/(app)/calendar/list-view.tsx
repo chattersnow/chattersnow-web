@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Eye } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -13,7 +14,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CalendarItemDetailsSheet } from "./calendar-item-details-sheet";
 import { BulkActionsToolbar } from "./bulk-actions-toolbar";
 import {
   CalendarStatusBadge,
@@ -31,10 +31,7 @@ import {
   ITEM_TYPES,
   type CalendarItemRow,
   type CalendarOwner,
-  type CalendarProgram,
 } from "./calendar-shared";
-import type { ActiveContentBriefTemplate } from "./content-brief-template-shared";
-import type { ProgramSuggestionRule } from "./program-suggestion-shared";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -56,10 +53,6 @@ const SORT_COLUMNS_AFTER_TYPE: { key: ListSortColumn; label: string }[] = [
 export function ListView({
   items,
   owners,
-  programs,
-  activeTemplates,
-  defaultLeadTimeDays,
-  programSuggestionRules,
   canManage,
   sort,
   dir,
@@ -67,10 +60,6 @@ export function ListView({
 }: {
   items: CalendarItemRow[];
   owners: CalendarOwner[];
-  programs: CalendarProgram[];
-  activeTemplates: ActiveContentBriefTemplate[];
-  defaultLeadTimeDays: number;
-  programSuggestionRules: ProgramSuggestionRule[];
   canManage: boolean;
   sort: ListSortColumn;
   dir: "asc" | "desc";
@@ -214,15 +203,15 @@ export function ListView({
                     <CategoryBadges categories={item.categories} />
                   </TableCell>
                   <TableCell className="text-right">
-                    <CalendarItemDetailsSheet
-                      item={item}
-                      owners={owners}
-                      programs={programs}
-                      activeTemplates={activeTemplates}
-                      defaultLeadTimeDays={defaultLeadTimeDays}
-                      programSuggestionRules={programSuggestionRules}
-                      canManage={canManage}
-                    />
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      nativeButton={false}
+                      aria-label={`View ${item.title}`}
+                      render={<Link href={`/portal/calendar/${item.id}`} />}
+                    >
+                      <Eye />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
