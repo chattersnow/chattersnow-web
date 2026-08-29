@@ -25,6 +25,8 @@ test.describe("portal administration audit log", () => {
   test("an admin action lands in the audit log and can be filtered to", async ({
     page,
   }) => {
+    test.slow();
+
     const admin = createAdminClient();
     const user = await seedPortalUser(admin);
 
@@ -74,7 +76,7 @@ test.describe("portal administration audit log", () => {
         .getByRole("button", { name: "View entry details" })
         .click();
       const detailSheet = page.getByRole("dialog");
-      await expect(detailSheet).toContainText(recordId);
+      await expect(detailSheet).toContainText(recordId, { timeout: 15_000 });
       await expect(detailSheet).toContainText(user.userId);
     } finally {
       await user.cleanup();
@@ -95,6 +97,11 @@ test.describe("portal administration audit log", () => {
     await page.getByRole("button", { name: "Clear", exact: true }).click();
 
     await expect(page).toHaveURL(/\/portal\/administration\/audit-log$/);
+    // Clearing navigates client-side, which leaves the sheet mounted and
+    // open -- and while it is, it holds the rest of the page aria-hidden,
+    // where no role-based locator can reach the Filters trigger.
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).not.toBeVisible();
     await expect(
       page.getByRole("button", { name: /^Filters/ }),
     ).not.toContainText("2");

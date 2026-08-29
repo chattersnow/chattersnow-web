@@ -81,6 +81,28 @@ export async function seedRole(admin: AdminClient) {
   };
 }
 
+/**
+ * A unique email with no auth user behind it, for staging pending access.
+ * Generating an invite link for it makes Supabase create the (unconfirmed)
+ * account, so cleanup has to look that account up by address.
+ */
+export async function seedInviteEmail(admin: AdminClient) {
+  const email = `e2e-invite-${suffix()}@example.test`;
+
+  return {
+    email,
+    async cleanup() {
+      await admin.from("pending_role_grants").delete().eq("email", email);
+      const { data } = await admin.auth.admin.listUsers({
+        page: 1,
+        perPage: 1000,
+      });
+      const invited = data?.users.find((user) => user.email === email);
+      if (invited) await admin.auth.admin.deleteUser(invited.id);
+    },
+  };
+}
+
 /** Deletes any role left behind by a spec that creates one through the UI
  * (and therefore has no id to clean up by). */
 export async function deleteRoleByName(admin: AdminClient, name: string) {

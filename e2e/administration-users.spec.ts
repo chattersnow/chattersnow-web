@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
-import { seedPortalUser } from "./helpers/rbac";
+import { seedInviteEmail, seedPortalUser } from "./helpers/rbac";
 
 test.describe("portal administration users", () => {
   test.beforeEach(async ({ page }) => {
@@ -95,30 +95,33 @@ test.describe("portal administration users", () => {
     // API, which is slower than the rest of this page's actions.
     test.slow();
 
+    // Staged against an address with no account behind it -- the plain
+    // invite path. Supabase creates the (unconfirmed) account as a side
+    // effect of generating the link, which `invite.cleanup` removes.
+
     const admin = createAdminClient();
-    // Staged against an account that already exists (with no roles), so the
-    // invite link falls back to a magic link for that account rather than
-    // creating a second, untracked auth user this spec can't clean up.
-    const user = await seedPortalUser(admin);
+    const invite = await seedInviteEmail(admin);
 
     try {
       await page.goto("/portal/administration/users");
 
-      await page.getByPlaceholder("name@example.com").fill(user.email);
+      await page.getByPlaceholder("name@example.com").fill(invite.email);
       await page.getByRole("combobox", { name: "Grant role" }).click();
       await page
         .getByRole("option", { name: "Volunteer", exact: true })
         .click();
       await page.getByRole("button", { name: "Stage access" }).click();
 
-      const grantRow = page.getByRole("row").filter({ hasText: user.email });
+      const grantRow = page.getByRole("row").filter({ hasText: invite.email });
       await expect(grantRow).toBeVisible();
       await expect(grantRow).toContainText("Volunteer");
       await expect(grantRow).toContainText("Pending");
 
       await grantRow.getByRole("button", { name: "Invite" }).click();
       const inviteDialog = page.getByRole("dialog");
-      await expect(inviteDialog).toContainText(user.email, { timeout: 15_000 });
+      await expect(inviteDialog).toContainText(invite.email, {
+        timeout: 15_000,
+      });
       await expect(inviteDialog.getByRole("textbox")).toHaveValue(
         /\/auth\/confirm\?token_hash=/,
       );
@@ -136,7 +139,7 @@ test.describe("portal administration users", () => {
       await expect(confirm).not.toBeVisible();
       await expect(grantRow).toContainText("Revoked");
     } finally {
-      await user.cleanup();
+      await invite.cleanup();
     }
   });
 });
