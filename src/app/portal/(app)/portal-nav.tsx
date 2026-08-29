@@ -27,7 +27,6 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { TabNavOverlay } from "./tab-nav-overlay";
 import {
   hasAnyPermission,
   type PermissionCheck,
@@ -470,7 +469,6 @@ export function PortalNav({ permissions }: { permissions: PermissionMap }) {
               >
                 <item.icon />
                 <span>{item.label}</span>
-                <TabNavOverlay />
               </SidebarMenuButton>
             )}
 
@@ -483,7 +481,6 @@ export function PortalNav({ permissions }: { permissions: PermissionMap }) {
                       render={<Link href={sub.href} />}
                     >
                       <span>{sub.label}</span>
-                      <TabNavOverlay />
                     </SidebarMenuSubButton>
                   </SidebarMenuSubItem>
                 ))}
