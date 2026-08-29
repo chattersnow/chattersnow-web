@@ -83,6 +83,11 @@ test.describe("portal people directory", () => {
     // (nativeButton={false}), which gives the anchor role="button".
     await filters.getByRole("button", { name: "Clear" }).click();
     await expect(page).toHaveURL(/\/portal\/people$/);
+    // Clear navigates client-side (Next Link), so the sheet stays open and
+    // the table behind the modal is aria-hidden — invisible to role-based
+    // locators. Close the sheet before asserting the unfiltered table.
+    await page.keyboard.press("Escape");
+    await expect(filters).not.toBeVisible();
     await expect(
       page.getByRole("row").filter({ hasText: "Priya Natarajan" }),
     ).toBeVisible();
