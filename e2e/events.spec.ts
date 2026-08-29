@@ -26,18 +26,27 @@ test.describe("public events", () => {
       .getByRole("button", { name: new RegExp(EVENT_NAME, "i") })
       .click();
 
-    const dialog = page.getByRole("dialog");
+    const detailDialog = page.getByRole("dialog", { name: EVENT_NAME });
     await expect(
-      dialog.getByRole("heading", { name: EVENT_NAME }),
+      detailDialog.getByRole("heading", { name: EVENT_NAME }),
+    ).toBeVisible();
+
+    await detailDialog
+      .getByRole("button", { name: "Register for this event" })
+      .click();
+
+    const registrationDialog = page.getByRole("dialog", { name: "Register" });
+    await expect(
+      registrationDialog.getByRole("heading", { name: "Register" }),
     ).toBeVisible();
 
     const uniqueEmail = `e2e-${Date.now()}@example.test`;
-    await dialog.getByLabel("Name").fill("E2E Test Registrant");
-    await dialog.getByLabel("Email").fill(uniqueEmail);
-    await dialog.getByRole("button", { name: "Register" }).click();
+    await registrationDialog.getByLabel("Name").fill("E2E Test Registrant");
+    await registrationDialog.getByLabel("Email").fill(uniqueEmail);
+    await registrationDialog.getByRole("button", { name: "Register" }).click();
 
     await expect(
-      dialog.getByText(
+      registrationDialog.getByText(
         "You're registered! We look forward to seeing you there.",
       ),
     ).toBeVisible();
