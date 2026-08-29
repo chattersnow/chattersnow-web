@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, Eye, Pencil } from "lucide-react";
-import type { MeetingRow } from "./meeting-badges";
-import { OverviewTab } from "./overview-tab";
-import { AttendeesTab } from "./attendees-tab";
-import { AgendaTab } from "./agenda-tab";
-import { ActionItemsTab } from "./action-items-tab";
-import { DecisionsTab } from "./decisions-tab";
-import { ResolutionsTab } from "./resolutions-tab";
+import { ArrowLeft, Pencil } from "lucide-react";
+import type { MeetingRow } from "../meeting-badges";
+import { OverviewTab } from "../overview-tab";
+import { AttendeesTab } from "../attendees-tab";
+import { AgendaTab } from "../agenda-tab";
+import { ActionItemsTab } from "../action-items-tab";
+import { DecisionsTab } from "../decisions-tab";
+import { ResolutionsTab } from "../resolutions-tab";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -43,7 +43,7 @@ const TABS: { value: TabValue; label: string }[] = [
   { value: "resolutions", label: "Resolutions" },
 ];
 
-export function MeetingDetailsSheet({ meeting }: { meeting: MeetingRow }) {
+export function EditMeetingSheet({ meeting }: { meeting: MeetingRow }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<TabValue>("overview");
   const [mode, setMode] = useState<"view" | "edit">("view");
@@ -58,25 +58,9 @@ export function MeetingDetailsSheet({ meeting }: { meeting: MeetingRow }) {
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
-      <Tooltip>
-        <SheetTrigger
-          render={
-            <TooltipTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="View meeting details"
-                />
-              }
-            />
-          }
-        >
-          <Eye />
-        </SheetTrigger>
-        <TooltipContent>View meeting details</TooltipContent>
-      </Tooltip>
+      <SheetTrigger render={<Button type="button" variant="secondary" />}>
+        <Pencil /> Edit
+      </SheetTrigger>
       <SheetContent side="right" showCloseButton={false} size="2xl">
         <SheetHeader className="flex-row items-start gap-2 space-y-0">
           <Tooltip>

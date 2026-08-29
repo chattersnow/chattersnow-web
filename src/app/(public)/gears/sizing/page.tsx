@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SkiSizingSections } from "./ski-sizing-sections";
 import { SnowboardSizingSections } from "./snowboard-sizing-sections";
 
@@ -48,13 +49,19 @@ export default function GearSizingPage() {
             </Link>
             .
           </p>
+        </section>
 
-          <nav
-            aria-label="Sizing categories"
-            className="mt-6 flex flex-col gap-4 sm:flex-row sm:gap-10"
-          >
-            <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
-              <span className="app-eyebrow">Ski</span>
+        <Tabs defaultValue="ski">
+          <TabsList>
+            <TabsTrigger value="ski">Ski</TabsTrigger>
+            <TabsTrigger value="snowboard">Snowboard</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="ski" className="space-y-12 pt-8">
+            <nav
+              aria-label="Ski sizing categories"
+              className="flex flex-wrap gap-x-4 gap-y-2 text-sm"
+            >
               {SKI_CATEGORIES.map((item) => (
                 <Link
                   key={item.href}
@@ -64,9 +71,15 @@ export default function GearSizingPage() {
                   {item.label}
                 </Link>
               ))}
-            </div>
-            <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
-              <span className="app-eyebrow">Snowboard</span>
+            </nav>
+            <SkiSizingSections />
+          </TabsContent>
+
+          <TabsContent value="snowboard" className="space-y-12 pt-8">
+            <nav
+              aria-label="Snowboard sizing categories"
+              className="flex flex-wrap gap-x-4 gap-y-2 text-sm"
+            >
               {SNOWBOARD_CATEGORIES.map((item) => (
                 <Link
                   key={item.href}
@@ -76,14 +89,10 @@ export default function GearSizingPage() {
                   {item.label}
                 </Link>
               ))}
-            </div>
-          </nav>
-        </section>
-
-        <div className="space-y-12">
-          <SkiSizingSections />
-          <SnowboardSizingSections />
-        </div>
+            </nav>
+            <SnowboardSizingSections />
+          </TabsContent>
+        </Tabs>
       </div>
     </main>
   );

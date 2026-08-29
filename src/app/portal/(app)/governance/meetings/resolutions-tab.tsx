@@ -17,6 +17,7 @@ import {
   type ResolutionFormState,
 } from "../resolutions/resolution-form-fields";
 import { VoteOutcomeBadge } from "../resolutions/resolution-badges";
+import { TabLoadingSkeleton } from "./tab-loading-skeleton";
 import { PersonPicker, type PickedPerson } from "../../people/person-picker";
 import { listPeopleAction, type PersonListItem } from "../../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -30,6 +31,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
   TableBody,
@@ -149,7 +151,13 @@ function AddResolutionForm({
             Cancel
           </Button>
           <Button type="submit" disabled={isPending}>
-            {isPending ? "Saving..." : "Add resolution"}
+            {isPending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : (
+              "Add resolution"
+            )}
           </Button>
         </div>
       </FieldGroup>
@@ -263,7 +271,13 @@ function EditResolutionDialog({
 
           <DialogFooter>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "Saving..." : "Save changes"}
+              {isPending ? (
+                <>
+                  <Spinner /> Saving...
+                </>
+              ) : (
+                "Save changes"
+              )}
             </Button>
           </DialogFooter>
         </form>
@@ -334,7 +348,7 @@ export function ResolutionsTab({
       )}
 
       {resolutions === undefined ? (
-        <p className="app-muted text-sm">Loading resolutions...</p>
+        <TabLoadingSkeleton />
       ) : resolutions.length === 0 && !showAdd ? (
         <p className="app-muted text-sm">No resolutions recorded yet.</p>
       ) : (
@@ -383,7 +397,7 @@ export function ResolutionsTab({
                         disabled={isMutating}
                         onClick={() => handleDelete(resolution.id)}
                       >
-                        <Trash2 />
+                        {isMutating ? <Spinner /> : <Trash2 />}
                       </Button>
                     </>
                   )}

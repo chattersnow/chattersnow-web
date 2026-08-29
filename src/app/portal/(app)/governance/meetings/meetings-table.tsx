@@ -1,6 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
+import { Eye } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FiltersSheet } from "@/components/filters-sheet";
 import {
@@ -23,7 +26,6 @@ import {
   MeetingTypeBadge,
   type MeetingRow,
 } from "./meeting-badges";
-import { MeetingDetailsSheet } from "./meeting-details-sheet";
 
 const FILTER_ALL = "all";
 
@@ -118,7 +120,21 @@ export function MeetingsTable({ meetings }: { meetings: MeetingRow[] }) {
                       {meeting.location ?? "—"}
                     </TableCell>
                     <TableCell>
-                      <MeetingDetailsSheet meeting={meeting} />
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        nativeButton={false}
+                        aria-label={`View meeting on ${dateFormatter.format(
+                          new Date(meeting.meeting_date),
+                        )}`}
+                        render={
+                          <Link
+                            href={`/portal/governance/meetings/${meeting.id}`}
+                          />
+                        }
+                      >
+                        <Eye />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))

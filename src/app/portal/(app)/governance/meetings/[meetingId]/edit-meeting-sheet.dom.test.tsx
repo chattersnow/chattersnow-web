@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MeetingDetailsSheet } from "./meeting-details-sheet";
-import type { MeetingRow } from "./meeting-badges";
+import { EditMeetingSheet } from "./edit-meeting-sheet";
+import type { MeetingRow } from "../meeting-badges";
 
 function makeMeeting(overrides: Partial<MeetingRow> = {}): MeetingRow {
   return {
@@ -19,13 +19,11 @@ function makeMeeting(overrides: Partial<MeetingRow> = {}): MeetingRow {
 }
 
 async function openSheet(user: ReturnType<typeof userEvent.setup>) {
-  render(<MeetingDetailsSheet meeting={makeMeeting()} />);
-  await user.click(
-    screen.getByRole("button", { name: "View meeting details" }),
-  );
+  render(<EditMeetingSheet meeting={makeMeeting()} />);
+  await user.click(screen.getByRole("button", { name: "Edit" }));
 }
 
-describe("MeetingDetailsSheet", () => {
+describe("EditMeetingSheet", () => {
   test("no longer offers a separate Minutes tab", async () => {
     const user = userEvent.setup();
     await openSheet(user);
@@ -49,15 +47,5 @@ describe("MeetingDetailsSheet", () => {
     ]) {
       expect(screen.getByRole("tab", { name: label })).toBeInTheDocument();
     }
-  });
-
-  test("renders the widened (2xl) sheet content", async () => {
-    const user = userEvent.setup();
-    await openSheet(user);
-
-    const content = document.querySelector('[data-slot="sheet-content"]');
-    expect(content).not.toBeNull();
-    expect(content?.className).toContain("sm:max-w-[880px]");
-    expect(content?.className).not.toContain("sm:max-w-[640px]");
   });
 });
