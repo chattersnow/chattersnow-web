@@ -62,6 +62,11 @@ describe("DonationsTable", () => {
     expect(screen.getByText("Jane Donor")).toBeInTheDocument();
     expect(screen.getByText(/1 item · Winter jacket/)).toBeInTheDocument();
     expect(screen.getByText("Winter Gear Drive")).toBeInTheDocument();
+    // Since #469 the row's action is a link to the donation's detail page
+    // rather than a sheet trigger.
+    expect(
+      screen.getByRole("button", { name: "View donation" }),
+    ).toHaveAttribute("href", "/portal/inventory/donations/donation-1");
   });
 
   test("shows Anonymous for an anonymous donor and a dash with no source event", () => {
