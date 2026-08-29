@@ -122,7 +122,15 @@ test.describe("portal administration users", () => {
       await page.getByPlaceholder("name@example.com").fill(invite.email);
       await page.getByRole("button", { name: "Stage access" }).click();
 
-      const grantRow = page.getByRole("row").filter({ hasText: invite.email });
+      // Scoped to the Pending access card: generating the invite link makes
+      // Supabase create an account for this address, so from that point on
+      // the Users table above also has a row showing the same email.
+      const pendingCard = page
+        .locator("[data-slot='card']")
+        .filter({ hasText: "Pending access" });
+      const grantRow = pendingCard
+        .getByRole("row")
+        .filter({ hasText: invite.email });
       await expect(grantRow).toBeVisible({ timeout: 30_000 });
       await expect(grantRow).toContainText("Volunteer");
       await expect(grantRow).toContainText("Pending");
@@ -159,11 +167,22 @@ test.describe("portal administration users", () => {
       await confirm.getByRole("button", { name: "Revoke" }).click();
 
       await expect(confirm).not.toBeVisible();
+      // Assert the write first, so a failure here is unambiguous about
+      // whether the action or its rendering is at fault.
+      await expect(async () => {
+        const { data } = await admin
+          .from("pending_role_grants")
+          .select("status")
+          .eq("email", invite.email)
+          .single();
+        expect(data?.status).toBe("revoked");
+      }).toPass({ timeout: 15_000 });
+
       // The refresh after this many mutations is where the shared-admin
-      // session hiccup tends to bite: the page comes back with the pending
-      // section replaced by its "could not load" card, so the row is gone
-      // rather than merely stale.
+      // session hiccup tends to bite: the page can come back with the
+      // pending section replaced by its "could not load" card.
       await reloadStayingSignedIn(page);
+      await expect(pendingCard).not.toContainText("No pending access staged.");
       await expect(grantRow).toContainText("Revoked", { timeout: 30_000 });
     } finally {
       await invite.cleanup();
