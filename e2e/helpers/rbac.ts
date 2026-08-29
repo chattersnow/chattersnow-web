@@ -56,6 +56,32 @@ export async function seedPortalUser(admin: AdminClient) {
   };
 }
 
+/**
+ * Creates a confirmed auth user holding one of the built-in roles, for
+ * specs that need a permission level other than the seeded admin's (e.g. a
+ * volunteers:view-only event_coordinator). Throwaway like seedPortalUser,
+ * so parallel Playwright projects don't race over a shared seeded account.
+ */
+export async function seedUserWithRole(admin: AdminClient, roleName: string) {
+  const user = await seedPortalUser(admin);
+
+  const { data: role, error } = await admin
+    .from("roles")
+    .select("id")
+    .eq("name", roleName)
+    .single();
+  if (error) throw error;
+
+  const { error: grantError } = await admin.from("user_roles").insert({
+    user_id: user.userId,
+    role_id: role.id,
+    created_by: user.userId,
+  });
+  if (grantError) throw grantError;
+
+  return user;
+}
+
 /** Creates a role with no permissions on any resource -- the same starting
  * state the "New role" dialog produces. */
 export async function seedRole(admin: AdminClient) {
