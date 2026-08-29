@@ -115,10 +115,12 @@ export default async function CalendarAnnualReviewPage({
 
   return (
     <>
-      <div className="rainbow-accent w-16" />
-      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-        Annual Planning Review
-      </h1>
+      <div className="w-fit">
+        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          Annual Planning Review
+        </h1>
+        <div className="rainbow-accent mt-3 w-full" />
+      </div>
       <p className="app-muted mt-2 max-w-2xl text-sm">
         Year-scoped rollup of the content calendar&apos;s planning-cycle success
         measures, computed live from calendar items, content-opportunity briefs,

@@ -4,8 +4,10 @@ export default function VolunteerLoading() {
   return (
     <div>
       <section>
-        <div className="rainbow-accent mb-4 w-16" />
-        <Skeleton className="h-10 w-48 sm:h-12" />
+        <div className="w-fit">
+          <div className="rainbow-accent mb-4 w-full" />
+          <Skeleton className="h-10 w-48 sm:h-12" />
+        </div>
         <Skeleton className="mt-4 h-4 w-full max-w-3xl" />
 
         <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">

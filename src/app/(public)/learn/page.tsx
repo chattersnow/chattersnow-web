@@ -15,10 +15,12 @@ export const metadata: Metadata = {
 export default function LearnPage() {
   return (
     <div>
-      <div className="rainbow-accent w-16" />
-      <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-        Learn
-      </h1>
+      <div className="w-fit">
+        <div className="rainbow-accent w-full" />
+        <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          Learn
+        </h1>
+      </div>
       <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
         Snow sports 101 — orientation basics for anyone new to skiing or riding.
         Looking for equipment size charts specifically? Check the{" "}

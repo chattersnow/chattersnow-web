@@ -1,24 +1,37 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMemo, useState } from "react";
+import { Pencil } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Spinner } from "@/components/ui/spinner";
 import type { Program } from "../../programs/actions";
-import type { EventLead } from "../actions";
 import type { EventRow } from "../event-badges";
 import {
   PhaseStatusBadge,
   StatusBadge,
   VisibilityBadge,
 } from "../event-badges";
-import { phaseStatus } from "../phase-status";
+import { phaseStatus, type PhaseKey } from "../phase-status";
 import {
+  FORM_ID_PREFIX,
+  LOCKED_ON_REPORT_SUBMIT_TABS,
   PHASES,
   TAB_CONFIG,
+  phaseForTab,
+  type TabConfigEntry,
   type TabRenderContext,
   type TabValue,
 } from "../event-tabs-config";
-import type { FormTabCallbacks } from "../use-form-tab-state";
-import { EditEventSheet } from "./edit-event-sheet";
-import { EventDetailsCards } from "./event-details-cards";
+import { useFormTabState, type FormTabCallbacks } from "../use-form-tab-state";
 
 const NOOP_CALLBACKS: FormTabCallbacks = {
   onPendingChange: () => {},
@@ -30,102 +43,233 @@ const NOOP_FORM_CALLBACKS = Object.fromEntries(
   TAB_CONFIG.map((entry) => [entry.value, NOOP_CALLBACKS]),
 ) as Record<TabValue, FormTabCallbacks>;
 
-function viewCtxFor(
-  tab: TabValue,
-  event: EventRow,
-  programs: Program[],
-): TabRenderContext {
-  return {
+// Tabs whose edit UI renders its own save/cancel controls, so the card only
+// toggles the mode and doesn't add a footer.
+const SELF_MANAGED_EDIT_TABS: ReadonlySet<TabValue> = new Set([
+  "attendance",
+  "giveaway",
+]);
+
+// Form-style cards small enough to share a row on large screens; everything
+// else holds tables that need the full width.
+const HALF_WIDTH_TABS: ReadonlySet<TabValue> = new Set([
+  "overview",
+  "planning",
+  "logistics",
+  "attendance",
+  "report",
+  "impact",
+]);
+
+const CARD_TITLES: Partial<Record<TabValue, string>> = {
+  overview: "Event details",
+  planning: "Registration & planning",
+};
+
+function entryFor(tab: TabValue): TabConfigEntry {
+  return TAB_CONFIG.find((entry) => entry.value === tab)!;
+}
+
+/**
+ * Card wrapper for a tab that toggles between view and inline edit via a
+ * pencil action, replacing the old full-event edit sheet.
+ */
+function EditableTabCard({
+  entry,
+  title,
+  event,
+  programs,
+  canManage,
+}: {
+  entry: TabConfigEntry;
+  title: string;
+  event: EventRow;
+  programs: Program[];
+  canManage: boolean;
+}) {
+  const [mode, setMode] = useState<"view" | "edit">("view");
+  const formTabs = useMemo(() => [entry.value], [entry.value]);
+  const formTabState = useFormTabState(formTabs);
+  const pending = formTabState.pending[entry.value] ?? false;
+
+  const formId = `${FORM_ID_PREFIX}-${entry.value}-${event.id}`;
+  const ctx: TabRenderContext = {
     event,
     programs,
-    mode: "view",
-    activeTab: tab,
-    formId: () => `event-detail-${tab}`,
+    mode,
+    activeTab: entry.value,
+    formId: (tabValue) => `${FORM_ID_PREFIX}-${tabValue}-${event.id}`,
+    onSaved: () => setMode("view"),
+    formCallbacks: { ...NOOP_FORM_CALLBACKS, ...formTabState.callbacks },
+  };
+
+  const locked =
+    LOCKED_ON_REPORT_SUBMIT_TABS.has(entry.value) &&
+    event.report_status === "submitted";
+  const canEdit = canManage && !locked;
+  const selfManaged = SELF_MANAGED_EDIT_TABS.has(entry.value);
+
+  function cancel() {
+    formTabState.discardAll();
+    setMode("view");
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="app-muted text-sm font-semibold">
+          {title}
+        </CardTitle>
+        {canEdit && mode === "view" && (
+          <CardAction>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={`Edit ${title.toLowerCase()}`}
+              onClick={() => setMode("edit")}
+            >
+              <Pencil />
+            </Button>
+          </CardAction>
+        )}
+      </CardHeader>
+      <CardContent>{entry.render(ctx)}</CardContent>
+      {!selfManaged && mode === "edit" && (
+        <CardFooter className="justify-end gap-2">
+          <Button type="button" variant="ghost" onClick={cancel}>
+            Cancel
+          </Button>
+          <Button type="submit" form={formId} disabled={pending}>
+            {pending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : (
+              "Save changes"
+            )}
+          </Button>
+        </CardFooter>
+      )}
+    </Card>
+  );
+}
+
+/**
+ * Card wrapper for list-style tabs whose add/manage controls are shown
+ * based on the user's events permission rather than an edit toggle.
+ */
+function PlainTabCard({
+  entry,
+  title,
+  event,
+  programs,
+  canManage,
+}: {
+  entry: TabConfigEntry;
+  title: string;
+  event: EventRow;
+  programs: Program[];
+  canManage: boolean;
+}) {
+  const ctx: TabRenderContext = {
+    event,
+    programs,
+    mode: canManage ? "edit" : "view",
+    activeTab: entry.value,
+    formId: (tabValue) => `${FORM_ID_PREFIX}-${tabValue}-${event.id}`,
     onSaved: () => {},
     formCallbacks: NOOP_FORM_CALLBACKS,
   };
-}
 
-function SectionHeading({ children }: { children: string }) {
   return (
-    <h2 className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
-      {children}
-    </h2>
+    <Card>
+      <CardHeader>
+        <CardTitle className="app-muted text-sm font-semibold">
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>{entry.render(ctx)}</CardContent>
+    </Card>
   );
 }
 
 export function EventDetailView({
   event,
   programs,
-  eventLeads,
-  initialEditTab,
+  canManage,
+  initialTab,
 }: {
   event: EventRow;
   programs: Program[];
-  eventLeads: EventLead[];
-  initialEditTab?: TabValue;
+  canManage: boolean;
+  initialTab?: TabValue;
 }) {
+  const [phaseKey, setPhaseKey] = useState<PhaseKey>(
+    initialTab ? phaseForTab(initialTab) : "basic",
+  );
+
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+      <div>
+        <div className="w-fit">
           <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
             {event.name}
           </h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <StatusBadge status={event.status} />
-            <VisibilityBadge visibility={event.visibility} />
-          </div>
+          <div className="rainbow-accent mt-3 w-full" />
         </div>
-        <div className="flex shrink-0 gap-2">
-          <EditEventSheet
-            event={event}
-            programs={programs}
-            autoOpenTab={initialEditTab}
-          />
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <StatusBadge status={event.status} />
+          <VisibilityBadge visibility={event.visibility} />
         </div>
       </div>
 
-      <div className="mt-6">
-        <EventDetailsCards
-          event={event}
-          programs={programs}
-          eventLeads={eventLeads}
-        />
-      </div>
+      <Tabs
+        value={phaseKey}
+        onValueChange={(value) => setPhaseKey(value as PhaseKey)}
+        className="mt-6"
+      >
+        <TabsList variant="line" className="flex-wrap">
+          {PHASES.map((phase) => {
+            const status = phaseStatus(phase.key, event);
+            return (
+              <TabsTrigger key={phase.key} value={phase.key}>
+                {phase.key === "basic" ? "Overview" : phase.label}
+                {status && <PhaseStatusBadge status={status} />}
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
 
-      {PHASES.filter((phase) => phase.key !== "basic").map((phase) => {
-        const status = phaseStatus(phase.key, event);
-        return (
-          <div key={phase.key} className="mt-6">
-            <div className="flex items-center gap-2">
-              <SectionHeading>{phase.label}</SectionHeading>
-              {status && <PhaseStatusBadge status={status} />}
+        {PHASES.map((phase) => (
+          <TabsContent key={phase.key} value={phase.key} className="mt-4">
+            <div className="grid items-start gap-6 lg:grid-cols-2">
+              {phase.tabs.map((t) => {
+                const entry = entryFor(t.value);
+                const editToggle =
+                  entry.kind === "form" || SELF_MANAGED_EDIT_TABS.has(t.value);
+                const TabCard = editToggle ? EditableTabCard : PlainTabCard;
+                return (
+                  <div
+                    key={t.value}
+                    className={
+                      HALF_WIDTH_TABS.has(t.value) ? undefined : "lg:col-span-2"
+                    }
+                  >
+                    <TabCard
+                      entry={entry}
+                      title={CARD_TITLES[t.value] ?? t.label}
+                      event={event}
+                      programs={programs}
+                      canManage={canManage}
+                    />
+                  </div>
+                );
+              })}
             </div>
-            <div className="mt-3 flex flex-col gap-4">
-              {phase.tabs
-                .filter((t) => t.value !== "planning")
-                .map((t) => {
-                  const entry = TAB_CONFIG.find(
-                    (candidate) => candidate.value === t.value,
-                  )!;
-                  return (
-                    <Card key={t.value}>
-                      <CardHeader>
-                        <CardTitle className="app-muted text-sm font-semibold">
-                          {t.label}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        {entry.render(viewCtxFor(t.value, event, programs))}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-            </div>
-          </div>
-        );
-      })}
+          </TabsContent>
+        ))}
+      </Tabs>
     </>
   );
 }

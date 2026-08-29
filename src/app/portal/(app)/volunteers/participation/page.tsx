@@ -32,18 +32,20 @@ export default async function ParticipationPage() {
 
   return (
     <>
-      <div className="rainbow-accent w-16" />
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-          Participation
-        </h1>
+        <div className="w-fit">
+          <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+            Participation
+          </h1>
+          <div className="rainbow-accent mt-3 w-full" />
+        </div>
       </div>
 
-      <div className="mt-6 flex justify-end">
-        {canManage || canLogOwn ? (
+      {canManage || canLogOwn ? (
+        <div className="rainbow-surface mt-6 flex flex-wrap items-center justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
           <LogHoursDialog canManage={canManage} selfPerson={selfPerson} />
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       <Card className="mt-6">
         <CardContent className="px-0">

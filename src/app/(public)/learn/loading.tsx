@@ -3,8 +3,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function LearnLoading() {
   return (
     <div>
-      <div className="rainbow-accent mb-4 w-16" />
-      <Skeleton className="h-10 w-32 sm:h-12" />
+      <div className="w-fit">
+        <div className="rainbow-accent mb-4 w-full" />
+        <Skeleton className="h-10 w-32 sm:h-12" />
+      </div>
       <div className="mt-4 max-w-3xl space-y-2">
         <Skeleton className="h-4 w-full" />
         <Skeleton className="h-4 w-2/3" />

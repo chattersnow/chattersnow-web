@@ -36,7 +36,6 @@ export default async function DonationDetailPage({
 
   return (
     <>
-      <div className="rainbow-accent w-16" />
       <Button
         variant="ghost"
         size="sm"

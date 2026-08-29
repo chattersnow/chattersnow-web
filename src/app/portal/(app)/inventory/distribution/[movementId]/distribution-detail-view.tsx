@@ -40,9 +40,12 @@ export function DistributionDetailView({
     <>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-            {movement.inventory_item?.description ?? "Distribution"}
-          </h1>
+          <div className="w-fit">
+            <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+              {movement.inventory_item?.description ?? "Distribution"}
+            </h1>
+            <div className="rainbow-accent mt-3 w-full" />
+          </div>
           <p className="app-muted mt-2 text-sm">
             Distributed {dateFormatter.format(new Date(movement.occurred_at))}
           </p>

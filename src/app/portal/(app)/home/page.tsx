@@ -135,10 +135,12 @@ export default async function PortalHomePage() {
 
   return (
     <section>
-      <div className="rainbow-accent mb-2 w-16" />
-      <p className="app-muted text-sm font-semibold uppercase tracking-[0.16em]">
-        Dashboard
-      </p>
+      <div className="w-fit">
+        <div className="rainbow-accent mb-2 w-full" />
+        <p className="app-muted text-sm font-semibold uppercase tracking-[0.16em]">
+          Dashboard
+        </p>
+      </div>
 
       {!anySectionVisible && (
         <Card className="mt-4">

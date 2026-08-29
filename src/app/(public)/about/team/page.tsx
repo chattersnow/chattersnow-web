@@ -21,10 +21,12 @@ export default async function TeamPage() {
 
   return (
     <div>
-      <div className="rainbow-accent w-16" />
-      <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-        Meet the team
-      </h1>
+      <div className="w-fit">
+        <div className="rainbow-accent w-full" />
+        <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          Meet the team
+        </h1>
+      </div>
 
       <SiteImage
         url={siteImages.about_team_hero_photo ?? null}

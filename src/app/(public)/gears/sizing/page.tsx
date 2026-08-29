@@ -25,10 +25,12 @@ export default function GearSizingPage() {
     <main className="app-shell px-6 py-8 sm:px-10">
       <div className="mx-auto max-w-6xl space-y-12">
         <section>
-          <div className="rainbow-accent w-16" />
-          <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-            Sizing guide
-          </h1>
+          <div className="w-fit">
+            <div className="rainbow-accent w-full" />
+            <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+              Sizing guide
+            </h1>
+          </div>
           <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
             Not sure what size to look for in the{" "}
             <Link

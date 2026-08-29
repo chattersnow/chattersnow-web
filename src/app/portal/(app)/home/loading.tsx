@@ -5,8 +5,10 @@ import { StatCardsSkeleton } from "@/components/portal/page-skeleton";
 export default function HomeLoading() {
   return (
     <>
-      <div className="rainbow-accent mb-2 w-16" />
-      <Skeleton className="h-4 w-32" />
+      <div className="w-fit">
+        <div className="rainbow-accent mb-2 w-full" />
+        <Skeleton className="h-4 w-32" />
+      </div>
       <Skeleton className="mt-2 h-10 w-64" />
       <StatCardsSkeleton />
       <div className="mt-6 grid items-start gap-x-6 gap-y-6 lg:grid-cols-2">

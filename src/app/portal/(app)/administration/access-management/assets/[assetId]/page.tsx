@@ -55,7 +55,6 @@ export default async function AssetDetailPage({
 
   return (
     <>
-      <div className="rainbow-accent w-16" />
       <Button
         variant="ghost"
         size="sm"
@@ -67,9 +66,12 @@ export default async function AssetDetailPage({
       </Button>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-            {asset.name}
-          </h1>
+          <div className="w-fit">
+            <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+              {asset.name}
+            </h1>
+            <div className="rainbow-accent mt-3 w-full" />
+          </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Badge variant="outline">{asset.service?.name ?? "—"}</Badge>
             <Badge variant="outline" className="capitalize">

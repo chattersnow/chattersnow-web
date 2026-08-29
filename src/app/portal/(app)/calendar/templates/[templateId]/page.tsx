@@ -41,7 +41,6 @@ export default async function TemplateDetailPage({
 
   return (
     <>
-      <div className="rainbow-accent w-16" />
       <Button
         variant="ghost"
         size="sm"

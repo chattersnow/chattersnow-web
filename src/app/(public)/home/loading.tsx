@@ -7,9 +7,10 @@ export default function HomeLoading() {
         <section className="flex flex-col items-center text-center">
           <Skeleton className="aspect-[21/9] w-full max-w-5xl rounded-2xl" />
 
-          <div className="rainbow-accent mt-5 w-32" />
-
-          <Skeleton className="mt-4 h-10 w-full max-w-xl sm:h-12" />
+          <div className="mt-5 w-full max-w-xl">
+            <div className="rainbow-accent w-full" />
+            <Skeleton className="mt-4 h-10 w-full sm:h-12" />
+          </div>
           <Skeleton className="mt-3 h-10 w-2/3 max-w-md sm:h-12" />
           <div className="mt-3 w-full max-w-xl space-y-2">
             <Skeleton className="mx-auto h-4 w-full" />

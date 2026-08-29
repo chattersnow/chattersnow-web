@@ -44,10 +44,12 @@ export default async function CommunicationsPage({
 
   return (
     <>
-      <div className="rainbow-accent w-16" />
-      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-        Messages
-      </h1>
+      <div className="w-fit">
+        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          Messages
+        </h1>
+        <div className="rainbow-accent mt-3 w-full" />
+      </div>
       <p className="app-muted mt-2 max-w-2xl text-sm">
         Contact-form submissions from the public site.
       </p>

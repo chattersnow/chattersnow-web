@@ -29,10 +29,12 @@ export default async function NonprofitStatusPage() {
 
   return (
     <>
-      <div className="rainbow-accent w-16" />
-      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-        Nonprofit Status
-      </h1>
+      <div className="w-fit">
+        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          Nonprofit Status
+        </h1>
+        <div className="rainbow-accent mt-3 w-full" />
+      </div>
 
       <div className="mt-6">
         <NonprofitStatusChecklist

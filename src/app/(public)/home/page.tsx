@@ -61,11 +61,12 @@ export default async function Home() {
             <CarouselNext className="hidden sm:flex" />
           </Carousel>
 
-          <div className="rainbow-accent mt-5 w-32" />
-
-          <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-            A queer ski &amp; snowboard community
-          </h1>
+          <div className="mt-5 w-fit">
+            <div className="rainbow-accent w-full" />
+            <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+              A queer ski &amp; snowboard community
+            </h1>
+          </div>
           <p className="app-muted mt-3 max-w-xl text-sm leading-relaxed sm:text-base">
             Chatter brings LGBTQ+ skiers and snowboarders together on and off
             the East Coast mountains, and works to make snow sports more

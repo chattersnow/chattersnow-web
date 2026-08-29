@@ -1,6 +1,9 @@
 "use client";
 
 import { ReactNode, useMemo, useState } from "react";
+import Link from "next/link";
+import { Eye } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FiltersSheet } from "@/components/filters-sheet";
 import { Input } from "@/components/ui/input";
@@ -19,55 +22,37 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { EditBoardMemberModal } from "./edit-board-member-modal";
-import type { BoardMemberRow } from "./board-members-shared";
+import type { TemplateListRow } from "./template-shared";
 
 const FILTER_ALL = "all";
-const FILTER_ACTIVE = "active";
-const FILTER_PAST = "past";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
-
-export function BoardMembersTable({
-  boardMembers,
-  canManage,
+export function TemplatesTable({
+  templates,
   newAction,
 }: {
-  boardMembers: BoardMemberRow[];
-  canManage: boolean;
+  templates: TemplateListRow[];
   newAction?: ReactNode;
 }) {
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<
-    typeof FILTER_ALL | typeof FILTER_ACTIVE | typeof FILTER_PAST
-  >(FILTER_ACTIVE);
+  const [activeFilter, setActiveFilter] = useState(FILTER_ALL);
 
-  const visibleBoardMembers = useMemo(() => {
+  const visibleTemplates = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    return boardMembers.filter((boardMember) => {
-      if (statusFilter === FILTER_ACTIVE && !boardMember.is_active)
-        return false;
-      if (statusFilter === FILTER_PAST && boardMember.is_active) return false;
+    return templates.filter((template) => {
+      if (activeFilter === "active" && !template.is_active) return false;
+      if (activeFilter === "inactive" && template.is_active) return false;
       if (!query) return true;
       return (
-        (boardMember.person.name ?? "").toLowerCase().includes(query) ||
-        boardMember.role_title.toLowerCase().includes(query)
+        template.name.toLowerCase().includes(query) ||
+        template.key.toLowerCase().includes(query)
       );
     });
-  }, [boardMembers, search, statusFilter]);
+  }, [templates, search, activeFilter]);
 
   const activeFilterCount = [
     search.trim() !== "",
-    statusFilter !== FILTER_ACTIVE,
+    activeFilter !== FILTER_ALL,
   ].filter(Boolean).length;
 
   return (
@@ -76,14 +61,14 @@ export function BoardMembersTable({
         <FiltersSheet activeCount={activeFilterCount}>
           <div className="flex flex-col gap-1">
             <label
-              htmlFor="board-members-search"
+              htmlFor="templates-search"
               className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
             >
               Search
             </label>
             <Input
-              id="board-members-search"
-              placeholder="Search name or role..."
+              id="templates-search"
+              placeholder="Search name or key..."
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
@@ -94,23 +79,16 @@ export function BoardMembersTable({
               Status
             </span>
             <Select
-              value={statusFilter}
-              onValueChange={(value) =>
-                setStatusFilter(
-                  (value as
-                    | typeof FILTER_ALL
-                    | typeof FILTER_ACTIVE
-                    | typeof FILTER_PAST) ?? FILTER_ALL,
-                )
-              }
+              value={activeFilter}
+              onValueChange={(value) => setActiveFilter(value ?? FILTER_ALL)}
             >
               <SelectTrigger aria-label="Filter by status">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={FILTER_ACTIVE}>Active</SelectItem>
-                <SelectItem value={FILTER_PAST}>Past</SelectItem>
                 <SelectItem value={FILTER_ALL}>All</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -119,12 +97,10 @@ export function BoardMembersTable({
         {newAction}
       </div>
 
-      {boardMembers.length === 0 ? (
+      {templates.length === 0 ? (
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No board members added yet.
-            </p>
+            <p className="app-muted px-4 py-6 text-sm">No templates yet.</p>
           </CardContent>
         </Card>
       ) : (
@@ -134,47 +110,53 @@ export function BoardMembersTable({
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Role / title</TableHead>
-                  <TableHead>Term start</TableHead>
-                  <TableHead>Term end</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-0">
-                    <span className="sr-only">Actions</span>
-                  </TableHead>
+                  <TableHead>Key</TableHead>
+                  <TableHead>Version</TableHead>
+                  <TableHead>Active</TableHead>
+                  <TableHead>Requires consent</TableHead>
+                  <TableHead className="w-px" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visibleBoardMembers.length === 0 ? (
+                {visibleTemplates.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="app-muted text-center">
-                      No board members match your filters.
+                      No templates match your filters.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  visibleBoardMembers.map((boardMember) => (
-                    <TableRow key={boardMember.id}>
+                  visibleTemplates.map((template) => (
+                    <TableRow key={template.id}>
                       <TableCell
                         className="max-w-xs truncate font-medium"
-                        title={boardMember.person.name ?? undefined}
+                        title={template.name}
                       >
-                        {boardMember.person.name ?? "—"}
+                        {template.name}
                       </TableCell>
                       <TableCell className="app-muted">
-                        {boardMember.role_title}
+                        {template.key}
+                      </TableCell>
+                      <TableCell>v{template.version}</TableCell>
+                      <TableCell className="app-muted">
+                        {template.is_active ? "Yes" : "No"}
                       </TableCell>
                       <TableCell className="app-muted">
-                        {formatDate(boardMember.term_start)}
+                        {template.requires_consent ? "Yes" : "No"}
                       </TableCell>
-                      <TableCell className="app-muted">
-                        {formatDate(boardMember.term_end)}
-                      </TableCell>
-                      <TableCell className="app-muted">
-                        {boardMember.is_active ? "Active" : "Past"}
-                      </TableCell>
-                      <TableCell>
-                        {canManage && (
-                          <EditBoardMemberModal boardMember={boardMember} />
-                        )}
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          nativeButton={false}
+                          aria-label={`View ${template.name}`}
+                          render={
+                            <Link
+                              href={`/portal/calendar/templates/${template.id}`}
+                            />
+                          }
+                        >
+                          <Eye />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))

@@ -2,11 +2,14 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  getCurrentUserPermissions,
+  hasPermission,
+} from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { EventRow } from "../event-badges";
 import { isTabValue } from "../event-tabs-config";
-import { listEventLeadsAction } from "../actions";
 import { listProgramsAction } from "../../programs/actions";
 import { EventDetailView } from "./event-detail-view";
 
@@ -20,9 +23,11 @@ export default async function EventDetailPage({
   const { eventId } = await params;
   const { tab } = await searchParams;
   const tabParam = Array.isArray(tab) ? tab[0] : tab;
-  const initialEditTab = isTabValue(tabParam) ? tabParam : undefined;
+  const initialTab = isTabValue(tabParam) ? tabParam : undefined;
 
   const supabase = await createSupabaseServerClient();
+  const permissions = await getCurrentUserPermissions(supabase);
+  const canManage = hasPermission(permissions, "events", "manage");
 
   const { data: event, error } = await supabase
     .from("events")
@@ -43,16 +48,11 @@ export default async function EventDetailPage({
   }
   if (!event) notFound();
 
-  const [leadsResult, programsResult] = await Promise.all([
-    listEventLeadsAction(),
-    listProgramsAction(),
-  ]);
-  const eventLeads = "data" in leadsResult ? leadsResult.data : [];
+  const programsResult = await listProgramsAction();
   const programs = "data" in programsResult ? programsResult.data : [];
 
   return (
     <>
-      <div className="rainbow-accent w-16" />
       <Button
         variant="ghost"
         size="sm"
@@ -66,8 +66,8 @@ export default async function EventDetailPage({
       <EventDetailView
         event={event}
         programs={programs}
-        eventLeads={eventLeads}
-        initialEditTab={initialEditTab}
+        canManage={canManage}
+        initialTab={initialTab}
       />
     </>
   );

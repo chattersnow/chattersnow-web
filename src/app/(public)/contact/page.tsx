@@ -17,10 +17,12 @@ export default async function ContactPage() {
   return (
     <div className="space-y-12">
       <section>
-        <div className="rainbow-accent w-16" />
-        <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-          Get in touch
-        </h1>
+        <div className="w-fit">
+          <div className="rainbow-accent w-full" />
+          <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+            Get in touch
+          </h1>
+        </div>
         <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
           Questions, ideas, or want to get involved? Send us a message and
           we&apos;ll get back to you.

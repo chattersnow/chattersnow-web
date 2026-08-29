@@ -28,18 +28,22 @@ export default async function ProgramsPage() {
 
   return (
     <>
-      <div className="rainbow-accent w-16" />
-      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-        Programs
-      </h1>
+      <div className="w-fit">
+        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          Programs
+        </h1>
+        <div className="rainbow-accent mt-3 w-full" />
+      </div>
       <p className="app-muted mt-2 max-w-2xl text-sm">
         Named, repeatable initiatives that events roll up into — assign an event
         to a program from the event&rsquo;s Overview tab.
       </p>
 
-      <div className="mt-6 flex justify-end">
-        {canManage ? <NewProgramDialog /> : null}
-      </div>
+      {canManage ? (
+        <div className="rainbow-surface mt-6 flex flex-wrap items-center justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+          <NewProgramDialog />
+        </div>
+      ) : null}
 
       <Card className="mt-6">
         <CardContent className="px-0">

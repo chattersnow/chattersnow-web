@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { FiltersSheet } from "@/components/filters-sheet";
@@ -46,10 +46,12 @@ export function RevenueTable({
   revenue,
   events,
   initialSourceFilter = null,
+  action,
 }: {
   revenue: RevenueRow[];
   events: EventOption[];
   initialSourceFilter?: RevenueSource | null;
+  action?: ReactNode;
 }) {
   const [search, setSearch] = useState("");
   const [eventFilter, setEventFilter] = useState<string | null>(null);
@@ -102,19 +104,26 @@ export function RevenueTable({
 
   if (revenue.length === 0) {
     return (
-      <Card>
-        <CardContent className="px-0">
-          <p className="app-muted px-4 py-6 text-sm">
-            No revenue recorded yet.
-          </p>
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        {action && (
+          <div className="rainbow-surface flex flex-wrap items-center justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+            {action}
+          </div>
+        )}
+        <Card>
+          <CardContent className="px-0">
+            <p className="app-muted px-4 py-6 text-sm">
+              No revenue recorded yet.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="rainbow-surface flex justify-end rounded-xl border border-[var(--line)] p-4 shadow-md">
+      <div className="rainbow-surface flex flex-wrap items-center justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
         <FiltersSheet activeCount={activeFilterCount}>
           <div className="flex flex-col gap-1">
             <label
@@ -197,6 +206,8 @@ export function RevenueTable({
             </Select>
           </div>
         </FiltersSheet>
+
+        {action}
       </div>
 
       <Card>

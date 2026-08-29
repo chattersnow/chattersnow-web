@@ -24,10 +24,12 @@ export default async function VolunteerPage() {
   return (
     <div>
       <section>
-        <div className="rainbow-accent w-16" />
-        <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-          Volunteer
-        </h1>
+        <div className="w-fit">
+          <div className="rainbow-accent w-full" />
+          <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+            Volunteer
+          </h1>
+        </div>
         <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
           Chatter runs on volunteers. Here are some of the ways you can get
           involved.
