@@ -15,6 +15,9 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "supabase/.temp/**",
+    // Claude Code isolated worktrees (gitignored, local scratch space) --
+    // each has its own .next build output that isn't source to lint.
+    ".claude/worktrees/**",
   ]),
 ]);
 
