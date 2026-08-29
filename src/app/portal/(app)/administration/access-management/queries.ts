@@ -4,6 +4,7 @@ import type {
   AccessGrantRow,
   AssetDetail,
   AssetListRow,
+  ServiceManageRow,
   ServiceRow,
 } from "@/lib/portal/access-management/types";
 
@@ -16,6 +17,51 @@ export async function listServices(
     .order("name", { ascending: true });
   if (error) return { error: "Could not load services. Please try again." };
   return { data: (data ?? []) as ServiceRow[] };
+}
+
+// Counts assets-per-service in JS rather than an embedded aggregate select
+// so the management page can show "N assets" and block/warn on delete
+// without relying on PostgREST count-on-embedded-resource syntax.
+export async function listServicesWithAssetCounts(
+  supabase: SupabaseClient,
+): Promise<{ data: ServiceManageRow[] } | { error: string }> {
+  const [servicesResult, assetsResult] = await Promise.all([
+    supabase
+      .from("services")
+      .select("id, name, website, notes")
+      .order("name", { ascending: true }),
+    supabase.from("assets").select("service_id"),
+  ]);
+  if (servicesResult.error) {
+    return { error: "Could not load services. Please try again." };
+  }
+  const counts = new Map<string, number>();
+  for (const row of (assetsResult.data ?? []) as { service_id: string }[]) {
+    counts.set(row.service_id, (counts.get(row.service_id) ?? 0) + 1);
+  }
+  const data = ((servicesResult.data ?? []) as ServiceRow[]).map((service) => ({
+    ...service,
+    assetCount: counts.get(service.id) ?? 0,
+  }));
+  return { data };
+}
+
+// Active-grant counts per asset, fetched separately (rather than an
+// embedded `access_grants(count)` select) so the filter to status=active
+// stays a plain, obviously-correct query.
+export async function listActiveGrantCountsByAsset(
+  supabase: SupabaseClient,
+): Promise<Record<string, number>> {
+  const { data, error } = await supabase
+    .from("access_grants")
+    .select("asset_id")
+    .eq("status", "active");
+  if (error || !data) return {};
+  const counts: Record<string, number> = {};
+  for (const row of data as { asset_id: string }[]) {
+    counts[row.asset_id] = (counts[row.asset_id] ?? 0) + 1;
+  }
+  return counts;
 }
 
 export async function listAssets(
