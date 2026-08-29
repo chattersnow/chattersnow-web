@@ -36,6 +36,7 @@ import {
 } from "@/lib/auth/permissions";
 import { formatRoleLabel } from "@/lib/format";
 import { updateRolePermissionsAction } from "./actions";
+import { Spinner } from "@/components/ui/spinner";
 
 type Role = { id: string; name: string; description: string | null };
 type Resource = {
@@ -366,7 +367,13 @@ export function PermissionsMatrix({
               onClick={handleConfirmSave}
               disabled={isSaving}
             >
-              {isSaving ? "Saving..." : "Confirm & save"}
+              {isSaving ? (
+                <>
+                  <Spinner /> Saving...
+                </>
+              ) : (
+                "Confirm & save"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

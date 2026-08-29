@@ -23,6 +23,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Spinner } from "@/components/ui/spinner";
 
 export function NewBoardMemberDialog({ people }: { people: PersonListItem[] }) {
   const router = useRouter();
@@ -121,7 +122,13 @@ export function NewBoardMemberDialog({ people }: { people: PersonListItem[] }) {
 
           <DialogFooter>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "Saving..." : "Add board member"}
+              {isPending ? (
+                <>
+                  <Spinner /> Saving...
+                </>
+              ) : (
+                "Add board member"
+              )}
             </Button>
           </DialogFooter>
         </form>

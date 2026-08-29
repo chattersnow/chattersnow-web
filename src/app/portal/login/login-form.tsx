@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { Spinner } from "@/components/ui/spinner";
 
 function urlErrorMessage(reason: string | null) {
   if (reason === "oauth_failed")
@@ -80,9 +81,13 @@ export function LoginForm() {
         <span className="text-base font-bold" aria-hidden="true">
           G
         </span>
-        {isGoogleSubmitting
-          ? "Connecting to Google..."
-          : "Continue with Google"}
+        {isGoogleSubmitting ? (
+          <>
+            <Spinner /> Connecting to Google...
+          </>
+        ) : (
+          "Continue with Google"
+        )}
       </Button>
 
       <div className="flex items-center gap-3">
@@ -129,7 +134,13 @@ export function LoginForm() {
             disabled={isSubmitting || isGoogleSubmitting}
             className="w-full"
           >
-            {isSubmitting ? "Signing in..." : "Sign in"}
+            {isSubmitting ? (
+              <>
+                <Spinner /> Signing in...
+              </>
+            ) : (
+              "Sign in"
+            )}
           </Button>
         </FieldGroup>
       </form>

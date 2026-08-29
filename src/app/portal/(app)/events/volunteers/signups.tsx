@@ -28,6 +28,8 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { formatShiftRange, NONE_VALUE } from "./shifts";
+import { Spinner } from "@/components/ui/spinner";
+import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 
 export function AddVolunteerForm({
   people,
@@ -167,7 +169,13 @@ export function AddVolunteerForm({
             Cancel
           </Button>
           <Button type="submit" disabled={isPending}>
-            {isPending ? "Saving..." : "Add volunteer"}
+            {isPending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : (
+              "Add volunteer"
+            )}
           </Button>
         </div>
       </FieldGroup>
@@ -209,7 +217,7 @@ export function SignupsSection({
     <div className="flex flex-col gap-3 border-t border-[var(--line)] pt-4">
       <h3 className="text-sm font-semibold">Volunteers signed up</h3>
       {loading ? (
-        <p className="app-muted text-sm">Loading volunteers...</p>
+        <TabLoadingSkeleton />
       ) : volunteers.length === 0 && !showAddVolunteer ? (
         <p className="app-muted text-sm">No volunteers recorded yet.</p>
       ) : (
@@ -286,7 +294,7 @@ export function SignupsSection({
                         disabled={isDeleting}
                         onClick={() => onDeleteVolunteer(volunteer.id)}
                       >
-                        <Trash2 />
+                        {isDeleting ? <Spinner /> : <Trash2 />}
                       </Button>
                     )}
                   </TableCell>

@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 
 const STATUSES = [
   { value: "pilot", label: "Pilot" },
@@ -146,7 +147,13 @@ export function NewProgramDialog() {
 
           <DialogFooter>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "Creating..." : "Create program"}
+              {isPending ? (
+                <>
+                  <Spinner /> Creating...
+                </>
+              ) : (
+                "Create program"
+              )}
             </Button>
           </DialogFooter>
         </form>

@@ -38,6 +38,7 @@ import {
   suggestedProgramIds,
   type ProgramSuggestionRule,
 } from "./program-suggestion-shared";
+import { Spinner } from "@/components/ui/spinner";
 
 function getInitialFormState() {
   return {
@@ -536,7 +537,13 @@ export function NewCalendarItemDialog({
 
           <DialogFooter>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "Creating..." : "Create calendar item"}
+              {isPending ? (
+                <>
+                  <Spinner /> Creating...
+                </>
+              ) : (
+                "Create calendar item"
+              )}
             </Button>
           </DialogFooter>
         </form>

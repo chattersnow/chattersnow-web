@@ -25,6 +25,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
+import { Spinner } from "@/components/ui/spinner";
 
 const SOURCE_TYPES = [
   { value: "individual", label: "Individual" },
@@ -548,7 +549,13 @@ export function AddDonationModal({
                 form="add-donation-form"
                 disabled={isPending}
               >
-                {isPending ? "Saving..." : "Save donation"}
+                {isPending ? (
+                  <>
+                    <Spinner /> Saving...
+                  </>
+                ) : (
+                  "Save donation"
+                )}
               </Button>
             </>
           )}

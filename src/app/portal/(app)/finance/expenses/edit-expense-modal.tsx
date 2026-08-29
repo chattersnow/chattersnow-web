@@ -62,6 +62,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Spinner } from "@/components/ui/spinner";
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -426,7 +427,13 @@ export function EditExpenseModal({
           {mode === "edit" && (
             <SheetFooter className="flex-row justify-end border-t bg-muted/50">
               <Button type="submit" form={formId} disabled={isPending}>
-                {isPending ? "Saving..." : "Save changes"}
+                {isPending ? (
+                  <>
+                    <Spinner /> Saving...
+                  </>
+                ) : (
+                  "Save changes"
+                )}
               </Button>
             </SheetFooter>
           )}
@@ -449,7 +456,14 @@ export function EditExpenseModal({
                   disabled={isPending}
                   onClick={handleApprove}
                 >
-                  <Check /> {isPending ? "Approving..." : "Approve"}
+                  <Check />{" "}
+                  {isPending ? (
+                    <>
+                      <Spinner /> Approving...
+                    </>
+                  ) : (
+                    "Approve"
+                  )}
                 </Button>
               )}
               {canMarkPaid && (
@@ -458,7 +472,14 @@ export function EditExpenseModal({
                   disabled={isPending}
                   onClick={handleMarkPaid}
                 >
-                  <Banknote /> {isPending ? "Marking paid..." : "Mark as paid"}
+                  <Banknote />{" "}
+                  {isPending ? (
+                    <>
+                      <Spinner /> Marking paid...
+                    </>
+                  ) : (
+                    "Mark as paid"
+                  )}
                 </Button>
               )}
             </SheetFooter>
@@ -522,7 +543,13 @@ export function EditExpenseModal({
             </FieldGroup>
             <DialogFooter>
               <Button type="submit" variant="destructive" disabled={isPending}>
-                {isPending ? "Rejecting..." : "Reject expense"}
+                {isPending ? (
+                  <>
+                    <Spinner /> Rejecting...
+                  </>
+                ) : (
+                  "Reject expense"
+                )}
               </Button>
             </DialogFooter>
           </form>

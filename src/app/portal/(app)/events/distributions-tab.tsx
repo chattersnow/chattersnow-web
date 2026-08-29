@@ -15,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -57,7 +58,7 @@ export function DistributionsTab({
       )}
 
       {distributions === undefined ? (
-        <p className="app-muted text-sm">Loading distributions...</p>
+        <TabLoadingSkeleton />
       ) : distributions.length === 0 ? (
         <p className="app-muted text-sm">
           No gear distributed at this event yet.

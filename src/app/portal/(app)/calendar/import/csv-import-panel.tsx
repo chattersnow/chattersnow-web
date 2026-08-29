@@ -20,6 +20,7 @@ import {
   type CalendarImportRow,
 } from "./calendar-import-row";
 import { bulkImportCalendarItemsAction } from "./actions";
+import { Spinner } from "@/components/ui/spinner";
 
 export function CsvImportPanel() {
   const router = useRouter();
@@ -184,9 +185,13 @@ export function CsvImportPanel() {
       )}
 
       <Button type="button" onClick={handleSubmit} disabled={!canSubmit}>
-        {isPending
-          ? "Importing…"
-          : `Import ${validRows.length} item${validRows.length === 1 ? "" : "s"} as drafts`}
+        {isPending ? (
+          <>
+            <Spinner /> Importing…
+          </>
+        ) : (
+          `Import ${validRows.length} item${validRows.length === 1 ? "" : "s"} as drafts`
+        )}
       </Button>
     </FieldGroup>
   );

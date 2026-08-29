@@ -41,6 +41,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { TemplateField } from "../../content-brief-template-shared";
+import { Spinner } from "@/components/ui/spinner";
 
 type DetailsFormState = {
   key: string;
@@ -307,7 +308,13 @@ export function EditTemplateSheet({
 
           <SheetFooter className="flex-row justify-end border-t bg-muted/50">
             <Button type="submit" form={formId} disabled={isPending}>
-              {isPending ? "Saving..." : "Save changes"}
+              {isPending ? (
+                <>
+                  <Spinner /> Saving...
+                </>
+              ) : (
+                "Save changes"
+              )}
             </Button>
           </SheetFooter>
         </SheetContent>

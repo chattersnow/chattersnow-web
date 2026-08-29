@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 
 export function SetPasswordForm() {
   const router = useRouter();
@@ -76,7 +77,13 @@ export function SetPasswordForm() {
         )}
 
         <Button type="submit" disabled={isSubmitting} className="w-full">
-          {isSubmitting ? "Saving..." : "Set password"}
+          {isSubmitting ? (
+            <>
+              <Spinner /> Saving...
+            </>
+          ) : (
+            "Set password"
+          )}
         </Button>
       </FieldGroup>
     </form>

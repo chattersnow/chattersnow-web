@@ -9,6 +9,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDate, formatMoney, toDateInputValue } from "./format";
+import { Spinner } from "@/components/ui/spinner";
 
 export function GiveawaySalesForm({
   eventId,
@@ -149,11 +150,15 @@ export function GiveawaySalesForm({
             </Button>
           )}
           <Button type="submit" disabled={isPending}>
-            {isPending
-              ? "Saving..."
-              : giveaway
-                ? "Save giveaway"
-                : "Set up giveaway"}
+            {isPending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : giveaway ? (
+              "Save giveaway"
+            ) : (
+              "Set up giveaway"
+            )}
           </Button>
         </div>
       </FieldGroup>

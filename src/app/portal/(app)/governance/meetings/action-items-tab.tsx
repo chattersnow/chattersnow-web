@@ -17,7 +17,7 @@ import {
   packActionItemFormData,
   type ActionItemFormState,
 } from "./action-item-form-fields";
-import { TabLoadingSkeleton } from "./tab-loading-skeleton";
+import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { PersonPicker, type PickedPerson } from "../../people/person-picker";
 import { listPeopleAction, type PersonListItem } from "../../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -32,7 +32,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
   TableBody,
@@ -42,6 +41,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
+import { Spinner } from "@/components/ui/spinner";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",

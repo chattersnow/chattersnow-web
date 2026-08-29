@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { generateNextYearInstanceAction } from "../recurrence-actions";
+import { Spinner } from "@/components/ui/spinner";
 
 export function GenerateSeriesButton({ itemId }: { itemId: string }) {
   const router = useRouter();
@@ -31,7 +32,13 @@ export function GenerateSeriesButton({ itemId }: { itemId: string }) {
         onClick={handleGenerate}
         disabled={isPending}
       >
-        {isPending ? "Generating…" : "Generate"}
+        {isPending ? (
+          <>
+            <Spinner /> Generating…
+          </>
+        ) : (
+          "Generate"
+        )}
       </Button>
       {error && <p className="text-destructive text-xs">{error}</p>}
     </div>

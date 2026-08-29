@@ -61,6 +61,7 @@ import {
   suggestedProgramIds,
   type ProgramSuggestionRule,
 } from "../program-suggestion-shared";
+import { Spinner } from "@/components/ui/spinner";
 
 function toDatetimeLocalValue(iso: string | null) {
   if (!iso) return "";
@@ -721,7 +722,13 @@ export function EditCalendarItemSheet({
                 </Button>
               )}
               <Button type="submit" form={formId} disabled={isPending}>
-                {isPending ? "Saving..." : "Save changes"}
+                {isPending ? (
+                  <>
+                    <Spinner /> Saving...
+                  </>
+                ) : (
+                  "Save changes"
+                )}
               </Button>
             </SheetFooter>
           </form>

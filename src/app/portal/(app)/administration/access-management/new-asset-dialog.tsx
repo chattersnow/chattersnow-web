@@ -22,6 +22,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Spinner } from "@/components/ui/spinner";
 
 export function NewAssetDialog({
   services,
@@ -100,7 +101,13 @@ export function NewAssetDialog({
 
           <DialogFooter className="mt-4">
             <Button type="submit" disabled={isPending || !form.name.trim()}>
-              {isPending ? "Creating..." : "Add asset"}
+              {isPending ? (
+                <>
+                  <Spinner /> Creating...
+                </>
+              ) : (
+                "Add asset"
+              )}
             </Button>
           </DialogFooter>
         </form>

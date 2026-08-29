@@ -57,6 +57,7 @@ import { RelatedItemsTab } from "../related-items-tab";
 import type { ActiveContentBriefTemplate } from "../content-brief-template-shared";
 import type { ProgramSuggestionRule } from "../program-suggestion-shared";
 import { EditCalendarItemSheet } from "./edit-calendar-item-sheet";
+import { Spinner } from "@/components/ui/spinner";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -170,7 +171,7 @@ export function CalendarItemDetailView({
                     />
                   }
                 >
-                  <CalendarPlus />
+                  {isPending ? <Spinner /> : <CalendarPlus />}
                 </TooltipTrigger>
                 <TooltipContent>Generate next year</TooltipContent>
               </Tooltip>
@@ -188,7 +189,7 @@ export function CalendarItemDetailView({
                   />
                 }
               >
-                <Copy />
+                {isPending ? <Spinner /> : <Copy />}
               </TooltipTrigger>
               <TooltipContent>Duplicate</TooltipContent>
             </Tooltip>
@@ -205,7 +206,7 @@ export function CalendarItemDetailView({
                   />
                 }
               >
-                <Trash2 />
+                {isPending ? <Spinner /> : <Trash2 />}
               </TooltipTrigger>
               <TooltipContent>Delete calendar item</TooltipContent>
             </Tooltip>
@@ -373,7 +374,13 @@ export function CalendarItemDetailView({
                         disabled={isPending}
                         onClick={handleRecordSensitiveReview}
                       >
-                        Record reviewer sign-off
+                        {isPending ? (
+                          <>
+                            <Spinner /> Recording...
+                          </>
+                        ) : (
+                          "Record reviewer sign-off"
+                        )}
                       </Button>
                     )
                   )}
@@ -441,7 +448,13 @@ export function CalendarItemDetailView({
               disabled={isPending}
               onClick={handleDelete}
             >
-              Delete
+              {isPending ? (
+                <>
+                  <Spinner /> Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

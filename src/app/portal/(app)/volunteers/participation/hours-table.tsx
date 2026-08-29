@@ -17,6 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Spinner } from "@/components/ui/spinner";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
 
@@ -86,7 +87,7 @@ export function HoursTable({
                     disabled={isDeleting}
                     onClick={() => handleDelete(entry.id)}
                   >
-                    <Trash2 />
+                    {isDeleting ? <Spinner /> : <Trash2 />}
                   </Button>
                 )}
               </div>

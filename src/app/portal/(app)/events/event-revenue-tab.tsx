@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 
 export function EventRevenueTab({
   eventId,
@@ -73,7 +74,7 @@ export function EventRevenueTab({
       )}
 
       {revenue === null ? (
-        <p className="app-muted text-sm">Loading revenue...</p>
+        <TabLoadingSkeleton />
       ) : revenue.length === 0 ? (
         <p className="app-muted text-sm">
           No revenue recorded for this event yet.

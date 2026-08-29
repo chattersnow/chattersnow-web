@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { generateMissingCalendarSeriesInstancesAction } from "../recurrence-actions";
+import { Spinner } from "@/components/ui/spinner";
 
 export function GenerateMissingButton({ targetYear }: { targetYear: number }) {
   const router = useRouter();
@@ -27,7 +28,13 @@ export function GenerateMissingButton({ targetYear }: { targetYear: number }) {
   return (
     <div className="flex flex-col items-end gap-2">
       <Button type="button" onClick={handleGenerateAll} disabled={isPending}>
-        {isPending ? "Generating…" : `Generate all for ${targetYear}`}
+        {isPending ? (
+          <>
+            <Spinner /> Generating…
+          </>
+        ) : (
+          `Generate all for ${targetYear}`
+        )}
       </Button>
       {error && (
         <Alert variant="destructive" className="max-w-sm">

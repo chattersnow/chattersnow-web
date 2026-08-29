@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 
 export function ServiceSelect({
   id,
@@ -130,7 +131,13 @@ export function ServiceSelect({
                 onClick={handleCreate}
                 disabled={isCreating || !name.trim()}
               >
-                {isCreating ? "Creating..." : "Create & select"}
+                {isCreating ? (
+                  <>
+                    <Spinner /> Creating...
+                  </>
+                ) : (
+                  "Create & select"
+                )}
               </Button>
             </div>
           </FieldGroup>

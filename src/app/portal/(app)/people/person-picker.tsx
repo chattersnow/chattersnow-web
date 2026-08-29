@@ -15,6 +15,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 
 export type PickedPerson = {
   id: string;
@@ -174,7 +175,13 @@ export function PersonPicker({
                 onClick={handleCreateSubmit}
                 disabled={isCreating}
               >
-                {isCreating ? "Creating..." : "Create & select"}
+                {isCreating ? (
+                  <>
+                    <Spinner /> Creating...
+                  </>
+                ) : (
+                  "Create & select"
+                )}
               </Button>
             </div>
           </FieldGroup>

@@ -17,6 +17,7 @@ import {
   updateCalendarItemsStatusAction,
   updateCalendarItemsVisibilityAction,
 } from "./actions";
+import { Spinner } from "@/components/ui/spinner";
 
 const FIELDS = [
   {
@@ -122,7 +123,13 @@ export function BulkActionsToolbar({
           disabled={!value || isPending}
           onClick={handleApply}
         >
-          Apply
+          {isPending ? (
+            <>
+              <Spinner /> Applying...
+            </>
+          ) : (
+            "Apply"
+          )}
         </Button>
         <Button
           type="button"

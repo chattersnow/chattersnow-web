@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 export function ReviewAssetButton({
   assetId,
@@ -69,7 +70,13 @@ export function ReviewAssetButton({
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
           <AlertDialogAction onClick={handleConfirm} disabled={isPending}>
-            {isPending ? "Recording..." : "Record review"}
+            {isPending ? (
+              <>
+                <Spinner /> Recording...
+              </>
+            ) : (
+              "Record review"
+            )}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

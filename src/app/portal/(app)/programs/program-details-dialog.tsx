@@ -56,6 +56,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Spinner } from "@/components/ui/spinner";
+import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -283,7 +285,7 @@ export function ProgramDetailsDialog({
                     {eventsError ? (
                       <p className="app-muted text-sm">{eventsError}</p>
                     ) : events === null ? (
-                      <p className="app-muted text-sm">Loading events...</p>
+                      <TabLoadingSkeleton />
                     ) : events.length === 0 ? (
                       <p className="app-muted text-sm">
                         No events tagged to this program yet.
@@ -406,7 +408,13 @@ export function ProgramDetailsDialog({
           {mode === "edit" && (
             <SheetFooter className="flex-row justify-end border-t bg-muted/50">
               <Button type="submit" form={formId} disabled={isPending}>
-                {isPending ? "Saving..." : "Save changes"}
+                {isPending ? (
+                  <>
+                    <Spinner /> Saving...
+                  </>
+                ) : (
+                  "Save changes"
+                )}
               </Button>
             </SheetFooter>
           )}

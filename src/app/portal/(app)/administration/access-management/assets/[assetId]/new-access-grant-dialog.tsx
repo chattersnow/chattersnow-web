@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Spinner } from "@/components/ui/spinner";
 
 export function NewAccessGrantDialog({
   assetId,
@@ -193,7 +194,13 @@ export function NewAccessGrantDialog({
 
           <DialogFooter className="mt-4">
             <Button type="submit" disabled={isPending || !person}>
-              {isPending ? "Adding..." : "Add access grant"}
+              {isPending ? (
+                <>
+                  <Spinner /> Adding...
+                </>
+              ) : (
+                "Add access grant"
+              )}
             </Button>
           </DialogFooter>
         </form>

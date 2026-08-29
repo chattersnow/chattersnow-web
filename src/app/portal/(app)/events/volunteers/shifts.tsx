@@ -28,6 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { Spinner } from "@/components/ui/spinner";
 
 export const NONE_VALUE = "none";
 
@@ -206,11 +207,15 @@ export function ShiftForm({
             Cancel
           </Button>
           <Button type="submit" disabled={isPending}>
-            {isPending
-              ? "Saving..."
-              : initialShift
-                ? "Save changes"
-                : "Add shift"}
+            {isPending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : initialShift ? (
+              "Save changes"
+            ) : (
+              "Add shift"
+            )}
           </Button>
         </div>
       </FieldGroup>
@@ -352,7 +357,7 @@ export function ShiftsSection({
                           disabled={isDeleting}
                           onClick={() => onDeleteShift(shift.id)}
                         >
-                          <Trash2 />
+                          {isDeleting ? <Spinner /> : <Trash2 />}
                         </Button>
                       </>
                     )}

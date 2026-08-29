@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AccessGrantDetailsSheet } from "./access-grant-details-sheet";
+import { Spinner } from "@/components/ui/spinner";
 
 const STATUS_BADGE_VARIANT: Record<
   string,
@@ -50,7 +51,13 @@ function VerifyButton({
         })
       }
     >
-      {isPending ? "Verifying..." : "Verify"}
+      {isPending ? (
+        <>
+          <Spinner /> Verifying...
+        </>
+      ) : (
+        "Verify"
+      )}
     </Button>
   );
 }

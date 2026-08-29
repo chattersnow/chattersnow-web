@@ -20,6 +20,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 
 const EMPTY: EventLogistics = {
   event_id: "",
@@ -136,7 +137,7 @@ export function LogisticsTab({
   }
 
   if (logistics === undefined) {
-    return <p className="app-muted text-sm">Loading logistics...</p>;
+    return <TabLoadingSkeleton />;
   }
 
   if (loadError) {

@@ -25,6 +25,7 @@ import {
 import { cn } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/inventory";
 import type { SiteImageSlot } from "@/lib/site-images";
+import { Spinner } from "@/components/ui/spinner";
 
 // next/image throws at render time (crashing the page) if `src` isn't a valid
 // absolute URL or a root-relative path. resolveImageUrl passes non-Drive
@@ -164,7 +165,13 @@ function SiteImageEditForm({
 
         <div>
           <Button type="submit" disabled={isPending}>
-            {isPending ? "Saving..." : "Save"}
+            {isPending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : (
+              "Save"
+            )}
           </Button>
         </div>
       </FieldGroup>

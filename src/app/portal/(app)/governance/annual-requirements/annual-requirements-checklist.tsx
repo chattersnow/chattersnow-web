@@ -27,6 +27,7 @@ import {
   type RequirementStatus,
 } from "./annual-requirements-actions";
 import type { PersonListItem } from "../../people/actions";
+import { Spinner } from "@/components/ui/spinner";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -64,6 +65,7 @@ function RequirementStatusSelect({
         className="h-8 w-40"
         aria-label={`Status for ${requirement.name}`}
       >
+        {isPending ? <Spinner /> : null}
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

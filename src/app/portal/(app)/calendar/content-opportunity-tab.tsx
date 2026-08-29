@@ -38,6 +38,7 @@ import type {
   ActiveContentBriefTemplate,
   TemplateField,
 } from "./content-brief-template-shared";
+import { Spinner } from "@/components/ui/spinner";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -536,7 +537,13 @@ export function ContentOpportunityTab({
                           Cancel
                         </Button>
                         <Button type="submit" disabled={isConsentPending}>
-                          {isConsentPending ? "Saving..." : "Save consent"}
+                          {isConsentPending ? (
+                            <>
+                              <Spinner /> Saving...
+                            </>
+                          ) : (
+                            "Save consent"
+                          )}
                         </Button>
                       </div>
                     </FieldGroup>
@@ -856,7 +863,13 @@ export function ContentOpportunityTab({
               Cancel
             </Button>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "Saving..." : "Save brief"}
+              {isPending ? (
+                <>
+                  <Spinner /> Saving...
+                </>
+              ) : (
+                "Save brief"
+              )}
             </Button>
           </div>
         </form>

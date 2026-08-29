@@ -25,6 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 
 const EMPTY_APPROVAL_CONTEXT: ExpenseApprovalContext = {
   userId: null,
@@ -81,7 +82,7 @@ export function EventExpensesTab({
       )}
 
       {expenses === undefined ? (
-        <p className="app-muted text-sm">Loading expenses...</p>
+        <TabLoadingSkeleton />
       ) : expenses.length === 0 ? (
         <p className="app-muted text-sm">
           No expenses recorded for this event yet.

@@ -17,6 +17,7 @@ import {
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Spinner } from "@/components/ui/spinner";
 
 export function NewRoleDialog() {
   const router = useRouter();
@@ -89,7 +90,13 @@ export function NewRoleDialog() {
           </FieldGroup>
           <DialogFooter className="mt-4">
             <Button type="submit" disabled={isPending || !name.trim()}>
-              Create role
+              {isPending ? (
+                <>
+                  <Spinner /> Creating...
+                </>
+              ) : (
+                "Create role"
+              )}
             </Button>
           </DialogFooter>
         </form>

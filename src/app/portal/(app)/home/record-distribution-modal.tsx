@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Spinner } from "@/components/ui/spinner";
 
 function nowLocalValue() {
   const date = new Date();
@@ -250,7 +251,13 @@ export function RecordDistributionModal({
               Cancel
             </Button>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "Saving..." : "Record distribution"}
+              {isPending ? (
+                <>
+                  <Spinner /> Saving...
+                </>
+              ) : (
+                "Record distribution"
+              )}
             </Button>
           </DialogFooter>
         </form>

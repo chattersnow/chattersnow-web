@@ -22,6 +22,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { StatTile } from "../home/stat-tile";
+import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 
 type FormState = {
   totalParticipants: string;
@@ -242,7 +243,7 @@ export function ImpactTab({
   }
 
   if (note === undefined) {
-    return <p className="app-muted text-sm">Loading impact notes...</p>;
+    return <TabLoadingSkeleton />;
   }
 
   if (mode === "view") {

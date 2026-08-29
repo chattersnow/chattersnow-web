@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { SalesSection } from "./giveaway/sales";
 import { PrizesSection } from "./giveaway/prizes";
+import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 
 export function GiveawayTab({
   eventId,
@@ -81,7 +82,7 @@ export function GiveawayTab({
       )}
 
       {giveaway === undefined ? (
-        <p className="app-muted text-sm">Loading giveaway...</p>
+        <TabLoadingSkeleton />
       ) : (
         <>
           <SalesSection

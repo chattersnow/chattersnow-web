@@ -16,6 +16,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
+import { Spinner } from "@/components/ui/spinner";
 
 function formStateFor(event: EventRow) {
   return {
@@ -148,7 +149,13 @@ export function ReportTab({
             onClick={handleSubmitReport}
             disabled={isSubmitting}
           >
-            {isSubmitting ? "Submitting..." : "Submit report"}
+            {isSubmitting ? (
+              <>
+                <Spinner /> Submitting...
+              </>
+            ) : (
+              "Submit report"
+            )}
           </Button>
         )}
         {error && (
@@ -230,7 +237,13 @@ export function ReportTab({
             onClick={handleSubmitReport}
             disabled={isSubmitting}
           >
-            {isSubmitting ? "Submitting..." : "Submit report"}
+            {isSubmitting ? (
+              <>
+                <Spinner /> Submitting...
+              </>
+            ) : (
+              "Submit report"
+            )}
           </Button>
         )}
 
