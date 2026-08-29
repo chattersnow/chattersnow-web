@@ -150,18 +150,19 @@ test("deep-links from the awaiting check-in attention item to the event's Regist
     await signIn(page, { email: fixture.email, password: fixture.password });
     await page.goto("/portal/home");
 
+    await page
+      .getByRole("button", { name: /items? needing attention/ })
+      .click();
+
     const reviewLink = page.locator(
-      `a[href="/portal/events?eventId=${fixture.eventId}&tab=registrants"]`,
+      `a[href="/portal/events/${fixture.eventId}?tab=registrants"]`,
     );
     await expect(reviewLink).toBeVisible();
     await reviewLink.click();
 
     await expect(page).toHaveURL(
-      new RegExp(`/portal/events\\?eventId=${fixture.eventId}&tab=registrants`),
+      new RegExp(`/portal/events/${fixture.eventId}\\?tab=registrants`),
     );
-    await expect(
-      page.getByText("Showing a single event from a check-in link."),
-    ).toBeVisible();
 
     const sheet = page.getByRole("dialog");
     await expect(sheet.getByText(fixture.eventName)).toBeVisible();
