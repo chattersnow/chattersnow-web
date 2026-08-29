@@ -51,9 +51,13 @@ test.describe("portal administration users", () => {
         .click();
       await row.getByRole("button", { name: "Add", exact: true }).click();
 
-      await expect(row).toContainText("Volunteer");
+      // The badge's remove button only exists once the assignment has landed
+      // and the list has refreshed -- unlike the row's text, which shows
+      // "Volunteer" as soon as it's picked in the still-open select.
+      const removeRole = row.getByRole("button", { name: "Remove Volunteer" });
+      await expect(removeRole).toBeVisible();
 
-      await row.getByRole("button", { name: "Remove Volunteer" }).click();
+      await removeRole.click();
       await expect(row).toContainText("No access");
     } finally {
       await user.cleanup();
@@ -87,6 +91,10 @@ test.describe("portal administration users", () => {
   test("stages pending access, generates an invite link, and revokes it", async ({
     page,
   }) => {
+    // Generating the invite link is a round trip through Supabase's admin
+    // API, which is slower than the rest of this page's actions.
+    test.slow();
+
     const admin = createAdminClient();
     // Staged against an account that already exists (with no roles), so the
     // invite link falls back to a magic link for that account rather than
@@ -110,7 +118,7 @@ test.describe("portal administration users", () => {
 
       await grantRow.getByRole("button", { name: "Invite" }).click();
       const inviteDialog = page.getByRole("dialog");
-      await expect(inviteDialog).toContainText(user.email);
+      await expect(inviteDialog).toContainText(user.email, { timeout: 15_000 });
       await expect(inviteDialog.getByRole("textbox")).toHaveValue(
         /\/auth\/confirm\?token_hash=/,
       );
@@ -119,7 +127,7 @@ test.describe("portal administration users", () => {
 
       await expect(
         grantRow.getByRole("button", { name: "Resend link" }),
-      ).toBeVisible();
+      ).toBeVisible({ timeout: 15_000 });
 
       await grantRow.getByRole("button", { name: "Revoke" }).click();
       const confirm = page.getByRole("alertdialog");

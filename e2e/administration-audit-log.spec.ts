@@ -37,7 +37,12 @@ test.describe("portal administration audit log", () => {
         .getByRole("option", { name: "Volunteer", exact: true })
         .click();
       await row.getByRole("button", { name: "Add", exact: true }).click();
-      await expect(row).toContainText("Volunteer");
+      // The badge's remove button only exists once the assignment has landed
+      // and the list has refreshed -- unlike the row's text, which shows
+      // "Volunteer" as soon as it's picked in the still-open select.
+      await expect(
+        row.getByRole("button", { name: "Remove Volunteer" }),
+      ).toBeVisible();
 
       // The audit entry is keyed by the user_roles row's own id, which only
       // the database knows -- read it back so the assertion pins the exact
@@ -86,7 +91,8 @@ test.describe("portal administration audit log", () => {
     );
 
     await page.getByRole("button", { name: /^Filters/ }).click();
-    await page.getByRole("link", { name: "Clear" }).click();
+    // Rendered as a Link, but Base UI's Button gives it role="button".
+    await page.getByRole("button", { name: "Clear", exact: true }).click();
 
     await expect(page).toHaveURL(/\/portal\/administration\/audit-log$/);
     await expect(

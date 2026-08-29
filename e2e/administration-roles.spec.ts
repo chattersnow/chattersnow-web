@@ -53,15 +53,23 @@ test.describe("portal administration roles", () => {
       await sheet.getByLabel("Role name").fill(renamed);
       await sheet.getByLabel("Description").fill("Renamed by an e2e test.");
       await sheet.getByRole("button", { name: "Save changes" }).click();
+      // Back in view mode, showing what was just saved.
       await expect(
         sheet.getByRole("button", { name: "Edit role" }),
       ).toBeVisible();
+      await expect(sheet.getByText(roleLabel(renamed))).toBeVisible();
+
+      // The sheet is modal, so it marks the rest of the page aria-hidden --
+      // no role-based locator resolves against the table until it's closed.
+      await sheet.getByRole("button", { name: "Close" }).click();
+      await expect(sheet).not.toBeVisible();
 
       const renamedRow = page
         .getByRole("row")
         .filter({ hasText: roleLabel(renamed) });
       await expect(renamedRow).toContainText("Renamed by an e2e test.");
 
+      await page.getByRole("button", { name: `View ${renamed}` }).click();
       await sheet.getByRole("button", { name: "Edit role" }).click();
       await sheet.getByRole("button", { name: "Delete role" }).click();
       const confirm = page.getByRole("alertdialog");

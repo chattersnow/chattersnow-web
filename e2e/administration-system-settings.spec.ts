@@ -64,7 +64,9 @@ test.describe("portal administration system settings", () => {
       await expenseForm.locator("#expense-threshold").fill("321.5");
       await expenseForm.getByRole("button", { name: "Save" }).click();
 
-      await expect(page.getByRole("alert")).toContainText("Threshold updated.");
+      await expect(expenseForm.getByRole("alert")).toContainText(
+        "Threshold updated.",
+      );
 
       await page.reload();
       await expect(page.locator("#expense-threshold")).toHaveValue("321.5");

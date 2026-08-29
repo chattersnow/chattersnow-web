@@ -62,7 +62,9 @@ test.describe("portal administration permissions", () => {
           .getByRole("option", { name: role.label, exact: true })
           .click();
         await row.getByRole("button", { name: "Add", exact: true }).click();
-        await expect(row).toContainText(role.label);
+        await expect(
+          row.getByRole("button", { name: `Remove ${role.label}` }),
+        ).toBeVisible();
 
         // A role that grants nothing is not access: the portal bounces the
         // sign-in even though the credentials themselves are valid.
