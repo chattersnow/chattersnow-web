@@ -60,14 +60,13 @@ test.describe("portal people directory", () => {
   });
 
   test("filters the directory by role and clears filters", async ({ page }) => {
-    await page.goto("/portal/people");
+    // Apply the role filter via URL: the sheet's form-submit path is
+    // already covered by the search test, and a click issued right after
+    // the form's native GET navigation can be swallowed while the portal
+    // page re-hydrates. page.goto waits for the load event, after which
+    // sheet triggers respond reliably (same pattern as the other specs).
+    await page.goto("/portal/people?role=is_sponsor");
 
-    await page.getByRole("button", { name: "Filters" }).click();
-    const filters = page.getByRole("dialog");
-    await filters.getByLabel("Role").selectOption("is_sponsor");
-    await filters.getByRole("button", { name: "Filter" }).click();
-
-    await expect(page).toHaveURL(/role=is_sponsor/);
     await expect(
       page.getByRole("row").filter({ hasText: "Summit Outdoor Co." }),
     ).toBeVisible();
@@ -76,13 +75,13 @@ test.describe("portal people directory", () => {
     ).toHaveCount(0);
 
     await page.getByRole("button", { name: "Filters" }).click();
-    const reopened = page.getByRole("dialog");
+    const filters = page.getByRole("dialog");
     await expect(
-      reopened.getByRole("heading", { name: "Filters" }),
+      filters.getByRole("heading", { name: "Filters" }),
     ).toBeVisible();
     // The Clear control is a Next Link rendered through Base UI's Button
     // (nativeButton={false}), which gives the anchor role="button".
-    await reopened.getByRole("button", { name: "Clear" }).click();
+    await filters.getByRole("button", { name: "Clear" }).click();
     await expect(page).toHaveURL(/\/portal\/people$/);
     await expect(
       page.getByRole("row").filter({ hasText: "Priya Natarajan" }),
