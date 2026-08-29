@@ -20,6 +20,7 @@ const PUBLIC_ROUTES = [
   "/get-involved/attend",
   "/get-involved/partner",
   "/get-involved/volunteer",
+  "/get-involved/volunteer/status",
   "/about",
   "/about/mission",
   "/about/team",
@@ -73,6 +74,7 @@ const PORTAL_ROUTES = [
   "/portal/volunteers/applications",
   "/portal/volunteers/participation",
   "/portal/administration",
+  "/portal/administration/access-management",
   "/portal/administration/roles",
   "/portal/administration/audit-log",
   "/portal/administration/permissions",
@@ -169,6 +171,14 @@ try {
   console.log(
     `${withViolations.length}/${total.length} routes have violations, ${withErrors.length} routes errored.`,
   );
+  for (const r of withViolations) {
+    console.log(`\n${r.route}:`);
+    for (const v of r.violations) {
+      console.log(
+        `  [${v.impact}] ${v.id} (${v.nodes.length} nodes) -- ${v.help}`,
+      );
+    }
+  }
 } finally {
   await browser.close();
 }

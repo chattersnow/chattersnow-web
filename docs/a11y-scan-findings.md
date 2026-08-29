@@ -23,3 +23,9 @@ Keyboard-only tab-order and focus-visibility spot-checks on `/gears` and `/porta
 ## Next steps
 
 Per the acceptance criteria: findings are triaged into the two follow-up issues above, each scoped to a single root cause/shared component so they can be picked up independently. Both are worth prioritizing since a single fix (in `select.tsx`'s usages, or the two badge tokens) resolves every listed route at once.
+
+## Re-sweep (2026-08-29)
+
+Re-ran the same scan on top of `development` after #288/#289/#290 (and #421/#424, which added the Access Management module) landed, from a CI run of [#435](https://github.com/chattersnow/chattersnow-web/pull/435) — 25 public routes and 43 portal routes (2 more than the original sweep: `/get-involved/volunteer/status` and `/portal/administration/access-management`, both added to the app since 2026-08-27).
+
+**68 routes scanned, 3 with violations, 0 errors** — down from 17/66. All three findings above are gone (no `combobox` name/role/value violations, no nested-interactive gear card, no `secondary` badge contrast). The remaining 3 are all the same `color-contrast` (serious, AA) rule, 1 node each, on `/portal/administration`, `/portal/administration/users`, and `/portal/administration/system-settings` — filed as [#436](https://github.com/chattersnow/chattersnow-web/issues/436), since it isn't clear from this triage alone whether it's the `destructive` badge token from #290 still sitting right at the 4.5:1 boundary, or a different element on `/system-settings`. That environment had no Docker/local Supabase available, so this pass read CI job logs rather than driving a live scan or downloading `a11y-report.json` directly — see #436 for what's still unconfirmed.
