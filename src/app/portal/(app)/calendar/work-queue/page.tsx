@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
-import { HowToSection, HowToSheet } from "@/components/how-to-sheet";
 import { listCalendarOwnersAction } from "../actions";
 import { listWorkQueueItems } from "../queries";
 import { WorkQueueTable } from "../work-queue-table";
@@ -132,66 +131,6 @@ export default async function WorkQueuePage({
             </Button>
           )}
         </div>
-
-        <HowToSheet title="How the work queue works">
-          <HowToSection heading="Steps">
-            <ol className="list-decimal space-y-2 pl-4">
-              <li>
-                <strong className="text-foreground">Draft</strong> — an
-                opportunity starts here (statuses <code>not_planned</code>,{" "}
-                <code>idea</code>, or <code>draft</code>), due two-thirds of the
-                way through its lead time, before the publish date.
-              </li>
-              <li>
-                <strong className="text-foreground">Review</strong> — once
-                it&apos;s <code>in_review</code> or sent back as{" "}
-                <code>changes_requested</code>, the due date shifts to the last
-                third of the lead time.
-              </li>
-              <li>
-                <strong className="text-foreground">Publish</strong> — once{" "}
-                <code>approved</code> or <code>scheduled</code>, the due date is
-                the publish date itself.
-              </li>
-            </ol>
-          </HowToSection>
-          <HowToSection heading="Who can do this">
-            <p>
-              Owners and reviewers work their own items from{" "}
-              <strong className="text-foreground">My work</strong>; anyone with
-              manage access to the content calendar can act on anything in the{" "}
-              <strong className="text-foreground">Upcoming queue</strong>.
-            </p>
-          </HowToSection>
-          <HowToSection heading="What happens downstream">
-            <ul className="list-disc space-y-2 pl-4">
-              <li>
-                An item is Overdue when its current stage&apos;s due date has
-                passed; nothing is ever overdue once it reaches{" "}
-                <code>published</code> or <code>skipped</code>.
-              </li>
-              <li>
-                Status changes here are written to the audit log alongside the
-                rest of the calendar item&apos;s history.
-              </li>
-            </ul>
-          </HowToSection>
-          <HowToSection heading="Common mistakes">
-            <ul className="list-disc space-y-2 pl-4">
-              <li>
-                Leaving the owner or reviewer fields blank means the item never
-                shows up in anyone&apos;s My work tab, only in the general
-                queue.
-              </li>
-              <li>
-                Sending an item back to <code>changes_requested</code>{" "}
-                doesn&apos;t reset it to the draft stage&apos;s due-date math —
-                it moves to the review stage&apos;s, which can shorten the time
-                left.
-              </li>
-            </ul>
-          </HowToSection>
-        </HowToSheet>
       </div>
 
       {tab === "my-work" ? (

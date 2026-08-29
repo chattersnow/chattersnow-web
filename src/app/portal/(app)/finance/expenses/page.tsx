@@ -13,7 +13,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { HowToSection, HowToSheet } from "@/components/how-to-sheet";
+import { HowToSection } from "@/components/how-to-section";
+import { PageHelpContent } from "../../help/help-context";
 import { FiltersSheet } from "@/components/filters-sheet";
 import {
   buildHref,
@@ -166,7 +167,7 @@ export default async function ExpensesPage({
           Expenses
         </h1>
         <div className="flex items-center gap-2">
-          <HowToSheet title="How expense approval works">
+          <PageHelpContent title="How expense approval works">
             <HowToSection heading="Steps">
               <ol className="list-decimal space-y-2 pl-4">
                 <li>
@@ -250,7 +251,7 @@ export default async function ExpensesPage({
                 </li>
               </ul>
             </HowToSection>
-          </HowToSheet>
+          </PageHelpContent>
           <NewExpenseDialog events={eventOptions} />
         </div>
       </div>

@@ -23,6 +23,8 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { HelpButton } from "./help/help-button";
+import { PortalHelpProvider } from "./help/help-context";
 import { getContentWorkSummary } from "./home/queries";
 import { LogoutButton } from "./logout-button";
 import { NotificationsMenu } from "./notifications-menu";
@@ -137,56 +139,59 @@ export default async function PortalAppLayout({
 
   return (
     <TooltipProvider>
-      <SidebarProvider defaultOpen={sidebarOpen}>
-        <Sidebar collapsible="icon">
-          <SidebarHeader>
-            <Link
-              href="/portal/home"
-              className="flex min-w-0 items-center gap-2 px-2 py-1.5"
-            >
-              <Image
-                src="/chatter-logo-transparent.png"
-                alt="Chatter Snow"
-                width={32}
-                height={32}
-                className="size-8 shrink-0"
-                priority
-              />
-              <span className="app-muted min-w-0 truncate text-sm font-semibold uppercase tracking-[0.14em] group-data-[collapsible=icon]:hidden">
-                Chatter Snow
-              </span>
-            </Link>
-          </SidebarHeader>
-          <SidebarContent>
-            <SidebarQuickActions permissions={permissions} />
-            <PortalNav permissions={permissions} />
-          </SidebarContent>
-          <SidebarFooter>
-            <LogoutButton />
-          </SidebarFooter>
-        </Sidebar>
-        <SidebarInset>
-          <header className="flex items-center gap-3 border-b border-[var(--line)] px-6 py-4 sm:px-10">
-            <SidebarTrigger />
-            <Link href="/portal/home" className="flex items-center">
-              <span className="app-muted hidden text-sm font-semibold uppercase tracking-[0.14em] sm:inline">
-                Operations Portal
-              </span>
-            </Link>
-            <div className="ml-auto flex items-center gap-3">
-              {displayName && (
-                <span className="hidden max-w-40 truncate text-sm text-foreground sm:inline">
-                  Hi, {displayName}
+      <PortalHelpProvider>
+        <SidebarProvider defaultOpen={sidebarOpen}>
+          <Sidebar collapsible="icon">
+            <SidebarHeader>
+              <Link
+                href="/portal/home"
+                className="flex min-w-0 items-center gap-2 px-2 py-1.5"
+              >
+                <Image
+                  src="/chatter-logo-transparent.png"
+                  alt="Chatter Snow"
+                  width={32}
+                  height={32}
+                  className="size-8 shrink-0"
+                  priority
+                />
+                <span className="app-muted min-w-0 truncate text-sm font-semibold uppercase tracking-[0.14em] group-data-[collapsible=icon]:hidden">
+                  Chatter Snow
                 </span>
-              )}
-              <NotificationsMenu items={attentionItems} />
-            </div>
-          </header>
-          <main className="app-shell flex-1 px-6 py-8 sm:px-10">
-            <div className="mx-auto max-w-6xl">{children}</div>
-          </main>
-        </SidebarInset>
-      </SidebarProvider>
+              </Link>
+            </SidebarHeader>
+            <SidebarContent>
+              <SidebarQuickActions permissions={permissions} />
+              <PortalNav permissions={permissions} />
+            </SidebarContent>
+            <SidebarFooter>
+              <LogoutButton />
+            </SidebarFooter>
+          </Sidebar>
+          <SidebarInset>
+            <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-[var(--line)] bg-[var(--background)] px-6 py-4 sm:px-10">
+              <SidebarTrigger />
+              <Link href="/portal/home" className="flex items-center">
+                <span className="app-muted hidden text-sm font-semibold uppercase tracking-[0.14em] sm:inline">
+                  Operations Portal
+                </span>
+              </Link>
+              <div className="ml-auto flex items-center gap-3">
+                {displayName && (
+                  <span className="hidden max-w-48 truncate text-base font-semibold text-[var(--purple)] sm:inline">
+                    Hi, {displayName}
+                  </span>
+                )}
+                <HelpButton />
+                <NotificationsMenu items={attentionItems} />
+              </div>
+            </header>
+            <main className="app-shell flex-1 px-6 py-8 sm:px-10">
+              <div className="mx-auto max-w-6xl">{children}</div>
+            </main>
+          </SidebarInset>
+        </SidebarProvider>
+      </PortalHelpProvider>
     </TooltipProvider>
   );
 }
