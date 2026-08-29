@@ -76,15 +76,28 @@ test.describe("portal finance reports", () => {
       page.getByText("Nothing recorded in this period."),
     ).toBeVisible();
 
-    await page.getByRole("button", { name: "Filters" }).click();
-    // Rendered as an <a>, but the Button primitive it's built from sets an
-    // explicit role="button" whenever nativeButton={false} -- see
-    // src/components/ui/button.tsx and node_modules/@base-ui/react's
-    // useButton -- so this is exposed as "button", not "link".
-    await page
+    // Reopening races the filter navigation: "Reset to this year" only
+    // renders once hasCustomRange is true, and a click landing while the
+    // filtered page is still committing is dropped along with the Sheet's
+    // client-side open state, so the sheet silently never opens. Retry the
+    // open until it sticks rather than waiting out the test timeout on a
+    // sheet that was never going to appear.
+    // The reset control is rendered as an <a>, but the Button primitive it's
+    // built from sets an explicit role="button" whenever nativeButton={false}
+    // -- see src/components/ui/button.tsx and node_modules/@base-ui/react's
+    // useButton -- so it's exposed as "button", not "link".
+    const resetButton = page
       .getByRole("dialog")
-      .getByRole("button", { name: "Reset to this year" })
-      .click();
+      .getByRole("button", { name: "Reset to this year" });
+    await expect(async () => {
+      // Both steps are bounded so a failed attempt ends the iteration and
+      // lets toPass retry, instead of hanging until the test timeout.
+      await page
+        .getByRole("button", { name: "Filters" })
+        .click({ timeout: 2_000 });
+      await expect(resetButton).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 15_000 });
+    await resetButton.click();
 
     await expect(page).toHaveURL(/\/portal\/finance\/reports$/);
     await expect(
