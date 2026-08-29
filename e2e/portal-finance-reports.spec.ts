@@ -6,9 +6,16 @@
 import { test, expect, type Page } from "@playwright/test";
 import { signIn } from "./helpers/auth";
 
+// hasText does substring matching, and "Income" is also a substring of the
+// "Income by source" and "Income and paid spend by event" card titles
+// further down the page -- anchor to an exact match so this only ever
+// resolves to the one summary card.
 function summaryCard(page: Page, title: string) {
+  const escaped = title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return page.locator('[data-slot="card"]').filter({
-    has: page.locator('[data-slot="card-title"]', { hasText: title }),
+    has: page.locator('[data-slot="card-title"]', {
+      hasText: new RegExp(`^${escaped}$`),
+    }),
   });
 }
 
