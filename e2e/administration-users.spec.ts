@@ -1,7 +1,22 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Locator } from "@playwright/test";
 import { reloadStayingSignedIn, signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { seedInviteEmail, seedPortalUser } from "./helpers/rbac";
+
+/**
+ * Every mutation on this page reports a failure as an inline Alert and
+ * leaves the table as it was, so without this a failed server action shows
+ * up as a bare "element not found" on whatever it should have produced.
+ * Surfaces the app's own message instead.
+ */
+async function failIfAlert(scope: Locator, step: string) {
+  const alert = scope.getByRole("alert");
+  if ((await alert.count()) > 0) {
+    throw new Error(
+      `${step} failed: ${(await alert.first().innerText()).trim()}`,
+    );
+  }
+}
 
 test.describe("portal administration users", () => {
   test.beforeEach(async ({ page }) => {
@@ -126,7 +141,10 @@ test.describe("portal administration users", () => {
       const grantRow = pendingCard
         .getByRole("row")
         .filter({ hasText: invite.email });
-      await expect(grantRow).toBeVisible({ timeout: 30_000 });
+      await expect(async () => {
+        await failIfAlert(pendingCard, "Staging access");
+        await expect(grantRow).toBeVisible({ timeout: 2_000 });
+      }).toPass({ timeout: 30_000 });
       await expect(grantRow).toContainText("Volunteer");
       await expect(grantRow).toContainText("Pending");
       await expect(
@@ -141,6 +159,7 @@ test.describe("portal administration users", () => {
       // Assert the write first, so a failure here is unambiguous about
       // whether the action or its rendering is at fault.
       await expect(async () => {
+        await failIfAlert(pendingCard, "Revoking the grant");
         const { data } = await admin
           .from("pending_role_grants")
           .select("status")
