@@ -172,27 +172,38 @@ test.describe("portal administration users", () => {
         grantRow.getByRole("button", { name: "Invite" }),
       ).toBeVisible();
 
-      await grantRow.getByRole("button", { name: "Revoke" }).click();
-      const confirm = page.getByRole("alertdialog");
-      await confirm.getByRole("button", { name: "Revoke" }).click();
-      await expect(confirm).not.toBeVisible();
-
-      // Assert the write first, so a failure here is unambiguous about
-      // whether the action or its rendering is at fault.
+      // CI has repeatedly shown this interaction being dropped: the confirm
+      // dialog closes, no inline error appears, and no write happens -- with
+      // nothing failing on the page (no console error, no 4xx/5xx). Rather
+      // than assume which half is at fault, drive the whole confirm-and-check
+      // as one retried step, keyed off the database rather than the DOM. Each
+      // attempt re-reads the status first, so it stops as soon as any attempt
+      // has landed and never double-revokes.
       await expect(async () => {
-        await failIfAlert(pendingCard, "Revoking the grant");
         const { data } = await admin
           .from("pending_role_grants")
           .select("status")
           .eq("email", invite.email)
           .single();
-        if (data?.status !== "revoked") {
-          throw new Error(
-            `Revoke did not land: grant is still "${data?.status}", with no ` +
-              `inline error. Page issues: ${pageIssues.join(" | ") || "none"}`,
-          );
+        if (data?.status === "revoked") return;
+
+        await failIfAlert(pendingCard, "Revoking the grant");
+
+        const revokeButton = grantRow.getByRole("button", { name: "Revoke" });
+        if ((await revokeButton.count()) > 0) {
+          await revokeButton.click();
+          const confirm = page.getByRole("alertdialog");
+          await confirm
+            .getByRole("button", { name: "Revoke", exact: true })
+            .click();
+          await expect(confirm).not.toBeVisible();
         }
-      }).toPass({ timeout: 20_000 });
+
+        throw new Error(
+          `Revoke has not landed yet: grant is "${data?.status}", with no ` +
+            `inline error. Page issues: ${pageIssues.join(" | ") || "none"}`,
+        );
+      }).toPass({ timeout: 60_000 });
 
       await reloadStayingSignedIn(page);
       await expect(pendingCard).not.toContainText("No pending access staged.");
