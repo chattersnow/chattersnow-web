@@ -1,8 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
-import { HowToSection, HowToSheet } from "@/components/how-to-sheet";
 import { CalendarFiltersSheet } from "./calendar-filters-sheet";
 import {
   type CalendarItemRow,
@@ -106,79 +104,6 @@ export function CalendarWorkspace({
     <div className="flex flex-col gap-3">
       <div className="rainbow-surface flex flex-wrap items-end justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
         <div className="flex flex-wrap items-end gap-3">
-          <HowToSheet title="How calendar items work">
-            <HowToSection heading="Steps">
-              <ol className="list-decimal space-y-2 pl-4">
-                <li>
-                  <strong className="text-foreground">Priority tier</strong> —
-                  Tier 1 items need an explicit Plan, Skip, or Defer decision
-                  before their date passes (once it&apos;s Tier 1, undecided,
-                  and not archived, the item is flagged as needing one). Tiers 2
-                  and 3 don&apos;t require a decision.
-                </li>
-                <li>
-                  <strong className="text-foreground">Sensitive topic</strong> —
-                  flagging an item this way surfaces tone guidance and requires
-                  someone with manage access to record a review before it&apos;s
-                  considered handled; unreviewed sensitive items are flagged the
-                  same way as undecided Tier 1 items.
-                </li>
-                <li>
-                  <strong className="text-foreground">
-                    Content opportunity
-                  </strong>{" "}
-                  — items with a linked content opportunity move through their
-                  own draft/review/publish stages, tracked on the{" "}
-                  <Link
-                    href="/portal/calendar/work-queue"
-                    className="underline hover:text-foreground"
-                  >
-                    Work queue
-                  </Link>{" "}
-                  page.
-                </li>
-              </ol>
-            </HowToSection>
-            <HowToSection heading="Who can do this">
-              <p>
-                Anyone with manage access to the content calendar can create or
-                edit items and record decisions and sensitive-topic reviews;
-                everyone else can view.
-              </p>
-            </HowToSection>
-            <HowToSection heading="What happens downstream">
-              <ul className="list-disc space-y-2 pl-4">
-                <li>
-                  An undecided Tier 1 item or an unreviewed sensitive item stays
-                  flagged on this list until it&apos;s handled.
-                </li>
-                <li>
-                  Every create, edit, or delete on a calendar item is written to
-                  the audit log.
-                </li>
-                <li>
-                  Items that also have a content opportunity feed the Work
-                  queue&apos;s due dates — see that page&apos;s own guide for
-                  how those stages work.
-                </li>
-              </ul>
-            </HowToSection>
-            <HowToSection heading="Common mistakes">
-              <ul className="list-disc space-y-2 pl-4">
-                <li>
-                  Marking an item sensitive without also recording a review
-                  leaves it flagged even after everything else about it is
-                  finished.
-                </li>
-                <li>
-                  Deciding Skip or Defer on a Tier 1 item after its date has
-                  already passed doesn&apos;t retroactively clear it from
-                  history — decide before the date when possible.
-                </li>
-              </ul>
-            </HowToSection>
-          </HowToSheet>
-
           {canManage && (
             <NewCalendarItemDialog
               owners={owners}
