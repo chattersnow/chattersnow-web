@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { Eye } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
@@ -7,6 +9,7 @@ import { listDistributionsAction } from "../../home/distribution-actions";
 import { RecordDistributionModal } from "../../home/record-distribution-modal";
 import { HowToSection, HowToSheet } from "@/components/how-to-sheet";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -128,6 +131,9 @@ export default async function DistributionPage() {
                       <TableHead>Event</TableHead>
                       <TableHead>Recipient</TableHead>
                       <TableHead>Reason</TableHead>
+                      <TableHead className="w-0">
+                        <span className="sr-only">Actions</span>
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -164,6 +170,23 @@ export default async function DistributionPage() {
                         </TableCell>
                         <TableCell className="app-muted">
                           {movement.reason || "—"}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            nativeButton={false}
+                            aria-label={`View distribution of ${
+                              movement.inventory_item?.description ?? "item"
+                            }`}
+                            render={
+                              <Link
+                                href={`/portal/inventory/distribution/${movement.id}`}
+                              />
+                            }
+                          >
+                            <Eye />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
