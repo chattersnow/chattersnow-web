@@ -407,3 +407,136 @@ export async function createGovernanceMeeting(
     },
   };
 }
+
+// `contact_messages` grants `select` to authenticated and nothing else
+// (20260826180000): rows only ever arrive through the SECURITY DEFINER
+// submit_contact_message() RPC, so the seeded-admin client can read
+// submissions but has no way to delete them. Fixture cleanup goes through
+// the service-role key instead, which bypasses RLS and holds every table
+// grant since #221's migration (20260826320000). Created lazily so files
+// that never touch contact_messages don't need SUPABASE_SECRET_KEY set.
+let serviceRoleClientInstance: SupabaseClient | null = null;
+function serviceRoleClient() {
+  serviceRoleClientInstance ??= createClient(
+    SUPABASE_URL,
+    process.env.SUPABASE_SECRET_KEY!,
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    },
+  );
+  return serviceRoleClientInstance;
+}
+
+export async function findContactMessages(email: string) {
+  const { data, error } = await adminClient
+    .from("contact_messages")
+    .select("id, name, email, topic, message")
+    .ilike("email", email);
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteContactMessages(email: string) {
+  const { error } = await serviceRoleClient()
+    .from("contact_messages")
+    .delete()
+    .ilike("email", email);
+  if (error) throw error;
+}
+
+type VolunteerApplicationOverrides = {
+  name?: string;
+  email?: string;
+  phone?: string | null;
+  roleInterest?: string | null;
+  availability?: string | null;
+  status?: string;
+};
+
+// `volunteer_applications` has no insert grant at all -- the public
+// submit_volunteer_application() RPC is the only way in (20260827010000) --
+// so fixtures go through it exactly as an anonymous visitor would, then
+// adjust the status afterwards when a test needs something other than the
+// 'new' default.
+export async function createVolunteerApplication(
+  overrides: VolunteerApplicationOverrides = {},
+) {
+  const email = overrides.email ?? uniqueEmail("vol-app");
+  const { data: referenceCode, error } = await anonClient().rpc(
+    "submit_volunteer_application",
+    {
+      p_name:
+        overrides.name ?? `Integration Test Applicant ${crypto.randomUUID()}`,
+      p_email: email,
+      p_phone: overrides.phone ?? null,
+      p_role_interest: overrides.roleInterest ?? "Ride Buddy",
+      p_availability: overrides.availability ?? "Weekends",
+      p_honeypot: null,
+      // A fresh IP per fixture: the RPC's own per-IP rate limit (5 per 15
+      // minutes) would otherwise start rejecting fixtures partway through a
+      // file that creates several.
+      p_ip_address: uniqueIp(),
+    },
+  );
+  if (error) throw error;
+
+  // The RPC returns the applicant-facing reference code, not the row id
+  // (see 20260827010000), so resolve the actual row from it.
+  const { data: row, error: rowError } = await adminClient
+    .from("volunteer_applications")
+    .select("id")
+    .eq("reference_code", referenceCode as string)
+    .single();
+  if (rowError) throw rowError;
+
+  const id = row.id as string;
+
+  if (overrides.status) {
+    const { error: statusError } = await adminClient
+      .from("volunteer_applications")
+      .update({ status: overrides.status })
+      .eq("id", id);
+    if (statusError) throw statusError;
+  }
+
+  return {
+    id,
+    email,
+    referenceCode: referenceCode as string,
+    async cleanup() {
+      await deleteVolunteerApplications(email);
+    },
+  };
+}
+
+export async function findVolunteerApplications(email: string) {
+  const { data, error } = await adminClient
+    .from("volunteer_applications")
+    .select(
+      "id, person_id, name, email, phone, role_interest, availability, reference_code, status",
+    )
+    .ilike("email", email);
+  if (error) throw error;
+  return data;
+}
+
+// Cleanup keyed on email rather than id, since a test exercising the public
+// action only knows what it submitted. Also removes the backing `people` row
+// resolve_or_create_person_by_email() created behind each application --
+// nothing else references it once the application is gone.
+export async function deleteVolunteerApplications(email: string) {
+  for (const row of await findVolunteerApplications(email)) {
+    await adminClient
+      .from("volunteer_applications")
+      .delete()
+      .eq("id", row.id as string);
+    await adminClient
+      .from("people")
+      .delete()
+      .eq("id", row.person_id as string);
+  }
+}
