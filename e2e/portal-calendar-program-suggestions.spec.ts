@@ -1,18 +1,51 @@
 // Issue #443: E2E coverage for /portal/calendar/program-suggestions.
 //
 // Nothing seeds calendar_program_suggestion_rules, so every test here
-// creates the rule it works on. The suite runs fully parallel across two
-// Playwright projects against one database, and a rule's only visible
-// identity in the table is its suggested program name (shared with every
-// other rule pointing at the same program), so rows are located by a
-// run-unique note rather than by program or by the sheet trigger's label.
+// creates the rule it works on -- against a program of its own. The table
+// carries a unique index on
+// (coalesce(item_type,''), coalesce(category,''), program_id), so two runs
+// mapping the same type/category pair to the same program collide, and the
+// suite runs fully parallel across Playwright projects against one
+// database. A per-test program keeps every triple distinct, and doubles as
+// the rule's identity: both the table row and the details-sheet trigger are
+// labelled by program name.
 import { test, expect, type Page } from "@playwright/test";
 import { signIn } from "./helpers/auth";
+import { createAdminClient } from "./helpers/admin-client";
 
 const SEEDED_PROGRAM = "Winter Access Program";
 
-function uniqueNote(label: string) {
-  return `E2E ${label} ${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
+type ProgramFixture = { name: string; cleanup: () => Promise<void> };
+
+async function seedProgram(label: string): Promise<ProgramFixture> {
+  const admin = createAdminClient();
+  const name = `E2E Suggest ${label} ${crypto.randomUUID().slice(0, 8)}`;
+
+  // programs.created_by is NOT NULL and defaults to auth.uid(), which is
+  // null for the service-role client -- borrow the seeded program's creator
+  // rather than reaching into auth.users.
+  const { data: seeded, error: seededError } = await admin
+    .from("programs")
+    .select("created_by")
+    .eq("name", SEEDED_PROGRAM)
+    .single();
+  if (seededError) throw seededError;
+
+  const { data, error } = await admin
+    .from("programs")
+    .insert({ name, status: "active", created_by: seeded.created_by })
+    .select("id")
+    .single();
+  if (error) throw error;
+
+  return {
+    name,
+    // calendar_program_suggestion_rules.program_id is ON DELETE CASCADE, so
+    // dropping the program takes the test's rule with it.
+    cleanup: async () => {
+      await admin.from("programs").delete().eq("id", data.id);
+    },
+  };
 }
 
 async function selectOption(page: Page, trigger: string, option: string) {
@@ -21,7 +54,7 @@ async function selectOption(page: Page, trigger: string, option: string) {
 }
 
 /** Creates a rule through the New rule dialog and returns its table row. */
-async function createRule(page: Page, note: string) {
+async function createRule(page: Page, programName: string, note: string) {
   await page.getByRole("button", { name: "New rule" }).click();
   const dialog = page.getByRole("dialog");
   await expect(
@@ -30,12 +63,12 @@ async function createRule(page: Page, note: string) {
 
   await selectOption(page, "Item type", "Content opportunity");
   await selectOption(page, "Category", "Chatter events");
-  await selectOption(page, "Suggested program", SEEDED_PROGRAM);
+  await selectOption(page, "Suggested program", programName);
   await dialog.getByLabel("Note").fill(note);
   await dialog.getByRole("button", { name: "Create rule" }).click();
 
   await expect(dialog).not.toBeVisible();
-  return page.getByRole("row").filter({ hasText: note });
+  return page.getByRole("row").filter({ hasText: programName });
 }
 
 test.describe("portal calendar program suggestions", () => {
@@ -66,62 +99,75 @@ test.describe("portal calendar program suggestions", () => {
   test("creates a rule and shows its mapping in the table", async ({
     page,
   }) => {
-    const note = uniqueNote("suggestion");
+    const program = await seedProgram("mapping");
+    try {
+      await page.goto("/portal/calendar/program-suggestions");
+      const row = await createRule(page, program.name, "E2E suggestion note");
 
-    await page.goto("/portal/calendar/program-suggestions");
-    const row = await createRule(page, note);
-
-    await expect(row).toBeVisible();
-    await expect(row).toContainText("Content opportunity");
-    await expect(row).toContainText("Chatter events");
-    await expect(row).toContainText(SEEDED_PROGRAM);
-    await expect(row).toContainText("Yes");
+      await expect(row).toBeVisible();
+      await expect(row).toContainText("Content opportunity");
+      await expect(row).toContainText("Chatter events");
+      await expect(row).toContainText("E2E suggestion note");
+      await expect(row).toContainText("Yes");
+    } finally {
+      await program.cleanup();
+    }
   });
 
   test("opens a rule's details, edits it, and deletes it", async ({ page }) => {
-    const note = uniqueNote("editable");
-    const updatedNote = uniqueNote("edited");
+    const program = await seedProgram("details");
+    try {
+      await page.goto("/portal/calendar/program-suggestions");
+      const row = await createRule(page, program.name, "E2E editable note");
+      await expect(row).toBeVisible();
 
-    await page.goto("/portal/calendar/program-suggestions");
-    const row = await createRule(page, note);
-    await expect(row).toBeVisible();
+      await row
+        .getByRole("button", { name: `View rule suggesting ${program.name}` })
+        .click();
 
-    // The trigger's label is only the program name, which other rules in a
-    // parallel run share -- scope to this rule's own row.
-    await row.getByRole("button", { name: /^View rule suggesting/ }).click();
+      const sheet = page.getByRole("dialog");
+      await expect(
+        sheet.getByRole("heading", { name: program.name }),
+      ).toBeVisible();
+      // ReadOnlyField renders a labelled <div>, not a form control, so these
+      // read by id rather than by label.
+      await expect(sheet.locator("#rule-view-itemType")).toHaveText(
+        "Content opportunity",
+      );
+      await expect(sheet.locator("#rule-view-category")).toHaveText(
+        "Chatter events",
+      );
+      await expect(sheet.locator("#rule-view-note")).toHaveText(
+        "E2E editable note",
+      );
+      await expect(sheet.locator("#rule-view-active")).toHaveText("Yes");
 
-    const sheet = page.getByRole("dialog");
-    await expect(
-      sheet.getByRole("heading", { name: SEEDED_PROGRAM }),
-    ).toBeVisible();
-    // ReadOnlyField renders a labelled <div>, not a form control, so these
-    // read by id rather than by label.
-    await expect(sheet.locator("#rule-view-itemType")).toHaveText(
-      "Content opportunity",
-    );
-    await expect(sheet.locator("#rule-view-category")).toHaveText(
-      "Chatter events",
-    );
-    await expect(sheet.locator("#rule-view-note")).toHaveText(note);
-    await expect(sheet.locator("#rule-view-active")).toHaveText("Yes");
+      await sheet.getByRole("button", { name: "Edit rule" }).click();
+      await sheet.getByLabel("Note").fill("E2E edited note");
+      await sheet.getByRole("button", { name: "Save changes" }).click();
 
-    await sheet.getByRole("button", { name: "Edit rule" }).click();
-    await sheet.getByLabel("Note").fill(updatedNote);
-    await sheet.getByRole("button", { name: "Save changes" }).click();
+      await expect(
+        sheet.getByRole("button", { name: "Edit rule" }),
+      ).toBeVisible();
+      await expect(sheet.locator("#rule-view-note")).toHaveText(
+        "E2E edited note",
+      );
 
-    await expect(
-      sheet.getByRole("button", { name: "Edit rule" }),
-    ).toBeVisible();
-    await expect(sheet.locator("#rule-view-note")).toHaveText(updatedNote);
+      await sheet.getByRole("button", { name: "Delete rule" }).click();
+      const confirmDialog = page.getByRole("alertdialog");
+      await expect(confirmDialog.getByText("Delete this rule?")).toBeVisible();
+      await confirmDialog.getByRole("button", { name: "Delete" }).click();
 
-    await sheet.getByRole("button", { name: "Delete rule" }).click();
-    const confirmDialog = page.getByRole("alertdialog");
-    await expect(confirmDialog.getByText("Delete this rule?")).toBeVisible();
-    await confirmDialog.getByRole("button", { name: "Delete" }).click();
-
-    await expect(
-      page.getByRole("row").filter({ hasText: updatedNote }),
-    ).toHaveCount(0);
+      // Deleting closes the sheet. Wait for that before checking the table:
+      // while a modal is open the rows behind it are out of the
+      // accessibility tree, so a row query would come back empty either way.
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+      await expect(
+        page.getByRole("row").filter({ hasText: program.name }),
+      ).toHaveCount(0);
+    } finally {
+      await program.cleanup();
+    }
   });
 
   test("refuses a rule that would match every calendar item", async ({
@@ -132,7 +178,8 @@ test.describe("portal calendar program suggestions", () => {
     await page.getByRole("button", { name: "New rule" }).click();
     const dialog = page.getByRole("dialog");
 
-    // Item type and category both left on "Any".
+    // Item type and category both left on "Any". Nothing is created, so this
+    // one can point at the seeded program without risking the unique index.
     await selectOption(page, "Suggested program", SEEDED_PROGRAM);
     await dialog.getByRole("button", { name: "Create rule" }).click();
 

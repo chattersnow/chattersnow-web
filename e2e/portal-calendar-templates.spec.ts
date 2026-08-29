@@ -143,6 +143,12 @@ test.describe("portal calendar brief templates", () => {
     await expect(sheet.locator("#template-view-fields")).toContainText(
       "Call to action",
     );
+
+    // The sheet is modal, so while it's open the table behind it is out of
+    // the accessibility tree and getByRole("row") can't see it. Close it
+    // before checking the row picked up the new version.
+    await sheet.getByRole("button", { name: "Close" }).click();
+    await expect(sheet).toHaveCount(0);
     await expect(row).toContainText("v2");
   });
 
