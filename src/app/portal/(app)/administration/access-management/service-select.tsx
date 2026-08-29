@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { createServiceAction } from "./actions";
 import type { ServiceRow } from "@/lib/portal/access-management/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -71,20 +72,30 @@ export function ServiceSelect({
       </Select>
 
       {!showCreate ? (
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          className="self-start"
-          onClick={() => setShowCreate(true)}
-        >
-          + New service
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setShowCreate(true)}
+          >
+            + New service
+          </Button>
+          <Link
+            href="/portal/administration/access-management/services"
+            target="_blank"
+            className="app-muted text-xs hover:underline"
+          >
+            Not seeing an existing one? Manage services
+          </Link>
+        </div>
       ) : (
         <div className="rounded-md border border-[var(--line)] p-3">
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="new-service-name">Service name</FieldLabel>
+              <FieldLabel htmlFor="new-service-name">
+                New service name
+              </FieldLabel>
               <Input
                 id="new-service-name"
                 value={name}

@@ -63,6 +63,78 @@ export async function createServiceAction(
   return { success: true, service: data };
 }
 
+export async function updateServiceAction(
+  serviceId: string,
+  name: string,
+  website: string,
+  notes: string,
+): Promise<{ error: string } | { success: true }> {
+  const trimmedName = name.trim();
+  if (!trimmedName) return { error: "Service name is required." };
+  const trimmedWebsite = website.trim();
+  if (trimmedWebsite && !/^https?:\/\//i.test(trimmedWebsite)) {
+    return { error: "Website must start with http:// or https://." };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(
+    supabase,
+    "access_management_assets",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  const { error } = await supabase
+    .from("services")
+    .update({
+      name: trimmedName,
+      website: trimmedWebsite || null,
+      notes: notes.trim() || null,
+    })
+    .eq("id", serviceId);
+  if (error) {
+    return {
+      error: friendlyError(
+        error,
+        "A service with that name already exists.",
+        "Could not update service. Please try again.",
+      ),
+    };
+  }
+
+  revalidateAccessManagementPaths();
+  return { success: true };
+}
+
+export async function deleteServiceAction(
+  serviceId: string,
+): Promise<{ error: string } | { success: true }> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(
+    supabase,
+    "access_management_assets",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  const { error } = await supabase
+    .from("services")
+    .delete()
+    .eq("id", serviceId);
+  if (error) {
+    if (error.code === "23503") {
+      return {
+        error:
+          "Cannot delete this service while assets still reference it. Reassign or remove those assets first.",
+      };
+    }
+    return { error: "Could not delete service. Please try again." };
+  }
+
+  revalidateAccessManagementPaths();
+  return { success: true };
+}
+
 export type AssetActionResult =
   { error: string } | { success: true; assetId: string };
 
@@ -117,6 +189,29 @@ export async function updateAssetAction(
   }
 
   revalidateAccessManagementPaths(assetId);
+  return { success: true };
+}
+
+// Deleting an asset cascades to its access_grants (on delete cascade), so
+// any active permissions for it are removed too -- callers should confirm
+// that with the user before invoking this.
+export async function deleteAssetAction(
+  assetId: string,
+): Promise<{ error: string } | { success: true }> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(
+    supabase,
+    "access_management_assets",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  const { error } = await supabase.from("assets").delete().eq("id", assetId);
+  if (error) {
+    return { error: "Could not delete asset. Please try again." };
+  }
+
+  revalidateAccessManagementPaths();
   return { success: true };
 }
 

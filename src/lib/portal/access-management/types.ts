@@ -47,6 +47,8 @@ export type ServiceRow = {
   notes: string | null;
 };
 
+export type ServiceManageRow = ServiceRow & { assetCount: number };
+
 export type PersonRef = { id: string; name: string | null } | null;
 
 export type AssetListRow = {

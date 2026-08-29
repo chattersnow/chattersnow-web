@@ -97,7 +97,7 @@ export function EditAssetSheet({
       <SheetTrigger render={<Button type="button" variant="secondary" />}>
         <Pencil /> Edit
       </SheetTrigger>
-      <SheetContent side="right" className="sm:max-w-lg">
+      <SheetContent side="right" className="sm:max-w-xl">
         <SheetHeader>
           <SheetTitle>Edit asset</SheetTitle>
           <SheetDescription>

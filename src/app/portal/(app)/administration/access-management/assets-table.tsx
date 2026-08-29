@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -11,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { isReviewDue } from "@/lib/portal/access-management/review-cadence";
 import type { AssetListRow } from "@/lib/portal/access-management/types";
+import { DeleteAssetButton } from "./delete-asset-button";
 import { humanize } from "./labels";
 
 const SENSITIVITY_BADGE_VARIANT: Record<
@@ -23,7 +26,13 @@ const SENSITIVITY_BADGE_VARIANT: Record<
   critical: "destructive",
 };
 
-export function AssetsTable({ assets }: { assets: AssetListRow[] }) {
+export function AssetsTable({
+  assets,
+  activeGrantCounts,
+}: {
+  assets: AssetListRow[];
+  activeGrantCounts: Record<string, number>;
+}) {
   if (assets.length === 0) {
     return (
       <Card>
@@ -46,7 +55,9 @@ export function AssetsTable({ assets }: { assets: AssetListRow[] }) {
               <TableHead>Sensitivity</TableHead>
               <TableHead>MFA</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Permissions</TableHead>
               <TableHead>Next review</TableHead>
+              <TableHead className="w-px" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -83,6 +94,11 @@ export function AssetsTable({ assets }: { assets: AssetListRow[] }) {
                   {asset.status}
                 </TableCell>
                 <TableCell>
+                  <Badge variant="outline">
+                    {activeGrantCounts[asset.id] ?? 0}
+                  </Badge>
+                </TableCell>
+                <TableCell>
                   {asset.next_review ? (
                     <span
                       className={
@@ -96,6 +112,28 @@ export function AssetsTable({ assets }: { assets: AssetListRow[] }) {
                   ) : (
                     <span className="app-muted">—</span>
                   )}
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      nativeButton={false}
+                      aria-label={`View ${asset.name}`}
+                      render={
+                        <Link
+                          href={`/portal/administration/access-management/assets/${asset.id}`}
+                        />
+                      }
+                    >
+                      <Eye />
+                    </Button>
+                    <DeleteAssetButton
+                      assetId={asset.id}
+                      assetName={asset.name}
+                      activeGrantCount={activeGrantCounts[asset.id] ?? 0}
+                    />
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

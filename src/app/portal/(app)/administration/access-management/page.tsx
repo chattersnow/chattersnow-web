@@ -1,8 +1,11 @@
+import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { AssetsTable } from "./assets-table";
 import { NewAssetDialog } from "./new-asset-dialog";
 import {
+  listActiveGrantCountsByAsset,
   listAssets,
   listPeopleForAccessManagement,
   listServices,
@@ -10,11 +13,13 @@ import {
 
 export default async function AccessManagementPage() {
   const supabase = await createSupabaseServerClient();
-  const [assetsResult, servicesResult, peopleResult] = await Promise.all([
-    listAssets(supabase),
-    listServices(supabase),
-    listPeopleForAccessManagement(supabase),
-  ]);
+  const [assetsResult, servicesResult, peopleResult, activeGrantCounts] =
+    await Promise.all([
+      listAssets(supabase),
+      listServices(supabase),
+      listPeopleForAccessManagement(supabase),
+      listActiveGrantCountsByAsset(supabase),
+    ]);
 
   return (
     <>
@@ -28,7 +33,16 @@ export default async function AccessManagementPage() {
         holds passwords, API keys, tokens, or recovery codes.
       </p>
 
-      <div className="mt-6 flex justify-end">
+      <div className="mt-6 flex justify-end gap-2">
+        <Button
+          variant="secondary"
+          nativeButton={false}
+          render={
+            <Link href="/portal/administration/access-management/services" />
+          }
+        >
+          Manage services
+        </Button>
         {"error" in servicesResult || "error" in peopleResult ? null : (
           <NewAssetDialog
             services={servicesResult.data}
@@ -45,7 +59,10 @@ export default async function AccessManagementPage() {
             </CardContent>
           </Card>
         ) : (
-          <AssetsTable assets={assetsResult.data} />
+          <AssetsTable
+            assets={assetsResult.data}
+            activeGrantCounts={activeGrantCounts}
+          />
         )}
       </div>
     </>
