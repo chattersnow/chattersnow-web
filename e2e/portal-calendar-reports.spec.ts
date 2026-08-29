@@ -68,10 +68,23 @@ test.describe("portal calendar annual review report", () => {
     await page.goto("/portal/calendar/reports");
     await expect(metricCard(page, "Overdue content tasks")).toBeVisible();
 
-    await page.getByLabel("Year").selectOption(String(emptyYear));
-    await page.getByRole("button", { name: "View", exact: true }).click();
-
-    await expect(page).toHaveURL(new RegExp(`\\?year=${emptyYear}$`));
+    // The year form is server-rendered and its <select> is uncontrolled, so
+    // React sets the element's value from defaultValue when it hydrates. A
+    // selection made before that lands is reset to the current year, and the
+    // plain GET submit then carries the wrong year. Retry the whole
+    // select-and-submit -- it's idempotent, and by the second attempt the
+    // page is hydrated and the choice sticks.
+    await expect(async () => {
+      await page
+        .getByLabel("Year")
+        .selectOption(String(emptyYear), { timeout: 2_000 });
+      await page
+        .getByRole("button", { name: "View", exact: true })
+        .click({ timeout: 2_000 });
+      await expect(page).toHaveURL(new RegExp(`\\?year=${emptyYear}$`), {
+        timeout: 3_000,
+      });
+    }).toPass({ timeout: 20_000 });
     await expect(
       page.getByText(`No calendar items in ${emptyYear}.`),
     ).toBeVisible();

@@ -100,10 +100,20 @@ test.describe("portal calendar import", () => {
     });
     await expect(importButton).toBeDisabled();
 
-    await page.getByLabel("Or paste CSV").fill(csv);
-    await page.getByRole("button", { name: "Parse" }).click();
-
-    await expect(page.getByText("2 valid rows, 1 row skipped")).toBeVisible();
+    // The textarea is React-controlled, so a fill landing before the panel
+    // hydrates is discarded when React syncs the element back to its (empty)
+    // state, and Parse then finds nothing. Retry the fill-and-parse --
+    // re-parsing the same CSV is idempotent, and by the second attempt the
+    // panel is hydrated.
+    await expect(async () => {
+      await page.getByLabel("Or paste CSV").fill(csv);
+      await page.getByRole("button", { name: "Parse" }).click({
+        timeout: 2_000,
+      });
+      await expect(page.getByText("2 valid rows, 1 row skipped")).toBeVisible({
+        timeout: 3_000,
+      });
+    }).toPass({ timeout: 20_000 });
     // Row numbers are 1-based over the file, so the header is row 1.
     await expect(
       page.getByText('row 4: invalid item_type "not_a_type"'),
