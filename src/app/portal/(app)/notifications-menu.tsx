@@ -26,15 +26,15 @@ export function NotificationsMenu({ items }: { items: PendingApprovalItem[] }) {
           <Button
             variant="ghost"
             size="icon"
-            className="relative"
+            className="relative size-10 rounded-full bg-[var(--purple-soft)] text-[var(--purple-deep)] hover:bg-[var(--purple-soft)] hover:brightness-95"
             aria-label={`${totalCount} item${totalCount === 1 ? "" : "s"} needing attention`}
           />
         }
       >
-        <Bell />
+        <Bell className="bell-ring size-5" />
         <Badge
           variant="destructive"
-          className="absolute -top-1 -right-1 h-4 min-w-4 justify-center px-1 text-[0.65rem]"
+          className="absolute -top-1 -right-1 h-5 min-w-5 justify-center rounded-full px-1 text-xs font-bold ring-2 ring-[var(--background)]"
         >
           {totalCount}
         </Badge>
