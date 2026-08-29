@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { signIn } from "./helpers/auth";
+import { signIn, reloadStayingSignedIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { seedPerson } from "./helpers/people";
 
@@ -130,9 +130,13 @@ test.describe("portal governance records", () => {
         timeout: 15_000,
       });
 
-      await sheet.getByRole("button", { name: "Close" }).click();
-      await expect(sheet).not.toBeVisible();
-      await expect(row).toContainText(updatedVersion);
+      // Reload rather than closing the sheet: the table behind an open
+      // sheet is aria-hidden (invisible to role-based locators), and a
+      // fresh load also proves the edit round-tripped to the database
+      // instead of only reaching the sheet's own client state. It clears
+      // the search filter too, which this assertion doesn't rely on.
+      await reloadStayingSignedIn(page);
+      await expect(row).toContainText(updatedVersion, { timeout: 15_000 });
     } finally {
       await admin.from("policies").delete().eq("name", policyName);
     }

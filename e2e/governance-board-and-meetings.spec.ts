@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { signIn } from "./helpers/auth";
+import { signIn, reloadStayingSignedIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { seedPerson } from "./helpers/people";
 
@@ -74,13 +74,14 @@ test.describe("portal governance board, meetings, and resolutions", () => {
         timeout: 15_000,
       });
 
-      // The table behind an open sheet is aria-hidden, so close it before
-      // asserting the row picked up the edit.
-      await sheet.getByRole("button", { name: "Close" }).click();
-      await expect(sheet).not.toBeVisible();
+      // Reload rather than closing the sheet: the table behind an open
+      // sheet is aria-hidden (invisible to role-based locators), and a
+      // fresh load also proves the edit round-tripped to the database
+      // instead of only reaching the sheet's own client state.
+      await reloadStayingSignedIn(page);
       await expect(
         page.getByRole("row").filter({ hasText: updatedRoleTitle }),
-      ).toBeVisible();
+      ).toBeVisible({ timeout: 15_000 });
     } finally {
       await admin.from("board_members").delete().eq("person_id", person.id);
       await admin.from("people").delete().eq("id", person.id);
@@ -146,8 +147,14 @@ test.describe("portal governance board, meetings, and resolutions", () => {
       await expect(actionItemRow).toBeVisible({ timeout: 15_000 });
       await expect(actionItemRow).toContainText(owner.name);
 
-      await actionItemRow.getByRole("checkbox").check();
-      await expect(actionItemRow.getByRole("checkbox")).toBeChecked();
+      // A plain click, not check(): the checkbox is fully controlled by the
+      // server-side status, so it only flips once the update round-trips and
+      // the tab refetches. check() asserts the state changed synchronously
+      // with the click and fails on that gap.
+      await actionItemRow.getByRole("checkbox").click();
+      await expect(actionItemRow.getByRole("checkbox")).toBeChecked({
+        timeout: 15_000,
+      });
 
       await sheet.getByRole("tab", { name: "Overview" }).click();
       await sheet.getByLabel("Status").click();
@@ -161,11 +168,10 @@ test.describe("portal governance board, meetings, and resolutions", () => {
         timeout: 15_000,
       });
 
-      await sheet.getByRole("button", { name: "Close" }).click();
-      await expect(sheet).not.toBeVisible();
+      await reloadStayingSignedIn(page);
       await expect(
         page.getByRole("row").filter({ hasText: location }),
-      ).toContainText("completed");
+      ).toContainText("completed", { timeout: 15_000 });
     } finally {
       // governance_meeting_action_items cascades from the meeting.
       await admin.from("governance_meetings").delete().eq("location", location);
@@ -232,11 +238,10 @@ test.describe("portal governance board, meetings, and resolutions", () => {
 
       await expect(sheet.getByText("tabled")).toBeVisible({ timeout: 15_000 });
 
-      await sheet.getByRole("button", { name: "Close" }).click();
-      await expect(sheet).not.toBeVisible();
+      await reloadStayingSignedIn(page);
       await expect(
         page.getByRole("row").filter({ hasText: motionText }),
-      ).toContainText("tabled");
+      ).toContainText("tabled", { timeout: 15_000 });
     } finally {
       await admin.from("resolutions").delete().eq("mover_person_id", mover.id);
       await admin.from("people").delete().eq("id", mover.id);

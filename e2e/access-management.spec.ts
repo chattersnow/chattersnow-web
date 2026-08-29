@@ -1,5 +1,5 @@
-import { test, expect, type Page } from "@playwright/test";
-import { signIn } from "./helpers/auth";
+import { test, expect } from "@playwright/test";
+import { signIn, reloadStayingSignedIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 
 // Pre-creates the person directly (rather than exercising PersonPicker's
@@ -23,23 +23,6 @@ async function seedPerson(admin: ReturnType<typeof createAdminClient>) {
       await admin.from("people").delete().eq("id", id);
     },
   };
-}
-
-// A diagnostic run against CI proved the app's own data path is correct
-// (the mutation lands, and the page URL is right before the reload) -- a
-// plain `page.reload()` on this long, multi-step test occasionally comes
-// back on /portal/login instead, evidently a transient session hiccup from
-// two Playwright projects running the full suite concurrently against one
-// shared local Supabase instance, both signed in as the same seeded admin
-// account. Recover by signing back in and returning to the same URL rather
-// than let that transient hiccup fail an otherwise-passing assertion.
-async function reloadStayingSignedIn(page: Page) {
-  const url = page.url();
-  await page.reload();
-  if (page.url().includes("/portal/login")) {
-    await signIn(page);
-    await page.goto(url);
-  }
 }
 
 test.describe("portal access management", () => {
