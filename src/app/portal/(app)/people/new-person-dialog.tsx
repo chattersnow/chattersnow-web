@@ -21,6 +21,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { FieldGroup } from "@/components/ui/field";
+import { Spinner } from "@/components/ui/spinner";
 
 export function NewPersonDialog() {
   const router = useRouter();
@@ -91,7 +92,13 @@ export function NewPersonDialog() {
 
           <DialogFooter>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "Saving..." : "Add person"}
+              {isPending ? (
+                <>
+                  <Spinner /> Saving...
+                </>
+              ) : (
+                "Add person"
+              )}
             </Button>
           </DialogFooter>
         </form>

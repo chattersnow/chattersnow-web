@@ -21,6 +21,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { FieldGroup } from "@/components/ui/field";
+import { Spinner } from "@/components/ui/spinner";
 
 export function NewBylawsDialog() {
   const router = useRouter();
@@ -91,7 +92,13 @@ export function NewBylawsDialog() {
 
           <DialogFooter>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "Saving..." : "Add bylaws version"}
+              {isPending ? (
+                <>
+                  <Spinner /> Saving...
+                </>
+              ) : (
+                "Add bylaws version"
+              )}
             </Button>
           </DialogFooter>
         </form>

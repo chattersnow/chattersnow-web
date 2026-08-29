@@ -15,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -75,7 +76,7 @@ export function DonationsTab({
       )}
 
       {donations === undefined ? (
-        <p className="app-muted text-sm">Loading donations...</p>
+        <TabLoadingSkeleton />
       ) : items.length === 0 ? (
         <p className="app-muted text-sm">
           No donations recorded for this event yet.

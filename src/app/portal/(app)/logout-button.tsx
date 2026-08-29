@@ -9,6 +9,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { Spinner } from "@/components/ui/spinner";
 
 export function LogoutButton() {
   const router = useRouter();
@@ -31,7 +32,15 @@ export function LogoutButton() {
           tooltip={isSigningOut ? "Signing out..." : "Log out"}
         >
           <LogOut />
-          <span>{isSigningOut ? "Signing out..." : "Log out"}</span>
+          <span>
+            {isSigningOut ? (
+              <>
+                <Spinner /> Signing out...
+              </>
+            ) : (
+              "Log out"
+            )}
+          </span>
         </SidebarMenuButton>
       </SidebarMenuItem>
     </SidebarMenu>

@@ -37,6 +37,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Spinner } from "@/components/ui/spinner";
 
 export type RoleRow = { id: string; name: string; description: string | null };
 
@@ -288,7 +289,13 @@ export function RoleDetailsDialog({ role }: { role: RoleRow }) {
                 Delete role
               </Button>
               <Button type="submit" form={formId} disabled={isPending}>
-                {isPending ? "Saving..." : "Save changes"}
+                {isPending ? (
+                  <>
+                    <Spinner /> Saving...
+                  </>
+                ) : (
+                  "Save changes"
+                )}
               </Button>
             </SheetFooter>
           )}
@@ -334,7 +341,13 @@ export function RoleDetailsDialog({ role }: { role: RoleRow }) {
               onClick={handleDelete}
               disabled={isPending}
             >
-              {isPending ? "Deleting..." : "Delete role"}
+              {isPending ? (
+                <>
+                  <Spinner /> Deleting...
+                </>
+              ) : (
+                "Delete role"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

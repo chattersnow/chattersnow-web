@@ -46,6 +46,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { Spinner } from "@/components/ui/spinner";
 
 const FORM_TAB_VALUE_SET = new Set<TabValue>(FORM_TAB_VALUES);
 
@@ -247,7 +248,13 @@ export function EditEventSheet({
                   form={`${FORM_ID_PREFIX}-${tab}-${event.id}`}
                   disabled={pending[tab]}
                 >
-                  {pending[tab] ? "Saving..." : "Save changes"}
+                  {pending[tab] ? (
+                    <>
+                      <Spinner /> Saving...
+                    </>
+                  ) : (
+                    "Save changes"
+                  )}
                 </Button>
               </SheetFooter>
             )}

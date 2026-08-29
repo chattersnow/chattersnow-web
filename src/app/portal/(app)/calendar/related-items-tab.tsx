@@ -12,6 +12,8 @@ import {
 import { CATEGORIES, ITEM_TYPES, labelFor } from "./calendar-shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
+import { Spinner } from "@/components/ui/spinner";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -85,7 +87,7 @@ export function RelatedItemsTab({
   }
 
   if (loading) {
-    return <p className="app-muted text-sm">Loading related items...</p>;
+    return <TabLoadingSkeleton />;
   }
 
   return (
@@ -123,7 +125,7 @@ export function RelatedItemsTab({
                     disabled={isPending}
                     onClick={() => handleUnlink(related)}
                   >
-                    <X />
+                    {isPending ? <Spinner /> : <X />}
                   </Button>
                 )}
               </li>
@@ -174,7 +176,7 @@ export function RelatedItemsTab({
                     disabled={isPending}
                     onClick={() => handleLink(candidate)}
                   >
-                    <Link2 />
+                    {isPending ? <Spinner /> : <Link2 />}
                     Link
                   </Button>
                 </li>

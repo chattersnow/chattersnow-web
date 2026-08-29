@@ -39,6 +39,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Spinner } from "@/components/ui/spinner";
 
 function formStateFor(person: PersonRow): PersonFormState {
   return {
@@ -275,7 +276,13 @@ export function EditPersonModal({ person }: { person: PersonRow }) {
           {mode === "edit" && (
             <SheetFooter className="flex-row justify-end border-t bg-muted/50">
               <Button type="submit" form={formId} disabled={isPending}>
-                {isPending ? "Saving..." : "Save changes"}
+                {isPending ? (
+                  <>
+                    <Spinner /> Saving...
+                  </>
+                ) : (
+                  "Save changes"
+                )}
               </Button>
             </SheetFooter>
           )}

@@ -41,6 +41,7 @@ import {
   type PortalUser,
   type PortalRoleOption,
 } from "./actions";
+import { Spinner } from "@/components/ui/spinner";
 
 function statusBadge(portalUser: PortalUser) {
   if (portalUser.deactivated_at) {
@@ -320,7 +321,13 @@ export function UsersTable({
               onClick={handleDeactivate}
               disabled={isPending}
             >
-              {isPending ? "Deactivating..." : "Deactivate"}
+              {isPending ? (
+                <>
+                  <Spinner /> Deactivating...
+                </>
+              ) : (
+                "Deactivate"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

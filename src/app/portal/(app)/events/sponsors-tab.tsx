@@ -36,6 +36,8 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
+import { Spinner } from "@/components/ui/spinner";
+import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 
 const SUPPORT_TYPES = [
   { value: "cash", label: "Cash" },
@@ -319,7 +321,13 @@ function SponsorForm({
             </Button>
           )}
           <Button type="submit" disabled={isPending}>
-            {isPending ? "Saving..." : submitLabel}
+            {isPending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : (
+              submitLabel
+            )}
           </Button>
         </div>
       </FieldGroup>
@@ -390,7 +398,7 @@ export function SponsorsTab({
       )}
 
       {sponsors === undefined ? (
-        <p className="app-muted text-sm">Loading sponsors...</p>
+        <TabLoadingSkeleton />
       ) : sortedSponsors.length === 0 && !showAdd ? (
         <p className="app-muted text-sm">
           No sponsors or partners recorded yet.
@@ -464,7 +472,7 @@ export function SponsorsTab({
                           disabled={isDeleting}
                           onClick={() => handleDelete(sponsor.id)}
                         >
-                          <Trash2 />
+                          {isDeleting ? <Spinner /> : <Trash2 />}
                         </Button>
                       </>
                     )}

@@ -20,6 +20,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { TemplateField } from "../content-brief-template-shared";
+import { Spinner } from "@/components/ui/spinner";
 
 function getInitialFormState() {
   return { key: "", name: "", description: "", requiresConsent: false };
@@ -152,7 +153,13 @@ export function NewTemplateDialog() {
 
           <DialogFooter>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "Creating..." : "Create template"}
+              {isPending ? (
+                <>
+                  <Spinner /> Creating...
+                </>
+              ) : (
+                "Create template"
+              )}
             </Button>
           </DialogFooter>
         </form>

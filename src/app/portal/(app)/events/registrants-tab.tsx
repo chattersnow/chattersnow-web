@@ -25,6 +25,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Spinner } from "@/components/ui/spinner";
+import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -124,7 +126,13 @@ function WalkInForm({
             Cancel
           </Button>
           <Button type="submit" disabled={isPending}>
-            {isPending ? "Checking in..." : "Check in walk-in"}
+            {isPending ? (
+              <>
+                <Spinner /> Checking in...
+              </>
+            ) : (
+              "Check in walk-in"
+            )}
           </Button>
         </div>
       </FieldGroup>
@@ -211,7 +219,7 @@ export function RegistrantsTab({
       )}
 
       {registrants === undefined ? (
-        <p className="app-muted text-sm">Loading registrants...</p>
+        <TabLoadingSkeleton />
       ) : list.length === 0 ? (
         <p className="app-muted text-sm">No one has registered yet.</p>
       ) : (

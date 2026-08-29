@@ -23,6 +23,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Spinner } from "@/components/ui/spinner";
 
 export function NewMilestoneDialog({
   people,
@@ -123,7 +124,13 @@ export function NewMilestoneDialog({
 
           <DialogFooter>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "Saving..." : "Add milestone"}
+              {isPending ? (
+                <>
+                  <Spinner /> Saving...
+                </>
+              ) : (
+                "Add milestone"
+              )}
             </Button>
           </DialogFooter>
         </form>

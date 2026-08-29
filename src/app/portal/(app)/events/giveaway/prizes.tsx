@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { formatMoney } from "./format";
 import { PrizeWinnerSection } from "./winners";
+import { Spinner } from "@/components/ui/spinner";
 
 export function AddPrizeForm({
   giveawayId,
@@ -114,7 +115,13 @@ export function AddPrizeForm({
             Cancel
           </Button>
           <Button type="submit" disabled={isPending}>
-            {isPending ? "Saving..." : "Add prize"}
+            {isPending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : (
+              "Add prize"
+            )}
           </Button>
         </div>
       </FieldGroup>

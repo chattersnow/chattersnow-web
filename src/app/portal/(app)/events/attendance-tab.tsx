@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Spinner } from "@/components/ui/spinner";
 
 function AttendanceForm({
   event,
@@ -87,7 +88,13 @@ function AttendanceForm({
             Cancel
           </Button>
           <Button type="submit" disabled={isPending}>
-            {isPending ? "Saving..." : "Save attendance"}
+            {isPending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : (
+              "Save attendance"
+            )}
           </Button>
         </div>
       </FieldGroup>

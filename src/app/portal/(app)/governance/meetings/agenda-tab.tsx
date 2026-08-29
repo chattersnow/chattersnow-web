@@ -19,13 +19,12 @@ import {
   type ActionItem,
 } from "./action-items-actions";
 import { listDecisionsAction, type Decision } from "./decisions-actions";
-import { TabLoadingSkeleton } from "./tab-loading-skeleton";
+import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
-import { Spinner } from "@/components/ui/spinner";
 import {
   Tooltip,
   TooltipContent,
@@ -43,6 +42,7 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useTabData } from "@/hooks/use-tab-data";
+import { Spinner } from "@/components/ui/spinner";
 
 const OPENING_CHECKLIST = [
   "Welcome and call to order",

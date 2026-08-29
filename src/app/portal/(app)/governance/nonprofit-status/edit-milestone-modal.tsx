@@ -45,6 +45,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Spinner } from "@/components/ui/spinner";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -349,7 +350,13 @@ export function EditMilestoneModal({
           {mode === "edit" && (
             <SheetFooter className="flex-row justify-end border-t bg-muted/50">
               <Button type="submit" form={formId} disabled={isPending}>
-                {isPending ? "Saving..." : "Save changes"}
+                {isPending ? (
+                  <>
+                    <Spinner /> Saving...
+                  </>
+                ) : (
+                  "Save changes"
+                )}
               </Button>
             </SheetFooter>
           )}
@@ -407,7 +414,13 @@ export function EditMilestoneModal({
               onClick={handleDelete}
               disabled={isPending}
             >
-              {isPending ? "Deleting..." : "Delete"}
+              {isPending ? (
+                <>
+                  <Spinner /> Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

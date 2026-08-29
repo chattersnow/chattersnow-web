@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 
 function getInitialFormState() {
   return { itemType: "any", category: "any", programId: "", note: "" };
@@ -189,7 +190,13 @@ export function NewSuggestionRuleDialog({ programs }: { programs: Program[] }) {
 
           <DialogFooter>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "Creating..." : "Create rule"}
+              {isPending ? (
+                <>
+                  <Spinner /> Creating...
+                </>
+              ) : (
+                "Create rule"
+              )}
             </Button>
           </DialogFooter>
         </form>

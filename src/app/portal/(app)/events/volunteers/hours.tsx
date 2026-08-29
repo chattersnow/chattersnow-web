@@ -23,6 +23,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { Spinner } from "@/components/ui/spinner";
+import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
 
@@ -166,7 +168,13 @@ export function AddHoursForm({
             Cancel
           </Button>
           <Button type="submit" disabled={isPending}>
-            {isPending ? "Saving..." : "Log hours"}
+            {isPending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : (
+              "Log hours"
+            )}
           </Button>
         </div>
       </FieldGroup>
@@ -209,7 +217,7 @@ export function HoursSection({
         {hours && hours.length > 0 ? ` (${totalHours} total)` : ""}
       </h3>
       {loading ? (
-        <p className="app-muted text-sm">Loading hours...</p>
+        <TabLoadingSkeleton />
       ) : hours.length === 0 && !showAddHours ? (
         <p className="app-muted text-sm">No hours logged yet.</p>
       ) : (
@@ -245,7 +253,7 @@ export function HoursSection({
                       disabled={isDeleting}
                       onClick={() => onDeleteHours(entry.id)}
                     >
-                      <Trash2 />
+                      {isDeleting ? <Spinner /> : <Trash2 />}
                     </Button>
                   )}
                 </TableCell>

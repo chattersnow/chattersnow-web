@@ -9,12 +9,11 @@ import {
   listDecisionsAction,
   type Decision,
 } from "./decisions-actions";
-import { TabLoadingSkeleton } from "./tab-loading-skeleton";
+import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
   TableBody,
@@ -25,6 +24,7 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
+import { Spinner } from "@/components/ui/spinner";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",

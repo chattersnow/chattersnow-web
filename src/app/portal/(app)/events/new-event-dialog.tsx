@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 
 const VISIBILITIES = [
   { value: "private", label: "Private" },
@@ -303,7 +304,13 @@ export function NewEventDialog({ programs = [] }: { programs?: Program[] }) {
 
           <DialogFooter>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "Creating..." : "Create event"}
+              {isPending ? (
+                <>
+                  <Spinner /> Creating...
+                </>
+              ) : (
+                "Create event"
+              )}
             </Button>
           </DialogFooter>
         </form>

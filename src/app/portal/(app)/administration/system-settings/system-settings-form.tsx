@@ -17,6 +17,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 
 function ThresholdCard({
   title,
@@ -92,7 +93,13 @@ function ThresholdCard({
 
             <div>
               <Button type="submit" disabled={isPending}>
-                {isPending ? "Saving..." : "Save"}
+                {isPending ? (
+                  <>
+                    <Spinner /> Saving...
+                  </>
+                ) : (
+                  "Save"
+                )}
               </Button>
             </div>
           </FieldGroup>

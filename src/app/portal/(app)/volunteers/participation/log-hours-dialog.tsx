@@ -32,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 
 const NONE_VALUE = "none";
 
@@ -270,7 +271,13 @@ export function LogHoursDialog({
 
           <DialogFooter>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "Saving..." : "Log hours"}
+              {isPending ? (
+                <>
+                  <Spinner /> Saving...
+                </>
+              ) : (
+                "Log hours"
+              )}
             </Button>
           </DialogFooter>
         </form>

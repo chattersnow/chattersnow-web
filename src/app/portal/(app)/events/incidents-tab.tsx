@@ -30,6 +30,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { Spinner } from "@/components/ui/spinner";
+import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 
 const SEVERITIES = [
   { value: "minor", label: "Minor" },
@@ -158,7 +160,13 @@ function AddIncidentForm({
             Cancel
           </Button>
           <Button type="submit" disabled={isPending}>
-            {isPending ? "Saving..." : "Log incident"}
+            {isPending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : (
+              "Log incident"
+            )}
           </Button>
         </div>
       </FieldGroup>
@@ -224,7 +232,7 @@ export function IncidentsTab({
       )}
 
       {incidents === null ? (
-        <p className="app-muted text-sm">Loading incidents...</p>
+        <TabLoadingSkeleton />
       ) : incidents.length === 0 && !showAdd ? (
         <p className="app-muted text-sm">No incidents recorded.</p>
       ) : (
@@ -259,7 +267,7 @@ export function IncidentsTab({
                       disabled={isDeleting}
                       onClick={() => handleDelete(incident.id)}
                     >
-                      <Trash2 />
+                      {isDeleting ? <Spinner /> : <Trash2 />}
                     </Button>
                   )}
                 </TableCell>

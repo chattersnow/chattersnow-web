@@ -35,6 +35,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Spinner } from "@/components/ui/spinner";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -150,6 +151,7 @@ export function MessageDetailsSheet({
                   disabled={isPending}
                 >
                   <SelectTrigger aria-label="Message status">
+                    {isPending ? <Spinner /> : null}
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

@@ -40,6 +40,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Spinner } from "@/components/ui/spinner";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -342,7 +343,13 @@ export function EditDisclosureModal({
           {mode === "edit" && (
             <SheetFooter className="flex-row justify-end border-t bg-muted/50">
               <Button type="submit" form={formId} disabled={isPending}>
-                {isPending ? "Saving..." : "Save changes"}
+                {isPending ? (
+                  <>
+                    <Spinner /> Saving...
+                  </>
+                ) : (
+                  "Save changes"
+                )}
               </Button>
             </SheetFooter>
           )}

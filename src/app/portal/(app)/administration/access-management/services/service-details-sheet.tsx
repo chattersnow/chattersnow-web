@@ -36,6 +36,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Spinner } from "@/components/ui/spinner";
 
 type FormState = { name: string; website: string; notes: string };
 
@@ -280,7 +281,13 @@ export function ServiceDetailsSheet({
                 </TooltipContent>
               </Tooltip>
               <Button type="submit" form={formId} disabled={isPending}>
-                {isPending ? "Saving..." : "Save changes"}
+                {isPending ? (
+                  <>
+                    <Spinner /> Saving...
+                  </>
+                ) : (
+                  "Save changes"
+                )}
               </Button>
             </SheetFooter>
           )}
@@ -304,7 +311,13 @@ export function ServiceDetailsSheet({
               onClick={handleDelete}
               disabled={isPending}
             >
-              {isPending ? "Deleting..." : "Delete"}
+              {isPending ? (
+                <>
+                  <Spinner /> Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

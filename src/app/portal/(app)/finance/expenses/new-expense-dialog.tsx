@@ -22,6 +22,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { FieldGroup } from "@/components/ui/field";
+import { Spinner } from "@/components/ui/spinner";
 
 export function NewExpenseDialog({
   events,
@@ -107,7 +108,13 @@ export function NewExpenseDialog({
 
           <DialogFooter>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "Saving..." : "Add expense"}
+              {isPending ? (
+                <>
+                  <Spinner /> Saving...
+                </>
+              ) : (
+                "Add expense"
+              )}
             </Button>
           </DialogFooter>
         </form>

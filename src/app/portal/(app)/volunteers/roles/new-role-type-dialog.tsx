@@ -18,6 +18,7 @@ import {
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Spinner } from "@/components/ui/spinner";
 
 function getInitialFormState() {
   return { name: "", description: "", isPublic: false };
@@ -124,7 +125,13 @@ export function NewRoleTypeDialog() {
 
           <DialogFooter>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "Creating..." : "Create role type"}
+              {isPending ? (
+                <>
+                  <Spinner /> Creating...
+                </>
+              ) : (
+                "Create role type"
+              )}
             </Button>
           </DialogFooter>
         </form>

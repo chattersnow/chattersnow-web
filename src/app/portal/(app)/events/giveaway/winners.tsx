@@ -25,6 +25,7 @@ import {
   formatDate,
   toDateInputValue,
 } from "./format";
+import { Spinner } from "@/components/ui/spinner";
 
 export function WinnerForm({
   prize,
@@ -152,7 +153,13 @@ export function WinnerForm({
             Cancel
           </Button>
           <Button type="submit" size="sm" disabled={isPending}>
-            {isPending ? "Saving..." : "Save winner"}
+            {isPending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : (
+              "Save winner"
+            )}
           </Button>
         </div>
       </FieldGroup>

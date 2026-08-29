@@ -47,6 +47,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Spinner } from "@/components/ui/spinner";
 
 type FormState = {
   access_level: string;
@@ -362,7 +363,13 @@ export function AccessGrantDetailsSheet({
                 Revoke
               </Button>
               <Button type="submit" form={formId} disabled={isPending}>
-                {isPending ? "Saving..." : "Save changes"}
+                {isPending ? (
+                  <>
+                    <Spinner /> Saving...
+                  </>
+                ) : (
+                  "Save changes"
+                )}
               </Button>
             </SheetFooter>
           )}
@@ -385,7 +392,13 @@ export function AccessGrantDetailsSheet({
               onClick={handleRevoke}
               disabled={isPending}
             >
-              {isPending ? "Revoking..." : "Revoke"}
+              {isPending ? (
+                <>
+                  <Spinner /> Revoking...
+                </>
+              ) : (
+                "Revoke"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

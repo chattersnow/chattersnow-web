@@ -17,6 +17,7 @@ import {
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Spinner } from "@/components/ui/spinner";
 
 export function NewServiceDialog() {
   const router = useRouter();
@@ -106,7 +107,13 @@ export function NewServiceDialog() {
 
           <DialogFooter className="mt-4">
             <Button type="submit" disabled={isPending || !name.trim()}>
-              {isPending ? "Creating..." : "Add service"}
+              {isPending ? (
+                <>
+                  <Spinner /> Creating...
+                </>
+              ) : (
+                "Add service"
+              )}
             </Button>
           </DialogFooter>
         </form>

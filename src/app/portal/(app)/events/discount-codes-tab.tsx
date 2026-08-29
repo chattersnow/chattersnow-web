@@ -34,6 +34,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { Spinner } from "@/components/ui/spinner";
+import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
 
@@ -128,7 +130,13 @@ function AddCodesForm({
             Cancel
           </Button>
           <Button type="submit" disabled={isPending}>
-            {isPending ? "Saving..." : "Add codes"}
+            {isPending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : (
+              "Add codes"
+            )}
           </Button>
         </div>
       </FieldGroup>
@@ -212,7 +220,7 @@ export function DiscountCodesTab({
       )}
 
       {codes === undefined ? (
-        <p className="app-muted text-sm">Loading discount codes...</p>
+        <TabLoadingSkeleton />
       ) : list.length === 0 && !showAdd ? (
         <p className="app-muted text-sm">
           No discount codes recorded for this event yet.
@@ -308,7 +316,7 @@ export function DiscountCodesTab({
                       disabled={isPending}
                       onClick={() => handleDelete(code.id)}
                     >
-                      <Trash2 />
+                      {isPending ? <Spinner /> : <Trash2 />}
                     </Button>
                   </TableCell>
                 )}

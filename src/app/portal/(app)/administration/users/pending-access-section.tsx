@@ -48,6 +48,7 @@ import {
   type PendingGrant,
   type PortalRoleOption,
 } from "./actions";
+import { Spinner } from "@/components/ui/spinner";
 
 function statusBadge(grant: PendingGrant) {
   if (
@@ -275,7 +276,13 @@ export function PendingAccessSection({
               onClick={handleRevoke}
               disabled={isPending}
             >
-              {isPending ? "Revoking..." : "Revoke"}
+              {isPending ? (
+                <>
+                  <Spinner /> Revoking...
+                </>
+              ) : (
+                "Revoke"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -23,6 +23,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Spinner } from "@/components/ui/spinner";
 
 export function NewRequirementDialog({ people }: { people: PersonListItem[] }) {
   const router = useRouter();
@@ -118,7 +119,13 @@ export function NewRequirementDialog({ people }: { people: PersonListItem[] }) {
 
           <DialogFooter>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "Saving..." : "Add requirement"}
+              {isPending ? (
+                <>
+                  <Spinner /> Saving...
+                </>
+              ) : (
+                "Add requirement"
+              )}
             </Button>
           </DialogFooter>
         </form>

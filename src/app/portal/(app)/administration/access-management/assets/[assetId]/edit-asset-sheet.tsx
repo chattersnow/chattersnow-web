@@ -25,6 +25,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { Spinner } from "@/components/ui/spinner";
 
 function formStateFor(asset: AssetDetail): AssetFormState {
   return {
@@ -130,7 +131,13 @@ export function EditAssetSheet({
 
         <SheetFooter className="border-t bg-muted/50">
           <Button type="submit" form="edit-asset-form" disabled={isPending}>
-            {isPending ? "Saving..." : "Save changes"}
+            {isPending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : (
+              "Save changes"
+            )}
           </Button>
         </SheetFooter>
       </SheetContent>
