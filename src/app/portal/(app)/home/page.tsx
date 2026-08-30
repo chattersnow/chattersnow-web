@@ -263,43 +263,8 @@ export default async function PortalHomePage() {
           </DashboardSectionCard>
         )}
 
-        {canSeeInventory && inventory && (
-          <DashboardSectionCard className="lg:mt-6" title="Inventory">
-            <DashboardStatRow
-              label="Total items"
-              value={inventory.totalItems}
-            />
-            <DashboardStatRow
-              label="Available"
-              value={inventory.itemsAvailable}
-            />
-            <DashboardStatRow
-              label="Distributed"
-              value={inventory.itemsDistributed}
-            />
-            <DashboardStatRow
-              label="Needing attention"
-              value={inventory.itemsNeedingAttention}
-              caption="Damaged or lost"
-            />
-          </DashboardSectionCard>
-        )}
-
-        {canSeeAccessManagement && accessManagementStats && (
-          <DashboardSectionCard className="lg:mt-6" title="Access management">
-            <DashboardStatRow
-              label="Active assets"
-              value={accessManagementStats.assetsCount}
-            />
-            <DashboardStatRow
-              label="Active access grants"
-              value={accessManagementStats.activeGrantsCount}
-            />
-          </DashboardSectionCard>
-        )}
-
         {canSeeInventory && canSeeRecentDonations && (
-          <Card className="mt-6">
+          <Card className="lg:mt-6">
             <CardHeader>
               <CardTitle className="app-muted text-sm font-semibold">
                 Recent donations
@@ -331,6 +296,41 @@ export default async function PortalHomePage() {
               )}
             </CardContent>
           </Card>
+        )}
+
+        {canSeeAccessManagement && accessManagementStats && (
+          <DashboardSectionCard className="lg:mt-6" title="Access management">
+            <DashboardStatRow
+              label="Active assets"
+              value={accessManagementStats.assetsCount}
+            />
+            <DashboardStatRow
+              label="Active access grants"
+              value={accessManagementStats.activeGrantsCount}
+            />
+          </DashboardSectionCard>
+        )}
+
+        {canSeeInventory && inventory && (
+          <DashboardSectionCard className="mt-6" title="Inventory">
+            <DashboardStatRow
+              label="Total items"
+              value={inventory.totalItems}
+            />
+            <DashboardStatRow
+              label="Available"
+              value={inventory.itemsAvailable}
+            />
+            <DashboardStatRow
+              label="Distributed"
+              value={inventory.itemsDistributed}
+            />
+            <DashboardStatRow
+              label="Needing attention"
+              value={inventory.itemsNeedingAttention}
+              caption="Damaged or lost"
+            />
+          </DashboardSectionCard>
         )}
         {canSeeOrganization && organization && (
           <DashboardSectionCard title="Organization">

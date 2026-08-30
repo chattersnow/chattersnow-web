@@ -43,6 +43,7 @@ Issues are tracked on the `ChatterWeb` GitHub Project (owner `chattersnow`, proj
 - make sure to always start from latest development
 - When starting work on a ticket (e.g. creating/checking out its branch), move the linked issue's `Status` to `In progress`.
 - When a PR for that ticket is opened, move it to `In review`.
+- Don't run the full `bun run test:integration` or `bun run test:e2e` suites while working a ticket — they're slow and cover far more than the ticket touches. Run targeted tests for the files/routes you changed instead; leave the full suites to CI.
 
 ## Architecture
 
