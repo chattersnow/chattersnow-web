@@ -42,7 +42,9 @@ describe("HelpButton", () => {
 
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "How status and visibility work" }),
+      screen.getByRole("heading", {
+        name: "How status, visibility, and phase tabs work",
+      }),
     ).toBeInTheDocument();
   });
 
