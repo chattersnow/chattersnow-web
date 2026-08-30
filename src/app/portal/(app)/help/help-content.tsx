@@ -255,6 +255,161 @@ export const helpContent: Record<string, HelpEntry> = {
       </>
     ),
   },
+  "/portal/calendar/reports": {
+    title: "How the annual review is counted",
+    description: "What counts toward each metric, and who can see it.",
+    body: (
+      <>
+        <HowToSection heading="What counts">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">
+                Tier 1 items with a decision
+              </strong>{" "}
+              — the share of the selected year&apos;s Tier 1 items (by start
+              date) that have a Plan, Skip, or Defer decision recorded.
+            </li>
+            <li>
+              <strong className="text-foreground">
+                Planned opportunities completed on time
+              </strong>{" "}
+              — of opportunities whose calendar item was decided Plan and has a
+              publish target date, the share published on or before that date.
+            </li>
+            <li>
+              <strong className="text-foreground">Overdue content tasks</strong>{" "}
+              — this year&apos;s opportunities currently past their stage&apos;s
+              due date, using the same overdue logic as the Work queue page.
+            </li>
+            <li>
+              <strong className="text-foreground">
+                Median time to first review
+              </strong>{" "}
+              — median days from a brief being created to it entering review,
+              counted only for opportunities that have a template and are
+              currently <code>in_review</code>.
+            </li>
+            <li>
+              <strong className="text-foreground">
+                Public items with a clear Chatter connection
+              </strong>{" "}
+              — this year&apos;s items that are public, live (active or
+              complete), and have a non-empty Chatter connection recorded on
+              their opportunity.
+            </li>
+            <li>
+              <strong className="text-foreground">
+                Publication permissions recorded
+              </strong>{" "}
+              — a raw count of publication-permission rows tied to this
+              year&apos;s items.
+            </li>
+          </ul>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            <strong className="text-foreground">admin</strong> and{" "}
+            <strong className="text-foreground">event_coordinator</strong> hold
+            manage on this report, while{" "}
+            <strong className="text-foreground">finance</strong>,{" "}
+            <strong className="text-foreground">board</strong>, and{" "}
+            <strong className="text-foreground">volunteer</strong> hold view —
+            since the page has no write actions, every calendar role can see it.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What happens downstream">
+          <p>
+            Changing the Year selector re-runs the whole computation live from
+            that year&apos;s calendar items, opportunities, and permissions —
+            nothing is cached.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Common mistakes">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              Reading &quot;Median time to first review&quot; as a whole-year
+              average — it only reflects opportunities currently sitting in
+              review, so it drops to &quot;—&quot; once everything for the year
+              has moved past review, even though plenty were reviewed during the
+              year.
+            </li>
+            <li>
+              Assuming a metric carries over past years — every figure on this
+              page is scoped to the selected year&apos;s items only.
+            </li>
+          </ul>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/calendar/program-suggestions": {
+    title: "How program suggestions work",
+    description:
+      "Rules that surface dismissible program chips in the item editor.",
+    body: (
+      <>
+        <HowToSection heading="Steps">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">
+                Item type and category
+              </strong>{" "}
+              — each is optional, but at least one is required. Leaving one
+              blank makes it a wildcard for that dimension (matches any value),
+              while setting both narrows the rule to just that combination —
+              e.g. community observance + LGBTQ+ community.
+            </li>
+            <li>
+              <strong className="text-foreground">Active toggle</strong> —
+              deactivate a rule to stop it from suggesting without deleting it.
+            </li>
+          </ol>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            Anyone with view access to the content calendar can see this list;
+            manage access — the same <code>content_calendar</code> permission as
+            calendar items themselves, not a separate resource — is needed to
+            create, edit, deactivate, or delete rules.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What happens downstream">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              Matched rules produce dismissible &quot;Suggested&quot; chips next
+              to Related programs, in both the new-item dialog and an existing
+              item&apos;s edit view — clicking one adds the program, but nothing
+              is added automatically.
+            </li>
+            <li>
+              A program already added to the item is never suggested again, even
+              if a rule still matches it.
+            </li>
+            <li>
+              Editing or deactivating a rule only changes what&apos;s suggested
+              going forward — it doesn&apos;t touch programs already added to
+              any calendar item.
+            </li>
+          </ul>
+        </HowToSection>
+        <HowToSection heading="Common mistakes">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              An item-type-only (or category-only) rule matches every value of
+              the dimension left blank — e.g. an item-type-only rule suggests
+              its program for that type regardless of category, which can be
+              broader than intended.
+            </li>
+            <li>
+              Expecting a rule change to retroactively update an item&apos;s
+              Related programs — it won&apos;t; only a fresh look at the editor
+              re-evaluates suggestions.
+            </li>
+          </ul>
+        </HowToSection>
+      </>
+    ),
+  },
   "/portal/inventory/distribution": {
     title: "How distribution works",
     description: "Recording items leaving inventory.",
@@ -507,6 +662,80 @@ export const helpContent: Record<string, HelpEntry> = {
               Trying to log hours for another volunteer without manage access —
               the entry is rejected, since logging access only covers your own
               hours.
+            </li>
+          </ul>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/programs/reports": {
+    title: "How the program impact rollup is counted",
+    description: "What feeds each figure, and the event-linkage it needs.",
+    body: (
+      <>
+        <HowToSection heading="What counts">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">
+                Participants, first-time, beginner, and assistance figures
+              </strong>{" "}
+              — summed from each event&apos;s impact note. An event with no
+              impact note recorded contributes zero to all of them.
+            </li>
+            <li>
+              <strong className="text-foreground">Equipment distributed</strong>{" "}
+              — summed from inventory movements of type <code>distributed</code>{" "}
+              tied to the program&apos;s events; this is separate from{" "}
+              <strong className="text-foreground">Equipment loans</strong>,
+              which is self-reported on the impact note instead.
+            </li>
+            <li>
+              <strong className="text-foreground">Volunteer hours</strong> —
+              summed only from hours entries tied to one of the program&apos;s
+              events; hours logged with no event, or against an event not
+              assigned to this program, don&apos;t count.
+            </li>
+            <li>
+              <strong className="text-foreground">Repeat participants</strong> —
+              people registered for two or more of the program&apos;s events.
+            </li>
+          </ul>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            <strong className="text-foreground">admin</strong> and{" "}
+            <strong className="text-foreground">event_coordinator</strong> hold
+            manage, <strong className="text-foreground">finance</strong> and{" "}
+            <strong className="text-foreground">board</strong> hold view, and{" "}
+            <strong className="text-foreground">volunteer</strong> has no access
+            — a narrower split than most other reports, since this rollup
+            surfaces per-event financial-assistance figures.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What happens downstream">
+          <p>
+            There&apos;s no date range — each season is its own{" "}
+            <Link
+              href="/portal/programs"
+              className="underline hover:text-foreground"
+            >
+              program
+            </Link>{" "}
+            row, so selecting a program rolls up every event ever assigned to
+            it, computed live with nothing cached.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Common mistakes">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              Logging volunteer hours without tying the entry to an event, or to
+              an event that isn&apos;t assigned to this program — either way
+              those hours won&apos;t reach this rollup.
+            </li>
+            <li>
+              Expecting an event to count just because it&apos;s scheduled — the
+              participant and assistance figures only show up once someone
+              records that event&apos;s impact note.
             </li>
           </ul>
         </HowToSection>
