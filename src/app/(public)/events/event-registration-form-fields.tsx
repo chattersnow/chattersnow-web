@@ -12,6 +12,7 @@ export function EventRegistrationForm({ eventId }: { eventId: string }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [instagramHandle, setInstagramHandle] = useState("");
   const [partySize, setPartySize] = useState("1");
   const [notes, setNotes] = useState("");
   const [company, setCompany] = useState("");
@@ -27,6 +28,7 @@ export function EventRegistrationForm({ eventId }: { eventId: string }) {
     formData.set("name", name);
     formData.set("email", email);
     formData.set("phone", phone);
+    formData.set("instagramHandle", instagramHandle);
     formData.set("partySize", partySize);
     formData.set("notes", notes);
     formData.set("company", company);
@@ -87,6 +89,18 @@ export function EventRegistrationForm({ eventId }: { eventId: string }) {
               onChange={(event) => setPhone(event.target.value)}
             />
           </Field>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="registration-instagram">
+            Instagram handle (optional)
+          </FieldLabel>
+          <Input
+            id="registration-instagram"
+            placeholder="e.g. chattersnow"
+            autoComplete="off"
+            value={instagramHandle}
+            onChange={(event) => setInstagramHandle(event.target.value)}
+          />
         </Field>
         <Field>
           <FieldLabel htmlFor="registration-party-size">

@@ -29,6 +29,7 @@ export function NewPartnershipDialog({ people }: { people: PersonListItem[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [availablePeople, setAvailablePeople] = useState(people);
+  const [organization, setOrganization] = useState<PickedPerson | null>(null);
   const [owner, setOwner] = useState<PickedPerson | null>(null);
   const [form, setForm] = useState<PartnershipOpportunityFormState>(() =>
     emptyPartnershipOpportunityForm(),
@@ -47,6 +48,7 @@ export function NewPartnershipDialog({ people }: { people: PersonListItem[] }) {
     setOpen(nextOpen);
     if (nextOpen) {
       setAvailablePeople(people);
+      setOrganization(null);
       setOwner(null);
       setForm(emptyPartnershipOpportunityForm());
       setError(null);
@@ -63,6 +65,7 @@ export function NewPartnershipDialog({ people }: { people: PersonListItem[] }) {
 
     startTransition(async () => {
       const result = await createPartnershipOpportunityAction(
+        organization?.id ?? null,
         owner?.id ?? null,
         packPartnershipOpportunityFormData(form),
       );
@@ -92,6 +95,17 @@ export function NewPartnershipDialog({ people }: { people: PersonListItem[] }) {
 
         <form onSubmit={handleSubmit}>
           <FieldGroup>
+            <Field>
+              <FieldLabel>Partner organization</FieldLabel>
+              <PersonPicker
+                people={availablePeople}
+                selected={organization}
+                onSelect={setOrganization}
+                onPersonCreated={handlePersonCreated}
+                newPersonRole="is_sponsor"
+              />
+            </Field>
+
             <PartnershipOpportunityFormFields
               form={form}
               update={update}
@@ -99,7 +113,7 @@ export function NewPartnershipDialog({ people }: { people: PersonListItem[] }) {
             />
 
             <Field>
-              <FieldLabel>Owner</FieldLabel>
+              <FieldLabel>Internal owner</FieldLabel>
               <PersonPicker
                 people={availablePeople}
                 selected={owner}

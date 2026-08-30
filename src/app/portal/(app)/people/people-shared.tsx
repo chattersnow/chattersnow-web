@@ -1,14 +1,24 @@
+export type PersonSummary = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+};
+
 export type PersonRow = {
   id: string;
   name: string | null;
   email: string | null;
   phone: string | null;
+  instagram_handle: string | null;
   notes: string | null;
   logo_url: string | null;
   website: string | null;
   is_donor: boolean;
   is_sponsor: boolean;
   is_volunteer: boolean;
+  primary_contact_person_id: string | null;
+  primary_contact: PersonSummary | null;
 };
 
 export const ROLE_OPTIONS = [

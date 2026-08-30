@@ -34,6 +34,7 @@ describe("packPersonFormData", () => {
         name: "Jane Donor",
         email: "jane@example.com",
         phone: null,
+        instagram_handle: null,
         notes: null,
         logo_url: null,
         website: null,
