@@ -513,6 +513,194 @@ export const helpContent: Record<string, HelpEntry> = {
       </>
     ),
   },
+  "/portal/administration/access-management": {
+    title: "How access management works",
+    description: "Sensitivity, review cadence, and the access grant lifecycle.",
+    body: (
+      <>
+        <HowToSection heading="Steps">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">Sensitivity</strong> — Low,
+              Medium, High, or Critical drives how often the asset should be
+              reviewed (annually for Low/Medium, every 6 months for High, every
+              3 for Critical) and the expected MFA and two-admin coverage for
+              it.
+            </li>
+            <li>
+              <strong className="text-foreground">Record review</strong> — sets
+              Last reviewed to today and computes Next review from that cadence.
+            </li>
+            <li>
+              <strong className="text-foreground">Access grants</strong> — add a
+              grant per person with an access level and optional expiry; Verify
+              logs a check without changing anything else; Revoke ends it for
+              good.
+            </li>
+          </ol>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            Unlike the rest of Administration, this page isn&apos;t admin-only:
+            manage access on{" "}
+            <strong className="text-foreground">
+              Access management assets
+            </strong>{" "}
+            covers everything above, while manage access on{" "}
+            <strong className="text-foreground">
+              Access management reviews
+            </strong>{" "}
+            only covers Record review and Verify — not creating, editing, or
+            deleting assets or grants.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What happens downstream">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              Sensitivity&apos;s review cadence and MFA/two-admin expectations
+              are advisory only — nothing blocks saving an asset that falls
+              short of its own tier&apos;s expectations.
+            </li>
+            <li>
+              A grant past its Expires date isn&apos;t automatically marked
+              expired or revoked — it stays active until someone verifies or
+              revokes it.
+            </li>
+            <li>
+              Revoking a grant keeps the row for the audit trail rather than
+              deleting it; re-adding the same person afterward creates a new
+              grant instead of reactivating the old one.
+            </li>
+          </ul>
+        </HowToSection>
+        <HowToSection heading="Common mistakes">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              This is not a credential store — never enter a password, API key,
+              token, or recovery code; Account identifier is only an email or
+              username.
+            </li>
+            <li>
+              The asset page&apos;s Audit history card only shows changes to the
+              asset record itself (name, sensitivity, review dates, and so on) —
+              grant activity lives in the full{" "}
+              <Link
+                href="/portal/administration/audit-log?table=access_grants"
+                className="underline hover:text-foreground"
+              >
+                audit log
+              </Link>
+              , filtered to Access grants.
+            </li>
+          </ul>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/administration/roles": {
+    title: "How roles work",
+    description: "Creating roles that the permissions matrix grants access to.",
+    body: (
+      <>
+        <HowToSection heading="Steps">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              Give the role a name and optional description — that&apos;s all
+              this page does.
+            </li>
+            <li>
+              Grant it access on the{" "}
+              <Link
+                href="/portal/administration/permissions"
+                className="underline hover:text-foreground"
+              >
+                Permissions
+              </Link>{" "}
+              page — a new role starts with no access to anything until
+              it&apos;s granted there.
+            </li>
+          </ol>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            Only <strong className="text-foreground">admin</strong> — this page
+            is admin-only like the rest of Administration.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What happens downstream">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              The built-in roles (admin, event_coordinator, finance, board,
+              volunteer) can&apos;t be renamed or deleted from here.
+            </li>
+            <li>
+              A role still assigned to any user can&apos;t be deleted either —
+              the error names how many users are affected.
+            </li>
+          </ul>
+        </HowToSection>
+        <HowToSection heading="Common mistakes">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              Creating a role and assigning someone to it without ever visiting
+              Permissions leaves that person with no page access at all.
+            </li>
+          </ul>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/administration/audit-log": {
+    title: "How the audit log works",
+    description: "What's tracked automatically, and what isn't yet.",
+    body: (
+      <>
+        <HowToSection heading="Steps">
+          <p>
+            Filter by table, action, actor, and date range, then open a row to
+            see the change itself — a before/after diff for an update, or the
+            full record for an insert or delete.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            Only <strong className="text-foreground">admin</strong> — this page
+            is view-only and admin-only like the rest of Administration.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What's tracked">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              Most write-heavy portal records are logged automatically:
+              donations, inventory, event expenses, user roles, app settings,
+              calendar items, content opportunities, and access
+              management&apos;s services, assets, and grants, among others.
+            </li>
+            <li>
+              Governance records (meetings, decisions, resolutions) and event
+              edits aren&apos;t written here yet — see those pages&apos; own
+              guidance.
+            </li>
+            <li>
+              The Table filter above doesn&apos;t yet list every audited table —
+              reimbursements, event revenue, deactivated users, and monetary
+              donations are logged but only show up while it&apos;s left on
+              &quot;All tables&quot;.
+            </li>
+          </ul>
+        </HowToSection>
+        <HowToSection heading="Common mistakes">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              Assuming a table missing from the filter dropdown isn&apos;t
+              tracked — check &quot;All tables&quot; first before concluding
+              that.
+            </li>
+          </ul>
+        </HowToSection>
+      </>
+    ),
+  },
   "/portal/administration/permissions": {
     title: "How the permissions matrix works",
     description: "Granting roles None, View, or Manage per resource.",
