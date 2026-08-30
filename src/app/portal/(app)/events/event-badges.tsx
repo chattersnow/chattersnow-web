@@ -18,6 +18,7 @@ export type EventRow = {
   capacity: number | null;
   registration_enabled: boolean;
   registration_deadline: string | null;
+  auto_assign_discount_codes: boolean;
   budget_amount: number | string | null;
   event_lead_id: string | null;
   report_status: string;

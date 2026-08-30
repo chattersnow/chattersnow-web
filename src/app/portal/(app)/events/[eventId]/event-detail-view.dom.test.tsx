@@ -113,6 +113,7 @@ function makeEvent(overrides: Partial<EventRow> = {}): EventRow {
     capacity: null,
     registration_enabled: false,
     registration_deadline: null,
+    auto_assign_discount_codes: false,
     budget_amount: null,
     event_lead_id: null,
     report_status: "not_started",

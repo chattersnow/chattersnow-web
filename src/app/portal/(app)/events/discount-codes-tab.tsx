@@ -7,6 +7,7 @@ import {
   createDiscountCodesAction,
   deleteDiscountCodeAction,
   listDiscountCodesAction,
+  markDiscountCodeSentAction,
   type DiscountCode,
 } from "./discount-codes-actions";
 import {
@@ -166,7 +167,7 @@ export function DiscountCodesTab({
     EventRegistrant[]
   >(() => listEventRegistrantsAction(eventId), active, [eventId]);
   const [showAdd, setShowAdd] = useState(false);
-  const [assignError, setAssignError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   useResetOnModeChange(mode, () => setShowAdd(false));
@@ -177,14 +178,26 @@ export function DiscountCodesTab({
   }
 
   function handleAssign(codeId: string, registrationId: string) {
-    setAssignError(null);
+    setActionError(null);
     startTransition(async () => {
       const result = await assignDiscountCodeAction(
         codeId,
         registrationId === UNASSIGNED ? null : registrationId,
       );
       if ("error" in result) {
-        setAssignError(result.error);
+        setActionError(result.error);
+        return;
+      }
+      refreshAll();
+    });
+  }
+
+  function handleMarkSent(codeId: string) {
+    setActionError(null);
+    startTransition(async () => {
+      const result = await markDiscountCodeSentAction(codeId);
+      if ("error" in result) {
+        setActionError(result.error);
         return;
       }
       refreshAll();
@@ -213,9 +226,9 @@ export function DiscountCodesTab({
           <AlertDescription>{loadError}</AlertDescription>
         </Alert>
       )}
-      {assignError && (
+      {actionError && (
         <Alert variant="destructive">
-          <AlertDescription>{assignError}</AlertDescription>
+          <AlertDescription>{actionError}</AlertDescription>
         </Alert>
       )}
 
@@ -234,6 +247,7 @@ export function DiscountCodesTab({
               <TableHead>Source</TableHead>
               <TableHead>Assigned to</TableHead>
               <TableHead>Assigned</TableHead>
+              <TableHead>Sent</TableHead>
               {mode === "edit" && <TableHead className="w-px" />}
             </TableRow>
           </TableHeader>
@@ -256,7 +270,7 @@ export function DiscountCodesTab({
                   {code.source ?? "—"}
                 </TableCell>
                 <TableCell>
-                  {mode === "edit" ? (
+                  {mode === "edit" && !code.sent_at ? (
                     <Select
                       value={code.registration_id ?? UNASSIGNED}
                       onValueChange={(value) =>
@@ -290,11 +304,11 @@ export function DiscountCodesTab({
                         ))}
                       </SelectContent>
                     </Select>
-                  ) : code.registration ? (
+                  ) : code.registration || code.sent_to_name ? (
                     <span>
-                      {code.registration.name}
+                      {code.registration?.name ?? code.sent_to_name}
                       <span className="app-muted block text-xs">
-                        {code.registration.email}
+                        {code.registration?.email ?? code.sent_to_email}
                       </span>
                     </span>
                   ) : (
@@ -305,6 +319,25 @@ export function DiscountCodesTab({
                   {code.assigned_at
                     ? dateFormatter.format(new Date(code.assigned_at))
                     : "—"}
+                </TableCell>
+                <TableCell className="whitespace-nowrap">
+                  {code.sent_at ? (
+                    <span className="app-muted">
+                      {dateFormatter.format(new Date(code.sent_at))}
+                    </span>
+                  ) : mode === "edit" && code.registration_id ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      disabled={isPending}
+                      onClick={() => handleMarkSent(code.id)}
+                    >
+                      Mark as sent
+                    </Button>
+                  ) : (
+                    <span className="app-muted">—</span>
+                  )}
                 </TableCell>
                 {mode === "edit" && (
                   <TableCell className="text-right whitespace-nowrap">
