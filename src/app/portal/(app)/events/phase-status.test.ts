@@ -23,6 +23,7 @@ const baseEvent: EventRow = {
   venue: null,
   capacity: null,
   registration_enabled: false,
+  auto_assign_discount_codes: false,
   registration_deadline: null,
   budget_amount: null,
   event_lead_id: null,

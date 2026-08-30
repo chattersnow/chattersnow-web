@@ -85,6 +85,7 @@ type EventOverrides = {
   registration_enabled?: boolean;
   registration_deadline?: string | null;
   capacity?: number | null;
+  auto_assign_discount_codes?: boolean;
   startsAt?: string;
   endsAt?: string | null;
   timezone?: string;
@@ -107,6 +108,7 @@ export async function createPublishedEvent(overrides: EventOverrides = {}) {
       registration_enabled: overrides.registration_enabled ?? true,
       registration_deadline: overrides.registration_deadline ?? null,
       capacity: overrides.capacity ?? null,
+      auto_assign_discount_codes: overrides.auto_assign_discount_codes ?? false,
     })
     .select("id")
     .single();

@@ -77,6 +77,7 @@ export type EventPlanningFormData = {
   capacity: number | null;
   registrationEnabled: boolean;
   registrationDeadline: string | null;
+  autoAssignDiscountCodes: boolean;
   budgetAmount: number | null;
 };
 
@@ -91,6 +92,9 @@ export function parseEventPlanningForm(
   const registrationDeadline = String(
     formData.get("registrationDeadline") ?? "",
   );
+  const autoAssignDiscountCodes =
+    formData.get("autoAssignDiscountCodes") === "on" ||
+    formData.get("autoAssignDiscountCodes") === "true";
   const budgetAmountRaw = String(formData.get("budgetAmount") ?? "").trim();
 
   let capacity: number | null = null;
@@ -119,6 +123,7 @@ export function parseEventPlanningForm(
       registrationDeadline: registrationDeadline
         ? new Date(registrationDeadline).toISOString()
         : null,
+      autoAssignDiscountCodes,
       budgetAmount,
     },
   };

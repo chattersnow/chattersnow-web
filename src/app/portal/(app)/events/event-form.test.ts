@@ -165,6 +165,7 @@ describe("parseEventPlanningForm", () => {
         capacity: null,
         registrationEnabled: false,
         registrationDeadline: null,
+        autoAssignDiscountCodes: false,
         budgetAmount: null,
       },
     });

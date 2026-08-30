@@ -34,6 +34,7 @@ const {
   createDiscountCodesAction,
   assignDiscountCodeAction,
   deleteDiscountCodeAction,
+  markDiscountCodeSentAction,
 } = await import("./discount-codes-actions");
 
 afterEach(() => {
@@ -138,6 +139,48 @@ describe("discount code actions (integration)", () => {
     if (!("data" in afterDelete)) throw new Error("expected data");
     expect(afterDelete.data).toHaveLength(1);
     expect(afterDelete.data.some((row) => row.id === codeId)).toBe(false);
+
+    await event.cleanup();
+  });
+
+  test("marking a code sent snapshots the registrant and blocks reassignment", async () => {
+    const event = await createPublishedEvent();
+    const registrationId = await seedRegistration(event.id);
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+    expect(await createDiscountCodesAction(event.id, codesForm())).toEqual({
+      success: true,
+    });
+    const listed = await listDiscountCodesAction(event.id);
+    if (!("data" in listed)) throw new Error("expected data");
+    const codeId = listed.data[0].id;
+    const find = (codes: DiscountCode[]) => {
+      const code = codes.find((row) => row.id === codeId);
+      if (!code) throw new Error("expected the code to still exist");
+      return code;
+    };
+
+    expect(await markDiscountCodeSentAction(codeId)).toEqual({
+      error: "Assign this code to a registrant before marking it sent.",
+    });
+
+    expect(await assignDiscountCodeAction(codeId, registrationId)).toEqual({
+      success: true,
+    });
+    expect(await markDiscountCodeSentAction(codeId)).toEqual({
+      success: true,
+    });
+
+    const sent = await listDiscountCodesAction(event.id);
+    if (!("data" in sent)) throw new Error("expected data");
+    const sentCode = find(sent.data);
+    expect(sentCode.sent_at).not.toBeNull();
+    expect(sentCode.sent_to_name).toBe("Integration Test Registrant");
+    expect(sentCode.sent_to_email).toBe(sentCode.registration?.email ?? null);
+
+    expect(await assignDiscountCodeAction(codeId, null)).toEqual({
+      error: "This code has already been sent and can't be reassigned.",
+    });
 
     await event.cleanup();
   });

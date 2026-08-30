@@ -62,6 +62,7 @@ function formStateFor(event: EventRow) {
     capacity: event.capacity === null ? "" : String(event.capacity),
     registrationEnabled: event.registration_enabled,
     registrationDeadline: toDatetimeLocalValue(event.registration_deadline),
+    autoAssignDiscountCodes: event.auto_assign_discount_codes,
     budgetAmount:
       event.budget_amount === null ? "" : String(event.budget_amount),
   };
@@ -138,6 +139,10 @@ export function PlanningTab({
       form.registrationEnabled ? "on" : "off",
     );
     formData.set("registrationDeadline", form.registrationDeadline);
+    formData.set(
+      "autoAssignDiscountCodes",
+      form.autoAssignDiscountCodes ? "on" : "off",
+    );
     formData.set("budgetAmount", form.budgetAmount);
 
     startTransition(async () => {
@@ -185,6 +190,12 @@ export function PlanningTab({
             {formatDatetimeLocal(event.registration_deadline)}
           </ReadOnlyField>
         </Field>
+        <ReadOnlyField
+          label="Auto-assign discount codes"
+          htmlFor="planning-autoAssignDiscountCodes"
+        >
+          {form.autoAssignDiscountCodes ? "On" : "Off"}
+        </ReadOnlyField>
       </FieldGroup>
     );
   }
@@ -267,6 +278,19 @@ export function PlanningTab({
               update("registrationDeadline", changeEvent.target.value)
             }
           />
+        </Field>
+
+        <Field orientation="horizontal">
+          <Checkbox
+            id="planning-autoAssignDiscountCodes"
+            checked={form.autoAssignDiscountCodes}
+            onCheckedChange={(checked) =>
+              update("autoAssignDiscountCodes", Boolean(checked))
+            }
+          />
+          <FieldLabel htmlFor="planning-autoAssignDiscountCodes">
+            Auto-assign discount codes to new registrants
+          </FieldLabel>
         </Field>
 
         {error && (

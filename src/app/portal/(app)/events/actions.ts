@@ -177,6 +177,7 @@ export async function updateEventPlanningAction(
     capacity,
     registrationEnabled,
     registrationDeadline,
+    autoAssignDiscountCodes,
     budgetAmount,
   } = parsed.data;
 
@@ -187,6 +188,7 @@ export async function updateEventPlanningAction(
       capacity,
       registration_enabled: registrationEnabled,
       registration_deadline: registrationDeadline,
+      auto_assign_discount_codes: autoAssignDiscountCodes,
       budget_amount: budgetAmount,
     })
     .eq("id", id);

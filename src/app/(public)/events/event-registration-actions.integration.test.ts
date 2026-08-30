@@ -4,6 +4,7 @@
 // `bun run test:integration`. Not picked up by `bun run test`.
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import {
+  adminClient,
   anonClient,
   countEventRegistrations,
   createPublishedEvent,
@@ -44,6 +45,27 @@ async function event(overrides?: Parameters<typeof createPublishedEvent>[0]) {
   const fixture = await createPublishedEvent(overrides);
   cleanups.push(fixture.cleanup);
   return fixture;
+}
+
+async function seedDiscountCodes(eventId: string, count: number) {
+  const suffix = crypto.randomUUID().slice(0, 8);
+  const { error } = await adminClient.from("discount_codes").insert(
+    Array.from({ length: count }, (_, i) => ({
+      event_id: eventId,
+      code: `AUTO-${suffix}-${i}`,
+    })),
+  );
+  if (error) throw error;
+}
+
+async function assignedRegistrationIds(eventId: string) {
+  const { data, error } = await adminClient
+    .from("discount_codes")
+    .select("registration_id")
+    .eq("event_id", eventId)
+    .not("registration_id", "is", null);
+  if (error) throw error;
+  return (data ?? []).map((row) => row.registration_id as string);
 }
 
 describe("registerForEventAction (integration)", () => {
@@ -192,5 +214,75 @@ describe("registerForEventAction (integration)", () => {
     expect(limited).toEqual({
       error: "Too many attempts — please try again in a few minutes.",
     });
+  });
+
+  test("reserves a code from the batch when auto-assign is on", async () => {
+    currentIp = uniqueIp();
+    const { id } = await event({ auto_assign_discount_codes: true });
+    await seedDiscountCodes(id, 1);
+    const email = uniqueEmail("auto-assign");
+
+    const result = await registerForEventAction(
+      id,
+      formData({ name: "Auto Assignee", email }),
+    );
+    expect(result).toEqual({ success: true });
+    expect(await assignedRegistrationIds(id)).toHaveLength(1);
+  });
+
+  test("leaves registrations uncoded once the batch is exhausted", async () => {
+    currentIp = uniqueIp();
+    const { id } = await event({ auto_assign_discount_codes: true });
+    await seedDiscountCodes(id, 1);
+
+    const first = await registerForEventAction(
+      id,
+      formData({ name: "First Registrant", email: uniqueEmail("exhaust-1") }),
+    );
+    expect(first).toEqual({ success: true });
+
+    const second = await registerForEventAction(
+      id,
+      formData({ name: "Second Registrant", email: uniqueEmail("exhaust-2") }),
+    );
+    // No error and no waitlist -- the second registrant just gets no code.
+    expect(second).toEqual({ success: true });
+    expect(await assignedRegistrationIds(id)).toHaveLength(1);
+  });
+
+  test("never double-reserves a code under concurrent registrations", async () => {
+    currentIp = uniqueIp();
+    const { id } = await event({ auto_assign_discount_codes: true });
+    await seedDiscountCodes(id, 2);
+
+    const results = await Promise.all(
+      Array.from({ length: 4 }, (_, i) =>
+        registerForEventAction(
+          id,
+          formData({
+            name: `Concurrent Registrant ${i}`,
+            email: uniqueEmail(`concurrent-${i}`),
+          }),
+        ),
+      ),
+    );
+    expect(results).toEqual(results.map(() => ({ success: true })));
+
+    const assignedIds = await assignedRegistrationIds(id);
+    expect(assignedIds).toHaveLength(2);
+    expect(new Set(assignedIds).size).toBe(2);
+  });
+
+  test("does not reserve a code when auto-assign is off", async () => {
+    currentIp = uniqueIp();
+    const { id } = await event({ auto_assign_discount_codes: false });
+    await seedDiscountCodes(id, 1);
+
+    const result = await registerForEventAction(
+      id,
+      formData({ name: "Manual Only", email: uniqueEmail("manual-only") }),
+    );
+    expect(result).toEqual({ success: true });
+    expect(await assignedRegistrationIds(id)).toHaveLength(0);
   });
 });
