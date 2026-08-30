@@ -25,11 +25,21 @@ export type SpendReportRow = {
 
 export type InKindItemRow = { face_value: number | string | null };
 
+// Monetary donations (20260829100000) are cash received, so unlike in-kind
+// face value they join the income side of the net.
+export type MonetaryDonationReportRow = {
+  amount: number | string | null;
+  event_id: string | null;
+  event_name: string | null;
+  donor_name: string | null;
+};
+
 export type FinanceReportData = {
   revenue: RevenueReportRow[];
   expenses: SpendReportRow[];
   reimbursements: SpendReportRow[];
   in_kind_items: InKindItemRow[];
+  monetary_donations: MonetaryDonationReportRow[];
 };
 
 export const SPEND_STATUSES = [
@@ -110,6 +120,7 @@ export type EventTotal = {
 export function summarizeByEvent(
   revenue: RevenueReportRow[],
   spend: SpendReportRow[],
+  donations: MonetaryDonationReportRow[] = [],
 ): EventTotal[] {
   const totals = new Map<string, EventTotal>();
 
@@ -129,6 +140,9 @@ export function summarizeByEvent(
   for (const row of revenue) {
     entryFor(row.event_id, row.event_name).income += toNumber(row.amount);
   }
+  for (const row of donations) {
+    entryFor(row.event_id, row.event_name).income += toNumber(row.amount);
+  }
   for (const row of spend) {
     if (row.status !== "paid") continue;
     entryFor(row.event_id, row.event_name).paidSpend += toNumber(row.amount);
@@ -146,6 +160,8 @@ export function summarizeByEvent(
 
 export type FinanceSummary = {
   income: number;
+  cashDonations: number;
+  cashDonationCount: number;
   paidSpend: number;
   net: number;
   approvedUnpaidSpend: number;
@@ -159,15 +175,22 @@ export function computeFinanceSummary(data: FinanceReportData): FinanceSummary {
     (total, row) => total + toNumber(row.amount),
     0,
   );
+  const cashDonations = data.monetary_donations.reduce(
+    (total, row) => total + toNumber(row.amount),
+    0,
+  );
   const spend = [...data.expenses, ...data.reimbursements];
   const paidSpend = sumSpendWithStatus(spend, "paid");
 
   return {
     income,
+    cashDonations,
+    cashDonationCount: data.monetary_donations.length,
     paidSpend,
     // Cash only: in-kind face value is deliberately excluded, since donated
-    // goods are not money received.
-    net: income - paidSpend,
+    // goods are not money received. Monetary donations are cash received, so
+    // they join revenue on the income side.
+    net: income + cashDonations - paidSpend,
     approvedUnpaidSpend: sumSpendWithStatus(spend, "approved"),
     pendingSpend: sumSpendWithStatus(spend, "submitted"),
     inKindValue: data.in_kind_items.reduce(

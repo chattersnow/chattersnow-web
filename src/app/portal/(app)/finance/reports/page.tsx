@@ -83,6 +83,7 @@ export default async function FinancialReportsPage({
         expenses: result.expenses ?? [],
         reimbursements: result.reimbursements ?? [],
         in_kind_items: result.in_kind_items ?? [],
+        monetary_donations: result.monetary_donations ?? [],
       };
     }
   }
@@ -94,7 +95,11 @@ export default async function FinancialReportsPage({
     ? summarizeSpendByStatus(data.reimbursements)
     : [];
   const byEvent = data
-    ? summarizeByEvent(data.revenue, [...data.expenses, ...data.reimbursements])
+    ? summarizeByEvent(
+        data.revenue,
+        [...data.expenses, ...data.reimbursements],
+        data.monetary_donations,
+      )
     : [];
 
   const hasCustomRange = fromDate !== defaults.from || toDate !== defaults.to;
@@ -107,6 +112,13 @@ export default async function FinancialReportsPage({
           caption: "Event revenue received",
         },
         {
+          label: "Monetary donations",
+          value: formatAmount(summary.cashDonations),
+          caption: `${numberFormatter.format(summary.cashDonationCount)} gift${
+            summary.cashDonationCount === 1 ? "" : "s"
+          } received`,
+        },
+        {
           label: "Expenses paid",
           value: formatAmount(summary.paidSpend),
           caption: "Expenses and reimbursements marked paid",
@@ -114,7 +126,7 @@ export default async function FinancialReportsPage({
         {
           label: "Net",
           value: formatAmount(summary.net),
-          caption: "Income less expenses paid",
+          caption: "Income and monetary donations, less expenses paid",
         },
         {
           label: "In-kind donations",
@@ -139,7 +151,7 @@ export default async function FinancialReportsPage({
           <p className="app-muted mt-3 max-w-2xl text-sm">
             Summary of income, expenses, and donations across the selected
             period, computed live from event revenue, expenses, reimbursements,
-            and donation intake.
+            monetary donations, and donation intake.
           </p>
         </div>
       </div>
@@ -160,7 +172,7 @@ export default async function FinancialReportsPage({
           </CardContent>
         </Card>
       ) : summary ? (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
           {summaryCards.map((card) => (
             <Card key={card.label}>
               <CardHeader>
