@@ -3,6 +3,33 @@ import { signIn, submitLogin } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { seedPortalUser, seedRole } from "./helpers/rbac";
 
+// The Permissions page shows one role at a time: a Role select drives a
+// Resource/Permission table, rather than the old grid with a column per role.
+// It defaults to whichever role sorts first, so tests pick their role first.
+async function selectRole(
+  page: import("@playwright/test").Page,
+  label: string,
+) {
+  await page.getByRole("combobox", { name: "Role" }).click();
+  await page.getByRole("option", { name: label, exact: true }).click();
+}
+
+// Every resource section starts collapsed, so a resource's permission control
+// is not in the DOM until its section is opened. Scoped to the table: the
+// section names double as sidebar nav labels.
+async function expandSection(
+  page: import("@playwright/test").Page,
+  section: string,
+) {
+  const toggle = page
+    .getByRole("table")
+    .getByRole("button", { name: section, exact: true });
+  if ((await toggle.getAttribute("aria-expanded")) === "false") {
+    await toggle.click();
+  }
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+}
+
 test.describe("portal administration permissions", () => {
   test("loads the Permissions matrix", async ({ page }) => {
     await signIn(page);
@@ -11,12 +38,16 @@ test.describe("portal administration permissions", () => {
     await expect(
       page.getByRole("heading", { level: 1, name: "Permissions", exact: true }),
     ).toBeVisible();
+    await selectRole(page, "Admin");
+
     await expect(
       page.getByRole("columnheader", { name: "Resource" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("columnheader", { name: "Admin", exact: true }),
+      page.getByRole("columnheader", { name: "Permission" }),
     ).toBeVisible();
+
+    await expandSection(page, "Administration");
     await expect(
       page.getByRole("combobox", {
         name: "Permission for Admin on Administration",
@@ -24,10 +55,9 @@ test.describe("portal administration permissions", () => {
     ).toBeVisible();
   });
 
-  // The permissions matrix is a wide table with a sticky first column;
-  // on a phone-sized viewport a role's cell can end up underneath that
-  // sticky column, where it isn't clickable. This test is about what the
-  // matrix enforces, not how it reflows, so give it room.
+  // This test drives two browser sessions through several portal screens;
+  // it is about what the matrix enforces, not how it reflows, so give it a
+  // desktop viewport rather than the phone-sized default.
   test.describe("permission enforcement", () => {
     test.use({ viewport: { width: 1440, height: 900 } });
 
@@ -72,6 +102,8 @@ test.describe("portal administration permissions", () => {
         await expect(memberPage).toHaveURL(/\/portal\/login\?error=no_access$/);
 
         await page.goto("/portal/administration/permissions");
+        await selectRole(page, role.label);
+        await expandSection(page, "Events");
         await page
           .getByRole("combobox", {
             name: `Permission for ${role.label} on Events`,

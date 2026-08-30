@@ -9,6 +9,6 @@ test("signing in redirects to the portal home", async ({ page }) => {
 
   await expect(page).toHaveURL(/\/portal\/home$/);
   await expect(
-    page.getByRole("paragraph").filter({ hasText: "Dashboard" }),
+    page.getByRole("heading", { level: 1, name: "Dashboard", exact: true }),
   ).toBeVisible();
 });

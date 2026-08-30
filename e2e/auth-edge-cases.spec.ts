@@ -74,6 +74,6 @@ test("setting a password from a recovery link signs the user in", async ({
 
   await expect(page).toHaveURL(/\/portal\/home$/);
   await expect(
-    page.getByRole("paragraph").filter({ hasText: "Dashboard" }),
+    page.getByRole("heading", { level: 1, name: "Dashboard", exact: true }),
   ).toBeVisible();
 });

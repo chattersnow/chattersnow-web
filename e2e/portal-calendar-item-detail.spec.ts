@@ -71,31 +71,34 @@ test.describe("portal calendar item detail page", () => {
     ).toBeVisible();
   });
 
-  test("keeps editing on a sheet opened from the page", async ({ page }) => {
+  test("keeps editing inline on the detail page", async ({ page }) => {
     await signIn(page);
     await page.goto("/portal/calendar");
     await page
       .getByRole("button", { name: `View ${SEEDED_OPPORTUNITY}` })
       .click();
 
-    await page.getByRole("button", { name: "Edit", exact: true }).click();
-
-    const sheet = page.getByRole("dialog");
     await expect(
-      sheet.getByRole("heading", { name: SEEDED_OPPORTUNITY }),
+      page.getByRole("heading", { level: 1, name: SEEDED_OPPORTUNITY }),
     ).toBeVisible();
-    await expect(sheet.getByLabel("Title")).toHaveValue(SEEDED_OPPORTUNITY);
-    await expect(
-      sheet.getByRole("button", { name: "Save changes" }),
-    ).toBeVisible();
-    await expect(sheet.getByRole("button", { name: "Archive" })).toBeVisible();
 
-    // Close without touching anything -- no dirty-state prompt expected.
-    await sheet.getByRole("button", { name: "Close" }).click();
+    // Editing happens per card on the detail page now rather than in a sheet,
+    // so each card has its own edit trigger and the page stays put.
+    const editSchedule = page.getByRole("button", {
+      name: "Edit schedule & details",
+    });
+    await editSchedule.click();
+
+    await expect(page.getByLabel("Title")).toHaveValue(SEEDED_OPPORTUNITY);
+    await expect(
+      page.getByRole("button", { name: "Save changes" }),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Archive" })).toBeVisible();
+
+    // Cancel without touching anything -- no dirty-state prompt expected.
+    await page.getByRole("button", { name: "Cancel" }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    await expect(
-      page.getByRole("button", { name: "Edit", exact: true }),
-    ).toBeVisible();
+    await expect(editSchedule).toBeVisible();
   });
 
   test("offers Generate next year only for structured-recurrence items", async ({
