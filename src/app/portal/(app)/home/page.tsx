@@ -234,9 +234,15 @@ export default async function PortalHomePage() {
 
         {canSeeFinancial && financial && (
           <DashboardSectionCard className="lg:mt-6" title="Financial">
-            <DashboardComingSoonRow
-              label="Cash position & monthly income"
-              description="Only in-kind donations are tracked today; monetary donation tracking isn't built yet."
+            <DashboardStatRow
+              label="Cash position"
+              value={currencyFormatter.format(financial.cashPositionTotal)}
+              caption="Income minus paid expenses, all time"
+            />
+            <DashboardStatRow
+              label="Monthly income"
+              value={currencyFormatter.format(financial.incomeThisMonth)}
+              caption={`This month · ${currencyFormatter.format(financial.incomeThisYear)} this year`}
             />
             {canSeeExpenses && (
               <DashboardStatRow

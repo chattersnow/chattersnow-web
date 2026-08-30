@@ -5,6 +5,10 @@ import type {
   PendingApprovalItem,
   PendingApprovalsSummary,
 } from "@/lib/portal/attention-items";
+import {
+  computeFinanceSummary,
+  type FinanceReportData,
+} from "../finance/reports/summary";
 
 export type NextEvent = {
   id: string;
@@ -76,7 +80,44 @@ export type FinancialSummary = {
   revenueThisMonth: number;
   revenueThisYear: number;
   outstandingReimbursementTotal: number;
+  cashPositionTotal: number;
+  incomeThisMonth: number;
+  incomeThisYear: number;
 };
+
+// Stands in for "since inception" when computing the all-time cash position
+// -- there's no separate ledger-start date to anchor on, and
+// get_finance_report_data requires a non-null p_from.
+const EARLIEST_FINANCE_DATE = "2000-01-01";
+
+// get_finance_report_data (20260828010000) is a SECURITY DEFINER RPC gated
+// on finance_reports:view, returning revenue/expenses/reimbursements/
+// monetary-donations rows regardless of the caller's table-level RLS --
+// exactly what board (finance_reports:view but no event_expenses/
+// event_revenue/finance table access) needs to see an aggregate cash
+// figure. Every role that reaches getFinancialSummary already holds
+// finance_reports:view (see canSeeFinancial in home/page.tsx), so no
+// separate per-widget permission check is needed here the way
+// revenueThisMonth/expensesThisMonth below need canSeeRevenue/canSeeExpenses
+// on the page.
+async function loadFinanceReportData(
+  supabase: SupabaseClient,
+  from: string,
+  to: string,
+): Promise<FinanceReportData> {
+  const { data, error } = await supabase.rpc("get_finance_report_data", {
+    p_from: from,
+    p_to: to,
+  });
+  const result = error ? {} : ((data ?? {}) as Partial<FinanceReportData>);
+  return {
+    revenue: result.revenue ?? [],
+    expenses: result.expenses ?? [],
+    reimbursements: result.reimbursements ?? [],
+    in_kind_items: result.in_kind_items ?? [],
+    monetary_donations: result.monetary_donations ?? [],
+  };
+}
 
 export async function getFinancialSummary(
   supabase: SupabaseClient,
@@ -84,6 +125,8 @@ export async function getFinancialSummary(
   startOfYearDate: string,
   nowIso: string,
 ): Promise<FinancialSummary> {
+  const todayDate = nowIso.slice(0, 10);
+
   const [
     { data: expensesThisYear },
     { data: expensesThisMonth },
@@ -91,6 +134,9 @@ export async function getFinancialSummary(
     { data: revenueThisYear },
     { data: revenueThisMonth },
     { data: outstandingReimbursements },
+    allTimeFinanceData,
+    yearFinanceData,
+    monthFinanceData,
   ] = await Promise.all([
     supabase
       .from("event_expenses")
@@ -117,6 +163,9 @@ export async function getFinancialSummary(
       .from("reimbursements")
       .select("amount")
       .in("status", ["submitted", "approved"]),
+    loadFinanceReportData(supabase, EARLIEST_FINANCE_DATE, todayDate),
+    loadFinanceReportData(supabase, startOfYearDate, todayDate),
+    loadFinanceReportData(supabase, startOfMonthDate, todayDate),
   ]);
 
   const sumAmounts = (rows: { amount: number }[] | null) =>
@@ -126,6 +175,14 @@ export async function getFinancialSummary(
     (eventBudgets ?? []) as { budget_amount: number | null }[]
   ).reduce((total, row) => total + (row.budget_amount ?? 0), 0);
 
+  // Cash position is net of paid spend only (money that's actually left the
+  // bank); monthly/yearly income is gross cash in (revenue + monetary
+  // donations), matching the Finance Reports page's definitions
+  // (computeFinanceSummary).
+  const cashPositionSummary = computeFinanceSummary(allTimeFinanceData);
+  const yearIncomeSummary = computeFinanceSummary(yearFinanceData);
+  const monthIncomeSummary = computeFinanceSummary(monthFinanceData);
+
   return {
     expensesThisMonth: sumAmounts(expensesThisMonth),
     expensesThisYear: sumAmounts(expensesThisYear),
@@ -133,6 +190,10 @@ export async function getFinancialSummary(
     revenueThisMonth: sumAmounts(revenueThisMonth),
     revenueThisYear: sumAmounts(revenueThisYear),
     outstandingReimbursementTotal: sumAmounts(outstandingReimbursements),
+    cashPositionTotal: cashPositionSummary.net,
+    incomeThisMonth:
+      monthIncomeSummary.income + monthIncomeSummary.cashDonations,
+    incomeThisYear: yearIncomeSummary.income + yearIncomeSummary.cashDonations,
   };
 }
 
