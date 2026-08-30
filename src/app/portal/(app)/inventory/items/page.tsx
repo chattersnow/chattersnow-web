@@ -2,6 +2,8 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { FiltersSheet } from "@/components/filters-sheet";
+import { FilterSubmitButton } from "@/components/filter-submit-button";
+import { LinkPendingPulse } from "@/components/link-pending";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import {
@@ -239,16 +241,14 @@ export default async function InventoryPage({
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <Button type="submit" variant="secondary">
-                  Filter
-                </Button>
+                <FilterSubmitButton />
                 {hasActiveFilters && (
                   <Button
                     variant="ghost"
                     nativeButton={false}
                     render={<Link href="/portal/inventory/items" />}
                   >
-                    Clear
+                    <LinkPendingPulse>Clear</LinkPendingPulse>
                   </Button>
                 )}
               </div>

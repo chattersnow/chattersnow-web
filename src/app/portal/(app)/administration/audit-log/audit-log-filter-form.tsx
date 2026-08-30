@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { FiltersSheet } from "@/components/filters-sheet";
+import { FilterSubmitButton } from "@/components/filter-submit-button";
+import { LinkPendingPulse } from "@/components/link-pending";
 import { TABLE_LABELS } from "./audit-log-badges";
 import {
   ACTION_VALUES,
@@ -134,16 +136,14 @@ export function AuditLogFilterForm({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="submit" variant="secondary">
-              Filter
-            </Button>
+            <FilterSubmitButton />
             {hasActiveFilters && (
               <Button
                 variant="ghost"
                 nativeButton={false}
                 render={<Link href="/portal/administration/audit-log" />}
               >
-                Clear
+                <LinkPendingPulse>Clear</LinkPendingPulse>
               </Button>
             )}
           </div>

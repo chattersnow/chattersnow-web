@@ -25,6 +25,8 @@ import {
   totalPagesFor,
 } from "@/lib/pagination";
 import { FiltersSheet } from "@/components/filters-sheet";
+import { FilterSubmitButton } from "@/components/filter-submit-button";
+import { LinkPendingPulse } from "@/components/link-pending";
 import { EditPersonModal } from "./edit-person-modal";
 import { NewPersonDialog } from "./new-person-dialog";
 import {
@@ -151,16 +153,14 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <Button type="submit" variant="secondary">
-                  Filter
-                </Button>
+                <FilterSubmitButton />
                 {hasActiveFilters && (
                   <Button
                     variant="ghost"
                     nativeButton={false}
                     render={<Link href="/portal/people" />}
                   >
-                    Clear
+                    <LinkPendingPulse>Clear</LinkPendingPulse>
                   </Button>
                 )}
               </div>

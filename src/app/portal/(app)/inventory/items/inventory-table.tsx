@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -11,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SortHeaderLink } from "@/components/portal/sort-header-link";
 import { buildHref } from "@/lib/pagination";
 import { EditInventoryModal } from "./edit-inventory-modal";
 import { InventoryCard } from "./inventory-card";
@@ -82,21 +81,11 @@ export function InventoryTable({
                 <TableRow>
                   {SORT_COLUMNS.map((column) => (
                     <TableHead key={column.key}>
-                      <Link
+                      <SortHeaderLink
                         href={sortHref(column.key)}
-                        className="inline-flex items-center gap-1 hover:text-foreground"
-                      >
-                        {column.label}
-                        {sort === column.key ? (
-                          dir === "asc" ? (
-                            <ArrowUp className="size-3.5" />
-                          ) : (
-                            <ArrowDown className="size-3.5" />
-                          )
-                        ) : (
-                          <ArrowUpDown className="size-3.5 text-muted-foreground" />
-                        )}
-                      </Link>
+                        label={column.label}
+                        dir={sort === column.key ? dir : null}
+                      />
                     </TableHead>
                   ))}
                   <TableHead className="w-0">

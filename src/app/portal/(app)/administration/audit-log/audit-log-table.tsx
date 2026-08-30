@@ -1,5 +1,3 @@
-import Link from "next/link";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Pagination } from "@/components/ui/pagination";
 import {
@@ -10,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SortHeaderLink } from "@/components/portal/sort-header-link";
 import { ActionBadge, TABLE_LABELS } from "./audit-log-badges";
 import {
   AuditLogDetailSheet,
@@ -68,19 +67,11 @@ export function AuditLogTable({
                 <TableRow>
                   {COLUMNS.map((column) => (
                     <TableHead key={column.key}>
-                      <Link
+                      <SortHeaderLink
                         href={sortHref(column.key)}
-                        className="inline-flex items-center gap-1 hover:text-foreground"
-                      >
-                        {column.label}
-                        {sort !== column.key ? (
-                          <ArrowUpDown className="size-3.5 text-muted-foreground" />
-                        ) : dir === "asc" ? (
-                          <ArrowUp className="size-3.5" />
-                        ) : (
-                          <ArrowDown className="size-3.5" />
-                        )}
-                      </Link>
+                        label={column.label}
+                        dir={sort === column.key ? dir : null}
+                      />
                     </TableHead>
                   ))}
                   <TableHead>Record</TableHead>
