@@ -18,6 +18,7 @@ import {
   getFinancialSummary,
   getInventorySummary,
   getMyActiveEvents,
+  getOrganizationSummary,
 } from "./queries";
 import { getAccessManagementStatsSummary } from "@/lib/portal/access-management/queries";
 import { listRecentDonationsAction } from "./actions";
@@ -31,6 +32,13 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
 });
+
+const meetingTypeLabels: Record<string, string> = {
+  board: "Board meeting",
+  committee: "Committee meeting",
+  annual: "Annual meeting",
+  other: "Meeting",
+};
 
 function SectionLabel({ children }: { children: string }) {
   return (
@@ -66,7 +74,10 @@ export default async function PortalHomePage() {
     { resource: "inventory", level: "manage" },
     { resource: "inventory_reports", level: "view" },
   ]);
-  const canSeeOrganization = hasPermission(permissions, "governance", "manage");
+  // Every Organization widget's backing table gates select on
+  // governance:view, so view (not manage) is the right section gate —
+  // board members with read-only governance access should see it.
+  const canSeeOrganization = hasPermission(permissions, "governance", "view");
   const canSeeAccessManagement = hasPermission(
     permissions,
     "access_management_assets",
@@ -89,6 +100,7 @@ export default async function PortalHomePage() {
   const startOfYear = new Date(startOfMonth.getFullYear(), 0, 1);
 
   const nowIso = new Date().toISOString();
+  const todayDate = nowIso.slice(0, 10);
   const startOfMonthDate = startOfMonth.toISOString().slice(0, 10);
   const startOfYearDate = startOfYear.toISOString().slice(0, 10);
 
@@ -98,6 +110,7 @@ export default async function PortalHomePage() {
     inventory,
     accessManagementStats,
     recentDonationsResult,
+    organization,
     personId,
   ] = await Promise.all([
     canSeeUpcoming
@@ -112,6 +125,9 @@ export default async function PortalHomePage() {
       : Promise.resolve(null),
     canSeeInventory && canSeeRecentDonations
       ? listRecentDonationsAction(5)
+      : Promise.resolve(null),
+    canSeeOrganization
+      ? getOrganizationSummary(supabase, nowIso, todayDate)
       : Promise.resolve(null),
     resolveCurrentPersonId(supabase),
   ]);
@@ -136,10 +152,10 @@ export default async function PortalHomePage() {
   return (
     <section>
       <div className="w-fit">
-        <div className="rainbow-accent mb-2 w-full" />
-        <p className="app-muted text-sm font-semibold uppercase tracking-[0.16em]">
+        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
           Dashboard
-        </p>
+        </h1>
+        <div className="rainbow-accent mt-3 w-full" />
       </div>
 
       {!anySectionVisible && (
@@ -316,16 +332,65 @@ export default async function PortalHomePage() {
             </CardContent>
           </Card>
         )}
+        {canSeeOrganization && organization && (
+          <DashboardSectionCard title="Organization">
+            <DashboardEventRow
+              label="Next meeting"
+              eventName={
+                organization.nextMeeting
+                  ? (meetingTypeLabels[organization.nextMeeting.meeting_type] ??
+                    "Meeting")
+                  : "—"
+              }
+              caption={
+                organization.nextMeeting
+                  ? `${dateFormatter.format(new Date(organization.nextMeeting.meeting_date))}${
+                      organization.nextMeeting.location
+                        ? ` · ${organization.nextMeeting.location}`
+                        : ""
+                    }`
+                  : "No meetings scheduled"
+              }
+            />
+            <DashboardStatRow
+              label="Compliance deadlines"
+              value={organization.openRequirementCount}
+              caption={
+                organization.overdueRequirementCount > 0
+                  ? `Open annual requirements · ${organization.overdueRequirementCount} overdue`
+                  : "Open annual requirements"
+              }
+            />
+            <DashboardStatRow
+              label="Nonprofit status milestones"
+              value={organization.openMilestoneCount}
+              caption={
+                organization.overdueMilestoneCount > 0
+                  ? `Not yet done · ${organization.overdueMilestoneCount} past due`
+                  : "Not yet done"
+              }
+            />
+            <DashboardStatRow
+              label="Open action items"
+              value={organization.openActionItemCount}
+              caption={
+                organization.overdueActionItemCount > 0
+                  ? `From meetings · ${organization.overdueActionItemCount} overdue`
+                  : "From meetings"
+              }
+            />
+            <DashboardStatRow
+              label="Missing COI disclosures"
+              value={organization.missingDisclosureCount}
+              caption={`Active board members without a ${organization.disclosureYear} disclosure on file`}
+            />
+            <DashboardComingSoonRow
+              label="Partnerships & grants"
+              description="Partnership opportunity and grant deadline tracking aren't built yet."
+            />
+          </DashboardSectionCard>
+        )}
       </div>
-
-      {canSeeOrganization && (
-        <DashboardSectionCard title="Organization">
-          <DashboardComingSoonRow
-            label="Organization health"
-            description="This area will surface organization-wide health: upcoming compliance deadlines, partnership opportunities, grant deadlines, and governance tasks."
-          />
-        </DashboardSectionCard>
-      )}
     </section>
   );
 }

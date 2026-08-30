@@ -249,6 +249,108 @@ export async function getMyActiveEvents(
   );
 }
 
+export type NextGovernanceMeeting = {
+  id: string;
+  meeting_type: string;
+  meeting_date: string;
+  location: string | null;
+};
+
+export type OrganizationSummary = {
+  nextMeeting: NextGovernanceMeeting | null;
+  openRequirementCount: number;
+  overdueRequirementCount: number;
+  openMilestoneCount: number;
+  overdueMilestoneCount: number;
+  openActionItemCount: number;
+  overdueActionItemCount: number;
+  missingDisclosureCount: number;
+  disclosureYear: number;
+};
+
+type DueDateRow = { due_date: string | null };
+type PersonIdRow = { person_id: string };
+
+/**
+ * Organization-health rollup for the dashboard (issue #68's Organization
+ * group): next scheduled governance meeting, open/overdue annual
+ * requirements, nonprofit-status milestones, meeting action items, and
+ * active board members missing a conflict-of-interest disclosure for the
+ * current year. Every backing table's select RLS is governance:view, so a
+ * single section gate covers all widgets (unlike the Financial section's
+ * per-widget resources).
+ */
+export async function getOrganizationSummary(
+  supabase: SupabaseClient,
+  nowIso: string,
+  todayDate: string,
+): Promise<OrganizationSummary> {
+  const disclosureYear = Number(todayDate.slice(0, 4));
+
+  const [
+    { data: nextMeetings },
+    { data: requirements },
+    { data: milestones },
+    { data: actionItems },
+    { data: boardMembers },
+    { data: disclosures },
+  ] = await Promise.all([
+    supabase
+      .from("governance_meetings")
+      .select("id, meeting_type, meeting_date, location")
+      .eq("status", "scheduled")
+      .gte("meeting_date", nowIso)
+      .order("meeting_date", { ascending: true })
+      .limit(1),
+    supabase
+      .from("annual_requirements")
+      .select("due_date")
+      .neq("status", "done"),
+    supabase
+      .from("nonprofit_status_milestones")
+      .select("due_date")
+      .not("status", "in", "(done,cancelled)"),
+    supabase
+      .from("governance_meeting_action_items")
+      .select("due_date")
+      .eq("status", "open"),
+    supabase.from("board_members").select("person_id").eq("is_active", true),
+    supabase
+      .from("conflict_of_interest_disclosures")
+      .select("person_id")
+      .eq("disclosure_year", disclosureYear),
+  ]);
+
+  // due_date is a Postgres `date` (YYYY-MM-DD), so string comparison
+  // against todayDate orders correctly without Date parsing.
+  const countOverdue = (rows: DueDateRow[] | null) =>
+    (rows ?? []).filter(
+      (row) => row.due_date !== null && row.due_date < todayDate,
+    ).length;
+
+  const disclosedPersonIds = new Set(
+    ((disclosures ?? []) as PersonIdRow[]).map((row) => row.person_id),
+  );
+  const missingDisclosurePersonIds = new Set(
+    ((boardMembers ?? []) as PersonIdRow[])
+      .map((row) => row.person_id)
+      .filter((personId) => !disclosedPersonIds.has(personId)),
+  );
+
+  return {
+    nextMeeting:
+      ((nextMeetings ?? [])[0] as NextGovernanceMeeting | undefined) ?? null,
+    openRequirementCount: (requirements ?? []).length,
+    overdueRequirementCount: countOverdue(requirements),
+    openMilestoneCount: (milestones ?? []).length,
+    overdueMilestoneCount: countOverdue(milestones),
+    openActionItemCount: (actionItems ?? []).length,
+    overdueActionItemCount: countOverdue(actionItems),
+    missingDisclosureCount: missingDisclosurePersonIds.size,
+    disclosureYear,
+  };
+}
+
 /**
  * "My content work", "Overdue content work", and "Tier 1 needs a decision"
  * counts for the content calendar. All three are plain RLS-scoped queries
