@@ -684,6 +684,71 @@ export const helpContent: Record<string, HelpEntry> = {
       </>
     ),
   },
+  "/portal/governance/resolutions": {
+    title: "How resolutions work",
+    description:
+      "One shared list — the full record here, a meeting's own subset there.",
+    body: (
+      <>
+        <HowToSection heading="Steps">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">Same table, two views</strong>{" "}
+              — this page and a meeting&apos;s own Resolutions tab read and
+              write the exact same records. This page lists every resolution
+              across all meetings, plus any recorded with no meeting attached; a
+              meeting&apos;s tab shows only that meeting&apos;s.
+            </li>
+            <li>
+              <strong className="text-foreground">Meeting is optional</strong> —
+              attach one to tie the motion to that meeting&apos;s record, or
+              leave it unset for a resolution recorded independently.
+            </li>
+            <li>
+              Motion text and a mover are required; seconder, vote outcome
+              (pending, passed, failed, tabled), and effective date fill out the
+              formal record.
+            </li>
+          </ol>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            <strong className="text-foreground">admin</strong> and{" "}
+            <strong className="text-foreground">board</strong> hold manage on
+            governance, which covers meetings, decisions, and resolutions
+            together; no other role has access.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What happens downstream">
+          <p>
+            Adding, editing, or deleting a resolution from either place shows up
+            immediately in the other — it&apos;s the same row, just filtered
+            differently.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Common mistakes">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              Assuming this page and a meeting&apos;s Resolutions tab track
+              separate records — editing one is editing the same row seen on the
+              other.
+            </li>
+            <li>
+              Recording a routine vote here instead of as a Decision on the
+              meeting&apos;s own tab — see{" "}
+              <Link
+                href="/portal/governance/meetings"
+                className="underline hover:text-foreground"
+              >
+                Meetings
+              </Link>{" "}
+              for that distinction.
+            </li>
+          </ul>
+        </HowToSection>
+      </>
+    ),
+  },
   "/portal/finance/reports": {
     title: "How these figures are counted",
     description: "What counts toward income, expenses paid, and net.",
@@ -756,6 +821,60 @@ export const helpContent: Record<string, HelpEntry> = {
               will tell you to fix the range.
             </li>
           </ul>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/finance/revenue": {
+    title: "How event revenue works",
+    description: "Recording non-sponsorship income, and where it's counted.",
+    body: (
+      <>
+        <HowToSection heading="Steps">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">Source</strong> — ticket
+              sales, registration fees, merchandise, onsite donations, grants,
+              or other. Event and notes are optional.
+            </li>
+            <li>
+              <strong className="text-foreground">Not for sponsorships</strong>{" "}
+              — sponsorship commitments are tracked on the event&apos;s own
+              Sponsors tab instead, so a sponsorship recorded here would double
+              count against that.
+            </li>
+          </ol>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            <strong className="text-foreground">admin</strong>,{" "}
+            <strong className="text-foreground">event_coordinator</strong>, and{" "}
+            <strong className="text-foreground">finance</strong> all hold
+            manage; <strong className="text-foreground">board</strong> and{" "}
+            <strong className="text-foreground">volunteer</strong> have no
+            access at all — unlike most other Finance pages, there&apos;s no
+            view-only tier here.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What happens downstream">
+          <p>
+            Each record counts toward{" "}
+            <Link
+              href="/portal/finance/reports"
+              className="underline hover:text-foreground"
+            >
+              Finance Reports
+            </Link>
+            &apos;s Income figure, by the date it was received, and is written
+            to the audit log.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Common mistakes">
+          <p>
+            Recording a sponsor&apos;s commitment here instead of under the
+            event&apos;s Sponsors tab — this table deliberately excludes
+            sponsorship so a future combined rollup doesn&apos;t count it twice.
+          </p>
         </HowToSection>
       </>
     ),
@@ -1350,6 +1469,108 @@ export const helpContent: Record<string, HelpEntry> = {
               have another admin do it if you&apos;re stepping back.
             </li>
           </ul>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/people": {
+    title: "How the People directory works",
+    description:
+      "Contact records for donors, sponsors, and volunteers — not portal logins.",
+    body: (
+      <>
+        <HowToSection heading="Steps">
+          <p>
+            <strong className="text-foreground">
+              Donor, Sponsor, and Volunteer
+            </strong>{" "}
+            are independent flags on one contact record, not separate lists — a
+            single person can hold any combination. Filter by role or search
+            name, email, or phone.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            <strong className="text-foreground">admin</strong> holds manage;{" "}
+            <strong className="text-foreground">event_coordinator</strong> and{" "}
+            <strong className="text-foreground">finance</strong> hold view-only;{" "}
+            <strong className="text-foreground">board</strong> and{" "}
+            <strong className="text-foreground">volunteer</strong> have no
+            access to this page.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What happens downstream">
+          <p>
+            Other modules link back here — a named{" "}
+            <Link
+              href="/portal/inventory/donations"
+              className="underline hover:text-foreground"
+            >
+              donation
+            </Link>
+            &apos;s donor, or a{" "}
+            <Link
+              href="/portal/governance/resolutions"
+              className="underline hover:text-foreground"
+            >
+              resolution
+            </Link>
+            &apos;s mover and seconder, are all People records.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Common mistakes">
+          <p>
+            Confusing this with{" "}
+            <Link
+              href="/portal/administration/users"
+              className="underline hover:text-foreground"
+            >
+              Administration &gt; Users
+            </Link>{" "}
+            — People is a contact directory with no bearing on portal access;
+            adding someone here doesn&apos;t give them a login, and giving
+            someone a login doesn&apos;t add them here.
+          </p>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/communications": {
+    title: "How message triage works",
+    description: "The status lifecycle for contact-form submissions.",
+    body: (
+      <>
+        <HowToSection heading="Steps">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">new → read → resolved</strong>{" "}
+              is the expected path, but nothing enforces the order — status can
+              be set directly to any value.
+            </li>
+            <li>
+              Opening a <code>new</code> message&apos;s details automatically
+              marks it <code>read</code>.
+            </li>
+          </ol>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            Only <strong className="text-foreground">admin</strong> — no other
+            role has any access to Communications, not even view.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What happens downstream">
+          <p>
+            Nothing — this is purely internal triage bookkeeping. Changing the
+            status doesn&apos;t send a reply or notify the submitter.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Common mistakes">
+          <p>
+            Opening a message just to skim it moves it out of <code>new</code>{" "}
+            automatically — if you&apos;re relying on that filter to track
+            what&apos;s unread, browsing a message clears it.
+          </p>
         </HowToSection>
       </>
     ),
