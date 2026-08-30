@@ -3,6 +3,7 @@
 import { FormEvent, ReactNode, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
+import { utcIsoToDatetimeLocalInZone } from "@/lib/time";
 import {
   recordSensitiveTopicReviewAction,
   updateCalendarItemAction,
@@ -62,19 +63,17 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
   timeStyle: "short",
 });
 
-function toDatetimeLocalValue(iso: string | null) {
+function toDatetimeLocalValue(iso: string | null, timeZone: string) {
   if (!iso) return "";
-  const date = new Date(iso);
-  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
-  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
+  return utcIsoToDatetimeLocalInZone(iso, timeZone);
 }
 
 function formStateFor(item: CalendarItemRow) {
   return {
     title: item.title,
     itemType: item.item_type,
-    startsAt: toDatetimeLocalValue(item.starts_at),
-    endsAt: toDatetimeLocalValue(item.ends_at),
+    startsAt: toDatetimeLocalValue(item.starts_at, item.time_zone),
+    endsAt: toDatetimeLocalValue(item.ends_at, item.time_zone),
     timeZone: item.time_zone,
     recurrenceRule: item.recurrence_rule ?? "",
     summary: item.summary ?? "",

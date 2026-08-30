@@ -115,6 +115,62 @@ export function zonedWallTimeToUtcIso(
 }
 
 /**
+ * Converts a `<input type="datetime-local">` value ("YYYY-MM-DDTHH:mm" or
+ * "...:ss"), which carries no UTC offset of its own, into the UTC instant it
+ * represents when read as wall-clock time in `timeZone`. Use this instead of
+ * `new Date(value).toISOString()` for any datetime-local value paired with
+ * an explicit timezone field -- `new Date` on a naive string is parsed in
+ * whatever timezone the running process happens to be in, which differs
+ * between local dev and production. Returns null if `value` isn't in the
+ * expected shape.
+ */
+export function datetimeLocalToUtcIso(
+  value: string,
+  timeZone: string,
+): string | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(
+    value,
+  );
+  if (!match) return null;
+  const [, year, month, day, hour, minute, second] = match;
+  return zonedWallTimeToUtcIso(
+    Number(year),
+    Number(month),
+    Number(day),
+    Number(hour),
+    Number(minute),
+    Number(second ?? "0"),
+    timeZone,
+  );
+}
+
+/**
+ * Formats a UTC instant as a wall-clock "YYYY-MM-DDTHH:mm" string in
+ * `timeZone`, for seeding a `<input type="datetime-local">` value edited
+ * alongside an explicit timezone field. Pairs with `datetimeLocalToUtcIso` --
+ * using the viewer's browser offset here instead would show the wrong
+ * wall-clock time whenever the viewer isn't in the record's own timezone,
+ * and silently shift the stored instant if re-saved unchanged.
+ */
+export function utcIsoToDatetimeLocalInZone(
+  iso: string,
+  timeZone: string,
+): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(iso));
+  const get = (type: string) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
+}
+
+/**
  * "Due today" / "Due in N days" / "N days overdue", rounding to whole days
  * so a due time earlier today doesn't read as "overdue" and one later today
  * doesn't read as "in 1 day".

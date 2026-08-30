@@ -86,8 +86,10 @@ export function ShiftForm({
 
     const formData = new FormData();
     formData.set("label", label);
-    formData.set("startsAt", startsAt);
-    formData.set("endsAt", endsAt);
+    // Converted here, in the browser, so the shift's instants are fixed
+    // using the user's own timezone rather than the server's.
+    formData.set("startsAt", startsAt ? new Date(startsAt).toISOString() : "");
+    formData.set("endsAt", endsAt ? new Date(endsAt).toISOString() : "");
     formData.set("targetHeadcount", targetHeadcount);
     formData.set("notes", notes);
     formData.set(

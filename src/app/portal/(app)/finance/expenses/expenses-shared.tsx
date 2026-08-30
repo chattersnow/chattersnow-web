@@ -38,6 +38,7 @@ export type ExpenseRow = {
   submitted_by: string;
   approved_by: string | null;
   approved_at: string | null;
+  rejected_by: string | null;
   rejected_at: string | null;
   rejection_reason: string | null;
   paid_by: string | null;
@@ -46,10 +47,16 @@ export type ExpenseRow = {
 
 export type EventOption = { id: string; name: string };
 
+export type ExpenseActor = {
+  user_id: string;
+  email: string | null;
+  full_name: string | null;
+};
+
 export const CURRENCIES = [{ value: "USD", label: "USD" }];
 
 export const EXPENSE_COLUMNS =
-  "id, event_id, description, expense_date, amount, currency, receipt_url, notes, events(name), status, submitted_by, approved_by, approved_at, rejected_at, rejection_reason, paid_by, paid_at";
+  "id, event_id, description, expense_date, amount, currency, receipt_url, notes, events(name), status, submitted_by, approved_by, approved_at, rejected_by, rejected_at, rejection_reason, paid_by, paid_at";
 
 export type ExpenseApprovalContext = ApprovalContext;
 

@@ -2,10 +2,9 @@
 
 import { ReactNode, useMemo, useState } from "react";
 import Link from "next/link";
-import { Eye } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { FiltersSheet } from "@/components/filters-sheet";
 import {
   Select,
   SelectContent,
@@ -34,6 +33,15 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
   timeStyle: "short",
 });
 
+type SortKey = "meeting_date" | "meeting_type" | "status" | "location";
+
+const SORT_COLUMNS: { key: SortKey; label: string }[] = [
+  { key: "meeting_date", label: "Date" },
+  { key: "meeting_type", label: "Type" },
+  { key: "status", label: "Status" },
+  { key: "location", label: "Location" },
+];
+
 export function MeetingsTable({
   meetings,
   newAction,
@@ -42,18 +50,37 @@ export function MeetingsTable({
   newAction?: ReactNode;
 }) {
   const [typeFilter, setTypeFilter] = useState<string>(FILTER_ALL);
+  const [sortKey, setSortKey] = useState<SortKey>("meeting_date");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+
+  function handleSort(key: SortKey) {
+    if (key === sortKey) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDirection("asc");
+    }
+  }
 
   const visibleMeetings = useMemo(() => {
-    if (typeFilter === FILTER_ALL) return meetings;
-    return meetings.filter((meeting) => meeting.meeting_type === typeFilter);
-  }, [meetings, typeFilter]);
+    const filtered =
+      typeFilter === FILTER_ALL
+        ? meetings
+        : meetings.filter((meeting) => meeting.meeting_type === typeFilter);
 
-  const activeFilterCount = typeFilter !== FILTER_ALL ? 1 : 0;
+    const direction = sortDirection === "asc" ? 1 : -1;
+
+    return [...filtered].sort((a, b) => {
+      const aValue = sortKey === "location" ? (a.location ?? "") : a[sortKey];
+      const bValue = sortKey === "location" ? (b.location ?? "") : b[sortKey];
+      return aValue.localeCompare(bValue) * direction;
+    });
+  }, [meetings, typeFilter, sortKey, sortDirection]);
 
   return (
     <div className="space-y-4">
-      <div className="rainbow-surface flex flex-wrap items-center justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
-        <FiltersSheet activeCount={activeFilterCount}>
+      <div className="rainbow-surface flex flex-wrap items-end justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+        <div className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1">
             <span className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
               Type
@@ -74,7 +101,7 @@ export function MeetingsTable({
               </SelectContent>
             </Select>
           </div>
-        </FiltersSheet>
+        </div>
 
         {newAction}
       </div>
@@ -93,10 +120,26 @@ export function MeetingsTable({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Location</TableHead>
+                  {SORT_COLUMNS.map((column) => (
+                    <TableHead key={column.key}>
+                      <button
+                        type="button"
+                        onClick={() => handleSort(column.key)}
+                        className="inline-flex items-center gap-1 hover:text-foreground"
+                      >
+                        {column.label}
+                        {sortKey === column.key ? (
+                          sortDirection === "asc" ? (
+                            <ArrowUp className="size-3.5" />
+                          ) : (
+                            <ArrowDown className="size-3.5" />
+                          )
+                        ) : (
+                          <ArrowUpDown className="size-3.5 text-muted-foreground" />
+                        )}
+                      </button>
+                    </TableHead>
+                  ))}
                   <TableHead className="w-0">
                     <span className="sr-only">Actions</span>
                   </TableHead>
@@ -105,7 +148,10 @@ export function MeetingsTable({
               <TableBody>
                 {visibleMeetings.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="app-muted text-center">
+                    <TableCell
+                      colSpan={SORT_COLUMNS.length + 1}
+                      className="app-muted text-center"
+                    >
                       No meetings match your filters.
                     </TableCell>
                   </TableRow>

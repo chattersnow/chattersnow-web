@@ -71,7 +71,9 @@ function AddIncidentForm({
     setError(null);
 
     const formData = new FormData();
-    formData.set("occurredAt", occurredAt);
+    // Converted here, in the browser, so the recorded instant is fixed
+    // using the user's own timezone rather than the server's.
+    formData.set("occurredAt", new Date(occurredAt).toISOString());
     formData.set("description", description);
     formData.set("severity", severity);
     formData.set("peopleInvolved", peopleInvolved);

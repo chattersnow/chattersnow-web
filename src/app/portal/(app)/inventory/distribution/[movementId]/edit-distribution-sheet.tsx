@@ -120,7 +120,9 @@ export function EditDistributionSheet({
 
     const formData = new FormData();
     formData.set("quantity", form.quantity);
-    formData.set("occurredAt", form.occurredAt);
+    // Converted here, in the browser, so the recorded instant is fixed
+    // using the user's own timezone rather than the server's.
+    formData.set("occurredAt", new Date(form.occurredAt).toISOString());
     formData.set("reason", form.reason);
     formData.set("recipientPersonId", form.recipient?.id ?? "");
 

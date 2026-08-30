@@ -1,4 +1,5 @@
 import type { ParseResult } from "@/lib/forms";
+import { datetimeLocalToUtcIso } from "@/lib/time";
 
 const VISIBILITIES = ["public", "private"] as const;
 const STATUSES = [
@@ -48,8 +49,13 @@ export function parseEventForm(formData: FormData): ParseResult<EventFormData> {
     return { error: "Select a valid status." };
   }
 
-  const startsAtIso = new Date(startsAt).toISOString();
-  const endsAtIso = endsAt ? new Date(endsAt).toISOString() : null;
+  // Parsed against the submitted timezone (not the server's runtime
+  // timezone) since this is a naive "YYYY-MM-DDTHH:mm" value with no offset.
+  const startsAtIso = datetimeLocalToUtcIso(startsAt, timezone);
+  if (!startsAtIso) return { error: "Enter a valid start date and time." };
+  const endsAtIso = endsAt ? datetimeLocalToUtcIso(endsAt, timezone) : null;
+  if (endsAt && !endsAtIso)
+    return { error: "Enter a valid end date and time." };
   if (endsAtIso && endsAtIso < startsAtIso) {
     return { error: "End time must be after the start time." };
   }

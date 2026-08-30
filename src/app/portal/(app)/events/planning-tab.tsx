@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useTabData } from "@/hooks/use-tab-data";
+import { datetimeLocalToUtcIso, utcIsoToDatetimeLocalInZone } from "@/lib/time";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -43,11 +44,9 @@ function formatDatetimeLocal(value: string | null) {
   return dateFormatter.format(new Date(value));
 }
 
-function toDatetimeLocalValue(iso: string | null) {
+function toDatetimeLocalValue(iso: string | null, timezone: string) {
   if (!iso) return "";
-  const date = new Date(iso);
-  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
-  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
+  return utcIsoToDatetimeLocalInZone(iso, timezone);
 }
 
 function formatCurrency(value: number | string | null) {
@@ -61,7 +60,10 @@ function formStateFor(event: EventRow) {
     eventLeadId: event.event_lead_id ?? "",
     capacity: event.capacity === null ? "" : String(event.capacity),
     registrationEnabled: event.registration_enabled,
-    registrationDeadline: toDatetimeLocalValue(event.registration_deadline),
+    registrationDeadline: toDatetimeLocalValue(
+      event.registration_deadline,
+      event.timezone,
+    ),
     autoAssignDiscountCodes: event.auto_assign_discount_codes,
     budgetAmount:
       event.budget_amount === null ? "" : String(event.budget_amount),
@@ -138,7 +140,13 @@ export function PlanningTab({
       "registrationEnabled",
       form.registrationEnabled ? "on" : "off",
     );
-    formData.set("registrationDeadline", form.registrationDeadline);
+    // Parsed against the event's own timezone (not the browser's or the
+    // server's) since this is a naive "YYYY-MM-DDTHH:mm" value with no
+    // offset, and must round-trip consistently with `toDatetimeLocalValue`.
+    const registrationDeadlineIso = form.registrationDeadline
+      ? datetimeLocalToUtcIso(form.registrationDeadline, event.timezone)
+      : "";
+    formData.set("registrationDeadline", registrationDeadlineIso ?? "");
     formData.set(
       "autoAssignDiscountCodes",
       form.autoAssignDiscountCodes ? "on" : "off",

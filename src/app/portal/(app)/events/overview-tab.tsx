@@ -9,7 +9,11 @@ import {
   useTransition,
 } from "react";
 import { useRouter } from "next/navigation";
-import { formatDateTimeInZone, TIMEZONE_OPTIONS } from "@/lib/time";
+import {
+  formatDateTimeInZone,
+  TIMEZONE_OPTIONS,
+  utcIsoToDatetimeLocalInZone,
+} from "@/lib/time";
 import { updateEventAction } from "./actions";
 import type { Program } from "../programs/actions";
 import type { EventRow } from "./event-badges";
@@ -45,11 +49,9 @@ const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
   timeStyle: "short",
 };
 
-function toDatetimeLocalValue(iso: string | null) {
+function toDatetimeLocalValue(iso: string | null, timezone: string) {
   if (!iso) return "";
-  const date = new Date(iso);
-  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
-  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
+  return utcIsoToDatetimeLocalInZone(iso, timezone);
 }
 
 function formStateFor(event: EventRow) {
@@ -59,8 +61,8 @@ function formStateFor(event: EventRow) {
     eventType: event.event_type ?? "",
     location: event.location ?? "",
     venue: event.venue ?? "",
-    startsAt: toDatetimeLocalValue(event.starts_at),
-    endsAt: toDatetimeLocalValue(event.ends_at),
+    startsAt: toDatetimeLocalValue(event.starts_at, event.timezone),
+    endsAt: toDatetimeLocalValue(event.ends_at, event.timezone),
     timezone: event.timezone,
     visibility: event.visibility,
     status: event.status,

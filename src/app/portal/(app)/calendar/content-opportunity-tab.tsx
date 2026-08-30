@@ -252,9 +252,20 @@ export function ContentOpportunityTab({
     formData.set("ownerId", form.ownerId);
     formData.set("reviewerId", form.reviewerId);
     formData.set("leadTimeDays", form.leadTimeDays);
-    formData.set("publishDueAt", form.publishDueAt);
-    formData.set("reviewDueAt", form.reviewDueAt);
-    formData.set("draftDueAt", form.draftDueAt);
+    // Converted here, in the browser, so each due instant is fixed using the
+    // user's own timezone rather than the server's.
+    formData.set(
+      "publishDueAt",
+      form.publishDueAt ? new Date(form.publishDueAt).toISOString() : "",
+    );
+    formData.set(
+      "reviewDueAt",
+      form.reviewDueAt ? new Date(form.reviewDueAt).toISOString() : "",
+    );
+    formData.set(
+      "draftDueAt",
+      form.draftDueAt ? new Date(form.draftDueAt).toISOString() : "",
+    );
     formData.set("templateId", form.templateId);
     formData.set("templateVersionId", form.templateVersionId);
     formData.set(

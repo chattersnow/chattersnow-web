@@ -87,7 +87,9 @@ type FormState = ReturnType<typeof formStateFor>;
 // the whole row — there is no per-field patch action.
 function buildFormData(form: FormState) {
   const formData = new FormData();
-  formData.set("meetingDate", form.meetingDate);
+  // Convert here, in the browser, so the meeting's timezone-aware instant
+  // is fixed using the user's own timezone rather than the server's.
+  formData.set("meetingDate", new Date(form.meetingDate).toISOString());
   formData.set("meetingType", form.meetingType);
   formData.set("status", form.status);
   formData.set("location", form.location);

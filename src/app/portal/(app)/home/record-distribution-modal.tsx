@@ -104,7 +104,9 @@ export function RecordDistributionModal({
         inventoryItemId,
         quantity: quantityNumber,
         reason,
-        occurredAt,
+        // Converted here, in the browser, so the recorded instant is fixed
+        // using the user's own timezone rather than the server's.
+        occurredAt: occurredAt ? new Date(occurredAt).toISOString() : undefined,
         markDistributed,
         eventId,
         recipientPersonId: recipient?.id,

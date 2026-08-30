@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   EXPENSE_COLUMNS,
   getExpenseApprovalContext,
+  type ExpenseActor,
   type ExpenseApprovalContext,
   type ExpenseRow,
 } from "./expenses-shared";
@@ -97,6 +98,28 @@ export async function getExpenseApprovalContextAction(): Promise<ExpenseApproval
   return getExpenseApprovalContext(supabase);
 }
 
+export async function listExpenseActorsAction(
+  userIds: string[],
+): Promise<{ data: ExpenseActor[] } | { error: string }> {
+  if (userIds.length === 0) return { data: [] };
+
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(
+    supabase,
+    "event_expenses",
+    "view",
+  );
+  if (permissionError) return permissionError;
+
+  const { data, error } = await supabase.rpc("list_expense_actors", {
+    p_user_ids: userIds,
+  });
+  if (error) {
+    return { error: "Could not load who acted on these expenses." };
+  }
+  return { data: (data ?? []) as ExpenseActor[] };
+}
+
 function revalidateExpensePaths() {
   revalidatePath("/portal/finance/expenses");
   revalidatePath("/portal/events");
@@ -157,6 +180,35 @@ export async function markExpensePaidAction(
   if (error) {
     return { error: error.message };
   }
+  revalidateExpensePaths();
+  return { success: true };
+}
+
+export async function deleteExpenseAction(
+  id: string,
+): Promise<ExpenseActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(
+    supabase,
+    "event_expenses",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  const { error, count } = await supabase
+    .from("event_expenses")
+    .delete({ count: "exact" })
+    .eq("id", id)
+    .in("status", ["submitted", "rejected"]);
+  if (error) {
+    return { error: "Could not delete this expense. Please try again." };
+  }
+  if (!count) {
+    return {
+      error: "Only submitted or rejected expenses can be deleted.",
+    };
+  }
+
   revalidateExpensePaths();
   return { success: true };
 }
