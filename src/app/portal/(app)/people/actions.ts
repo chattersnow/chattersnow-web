@@ -24,7 +24,15 @@ export type PersonListItem = {
   email: string | null;
   phone: string | null;
   is_sponsor: boolean;
+  // Optional: only selected where organization filtering is needed (e.g. the
+  // People list, and PersonPicker's `onlyOrganizations` mode). The many other
+  // callers across the app that select a narrower PersonListItem shape don't
+  // carry this column and should treat it as unknown/false.
+  is_organization?: boolean;
 };
+
+export type OrganizationMembershipActionResult =
+  { error: string } | { success: true };
 
 export async function createPersonAction(
   formData: FormData,
@@ -78,7 +86,7 @@ export async function listPeopleAction(): Promise<
 
   const { data, error } = await supabase
     .from("people")
-    .select("id, name, email, phone, is_sponsor")
+    .select("id, name, email, phone, is_sponsor, is_organization")
     .order("name", { ascending: true });
 
   if (error) {
@@ -113,6 +121,59 @@ export async function updatePersonAction(
     .eq("id", id);
   if (error) {
     return { error: "Could not update this person. Please try again." };
+  }
+
+  revalidatePath("/portal/people");
+  revalidatePath(`/portal/people/${id}`);
+  return { success: true };
+}
+
+export async function addOrganizationMembershipAction(
+  organizationId: string,
+  personId: string,
+  role: string | null = null,
+): Promise<OrganizationMembershipActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to link an organization.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(supabase, "people", "manage");
+  if (permissionError) return permissionError;
+
+  const { error } = await supabase.from("person_organizations").insert({
+    organization_id: organizationId,
+    person_id: personId,
+    role,
+  });
+  if (error) {
+    return { error: "Could not link this organization. Please try again." };
+  }
+
+  revalidatePath(`/portal/people/${organizationId}`);
+  revalidatePath(`/portal/people/${personId}`);
+  return { success: true };
+}
+
+export async function removeOrganizationMembershipAction(
+  membershipId: string,
+): Promise<OrganizationMembershipActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to remove this link.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(supabase, "people", "manage");
+  if (permissionError) return permissionError;
+
+  const { error } = await supabase
+    .from("person_organizations")
+    .delete()
+    .eq("id", membershipId);
+  if (error) {
+    return { error: "Could not remove this link. Please try again." };
   }
 
   revalidatePath("/portal/people");

@@ -17,8 +17,17 @@ export type PersonRow = {
   is_donor: boolean;
   is_sponsor: boolean;
   is_volunteer: boolean;
+  is_organization: boolean;
   primary_contact_person_id: string | null;
   primary_contact: PersonSummary | null;
+};
+
+export type OrganizationMembership = {
+  id: string;
+  organization: PersonSummary;
+  person: PersonSummary;
+  role: string | null;
+  is_primary: boolean;
 };
 
 export const ROLE_OPTIONS = [

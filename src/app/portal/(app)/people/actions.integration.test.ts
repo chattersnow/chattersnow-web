@@ -23,8 +23,13 @@ mock.module("@/lib/supabase/server", () => ({
   createSupabaseServerClient: async () => currentSupabase,
 }));
 
-const { createPersonAction, listPeopleAction, updatePersonAction } =
-  await import("./actions");
+const {
+  createPersonAction,
+  listPeopleAction,
+  updatePersonAction,
+  addOrganizationMembershipAction,
+  removeOrganizationMembershipAction,
+} = await import("./actions");
 
 afterEach(() => {
   revalidatePathMock.mockClear();
@@ -162,6 +167,49 @@ describe("updatePersonAction (integration)", () => {
     currentSupabase = await signIn(SEEDED_USERS.coordinator);
     const result = await updatePersonAction(person.id, personForm());
     expect(result).toEqual(DENIED);
+    await person.cleanup();
+  });
+});
+
+describe("addOrganizationMembershipAction / removeOrganizationMembershipAction (integration)", () => {
+  test("admin role (people manage) can link and unlink a person and an organization", async () => {
+    const org = await createPerson();
+    const person = await createPerson();
+    currentSupabase = await signIn(SEEDED_USERS.admin);
+
+    const addResult = await addOrganizationMembershipAction(org.id, person.id);
+    expect(addResult).toEqual({ success: true });
+
+    const { data: rows } = await adminClient
+      .from("person_organizations")
+      .select("id")
+      .eq("organization_id", org.id)
+      .eq("person_id", person.id);
+    expect(rows).toHaveLength(1);
+    const membershipId = rows![0].id;
+
+    const removeResult = await removeOrganizationMembershipAction(membershipId);
+    expect(removeResult).toEqual({ success: true });
+
+    const { data: rowsAfterRemove } = await adminClient
+      .from("person_organizations")
+      .select("id")
+      .eq("id", membershipId);
+    expect(rowsAfterRemove).toHaveLength(0);
+
+    await org.cleanup();
+    await person.cleanup();
+  });
+
+  test("event_coordinator role (people view only) cannot link an organization", async () => {
+    const org = await createPerson();
+    const person = await createPerson();
+    currentSupabase = await signIn(SEEDED_USERS.coordinator);
+
+    const result = await addOrganizationMembershipAction(org.id, person.id);
+    expect(result).toEqual(DENIED);
+
+    await org.cleanup();
     await person.cleanup();
   });
 });

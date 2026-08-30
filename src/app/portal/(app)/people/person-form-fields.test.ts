@@ -41,6 +41,7 @@ describe("packPersonFormData", () => {
         is_donor: false,
         is_sponsor: true,
         is_volunteer: false,
+        is_organization: false,
       },
     });
   });
@@ -50,5 +51,11 @@ describe("packPersonFormData", () => {
     const formData = packPersonFormData(form);
     expect(formData.get("isDonor")).toBe("true");
     expect(formData.get("isSponsor")).toBe("false");
+  });
+
+  test("packs isOrganization as its string form", () => {
+    const form = emptyPersonForm("is_donor", true);
+    const formData = packPersonFormData(form);
+    expect(formData.get("isOrganization")).toBe("true");
   });
 });

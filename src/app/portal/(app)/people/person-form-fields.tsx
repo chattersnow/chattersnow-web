@@ -15,9 +15,13 @@ export type PersonFormState = {
   logoUrl: string;
   website: string;
   roles: Record<RoleKey, boolean>;
+  isOrganization: boolean;
 };
 
-export function emptyPersonForm(defaultRole?: RoleKey): PersonFormState {
+export function emptyPersonForm(
+  defaultRole?: RoleKey,
+  defaultIsOrganization = false,
+): PersonFormState {
   return {
     name: "",
     email: "",
@@ -31,6 +35,7 @@ export function emptyPersonForm(defaultRole?: RoleKey): PersonFormState {
       is_sponsor: defaultRole === "is_sponsor",
       is_volunteer: defaultRole === "is_volunteer",
     },
+    isOrganization: defaultIsOrganization,
   };
 }
 
@@ -110,6 +115,19 @@ export function PersonFormFields({
         </div>
       </Field>
 
+      <Field orientation="horizontal">
+        <Checkbox
+          id={`${idPrefix}-isOrganization`}
+          checked={form.isOrganization}
+          onCheckedChange={(checked) =>
+            update("isOrganization", Boolean(checked))
+          }
+        />
+        <FieldLabel htmlFor={`${idPrefix}-isOrganization`}>
+          This is an organization
+        </FieldLabel>
+      </Field>
+
       <Field orientation="responsive">
         <Field>
           <FieldLabel htmlFor={`${idPrefix}-logoUrl`}>Logo URL</FieldLabel>
@@ -157,5 +175,6 @@ export function packPersonFormData(form: PersonFormState) {
   formData.set("isDonor", String(form.roles.is_donor));
   formData.set("isSponsor", String(form.roles.is_sponsor));
   formData.set("isVolunteer", String(form.roles.is_volunteer));
+  formData.set("isOrganization", String(form.isOrganization));
   return formData;
 }

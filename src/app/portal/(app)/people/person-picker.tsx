@@ -32,6 +32,7 @@ export function PersonPicker({
   newPersonRole = "is_sponsor",
   placeholder = "Search by name or email...",
   allowCreate = true,
+  onlyOrganizations = false,
 }: {
   people: PersonListItem[];
   selected: PickedPerson | null;
@@ -40,14 +41,20 @@ export function PersonPicker({
   newPersonRole?: RoleKey;
   placeholder?: string;
   allowCreate?: boolean;
+  /** Restrict search/create to organization people rows. */
+  onlyOrganizations?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState<PersonFormState>(() =>
-    emptyPersonForm(newPersonRole),
+    emptyPersonForm(newPersonRole, onlyOrganizations),
   );
   const [createError, setCreateError] = useState<string | null>(null);
   const [isCreating, startCreateTransition] = useTransition();
+
+  const candidatePeople = onlyOrganizations
+    ? people.filter((person) => person.is_organization)
+    : people;
 
   function updateCreateForm<K extends keyof PersonFormState>(
     key: K,
@@ -59,7 +66,7 @@ export function PersonPicker({
   function reset() {
     setQuery("");
     setShowCreate(false);
-    setCreateForm(emptyPersonForm(newPersonRole));
+    setCreateForm(emptyPersonForm(newPersonRole, onlyOrganizations));
     setCreateError(null);
   }
 
@@ -88,7 +95,7 @@ export function PersonPicker({
   }
 
   const normalizedQuery = query.trim();
-  const matches = filterPeople(people, query);
+  const matches = filterPeople(candidatePeople, query);
 
   function handleCreateSubmit() {
     setCreateError(null);
@@ -145,7 +152,7 @@ export function PersonPicker({
           className="self-start"
           onClick={() => setShowCreate(true)}
         >
-          + Create new person
+          + Create new {onlyOrganizations ? "organization" : "person"}
         </Button>
       ) : (
         <div className="rounded-md border border-[var(--line)] p-3">

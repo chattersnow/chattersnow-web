@@ -2,10 +2,16 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  getCurrentUserPermissions,
+  hasPermission,
+} from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { rolesFor, type PersonRow } from "../people-shared";
+import type { PersonListItem } from "../actions";
+import { type OrganizationMembership, type PersonRow } from "../people-shared";
+import { ProfileCard } from "./profile-card";
+import { OrganizationsCard } from "./organizations-card";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
 
@@ -80,11 +86,13 @@ export default async function PersonDetailPage({
 }) {
   const { id } = await params;
   const supabase = await createSupabaseServerClient();
+  const permissions = await getCurrentUserPermissions(supabase);
+  const canManage = hasPermission(permissions, "people", "manage");
 
   const { data: person } = await supabase
     .from("people")
     .select(
-      "id, name, email, phone, instagram_handle, notes, logo_url, website, is_donor, is_sponsor, is_volunteer, primary_contact_person_id, primary_contact:primary_contact_person_id(id, name, email, phone)",
+      "id, name, email, phone, instagram_handle, notes, logo_url, website, is_donor, is_sponsor, is_volunteer, is_organization, primary_contact_person_id, primary_contact:primary_contact_person_id(id, name, email, phone)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -93,6 +101,8 @@ export default async function PersonDetailPage({
   const personRow = person as unknown as PersonRow;
 
   const [
+    { data: peopleOptions },
+    { data: organizationMemberships },
     { data: donations },
     { data: sponsorships },
     { data: registrations },
@@ -103,6 +113,17 @@ export default async function PersonDetailPage({
     { data: partnershipsAsOwner },
     { data: contactFor },
   ] = await Promise.all([
+    supabase
+      .from("people")
+      .select("id, name, email, phone, is_sponsor, is_organization")
+      .neq("id", id)
+      .order("name", { ascending: true }),
+    supabase
+      .from("person_organizations")
+      .select(
+        "id, role, is_primary, organization:people!organization_id(id, name, email, phone), person:people!person_id(id, name, email, phone)",
+      )
+      .eq(personRow.is_organization ? "organization_id" : "person_id", id),
     supabase
       .from("donations")
       .select("id, donated_at, notes, event:events(id, name, starts_at)")
@@ -151,6 +172,9 @@ export default async function PersonDetailPage({
       .eq("primary_contact_person_id", id),
   ]);
 
+  const peopleOptionRows = (peopleOptions ?? []) as unknown as PersonListItem[];
+  const organizationMembershipRows = (organizationMemberships ??
+    []) as unknown as OrganizationMembership[];
   const donationRows = (donations ?? []) as unknown as Donation[];
   const sponsorshipRows = (sponsorships ?? []) as unknown as Sponsorship[];
   const registrationRows = (registrations ?? []) as unknown as Registration[];
@@ -190,38 +214,8 @@ export default async function PersonDetailPage({
         <div className="rainbow-accent mt-3 w-full" />
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        {rolesFor(personRow).map((role) => (
-          <Badge key={role} variant="secondary">
-            {role}
-          </Badge>
-        ))}
-        {personRow.email && (
-          <span className="app-muted text-sm">{personRow.email}</span>
-        )}
-        {personRow.phone && (
-          <span className="app-muted text-sm">{personRow.phone}</span>
-        )}
-        {personRow.instagram_handle && (
-          <span className="app-muted text-sm">
-            @{personRow.instagram_handle}
-          </span>
-        )}
-      </div>
-
-      {(personRow.primary_contact || contactForRows.length > 0) && (
+      {contactForRows.length > 0 && (
         <div className="app-muted mt-3 flex flex-col gap-1 text-sm">
-          {personRow.primary_contact && (
-            <p>
-              Primary contact:{" "}
-              <Link
-                href={`/portal/people/${personRow.primary_contact.id}`}
-                className="underline underline-offset-2"
-              >
-                {personRow.primary_contact.name ?? "—"}
-              </Link>
-            </p>
-          )}
           {contactForRows.map((org) => (
             <p key={org.id}>
               Contact for:{" "}
@@ -237,6 +231,20 @@ export default async function PersonDetailPage({
       )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <ProfileCard
+          person={personRow}
+          people={peopleOptionRows}
+          canManage={canManage}
+        />
+
+        <OrganizationsCard
+          personId={personRow.id}
+          isOrganization={personRow.is_organization}
+          memberships={organizationMembershipRows}
+          people={peopleOptionRows}
+          canManage={canManage}
+        />
+
         <Card>
           <CardHeader>
             <CardTitle className="app-muted text-sm font-semibold">
