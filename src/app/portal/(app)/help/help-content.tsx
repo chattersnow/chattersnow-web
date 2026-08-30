@@ -255,6 +255,161 @@ export const helpContent: Record<string, HelpEntry> = {
       </>
     ),
   },
+  "/portal/calendar/reports": {
+    title: "How the annual review is counted",
+    description: "What counts toward each metric, and who can see it.",
+    body: (
+      <>
+        <HowToSection heading="What counts">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">
+                Tier 1 items with a decision
+              </strong>{" "}
+              — the share of the selected year&apos;s Tier 1 items (by start
+              date) that have a Plan, Skip, or Defer decision recorded.
+            </li>
+            <li>
+              <strong className="text-foreground">
+                Planned opportunities completed on time
+              </strong>{" "}
+              — of opportunities whose calendar item was decided Plan and has a
+              publish target date, the share published on or before that date.
+            </li>
+            <li>
+              <strong className="text-foreground">Overdue content tasks</strong>{" "}
+              — this year&apos;s opportunities currently past their stage&apos;s
+              due date, using the same overdue logic as the Work queue page.
+            </li>
+            <li>
+              <strong className="text-foreground">
+                Median time to first review
+              </strong>{" "}
+              — median days from a brief being created to it entering review,
+              counted only for opportunities that have a template and are
+              currently <code>in_review</code>.
+            </li>
+            <li>
+              <strong className="text-foreground">
+                Public items with a clear Chatter connection
+              </strong>{" "}
+              — this year&apos;s items that are public, live (active or
+              complete), and have a non-empty Chatter connection recorded on
+              their opportunity.
+            </li>
+            <li>
+              <strong className="text-foreground">
+                Publication permissions recorded
+              </strong>{" "}
+              — a raw count of publication-permission rows tied to this
+              year&apos;s items.
+            </li>
+          </ul>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            <strong className="text-foreground">admin</strong> and{" "}
+            <strong className="text-foreground">event_coordinator</strong> hold
+            manage on this report, while{" "}
+            <strong className="text-foreground">finance</strong>,{" "}
+            <strong className="text-foreground">board</strong>, and{" "}
+            <strong className="text-foreground">volunteer</strong> hold view —
+            since the page has no write actions, every calendar role can see it.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What happens downstream">
+          <p>
+            Changing the Year selector re-runs the whole computation live from
+            that year&apos;s calendar items, opportunities, and permissions —
+            nothing is cached.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Common mistakes">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              Reading &quot;Median time to first review&quot; as a whole-year
+              average — it only reflects opportunities currently sitting in
+              review, so it drops to &quot;—&quot; once everything for the year
+              has moved past review, even though plenty were reviewed during the
+              year.
+            </li>
+            <li>
+              Assuming a metric carries over past years — every figure on this
+              page is scoped to the selected year&apos;s items only.
+            </li>
+          </ul>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/calendar/program-suggestions": {
+    title: "How program suggestions work",
+    description:
+      "Rules that surface dismissible program chips in the item editor.",
+    body: (
+      <>
+        <HowToSection heading="Steps">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">
+                Item type and category
+              </strong>{" "}
+              — each is optional, but at least one is required. Leaving one
+              blank makes it a wildcard for that dimension (matches any value),
+              while setting both narrows the rule to just that combination —
+              e.g. community observance + LGBTQ+ community.
+            </li>
+            <li>
+              <strong className="text-foreground">Active toggle</strong> —
+              deactivate a rule to stop it from suggesting without deleting it.
+            </li>
+          </ol>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            Anyone with view access to the content calendar can see this list;
+            manage access — the same <code>content_calendar</code> permission as
+            calendar items themselves, not a separate resource — is needed to
+            create, edit, deactivate, or delete rules.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What happens downstream">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              Matched rules produce dismissible &quot;Suggested&quot; chips next
+              to Related programs, in both the new-item dialog and an existing
+              item&apos;s edit view — clicking one adds the program, but nothing
+              is added automatically.
+            </li>
+            <li>
+              A program already added to the item is never suggested again, even
+              if a rule still matches it.
+            </li>
+            <li>
+              Editing or deactivating a rule only changes what&apos;s suggested
+              going forward — it doesn&apos;t touch programs already added to
+              any calendar item.
+            </li>
+          </ul>
+        </HowToSection>
+        <HowToSection heading="Common mistakes">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              An item-type-only (or category-only) rule matches every value of
+              the dimension left blank — e.g. an item-type-only rule suggests
+              its program for that type regardless of category, which can be
+              broader than intended.
+            </li>
+            <li>
+              Expecting a rule change to retroactively update an item&apos;s
+              Related programs — it won&apos;t; only a fresh look at the editor
+              re-evaluates suggestions.
+            </li>
+          </ul>
+        </HowToSection>
+      </>
+    ),
+  },
   "/portal/inventory/distribution": {
     title: "How distribution works",
     description: "Recording items leaving inventory.",
@@ -307,6 +462,158 @@ export const helpContent: Record<string, HelpEntry> = {
             <li>
               Leaving the recipient blank for a personal handout makes the item
               impossible to trace back to who took it later.
+            </li>
+          </ul>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/inventory/reports": {
+    title: "How inventory valuation is counted",
+    description: "What counts toward each figure, and the date window it uses.",
+    body: (
+      <>
+        <HowToSection heading="What counts">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">
+                Total on-hand value and Items on-hand
+              </strong>{" "}
+              — the face value and count of every item currently in{" "}
+              <strong className="text-foreground">Available</strong> status.
+              This is a live snapshot, not scoped to the date range below.
+            </li>
+            <li>
+              <strong className="text-foreground">
+                Value donated and Value distributed
+              </strong>{" "}
+              — face value times quantity of <code>received</code> and{" "}
+              <code>distributed</code> movements whose date falls in the From/To
+              range, which defaults to the current month.
+            </li>
+            <li>
+              <strong className="text-foreground">
+                On-hand value by type and by status
+              </strong>{" "}
+              — by type covers Available items only; by status breaks all seven
+              statuses (Available, Reserved, Distributed, Damaged, Lost,
+              Retired, Other) out separately. Neither is affected by the date
+              range.
+            </li>
+          </ul>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            <strong className="text-foreground">admin</strong> holds manage and{" "}
+            <strong className="text-foreground">finance</strong> holds view;{" "}
+            <strong className="text-foreground">event_coordinator</strong>,{" "}
+            <strong className="text-foreground">board</strong>, and{" "}
+            <strong className="text-foreground">volunteer</strong> have no
+            access at all, even though volunteer can record donations and
+            distributions elsewhere in Inventory.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What happens downstream">
+          <p>
+            Changing the date range only re-runs Value donated and Value
+            distributed — the on-hand cards and tables always reflect the
+            catalog&apos;s current state. Nothing here is cached.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Common mistakes">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              Expecting Value donated for a range to match items still shown
+              Available today — it only reflects when the <code>received</code>{" "}
+              movement happened, not an item&apos;s current status, so a donated
+              item since reserved or distributed still counts.
+            </li>
+            <li>
+              Reading the Distributed row in the by-status table as the same
+              number as Value distributed for the selected range — the by-status
+              count is a current-status snapshot with no date filter, while
+              Value distributed is movement-based and scoped to the range, so
+              they can diverge.
+            </li>
+          </ul>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/inventory/donations": {
+    title: "How donation intake works",
+    description:
+      "Recording a donor and items together, and what's fixed after.",
+    body: (
+      <>
+        <HowToSection heading="Steps">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">Add donation</strong> —
+              creates the donor and every item in one step; at least one item is
+              required.
+            </li>
+            <li>
+              <strong className="text-foreground">Donor</strong> — marking a
+              donation Anonymous always creates a fresh donor record. A named
+              donor with an email is matched against an existing People record
+              by that email first, so repeat donations from the same person link
+              to one record instead of duplicating it. Donor source (Individual,
+              Brand, Organization, Event, Other) is recorded per donation.
+            </li>
+            <li>
+              <strong className="text-foreground">Items</strong> — each item
+              becomes its own inventory item with Available status and a{" "}
+              <code>received</code> movement of quantity 1, which is what feeds
+              the{" "}
+              <Link
+                href="/portal/inventory/reports"
+                className="underline hover:text-foreground"
+              >
+                Inventory Reports
+              </Link>{" "}
+              &quot;Value donated&quot; figure.
+            </li>
+          </ol>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            Seeing this list needs inventory view or manage access on{" "}
+            <strong className="text-foreground">
+              Donation intake &amp; distribution
+            </strong>{" "}
+            — in practice <strong className="text-foreground">admin</strong> and{" "}
+            <strong className="text-foreground">volunteer</strong>. Recording a
+            new donation needs that same intake access, but editing an existing
+            one afterward needs full Inventory or Finance manage instead — so a
+            volunteer can add a donation but can&apos;t edit it once it&apos;s
+            saved.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What happens downstream">
+          <p>
+            Donated items appear immediately in the{" "}
+            <Link
+              href="/portal/inventory/items"
+              className="underline hover:text-foreground"
+            >
+              Items catalog
+            </Link>{" "}
+            and count toward Inventory Reports for the date they were received.
+            It&apos;s written to the audit log.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Common mistakes">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              Expecting the edit sheet to fix a wrong donor name, source, or
+              item — editing a donation only changes the date received and
+              notes; donor identity and items are fixed at intake.
+            </li>
+            <li>
+              A volunteer expecting to edit a donation they just added — that
+              needs Inventory or Finance manage access, which the intake
+              carve-out doesn&apos;t grant.
             </li>
           </ul>
         </HowToSection>
@@ -371,6 +678,71 @@ export const helpContent: Record<string, HelpEntry> = {
               versa) — decisions are lightweight per-meeting entries, while
               resolutions carry motion text, a mover/seconder, and an effective
               date for the formal record.
+            </li>
+          </ul>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/governance/resolutions": {
+    title: "How resolutions work",
+    description:
+      "One shared list — the full record here, a meeting's own subset there.",
+    body: (
+      <>
+        <HowToSection heading="Steps">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">Same table, two views</strong>{" "}
+              — this page and a meeting&apos;s own Resolutions tab read and
+              write the exact same records. This page lists every resolution
+              across all meetings, plus any recorded with no meeting attached; a
+              meeting&apos;s tab shows only that meeting&apos;s.
+            </li>
+            <li>
+              <strong className="text-foreground">Meeting is optional</strong> —
+              attach one to tie the motion to that meeting&apos;s record, or
+              leave it unset for a resolution recorded independently.
+            </li>
+            <li>
+              Motion text and a mover are required; seconder, vote outcome
+              (pending, passed, failed, tabled), and effective date fill out the
+              formal record.
+            </li>
+          </ol>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            <strong className="text-foreground">admin</strong> and{" "}
+            <strong className="text-foreground">board</strong> hold manage on
+            governance, which covers meetings, decisions, and resolutions
+            together; no other role has access.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What happens downstream">
+          <p>
+            Adding, editing, or deleting a resolution from either place shows up
+            immediately in the other — it&apos;s the same row, just filtered
+            differently.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Common mistakes">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              Assuming this page and a meeting&apos;s Resolutions tab track
+              separate records — editing one is editing the same row seen on the
+              other.
+            </li>
+            <li>
+              Recording a routine vote here instead of as a Decision on the
+              meeting&apos;s own tab — see{" "}
+              <Link
+                href="/portal/governance/meetings"
+                className="underline hover:text-foreground"
+              >
+                Meetings
+              </Link>{" "}
+              for that distinction.
             </li>
           </ul>
         </HowToSection>
@@ -453,6 +825,60 @@ export const helpContent: Record<string, HelpEntry> = {
       </>
     ),
   },
+  "/portal/finance/revenue": {
+    title: "How event revenue works",
+    description: "Recording non-sponsorship income, and where it's counted.",
+    body: (
+      <>
+        <HowToSection heading="Steps">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">Source</strong> — ticket
+              sales, registration fees, merchandise, onsite donations, grants,
+              or other. Event and notes are optional.
+            </li>
+            <li>
+              <strong className="text-foreground">Not for sponsorships</strong>{" "}
+              — sponsorship commitments are tracked on the event&apos;s own
+              Sponsors tab instead, so a sponsorship recorded here would double
+              count against that.
+            </li>
+          </ol>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            <strong className="text-foreground">admin</strong>,{" "}
+            <strong className="text-foreground">event_coordinator</strong>, and{" "}
+            <strong className="text-foreground">finance</strong> all hold
+            manage; <strong className="text-foreground">board</strong> and{" "}
+            <strong className="text-foreground">volunteer</strong> have no
+            access at all — unlike most other Finance pages, there&apos;s no
+            view-only tier here.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What happens downstream">
+          <p>
+            Each record counts toward{" "}
+            <Link
+              href="/portal/finance/reports"
+              className="underline hover:text-foreground"
+            >
+              Finance Reports
+            </Link>
+            &apos;s Income figure, by the date it was received, and is written
+            to the audit log.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Common mistakes">
+          <p>
+            Recording a sponsor&apos;s commitment here instead of under the
+            event&apos;s Sponsors tab — this table deliberately excludes
+            sponsorship so a future combined rollup doesn&apos;t count it twice.
+          </p>
+        </HowToSection>
+      </>
+    ),
+  },
   "/portal/volunteers/participation": {
     title: "How hours logging works",
     description: "Logging volunteer hours and where they roll up.",
@@ -507,6 +933,342 @@ export const helpContent: Record<string, HelpEntry> = {
               Trying to log hours for another volunteer without manage access —
               the entry is rejected, since logging access only covers your own
               hours.
+            </li>
+          </ul>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/volunteers/applications": {
+    title: "How volunteer applications work",
+    description: "The status lifecycle, and who can move an application along.",
+    body: (
+      <>
+        <HowToSection heading="Steps">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">
+                new → being reviewed → contacted → placed
+              </strong>{" "}
+              — the expected path, or{" "}
+              <strong className="text-foreground">declined</strong> /{" "}
+              <strong className="text-foreground">closed</strong> at any point.
+              Nothing advances automatically — someone with manage access sets
+              each status from the application&apos;s details sheet.
+            </li>
+            <li>
+              <strong className="text-foreground">
+                Not linked to People or Roles
+              </strong>{" "}
+              — marking an application <code>placed</code> doesn&apos;t create
+              or attach a People record or a role-type assignment on its own; do
+              that separately if the applicant is joining as a volunteer.
+            </li>
+          </ol>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            <strong className="text-foreground">admin</strong>,{" "}
+            <strong className="text-foreground">event_coordinator</strong>, and{" "}
+            <strong className="text-foreground">volunteer</strong> can all view
+            this list, but only{" "}
+            <strong className="text-foreground">admin</strong> holds manage on
+            Volunteers — the status dropdown only appears for admin; everyone
+            else sees the current status as read-only text.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What happens downstream">
+          <p>
+            A status change only updates this record — there&apos;s no automated
+            email to the applicant and nothing else in the portal reacts to it.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Common mistakes">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              Assuming <code>placed</code> means the person is now set up as a
+              volunteer elsewhere — it doesn&apos;t touch{" "}
+              <Link
+                href="/portal/people"
+                className="underline hover:text-foreground"
+              >
+                People
+              </Link>{" "}
+              or{" "}
+              <Link
+                href="/portal/volunteers/roles"
+                className="underline hover:text-foreground"
+              >
+                Roles
+              </Link>
+              , so follow up manually if they&apos;ll keep volunteering.
+            </li>
+            <li>
+              Expecting an event_coordinator to advance a status — they can open
+              and read an application, but the Status control stays disabled
+              since they hold view, not manage.
+            </li>
+          </ul>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/programs/reports": {
+    title: "How the program impact rollup is counted",
+    description: "What feeds each figure, and the event-linkage it needs.",
+    body: (
+      <>
+        <HowToSection heading="What counts">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">
+                Participants, first-time, beginner, and assistance figures
+              </strong>{" "}
+              — summed from each event&apos;s impact note. An event with no
+              impact note recorded contributes zero to all of them.
+            </li>
+            <li>
+              <strong className="text-foreground">Equipment distributed</strong>{" "}
+              — summed from inventory movements of type <code>distributed</code>{" "}
+              tied to the program&apos;s events; this is separate from{" "}
+              <strong className="text-foreground">Equipment loans</strong>,
+              which is self-reported on the impact note instead.
+            </li>
+            <li>
+              <strong className="text-foreground">Volunteer hours</strong> —
+              summed only from hours entries tied to one of the program&apos;s
+              events; hours logged with no event, or against an event not
+              assigned to this program, don&apos;t count.
+            </li>
+            <li>
+              <strong className="text-foreground">Repeat participants</strong> —
+              people registered for two or more of the program&apos;s events.
+            </li>
+          </ul>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            <strong className="text-foreground">admin</strong> and{" "}
+            <strong className="text-foreground">event_coordinator</strong> hold
+            manage, <strong className="text-foreground">finance</strong> and{" "}
+            <strong className="text-foreground">board</strong> hold view, and{" "}
+            <strong className="text-foreground">volunteer</strong> has no access
+            — a narrower split than most other reports, since this rollup
+            surfaces per-event financial-assistance figures.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What happens downstream">
+          <p>
+            There&apos;s no date range — each season is its own{" "}
+            <Link
+              href="/portal/programs"
+              className="underline hover:text-foreground"
+            >
+              program
+            </Link>{" "}
+            row, so selecting a program rolls up every event ever assigned to
+            it, computed live with nothing cached.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Common mistakes">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              Logging volunteer hours without tying the entry to an event, or to
+              an event that isn&apos;t assigned to this program — either way
+              those hours won&apos;t reach this rollup.
+            </li>
+            <li>
+              Expecting an event to count just because it&apos;s scheduled — the
+              participant and assistance figures only show up once someone
+              records that event&apos;s impact note.
+            </li>
+          </ul>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/administration/access-management": {
+    title: "How access management works",
+    description: "Sensitivity, review cadence, and the access grant lifecycle.",
+    body: (
+      <>
+        <HowToSection heading="Steps">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">Sensitivity</strong> — Low,
+              Medium, High, or Critical drives how often the asset should be
+              reviewed (annually for Low/Medium, every 6 months for High, every
+              3 for Critical) and the expected MFA and two-admin coverage for
+              it.
+            </li>
+            <li>
+              <strong className="text-foreground">Record review</strong> — sets
+              Last reviewed to today and computes Next review from that cadence.
+            </li>
+            <li>
+              <strong className="text-foreground">Access grants</strong> — add a
+              grant per person with an access level and optional expiry; Verify
+              logs a check without changing anything else; Revoke ends it for
+              good.
+            </li>
+          </ol>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            Unlike the rest of Administration, this page isn&apos;t admin-only:
+            manage access on{" "}
+            <strong className="text-foreground">
+              Access management assets
+            </strong>{" "}
+            covers everything above, while manage access on{" "}
+            <strong className="text-foreground">
+              Access management reviews
+            </strong>{" "}
+            only covers Record review and Verify — not creating, editing, or
+            deleting assets or grants.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What happens downstream">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              Sensitivity&apos;s review cadence and MFA/two-admin expectations
+              are advisory only — nothing blocks saving an asset that falls
+              short of its own tier&apos;s expectations.
+            </li>
+            <li>
+              A grant past its Expires date isn&apos;t automatically marked
+              expired or revoked — it stays active until someone verifies or
+              revokes it.
+            </li>
+            <li>
+              Revoking a grant keeps the row for the audit trail rather than
+              deleting it; re-adding the same person afterward creates a new
+              grant instead of reactivating the old one.
+            </li>
+          </ul>
+        </HowToSection>
+        <HowToSection heading="Common mistakes">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              This is not a credential store — never enter a password, API key,
+              token, or recovery code; Account identifier is only an email or
+              username.
+            </li>
+            <li>
+              The asset page&apos;s Audit history card only shows changes to the
+              asset record itself (name, sensitivity, review dates, and so on) —
+              grant activity lives in the full{" "}
+              <Link
+                href="/portal/administration/audit-log?table=access_grants"
+                className="underline hover:text-foreground"
+              >
+                audit log
+              </Link>
+              , filtered to Access grants.
+            </li>
+          </ul>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/administration/roles": {
+    title: "How roles work",
+    description: "Creating roles that the permissions matrix grants access to.",
+    body: (
+      <>
+        <HowToSection heading="Steps">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              Give the role a name and optional description — that&apos;s all
+              this page does.
+            </li>
+            <li>
+              Grant it access on the{" "}
+              <Link
+                href="/portal/administration/permissions"
+                className="underline hover:text-foreground"
+              >
+                Permissions
+              </Link>{" "}
+              page — a new role starts with no access to anything until
+              it&apos;s granted there.
+            </li>
+          </ol>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            Only <strong className="text-foreground">admin</strong> — this page
+            is admin-only like the rest of Administration.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What happens downstream">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              The built-in roles (admin, event_coordinator, finance, board,
+              volunteer) can&apos;t be renamed or deleted from here.
+            </li>
+            <li>
+              A role still assigned to any user can&apos;t be deleted either —
+              the error names how many users are affected.
+            </li>
+          </ul>
+        </HowToSection>
+        <HowToSection heading="Common mistakes">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              Creating a role and assigning someone to it without ever visiting
+              Permissions leaves that person with no page access at all.
+            </li>
+          </ul>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/administration/audit-log": {
+    title: "How the audit log works",
+    description: "What's tracked automatically, and what isn't yet.",
+    body: (
+      <>
+        <HowToSection heading="Steps">
+          <p>
+            Filter by table, action, actor, and date range, then open a row to
+            see the change itself — a before/after diff for an update, or the
+            full record for an insert or delete.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            Only <strong className="text-foreground">admin</strong> — this page
+            is view-only and admin-only like the rest of Administration.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What's tracked">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              Most write-heavy portal records are logged automatically:
+              donations, inventory, event expenses, user roles, app settings,
+              calendar items, content opportunities, and access
+              management&apos;s services, assets, and grants, among others.
+            </li>
+            <li>
+              Governance records (meetings, decisions, resolutions) and event
+              edits aren&apos;t written here yet — see those pages&apos; own
+              guidance.
+            </li>
+            <li>
+              The Table filter above doesn&apos;t yet list every audited table —
+              reimbursements, event revenue, deactivated users, and monetary
+              donations are logged but only show up while it&apos;s left on
+              &quot;All tables&quot;.
+            </li>
+          </ul>
+        </HowToSection>
+        <HowToSection heading="Common mistakes">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              Assuming a table missing from the filter dropdown isn&apos;t
+              tracked — check &quot;All tables&quot; first before concluding
+              that.
             </li>
           </ul>
         </HowToSection>
@@ -707,6 +1469,108 @@ export const helpContent: Record<string, HelpEntry> = {
               have another admin do it if you&apos;re stepping back.
             </li>
           </ul>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/people": {
+    title: "How the People directory works",
+    description:
+      "Contact records for donors, sponsors, and volunteers — not portal logins.",
+    body: (
+      <>
+        <HowToSection heading="Steps">
+          <p>
+            <strong className="text-foreground">
+              Donor, Sponsor, and Volunteer
+            </strong>{" "}
+            are independent flags on one contact record, not separate lists — a
+            single person can hold any combination. Filter by role or search
+            name, email, or phone.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            <strong className="text-foreground">admin</strong> holds manage;{" "}
+            <strong className="text-foreground">event_coordinator</strong> and{" "}
+            <strong className="text-foreground">finance</strong> hold view-only;{" "}
+            <strong className="text-foreground">board</strong> and{" "}
+            <strong className="text-foreground">volunteer</strong> have no
+            access to this page.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What happens downstream">
+          <p>
+            Other modules link back here — a named{" "}
+            <Link
+              href="/portal/inventory/donations"
+              className="underline hover:text-foreground"
+            >
+              donation
+            </Link>
+            &apos;s donor, or a{" "}
+            <Link
+              href="/portal/governance/resolutions"
+              className="underline hover:text-foreground"
+            >
+              resolution
+            </Link>
+            &apos;s mover and seconder, are all People records.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Common mistakes">
+          <p>
+            Confusing this with{" "}
+            <Link
+              href="/portal/administration/users"
+              className="underline hover:text-foreground"
+            >
+              Administration &gt; Users
+            </Link>{" "}
+            — People is a contact directory with no bearing on portal access;
+            adding someone here doesn&apos;t give them a login, and giving
+            someone a login doesn&apos;t add them here.
+          </p>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/communications": {
+    title: "How message triage works",
+    description: "The status lifecycle for contact-form submissions.",
+    body: (
+      <>
+        <HowToSection heading="Steps">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">new → read → resolved</strong>{" "}
+              is the expected path, but nothing enforces the order — status can
+              be set directly to any value.
+            </li>
+            <li>
+              Opening a <code>new</code> message&apos;s details automatically
+              marks it <code>read</code>.
+            </li>
+          </ol>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            Only <strong className="text-foreground">admin</strong> — no other
+            role has any access to Communications, not even view.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What happens downstream">
+          <p>
+            Nothing — this is purely internal triage bookkeeping. Changing the
+            status doesn&apos;t send a reply or notify the submitter.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Common mistakes">
+          <p>
+            Opening a message just to skim it moves it out of <code>new</code>{" "}
+            automatically — if you&apos;re relying on that filter to track
+            what&apos;s unread, browsing a message clears it.
+          </p>
         </HowToSection>
       </>
     ),

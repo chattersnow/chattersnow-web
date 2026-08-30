@@ -61,7 +61,7 @@ describe("HelpButton", () => {
   });
 
   test("falls back to portal basics when no entry matches", async () => {
-    pathname = "/portal/people";
+    pathname = "/portal/programs";
     const user = userEvent.setup();
     renderHelpButton();
 
