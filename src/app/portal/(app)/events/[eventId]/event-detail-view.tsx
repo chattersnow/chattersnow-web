@@ -229,17 +229,19 @@ export function EventDetailView({
         onValueChange={(value) => setPhaseKey(value as PhaseKey)}
         className="mt-6"
       >
-        <TabsList variant="line" className="flex-wrap">
-          {PHASES.map((phase) => {
-            const status = phaseStatus(phase.key, event);
-            return (
-              <TabsTrigger key={phase.key} value={phase.key}>
-                {phase.key === "basic" ? "Overview" : phase.label}
-                {status && <PhaseStatusBadge status={status} />}
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
+        <div className="rainbow-surface flex flex-wrap items-center gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+          <TabsList variant="line" className="flex-wrap">
+            {PHASES.map((phase) => {
+              const status = phaseStatus(phase.key, event);
+              return (
+                <TabsTrigger key={phase.key} value={phase.key}>
+                  {phase.key === "basic" ? "Overview" : phase.label}
+                  {status && <PhaseStatusBadge status={status} />}
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </div>
 
         {PHASES.map((phase) => (
           <TabsContent key={phase.key} value={phase.key} className="mt-4">

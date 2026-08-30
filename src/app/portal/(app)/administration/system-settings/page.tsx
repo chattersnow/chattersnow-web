@@ -50,10 +50,12 @@ export default async function SystemSettingsPage() {
       </div>
 
       <Tabs defaultValue="workflow" className="mt-6">
-        <TabsList variant="line">
-          <TabsTrigger value="workflow">Workflow settings</TabsTrigger>
-          <TabsTrigger value="images">Image settings</TabsTrigger>
-        </TabsList>
+        <div className="rainbow-surface flex flex-wrap items-center gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+          <TabsList variant="line">
+            <TabsTrigger value="workflow">Workflow settings</TabsTrigger>
+            <TabsTrigger value="images">Image settings</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="workflow" className="mt-6 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">

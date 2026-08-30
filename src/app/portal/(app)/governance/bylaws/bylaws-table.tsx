@@ -33,7 +33,11 @@ export function BylawsTable({
   if (bylaws.length === 0) {
     return (
       <div className="space-y-4">
-        {canManage && <NewBylawsDialog />}
+        {canManage && (
+          <div className="rainbow-surface flex flex-wrap items-center justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+            <NewBylawsDialog />
+          </div>
+        )}
         <Card>
           <CardContent className="px-0">
             <p className="app-muted px-4 py-6 text-sm">
@@ -49,7 +53,11 @@ export function BylawsTable({
 
   return (
     <div className="space-y-6">
-      {canManage && <NewBylawsDialog />}
+      {canManage && (
+        <div className="rainbow-surface flex flex-wrap items-center justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+          <NewBylawsDialog />
+        </div>
+      )}
 
       <Card>
         <CardContent className="flex flex-col gap-2">

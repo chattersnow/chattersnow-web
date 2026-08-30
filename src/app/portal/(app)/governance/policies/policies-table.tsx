@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { ReactNode, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { FiltersSheet } from "@/components/filters-sheet";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -37,9 +36,11 @@ function formatDate(value: string | null) {
 export function PoliciesTable({
   policies,
   canManage,
+  newAction,
 }: {
   policies: Policy[];
   canManage: boolean;
+  newAction?: ReactNode;
 }) {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState(FILTER_ALL);
@@ -63,27 +64,10 @@ export function PoliciesTable({
     });
   }, [policies, search, categoryFilter]);
 
-  const activeFilterCount = [
-    search.trim() !== "",
-    categoryFilter !== FILTER_ALL,
-  ].filter(Boolean).length;
-
-  if (policies.length === 0) {
-    return (
-      <Card>
-        <CardContent className="px-0">
-          <p className="app-muted px-4 py-6 text-sm">
-            No policies recorded yet.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <div className="space-y-4">
-      <div className="rainbow-surface flex justify-end rounded-xl border border-[var(--line)] p-4 shadow-md">
-        <FiltersSheet activeCount={activeFilterCount}>
+      <div className="rainbow-surface flex flex-wrap items-end justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+        <div className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1">
             <label
               htmlFor="policies-search"
@@ -93,6 +77,7 @@ export function PoliciesTable({
             </label>
             <Input
               id="policies-search"
+              className="w-56"
               placeholder="Search policy name..."
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -120,53 +105,67 @@ export function PoliciesTable({
               </SelectContent>
             </Select>
           </div>
-        </FiltersSheet>
+        </div>
+
+        {newAction}
       </div>
 
-      <Card>
-        <CardContent className="px-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Version</TableHead>
-                <TableHead>Effective date</TableHead>
-                <TableHead className="w-0">
-                  <span className="sr-only">Actions</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {visiblePolicies.length === 0 ? (
+      {policies.length === 0 ? (
+        <Card>
+          <CardContent className="px-0">
+            <p className="app-muted px-4 py-6 text-sm">
+              No policies recorded yet.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="px-0">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="app-muted text-center">
-                    No policies match your filters.
-                  </TableCell>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Version</TableHead>
+                  <TableHead>Effective date</TableHead>
+                  <TableHead className="w-0">
+                    <span className="sr-only">Actions</span>
+                  </TableHead>
                 </TableRow>
-              ) : (
-                visiblePolicies.map((policy) => (
-                  <TableRow key={policy.id}>
-                    <TableCell className="font-medium">{policy.name}</TableCell>
-                    <TableCell className="app-muted">
-                      {policy.category || "—"}
-                    </TableCell>
-                    <TableCell className="app-muted">
-                      {policy.version}
-                    </TableCell>
-                    <TableCell className="app-muted">
-                      {formatDate(policy.effective_date)}
-                    </TableCell>
-                    <TableCell>
-                      {canManage && <EditPolicyModal policy={policy} />}
+              </TableHeader>
+              <TableBody>
+                {visiblePolicies.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="app-muted text-center">
+                      No policies match your filters.
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                ) : (
+                  visiblePolicies.map((policy) => (
+                    <TableRow key={policy.id}>
+                      <TableCell className="font-medium">
+                        {policy.name}
+                      </TableCell>
+                      <TableCell className="app-muted">
+                        {policy.category || "—"}
+                      </TableCell>
+                      <TableCell className="app-muted">
+                        {policy.version}
+                      </TableCell>
+                      <TableCell className="app-muted">
+                        {formatDate(policy.effective_date)}
+                      </TableCell>
+                      <TableCell>
+                        {canManage && <EditPolicyModal policy={policy} />}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

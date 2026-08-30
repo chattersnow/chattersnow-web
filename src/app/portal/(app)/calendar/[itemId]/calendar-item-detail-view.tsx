@@ -146,118 +146,117 @@ export function CalendarItemDetailView({
 
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div className="w-fit">
-            <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-              {item.title}
-            </h1>
-            <div className="rainbow-accent mt-3 w-full" />
-          </div>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <PriorityTierBadge tier={item.priority_tier} />
-            <CalendarStatusBadge status={item.calendar_status} />
-            <CalendarVisibilityBadge visibility={item.visibility} />
-            {needsDecision(item) && <NeedsDecisionFlag />}
-            {isPastUndecided(item) && <PastUndecidedFlag />}
-            {needsSensitiveReview(item) && <NeedsSensitiveReviewFlag />}
-          </div>
+      <div>
+        <div className="w-fit">
+          <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+            {item.title}
+          </h1>
+          <div className="rainbow-accent mt-3 w-full" />
         </div>
-        {canManage && (
-          <div className="flex shrink-0 items-center gap-2">
-            {hasStructuredRecurrence(item) && (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="icon-sm"
-                      aria-label="Generate next year"
-                      disabled={isPending}
-                      onClick={handleGenerateNextYear}
-                    />
-                  }
-                >
-                  {isPending ? <Spinner /> : <CalendarPlus />}
-                </TooltipTrigger>
-                <TooltipContent>Generate next year</TooltipContent>
-              </Tooltip>
-            )}
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="icon-sm"
-                    aria-label="Duplicate"
-                    disabled={isPending}
-                    onClick={handleDuplicate}
-                  />
-                }
-              >
-                {isPending ? <Spinner /> : <Copy />}
-              </TooltipTrigger>
-              <TooltipContent>Duplicate</TooltipContent>
-            </Tooltip>
-            {item.calendar_status === "archived" ? (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="icon-sm"
-                      aria-label="Restore"
-                      disabled={isPending}
-                      onClick={handleRestore}
-                    />
-                  }
-                >
-                  {isPending ? <Spinner /> : <ArchiveRestore />}
-                </TooltipTrigger>
-                <TooltipContent>Restore</TooltipContent>
-              </Tooltip>
-            ) : (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="icon-sm"
-                      aria-label="Archive"
-                      disabled={isPending}
-                      onClick={handleArchive}
-                    />
-                  }
-                >
-                  {isPending ? <Spinner /> : <Archive />}
-                </TooltipTrigger>
-                <TooltipContent>Archive</TooltipContent>
-              </Tooltip>
-            )}
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="icon-sm"
-                    aria-label="Delete calendar item"
-                    disabled={isPending}
-                    onClick={() => setConfirmDelete(true)}
-                  />
-                }
-              >
-                {isPending ? <Spinner /> : <Trash2 />}
-              </TooltipTrigger>
-              <TooltipContent>Delete calendar item</TooltipContent>
-            </Tooltip>
-          </div>
-        )}
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <PriorityTierBadge tier={item.priority_tier} />
+          <CalendarStatusBadge status={item.calendar_status} />
+          <CalendarVisibilityBadge visibility={item.visibility} />
+          {needsDecision(item) && <NeedsDecisionFlag />}
+          {isPastUndecided(item) && <PastUndecidedFlag />}
+          {needsSensitiveReview(item) && <NeedsSensitiveReviewFlag />}
+        </div>
       </div>
+
+      {canManage && (
+        <div className="rainbow-surface mt-6 flex flex-wrap items-center justify-end gap-2 rounded-xl border border-[var(--line)] p-4 shadow-md">
+          {hasStructuredRecurrence(item) && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon-sm"
+                    aria-label="Generate next year"
+                    disabled={isPending}
+                    onClick={handleGenerateNextYear}
+                  />
+                }
+              >
+                {isPending ? <Spinner /> : <CalendarPlus />}
+              </TooltipTrigger>
+              <TooltipContent>Generate next year</TooltipContent>
+            </Tooltip>
+          )}
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon-sm"
+                  aria-label="Duplicate"
+                  disabled={isPending}
+                  onClick={handleDuplicate}
+                />
+              }
+            >
+              {isPending ? <Spinner /> : <Copy />}
+            </TooltipTrigger>
+            <TooltipContent>Duplicate</TooltipContent>
+          </Tooltip>
+          {item.calendar_status === "archived" ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon-sm"
+                    aria-label="Restore"
+                    disabled={isPending}
+                    onClick={handleRestore}
+                  />
+                }
+              >
+                {isPending ? <Spinner /> : <ArchiveRestore />}
+              </TooltipTrigger>
+              <TooltipContent>Restore</TooltipContent>
+            </Tooltip>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon-sm"
+                    aria-label="Archive"
+                    disabled={isPending}
+                    onClick={handleArchive}
+                  />
+                }
+              >
+                {isPending ? <Spinner /> : <Archive />}
+              </TooltipTrigger>
+              <TooltipContent>Archive</TooltipContent>
+            </Tooltip>
+          )}
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon-sm"
+                  aria-label="Delete calendar item"
+                  disabled={isPending}
+                  onClick={() => setConfirmDelete(true)}
+                />
+              }
+            >
+              {isPending ? <Spinner /> : <Trash2 />}
+            </TooltipTrigger>
+            <TooltipContent>Delete calendar item</TooltipContent>
+          </Tooltip>
+        </div>
+      )}
 
       {error && (
         <Alert variant="destructive" className="mt-4">

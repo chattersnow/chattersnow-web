@@ -149,10 +149,12 @@ export function MeetingDetailView({
         onValueChange={(value) => setTab(value as TabValue)}
         className="mt-6"
       >
-        <TabsList variant="line" className="flex-wrap">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="agenda">Agenda</TabsTrigger>
-        </TabsList>
+        <div className="rainbow-surface flex flex-wrap items-center gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+          <TabsList variant="line" className="flex-wrap">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="agenda">Agenda</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="overview" className="mt-4">
           <div className="flex flex-col gap-6">

@@ -2,7 +2,6 @@
 
 import { ReactNode, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { FiltersSheet } from "@/components/filters-sheet";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -65,15 +64,10 @@ export function BoardMembersTable({
     });
   }, [boardMembers, search, statusFilter]);
 
-  const activeFilterCount = [
-    search.trim() !== "",
-    statusFilter !== FILTER_ACTIVE,
-  ].filter(Boolean).length;
-
   return (
     <div className="space-y-4">
-      <div className="rainbow-surface flex flex-wrap items-center justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
-        <FiltersSheet activeCount={activeFilterCount}>
+      <div className="rainbow-surface flex flex-wrap items-end justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+        <div className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1">
             <label
               htmlFor="board-members-search"
@@ -83,6 +77,7 @@ export function BoardMembersTable({
             </label>
             <Input
               id="board-members-search"
+              className="w-56"
               placeholder="Search name or role..."
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -114,7 +109,7 @@ export function BoardMembersTable({
               </SelectContent>
             </Select>
           </div>
-        </FiltersSheet>
+        </div>
 
         {newAction}
       </div>

@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { ReactNode, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { FiltersSheet } from "@/components/filters-sheet";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -51,11 +50,13 @@ export function ResolutionsTable({
   people,
   meetings,
   canManage,
+  newAction,
 }: {
   resolutions: Resolution[];
   people: PersonListItem[];
   meetings: ResolutionMeetingOption[];
   canManage: boolean;
+  newAction?: ReactNode;
 }) {
   const [search, setSearch] = useState("");
   const [outcomeFilter, setOutcomeFilter] = useState(FILTER_ALL);
@@ -77,27 +78,10 @@ export function ResolutionsTable({
     });
   }, [resolutions, search, outcomeFilter]);
 
-  const activeFilterCount = [
-    search.trim() !== "",
-    outcomeFilter !== FILTER_ALL,
-  ].filter(Boolean).length;
-
-  if (resolutions.length === 0) {
-    return (
-      <Card>
-        <CardContent className="px-0">
-          <p className="app-muted px-4 py-6 text-sm">
-            No resolutions recorded yet.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <div className="space-y-4">
-      <div className="rainbow-surface flex justify-end rounded-xl border border-[var(--line)] p-4 shadow-md">
-        <FiltersSheet activeCount={activeFilterCount}>
+      <div className="rainbow-surface flex flex-wrap items-end justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+        <div className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1">
             <label
               htmlFor="resolutions-search"
@@ -107,6 +91,7 @@ export function ResolutionsTable({
             </label>
             <Input
               id="resolutions-search"
+              className="w-56"
               placeholder="Search motion or mover..."
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -133,68 +118,80 @@ export function ResolutionsTable({
               </SelectContent>
             </Select>
           </div>
-        </FiltersSheet>
+        </div>
+
+        {newAction}
       </div>
 
-      <Card>
-        <CardContent className="px-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Motion</TableHead>
-                <TableHead>Mover</TableHead>
-                <TableHead>Vote outcome</TableHead>
-                <TableHead>Effective date</TableHead>
-                <TableHead>Meeting</TableHead>
-                <TableHead className="w-0">
-                  <span className="sr-only">Actions</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {visibleResolutions.length === 0 ? (
+      {resolutions.length === 0 ? (
+        <Card>
+          <CardContent className="px-0">
+            <p className="app-muted px-4 py-6 text-sm">
+              No resolutions recorded yet.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="px-0">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={6} className="app-muted text-center">
-                    No resolutions match your filters.
-                  </TableCell>
+                  <TableHead>Motion</TableHead>
+                  <TableHead>Mover</TableHead>
+                  <TableHead>Vote outcome</TableHead>
+                  <TableHead>Effective date</TableHead>
+                  <TableHead>Meeting</TableHead>
+                  <TableHead className="w-0">
+                    <span className="sr-only">Actions</span>
+                  </TableHead>
                 </TableRow>
-              ) : (
-                visibleResolutions.map((resolution) => (
-                  <TableRow key={resolution.id}>
-                    <TableCell
-                      className="max-w-xs truncate font-medium"
-                      title={resolution.motion_text}
-                    >
-                      {resolution.motion_text}
-                    </TableCell>
-                    <TableCell className="app-muted">
-                      {resolution.mover.name ?? "—"}
-                    </TableCell>
-                    <TableCell>
-                      <VoteOutcomeBadge outcome={resolution.vote_outcome} />
-                    </TableCell>
-                    <TableCell className="app-muted">
-                      {formatDate(resolution.effective_date)}
-                    </TableCell>
-                    <TableCell className="app-muted">
-                      {meetingDateFor(resolution.meeting_id, meetings)}
-                    </TableCell>
-                    <TableCell>
-                      {canManage && (
-                        <EditResolutionModal
-                          resolution={resolution}
-                          people={people}
-                          meetings={meetings}
-                        />
-                      )}
+              </TableHeader>
+              <TableBody>
+                {visibleResolutions.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="app-muted text-center">
+                      No resolutions match your filters.
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                ) : (
+                  visibleResolutions.map((resolution) => (
+                    <TableRow key={resolution.id}>
+                      <TableCell
+                        className="max-w-xs truncate font-medium"
+                        title={resolution.motion_text}
+                      >
+                        {resolution.motion_text}
+                      </TableCell>
+                      <TableCell className="app-muted">
+                        {resolution.mover.name ?? "—"}
+                      </TableCell>
+                      <TableCell>
+                        <VoteOutcomeBadge outcome={resolution.vote_outcome} />
+                      </TableCell>
+                      <TableCell className="app-muted">
+                        {formatDate(resolution.effective_date)}
+                      </TableCell>
+                      <TableCell className="app-muted">
+                        {meetingDateFor(resolution.meeting_id, meetings)}
+                      </TableCell>
+                      <TableCell>
+                        {canManage && (
+                          <EditResolutionModal
+                            resolution={resolution}
+                            people={people}
+                            meetings={meetings}
+                          />
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

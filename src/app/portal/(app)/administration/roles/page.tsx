@@ -15,7 +15,7 @@ export default async function RolesPage() {
         <div className="rainbow-accent mt-3 w-full" />
       </div>
 
-      <div className="mt-6 flex justify-end">
+      <div className="rainbow-surface mt-6 flex flex-wrap items-center justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
         <NewRoleDialog />
       </div>
 

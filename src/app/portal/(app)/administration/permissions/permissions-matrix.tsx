@@ -2,7 +2,12 @@
 
 import { Fragment, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  ChevronsDownUp,
+  ChevronsUpDown,
+} from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -90,12 +95,15 @@ export function PermissionsMatrix({
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isSaving, startSaveTransition] = useTransition();
+  const [selectedRoleId, setSelectedRoleId] = useState<string | null>(
+    roles[0]?.id ?? null,
+  );
   const [pendingEdits, setPendingEdits] = useState<
     Map<string, PermissionLevel>
   >(new Map());
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
-    new Set(),
+    () => new Set(resources.map((resource) => resource.section)),
   );
 
   const levelByCell = useMemo(() => {
@@ -159,6 +167,16 @@ export function PermissionsMatrix({
     });
   }
 
+  const allCollapsed = sections.every(([section]) =>
+    collapsedSections.has(section),
+  );
+
+  function toggleAllSections() {
+    setCollapsedSections(
+      allCollapsed ? new Set() : new Set(sections.map(([section]) => section)),
+    );
+  }
+
   function handleDiscard() {
     setPendingEdits(new Map());
     setError(null);
@@ -184,6 +202,8 @@ export function PermissionsMatrix({
     });
   }
 
+  const selectedRole = selectedRoleId ? roleById.get(selectedRoleId) : null;
+
   if (roles.length === 0 || resources.length === 0) {
     return (
       <Card>
@@ -202,12 +222,46 @@ export function PermissionsMatrix({
         </Alert>
       )}
 
-      <div className="flex items-center justify-between">
-        <p className="app-muted text-sm">
-          {changedCells.length > 0
-            ? `${changedCells.length} unsaved change${changedCells.length === 1 ? "" : "s"}`
-            : null}
-        </p>
+      <div className="rainbow-surface flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+        <div className="flex flex-wrap items-center gap-3">
+          <Select
+            value={selectedRoleId ?? undefined}
+            onValueChange={(value) => value && setSelectedRoleId(value)}
+          >
+            <SelectTrigger className="w-56" aria-label="Role">
+              <SelectValue placeholder="Select a role" />
+            </SelectTrigger>
+            <SelectContent>
+              {roles.map((role) => (
+                <SelectItem key={role.id} value={role.id}>
+                  {formatRoleLabel(role.name)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={toggleAllSections}
+          >
+            {allCollapsed ? (
+              <>
+                <ChevronsUpDown /> Expand all
+              </>
+            ) : (
+              <>
+                <ChevronsDownUp /> Collapse all
+              </>
+            )}
+          </Button>
+          {changedCells.length > 0 && (
+            <p className="app-muted text-sm">
+              {changedCells.length} unsaved change
+              {changedCells.length === 1 ? "" : "s"}
+            </p>
+          )}
+        </div>
         <div className="flex gap-2">
           <Button
             type="button"
@@ -229,71 +283,68 @@ export function PermissionsMatrix({
         </div>
       </div>
 
-      <Card>
-        <CardContent className="overflow-x-auto px-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="sticky left-0 z-20 bg-card">
-                  Resource
-                </TableHead>
-                {roles.map((role) => (
-                  <TableHead key={role.id} className="min-w-36">
-                    {formatRoleLabel(role.name)}
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sections.map(([section, sectionResources]) => {
-                const collapsed = collapsedSections.has(section);
-                return (
-                  <Fragment key={section}>
-                    <TableRow className="bg-[var(--muted)]/40 hover:bg-[var(--muted)]/40">
-                      <TableCell className="sticky left-0 z-10 bg-[var(--muted)]">
-                        <button
-                          type="button"
-                          onClick={() => toggleSection(section)}
-                          aria-expanded={!collapsed}
-                          className="flex items-center gap-1.5 app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-                        >
-                          {collapsed ? (
-                            <ChevronRight className="size-3.5" />
-                          ) : (
-                            <ChevronDown className="size-3.5" />
-                          )}
-                          {section}
-                        </button>
-                      </TableCell>
-                      <TableCell
-                        colSpan={roles.length}
-                        className="bg-[var(--muted)]/40"
-                      />
-                    </TableRow>
-                    {!collapsed &&
-                      sectionResources.map((resource) => (
-                        <TableRow key={resource.id}>
-                          <TableCell className="sticky left-0 z-10 bg-card">
-                            <div className="font-medium">{resource.label}</div>
-                            {resource.description && (
-                              <div className="app-muted text-xs">
-                                {resource.description}
-                              </div>
+      {selectedRole && (
+        <Card>
+          {selectedRole.description && (
+            <CardContent className="app-muted border-b pb-4 text-sm">
+              {selectedRole.description}
+            </CardContent>
+          )}
+          <CardContent className="overflow-x-auto px-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Resource</TableHead>
+                  <TableHead className="w-40">Permission</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sections.map(([section, sectionResources]) => {
+                  const collapsed = collapsedSections.has(section);
+                  return (
+                    <Fragment key={section}>
+                      <TableRow className="bg-[var(--muted)]/40 hover:bg-[var(--muted)]/40">
+                        <TableCell colSpan={2}>
+                          <button
+                            type="button"
+                            onClick={() => toggleSection(section)}
+                            aria-expanded={!collapsed}
+                            className="flex items-center gap-1.5 app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+                          >
+                            {collapsed ? (
+                              <ChevronRight className="size-3.5" />
+                            ) : (
+                              <ChevronDown className="size-3.5" />
                             )}
-                          </TableCell>
-                          {roles.map((role) => {
-                            const cellKey = `${role.id}:${resource.id}`;
-                            const level =
-                              pendingEdits.get(cellKey) ??
-                              toPermissionLevel(levelByCell.get(cellKey));
-                            return (
-                              <TableCell key={role.id}>
+                            {section}
+                          </button>
+                        </TableCell>
+                      </TableRow>
+                      {!collapsed &&
+                        sectionResources.map((resource) => {
+                          const cellKey = `${selectedRole.id}:${resource.id}`;
+                          const level =
+                            pendingEdits.get(cellKey) ??
+                            toPermissionLevel(levelByCell.get(cellKey));
+                          return (
+                            <TableRow key={resource.id}>
+                              <TableCell>
+                                <div className="font-medium">
+                                  {resource.label}
+                                </div>
+                                {resource.description && (
+                                  <div className="app-muted text-xs">
+                                    {resource.description}
+                                  </div>
+                                )}
+                              </TableCell>
+                              <TableCell>
                                 <Select
                                   value={level}
                                   onValueChange={(value) =>
                                     value &&
                                     handleLevelChange(
-                                      role.id,
+                                      selectedRole.id,
                                       resource.id,
                                       value as PermissionLevel,
                                     )
@@ -302,7 +353,7 @@ export function PermissionsMatrix({
                                   <SelectTrigger
                                     className="h-8 w-28"
                                     disabled={isSaving}
-                                    aria-label={`Permission for ${formatRoleLabel(role.name)} on ${resource.label}`}
+                                    aria-label={`Permission for ${formatRoleLabel(selectedRole.name)} on ${resource.label}`}
                                   >
                                     <SelectValue />
                                   </SelectTrigger>
@@ -315,17 +366,17 @@ export function PermissionsMatrix({
                                   </SelectContent>
                                 </Select>
                               </TableCell>
-                            );
-                          })}
-                        </TableRow>
-                      ))}
-                  </Fragment>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                            </TableRow>
+                          );
+                        })}
+                    </Fragment>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
         <DialogContent>

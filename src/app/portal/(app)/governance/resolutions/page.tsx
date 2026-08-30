@@ -38,19 +38,11 @@ export default async function ResolutionsPage() {
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="w-fit">
-          <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-            Resolutions
-          </h1>
-          <div className="rainbow-accent mt-3 w-full" />
-        </div>
-        {canManage && (
-          <NewResolutionDialog
-            people={peopleOptions}
-            meetings={meetingOptions}
-          />
-        )}
+      <div className="w-fit">
+        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          Resolutions
+        </h1>
+        <div className="rainbow-accent mt-3 w-full" />
       </div>
 
       <div className="mt-6">
@@ -59,6 +51,14 @@ export default async function ResolutionsPage() {
           people={peopleOptions}
           meetings={meetingOptions}
           canManage={canManage}
+          newAction={
+            canManage ? (
+              <NewResolutionDialog
+                people={peopleOptions}
+                meetings={meetingOptions}
+              />
+            ) : undefined
+          }
         />
       </div>
     </>

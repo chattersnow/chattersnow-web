@@ -35,7 +35,7 @@ export default async function AccessManagementPage() {
         holds passwords, API keys, tokens, or recovery codes.
       </p>
 
-      <div className="mt-6 flex justify-end gap-2">
+      <div className="rainbow-surface mt-6 flex flex-wrap items-center justify-end gap-2 rounded-xl border border-[var(--line)] p-4 shadow-md">
         <Button
           variant="secondary"
           nativeButton={false}
