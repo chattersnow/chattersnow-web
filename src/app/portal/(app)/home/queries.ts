@@ -256,6 +256,12 @@ export type NextGovernanceMeeting = {
   location: string | null;
 };
 
+export type NextGrantDeadline = {
+  id: string;
+  funder_name: string;
+  application_deadline: string;
+};
+
 export type OrganizationSummary = {
   nextMeeting: NextGovernanceMeeting | null;
   openRequirementCount: number;
@@ -266,19 +272,36 @@ export type OrganizationSummary = {
   overdueActionItemCount: number;
   missingDisclosureCount: number;
   disclosureYear: number;
+  openPartnershipCount: number;
+  nextGrantDeadline: NextGrantDeadline | null;
+  overdueGrantCount: number;
 };
 
 type DueDateRow = { due_date: string | null };
 type PersonIdRow = { person_id: string };
+type GrantDeadlineRow = {
+  id: string;
+  funder_name: string;
+  application_deadline: string;
+};
+
+// Statuses/stages that still count as "open" for the dashboard widgets --
+// mirrors OPEN_GRANT_STATUSES in governance/grants/grant-form.ts and
+// CLOSED_PARTNERSHIP_STAGES in governance/partnerships/partnership-opportunity-form.ts,
+// duplicated here rather than imported to keep this dashboard query module
+// free of dependencies on the portal page modules.
+const OPEN_GRANT_STATUSES = ["planned", "submitted"];
+const CLOSED_PARTNERSHIP_STAGES = ["closed_won", "closed_lost"];
 
 /**
  * Organization-health rollup for the dashboard (issue #68's Organization
  * group): next scheduled governance meeting, open/overdue annual
- * requirements, nonprofit-status milestones, meeting action items, and
- * active board members missing a conflict-of-interest disclosure for the
- * current year. Every backing table's select RLS is governance:view, so a
- * single section gate covers all widgets (unlike the Financial section's
- * per-widget resources).
+ * requirements, nonprofit-status milestones, meeting action items, active
+ * board members missing a conflict-of-interest disclosure for the current
+ * year, open partnership opportunities, and the next (or overdue) grant
+ * deadline (issue #498). Every backing table's select RLS is
+ * governance:view, so a single section gate covers all widgets (unlike the
+ * Financial section's per-widget resources).
  */
 export async function getOrganizationSummary(
   supabase: SupabaseClient,
@@ -294,6 +317,8 @@ export async function getOrganizationSummary(
     { data: actionItems },
     { data: boardMembers },
     { data: disclosures },
+    { count: openPartnershipCount },
+    { data: openGrants },
   ] = await Promise.all([
     supabase
       .from("governance_meetings")
@@ -319,6 +344,15 @@ export async function getOrganizationSummary(
       .from("conflict_of_interest_disclosures")
       .select("person_id")
       .eq("disclosure_year", disclosureYear),
+    supabase
+      .from("partnership_opportunities")
+      .select("id", { count: "exact", head: true })
+      .not("stage", "in", `(${CLOSED_PARTNERSHIP_STAGES.join(",")})`),
+    supabase
+      .from("grants")
+      .select("id, funder_name, application_deadline")
+      .in("status", OPEN_GRANT_STATUSES)
+      .order("application_deadline", { ascending: true }),
   ]);
 
   // due_date is a Postgres `date` (YYYY-MM-DD), so string comparison
@@ -337,6 +371,13 @@ export async function getOrganizationSummary(
       .filter((personId) => !disclosedPersonIds.has(personId)),
   );
 
+  const grantRows = (openGrants ?? []) as GrantDeadlineRow[];
+  const overdueGrantCount = grantRows.filter(
+    (row) => row.application_deadline < todayDate,
+  ).length;
+  const nextGrantDeadline =
+    grantRows.find((row) => row.application_deadline >= todayDate) ?? null;
+
   return {
     nextMeeting:
       ((nextMeetings ?? [])[0] as NextGovernanceMeeting | undefined) ?? null,
@@ -348,6 +389,9 @@ export async function getOrganizationSummary(
     overdueActionItemCount: countOverdue(actionItems),
     missingDisclosureCount: missingDisclosurePersonIds.size,
     disclosureYear,
+    openPartnershipCount: openPartnershipCount ?? 0,
+    nextGrantDeadline,
+    overdueGrantCount,
   };
 }
 

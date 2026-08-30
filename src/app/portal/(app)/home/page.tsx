@@ -28,6 +28,14 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
   timeStyle: "short",
 });
 
+// For plain `date` columns (e.g. grants.application_deadline) rather than
+// timestamptz -- pinned to UTC so `new Date("2026-09-10")` (parsed as UTC
+// midnight) doesn't roll back a day in timezones behind UTC.
+const dateOnlyFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeZone: "UTC",
+});
+
 const currencyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
@@ -384,9 +392,29 @@ export default async function PortalHomePage() {
               value={organization.missingDisclosureCount}
               caption={`Active board members without a ${organization.disclosureYear} disclosure on file`}
             />
-            <DashboardComingSoonRow
-              label="Partnerships & grants"
-              description="Partnership opportunity and grant deadline tracking aren't built yet."
+            <DashboardStatRow
+              label="Partnership opportunities"
+              value={organization.openPartnershipCount}
+              caption="Open opportunities"
+            />
+            <DashboardEventRow
+              label="Next grant deadline"
+              eventName={
+                organization.nextGrantDeadline
+                  ? organization.nextGrantDeadline.funder_name
+                  : "—"
+              }
+              caption={
+                organization.nextGrantDeadline
+                  ? `${dateOnlyFormatter.format(new Date(organization.nextGrantDeadline.application_deadline))}${
+                      organization.overdueGrantCount > 0
+                        ? ` · ${organization.overdueGrantCount} overdue`
+                        : ""
+                    }`
+                  : organization.overdueGrantCount > 0
+                    ? `${organization.overdueGrantCount} overdue`
+                    : "No grant deadlines tracked"
+              }
             />
           </DashboardSectionCard>
         )}

@@ -311,6 +311,18 @@ const NAV_ITEMS: readonly NavItem[] = [
         href: "/portal/governance/resolutions",
         access: [{ resource: "governance", level: "manage" }],
       },
+      {
+        value: "partnerships",
+        label: "Partnerships",
+        href: "/portal/governance/partnerships",
+        access: [{ resource: "governance", level: "manage" }],
+      },
+      {
+        value: "grants",
+        label: "Grants",
+        href: "/portal/governance/grants",
+        access: [{ resource: "governance", level: "manage" }],
+      },
     ],
   },
   {
