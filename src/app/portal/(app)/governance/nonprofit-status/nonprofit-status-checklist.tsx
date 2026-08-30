@@ -20,7 +20,12 @@ import {
 } from "@/components/ui/table";
 import { EditMilestoneModal } from "./edit-milestone-modal";
 import { NewMilestoneDialog } from "./new-milestone-dialog";
-import { MilestoneStatusBadge } from "./nonprofit-status-badges";
+import {
+  MilestoneDueFlag,
+  MilestoneStatusBadge,
+  MilestoneStatusIcon,
+  isMilestoneDueSoonOrOverdue,
+} from "./nonprofit-status-badges";
 import {
   updateMilestoneStatusAction,
   type Milestone,
@@ -99,10 +104,22 @@ function MilestoneStatusSelect({ milestone }: { milestone: Milestone }) {
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="not_started">Not started</SelectItem>
-        <SelectItem value="in_progress">In progress</SelectItem>
-        <SelectItem value="done">Done</SelectItem>
-        <SelectItem value="cancelled">Cancelled</SelectItem>
+        <SelectItem value="not_started">
+          <MilestoneStatusIcon status="not_started" />
+          Not started
+        </SelectItem>
+        <SelectItem value="in_progress">
+          <MilestoneStatusIcon status="in_progress" />
+          In progress
+        </SelectItem>
+        <SelectItem value="done">
+          <MilestoneStatusIcon status="done" />
+          Done
+        </SelectItem>
+        <SelectItem value="cancelled">
+          <MilestoneStatusIcon status="cancelled" />
+          Cancelled
+        </SelectItem>
       </SelectContent>
     </Select>
   );
@@ -121,14 +138,25 @@ export function NonprofitStatusChecklist({
     () => milestones.filter((m) => m.status === "done").length,
     [milestones],
   );
+  const atRiskCount = useMemo(
+    () => milestones.filter((m) => isMilestoneDueSoonOrOverdue(m)).length,
+    [milestones],
+  );
   const phaseGroups = useMemo(() => groupByPhase(milestones), [milestones]);
 
   return (
     <div className="space-y-6">
       <div className="rainbow-surface flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
-        <p className="app-muted text-sm">
-          {completeCount} of {milestones.length} complete
-        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="app-muted text-sm">
+            {completeCount} of {milestones.length} complete
+          </p>
+          {atRiskCount > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
+              {atRiskCount} due soon or overdue
+            </span>
+          )}
+        </div>
         {canManage && (
           <NewMilestoneDialog people={people} existingPhases={PHASE_ORDER} />
         )}
@@ -185,7 +213,13 @@ export function NonprofitStatusChecklist({
                           {milestone.owner?.name ?? "—"}
                         </TableCell>
                         <TableCell className="app-muted">
-                          {formatDate(milestone.due_date)}
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span>{formatDate(milestone.due_date)}</span>
+                            <MilestoneDueFlag
+                              dueDate={milestone.due_date}
+                              status={milestone.status}
+                            />
+                          </div>
                         </TableCell>
                         <TableCell>
                           {canManage && (
