@@ -2,13 +2,14 @@
 
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createPersonAction } from "./actions";
+import { createPersonAction, type PersonListItem } from "./actions";
 import {
   PersonFormFields,
   emptyPersonForm,
   packPersonFormData,
   type PersonFormState,
 } from "./person-form-fields";
+import { PersonPicker, type PickedPerson } from "./person-picker";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,13 +21,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { FieldGroup } from "@/components/ui/field";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 
-export function NewPersonDialog() {
+export function NewPersonDialog({ people }: { people: PersonListItem[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [availablePeople, setAvailablePeople] = useState(people);
   const [form, setForm] = useState<PersonFormState>(() => emptyPersonForm());
+  const [contact, setContact] = useState<PickedPerson | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -40,9 +43,15 @@ export function NewPersonDialog() {
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
     if (nextOpen) {
+      setAvailablePeople(people);
       setForm(emptyPersonForm());
+      setContact(null);
       setError(null);
     }
+  }
+
+  function handlePersonCreated(person: PickedPerson) {
+    setAvailablePeople((prev) => [...prev, { ...person, is_sponsor: false }]);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -50,7 +59,10 @@ export function NewPersonDialog() {
     setError(null);
 
     startTransition(async () => {
-      const result = await createPersonAction(packPersonFormData(form));
+      const result = await createPersonAction(
+        packPersonFormData(form),
+        contact?.id ?? null,
+      );
       if ("error" in result) {
         setError(result.error);
         return;
@@ -82,6 +94,19 @@ export function NewPersonDialog() {
               update={update}
               idPrefix="new-person"
             />
+
+            <Field>
+              <FieldLabel>
+                Primary contact person (for an organization)
+              </FieldLabel>
+              <PersonPicker
+                people={availablePeople}
+                selected={contact}
+                onSelect={setContact}
+                onPersonCreated={handlePersonCreated}
+                placeholder="Search by name or email..."
+              />
+            </Field>
 
             {error && (
               <Alert variant="destructive">

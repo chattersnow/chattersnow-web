@@ -10,6 +10,7 @@ export type PersonFormState = {
   name: string;
   email: string;
   phone: string;
+  instagramHandle: string;
   notes: string;
   logoUrl: string;
   website: string;
@@ -21,6 +22,7 @@ export function emptyPersonForm(defaultRole?: RoleKey): PersonFormState {
     name: "",
     email: "",
     phone: "",
+    instagramHandle: "",
     notes: "",
     logoUrl: "",
     website: "",
@@ -82,6 +84,18 @@ export function PersonFormFields({
       </Field>
 
       <Field>
+        <FieldLabel htmlFor={`${idPrefix}-instagramHandle`}>
+          Instagram handle
+        </FieldLabel>
+        <Input
+          id={`${idPrefix}-instagramHandle`}
+          placeholder="e.g. chattersnow"
+          value={form.instagramHandle}
+          onChange={(event) => update("instagramHandle", event.target.value)}
+        />
+      </Field>
+
+      <Field>
         <FieldLabel>Roles</FieldLabel>
         <div className="flex flex-wrap gap-4">
           {ROLE_OPTIONS.map((option) => (
@@ -136,6 +150,7 @@ export function packPersonFormData(form: PersonFormState) {
   formData.set("name", form.name);
   formData.set("email", form.email);
   formData.set("phone", form.phone);
+  formData.set("instagramHandle", form.instagramHandle);
   formData.set("notes", form.notes);
   formData.set("logoUrl", form.logoUrl);
   formData.set("website", form.website);

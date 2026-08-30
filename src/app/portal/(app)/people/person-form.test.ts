@@ -40,6 +40,7 @@ describe("parsePersonForm", () => {
         name: "Jane",
         email: "jane@example.com",
         phone: "555-1234",
+        instagramHandle: "@jane.doe",
         notes: "VIP",
         logoUrl: "https://example.com/logo.png",
         website: "https://example.com",
@@ -52,6 +53,7 @@ describe("parsePersonForm", () => {
         name: "Jane",
         email: "jane@example.com",
         phone: "555-1234",
+        instagram_handle: "jane.doe",
         notes: "VIP",
         logo_url: "https://example.com/logo.png",
         website: "https://example.com",
@@ -59,6 +61,21 @@ describe("parsePersonForm", () => {
         is_sponsor: true,
         is_volunteer: false,
       },
+    });
+  });
+
+  test("rejects an invalid Instagram handle", () => {
+    expect(
+      parsePersonForm(
+        formData({
+          name: "Jane",
+          isVolunteer: "true",
+          instagramHandle: "not valid!",
+        }),
+      ),
+    ).toEqual({
+      error:
+        "Instagram handle can only contain letters, numbers, periods, and underscores.",
     });
   });
 

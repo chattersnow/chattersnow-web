@@ -28,6 +28,7 @@ export type PersonListItem = {
 
 export async function createPersonAction(
   formData: FormData,
+  primaryContactPersonId: string | null = null,
 ): Promise<PersonActionResult> {
   const supabase = await createSupabaseServerClient();
   const userResult = await checkUser(
@@ -46,7 +47,12 @@ export async function createPersonAction(
 
   const { data, error } = await supabase
     .from("people")
-    .insert({ ...parsed.data, is_anonymous: false, source_type: "other" })
+    .insert({
+      ...parsed.data,
+      is_anonymous: false,
+      source_type: "other",
+      primary_contact_person_id: primaryContactPersonId,
+    })
     .select("id, name, email, phone")
     .single();
   if (error) {
@@ -84,6 +90,7 @@ export async function listPeopleAction(): Promise<
 export async function updatePersonAction(
   id: string,
   formData: FormData,
+  primaryContactPersonId: string | null = null,
 ): Promise<PersonActionResult> {
   const supabase = await createSupabaseServerClient();
   const userResult = await checkUser(
@@ -99,7 +106,10 @@ export async function updatePersonAction(
 
   const { error } = await supabase
     .from("people")
-    .update(parsed.data)
+    .update({
+      ...parsed.data,
+      primary_contact_person_id: primaryContactPersonId,
+    })
     .eq("id", id);
   if (error) {
     return { error: "Could not update this person. Please try again." };

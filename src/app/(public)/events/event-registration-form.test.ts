@@ -59,6 +59,7 @@ describe("parseEventRegistrationForm", () => {
         name: "Jane",
         email: "jane@example.com",
         phone: "555-1234",
+        instagramHandle: "@jane.doe",
         partySize: "3",
         notes: "Bringing kids",
       }),
@@ -68,9 +69,25 @@ describe("parseEventRegistrationForm", () => {
         name: "Jane",
         email: "jane@example.com",
         phone: "555-1234",
+        instagram_handle: "jane.doe",
         party_size: 3,
         notes: "Bringing kids",
       },
+    });
+  });
+
+  test("rejects an invalid Instagram handle", () => {
+    expect(
+      parseEventRegistrationForm(
+        formData({
+          name: "Jane",
+          email: "jane@example.com",
+          instagramHandle: "not valid!",
+        }),
+      ),
+    ).toEqual({
+      error:
+        "Instagram handle can only contain letters, numbers, periods, and underscores.",
     });
   });
 });

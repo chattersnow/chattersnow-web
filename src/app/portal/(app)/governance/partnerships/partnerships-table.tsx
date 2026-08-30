@@ -58,8 +58,8 @@ export function PartnershipsTable({
         return false;
       if (!query) return true;
       return (
-        opportunity.organization_name.toLowerCase().includes(query) ||
-        (opportunity.contact_name ?? "").toLowerCase().includes(query)
+        (opportunity.organization.name ?? "").toLowerCase().includes(query) ||
+        (opportunity.organization.email ?? "").toLowerCase().includes(query)
       );
     });
   }, [opportunities, search, stageFilter]);
@@ -127,10 +127,10 @@ export function PartnershipsTable({
               <TableHeader>
                 <TableRow>
                   <TableHead>Organization</TableHead>
-                  <TableHead>Contact</TableHead>
+                  <TableHead>Contact email</TableHead>
                   <TableHead>Stage</TableHead>
                   <TableHead>Next step</TableHead>
-                  <TableHead>Owner</TableHead>
+                  <TableHead>Internal owner</TableHead>
                   <TableHead className="w-0">
                     <span className="sr-only">Actions</span>
                   </TableHead>
@@ -148,12 +148,12 @@ export function PartnershipsTable({
                     <TableRow key={opportunity.id}>
                       <TableCell
                         className="max-w-xs truncate font-medium"
-                        title={opportunity.organization_name}
+                        title={opportunity.organization.name ?? undefined}
                       >
-                        {opportunity.organization_name}
+                        {opportunity.organization.name ?? "—"}
                       </TableCell>
                       <TableCell className="app-muted">
-                        {opportunity.contact_name ?? "—"}
+                        {opportunity.organization.email ?? "—"}
                       </TableCell>
                       <TableCell>
                         <PartnershipStageBadge stage={opportunity.stage} />

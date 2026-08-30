@@ -1576,8 +1576,9 @@ export const helpContent: Record<string, HelpEntry> = {
     ),
   },
   "/portal/events": {
-    title: "How status and visibility work",
-    description: "The event lifecycle and public-site visibility.",
+    title: "How status, visibility, and phase tabs work",
+    description:
+      "The event lifecycle, public-site visibility, and the Basic/Planning/During/After tab badges.",
     body: (
       <>
         <HowToSection heading="Steps">
@@ -1592,6 +1593,29 @@ export const helpContent: Record<string, HelpEntry> = {
               whether an event can appear on the public site.
             </li>
             <li>Both are set independently from the event editor.</li>
+            <li>
+              <strong className="text-foreground">Phase tabs</strong> — Basic,
+              Planning, During, After — each carry their own Not started / In
+              progress / Done badge, computed from the event&apos;s data rather
+              than set by hand:
+              <ul className="mt-1 list-disc space-y-1 pl-4">
+                <li>
+                  <strong className="text-foreground">Planning</strong> is Done
+                  once a lead, capacity, and budget are all filled in; any
+                  subset shows In progress.
+                </li>
+                <li>
+                  <strong className="text-foreground">During</strong> flips to
+                  In progress once the start time passes, then to Done once an
+                  attendance count is recorded.
+                </li>
+                <li>
+                  <strong className="text-foreground">After</strong> mirrors the
+                  after-report&apos;s own submission status: Not started, In
+                  progress, or Done once submitted.
+                </li>
+              </ul>
+            </li>
           </ol>
         </HowToSection>
         <HowToSection heading="Who can do this">
@@ -1625,6 +1649,11 @@ export const helpContent: Record<string, HelpEntry> = {
             <li>
               Forgetting to mark a past event Completed leaves it showing as
               upcoming in reports that key off status.
+            </li>
+            <li>
+              Expecting phase badges to follow the event Status field — they
+              don&apos;t. A cancelled or archived event&apos;s phase tabs keep
+              computing from its own data.
             </li>
           </ul>
         </HowToSection>

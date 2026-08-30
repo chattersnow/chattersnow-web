@@ -451,3 +451,597 @@ begin
   values (v_former_id, now() - interval '5 days', v_admin_id);
 
 end $$;
+
+-- Bulk volume data, appended after the hand-authored scenario above. Purely
+-- for exercising list/table UI (pagination, filters, sorting, empty vs.
+-- crowded states) with a realistic quantity of rows in local dev -- not
+-- meant to be individually meaningful the way the named records above are.
+-- All fabricated, same as the rest of this file (see the file header).
+do $$
+declare
+  v_admin_id uuid;
+  v_coordinator_id uuid;
+  v_finance_id uuid;
+  v_board_id uuid;
+
+  first_names text[] := array['Jordan','Taylor','Morgan','Casey','Riley','Avery','Quinn','Reese','Harper','Skyler',
+    'Dakota','Emerson','Rowan','Sawyer','Kendall','Peyton','Blair','Elliot','Marley','Finley',
+    'Alexis','Cameron','Devon','Jamie','Micah','Noor','Toni','Val','Wren','Zion'];
+  last_names text[] := array['Nguyen','Garcia','Smith','Johnson','Kim','Patel','Brown','Davis','Martinez','Lopez',
+    'Wilson','Anderson','Thomas','Moore','Jackson','White','Harris','Clark','Lewis','Walker',
+    'Young','Allen','King','Wright','Scott','Torres','Hill','Baker','Adams','Nelson'];
+  brand_names text[] := array['Peak Outfitters','Alpine Gear Co.','Trailhead Supply','Frostline Apparel','Timberline Goods',
+    'Ridgeline Outdoors','Summit Threads','Basecamp Provisions','Northface Neighbors Co-op','Powder Day Gear',
+    'Evergreen Mercantile','Highline Sports'];
+  event_type_names text[] := array['gear_swap','trail_cleanup','fundraiser','community_meetup','skills_clinic','holiday_drive'];
+  item_types text[] := array['jacket','boots','pants','gloves','hat','scarf','socks','base_layer','goggles','backpack'];
+  item_descs text[] := array['Insulated jacket','Waterproof boots','Snow pants','Fleece-lined gloves','Wool hat','Neck gaiter','Wool socks','Thermal base layer','Ski goggles','Daypack'];
+  genders text[] := array['unisex','men','women','kids','other'];
+  conditions text[] := array['new','like_new','good','fair','poor'];
+  donation_notes text[] := array[null, 'Dropped off at the office', 'Collected at a gear drive box', 'Mailed in', null];
+  contact_topics text[] := array['general','partnership','volunteering','donation','press','other'];
+
+  v_person_id uuid;
+  v_event_id uuid;
+  v_donation_id uuid;
+  v_item_id uuid;
+  v_calendar_item_id uuid;
+  v_meeting_id uuid;
+  v_giveaway_id uuid;
+  v_prize_id uuid;
+  v_program_id uuid;
+  v_service_id uuid;
+  v_asset_id uuid;
+
+  v_people_ids uuid[] := '{}';
+  v_donor_ids uuid[] := '{}';
+  v_volunteer_ids uuid[] := '{}';
+  v_sponsor_ids uuid[] := '{}';
+  v_event_ids uuid[] := '{}';
+  v_program_ids uuid[] := '{}';
+  v_agenda_template_id uuid;
+  v_agenda_template_version_id uuid;
+
+  i int;
+  j int;
+  k int;
+  n_items int;
+  v_first text;
+  v_last text;
+  v_starts_at timestamptz;
+  v_status text;
+  v_item_type text;
+  v_visibility text;
+  v_expense_status text;
+begin
+  select id into v_admin_id from auth.users where email = 'admin@example.test';
+  select id into v_coordinator_id from auth.users where email = 'coordinator@example.test';
+  select id into v_finance_id from auth.users where email = 'finance@example.test';
+  select id into v_board_id from auth.users where email = 'board@example.test';
+
+  -- ~65 individual people, mixed donor/volunteer flags.
+  for i in 1..65 loop
+    v_first := first_names[1 + floor(random() * array_length(first_names, 1))::int];
+    v_last := last_names[1 + floor(random() * array_length(last_names, 1))::int];
+    insert into public.people (
+      name, is_anonymous, source_type, email, phone, is_donor, is_volunteer, created_by
+    )
+    values (
+      v_first || ' ' || v_last, false, 'individual',
+      lower(v_first || '.' || v_last || i || '@example.test'),
+      '555-' || lpad((1000 + i)::text, 4, '0'),
+      random() < 0.6, random() < 0.35, v_admin_id
+    )
+    returning id into v_person_id;
+
+    v_people_ids := array_append(v_people_ids, v_person_id);
+    if random() < 0.6 then
+      v_donor_ids := array_append(v_donor_ids, v_person_id);
+    end if;
+    if random() < 0.35 then
+      v_volunteer_ids := array_append(v_volunteer_ids, v_person_id);
+    end if;
+  end loop;
+
+  -- ~12 brand/org sponsors and donors.
+  for i in 1..array_length(brand_names, 1) loop
+    insert into public.people (
+      name, is_anonymous, source_type, email, phone, is_sponsor, is_donor,
+      logo_url, website, notes, created_by
+    )
+    values (
+      brand_names[i], false, 'brand',
+      lower(replace(brand_names[i], ' ', '')) || '@example.test',
+      '555-' || lpad((2000 + i)::text, 4, '0'),
+      random() < 0.7, random() < 0.5,
+      'https://example.test/logos/' || i || '.png',
+      'https://' || lower(replace(replace(brand_names[i], ' ', ''), '.', '')) || '.example.test',
+      'Seed bulk-data sponsor/donor org.', v_admin_id
+    )
+    returning id into v_person_id;
+
+    v_people_ids := array_append(v_people_ids, v_person_id);
+    v_sponsor_ids := array_append(v_sponsor_ids, v_person_id);
+    v_donor_ids := array_append(v_donor_ids, v_person_id);
+  end loop;
+
+  -- A few more programs, beyond the single one in the hand-authored section.
+  for i in 1..3 loop
+    insert into public.programs (name, description, status, created_by)
+    values (
+      (array['Summer Trail Access','Youth Outdoor Mentorship','Community Gear Library'])[i],
+      'Seed bulk-data program for volume testing.',
+      (array['active','pilot','retired'])[1 + floor(random() * 3)::int],
+      v_admin_id
+    )
+    returning id into v_program_id;
+    v_program_ids := array_append(v_program_ids, v_program_id);
+  end loop;
+
+  -- ~50 more volunteer role types would be excessive; a handful is plenty.
+  for i in 1..4 loop
+    insert into public.volunteer_role_types (name, description, is_public, created_by)
+    values (
+      (array['Setup Crew','Registration Desk','Gear Sorter','Trail Guide'])[i],
+      'Seed bulk-data volunteer role.', true, v_admin_id
+    );
+  end loop;
+
+  -- ~55 more events spanning far past to far future, every status/visibility.
+  for i in 1..55 loop
+    v_starts_at := now() + ((floor(random() * 500)::int - 250) || ' days')::interval + ((floor(random() * 12)::int) || ' hours')::interval;
+    v_status := (array['draft','published','published','published','completed','completed','cancelled','archived'])[1 + floor(random() * 8)::int];
+    v_visibility := case when v_status in ('draft', 'archived') and random() < 0.5 then 'private' else (array['public','private'])[1 + floor(random() * 2)::int] end;
+
+    insert into public.events (
+      name, location, starts_at, ends_at, timezone, visibility, status,
+      description, event_type, venue, capacity, registration_enabled,
+      registration_deadline, budget_amount, event_lead_id, program_id,
+      created_by
+    )
+    values (
+      initcap((array['Spring','Summer','Fall','Winter','Neighborhood','Downtown','Riverside','Mountain'])[1 + floor(random()*8)::int]) || ' ' ||
+        initcap((event_type_names[1 + floor(random() * array_length(event_type_names,1))::int])) || ' #' || i,
+      (array['Community Center, Denver CO','Bear Creek Trailhead','Chatter Snow Office','Riverside Park','Downtown Rec Center'])[1 + floor(random()*5)::int],
+      v_starts_at, v_starts_at + ((2 + floor(random()*5)::int) || ' hours')::interval,
+      'America/Denver', v_visibility, v_status,
+      'Seed bulk-data event for volume testing.',
+      event_type_names[1 + floor(random() * array_length(event_type_names,1))::int],
+      'Main hall', 20 + floor(random()*180)::int,
+      random() < 0.5, v_starts_at - interval '7 days',
+      round((200 + random() * 4800)::numeric, 2),
+      (array[v_coordinator_id, v_admin_id])[1 + floor(random()*2)::int],
+      case when random() < 0.4 and array_length(v_program_ids,1) is not null then v_program_ids[1 + floor(random()*array_length(v_program_ids,1))::int] else null end,
+      v_admin_id
+    )
+    returning id into v_event_id;
+
+    v_event_ids := array_append(v_event_ids, v_event_id);
+
+    -- Logistics for about a third.
+    if random() < 0.35 then
+      insert into public.event_logistics (event_id, meeting_point, gear_requirements, transportation, food, supplies, created_by)
+      values (v_event_id, 'Front entrance', 'Weather-appropriate layers.', 'Street parking available', 'Water and snacks provided', 'Signage, tables, first aid kit', v_admin_id);
+    end if;
+
+    -- Sponsor link for about a quarter.
+    if random() < 0.25 and array_length(v_sponsor_ids, 1) is not null then
+      insert into public.event_sponsors (event_id, person_id, support_type, in_kind_description, contribution_value, is_public, follow_up_status, notes, created_by)
+      values (
+        v_event_id, v_sponsor_ids[1 + floor(random()*array_length(v_sponsor_ids,1))::int],
+        (array['cash','in_kind','both','other'])[1 + floor(random()*4)::int],
+        'Seed in-kind support.', round((100 + random()*2000)::numeric, 2), random() < 0.7,
+        (array['not_started','in_progress','done'])[1 + floor(random()*3)::int],
+        null, v_admin_id
+      );
+    end if;
+
+    -- Expense for about 40%. Uses its own status variable -- v_status holds
+    -- the event's own status and is still read below (registrations).
+    if random() < 0.4 then
+      v_expense_status := (array['submitted','approved','approved','rejected','paid','paid'])[1 + floor(random()*6)::int];
+      insert into public.event_expenses (
+        event_id, description, expense_date, amount, currency, notes,
+        created_by, submitted_by, status, approved_by, approved_at,
+        rejected_at, rejection_reason, paid_by, paid_at
+      )
+      values (
+        v_event_id, (array['Signage and supplies','Venue rental','Food and drinks','Printing','Equipment rental','Transportation'])[1 + floor(random()*6)::int],
+        v_starts_at::date, round((15 + random()*450)::numeric, 2), 'USD', null,
+        v_admin_id, v_finance_id, v_expense_status,
+        case when v_expense_status in ('approved','paid') then v_board_id end,
+        case when v_expense_status in ('approved','paid') then v_starts_at + interval '2 days' end,
+        case when v_expense_status = 'rejected' then v_starts_at + interval '2 days' end,
+        case when v_expense_status = 'rejected' then 'Missing receipt.' end,
+        case when v_expense_status = 'paid' then v_finance_id end,
+        case when v_expense_status = 'paid' then v_starts_at + interval '5 days' end
+      );
+    end if;
+
+    -- Revenue for about 30%.
+    if random() < 0.3 then
+      insert into public.event_revenue (event_id, source, amount, received_date, notes, created_by)
+      values (
+        v_event_id, (array['ticket_sales','registration_fees','merchandise','onsite_donations','grants','other'])[1 + floor(random()*6)::int],
+        round((25 + random()*900)::numeric, 2), v_starts_at::date, null, v_admin_id
+      );
+    end if;
+
+    -- Checklist items for about 40%.
+    if random() < 0.4 then
+      n_items := 2 + floor(random()*4)::int;
+      for j in 1..n_items loop
+        insert into public.event_checklist_items (event_id, title, is_done, completed_at, created_by)
+        values (
+          v_event_id,
+          (array['Confirm venue','Order supplies','Send volunteer reminders','Post to social media','Print sign-in sheets','Coordinate with sponsor','Set up registration table','Debrief with team'])[1 + floor(random()*8)::int],
+          random() < 0.5,
+          case when random() < 0.5 then v_starts_at - interval '1 day' end,
+          v_admin_id
+        );
+      end loop;
+    end if;
+
+    -- Registrations for registration-enabled published events.
+    if v_status = 'published' and random() < 0.5 then
+      n_items := 3 + floor(random()*25)::int;
+      for j in 1..n_items loop
+        v_first := first_names[1 + floor(random() * array_length(first_names, 1))::int];
+        v_last := last_names[1 + floor(random() * array_length(last_names, 1))::int];
+        insert into public.event_registrations (event_id, name, email, phone, party_size, notes, checked_in_at)
+        values (
+          v_event_id, v_first || ' ' || v_last,
+          lower(v_first || '.' || v_last || '.' || j || '.' || left(v_event_id::text, 8) || '@example.test'),
+          '555-' || lpad((3000 + j)::text, 4, '0'),
+          1 + floor(random()*4)::int, null,
+          case when v_starts_at < now() and random() < 0.7 then v_starts_at end
+        );
+      end loop;
+    end if;
+
+    -- Shifts + volunteer signups for about a quarter.
+    if random() < 0.25 and array_length(v_volunteer_ids, 1) is not null then
+      declare
+        v_shift_id uuid;
+      begin
+        insert into public.event_shifts (event_id, label, starts_at, ends_at, target_headcount, notes, created_by)
+        values (v_event_id, (array['Morning setup','Midday support','Afternoon teardown'])[1 + floor(random()*3)::int],
+          v_starts_at, v_starts_at + interval '2 hours', 2 + floor(random()*4)::int, null, v_admin_id)
+        returning id into v_shift_id;
+
+        for j in 1..(1 + floor(random()*3)::int) loop
+          insert into public.event_volunteers (event_id, person_id, role, shift_id, notes, created_by)
+          values (
+            v_event_id, v_volunteer_ids[1 + floor(random()*array_length(v_volunteer_ids,1))::int],
+            (array['Intake lead','Greeter','Setup crew','Registration desk'])[1 + floor(random()*4)::int],
+            v_shift_id, null, v_admin_id
+          )
+          on conflict (event_id, person_id) do nothing;
+        end loop;
+      end;
+    end if;
+
+    -- Volunteer hours logged for past events, about half.
+    if v_starts_at < now() and random() < 0.5 and array_length(v_volunteer_ids, 1) is not null then
+      insert into public.event_volunteer_hours (event_id, person_id, hours, logged_date, notes, logged_by)
+      values (
+        v_event_id, v_volunteer_ids[1 + floor(random()*array_length(v_volunteer_ids,1))::int],
+        round((1 + random()*7)::numeric, 2), v_starts_at::date, null, v_admin_id
+      );
+    end if;
+
+    -- Impact notes for completed/past published events, about a third.
+    if v_starts_at < now() and random() < 0.3 then
+      insert into public.event_impact_notes (
+        event_id, total_participants, first_time_participants, beginner_participants,
+        volunteer_participants, equipment_loans_count, beginner_pairings_count,
+        survey_respondents_count, survey_felt_welcomed_yes_count,
+        survey_would_attend_again_yes_count, notes, created_by
+      )
+      values (
+        v_event_id, 10 + floor(random()*90)::int, floor(random()*30)::int, floor(random()*20)::int,
+        floor(random()*15)::int, floor(random()*25)::int, floor(random()*10)::int,
+        floor(random()*40)::int, floor(random()*35)::int, floor(random()*35)::int,
+        'Seed bulk-data impact notes.', v_admin_id
+      );
+    end if;
+
+    -- Giveaway for about 1 in 6 past events.
+    if v_starts_at < now() and random() < 0.16 then
+      insert into public.giveaways (event_id, name, tickets_sold, ticket_price, revenue_amount, drawing_date, created_by)
+      values (v_event_id, 'Event Giveaway', 40 + floor(random()*200)::int, 5.00, round((200 + random()*800)::numeric, 2), v_starts_at, v_admin_id)
+      returning id into v_giveaway_id;
+
+      for j in 1..(1 + floor(random()*3)::int) loop
+        insert into public.giveaway_prizes (giveaway_id, prize_name, donor_person_id, estimated_value, created_by)
+        values (
+          v_giveaway_id, (array['Gift card','Gear bundle','Weekend rental','Local restaurant voucher'])[1 + floor(random()*4)::int],
+          case when array_length(v_sponsor_ids,1) is not null and random() < 0.6 then v_sponsor_ids[1 + floor(random()*array_length(v_sponsor_ids,1))::int] end,
+          round((20 + random()*300)::numeric, 2), v_admin_id
+        )
+        returning id into v_prize_id;
+
+        if random() < 0.7 then
+          v_first := first_names[1 + floor(random() * array_length(first_names, 1))::int];
+          insert into public.giveaway_winners (giveaway_prize_id, winner_name, distribution_status, distributed_at, created_by)
+          values (
+            v_prize_id, v_first || ' ' || upper(left(last_names[1 + floor(random()*array_length(last_names,1))::int], 1)) || '.',
+            (array['pending','distributed','unclaimed'])[1 + floor(random()*3)::int],
+            case when random() < 0.6 then v_starts_at + interval '2 days' end, v_admin_id
+          );
+        end if;
+      end loop;
+    end if;
+
+    -- Discount codes for events with auto-assign turned on, about 1 in 5.
+    if random() < 0.2 then
+      update public.events set auto_assign_discount_codes = true where id = v_event_id;
+      for j in 1..(5 + floor(random()*10)::int) loop
+        insert into public.discount_codes (event_id, code, description, source, created_by)
+        values (v_event_id, 'SEED-' || upper(left(v_event_id::text, 4)) || '-' || j, 'Partner discount', 'Seed partner', v_admin_id);
+      end loop;
+    end if;
+  end loop;
+
+  -- ~130 more donations, 1-3 inventory items each.
+  for i in 1..130 loop
+    insert into public.donations (donor_id, event_id, notes, created_by)
+    values (
+      v_donor_ids[1 + floor(random()*array_length(v_donor_ids,1))::int],
+      case when random() < 0.3 and array_length(v_event_ids,1) is not null then v_event_ids[1 + floor(random()*array_length(v_event_ids,1))::int] else null end,
+      donation_notes[1 + floor(random()*array_length(donation_notes,1))::int],
+      v_admin_id
+    )
+    returning id into v_donation_id;
+
+    n_items := 1 + floor(random()*3)::int;
+    for j in 1..n_items loop
+      k := 1 + floor(random() * array_length(item_types, 1))::int;
+      v_status := (array['available','available','available','distributed','reserved','damaged','lost','retired'])[1 + floor(random()*8)::int];
+      insert into public.inventory_items (donation_id, description, size, type, gender, condition, face_value, status, notes, created_by)
+      values (
+        v_donation_id, item_descs[k], (array['XS','S','M','L','XL','One size'])[1 + floor(random()*6)::int],
+        item_types[k], genders[1 + floor(random()*array_length(genders,1))::int],
+        conditions[1 + floor(random()*array_length(conditions,1))::int],
+        round((5 + random()*80)::numeric, 2), v_status, null, v_admin_id
+      )
+      returning id into v_item_id;
+
+      insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, created_by)
+      values (v_item_id, 'received', 1, 'Donation intake', v_admin_id);
+
+      if v_status = 'distributed' then
+        insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, recipient_person_id, created_by)
+        values (v_item_id, 'distributed', 1, 'Given out', v_people_ids[1 + floor(random()*array_length(v_people_ids,1))::int], v_admin_id);
+      elsif v_status = 'reserved' then
+        insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, recipient_person_id, created_by)
+        values (v_item_id, 'reserved', 1, 'Public gear library request', v_people_ids[1 + floor(random()*array_length(v_people_ids,1))::int], v_admin_id);
+      elsif v_status in ('damaged', 'lost', 'retired') then
+        insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, created_by)
+        values (v_item_id, v_status, 1, 'Marked ' || v_status, v_admin_id);
+      end if;
+    end loop;
+  end loop;
+
+  -- ~90 more monetary donations, spread across the last 15 months so both
+  -- the finance report's default (year-to-date) and prior-year views have data.
+  for i in 1..90 loop
+    insert into public.monetary_donations (donor_id, event_id, amount, method, received_date, notes, created_by)
+    values (
+      case when random() < 0.85 then v_donor_ids[1 + floor(random()*array_length(v_donor_ids,1))::int] else null end,
+      case when random() < 0.25 and array_length(v_event_ids,1) is not null then v_event_ids[1 + floor(random()*array_length(v_event_ids,1))::int] else null end,
+      round((10 + random()*490)::numeric, 2),
+      (array['cash','check','card','bank_transfer','online','other'])[1 + floor(random()*6)::int],
+      (current_date - floor(random()*450)::int),
+      null, v_admin_id
+    );
+  end loop;
+
+  -- ~35 more reimbursements across the workflow's statuses.
+  for i in 1..35 loop
+    v_status := (array['submitted','submitted','approved','rejected','paid','paid'])[1 + floor(random()*6)::int];
+    insert into public.reimbursements (
+      person_id, event_id, description, amount, notes, submitted_by, created_by,
+      status, approved_by, approved_at, rejected_at, rejection_reason, paid_by, paid_at
+    )
+    values (
+      v_people_ids[1 + floor(random()*array_length(v_people_ids,1))::int],
+      case when random() < 0.6 and array_length(v_event_ids,1) is not null then v_event_ids[1 + floor(random()*array_length(v_event_ids,1))::int] else null end,
+      (array['Gas for gear pickup','Supplies for the intake table','Printing costs','Parking reimbursement'])[1 + floor(random()*4)::int],
+      round((8 + random()*180)::numeric, 2), null, v_finance_id, v_admin_id,
+      v_status,
+      case when v_status in ('approved','paid') then v_board_id end,
+      case when v_status in ('approved','paid') then now() - (floor(random()*60)::int || ' days')::interval end,
+      case when v_status = 'rejected' then now() - (floor(random()*60)::int || ' days')::interval end,
+      case when v_status = 'rejected' then 'Receipt missing.' end,
+      case when v_status = 'paid' then v_finance_id end,
+      case when v_status = 'paid' then now() - (floor(random()*30)::int || ' days')::interval end
+    );
+  end loop;
+
+  -- ~45 volunteer applications across every status.
+  for i in 1..45 loop
+    v_first := first_names[1 + floor(random() * array_length(first_names, 1))::int];
+    v_last := last_names[1 + floor(random() * array_length(last_names, 1))::int];
+    insert into public.people (name, is_anonymous, source_type, email, phone, is_volunteer, created_by)
+    values (v_first || ' ' || v_last, false, 'individual', lower(v_first || '.' || v_last || '.app' || i || '@example.test'), '555-' || lpad((4000+i)::text,4,'0'), true, v_admin_id)
+    returning id into v_person_id;
+
+    insert into public.volunteer_applications (person_id, name, email, phone, role_interest, availability, status, reference_code)
+    values (
+      v_person_id, v_first || ' ' || v_last, lower(v_first || '.' || v_last || '.app' || i || '@example.test'),
+      '555-' || lpad((4000+i)::text,4,'0'),
+      (array['Ride Buddy','Event Setup Crew','Registration Desk','Trail Guide','Gear Sorter'])[1 + floor(random()*5)::int],
+      (array['Weekday evenings','Weekend mornings','Weekend afternoons','Flexible'])[1 + floor(random()*4)::int],
+      (array['new','being reviewed','contacted','placed','declined','closed'])[1 + floor(random()*6)::int],
+      'SEED' || lpad(i::text, 4, '0')
+    );
+  end loop;
+
+  -- ~45 contact messages across every status.
+  for i in 1..45 loop
+    v_first := first_names[1 + floor(random() * array_length(first_names, 1))::int];
+    v_last := last_names[1 + floor(random() * array_length(last_names, 1))::int];
+    insert into public.contact_messages (name, email, topic, message, status)
+    values (
+      v_first || ' ' || v_last, lower(v_first || '.' || v_last || '.msg' || i || '@example.test'),
+      contact_topics[1 + floor(random()*array_length(contact_topics,1))::int],
+      'Seed bulk-data message body for volume testing the ops inbox.',
+      (array['new','read','resolved'])[1 + floor(random()*3)::int]
+    );
+  end loop;
+
+  -- ~65 more calendar items across every item type, with categories, and a
+  -- content_opportunities brief for the content/partner-opportunity ones so
+  -- the content pipeline board also gets volume.
+  for i in 1..65 loop
+    v_starts_at := now() + ((floor(random() * 300)::int - 100) || ' days')::interval;
+    v_item_type := (array['chatter_event','partner_event','community_observance','heritage_social_justice_moment','winter_outdoor_sports_moment','content_campaign','fundraiser','partner_opportunity','content_opportunity'])[1 + floor(random()*9)::int];
+    insert into public.calendar_items (
+      title, item_type, starts_at, ends_at, time_zone, summary, priority_tier,
+      calendar_status, visibility, owner_id, created_by
+    )
+    values (
+      'Seed calendar item #' || i, v_item_type,
+      v_starts_at, v_starts_at + interval '2 hours', 'America/Denver',
+      'Seed bulk-data calendar item for volume testing.',
+      1 + floor(random()*3)::int,
+      (array['idea','active','complete','archived'])[1 + floor(random()*4)::int],
+      (array['public','internal','unlisted_draft'])[1 + floor(random()*3)::int],
+      v_admin_id, v_admin_id
+    )
+    returning id into v_calendar_item_id;
+
+    insert into public.calendar_item_categories (item_id, category)
+    values (
+      v_calendar_item_id,
+      (array['lgbtq_community','winter_outdoor_sports','community_social_justice','chatter_events','campaigns_fundraising','partner_opportunities'])[1 + floor(random()*6)::int]
+    );
+    if random() < 0.3 then
+      insert into public.calendar_item_categories (item_id, category)
+      values (
+        v_calendar_item_id,
+        (array['lgbtq_community','winter_outdoor_sports','community_social_justice','chatter_events','campaigns_fundraising','partner_opportunities'])[1 + floor(random()*6)::int]
+      )
+      on conflict do nothing;
+    end if;
+
+    if v_item_type in ('content_opportunity', 'partner_opportunity') then
+      insert into public.content_opportunities (
+        calendar_item_id, content_status, chatter_connection, recommended_formats,
+        recommended_action, owner_id, reviewer_id, lead_time_days, publish_due_at, created_by
+      )
+      values (
+        v_calendar_item_id,
+        (array['not_planned','idea','draft','in_review','changes_requested','approved','scheduled','published'])[1 + floor(random()*8)::int],
+        'Seed bulk-data content connection note.', 'Instagram post; email',
+        'Seed recommended action.', v_admin_id, v_admin_id,
+        7 + floor(random()*21)::int, v_starts_at - interval '7 days', v_admin_id
+      );
+    end if;
+  end loop;
+
+  -- ~20 more governance meetings, each with attendees / agenda / minutes /
+  -- action items / decisions, some resolutions.
+  select id into v_agenda_template_id from public.agenda_templates where key = 'board_meeting';
+  select current_version_id into v_agenda_template_version_id from public.agenda_templates where id = v_agenda_template_id;
+
+  for i in 1..20 loop
+    v_starts_at := now() - ((floor(random() * 700)::int) || ' days')::interval;
+    insert into public.governance_meetings (meeting_date, meeting_type, status, location, notes, facilitator_person_id, notetaker_person_id, created_by)
+    values (
+      v_starts_at, (array['board','committee','annual','other'])[1 + floor(random()*4)::int],
+      'completed', (array['Video conference','Chatter Snow Office','Community Center'])[1 + floor(random()*3)::int],
+      'Seed bulk-data governance meeting.',
+      v_people_ids[1 + floor(random()*array_length(v_people_ids,1))::int],
+      v_people_ids[1 + floor(random()*array_length(v_people_ids,1))::int],
+      v_admin_id
+    )
+    returning id into v_meeting_id;
+
+    for j in 1..(2 + floor(random()*3)::int) loop
+      insert into public.governance_meeting_attendees (meeting_id, person_id, attended, created_by)
+      values (v_meeting_id, v_people_ids[1 + floor(random()*array_length(v_people_ids,1))::int], random() < 0.85, v_admin_id)
+      on conflict (meeting_id, person_id) do nothing;
+    end loop;
+
+    insert into public.agendas (meeting_id, body_text, template_id, template_version_id, created_by)
+    values (v_meeting_id, '1. Updates\n2. Old business\n3. New business', v_agenda_template_id, v_agenda_template_version_id, v_admin_id);
+
+    for j in 1..(1 + floor(random()*3)::int) loop
+      insert into public.governance_meeting_action_items (meeting_id, description, owner_person_id, due_date, status, created_by)
+      values (
+        v_meeting_id, 'Seed action item #' || j, v_people_ids[1 + floor(random()*array_length(v_people_ids,1))::int],
+        (v_starts_at + interval '30 days')::date, (array['open','done'])[1 + floor(random()*2)::int], v_admin_id
+      );
+    end loop;
+
+    if random() < 0.5 then
+      insert into public.governance_meeting_decisions (meeting_id, description, decision_date, topic, vote_result, created_by)
+      values (v_meeting_id, 'Seed bulk-data decision.', v_starts_at::date, 'General business', 'Passed unanimously', v_admin_id);
+    end if;
+
+    if random() < 0.3 then
+      insert into public.resolutions (meeting_id, motion_text, mover_person_id, seconder_person_id, vote_outcome, effective_date, created_by)
+      values (
+        v_meeting_id, 'Seed bulk-data resolution motion.',
+        v_people_ids[1 + floor(random()*array_length(v_people_ids,1))::int],
+        v_people_ids[1 + floor(random()*array_length(v_people_ids,1))::int],
+        'passed', v_starts_at::date, v_admin_id
+      );
+    end if;
+  end loop;
+
+  -- ~8 more board members (respecting one-active-term-per-person via the
+  -- partial unique index rather than a separate random-vs-random exists
+  -- check, which would compare two independently-random picks).
+  for i in 1..8 loop
+    insert into public.board_members (person_id, role_title, term_start, term_end, is_active, notes, created_by)
+    select
+      v_people_ids[1 + floor(random()*array_length(v_people_ids,1))::int],
+      (array['Board member','Treasurer','Secretary','Vice chair'])[1 + floor(random()*4)::int],
+      current_date - (365 + floor(random()*365)::int),
+      case when random() < 0.3 then current_date - floor(random()*30)::int end,
+      (random() < 0.7),
+      'Seed bulk-data board term.', v_admin_id
+    on conflict (person_id) where is_active do nothing;
+  end loop;
+
+  -- ~10 annual compliance requirements.
+  for i in 1..10 loop
+    insert into public.annual_requirements (name, due_date, status, responsible_person_id, created_by)
+    values (
+      (array['Form 990 filing','State charitable registration renewal','D&O insurance renewal','Annual board self-assessment','Bylaws review'])[1 + floor(random()*5)::int] || ' ' || (2025 + i),
+      current_date + (floor(random()*400)::int - 100),
+      (array['not_started','in_progress','done'])[1 + floor(random()*3)::int],
+      v_people_ids[1 + floor(random()*array_length(v_people_ids,1))::int],
+      v_admin_id
+    );
+  end loop;
+
+  -- Access management: modest scale per the module's own "under 25 assets" design.
+  for i in 1..8 loop
+    insert into public.services (name, website, created_by)
+    values ((array['Cloudflare','GitHub','Vercel','Supabase','Zoho','Mailchimp','Instagram','QuickBooks'])[i], 'https://example.test', v_admin_id)
+    returning id into v_service_id;
+
+    insert into public.assets (name, service_id, category, description, is_org_owned, owner_person_id, status, sensitivity, mfa_required, mfa_status, created_by)
+    values (
+      (array['Cloudflare','GitHub','Vercel','Supabase','Zoho','Mailchimp','Instagram','QuickBooks'])[i] || ' account',
+      v_service_id, (array['domain','hosting','database','social','financial','communication','productivity','other'])[i],
+      'Seed bulk-data asset.', true, v_people_ids[1 + floor(random()*array_length(v_people_ids,1))::int], 'active',
+      (array['low','medium','high','critical'])[1 + floor(random()*4)::int],
+      random() < 0.6, (array['enabled','disabled','unknown'])[1 + floor(random()*3)::int], v_admin_id
+    )
+    returning id into v_asset_id;
+
+    for j in 1..(1 + floor(random()*3)::int) loop
+      insert into public.access_grants (asset_id, person_id, access_level, account_identifier, granted_at, status, created_by)
+      select v_asset_id, v_people_ids[1 + floor(random()*array_length(v_people_ids,1))::int],
+        (array['owner','admin','manager','editor','viewer'])[1 + floor(random()*5)::int],
+        'user' || j || '@example.test', current_date - floor(random()*400)::int,
+        'active', v_admin_id
+      on conflict (asset_id, person_id) where status = 'active' do nothing;
+    end loop;
+  end loop;
+end $$;
