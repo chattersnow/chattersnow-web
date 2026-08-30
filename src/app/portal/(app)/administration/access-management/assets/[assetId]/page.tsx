@@ -14,7 +14,7 @@ import {
   listPeopleForAccessManagement,
   listServices,
 } from "../../queries";
-import { AccessGrantsTable } from "./access-grants-table";
+import { AccessGrantsList } from "./access-grants-list";
 import { AssetAuditHistory } from "./asset-audit-history";
 import { EditAssetSheet } from "./edit-asset-sheet";
 import { NewAccessGrantDialog } from "./new-access-grant-dialog";
@@ -207,7 +207,7 @@ export default async function AssetDetailPage({
         <NewAccessGrantDialog assetId={asset.id} people={people} />
       </div>
       <div className="mt-3">
-        <AccessGrantsTable grants={grants} assetId={asset.id} />
+        <AccessGrantsList grants={grants} assetId={asset.id} />
       </div>
 
       <div className="mt-6">

@@ -38,6 +38,7 @@ const {
   updateAccessGrantAction,
   verifyAccessGrantAction,
   revokeAccessGrantAction,
+  deleteAccessGrantAction,
 } = await import("./actions");
 
 const DENIED = { error: "You don't have permission to perform this action." };
@@ -320,7 +321,7 @@ describe("access-management assets actions (integration)", () => {
 });
 
 describe("access-management access_grants actions (integration)", () => {
-  test("requires access_management_assets:manage to create, update or revoke a grant", async () => {
+  test("requires access_management_assets:manage to create, update, revoke or delete a grant", async () => {
     const service = await createTestService();
     const asset = await createTestAsset(service.id);
     const person = await createPerson();
@@ -355,11 +356,45 @@ describe("access-management access_grants actions (integration)", () => {
     expect(await revokeAccessGrantAction(grant.id as string, asset.id)).toEqual(
       DENIED,
     );
+    expect(await deleteAccessGrantAction(grant.id as string, asset.id)).toEqual(
+      DENIED,
+    );
 
     await adminClient
       .from("access_grants")
       .delete()
       .eq("id", grant.id as string);
+    await person.cleanup();
+    await asset.cleanup();
+    await service.cleanup();
+  });
+
+  test("admin can delete a grant, permanently removing the record", async () => {
+    const service = await createTestService();
+    const asset = await createTestAsset(service.id);
+    const person = await createPerson();
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+    await createAccessGrantAction(asset.id, grantFormData(person.id));
+    const { data: grant } = await adminClient
+      .from("access_grants")
+      .select("id")
+      .eq("asset_id", asset.id)
+      .eq("person_id", person.id)
+      .single();
+    if (!grant) throw new Error("expected the created grant");
+
+    expect(await deleteAccessGrantAction(grant.id as string, asset.id)).toEqual(
+      { success: true },
+    );
+
+    const { data: row } = await adminClient
+      .from("access_grants")
+      .select("id")
+      .eq("id", grant.id as string)
+      .maybeSingle();
+    expect(row).toBeNull();
+
     await person.cleanup();
     await asset.cleanup();
     await service.cleanup();
