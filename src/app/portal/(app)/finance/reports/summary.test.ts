@@ -9,6 +9,7 @@ import {
   toNumber,
   yearToDateRange,
   type FinanceReportData,
+  type MonetaryDonationReportRow,
   type RevenueReportRow,
   type SpendReportRow,
 } from "./summary";
@@ -116,6 +117,28 @@ describe("summarizeByEvent", () => {
     ]);
   });
 
+  test("adds event-linked monetary donations to that event's income", () => {
+    const donations: MonetaryDonationReportRow[] = [
+      { amount: 50, event_id: "e1", event_name: "Jam", donor_name: "Jamie" },
+      { amount: "25", event_id: null, event_name: null, donor_name: null },
+    ];
+    const byEvent = summarizeByEvent(revenue, spend, donations);
+    expect(byEvent.find((row) => row.eventId === "e1")).toEqual({
+      eventId: "e1",
+      eventName: "Jam",
+      income: 350,
+      paidSpend: 100,
+      net: 250,
+    });
+    expect(byEvent.find((row) => row.eventId === null)).toEqual({
+      eventId: null,
+      eventName: NO_EVENT_LABEL,
+      income: 45,
+      paidSpend: 0,
+      net: 45,
+    });
+  });
+
   test("groups every unassigned row under a single 'No event' entry", () => {
     const unassigned = summarizeByEvent(
       [{ source: "grants", amount: 10, event_id: null, event_name: null }],
@@ -154,13 +177,19 @@ describe("computeFinanceSummary", () => {
       { face_value: "60" },
       { face_value: null },
     ],
+    monetary_donations: [
+      { amount: 100, event_id: null, event_name: null, donor_name: "Jamie" },
+      { amount: "25", event_id: null, event_name: null, donor_name: null },
+    ],
   };
 
-  test("nets cash income against paid expenses and reimbursements", () => {
+  test("nets cash income and monetary donations against paid spend", () => {
     const summary = computeFinanceSummary(data);
     expect(summary.income).toBe(1000);
+    expect(summary.cashDonations).toBe(125);
+    expect(summary.cashDonationCount).toBe(2);
     expect(summary.paidSpend).toBe(200);
-    expect(summary.net).toBe(800);
+    expect(summary.net).toBe(925);
   });
 
   test("reports approved-but-unpaid and pending spend separately", () => {
@@ -173,11 +202,13 @@ describe("computeFinanceSummary", () => {
     const summary = computeFinanceSummary(data);
     expect(summary.inKindValue).toBe(100);
     expect(summary.inKindItemCount).toBe(3);
-    expect(summary.net).toBe(summary.income - summary.paidSpend);
+    expect(summary.net).toBe(
+      summary.income + summary.cashDonations - summary.paidSpend,
+    );
   });
 
   test("rejected spend never reduces the net", () => {
-    expect(computeFinanceSummary(data).net).toBe(800);
+    expect(computeFinanceSummary(data).net).toBe(925);
   });
 
   test("zeroes out on an empty period", () => {
@@ -187,9 +218,12 @@ describe("computeFinanceSummary", () => {
         expenses: [],
         reimbursements: [],
         in_kind_items: [],
+        monetary_donations: [],
       }),
     ).toEqual({
       income: 0,
+      cashDonations: 0,
+      cashDonationCount: 0,
       paidSpend: 0,
       net: 0,
       approvedUnpaidSpend: 0,
