@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import type { PendingApprovalItem } from "@/lib/portal/attention-items";
 
 export function DashboardSectionCard({
   title,
@@ -64,22 +66,47 @@ export function DashboardEventRow({
   );
 }
 
-export function DashboardComingSoonRow({
+const TASK_LIST_DISPLAY_LIMIT = 5;
+
+export function DashboardTaskListRow({
   label,
-  description,
+  items,
+  emptyCaption,
 }: {
   label: string;
-  description: string;
+  items: PendingApprovalItem[];
+  emptyCaption: string;
 }) {
+  if (items.length === 0) {
+    return <DashboardStatRow label={label} value={0} caption={emptyCaption} />;
+  }
+
+  const visible = items.slice(0, TASK_LIST_DISPLAY_LIMIT);
+  const remaining = items.length - visible.length;
+
   return (
     <div className="py-3 first:pt-0 last:pb-0">
       <div className="flex items-center justify-between gap-4">
         <p className="text-sm font-medium">{label}</p>
-        <p className="app-muted text-xs font-medium uppercase tracking-[0.08em]">
-          Coming soon
+        <p className="brand-display shrink-0 text-xl font-semibold tracking-[-0.02em]">
+          {items.length}
         </p>
       </div>
-      <p className="app-muted mt-1 text-xs">{description}</p>
+      <ul className="mt-2 flex flex-col gap-1.5">
+        {visible.map((item) => (
+          <li key={item.key}>
+            <Link
+              href={item.href}
+              className="text-primary text-sm hover:underline"
+            >
+              {item.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+      {remaining > 0 && (
+        <p className="app-muted mt-1.5 text-xs">+{remaining} more</p>
+      )}
     </div>
   );
 }
