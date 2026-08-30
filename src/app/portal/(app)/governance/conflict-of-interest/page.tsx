@@ -31,12 +31,11 @@ export default async function ConflictOfInterestPage() {
 
   return (
     <>
-      <div className="rainbow-accent w-16" />
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="w-fit">
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
           Conflict of Interest
         </h1>
-        {canManage && <NewDisclosureDialog people={peopleOptions} />}
+        <div className="rainbow-accent mt-3 w-full" />
       </div>
 
       <div className="mt-6">
@@ -44,6 +43,11 @@ export default async function ConflictOfInterestPage() {
           disclosures={(disclosures ?? []) as unknown as Disclosure[]}
           people={peopleOptions}
           canManage={canManage}
+          newAction={
+            canManage ? (
+              <NewDisclosureDialog people={peopleOptions} />
+            ) : undefined
+          }
         />
       </div>
     </>

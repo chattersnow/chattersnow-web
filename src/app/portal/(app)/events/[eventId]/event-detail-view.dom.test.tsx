@@ -1,5 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import * as PeopleActions from "../../people/actions";
 import * as VolunteersActions from "../volunteers-actions";
 import * as ShiftsActions from "../shifts-actions";
@@ -15,6 +15,7 @@ import * as ImpactActions from "../impact-actions";
 import * as HomeActions from "../../home/actions";
 import * as LogisticsActions from "../logistics-actions";
 import * as RoleTypesActions from "../../volunteers/roles/actions";
+import * as EventsActions from "../actions";
 import type { EventRow } from "../event-badges";
 
 mock.module("../../people/actions", () => ({
@@ -87,6 +88,10 @@ mock.module("../../volunteers/roles/actions", () => ({
   ...RoleTypesActions,
   listRoleTypesAction: mock(async () => ({ data: [] })),
 }));
+mock.module("../actions", () => ({
+  ...EventsActions,
+  listEventLeadsAction: mock(async () => ({ data: [] })),
+}));
 
 const { EventDetailView } = await import("./event-detail-view");
 
@@ -124,29 +129,92 @@ function makeEvent(overrides: Partial<EventRow> = {}): EventRow {
 }
 
 describe("EventDetailView", () => {
-  test("shows every phase flat, without tabs", () => {
+  test("shows one phase tab bar: Overview, Planning, During, After", () => {
     render(
-      <EventDetailView event={makeEvent()} programs={[]} eventLeads={[]} />,
+      <EventDetailView event={makeEvent()} programs={[]} canManage={true} />,
     );
 
-    expect(screen.queryByRole("tab")).not.toBeInTheDocument();
-    for (const label of ["Planning", "During", "After"]) {
-      expect(
-        screen.getByRole("heading", { name: label, level: 2 }),
-      ).toBeInTheDocument();
+    expect(screen.getAllByRole("tab")).toHaveLength(4);
+    for (const label of [/Overview/, /Planning/, /During/, /After/]) {
+      expect(screen.getByRole("tab", { name: label })).toBeInTheDocument();
     }
-    expect(screen.getByText("Event details")).toBeInTheDocument();
-    expect(screen.getByText("Registration & planning")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Winter Gear Swap" }),
     ).toBeInTheDocument();
+    // Overview is the default tab; its card is visible, other phases aren't.
+    expect(screen.getByText("Event details")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Registration & planning"),
+    ).not.toBeInTheDocument();
   });
 
-  test("editing happens through a sheet", () => {
+  test("switches phases through the tab bar", () => {
     render(
-      <EventDetailView event={makeEvent()} programs={[]} eventLeads={[]} />,
+      <EventDetailView event={makeEvent()} programs={[]} canManage={true} />,
     );
 
-    expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: /Planning/ }));
+
+    expect(screen.getByText("Registration & planning")).toBeInTheDocument();
+    expect(screen.getByText("Logistics")).toBeInTheDocument();
+    expect(screen.getByText("Volunteers")).toBeInTheDocument();
+    expect(screen.getByText("Sponsors")).toBeInTheDocument();
+    expect(screen.queryByText("Event details")).not.toBeInTheDocument();
+  });
+
+  test("edits inline per card, without an edit sheet", () => {
+    render(
+      <EventDetailView event={makeEvent()} programs={[]} canManage={true} />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Edit event details" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Edit" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: /Planning/ }));
+    expect(
+      screen.getByRole("button", { name: "Edit registration & planning" }),
+    ).toBeInTheDocument();
+  });
+
+  test("hides edit controls without manage access", () => {
+    render(
+      <EventDetailView event={makeEvent()} programs={[]} canManage={false} />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Edit event details" }),
+    ).not.toBeInTheDocument();
+  });
+
+  test("hides edit for report-locked cards after report submission", () => {
+    render(
+      <EventDetailView
+        event={makeEvent({ report_status: "submitted" })}
+        programs={[]}
+        canManage={true}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Edit event details" }),
+    ).not.toBeInTheDocument();
+  });
+
+  test("opens the phase for a deep-linked tab", () => {
+    render(
+      <EventDetailView
+        event={makeEvent()}
+        programs={[]}
+        canManage={true}
+        initialTab="registrants"
+      />,
+    );
+
+    expect(screen.getByText("Registrants")).toBeInTheDocument();
+    expect(screen.queryByText("Event details")).not.toBeInTheDocument();
   });
 });

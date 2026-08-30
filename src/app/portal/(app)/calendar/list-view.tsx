@@ -18,17 +18,13 @@ import { BulkActionsToolbar } from "./bulk-actions-toolbar";
 import {
   CalendarStatusBadge,
   CalendarVisibilityBadge,
-  CategoryBadges,
   NeedsDecisionFlag,
   PastUndecidedFlag,
-  PriorityTierBadge,
 } from "./calendar-badges";
 import {
   isPastUndecided,
-  labelFor,
   needsDecision,
   ownerEmail,
-  ITEM_TYPES,
   type CalendarItemRow,
   type CalendarOwner,
 } from "./calendar-shared";
@@ -38,15 +34,11 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
   timeStyle: "short",
 });
 
-export type ListSortColumn =
-  "title" | "starts_at" | "priority_tier" | "calendar_status";
+export type ListSortColumn = "title" | "starts_at" | "calendar_status";
 
-const SORT_COLUMN_BEFORE_TYPE: { key: ListSortColumn; label: string }[] = [
+const SORT_COLUMNS: { key: ListSortColumn; label: string }[] = [
   { key: "title", label: "Title" },
-];
-const SORT_COLUMNS_AFTER_TYPE: { key: ListSortColumn; label: string }[] = [
   { key: "starts_at", label: "Starts" },
-  { key: "priority_tier", label: "Priority" },
   { key: "calendar_status", label: "Status" },
 ];
 
@@ -127,19 +119,7 @@ export function ListView({
                     />
                   </TableHead>
                 )}
-                {SORT_COLUMN_BEFORE_TYPE.map((column) => (
-                  <TableHead key={column.key}>
-                    <Link
-                      href={sortHref(column.key)}
-                      className="inline-flex items-center gap-1 hover:text-foreground"
-                    >
-                      {column.label}
-                      <SortIcon column={column.key} />
-                    </Link>
-                  </TableHead>
-                ))}
-                <TableHead>Type</TableHead>
-                {SORT_COLUMNS_AFTER_TYPE.map((column) => (
+                {SORT_COLUMNS.map((column) => (
                   <TableHead key={column.key}>
                     <Link
                       href={sortHref(column.key)}
@@ -152,7 +132,6 @@ export function ListView({
                 ))}
                 <TableHead>Visibility</TableHead>
                 <TableHead>Owner</TableHead>
-                <TableHead>Categories</TableHead>
                 <TableHead className="w-px" />
               </TableRow>
             </TableHeader>
@@ -181,14 +160,8 @@ export function ListView({
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="app-muted">
-                    {labelFor(ITEM_TYPES, item.item_type)}
-                  </TableCell>
                   <TableCell>
                     {dateFormatter.format(new Date(item.starts_at))}
-                  </TableCell>
-                  <TableCell>
-                    <PriorityTierBadge tier={item.priority_tier} />
                   </TableCell>
                   <TableCell>
                     <CalendarStatusBadge status={item.calendar_status} />
@@ -198,9 +171,6 @@ export function ListView({
                   </TableCell>
                   <TableCell className="app-muted">
                     {ownerEmail(owners, item.owner_id)}
-                  </TableCell>
-                  <TableCell>
-                    <CategoryBadges categories={item.categories} />
                   </TableCell>
                   <TableCell className="text-right">
                     <Button

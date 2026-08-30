@@ -174,16 +174,14 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
 
   return (
     <>
-      <div className="rainbow-accent w-16" />
-      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-        Events
-      </h1>
+      <div className="w-fit">
+        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          Events
+        </h1>
+        <div className="rainbow-accent mt-3 w-full" />
+      </div>
 
-      <div className="rainbow-surface mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
-        <div className="flex items-center gap-2">
-          {canManage && <NewEventDialog programs={programs} />}
-        </div>
-
+      <div className="rainbow-surface mt-6 flex flex-wrap items-center justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
         <FiltersSheet activeCount={activeFilterCount}>
           <form method="get" className="flex flex-col gap-4">
             <input type="hidden" name="sort" value={sort} />
@@ -263,6 +261,8 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
             </div>
           </form>
         </FiltersSheet>
+
+        {canManage && <NewEventDialog programs={programs} />}
       </div>
 
       <Card className="mt-6">

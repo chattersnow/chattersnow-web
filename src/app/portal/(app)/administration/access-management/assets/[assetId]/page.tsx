@@ -55,7 +55,6 @@ export default async function AssetDetailPage({
 
   return (
     <>
-      <div className="rainbow-accent w-16" />
       <Button
         variant="ghost"
         size="sm"
@@ -65,40 +64,39 @@ export default async function AssetDetailPage({
       >
         <ArrowLeft /> Access management
       </Button>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+      <div>
+        <div className="w-fit">
           <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
             {asset.name}
           </h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Badge variant="outline">{asset.service?.name ?? "—"}</Badge>
-            <Badge variant="outline" className="capitalize">
-              {humanize(asset.category)}
-            </Badge>
-            <Badge variant="secondary" className="capitalize">
-              {asset.sensitivity}
-            </Badge>
-            <Badge variant="outline" className="capitalize">
-              {asset.status}
-            </Badge>
-          </div>
+          <div className="rainbow-accent mt-3 w-full" />
         </div>
-        <div className="flex shrink-0 gap-2">
-          <ReviewAssetButton
-            assetId={asset.id}
-            sensitivity={asset.sensitivity}
-          />
-          <EditAssetSheet asset={asset} services={services} people={people} />
-          <DeleteAssetButton
-            assetId={asset.id}
-            assetName={asset.name}
-            activeGrantCount={
-              grants.filter((grant) => grant.status === "active").length
-            }
-            variant="button"
-            redirectTo="/portal/administration/access-management"
-          />
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Badge variant="outline">{asset.service?.name ?? "—"}</Badge>
+          <Badge variant="outline" className="capitalize">
+            {humanize(asset.category)}
+          </Badge>
+          <Badge variant="secondary" className="capitalize">
+            {asset.sensitivity}
+          </Badge>
+          <Badge variant="outline" className="capitalize">
+            {asset.status}
+          </Badge>
         </div>
+      </div>
+
+      <div className="rainbow-surface mt-6 flex flex-wrap items-center justify-end gap-2 rounded-xl border border-[var(--line)] p-4 shadow-md">
+        <ReviewAssetButton assetId={asset.id} sensitivity={asset.sensitivity} />
+        <EditAssetSheet asset={asset} services={services} people={people} />
+        <DeleteAssetButton
+          assetId={asset.id}
+          assetName={asset.name}
+          activeGrantCount={
+            grants.filter((grant) => grant.status === "active").length
+          }
+          variant="button"
+          redirectTo="/portal/administration/access-management"
+        />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">

@@ -23,17 +23,19 @@ export default async function AccessManagementPage() {
 
   return (
     <>
-      <div className="rainbow-accent w-16" />
-      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-        Access Management
-      </h1>
+      <div className="w-fit">
+        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          Access Management
+        </h1>
+        <div className="rainbow-accent mt-3 w-full" />
+      </div>
       <p className="app-muted mt-2 max-w-2xl text-sm">
         External technology assets (domains, hosting, social accounts, and more)
         and who has access to them. This is not a credential store -- it never
         holds passwords, API keys, tokens, or recovery codes.
       </p>
 
-      <div className="mt-6 flex justify-end gap-2">
+      <div className="rainbow-surface mt-6 flex flex-wrap items-center justify-end gap-2 rounded-xl border border-[var(--line)] p-4 shadow-md">
         <Button
           variant="secondary"
           nativeButton={false}

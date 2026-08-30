@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { ReactNode, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { FiltersSheet } from "@/components/filters-sheet";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -30,10 +29,12 @@ export function DisclosuresTable({
   disclosures,
   people,
   canManage,
+  newAction,
 }: {
   disclosures: Disclosure[];
   people: PersonListItem[];
   canManage: boolean;
+  newAction?: ReactNode;
 }) {
   const [search, setSearch] = useState("");
 
@@ -47,95 +48,92 @@ export function DisclosuresTable({
     );
   }, [disclosures, search]);
 
-  const activeFilterCount = search.trim() !== "" ? 1 : 0;
-
-  if (disclosures.length === 0) {
-    return (
-      <Card>
-        <CardContent className="px-0">
-          <p className="app-muted px-4 py-6 text-sm">
-            No disclosures recorded yet.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <div className="space-y-4">
-      <div className="rainbow-surface flex justify-end rounded-xl border border-[var(--line)] p-4 shadow-md">
-        <FiltersSheet activeCount={activeFilterCount}>
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="disclosures-search"
-              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-            >
-              Search
-            </label>
-            <Input
-              id="disclosures-search"
-              placeholder="Search person or year..."
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-          </div>
-        </FiltersSheet>
+      <div className="rainbow-surface flex flex-wrap items-end justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+        <div className="flex flex-col gap-1">
+          <label
+            htmlFor="disclosures-search"
+            className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+          >
+            Search
+          </label>
+          <Input
+            id="disclosures-search"
+            className="w-56"
+            placeholder="Search person or year..."
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </div>
+
+        {newAction}
       </div>
 
-      <Card>
-        <CardContent className="px-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Person</TableHead>
-                <TableHead>Disclosure year</TableHead>
-                <TableHead>On-file date</TableHead>
-                <TableHead>Notes</TableHead>
-                <TableHead className="w-0">
-                  <span className="sr-only">Actions</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {visibleDisclosures.length === 0 ? (
+      {disclosures.length === 0 ? (
+        <Card>
+          <CardContent className="px-0">
+            <p className="app-muted px-4 py-6 text-sm">
+              No disclosures recorded yet.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="px-0">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="app-muted text-center">
-                    No disclosures match your search.
-                  </TableCell>
+                  <TableHead>Person</TableHead>
+                  <TableHead>Disclosure year</TableHead>
+                  <TableHead>On-file date</TableHead>
+                  <TableHead>Notes</TableHead>
+                  <TableHead className="w-0">
+                    <span className="sr-only">Actions</span>
+                  </TableHead>
                 </TableRow>
-              ) : (
-                visibleDisclosures.map((disclosure) => (
-                  <TableRow key={disclosure.id}>
-                    <TableCell className="font-medium">
-                      {disclosure.person.name ?? "—"}
-                    </TableCell>
-                    <TableCell className="app-muted">
-                      {disclosure.disclosure_year}
-                    </TableCell>
-                    <TableCell className="app-muted">
-                      {formatDate(disclosure.on_file_date)}
-                    </TableCell>
-                    <TableCell
-                      className="app-muted max-w-xs truncate"
-                      title={disclosure.notes ?? undefined}
-                    >
-                      {disclosure.notes || "—"}
-                    </TableCell>
-                    <TableCell>
-                      {canManage && (
-                        <EditDisclosureModal
-                          disclosure={disclosure}
-                          people={people}
-                        />
-                      )}
+              </TableHeader>
+              <TableBody>
+                {visibleDisclosures.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="app-muted text-center">
+                      No disclosures match your search.
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                ) : (
+                  visibleDisclosures.map((disclosure) => (
+                    <TableRow key={disclosure.id}>
+                      <TableCell className="font-medium">
+                        {disclosure.person.name ?? "—"}
+                      </TableCell>
+                      <TableCell className="app-muted">
+                        {disclosure.disclosure_year}
+                      </TableCell>
+                      <TableCell className="app-muted">
+                        {formatDate(disclosure.on_file_date)}
+                      </TableCell>
+                      <TableCell
+                        className="app-muted max-w-xs truncate"
+                        title={disclosure.notes ?? undefined}
+                      >
+                        {disclosure.notes || "—"}
+                      </TableCell>
+                      <TableCell>
+                        {canManage && (
+                          <EditDisclosureModal
+                            disclosure={disclosure}
+                            people={people}
+                          />
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

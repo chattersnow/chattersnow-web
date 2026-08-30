@@ -24,10 +24,12 @@ export default async function DonateGearPage() {
   return (
     <div className="space-y-12">
       <section id="how-it-works">
-        <div className="rainbow-accent w-16" />
-        <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-          How the gear program works
-        </h1>
+        <div className="w-fit">
+          <div className="rainbow-accent w-full" />
+          <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+            How the gear program works
+          </h1>
+        </div>
         <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
           Chatter collects donated ski and snowboard gear and makes it available
           to people in the community who need it. Browse the library, add what

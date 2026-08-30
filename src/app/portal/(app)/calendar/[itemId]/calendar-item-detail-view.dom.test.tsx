@@ -87,19 +87,35 @@ describe("CalendarItemDetailView", () => {
     expect(screen.getByText("Core community moment.")).toBeInTheDocument();
   });
 
-  test("editing happens through a sheet, with item actions in the header", () => {
+  test("edits inline per card, with item actions in the header", () => {
     renderView(makeItem());
 
-    expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+    for (const label of [
+      "Edit schedule & details",
+      "Edit planning & decision",
+      "Edit sensitive topic",
+    ]) {
+      expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
+    }
     expect(
       screen.getByRole("button", { name: "Duplicate" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Archive" })).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Delete calendar item" }),
     ).toBeInTheDocument();
     // No structured recurrence on this item, so no generate action.
     expect(
       screen.queryByRole("button", { name: "Generate next year" }),
+    ).not.toBeInTheDocument();
+  });
+
+  test("offers Restore instead of Archive for archived items", () => {
+    renderView(makeItem({ calendar_status: "archived" }));
+
+    expect(screen.getByRole("button", { name: "Restore" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Archive" }),
     ).not.toBeInTheDocument();
   });
 
@@ -123,11 +139,20 @@ describe("CalendarItemDetailView", () => {
       { canManage: false },
     );
 
-    expect(
-      screen.queryByRole("button", { name: "Edit" }),
-    ).not.toBeInTheDocument();
+    for (const label of [
+      "Edit schedule & details",
+      "Edit planning & decision",
+      "Edit sensitive topic",
+    ]) {
+      expect(
+        screen.queryByRole("button", { name: label }),
+      ).not.toBeInTheDocument();
+    }
     expect(
       screen.queryByRole("button", { name: "Duplicate" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Archive" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Delete calendar item" }),

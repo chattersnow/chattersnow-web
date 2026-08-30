@@ -2,7 +2,6 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FiltersSheet } from "@/components/filters-sheet";
 import {
   Table,
   TableBody,
@@ -141,13 +140,15 @@ export default async function FinancialReportsPage({
 
   return (
     <>
-      <div className="rainbow-accent w-16" />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-            Financial Reports
-          </h1>
-          <p className="app-muted mt-2 max-w-2xl text-sm">
+          <div className="w-fit">
+            <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+              Financial Reports
+            </h1>
+            <div className="rainbow-accent mt-3 w-full" />
+          </div>
+          <p className="app-muted mt-3 max-w-2xl text-sm">
             Summary of income, expenses, and donations across the selected
             period, computed live from event revenue, expenses, reimbursements,
             monetary donations, and donation intake.
@@ -190,57 +191,58 @@ export default async function FinancialReportsPage({
         </div>
       ) : null}
 
-      <div className="rainbow-surface mt-6 flex justify-end rounded-xl border border-[var(--line)] p-4 shadow-md">
-        <FiltersSheet activeCount={hasCustomRange ? 1 : 0}>
-          <form method="get" className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor="from"
-                className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-              >
-                From
-              </label>
-              <input
-                id="from"
-                name="from"
-                type="date"
-                defaultValue={fromDate}
-                className={selectClassName}
-              />
-            </div>
+      <div className="rainbow-surface mt-6 rounded-xl border border-[var(--line)] p-4 shadow-md">
+        <form
+          method="get"
+          className="flex flex-wrap items-end justify-end gap-3"
+        >
+          <div className="flex w-40 flex-col gap-1">
+            <label
+              htmlFor="from"
+              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+            >
+              From
+            </label>
+            <input
+              id="from"
+              name="from"
+              type="date"
+              defaultValue={fromDate}
+              className={selectClassName}
+            />
+          </div>
 
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor="to"
-                className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-              >
-                To
-              </label>
-              <input
-                id="to"
-                name="to"
-                type="date"
-                defaultValue={toDate}
-                className={selectClassName}
-              />
-            </div>
+          <div className="flex w-40 flex-col gap-1">
+            <label
+              htmlFor="to"
+              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+            >
+              To
+            </label>
+            <input
+              id="to"
+              name="to"
+              type="date"
+              defaultValue={toDate}
+              className={selectClassName}
+            />
+          </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <Button type="submit" variant="secondary">
-                Filter
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="submit" variant="secondary">
+              Filter
+            </Button>
+            {hasCustomRange && (
+              <Button
+                variant="ghost"
+                nativeButton={false}
+                render={<Link href="/portal/finance/reports" />}
+              >
+                Reset to this year
               </Button>
-              {hasCustomRange && (
-                <Button
-                  variant="ghost"
-                  nativeButton={false}
-                  render={<Link href="/portal/finance/reports" />}
-                >
-                  Reset to this year
-                </Button>
-              )}
-            </div>
-          </form>
-        </FiltersSheet>
+            )}
+          </div>
+        </form>
       </div>
 
       {summary && (

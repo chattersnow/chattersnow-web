@@ -13,7 +13,6 @@ export default async function ServicesPage() {
 
   return (
     <>
-      <div className="rainbow-accent w-16" />
       <Button
         variant="ghost"
         size="sm"
@@ -23,9 +22,12 @@ export default async function ServicesPage() {
       >
         <ArrowLeft /> Access management
       </Button>
-      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-        Services
-      </h1>
+      <div className="w-fit">
+        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          Services
+        </h1>
+        <div className="rainbow-accent mt-3 w-full" />
+      </div>
       <p className="app-muted mt-2 max-w-2xl text-sm">
         The providers (Zoho, Cloudflare, Meta, etc.) that assets belong to.
         Keeping this list clean avoids duplicate entries when adding assets.

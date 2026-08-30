@@ -5,8 +5,10 @@ export default function EventsLoading() {
   return (
     <PageShell>
       <section>
-        <div className="rainbow-accent mb-4 w-16" />
-        <Skeleton className="h-10 w-72 sm:h-12 sm:w-96" />
+        <div className="w-fit">
+          <div className="rainbow-accent mb-4 w-full" />
+          <Skeleton className="h-10 w-72 sm:h-12 sm:w-96" />
+        </div>
         <Skeleton className="mt-4 h-4 w-full max-w-3xl" />
       </section>
 

@@ -125,7 +125,7 @@ export function NonprofitStatusChecklist({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="rainbow-surface flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
         <p className="app-muted text-sm">
           {completeCount} of {milestones.length} complete
         </p>

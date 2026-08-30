@@ -93,10 +93,12 @@ export default async function InventoryDonationsPage({
 
   return (
     <>
-      <div className="rainbow-accent w-16" />
-      <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-        Donations
-      </h1>
+      <div className="w-fit">
+        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          Donations
+        </h1>
+        <div className="rainbow-accent mt-3 w-full" />
+      </div>
 
       <div className="rainbow-surface mt-6 flex flex-wrap items-center justify-end gap-2 rounded-xl border border-[var(--line)] p-4 shadow-md">
         <FiltersSheet activeCount={activeFilterCount}>

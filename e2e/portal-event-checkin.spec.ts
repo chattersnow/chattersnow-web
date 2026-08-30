@@ -168,14 +168,14 @@ test("deep-links from the awaiting check-in attention item to the event's Regist
       { timeout: 15000 },
     );
 
-    const sheet = page.getByRole("dialog");
-    await expect(sheet.getByText(fixture.eventName)).toBeVisible();
-    await expect(sheet.getByText(fixture.registrantName)).toBeVisible({
+    // The event detail is a full page now, not a sheet over the list.
+    await expect(page.getByText(fixture.eventName).first()).toBeVisible();
+    await expect(page.getByText(fixture.registrantName)).toBeVisible({
       timeout: 10000,
     });
     // exact: true -- otherwise this also matches "+ Check in walk-in".
     await expect(
-      sheet.getByRole("button", { name: "Check in", exact: true }),
+      page.getByRole("button", { name: "Check in", exact: true }),
     ).toBeVisible();
   } finally {
     await fixture.cleanup();

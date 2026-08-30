@@ -163,11 +163,13 @@ export default async function ReimbursementsPage({
 
   return (
     <>
-      <div className="rainbow-accent w-16" />
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-          Reimbursements
-        </h1>
+        <div className="w-fit">
+          <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+            Reimbursements
+          </h1>
+          <div className="rainbow-accent mt-3 w-full" />
+        </div>
         <div className="flex items-center gap-2">
           <PageHelpContent title="How reimbursement approval works">
             <HowToSection heading="Steps">
@@ -252,15 +254,11 @@ export default async function ReimbursementsPage({
               </ul>
             </HowToSection>
           </PageHelpContent>
-          <NewReimbursementDialog
-            people={peopleOptions}
-            events={eventOptions}
-          />
         </div>
       </div>
 
       <div className="mt-6 space-y-4">
-        <div className="rainbow-surface flex justify-end rounded-xl border border-[var(--line)] p-4 shadow-md">
+        <div className="rainbow-surface flex flex-wrap items-center justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
           <FiltersSheet activeCount={activeFilterCount}>
             <form method="get" className="flex flex-col gap-4">
               <input type="hidden" name="sort" value={sort} />
@@ -340,6 +338,11 @@ export default async function ReimbursementsPage({
               </div>
             </form>
           </FiltersSheet>
+
+          <NewReimbursementDialog
+            people={peopleOptions}
+            events={eventOptions}
+          />
         </div>
 
         <Card>

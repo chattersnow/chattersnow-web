@@ -13,22 +13,24 @@ export function TemplateDetailView({
 }) {
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+      <div>
+        <div className="w-fit">
           <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
             {template.name}
           </h1>
-          <p className="app-muted mt-2 text-sm">
-            Content brief template · v{template.version}
-          </p>
+          <div className="rainbow-accent mt-3 w-full" />
         </div>
-        {canManage && (
-          <div className="flex shrink-0 items-center gap-2">
-            <EditTemplateSheet template={template} variant="details" />
-            <EditTemplateSheet template={template} variant="fields" />
-          </div>
-        )}
+        <p className="app-muted mt-2 text-sm">
+          Content brief template · v{template.version}
+        </p>
       </div>
+
+      {canManage && (
+        <div className="rainbow-surface mt-6 flex flex-wrap items-center justify-end gap-2 rounded-xl border border-[var(--line)] p-4 shadow-md">
+          <EditTemplateSheet template={template} variant="details" />
+          <EditTemplateSheet template={template} variant="fields" />
+        </div>
+      )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Card>

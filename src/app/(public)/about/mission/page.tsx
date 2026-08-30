@@ -49,10 +49,12 @@ export default async function MissionPage() {
         className="grid gap-8 sm:grid-cols-3 sm:items-start"
       >
         <div className="sm:col-span-2">
-          <div className="rainbow-accent w-16" />
-          <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-            Our Mission
-          </h1>
+          <div className="w-fit">
+            <div className="rainbow-accent w-full" />
+            <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+              Our Mission
+            </h1>
+          </div>
           <div className="app-muted mt-4 space-y-4 text-sm leading-relaxed sm:text-base">
             <p>
               Bringing together LGBTQ+ skiers and snowboarders on and off the

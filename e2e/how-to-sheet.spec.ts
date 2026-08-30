@@ -13,7 +13,7 @@ test("opens the how-to sheet on the Events page and shows its guidance", async (
     page.getByRole("heading", { level: 1, name: "Events", exact: true }),
   ).toBeVisible();
 
-  await page.getByRole("button", { name: "How this works" }).click();
+  await page.getByRole("button", { name: "Help for this page" }).click();
 
   const dialog = page.getByRole("dialog");
   await expect(
@@ -34,7 +34,7 @@ test("opens the how-to sheet on the Permissions page and shows its guidance", as
     page.getByRole("heading", { level: 1, name: "Permissions", exact: true }),
   ).toBeVisible();
 
-  await page.getByRole("button", { name: "How this works" }).click();
+  await page.getByRole("button", { name: "Help for this page" }).click();
 
   const dialog = page.getByRole("dialog");
   await expect(

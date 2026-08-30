@@ -1,5 +1,7 @@
 "use client";
 
+import { ReactNode, useEffect, useRef, useState } from "react";
+import { Pencil } from "lucide-react";
 import type { MeetingRow } from "../meeting-badges";
 import { MeetingStatusBadge, MeetingTypeBadge } from "../meeting-badges";
 import { AttendeesTab } from "../attendees-tab";
@@ -7,120 +9,191 @@ import { AgendaTab } from "../agenda-tab";
 import { ActionItemsTab } from "../action-items-tab";
 import { DecisionsTab } from "../decisions-tab";
 import { ResolutionsTab } from "../resolutions-tab";
-import { EditMeetingSheet } from "./edit-meeting-sheet";
 import { MeetingDetailsCards } from "./meeting-details-cards";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
   timeStyle: "short",
 });
 
-function noop() {}
+type TabValue = "overview" | "agenda";
 
-function scrollToSection(id: string) {
-  document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
-}
-
-function SectionHeading({ children }: { children: string }) {
+function SectionCard({
+  id,
+  title,
+  children,
+}: {
+  id?: string;
+  title: string;
+  children: ReactNode;
+}) {
   return (
-    <h2 className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
-      {children}
-    </h2>
+    <div id={id}>
+      <Card>
+        <CardHeader>
+          <CardTitle className="app-muted text-sm font-semibold">
+            {title}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>{children}</CardContent>
+      </Card>
+    </div>
   );
 }
 
-export function MeetingDetailView({ meeting }: { meeting: MeetingRow }) {
+/**
+ * Agenda gets its own card-level pencil toggle: AgendaTab's edit mode is a
+ * self-managed form with its own save/cancel, so the card only flips the mode.
+ */
+function AgendaCard({
+  meeting,
+  canManage,
+  onViewActionItems,
+  onViewDecisions,
+}: {
+  meeting: MeetingRow;
+  canManage: boolean;
+  onViewActionItems: () => void;
+  onViewDecisions: () => void;
+}) {
+  const [mode, setMode] = useState<"view" | "edit">("view");
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="app-muted text-sm font-semibold">
+          Agenda
+        </CardTitle>
+        {canManage && mode === "view" && (
+          <CardAction>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Edit agenda"
+              onClick={() => setMode("edit")}
+            >
+              <Pencil />
+            </Button>
+          </CardAction>
+        )}
+      </CardHeader>
+      <CardContent>
+        <AgendaTab
+          meetingId={meeting.id}
+          meetingDate={meeting.meeting_date}
+          active
+          mode={mode}
+          onViewActionItems={onViewActionItems}
+          onViewDecisions={onViewDecisions}
+          onExitEdit={() => setMode("view")}
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
+export function MeetingDetailView({
+  meeting,
+  canManage,
+}: {
+  meeting: MeetingRow;
+  canManage: boolean;
+}) {
+  const [tab, setTab] = useState<TabValue>("overview");
+  const pendingScrollRef = useRef<string | null>(null);
+
+  // Cross-tab links (agenda -> action items/decisions) scroll after the
+  // overview panel has re-mounted.
+  useEffect(() => {
+    if (tab !== "overview" || !pendingScrollRef.current) return;
+    document
+      .getElementById(pendingScrollRef.current)
+      ?.scrollIntoView({ behavior: "smooth" });
+    pendingScrollRef.current = null;
+  }, [tab]);
+
+  function goToOverviewSection(id: string) {
+    pendingScrollRef.current = id;
+    setTab("overview");
+  }
+
+  const listMode = canManage ? "edit" : "view";
+
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+      <div>
+        <div className="w-fit">
           <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
             {dateFormatter.format(new Date(meeting.meeting_date))}
           </h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <MeetingTypeBadge type={meeting.meeting_type} />
-            <MeetingStatusBadge status={meeting.status} />
-          </div>
+          <div className="rainbow-accent mt-3 w-full" />
         </div>
-        <div className="flex shrink-0 gap-2">
-          <EditMeetingSheet meeting={meeting} />
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <MeetingTypeBadge type={meeting.meeting_type} />
+          <MeetingStatusBadge status={meeting.status} />
         </div>
       </div>
 
-      <div className="mt-6">
-        <MeetingDetailsCards meeting={meeting} />
-      </div>
-
-      <div id="attendees-section" className="mt-6">
-        <SectionHeading>Attendees</SectionHeading>
-        <div className="mt-3">
-          <Card>
-            <CardContent>
-              <AttendeesTab meetingId={meeting.id} active mode="view" />
-            </CardContent>
-          </Card>
+      <Tabs
+        value={tab}
+        onValueChange={(value) => setTab(value as TabValue)}
+        className="mt-6"
+      >
+        <div className="rainbow-surface flex flex-wrap items-center gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+          <TabsList variant="line" className="flex-wrap">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="agenda">Agenda</TabsTrigger>
+          </TabsList>
         </div>
-      </div>
 
-      <div id="agenda-section" className="mt-6">
-        <SectionHeading>Agenda</SectionHeading>
-        <div className="mt-3">
-          <Card>
-            <CardContent>
-              <AgendaTab
-                meetingId={meeting.id}
-                meetingDate={meeting.meeting_date}
-                active
-                mode="view"
-                onViewActionItems={() =>
-                  scrollToSection("action-items-section")
-                }
-                onViewDecisions={() => scrollToSection("decisions-section")}
-                onExitEdit={noop}
-              />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+        <TabsContent value="overview" className="mt-4">
+          <div className="flex flex-col gap-6">
+            <MeetingDetailsCards meeting={meeting} canManage={canManage} />
 
-      <div id="action-items-section" className="mt-6">
-        <SectionHeading>Action Items</SectionHeading>
-        <div className="mt-3">
-          <Card>
-            <CardContent>
-              <ActionItemsTab meetingId={meeting.id} active mode="view" />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+            <SectionCard title="Attendees">
+              <AttendeesTab meetingId={meeting.id} active mode={listMode} />
+            </SectionCard>
 
-      <div id="decisions-section" className="mt-6">
-        <SectionHeading>Decisions</SectionHeading>
-        <div className="mt-3">
-          <Card>
-            <CardContent>
+            <SectionCard id="action-items-section" title="Action Items">
+              <ActionItemsTab meetingId={meeting.id} active mode={listMode} />
+            </SectionCard>
+
+            <SectionCard id="decisions-section" title="Decisions">
               <DecisionsTab
                 meetingId={meeting.id}
                 meetingDate={meeting.meeting_date.slice(0, 10)}
                 active
-                mode="view"
+                mode={listMode}
               />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+            </SectionCard>
 
-      <div className="mt-6">
-        <SectionHeading>Resolutions</SectionHeading>
-        <div className="mt-3">
-          <Card>
-            <CardContent>
-              <ResolutionsTab meetingId={meeting.id} active mode="view" />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+            <SectionCard title="Resolutions">
+              <ResolutionsTab meetingId={meeting.id} active mode={listMode} />
+            </SectionCard>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="agenda" className="mt-4">
+          <AgendaCard
+            meeting={meeting}
+            canManage={canManage}
+            onViewActionItems={() =>
+              goToOverviewSection("action-items-section")
+            }
+            onViewDecisions={() => goToOverviewSection("decisions-section")}
+          />
+        </TabsContent>
+      </Tabs>
     </>
   );
 }

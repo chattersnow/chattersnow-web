@@ -38,27 +38,29 @@ export function DistributionDetailView({
 }) {
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+      <div>
+        <div className="w-fit">
           <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
             {movement.inventory_item?.description ?? "Distribution"}
           </h1>
-          <p className="app-muted mt-2 text-sm">
-            Distributed {dateFormatter.format(new Date(movement.occurred_at))}
-          </p>
+          <div className="rainbow-accent mt-3 w-full" />
         </div>
-        {canManage && (
-          <div className="flex shrink-0 items-center gap-2">
-            <EditDistributionSheet movement={movement} />
-            <DeleteDistributionButton
-              movementId={movement.id}
-              itemDescription={
-                movement.inventory_item?.description ?? "this distribution"
-              }
-            />
-          </div>
-        )}
+        <p className="app-muted mt-2 text-sm">
+          Distributed {dateFormatter.format(new Date(movement.occurred_at))}
+        </p>
       </div>
+
+      {canManage && (
+        <div className="rainbow-surface mt-6 flex flex-wrap items-center justify-end gap-2 rounded-xl border border-[var(--line)] p-4 shadow-md">
+          <EditDistributionSheet movement={movement} />
+          <DeleteDistributionButton
+            movementId={movement.id}
+            itemDescription={
+              movement.inventory_item?.description ?? "this distribution"
+            }
+          />
+        </div>
+      )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Card>

@@ -66,7 +66,6 @@ export default async function CalendarItemDetailPage({
 
   return (
     <>
-      <div className="rainbow-accent w-16" />
       <Button
         variant="ghost"
         size="sm"

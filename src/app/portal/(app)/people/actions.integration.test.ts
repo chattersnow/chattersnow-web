@@ -73,10 +73,18 @@ describe("createPersonAction (integration)", () => {
     }
   });
 
-  test("finance role (people view only) cannot create a person", async () => {
+  test("finance role (people_intake manage carve-out) can create a person", async () => {
+    // 20260829100000_create_monetary_donations.sql raised finance's
+    // people_intake to manage so the Donations form's inline "new donor" path
+    // works; finance previously held people:view only and was denied here.
     currentSupabase = await signIn(SEEDED_USERS.finance);
     const result = await createPersonAction(personForm());
-    expect(result).toEqual(DENIED);
+    expect(result).toEqual(
+      expect.objectContaining({ success: true, person: expect.any(Object) }),
+    );
+    if ("person" in result && result.person) {
+      await adminClient.from("people").delete().eq("id", result.person.id);
+    }
   });
 
   test("board role (no people access) cannot create a person", async () => {
@@ -134,6 +142,16 @@ describe("updatePersonAction (integration)", () => {
   test("volunteer role (people_intake manage does not cover update) cannot update a person", async () => {
     const person = await createPerson();
     currentSupabase = await signIn(SEEDED_USERS.volunteer);
+    const result = await updatePersonAction(person.id, personForm());
+    expect(result).toEqual(DENIED);
+    await person.cleanup();
+  });
+
+  test("finance role (people_intake manage does not cover update) cannot update a person", async () => {
+    // Guards the 20260829100000 grant staying insert-only: finance can create
+    // an inline donor but must not gain full People-directory write access.
+    const person = await createPerson();
+    currentSupabase = await signIn(SEEDED_USERS.finance);
     const result = await updatePersonAction(person.id, personForm());
     expect(result).toEqual(DENIED);
     await person.cleanup();

@@ -23,18 +23,18 @@ export default async function PoliciesPage() {
 
   return (
     <>
-      <div className="rainbow-accent w-16" />
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="w-fit">
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
           Policies
         </h1>
-        {canManage && <NewPolicyDialog />}
+        <div className="rainbow-accent mt-3 w-full" />
       </div>
 
       <div className="mt-6">
         <PoliciesTable
           policies={(policies ?? []) as unknown as Policy[]}
           canManage={canManage}
+          newAction={canManage ? <NewPolicyDialog /> : undefined}
         />
       </div>
     </>

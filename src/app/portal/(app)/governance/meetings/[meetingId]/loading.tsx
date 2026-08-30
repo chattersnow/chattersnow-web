@@ -39,17 +39,16 @@ function SectionSkeleton() {
 export default function MeetingDetailLoading() {
   return (
     <>
-      <div className="rainbow-accent w-16" />
       <Skeleton className="mb-2 h-5 w-24" />
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+      <div>
+        <div className="w-fit">
           <Skeleton className="h-10 w-64" />
-          <div className="mt-2 flex gap-2">
-            <Skeleton className="h-5 w-20 rounded-full" />
-            <Skeleton className="h-5 w-20 rounded-full" />
-          </div>
+          <div className="rainbow-accent mt-3 w-full" />
         </div>
-        <Skeleton className="h-8 w-20" />
+        <div className="mt-3 flex gap-2">
+          <Skeleton className="h-5 w-20 rounded-full" />
+          <Skeleton className="h-5 w-20 rounded-full" />
+        </div>
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">

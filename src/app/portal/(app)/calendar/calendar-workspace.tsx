@@ -102,8 +102,31 @@ export function CalendarWorkspace({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="rainbow-surface flex flex-wrap items-end justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
-        <div className="flex flex-wrap items-end gap-3">
+      <div className="rainbow-surface flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+        <ViewToggle view={view} hrefFor={viewHrefFor} />
+
+        <div className="flex flex-wrap items-center gap-2">
+          <CalendarFiltersSheet
+            view={view}
+            month={month}
+            sort={sort}
+            dir={dir}
+            owners={owners}
+            programs={programs}
+            typeFilter={typeFilter}
+            categoryFilter={categoryFilter}
+            priorityFilter={priorityFilter}
+            programFilter={programFilter}
+            ownerFilter={ownerFilter}
+            visibilityFilter={visibilityFilter}
+            statusFilter={statusFilter}
+            decisionFilter={decisionFilter}
+            search={search}
+            onSearchChange={setSearch}
+            range={range}
+            onRangeChange={setRange}
+          />
+
           {canManage && (
             <NewCalendarItemDialog
               owners={owners}
@@ -111,30 +134,7 @@ export function CalendarWorkspace({
               programSuggestionRules={programSuggestionRules}
             />
           )}
-
-          <ViewToggle view={view} hrefFor={viewHrefFor} />
         </div>
-
-        <CalendarFiltersSheet
-          view={view}
-          month={month}
-          sort={sort}
-          dir={dir}
-          owners={owners}
-          programs={programs}
-          typeFilter={typeFilter}
-          categoryFilter={categoryFilter}
-          priorityFilter={priorityFilter}
-          programFilter={programFilter}
-          ownerFilter={ownerFilter}
-          visibilityFilter={visibilityFilter}
-          statusFilter={statusFilter}
-          decisionFilter={decisionFilter}
-          search={search}
-          onSearchChange={setSearch}
-          range={range}
-          onRangeChange={setRange}
-        />
       </div>
 
       {view === "list" && (

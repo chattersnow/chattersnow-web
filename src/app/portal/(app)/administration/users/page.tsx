@@ -23,11 +23,13 @@ export default async function UsersPage() {
 
   return (
     <>
-      <div className="rainbow-accent w-16" />
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-          Users
-        </h1>
+        <div className="w-fit">
+          <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+            Users
+          </h1>
+          <div className="rainbow-accent mt-3 w-full" />
+        </div>
       </div>
 
       <div className="mt-6 space-y-6">

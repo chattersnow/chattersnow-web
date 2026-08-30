@@ -136,7 +136,7 @@ test.describe("portal calendar work queue", () => {
   }) => {
     await page.goto("/portal/calendar/work-queue");
 
-    await page.getByRole("button", { name: "How this works" }).click();
+    await page.getByRole("button", { name: "Help for this page" }).click();
 
     const sheet = page.getByRole("dialog");
     await expect(

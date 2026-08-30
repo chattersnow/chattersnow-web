@@ -2,6 +2,10 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  getCurrentUserPermissions,
+  hasPermission,
+} from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { MeetingRow } from "../meeting-badges";
@@ -14,6 +18,8 @@ export default async function MeetingDetailPage({
 }) {
   const { meetingId } = await params;
   const supabase = await createSupabaseServerClient();
+  const permissions = await getCurrentUserPermissions(supabase);
+  const canManage = hasPermission(permissions, "governance", "manage");
 
   const { data: meeting, error } = await supabase
     .from("governance_meetings")
@@ -36,7 +42,6 @@ export default async function MeetingDetailPage({
 
   return (
     <>
-      <div className="rainbow-accent w-16" />
       <Button
         variant="ghost"
         size="sm"
@@ -47,7 +52,10 @@ export default async function MeetingDetailPage({
         <ArrowLeft /> Meetings
       </Button>
 
-      <MeetingDetailView meeting={meeting as unknown as MeetingRow} />
+      <MeetingDetailView
+        meeting={meeting as unknown as MeetingRow}
+        canManage={canManage}
+      />
     </>
   );
 }

@@ -31,18 +31,22 @@ export default async function BoardMembersPage() {
 
   return (
     <>
-      <div className="rainbow-accent w-16" />
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="w-fit">
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
           Board Members
         </h1>
-        {canManage && <NewBoardMemberDialog people={peopleOptions} />}
+        <div className="rainbow-accent mt-3 w-full" />
       </div>
 
       <div className="mt-6">
         <BoardMembersTable
           boardMembers={(boardMembers ?? []) as unknown as BoardMemberRow[]}
           canManage={canManage}
+          newAction={
+            canManage ? (
+              <NewBoardMemberDialog people={peopleOptions} />
+            ) : undefined
+          }
         />
       </div>
     </>

@@ -101,22 +101,15 @@ test.describe("portal governance records", () => {
       await expect(row).toBeVisible({ timeout: 15_000 });
       await expect(row).toContainText("Compliance");
 
-      // The search filter is client state that survives the sheet closing,
-      // and the table behind an open sheet is aria-hidden -- so close the
-      // sheet each time before asserting against the table.
-      await page.getByRole("button", { name: "Filters" }).click();
-      const filters = page.getByRole("dialog");
-      await filters.getByLabel("Search").fill(`no-such-policy-${policyName}`);
-      await page.keyboard.press("Escape");
-      await expect(filters).not.toBeVisible();
+      // Filters are inline on the page now rather than inside a sheet, so the
+      // table stays visible while the search box is edited.
+      const search = page.getByLabel("Search");
+      await search.fill(`no-such-policy-${policyName}`);
       await expect(
         page.getByText("No policies match your filters."),
       ).toBeVisible();
 
-      await page.getByRole("button", { name: "Filters" }).click();
-      await filters.getByLabel("Search").fill(policyName);
-      await page.keyboard.press("Escape");
-      await expect(filters).not.toBeVisible();
+      await search.fill(policyName);
       await expect(row).toBeVisible();
 
       await row.getByRole("button", { name: "View policy" }).click();

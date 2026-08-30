@@ -2,21 +2,25 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarPlus, Copy, Trash2 } from "lucide-react";
 import {
+  Archive,
+  ArchiveRestore,
+  CalendarPlus,
+  Copy,
+  Trash2,
+} from "lucide-react";
+import {
+  archiveCalendarItemAction,
   deleteCalendarItemAction,
   duplicateCalendarItemAction,
-  recordSensitiveTopicReviewAction,
+  restoreCalendarItemAction,
 } from "../actions";
 import { generateNextYearInstanceAction } from "../recurrence-actions";
 import { hasStructuredRecurrence } from "../calendar-recurrence";
 import {
-  ITEM_TYPES,
   isPastUndecided,
-  labelFor,
   needsDecision,
   needsSensitiveReview,
-  ownerEmail,
   type CalendarItemRow,
   type CalendarOwner,
   type CalendarProgram,
@@ -24,13 +28,10 @@ import {
 import {
   CalendarStatusBadge,
   CalendarVisibilityBadge,
-  CategoryBadges,
-  DecisionBadge,
   NeedsDecisionFlag,
   NeedsSensitiveReviewFlag,
   PastUndecidedFlag,
   PriorityTierBadge,
-  SensitiveTopicBadge,
 } from "../calendar-badges";
 import {
   AlertDialog,
@@ -45,8 +46,6 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldGroup } from "@/components/ui/field";
-import { ReadOnlyField } from "@/components/ui/read-only-field";
 import {
   Tooltip,
   TooltipContent,
@@ -56,13 +55,12 @@ import { ContentOpportunityTab } from "../content-opportunity-tab";
 import { RelatedItemsTab } from "../related-items-tab";
 import type { ActiveContentBriefTemplate } from "../content-brief-template-shared";
 import type { ProgramSuggestionRule } from "../program-suggestion-shared";
-import { EditCalendarItemSheet } from "./edit-calendar-item-sheet";
+import {
+  PlanningDecisionCard,
+  ScheduleDetailsCard,
+  SensitiveTopicCard,
+} from "./calendar-item-detail-cards";
 import { Spinner } from "@/components/ui/spinner";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
 
 export function CalendarItemDetailView({
   item,
@@ -85,10 +83,6 @@ export function CalendarItemDetailView({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [confirmDelete, setConfirmDelete] = useState(false);
-
-  const relatedProgramNames = item.program_ids
-    .map((id) => programs.find((program) => program.id === id)?.name)
-    .filter((name): name is string => Boolean(name));
 
   function handleDuplicate() {
     startTransition(async () => {
@@ -114,9 +108,20 @@ export function CalendarItemDetailView({
     });
   }
 
-  function handleRecordSensitiveReview() {
+  function handleArchive() {
     startTransition(async () => {
-      const result = await recordSensitiveTopicReviewAction(item.id);
+      const result = await archiveCalendarItemAction(item.id);
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  function handleRestore() {
+    startTransition(async () => {
+      const result = await restoreCalendarItemAction(item.id);
       if ("error" in result) {
         setError(result.error);
         return;
@@ -141,84 +146,117 @@ export function CalendarItemDetailView({
 
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+      <div>
+        <div className="w-fit">
           <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
             {item.title}
           </h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <PriorityTierBadge tier={item.priority_tier} />
-            <CalendarStatusBadge status={item.calendar_status} />
-            <CalendarVisibilityBadge visibility={item.visibility} />
-            {needsDecision(item) && <NeedsDecisionFlag />}
-            {isPastUndecided(item) && <PastUndecidedFlag />}
-            {needsSensitiveReview(item) && <NeedsSensitiveReviewFlag />}
-          </div>
+          <div className="rainbow-accent mt-3 w-full" />
         </div>
-        {canManage && (
-          <div className="flex shrink-0 items-center gap-2">
-            {hasStructuredRecurrence(item) && (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Generate next year"
-                      disabled={isPending}
-                      onClick={handleGenerateNextYear}
-                    />
-                  }
-                >
-                  {isPending ? <Spinner /> : <CalendarPlus />}
-                </TooltipTrigger>
-                <TooltipContent>Generate next year</TooltipContent>
-              </Tooltip>
-            )}
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Duplicate"
-                    disabled={isPending}
-                    onClick={handleDuplicate}
-                  />
-                }
-              >
-                {isPending ? <Spinner /> : <Copy />}
-              </TooltipTrigger>
-              <TooltipContent>Duplicate</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Delete calendar item"
-                    disabled={isPending}
-                    onClick={() => setConfirmDelete(true)}
-                  />
-                }
-              >
-                {isPending ? <Spinner /> : <Trash2 />}
-              </TooltipTrigger>
-              <TooltipContent>Delete calendar item</TooltipContent>
-            </Tooltip>
-            <EditCalendarItemSheet
-              item={item}
-              owners={owners}
-              programs={programs}
-              programSuggestionRules={programSuggestionRules}
-            />
-          </div>
-        )}
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <PriorityTierBadge tier={item.priority_tier} />
+          <CalendarStatusBadge status={item.calendar_status} />
+          <CalendarVisibilityBadge visibility={item.visibility} />
+          {needsDecision(item) && <NeedsDecisionFlag />}
+          {isPastUndecided(item) && <PastUndecidedFlag />}
+          {needsSensitiveReview(item) && <NeedsSensitiveReviewFlag />}
+        </div>
       </div>
+
+      {canManage && (
+        <div className="rainbow-surface mt-6 flex flex-wrap items-center justify-end gap-2 rounded-xl border border-[var(--line)] p-4 shadow-md">
+          {hasStructuredRecurrence(item) && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon-sm"
+                    aria-label="Generate next year"
+                    disabled={isPending}
+                    onClick={handleGenerateNextYear}
+                  />
+                }
+              >
+                {isPending ? <Spinner /> : <CalendarPlus />}
+              </TooltipTrigger>
+              <TooltipContent>Generate next year</TooltipContent>
+            </Tooltip>
+          )}
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon-sm"
+                  aria-label="Duplicate"
+                  disabled={isPending}
+                  onClick={handleDuplicate}
+                />
+              }
+            >
+              {isPending ? <Spinner /> : <Copy />}
+            </TooltipTrigger>
+            <TooltipContent>Duplicate</TooltipContent>
+          </Tooltip>
+          {item.calendar_status === "archived" ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon-sm"
+                    aria-label="Restore"
+                    disabled={isPending}
+                    onClick={handleRestore}
+                  />
+                }
+              >
+                {isPending ? <Spinner /> : <ArchiveRestore />}
+              </TooltipTrigger>
+              <TooltipContent>Restore</TooltipContent>
+            </Tooltip>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon-sm"
+                    aria-label="Archive"
+                    disabled={isPending}
+                    onClick={handleArchive}
+                  />
+                }
+              >
+                {isPending ? <Spinner /> : <Archive />}
+              </TooltipTrigger>
+              <TooltipContent>Archive</TooltipContent>
+            </Tooltip>
+          )}
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon-sm"
+                  aria-label="Delete calendar item"
+                  disabled={isPending}
+                  onClick={() => setConfirmDelete(true)}
+                />
+              }
+            >
+              {isPending ? <Spinner /> : <Trash2 />}
+            </TooltipTrigger>
+            <TooltipContent>Delete calendar item</TooltipContent>
+          </Tooltip>
+        </div>
+      )}
 
       {error && (
         <Alert variant="destructive" className="mt-4">
@@ -226,173 +264,31 @@ export function CalendarItemDetailView({
         </Alert>
       )}
 
-      <div className="mt-6 flex flex-col gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="app-muted text-sm font-semibold">
-              Schedule & details
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <FieldGroup>
-              <ReadOnlyField label="Item type" htmlFor="item-type">
-                {labelFor(ITEM_TYPES, item.item_type)}
-              </ReadOnlyField>
-              <Field orientation="responsive">
-                <ReadOnlyField label="Starts" htmlFor="item-starts">
-                  {dateFormatter.format(new Date(item.starts_at))}
-                </ReadOnlyField>
-                <ReadOnlyField label="Ends" htmlFor="item-ends">
-                  {item.ends_at
-                    ? dateFormatter.format(new Date(item.ends_at))
-                    : "—"}
-                </ReadOnlyField>
-              </Field>
-              <Field orientation="responsive">
-                <ReadOnlyField label="Time zone" htmlFor="item-time-zone">
-                  {item.time_zone}
-                </ReadOnlyField>
-                <ReadOnlyField label="Recurrence" htmlFor="item-recurrence">
-                  {item.recurrence_rule || "—"}
-                </ReadOnlyField>
-              </Field>
-              <ReadOnlyField label="Summary" htmlFor="item-summary">
-                {item.summary || "—"}
-              </ReadOnlyField>
-              <Field orientation="responsive">
-                <ReadOnlyField label="Source" htmlFor="item-source">
-                  {item.source || "—"}
-                </ReadOnlyField>
-                <ReadOnlyField label="Region" htmlFor="item-region">
-                  {item.region || "—"}
-                </ReadOnlyField>
-              </Field>
-              <ReadOnlyField label="Exceptions" htmlFor="item-exceptions">
-                {item.exceptions.length > 0
-                  ? item.exceptions
-                      .map((exception) =>
-                        exception &&
-                        typeof exception === "object" &&
-                        "note" in exception
-                          ? String((exception as { note: unknown }).note)
-                          : JSON.stringify(exception),
-                      )
-                      .join("; ")
-                  : "—"}
-              </ReadOnlyField>
-            </FieldGroup>
-          </CardContent>
-        </Card>
+      <div className="mt-6 grid items-start gap-6 lg:grid-cols-2">
+        <ScheduleDetailsCard item={item} canManage={canManage} />
+
+        <PlanningDecisionCard
+          item={item}
+          owners={owners}
+          programs={programs}
+          programSuggestionRules={programSuggestionRules}
+          canManage={canManage}
+        />
+
+        <SensitiveTopicCard item={item} owners={owners} canManage={canManage} />
 
         <Card>
           <CardHeader>
             <CardTitle className="app-muted text-sm font-semibold">
-              Planning & decision
+              Related items
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <FieldGroup>
-              <Field orientation="responsive">
-                <ReadOnlyField label="Priority" htmlFor="item-priority">
-                  <PriorityTierBadge tier={item.priority_tier} />
-                </ReadOnlyField>
-                <ReadOnlyField label="Calendar status" htmlFor="item-status">
-                  <CalendarStatusBadge status={item.calendar_status} />
-                </ReadOnlyField>
-              </Field>
-              <ReadOnlyField
-                label="Priority rationale"
-                htmlFor="item-priority-rationale"
-              >
-                {item.priority_rationale || "—"}
-              </ReadOnlyField>
-              <Field orientation="responsive">
-                <ReadOnlyField label="Visibility" htmlFor="item-visibility">
-                  <CalendarVisibilityBadge visibility={item.visibility} />
-                </ReadOnlyField>
-                <ReadOnlyField label="Owner" htmlFor="item-owner">
-                  {ownerEmail(owners, item.owner_id)}
-                </ReadOnlyField>
-              </Field>
-              <ReadOnlyField label="Categories" htmlFor="item-categories">
-                <CategoryBadges categories={item.categories} />
-              </ReadOnlyField>
-              <ReadOnlyField
-                label="Related programs"
-                htmlFor="item-related-programs"
-              >
-                {relatedProgramNames.length > 0
-                  ? relatedProgramNames.join(", ")
-                  : "—"}
-              </ReadOnlyField>
-              <ReadOnlyField label="Decision" htmlFor="item-decision">
-                <div className="flex flex-col gap-1">
-                  <DecisionBadge decision={item.decision} />
-                  {item.decision_note && (
-                    <p className="app-muted text-sm">{item.decision_note}</p>
-                  )}
-                </div>
-              </ReadOnlyField>
-            </FieldGroup>
+            <RelatedItemsTab itemId={item.id} canManage={canManage} open />
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="app-muted text-sm font-semibold">
-              Sensitive topic
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col gap-2">
-              {item.is_sensitive_topic ? (
-                <>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <SensitiveTopicBadge
-                      reviewed={Boolean(item.sensitive_review_by)}
-                    />
-                    {needsSensitiveReview(item) && <NeedsSensitiveReviewFlag />}
-                  </div>
-                  {item.tone_guidance && (
-                    <p className="app-muted text-sm">{item.tone_guidance}</p>
-                  )}
-                  {item.sensitive_review_by ? (
-                    <p className="app-muted text-xs">
-                      Reviewed{" "}
-                      {dateFormatter.format(
-                        new Date(item.sensitive_review_at!),
-                      )}{" "}
-                      by {ownerEmail(owners, item.sensitive_review_by)}
-                    </p>
-                  ) : (
-                    canManage && (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="self-start"
-                        disabled={isPending}
-                        onClick={handleRecordSensitiveReview}
-                      >
-                        {isPending ? (
-                          <>
-                            <Spinner /> Recording...
-                          </>
-                        ) : (
-                          "Record reviewer sign-off"
-                        )}
-                      </Button>
-                    )
-                  )}
-                </>
-              ) : (
-                <span className="app-muted text-sm">Not flagged</span>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
+        <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="app-muted text-sm font-semibold">
               Content brief
@@ -410,17 +306,6 @@ export function CalendarItemDetailView({
               isSensitiveTopic={item.is_sensitive_topic}
               toneGuidance={item.tone_guidance}
             />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="app-muted text-sm font-semibold">
-              Related items
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <RelatedItemsTab itemId={item.id} canManage={canManage} open />
           </CardContent>
         </Card>
       </div>

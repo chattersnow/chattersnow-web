@@ -12,10 +12,9 @@ import {
 export default function MeetingsLoading() {
   return (
     <>
-      <div className="rainbow-accent w-16" />
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="w-fit">
         <Skeleton className="h-10 w-48" />
-        <Skeleton className="h-8 w-32" />
+        <div className="rainbow-accent mt-3 w-full" />
       </div>
 
       <div className="mt-6">

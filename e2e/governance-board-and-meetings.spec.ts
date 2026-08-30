@@ -129,22 +129,11 @@ test.describe("portal governance board, meetings, and resolutions", () => {
         timeout: 15_000,
       });
 
-      // Editing still happens in a sheet, opened from the detail page.
-      await page.getByRole("button", { name: "Edit", exact: true }).click();
-      const sheet = page.getByRole("dialog");
-
-      // Every tab in the sheet shares one view/edit mode, and the
-      // sub-record tabs only offer their add controls while it's edit. The
-      // Overview form's submit button only exists in edit mode, so it's the
-      // signal that the switch landed before the tabs are touched.
-      await sheet.getByRole("button", { name: "Edit meeting" }).click();
-      await expect(
-        sheet.getByRole("button", { name: "Save meeting" }),
-      ).toBeVisible();
-
-      await sheet.getByRole("tab", { name: "Action Items" }).click();
-      await sheet.getByRole("button", { name: "+ Add action item" }).click();
-      const actionItemForm = sheet
+      // Editing is per card on the detail page now -- no sheet -- and the
+      // sub-record sections sit directly under Overview, already live for a
+      // manager, so there is no shared edit-mode toggle to flip first.
+      await page.getByRole("button", { name: "+ Add action item" }).click();
+      const actionItemForm = page
         .locator("form")
         .filter({ hasText: "Add action item" });
       await actionItemForm
@@ -156,7 +145,7 @@ test.describe("portal governance board, meetings, and resolutions", () => {
         .getByRole("button", { name: "Add action item", exact: true })
         .click();
 
-      const actionItemRow = sheet
+      const actionItemRow = page
         .getByRole("row")
         .filter({ hasText: actionItem });
       await expect(actionItemRow).toBeVisible({ timeout: 15_000 });
@@ -171,8 +160,9 @@ test.describe("portal governance board, meetings, and resolutions", () => {
         timeout: 15_000,
       });
 
-      await sheet.getByRole("tab", { name: "Overview" }).click();
-      const statusSelect = sheet.getByLabel("Status");
+      // Status lives on the meeting-details card, edited in place.
+      await page.getByRole("button", { name: "Edit meeting details" }).click();
+      const statusSelect = page.getByLabel("Status");
       await statusSelect.click();
       await page
         .getByRole("listbox")
@@ -182,12 +172,12 @@ test.describe("portal governance board, meetings, and resolutions", () => {
       // submitting -- the trigger renders the selected item's label.
       await expect(statusSelect).toContainText("Completed");
 
-      await sheet.getByRole("button", { name: "Save meeting" }).click();
-      // Saving drops back to view mode, where the Edit button reappears and
-      // the Save button is gone; a rejected action would instead keep the
-      // form up with an error alert.
+      await page.getByRole("button", { name: "Save changes" }).click();
+      // Saving drops the card back to view mode, where its edit trigger
+      // reappears; a rejected action would instead keep the form up with an
+      // error alert.
       await expect(
-        sheet.getByRole("button", { name: "Edit meeting" }),
+        page.getByRole("button", { name: "Edit meeting details" }),
       ).toBeVisible({ timeout: 15_000 });
 
       // Reload the detail page (not the list -- #462 moved this flow off

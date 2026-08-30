@@ -14,13 +14,13 @@ const CELL_WIDTHS = ["w-24", "w-16", "w-28", "w-20", "w-24", "w-16"];
 
 export function PageHeaderSkeleton({ action = true }: { action?: boolean }) {
   return (
-    <>
-      <div className="rainbow-accent w-16" />
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="w-fit">
         <Skeleton className="h-10 w-48" />
-        {action ? <Skeleton className="h-8 w-32" /> : null}
+        <div className="rainbow-accent mt-3 w-full" />
       </div>
-    </>
+      {action ? <Skeleton className="h-8 w-32" /> : null}
+    </div>
   );
 }
 
@@ -156,12 +156,14 @@ export function DetailPageSkeleton({
 }) {
   return (
     <>
-      <div className="rainbow-accent w-16" />
       <Skeleton className="mb-2 h-5 w-24" />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Skeleton className="h-10 w-64" />
-          <div className="mt-2 flex gap-2">
+          <div className="w-fit">
+            <Skeleton className="h-10 w-64" />
+            <div className="rainbow-accent mt-3 w-full" />
+          </div>
+          <div className="mt-3 flex gap-2">
             <Skeleton className="h-5 w-20 rounded-full" />
             <Skeleton className="h-5 w-20 rounded-full" />
           </div>
