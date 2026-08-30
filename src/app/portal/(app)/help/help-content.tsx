@@ -468,6 +468,158 @@ export const helpContent: Record<string, HelpEntry> = {
       </>
     ),
   },
+  "/portal/inventory/reports": {
+    title: "How inventory valuation is counted",
+    description: "What counts toward each figure, and the date window it uses.",
+    body: (
+      <>
+        <HowToSection heading="What counts">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">
+                Total on-hand value and Items on-hand
+              </strong>{" "}
+              — the face value and count of every item currently in{" "}
+              <strong className="text-foreground">Available</strong> status.
+              This is a live snapshot, not scoped to the date range below.
+            </li>
+            <li>
+              <strong className="text-foreground">
+                Value donated and Value distributed
+              </strong>{" "}
+              — face value times quantity of <code>received</code> and{" "}
+              <code>distributed</code> movements whose date falls in the From/To
+              range, which defaults to the current month.
+            </li>
+            <li>
+              <strong className="text-foreground">
+                On-hand value by type and by status
+              </strong>{" "}
+              — by type covers Available items only; by status breaks all seven
+              statuses (Available, Reserved, Distributed, Damaged, Lost,
+              Retired, Other) out separately. Neither is affected by the date
+              range.
+            </li>
+          </ul>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            <strong className="text-foreground">admin</strong> holds manage and{" "}
+            <strong className="text-foreground">finance</strong> holds view;{" "}
+            <strong className="text-foreground">event_coordinator</strong>,{" "}
+            <strong className="text-foreground">board</strong>, and{" "}
+            <strong className="text-foreground">volunteer</strong> have no
+            access at all, even though volunteer can record donations and
+            distributions elsewhere in Inventory.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What happens downstream">
+          <p>
+            Changing the date range only re-runs Value donated and Value
+            distributed — the on-hand cards and tables always reflect the
+            catalog&apos;s current state. Nothing here is cached.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Common mistakes">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              Expecting Value donated for a range to match items still shown
+              Available today — it only reflects when the <code>received</code>{" "}
+              movement happened, not an item&apos;s current status, so a donated
+              item since reserved or distributed still counts.
+            </li>
+            <li>
+              Reading the Distributed row in the by-status table as the same
+              number as Value distributed for the selected range — the by-status
+              count is a current-status snapshot with no date filter, while
+              Value distributed is movement-based and scoped to the range, so
+              they can diverge.
+            </li>
+          </ul>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/inventory/donations": {
+    title: "How donation intake works",
+    description:
+      "Recording a donor and items together, and what's fixed after.",
+    body: (
+      <>
+        <HowToSection heading="Steps">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">Add donation</strong> —
+              creates the donor and every item in one step; at least one item is
+              required.
+            </li>
+            <li>
+              <strong className="text-foreground">Donor</strong> — marking a
+              donation Anonymous always creates a fresh donor record. A named
+              donor with an email is matched against an existing People record
+              by that email first, so repeat donations from the same person link
+              to one record instead of duplicating it. Donor source (Individual,
+              Brand, Organization, Event, Other) is recorded per donation.
+            </li>
+            <li>
+              <strong className="text-foreground">Items</strong> — each item
+              becomes its own inventory item with Available status and a{" "}
+              <code>received</code> movement of quantity 1, which is what feeds
+              the{" "}
+              <Link
+                href="/portal/inventory/reports"
+                className="underline hover:text-foreground"
+              >
+                Inventory Reports
+              </Link>{" "}
+              &quot;Value donated&quot; figure.
+            </li>
+          </ol>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            Seeing this list needs inventory view or manage access on{" "}
+            <strong className="text-foreground">
+              Donation intake &amp; distribution
+            </strong>{" "}
+            — in practice <strong className="text-foreground">admin</strong> and{" "}
+            <strong className="text-foreground">volunteer</strong>. Recording a
+            new donation needs that same intake access, but editing an existing
+            one afterward needs full Inventory or Finance manage instead — so a
+            volunteer can add a donation but can&apos;t edit it once it&apos;s
+            saved.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What happens downstream">
+          <p>
+            Donated items appear immediately in the{" "}
+            <Link
+              href="/portal/inventory/items"
+              className="underline hover:text-foreground"
+            >
+              Items catalog
+            </Link>{" "}
+            and count toward Inventory Reports for the date they were received.
+            It&apos;s written to the audit log.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Common mistakes">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              Expecting the edit sheet to fix a wrong donor name, source, or
+              item — editing a donation only changes the date received and
+              notes; donor identity and items are fixed at intake.
+            </li>
+            <li>
+              A volunteer expecting to edit a donation they just added — that
+              needs Inventory or Finance manage access, which the intake
+              carve-out doesn&apos;t grant.
+            </li>
+          </ul>
+        </HowToSection>
+      </>
+    ),
+  },
   "/portal/governance/meetings": {
     title: "How meeting records work",
     description: "Meeting lifecycle and the records tied to each meeting.",
@@ -662,6 +814,80 @@ export const helpContent: Record<string, HelpEntry> = {
               Trying to log hours for another volunteer without manage access —
               the entry is rejected, since logging access only covers your own
               hours.
+            </li>
+          </ul>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/volunteers/applications": {
+    title: "How volunteer applications work",
+    description: "The status lifecycle, and who can move an application along.",
+    body: (
+      <>
+        <HowToSection heading="Steps">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">
+                new → being reviewed → contacted → placed
+              </strong>{" "}
+              — the expected path, or{" "}
+              <strong className="text-foreground">declined</strong> /{" "}
+              <strong className="text-foreground">closed</strong> at any point.
+              Nothing advances automatically — someone with manage access sets
+              each status from the application&apos;s details sheet.
+            </li>
+            <li>
+              <strong className="text-foreground">
+                Not linked to People or Roles
+              </strong>{" "}
+              — marking an application <code>placed</code> doesn&apos;t create
+              or attach a People record or a role-type assignment on its own; do
+              that separately if the applicant is joining as a volunteer.
+            </li>
+          </ol>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            <strong className="text-foreground">admin</strong>,{" "}
+            <strong className="text-foreground">event_coordinator</strong>, and{" "}
+            <strong className="text-foreground">volunteer</strong> can all view
+            this list, but only{" "}
+            <strong className="text-foreground">admin</strong> holds manage on
+            Volunteers — the status dropdown only appears for admin; everyone
+            else sees the current status as read-only text.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What happens downstream">
+          <p>
+            A status change only updates this record — there&apos;s no automated
+            email to the applicant and nothing else in the portal reacts to it.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Common mistakes">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              Assuming <code>placed</code> means the person is now set up as a
+              volunteer elsewhere — it doesn&apos;t touch{" "}
+              <Link
+                href="/portal/people"
+                className="underline hover:text-foreground"
+              >
+                People
+              </Link>{" "}
+              or{" "}
+              <Link
+                href="/portal/volunteers/roles"
+                className="underline hover:text-foreground"
+              >
+                Roles
+              </Link>
+              , so follow up manually if they&apos;ll keep volunteering.
+            </li>
+            <li>
+              Expecting an event_coordinator to advance a status — they can open
+              and read an application, but the Status control stays disabled
+              since they hold view, not manage.
             </li>
           </ul>
         </HowToSection>
