@@ -222,4 +222,68 @@ describe("getOrganizationSummary (integration)", () => {
     await adminClient.from("board_members").delete().eq("id", boardMember.id);
     await person.cleanup();
   });
+
+  test("counts open partnership opportunities, ignoring closed ones", async () => {
+    const before = await summary();
+
+    const { data: inserted, error } = await adminClient
+      .from("partnership_opportunities")
+      .insert([
+        { organization_name: "Test Open Co", stage: "prospecting" },
+        { organization_name: "Test Won Co", stage: "closed_won" },
+        { organization_name: "Test Lost Co", stage: "closed_lost" },
+      ])
+      .select("id");
+    if (error) throw error;
+
+    const after = await summary();
+    expect(after.openPartnershipCount).toBe(before.openPartnershipCount + 1);
+
+    await adminClient
+      .from("partnership_opportunities")
+      .delete()
+      .in(
+        "id",
+        (inserted ?? []).map((row) => row.id),
+      );
+  });
+
+  test("surfaces the soonest open grant deadline and counts overdue ones", async () => {
+    const { data: inserted, error } = await adminClient
+      .from("grants")
+      .insert([
+        {
+          funder_name: "Test Overdue Funder",
+          application_deadline: YESTERDAY,
+          status: "planned",
+        },
+        {
+          funder_name: "Test Upcoming Funder",
+          application_deadline: NEXT_WEEK,
+          status: "submitted",
+        },
+        {
+          funder_name: "Test Declined Funder",
+          application_deadline: YESTERDAY,
+          status: "declined",
+        },
+      ])
+      .select("id");
+    if (error) throw error;
+
+    const result = await summary();
+    expect(result.overdueGrantCount).toBeGreaterThanOrEqual(1);
+    expect(result.nextGrantDeadline).not.toBeNull();
+    expect(
+      new Date(result.nextGrantDeadline!.application_deadline).getTime(),
+    ).toBeLessThanOrEqual(new Date(NEXT_WEEK).getTime());
+
+    await adminClient
+      .from("grants")
+      .delete()
+      .in(
+        "id",
+        (inserted ?? []).map((row) => row.id),
+      );
+  });
 });
