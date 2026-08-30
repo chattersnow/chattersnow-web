@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { LinkPendingPulse } from "@/components/link-pending";
 
 export function Pagination({
   page,
@@ -23,7 +24,7 @@ export function Pagination({
             nativeButton={false}
             render={<Link href={hrefFor(page - 1)} />}
           >
-            Previous
+            <LinkPendingPulse>Previous</LinkPendingPulse>
           </Button>
         ) : (
           <Button variant="outline" size="sm" disabled>
@@ -37,7 +38,7 @@ export function Pagination({
             nativeButton={false}
             render={<Link href={hrefFor(page + 1)} />}
           >
-            Next
+            <LinkPendingPulse>Next</LinkPendingPulse>
           </Button>
         ) : (
           <Button variant="outline" size="sm" disabled>

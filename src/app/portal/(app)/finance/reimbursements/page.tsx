@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
+import { SortHeaderLink } from "@/components/portal/sort-header-link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
@@ -16,6 +16,8 @@ import {
 import { HowToSection } from "@/components/how-to-section";
 import { PageHelpContent } from "../../help/help-context";
 import { FiltersSheet } from "@/components/filters-sheet";
+import { FilterSubmitButton } from "@/components/filter-submit-button";
+import { LinkPendingPulse } from "@/components/link-pending";
 import {
   buildHref,
   escapeLikePattern,
@@ -148,17 +150,6 @@ export default async function ReimbursementsPage({
       dir,
       page: nextPage,
     });
-  }
-
-  function SortIcon({ column }: { column: SortColumn }) {
-    if (sort !== column) {
-      return <ArrowUpDown className="size-3.5 text-muted-foreground" />;
-    }
-    return dir === "asc" ? (
-      <ArrowUp className="size-3.5" />
-    ) : (
-      <ArrowDown className="size-3.5" />
-    );
   }
 
   const totalPages = totalPagesFor(count);
@@ -336,16 +327,14 @@ export default async function ReimbursementsPage({
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <Button type="submit" variant="secondary">
-                  Filter
-                </Button>
+                <FilterSubmitButton />
                 {hasActiveFilters && (
                   <Button
                     variant="ghost"
                     nativeButton={false}
                     render={<Link href="/portal/finance/reimbursements" />}
                   >
-                    Clear
+                    <LinkPendingPulse>Clear</LinkPendingPulse>
                   </Button>
                 )}
               </div>
@@ -367,13 +356,11 @@ export default async function ReimbursementsPage({
                   <TableRow>
                     {COLUMNS.map((column) => (
                       <TableHead key={column.key}>
-                        <Link
+                        <SortHeaderLink
                           href={sortHref(column.key)}
-                          className="inline-flex items-center gap-1 hover:text-foreground"
-                        >
-                          {column.label}
-                          <SortIcon column={column.key} />
-                        </Link>
+                          label={column.label}
+                          dir={sort === column.key ? dir : null}
+                        />
                       </TableHead>
                     ))}
                     <TableHead>Requester</TableHead>

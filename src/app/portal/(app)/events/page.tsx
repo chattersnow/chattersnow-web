@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowDown, ArrowUp, ArrowUpDown, Eye } from "lucide-react";
+import { Eye } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
@@ -25,6 +25,9 @@ import {
 import { NewEventDialog } from "./new-event-dialog";
 import { StatusBadge, VisibilityBadge } from "./event-badges";
 import { FiltersSheet } from "@/components/filters-sheet";
+import { FilterSubmitButton } from "@/components/filter-submit-button";
+import { LinkPendingPulse } from "@/components/link-pending";
+import { SortHeaderLink } from "@/components/portal/sort-header-link";
 import { listProgramsAction } from "../programs/actions";
 
 const SORTABLE_COLUMNS = [
@@ -156,17 +159,6 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
 
   const totalPages = totalPagesFor(count);
 
-  function SortIcon({ column }: { column: SortColumn }) {
-    if (sort !== column) {
-      return <ArrowUpDown className="size-3.5 text-muted-foreground" />;
-    }
-    return dir === "asc" ? (
-      <ArrowUp className="size-3.5" />
-    ) : (
-      <ArrowDown className="size-3.5" />
-    );
-  }
-
   const hasActiveFilters =
     statusFilter !== "all" ||
     visibilityFilter !== "all" ||
@@ -258,16 +250,14 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <Button type="submit" variant="secondary">
-                Filter
-              </Button>
+              <FilterSubmitButton />
               {hasActiveFilters && (
                 <Button
                   variant="ghost"
                   nativeButton={false}
                   render={<Link href="/portal/events" />}
                 >
-                  Clear
+                  <LinkPendingPulse>Clear</LinkPendingPulse>
                 </Button>
               )}
             </div>
@@ -291,13 +281,11 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
                 <TableRow>
                   {COLUMNS.map((column) => (
                     <TableHead key={column.key}>
-                      <Link
+                      <SortHeaderLink
                         href={sortHref(column.key)}
-                        className="inline-flex items-center gap-1 hover:text-foreground"
-                      >
-                        {column.label}
-                        <SortIcon column={column.key} />
-                      </Link>
+                        label={column.label}
+                        dir={sort === column.key ? dir : null}
+                      />
                     </TableHead>
                   ))}
                   <TableHead className="w-px" />
@@ -335,7 +323,9 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
                         aria-label={`View ${event.name}`}
                         render={<Link href={`/portal/events/${event.id}`} />}
                       >
-                        <Eye />
+                        <LinkPendingPulse>
+                          <Eye />
+                        </LinkPendingPulse>
                       </Button>
                     </TableCell>
                   </TableRow>

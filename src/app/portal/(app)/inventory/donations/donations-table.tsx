@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LinkPendingPulse } from "@/components/link-pending";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -82,7 +83,9 @@ export function DonationsTable({
                         />
                       }
                     >
-                      <Eye />
+                      <LinkPendingPulse>
+                        <Eye />
+                      </LinkPendingPulse>
                     </Button>
                   </TableCell>
                 </TableRow>

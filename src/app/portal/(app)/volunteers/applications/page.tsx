@@ -7,6 +7,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FiltersSheet } from "@/components/filters-sheet";
+import { FilterSubmitButton } from "@/components/filter-submit-button";
+import { LinkPendingPulse } from "@/components/link-pending";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import {
@@ -173,16 +175,14 @@ export default async function VolunteerApplicationsPage({
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    <Button type="submit" variant="secondary">
-                      Filter
-                    </Button>
+                    <FilterSubmitButton />
                     {hasActiveFilters && (
                       <Button
                         variant="ghost"
                         nativeButton={false}
                         render={<Link href="/portal/volunteers/applications" />}
                       >
-                        Clear
+                        <LinkPendingPulse>Clear</LinkPendingPulse>
                       </Button>
                     )}
                   </div>

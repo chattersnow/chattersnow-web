@@ -1,6 +1,8 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AddDonationModal } from "../../home/add-donation-modal";
 import { FiltersSheet } from "@/components/filters-sheet";
+import { FilterSubmitButton } from "@/components/filter-submit-button";
+import { LinkPendingPulse } from "@/components/link-pending";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
@@ -159,16 +161,14 @@ export default async function InventoryDonationsPage({
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <Button type="submit" variant="secondary">
-                Filter
-              </Button>
+              <FilterSubmitButton />
               {hasActiveFilters && (
                 <Button
                   variant="ghost"
                   nativeButton={false}
                   render={<Link href="/portal/inventory/donations" />}
                 >
-                  Clear
+                  <LinkPendingPulse>Clear</LinkPendingPulse>
                 </Button>
               )}
             </div>
