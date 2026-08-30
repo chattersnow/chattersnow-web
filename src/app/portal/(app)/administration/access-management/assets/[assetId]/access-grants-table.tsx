@@ -1,10 +1,25 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { verifyAccessGrantAction } from "../../actions";
+import { Trash2 } from "lucide-react";
+import {
+  deleteAccessGrantAction,
+  verifyAccessGrantAction,
+} from "../../actions";
 import { humanize } from "../../labels";
 import type { AccessGrantRow } from "@/lib/portal/access-management/types";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,6 +31,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { AccessGrantDetailsSheet } from "./access-grant-details-sheet";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -59,6 +79,89 @@ function VerifyButton({
         "Verify"
       )}
     </Button>
+  );
+}
+
+function DeleteGrantButton({
+  grantId,
+  assetId,
+  personName,
+}: {
+  grantId: string;
+  assetId: string;
+  personName: string;
+}) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleDelete() {
+    setError(null);
+    startTransition(async () => {
+      const result = await deleteAccessGrantAction(grantId, assetId);
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+      setOpen(false);
+      router.refresh();
+    });
+  }
+
+  return (
+    <>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={`Delete grant for ${personName}`}
+              onClick={() => setOpen(true)}
+            />
+          }
+        >
+          <Trash2 />
+        </TooltipTrigger>
+        <TooltipContent>Delete</TooltipContent>
+      </Tooltip>
+
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this access grant?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes the grant record for {personName} —
+              unlike revoking, it isn&apos;t kept for audit history. This
+              can&apos;t be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isPending}
+            >
+              {isPending ? (
+                <>
+                  <Spinner /> Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -120,6 +223,11 @@ export function AccessGrantsTable({
                       <VerifyButton grantId={grant.id} assetId={assetId} />
                     )}
                     <AccessGrantDetailsSheet grant={grant} assetId={assetId} />
+                    <DeleteGrantButton
+                      grantId={grant.id}
+                      assetId={assetId}
+                      personName={grant.person?.name ?? "this person"}
+                    />
                   </div>
                 </TableCell>
               </TableRow>

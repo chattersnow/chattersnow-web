@@ -1,10 +1,20 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
+import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Banknote, Check, Eye, Pencil, X } from "lucide-react";
+import {
+  ArrowLeft,
+  Banknote,
+  Check,
+  Eye,
+  Pencil,
+  Trash2,
+  X,
+} from "lucide-react";
 import {
   approveExpenseAction,
+  deleteExpenseAction,
+  listExpenseActorsAction,
   markExpensePaidAction,
   rejectExpenseAction,
   updateExpenseAction,
@@ -114,8 +124,45 @@ export function EditExpenseModal({
   );
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [actorNameById, setActorNameById] = useState<Map<string, string>>(
+    new Map(),
+  );
   const formId = `edit-expense-form-${expense.id}`;
   const dirty = isDirty(form, expense);
+
+  useEffect(() => {
+    if (!open) return;
+    const ids = Array.from(
+      new Set(
+        [
+          expense.submitted_by,
+          expense.approved_by,
+          expense.rejected_by,
+          expense.paid_by,
+        ].filter((id): id is string => !!id),
+      ),
+    );
+    if (ids.length === 0) return;
+    listExpenseActorsAction(ids).then((result) => {
+      if ("data" in result) {
+        setActorNameById(
+          new Map(
+            result.data.map((actor) => [
+              actor.user_id,
+              actor.full_name || actor.email || actor.user_id,
+            ]),
+          ),
+        );
+      }
+    });
+  }, [
+    open,
+    expense.submitted_by,
+    expense.approved_by,
+    expense.rejected_by,
+    expense.paid_by,
+  ]);
 
   const isSubmitter =
     approvalContext.userId !== null &&
@@ -133,6 +180,8 @@ export function EditExpenseModal({
   const canMarkPaid =
     expense.status === "approved" && approvalContext.canMarkPaid;
   const canEdit = expense.status === "submitted";
+  const canDelete =
+    expense.status === "submitted" || expense.status === "rejected";
 
   function update<K extends keyof ExpenseFormState>(
     key: K,
@@ -233,6 +282,22 @@ export function EditExpenseModal({
     });
   }
 
+  function handleDelete() {
+    setError(null);
+    startTransition(async () => {
+      const result = await deleteExpenseAction(expense.id);
+      if ("error" in result) {
+        setDeleteDialogOpen(false);
+        setError(result.error);
+        return;
+      }
+      setDeleteDialogOpen(false);
+      setOpen(false);
+      router.refresh();
+      onSaved?.();
+    });
+  }
+
   return (
     <>
       <Sheet open={open} onOpenChange={handleOpenChange}>
@@ -286,23 +351,45 @@ export function EditExpenseModal({
                   : "View this expense's details."}
               </SheetDescription>
             </div>
-            {mode === "view" && canEdit ? (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Edit expense"
-                      onClick={() => setMode("edit")}
-                    />
-                  }
-                >
-                  <Pencil />
-                </TooltipTrigger>
-                <TooltipContent>Edit expense</TooltipContent>
-              </Tooltip>
+            {mode === "view" && (canEdit || canDelete) ? (
+              <div className="flex items-center gap-1">
+                {canEdit && (
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Edit expense"
+                          onClick={() => setMode("edit")}
+                        />
+                      }
+                    >
+                      <Pencil />
+                    </TooltipTrigger>
+                    <TooltipContent>Edit expense</TooltipContent>
+                  </Tooltip>
+                )}
+                {canDelete && (
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Delete expense"
+                          onClick={() => setDeleteDialogOpen(true)}
+                        />
+                      }
+                    >
+                      <Trash2 />
+                    </TooltipTrigger>
+                    <TooltipContent>Delete expense</TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
             ) : mode === "edit" ? (
               <Button
                 type="button"
@@ -327,6 +414,12 @@ export function EditExpenseModal({
                     </span>
                   </div>
                 </Field>
+                <ReadOnlyField
+                  label="Submitted by"
+                  htmlFor="edit-expense-submitted-by"
+                >
+                  {actorNameById.get(expense.submitted_by) ?? "Loading..."}
+                </ReadOnlyField>
                 <ReadOnlyField
                   label="Description"
                   htmlFor="edit-expense-description"
@@ -358,12 +451,22 @@ export function EditExpenseModal({
                 </ReadOnlyField>
 
                 {expense.status === "approved" && expense.approved_at && (
-                  <ReadOnlyField
-                    label="Approved"
-                    htmlFor="edit-expense-approved"
-                  >
-                    {dateTimeFormatter.format(new Date(expense.approved_at))}
-                  </ReadOnlyField>
+                  <>
+                    <ReadOnlyField
+                      label="Approved"
+                      htmlFor="edit-expense-approved"
+                    >
+                      {dateTimeFormatter.format(new Date(expense.approved_at))}
+                    </ReadOnlyField>
+                    {expense.approved_by && (
+                      <ReadOnlyField
+                        label="Approved by"
+                        htmlFor="edit-expense-approved-by"
+                      >
+                        {actorNameById.get(expense.approved_by) ?? "Loading..."}
+                      </ReadOnlyField>
+                    )}
+                  </>
                 )}
                 {expense.status === "rejected" && (
                   <>
@@ -375,6 +478,14 @@ export function EditExpenseModal({
                         {dateTimeFormatter.format(
                           new Date(expense.rejected_at),
                         )}
+                      </ReadOnlyField>
+                    )}
+                    {expense.rejected_by && (
+                      <ReadOnlyField
+                        label="Rejected by"
+                        htmlFor="edit-expense-rejected-by"
+                      >
+                        {actorNameById.get(expense.rejected_by) ?? "Loading..."}
                       </ReadOnlyField>
                     )}
                     <ReadOnlyField
@@ -505,6 +616,46 @@ export function EditExpenseModal({
             </AlertDialogCancel>
             <AlertDialogAction onClick={confirmDiscard}>
               Discard changes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={deleteDialogOpen}
+        onOpenChange={(next) => !next && setDeleteDialogOpen(next)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this expense?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This can&apos;t be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={isPending}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isPending}
+            >
+              {isPending ? (
+                <>
+                  <Spinner /> Deleting...
+                </>
+              ) : (
+                "Delete expense"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

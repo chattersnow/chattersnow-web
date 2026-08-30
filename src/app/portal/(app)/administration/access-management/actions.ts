@@ -347,6 +347,30 @@ export async function verifyAccessGrantAction(
   return { success: true };
 }
 
+export async function deleteAccessGrantAction(
+  grantId: string,
+  assetId: string,
+): Promise<{ error: string } | { success: true }> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(
+    supabase,
+    "access_management_assets",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  const { error } = await supabase
+    .from("access_grants")
+    .delete()
+    .eq("id", grantId);
+  if (error) {
+    return { error: "Could not delete access grant. Please try again." };
+  }
+
+  revalidateAccessManagementPaths(assetId);
+  return { success: true };
+}
+
 export async function revokeAccessGrantAction(
   grantId: string,
   assetId: string,
