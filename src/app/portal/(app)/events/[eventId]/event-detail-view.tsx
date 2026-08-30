@@ -54,11 +54,10 @@ const SELF_MANAGED_EDIT_TABS: ReadonlySet<TabValue> = new Set([
 // else holds tables that need the full width.
 const HALF_WIDTH_TABS: ReadonlySet<TabValue> = new Set([
   "overview",
+  "checklist",
   "planning",
   "logistics",
   "attendance",
-  "report",
-  "impact",
 ]);
 
 const CARD_TITLES: Partial<Record<TabValue, string>> = {

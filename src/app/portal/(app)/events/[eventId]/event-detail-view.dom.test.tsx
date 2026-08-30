@@ -8,6 +8,7 @@ import * as RegistrantsActions from "../registrants-actions";
 import * as DiscountCodesActions from "../discount-codes-actions";
 import * as DistributionActions from "../../home/distribution-actions";
 import * as IncidentsActions from "../incidents-actions";
+import * as ChecklistActions from "../checklist-actions";
 import * as GiveawayActions from "../giveaway-actions";
 import * as ExpensesActions from "../../finance/expenses/actions";
 import * as RevenueActions from "../../finance/revenue/actions";
@@ -50,6 +51,10 @@ mock.module("../../home/distribution-actions", () => ({
 mock.module("../incidents-actions", () => ({
   ...IncidentsActions,
   listEventIncidentsAction: mock(async () => ({ data: [] })),
+}));
+mock.module("../checklist-actions", () => ({
+  ...ChecklistActions,
+  listEventChecklistItemsAction: mock(async () => ({ data: [] })),
 }));
 mock.module("../giveaway-actions", () => ({
   ...GiveawayActions,

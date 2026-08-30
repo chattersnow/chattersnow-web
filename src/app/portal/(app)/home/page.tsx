@@ -8,10 +8,10 @@ import { resolveCurrentPersonId } from "@/lib/auth/current-person";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ActiveEventCard } from "./active-event-card";
 import {
-  DashboardComingSoonRow,
   DashboardEventRow,
   DashboardSectionCard,
   DashboardStatRow,
+  DashboardTaskListRow,
 } from "./dashboard-section-card";
 import {
   getUpcomingSummary,
@@ -21,6 +21,7 @@ import {
   getOrganizationSummary,
 } from "./queries";
 import { getAccessManagementStatsSummary } from "@/lib/portal/access-management/queries";
+import { getEventTaskSummary } from "@/lib/portal/attention-items";
 import { listRecentDonationsAction } from "./actions";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -114,6 +115,7 @@ export default async function PortalHomePage() {
 
   const [
     upcoming,
+    eventTasks,
     financial,
     inventory,
     accessManagementStats,
@@ -123,6 +125,10 @@ export default async function PortalHomePage() {
   ] = await Promise.all([
     canSeeUpcoming
       ? getUpcomingSummary(supabase, nowIso)
+      : Promise.resolve(null),
+    canSeeUpcoming
+      ? // canCheckIn is events:manage, the same gate outstanding tasks need
+        getEventTaskSummary(supabase, { canManageEvents: canCheckIn }, nowIso)
       : Promise.resolve(null),
     canSeeFinancial
       ? getFinancialSummary(supabase, startOfMonthDate, startOfYearDate, nowIso)
@@ -225,9 +231,10 @@ export default async function PortalHomePage() {
               value={upcoming.partnerCount}
               caption="Sponsoring upcoming events"
             />
-            <DashboardComingSoonRow
+            <DashboardTaskListRow
               label="Outstanding tasks"
-              description="Event checklists and tasks aren't tracked yet."
+              items={eventTasks?.items ?? []}
+              emptyCaption="No open tasks across upcoming events."
             />
           </DashboardSectionCard>
         )}

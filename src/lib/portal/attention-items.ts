@@ -1,6 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isEventActiveToday, type EventWindow } from "@/lib/time";
 import { getMissingCoverageSeriesForYear } from "@/app/portal/(app)/calendar/queries";
+import {
+  planningStatus,
+  duringStatus,
+  afterStatus,
+} from "@/app/portal/(app)/events/phase-status";
+import type { EventRow } from "@/app/portal/(app)/events/event-badges";
 
 export type PendingApprovalItem = {
   key: string;
@@ -277,6 +283,108 @@ export async function getAccessManagementAttentionSummary(
         href: "/portal/administration/access-management?filter=single_administrator",
       });
     }
+  }
+
+  return { items };
+}
+
+type EventTaskRow = Pick<
+  EventRow,
+  | "id"
+  | "name"
+  | "starts_at"
+  | "event_lead_id"
+  | "capacity"
+  | "budget_amount"
+  | "attendance_count"
+  | "report_status"
+>;
+
+type OpenChecklistItemRow = {
+  id: string;
+  event_id: string;
+  title: string;
+  events: { name: string };
+};
+
+/**
+ * Backs the dashboard's "Outstanding tasks" row (home/page.tsx). Combines
+ * two sources of open work:
+ *  - phase-derived tasks, using the same per-phase status logic that drives
+ *    the event detail page's Planning/During/After badges (see
+ *    events/phase-status.ts) -- an event whose phase isn't "done" yet is an
+ *    open task. Scoped to draft/published events, since completed/
+ *    cancelled/archived events are done by definition even if a phase was
+ *    never filled in.
+ *  - free-form event_checklist_items rows with is_done = false, from the
+ *    event detail page's Checklist tab -- not scoped by event status, since
+ *    a manually-added item (e.g. "send thank-you emails") can legitimately
+ *    outlive the event itself.
+ */
+export async function getEventTaskSummary(
+  supabase: SupabaseClient,
+  options: { canManageEvents: boolean },
+  nowIso: string = new Date().toISOString(),
+): Promise<PendingApprovalsSummary> {
+  if (!options.canManageEvents) return { items: [] };
+
+  const { data: events } = await supabase
+    .from("events")
+    .select(
+      "id, name, starts_at, event_lead_id, capacity, budget_amount, attendance_count, report_status",
+    )
+    .in("status", ["draft", "published"]);
+
+  const now = new Date(nowIso);
+  const items: PendingApprovalItem[] = [];
+
+  for (const row of (events ?? []) as EventTaskRow[]) {
+    // planning/during/after only read the fields selected above, so this
+    // narrower row can stand in for the full EventRow they're typed against.
+    const event = row as unknown as EventRow;
+    const hasStarted = new Date(row.starts_at) <= now;
+
+    if (!hasStarted && planningStatus(event) !== "done") {
+      items.push({
+        key: `event_planning_${row.id}`,
+        label: `Planning incomplete · ${row.name}`,
+        count: 1,
+        href: `/portal/events/${row.id}?tab=planning`,
+      });
+    }
+
+    if (duringStatus(event, now) === "in_progress") {
+      items.push({
+        key: `event_attendance_${row.id}`,
+        label: `Attendance not logged · ${row.name}`,
+        count: 1,
+        href: `/portal/events/${row.id}?tab=attendance`,
+      });
+    }
+
+    if (hasStarted && afterStatus(event) !== "done") {
+      items.push({
+        key: `event_report_${row.id}`,
+        label: `After-report not started · ${row.name}`,
+        count: 1,
+        href: `/portal/events/${row.id}?tab=report`,
+      });
+    }
+  }
+
+  const { data: checklistItems } = await supabase
+    .from("event_checklist_items")
+    .select("id, event_id, title, events!inner(name)")
+    .eq("is_done", false);
+
+  for (const row of (checklistItems ??
+    []) as unknown as OpenChecklistItemRow[]) {
+    items.push({
+      key: `event_checklist_${row.id}`,
+      label: `${row.title} · ${row.events.name}`,
+      count: 1,
+      href: `/portal/events/${row.event_id}?tab=checklist`,
+    });
   }
 
   return { items };

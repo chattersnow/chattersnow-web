@@ -14,6 +14,7 @@ import { DiscountCodesTab } from "./discount-codes-tab";
 import { DonationsTab } from "./donations-tab";
 import { DistributionsTab } from "./distributions-tab";
 import { IncidentsTab } from "./incidents-tab";
+import { ChecklistTab } from "./checklist-tab";
 import { EventExpensesTab } from "./event-expenses-tab";
 import { EventRevenueTab } from "./event-revenue-tab";
 import { GiveawayTab } from "./giveaway-tab";
@@ -26,6 +27,7 @@ export type Mode = "view" | "edit";
 
 export type TabValue =
   | "overview"
+  | "checklist"
   | "planning"
   | "logistics"
   | "volunteers"
@@ -76,6 +78,19 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         onSaved={ctx.onSaved}
         onPendingChange={ctx.formCallbacks.overview.onPendingChange}
         onDirtyChange={ctx.formCallbacks.overview.onDirtyChange}
+      />
+    ),
+  },
+  {
+    value: "checklist",
+    label: "Checklist",
+    phase: "basic",
+    kind: "plain",
+    render: (ctx) => (
+      <ChecklistTab
+        eventId={ctx.event.id}
+        active={ctx.activeTab === "checklist"}
+        mode={ctx.mode}
       />
     ),
   },
@@ -222,6 +237,36 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     ),
   },
   {
+    value: "report",
+    label: "Report",
+    phase: "after",
+    kind: "form",
+    render: (ctx) => (
+      <ReportTab
+        ref={ctx.formCallbacks.report.registerHandle}
+        event={ctx.event}
+        formId={ctx.formId("report")}
+        mode={ctx.mode}
+        onSaved={ctx.onSaved}
+        onPendingChange={ctx.formCallbacks.report.onPendingChange}
+        onDirtyChange={ctx.formCallbacks.report.onDirtyChange}
+      />
+    ),
+  },
+  {
+    value: "donations",
+    label: "Donations",
+    phase: "after",
+    kind: "plain",
+    render: (ctx) => (
+      <DonationsTab
+        eventId={ctx.event.id}
+        active={ctx.activeTab === "donations"}
+        mode={ctx.mode}
+      />
+    ),
+  },
+  {
     value: "expenses",
     label: "Expenses",
     phase: "after",
@@ -250,23 +295,6 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     ),
   },
   {
-    value: "report",
-    label: "Report",
-    phase: "after",
-    kind: "form",
-    render: (ctx) => (
-      <ReportTab
-        ref={ctx.formCallbacks.report.registerHandle}
-        event={ctx.event}
-        formId={ctx.formId("report")}
-        mode={ctx.mode}
-        onSaved={ctx.onSaved}
-        onPendingChange={ctx.formCallbacks.report.onPendingChange}
-        onDirtyChange={ctx.formCallbacks.report.onDirtyChange}
-      />
-    ),
-  },
-  {
     value: "impact",
     label: "Impact",
     phase: "after",
@@ -281,19 +309,6 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         onSaved={ctx.onSaved}
         onPendingChange={ctx.formCallbacks.impact.onPendingChange}
         onDirtyChange={ctx.formCallbacks.impact.onDirtyChange}
-      />
-    ),
-  },
-  {
-    value: "donations",
-    label: "Donations",
-    phase: "after",
-    kind: "plain",
-    render: (ctx) => (
-      <DonationsTab
-        eventId={ctx.event.id}
-        active={ctx.activeTab === "donations"}
-        mode={ctx.mode}
       />
     ),
   },
