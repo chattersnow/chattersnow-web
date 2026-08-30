@@ -63,4 +63,16 @@ describe("PersonFormFields", () => {
       screen.getByRole("checkbox", { name: "Volunteer" }),
     ).not.toBeChecked();
   });
+
+  test("toggling the organization checkbox updates isOrganization", async () => {
+    const user = userEvent.setup();
+    let latest: PersonFormState | undefined;
+    render(<ControlledForm onChange={(form) => (latest = form)} />);
+
+    await user.click(
+      screen.getByRole("checkbox", { name: "This is an organization" }),
+    );
+
+    expect(latest?.isOrganization).toBe(true);
+  });
 });

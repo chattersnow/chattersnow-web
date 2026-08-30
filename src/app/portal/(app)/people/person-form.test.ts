@@ -60,8 +60,16 @@ describe("parsePersonForm", () => {
         is_donor: true,
         is_sponsor: true,
         is_volunteer: false,
+        is_organization: false,
       },
     });
+  });
+
+  test("parses the organization checkbox", () => {
+    const result = parsePersonForm(
+      formData({ name: "Acme Co", isDonor: "true", isOrganization: "true" }),
+    );
+    expect("data" in result && result.data.is_organization).toBe(true);
   });
 
   test("rejects an invalid Instagram handle", () => {

@@ -13,6 +13,7 @@ export type PersonFormData = {
   is_donor: boolean;
   is_sponsor: boolean;
   is_volunteer: boolean;
+  is_organization: boolean;
 };
 
 export function parsePersonForm(
@@ -34,6 +35,9 @@ export function parsePersonForm(
   const is_volunteer =
     formData.get("isVolunteer") === "on" ||
     formData.get("isVolunteer") === "true";
+  const is_organization =
+    formData.get("isOrganization") === "on" ||
+    formData.get("isOrganization") === "true";
 
   if (!name) return { error: "Name is required." };
   if (!is_donor && !is_sponsor && !is_volunteer) {
@@ -64,6 +68,7 @@ export function parsePersonForm(
       is_donor,
       is_sponsor,
       is_volunteer,
+      is_organization,
     },
   };
 }

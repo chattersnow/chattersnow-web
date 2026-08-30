@@ -10,6 +10,7 @@ import {
   type PersonFormState,
 } from "./person-form-fields";
 import { PersonPicker, type PickedPerson } from "./person-picker";
+import type { RoleKey } from "./people-shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,11 +25,21 @@ import {
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 
-export function NewPersonDialog({ people }: { people: PersonListItem[] }) {
+export function NewPersonDialog({
+  people,
+  defaultRole,
+  triggerLabel = "New Person",
+}: {
+  people: PersonListItem[];
+  defaultRole?: RoleKey;
+  triggerLabel?: string;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [availablePeople, setAvailablePeople] = useState(people);
-  const [form, setForm] = useState<PersonFormState>(() => emptyPersonForm());
+  const [form, setForm] = useState<PersonFormState>(() =>
+    emptyPersonForm(defaultRole),
+  );
   const [contact, setContact] = useState<PickedPerson | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -44,7 +55,7 @@ export function NewPersonDialog({ people }: { people: PersonListItem[] }) {
     setOpen(nextOpen);
     if (nextOpen) {
       setAvailablePeople(people);
-      setForm(emptyPersonForm());
+      setForm(emptyPersonForm(defaultRole));
       setContact(null);
       setError(null);
     }
@@ -77,7 +88,7 @@ export function NewPersonDialog({ people }: { people: PersonListItem[] }) {
       <DialogTrigger
         render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
       >
-        New Person
+        {triggerLabel}
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
