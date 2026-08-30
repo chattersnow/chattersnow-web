@@ -45,6 +45,7 @@ export async function registerForEventAction(
     p_notes: parsed.data.notes,
     p_honeypot: honeypot,
     p_ip_address: ipAddress,
+    p_instagram_handle: parsed.data.instagram_handle,
   });
 
   if (error) {

@@ -1,9 +1,12 @@
 import type { ParseResult } from "@/lib/forms";
 
+const INSTAGRAM_HANDLE_PATTERN = /^[A-Za-z0-9._]{1,30}$/;
+
 export type EventRegistrationFormData = {
   name: string;
   email: string;
   phone: string | null;
+  instagram_handle: string | null;
   party_size: number;
   notes: string | null;
 };
@@ -14,12 +17,21 @@ export function parseEventRegistrationForm(
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim();
+  const instagramHandle = String(formData.get("instagramHandle") ?? "")
+    .trim()
+    .replace(/^@/, "");
   const notes = String(formData.get("notes") ?? "").trim();
   const partySizeRaw = String(formData.get("partySize") ?? "").trim();
 
   if (!name) return { error: "Name is required." };
   if (!email || !email.includes("@"))
     return { error: "A valid email is required." };
+  if (instagramHandle && !INSTAGRAM_HANDLE_PATTERN.test(instagramHandle)) {
+    return {
+      error:
+        "Instagram handle can only contain letters, numbers, periods, and underscores.",
+    };
+  }
 
   const party_size = partySizeRaw ? Number(partySizeRaw) : 1;
   if (!Number.isInteger(party_size) || party_size < 1) {
@@ -31,6 +43,7 @@ export function parseEventRegistrationForm(
       name,
       email,
       phone: phone || null,
+      instagram_handle: instagramHandle || null,
       party_size,
       notes: notes || null,
     },

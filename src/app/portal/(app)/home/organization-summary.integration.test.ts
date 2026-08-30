@@ -226,12 +226,18 @@ describe("getOrganizationSummary (integration)", () => {
   test("counts open partnership opportunities, ignoring closed ones", async () => {
     const before = await summary();
 
+    const orgs = await Promise.all([
+      createPerson({ name: "Test Open Co" }),
+      createPerson({ name: "Test Won Co" }),
+      createPerson({ name: "Test Lost Co" }),
+    ]);
+
     const { data: inserted, error } = await adminClient
       .from("partnership_opportunities")
       .insert([
-        { organization_name: "Test Open Co", stage: "prospecting" },
-        { organization_name: "Test Won Co", stage: "closed_won" },
-        { organization_name: "Test Lost Co", stage: "closed_lost" },
+        { organization_person_id: orgs[0].id, stage: "prospecting" },
+        { organization_person_id: orgs[1].id, stage: "closed_won" },
+        { organization_person_id: orgs[2].id, stage: "closed_lost" },
       ])
       .select("id");
     if (error) throw error;
@@ -246,6 +252,7 @@ describe("getOrganizationSummary (integration)", () => {
         "id",
         (inserted ?? []).map((row) => row.id),
       );
+    await Promise.all(orgs.map((org) => org.cleanup()));
   });
 
   test("surfaces the soonest open grant deadline and counts overdue ones", async () => {

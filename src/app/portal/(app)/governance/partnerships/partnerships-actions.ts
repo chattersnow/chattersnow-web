@@ -18,20 +18,26 @@ export type PartnershipOwner = {
   phone: string | null;
 };
 
+export type PartnershipOrganization = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+};
+
 export type PartnershipOpportunity = {
   id: string;
-  organization_name: string;
-  contact_name: string | null;
-  contact_email: string | null;
   stage: PartnershipStage;
   next_step_date: string | null;
   notes: string | null;
+  organization: PartnershipOrganization;
   owner: PartnershipOwner | null;
 };
 
 export type PartnershipActionResult = { error: string } | { success: true };
 
 export async function createPartnershipOpportunityAction(
+  organizationPersonId: string | null,
   ownerPersonId: string | null,
   formData: FormData,
 ): Promise<PartnershipActionResult> {
@@ -48,10 +54,15 @@ export async function createPartnershipOpportunityAction(
   );
   if (permissionError) return permissionError;
 
+  if (!organizationPersonId) {
+    return { error: "Select or create the partner organization." };
+  }
+
   const parsed = parsePartnershipOpportunityForm(formData);
   if ("error" in parsed) return parsed;
 
   const { error } = await supabase.from("partnership_opportunities").insert({
+    organization_person_id: organizationPersonId,
     owner_person_id: ownerPersonId,
     ...parsed.data,
   });
@@ -69,6 +80,7 @@ export async function createPartnershipOpportunityAction(
 
 export async function updatePartnershipOpportunityAction(
   id: string,
+  organizationPersonId: string | null,
   ownerPersonId: string | null,
   formData: FormData,
 ): Promise<PartnershipActionResult> {
@@ -85,12 +97,17 @@ export async function updatePartnershipOpportunityAction(
   );
   if (permissionError) return permissionError;
 
+  if (!organizationPersonId) {
+    return { error: "Select or create the partner organization." };
+  }
+
   const parsed = parsePartnershipOpportunityForm(formData);
   if ("error" in parsed) return parsed;
 
   const { error } = await supabase
     .from("partnership_opportunities")
     .update({
+      organization_person_id: organizationPersonId,
       owner_person_id: ownerPersonId,
       ...parsed.data,
     })

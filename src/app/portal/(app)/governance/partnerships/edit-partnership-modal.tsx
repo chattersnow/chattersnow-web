@@ -60,9 +60,6 @@ function formStateFor(
   opportunity: PartnershipOpportunity,
 ): PartnershipOpportunityFormState {
   return {
-    organizationName: opportunity.organization_name,
-    contactName: opportunity.contact_name ?? "",
-    contactEmail: opportunity.contact_email ?? "",
     stage: opportunity.stage,
     nextStepDate: opportunity.next_step_date ?? "",
     notes: opportunity.notes ?? "",
@@ -71,17 +68,16 @@ function formStateFor(
 
 function isDirty(
   form: PartnershipOpportunityFormState,
+  organization: PickedPerson | null,
   owner: PickedPerson | null,
   opportunity: PartnershipOpportunity,
 ) {
   const baseline = formStateFor(opportunity);
   return (
-    form.organizationName !== baseline.organizationName ||
-    form.contactName !== baseline.contactName ||
-    form.contactEmail !== baseline.contactEmail ||
     form.stage !== baseline.stage ||
     form.nextStepDate !== baseline.nextStepDate ||
     form.notes !== baseline.notes ||
+    (organization?.id ?? null) !== (opportunity.organization?.id ?? null) ||
     (owner?.id ?? null) !== (opportunity.owner?.id ?? null)
   );
 }
@@ -97,6 +93,9 @@ export function EditPartnershipModal({
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [availablePeople, setAvailablePeople] = useState(people);
+  const [organization, setOrganization] = useState<PickedPerson | null>(
+    opportunity.organization,
+  );
   const [owner, setOwner] = useState<PickedPerson | null>(opportunity.owner);
   const [form, setForm] = useState<PartnershipOpportunityFormState>(() =>
     formStateFor(opportunity),
@@ -107,7 +106,7 @@ export function EditPartnershipModal({
     null,
   );
   const formId = `edit-partnership-form-${opportunity.id}`;
-  const dirty = isDirty(form, owner, opportunity);
+  const dirty = isDirty(form, organization, owner, opportunity);
 
   function update<K extends keyof PartnershipOpportunityFormState>(
     key: K,
@@ -122,6 +121,7 @@ export function EditPartnershipModal({
 
   function resetToBaseline() {
     setForm(formStateFor(opportunity));
+    setOrganization(opportunity.organization);
     setOwner(opportunity.owner);
     setError(null);
   }
@@ -163,6 +163,7 @@ export function EditPartnershipModal({
     startTransition(async () => {
       const result = await updatePartnershipOpportunityAction(
         opportunity.id,
+        organization?.id ?? null,
         owner?.id ?? null,
         packPartnershipOpportunityFormData(form),
       );
@@ -264,20 +265,17 @@ export function EditPartnershipModal({
               <FieldGroup>
                 <ReadOnlyField
                   label="Organization"
-                  htmlFor="edit-partnership-organization-name"
+                  htmlFor="edit-partnership-organization"
                 >
-                  {opportunity.organization_name}
-                </ReadOnlyField>
-                <ReadOnlyField
-                  label="Contact"
-                  htmlFor="edit-partnership-contact-name"
-                >
-                  {opportunity.contact_name || "—"}
-                  {opportunity.contact_email
-                    ? ` · ${opportunity.contact_email}`
+                  {opportunity.organization.name || "—"}
+                  {opportunity.organization.email
+                    ? ` · ${opportunity.organization.email}`
                     : ""}
                 </ReadOnlyField>
-                <ReadOnlyField label="Owner" htmlFor="edit-partnership-owner">
+                <ReadOnlyField
+                  label="Internal owner"
+                  htmlFor="edit-partnership-owner"
+                >
                   {opportunity.owner?.name || "—"}
                 </ReadOnlyField>
                 <ReadOnlyField label="Stage" htmlFor="edit-partnership-stage">
@@ -304,6 +302,17 @@ export function EditPartnershipModal({
             >
               <div className="flex-1 overflow-y-auto px-4 pb-4">
                 <FieldGroup>
+                  <Field>
+                    <FieldLabel>Partner organization</FieldLabel>
+                    <PersonPicker
+                      people={availablePeople}
+                      selected={organization}
+                      onSelect={setOrganization}
+                      onPersonCreated={handlePersonCreated}
+                      newPersonRole="is_sponsor"
+                    />
+                  </Field>
+
                   <PartnershipOpportunityFormFields
                     form={form}
                     update={update}
@@ -311,7 +320,7 @@ export function EditPartnershipModal({
                   />
 
                   <Field>
-                    <FieldLabel>Owner</FieldLabel>
+                    <FieldLabel>Internal owner</FieldLabel>
                     <PersonPicker
                       people={availablePeople}
                       selected={owner}

@@ -22,9 +22,6 @@ export const PARTNERSHIP_STAGE_LABELS: Record<PartnershipStage, string> = {
 };
 
 export type PartnershipOpportunityFormState = {
-  organizationName: string;
-  contactName: string;
-  contactEmail: string;
   stage: PartnershipStage;
   nextStepDate: string;
   notes: string;
@@ -32,9 +29,6 @@ export type PartnershipOpportunityFormState = {
 
 export function emptyPartnershipOpportunityForm(): PartnershipOpportunityFormState {
   return {
-    organizationName: "",
-    contactName: "",
-    contactEmail: "",
     stage: "prospecting",
     nextStepDate: "",
     notes: "",
@@ -55,42 +49,6 @@ export function PartnershipOpportunityFormFields({
 }) {
   return (
     <>
-      <Field>
-        <FieldLabel htmlFor={`${idPrefix}-organization-name`}>
-          Organization name
-        </FieldLabel>
-        <Input
-          id={`${idPrefix}-organization-name`}
-          required
-          value={form.organizationName}
-          onChange={(event) => update("organizationName", event.target.value)}
-        />
-      </Field>
-
-      <Field orientation="responsive">
-        <Field>
-          <FieldLabel htmlFor={`${idPrefix}-contact-name`}>
-            Contact name
-          </FieldLabel>
-          <Input
-            id={`${idPrefix}-contact-name`}
-            value={form.contactName}
-            onChange={(event) => update("contactName", event.target.value)}
-          />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor={`${idPrefix}-contact-email`}>
-            Contact email
-          </FieldLabel>
-          <Input
-            id={`${idPrefix}-contact-email`}
-            type="email"
-            value={form.contactEmail}
-            onChange={(event) => update("contactEmail", event.target.value)}
-          />
-        </Field>
-      </Field>
-
       <Field orientation="responsive">
         <Field>
           <FieldLabel htmlFor={`${idPrefix}-stage`}>Stage</FieldLabel>
@@ -143,9 +101,6 @@ export function packPartnershipOpportunityFormData(
   form: PartnershipOpportunityFormState,
 ) {
   const formData = new FormData();
-  formData.set("organizationName", form.organizationName);
-  formData.set("contactName", form.contactName);
-  formData.set("contactEmail", form.contactEmail);
   formData.set("stage", form.stage);
   formData.set("nextStepDate", form.nextStepDate);
   formData.set("notes", form.notes);

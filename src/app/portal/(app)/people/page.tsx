@@ -67,7 +67,7 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
   let query = supabase
     .from("people")
     .select(
-      "id, name, email, phone, notes, logo_url, website, is_donor, is_sponsor, is_volunteer",
+      "id, name, email, phone, instagram_handle, notes, logo_url, website, is_donor, is_sponsor, is_volunteer, primary_contact_person_id, primary_contact:primary_contact_person_id(id, name, email, phone)",
       { count: "exact" },
     )
     .order("name", { ascending: true })
@@ -84,8 +84,14 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
   }
 
   const { offset, to } = pageRange(page);
-  const { data: people, count } = await query.range(offset, to);
-  const peopleRows = (people ?? []) as PersonRow[];
+  const [{ data: people, count }, { data: peopleOptions }] = await Promise.all([
+    query.range(offset, to),
+    supabase
+      .from("people")
+      .select("id, name, email, phone, is_sponsor")
+      .order("name", { ascending: true }),
+  ]);
+  const peopleRows = (people ?? []) as unknown as PersonRow[];
 
   const filterParams = new URLSearchParams();
   if (search) filterParams.set("search", search);
@@ -166,7 +172,7 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
             </form>
           </FiltersSheet>
 
-          {canManage && <NewPersonDialog />}
+          {canManage && <NewPersonDialog people={peopleOptions ?? []} />}
         </div>
 
         <Card>
@@ -197,7 +203,12 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
                         className="max-w-xs truncate font-medium"
                         title={person.name ?? undefined}
                       >
-                        {person.name ?? "—"}
+                        <Link
+                          href={`/portal/people/${person.id}`}
+                          className="hover:underline"
+                        >
+                          {person.name ?? "—"}
+                        </Link>
                       </TableCell>
                       <TableCell className="app-muted">
                         {rolesFor(person).join(", ") || "—"}
@@ -209,7 +220,12 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
                         {person.phone ?? "—"}
                       </TableCell>
                       <TableCell>
-                        {canManage && <EditPersonModal person={person} />}
+                        {canManage && (
+                          <EditPersonModal
+                            person={person}
+                            people={peopleOptions ?? []}
+                          />
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
