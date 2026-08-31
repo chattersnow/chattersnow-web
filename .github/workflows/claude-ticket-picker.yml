@@ -1,0 +1,145 @@
+name: Claude Ticket Picker
+
+# Autonomously picks up one "Ready" issue at a time and implements it end-to-end.
+#
+# Eligibility: an issue must have Status = Ready on the ChatterWeb project AND
+# carry the opt-in `automate` label. WIP limit is 1: if any `automate`-labeled
+# issue is already In progress / In review, the run no-ops.
+#
+# The default GITHUB_TOKEN can't read/write org Projects v2, so ticket
+# selection and status updates use PROJECT_TOKEN (a PAT with repo + project
+# scopes) instead.
+
+on:
+  schedule:
+    - cron: "0 */2 * * *"
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue number to force-pick (bypasses the Ready+automate gate, still respects the WIP check). Leave empty for normal auto-selection."
+        required: false
+
+concurrency:
+  group: claude-ticket-picker
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: "PVT_kwDOEvrGic4BhKyH"
+  STATUS_FIELD_ID: "PVTSSF_lADOEvrGic4BhKyHzhgHjp4"
+  STATUS_OPTION_IN_PROGRESS: "47fc9ee4"
+  STATUS_OPTION_IN_REVIEW: "df73e18b"
+
+jobs:
+  find-ticket:
+    runs-on: ubuntu-latest
+    outputs:
+      found: ${{ steps.select.outputs.found }}
+      issue_number: ${{ steps.select.outputs.issue_number }}
+      issue_title: ${{ steps.select.outputs.issue_title }}
+      project_item_id: ${{ steps.select.outputs.project_item_id }}
+    env:
+      GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+    steps:
+      - name: Select next automatable ticket
+        id: select
+        run: |
+          set -euo pipefail
+
+          items=$(gh project item-list 1 --owner chattersnow --format json --limit 300 | jq -c '.items')
+
+          forced="${{ github.event.inputs.issue_number }}"
+
+          busy=$(echo "$items" | jq -r '
+            map(select((.labels // []) | index("automate")) | select(.status == "In progress" or .status == "In review"))
+            | length
+          ')
+
+          if [ -n "$forced" ]; then
+            if [ "$busy" != "0" ]; then
+              echo "Manual override requested but an automate-labeled ticket is already in flight; refusing to double up." >&2
+              echo "found=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            item=$(echo "$items" | jq -c --arg n "$forced" '.[] | select(.content.number == ($n | tonumber))')
+          elif [ "$busy" != "0" ]; then
+            echo "An automate-labeled ticket is already In progress/In review; skipping this run."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          else
+            item=$(echo "$items" | jq -c '
+              map(select(.status == "Ready" and ((.labels // []) | index("automate"))))
+              | sort_by(.content.number)
+              | .[0] // empty
+            ')
+          fi
+
+          if [ -z "$item" ]; then
+            echo "No eligible ticket found."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "issue_number=$(echo "$item" | jq -r '.content.number')" >> "$GITHUB_OUTPUT"
+          echo "issue_title=$(echo "$item" | jq -r '.content.title')" >> "$GITHUB_OUTPUT"
+          echo "project_item_id=$(echo "$item" | jq -r '.id')" >> "$GITHUB_OUTPUT"
+
+  implement-ticket:
+    needs: find-ticket
+    if: needs.find-ticket.outputs.found == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+    env:
+      GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+      ISSUE_NUMBER: ${{ needs.find-ticket.outputs.issue_number }}
+      ISSUE_TITLE: ${{ needs.find-ticket.outputs.issue_title }}
+      PROJECT_ITEM_ID: ${{ needs.find-ticket.outputs.project_item_id }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Move Status to In progress
+        run: |
+          gh project item-edit \
+            --id "$PROJECT_ITEM_ID" \
+            --project-id "$PROJECT_ID" \
+            --field-id "$STATUS_FIELD_ID" \
+            --single-select-option-id "$STATUS_OPTION_IN_PROGRESS"
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          additional_permissions: |
+            actions: read
+          prompt: |
+            You are running autonomously with no human in the loop for this session.
+
+            Implement GitHub issue #${{ env.ISSUE_NUMBER }} ("${{ env.ISSUE_TITLE }}")
+            in chattersnow/chattersnow-web, following this repo's CLAUDE.md and
+            docs/technical-spec.md conventions:
+
+            1. Read the full issue body and acceptance criteria with
+               `gh issue view ${{ env.ISSUE_NUMBER }}`.
+            2. Create a branch off `development` named
+               `issue-${{ env.ISSUE_NUMBER }}-<short-slug>` (kebab-case, a few words
+               from the title), matching this repo's existing branch naming.
+            3. Implement the change. Reuse existing components/utilities/patterns
+               rather than inventing new ones. Keep the change scoped to what the
+               issue asks for.
+            4. Run `bun run lint`, `bun run typecheck`, `bun run format:check`, and
+               `bun run test` and fix any failures before proceeding.
+            5. Commit, push the branch, and open a pull request into `development`.
+               The PR body must include `Closes #${{ env.ISSUE_NUMBER }}` and a note
+               that it was opened autonomously by the claude-ticket-picker workflow.
+            6. Once the PR is open, move this issue's project Status to "In review":
+               `gh project item-edit --id "${{ env.PROJECT_ITEM_ID }}" --project-id "${{ env.PROJECT_ID }}" --field-id "${{ env.STATUS_FIELD_ID }}" --single-select-option-id "${{ env.STATUS_OPTION_IN_REVIEW }}"`
+
+            Do not merge the PR yourself — a human reviews and merges it.

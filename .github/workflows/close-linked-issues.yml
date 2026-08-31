@@ -3,11 +3,20 @@ name: Close Linked Issues
 # GitHub's native "Closes #N" auto-close only fires when a PR merges into
 # the repo's default branch (main). This repo's working branch is
 # development, so we replicate that behavior here for PRs merged into it.
+# We also flip the ChatterWeb project's Status to Done, since GitHub's
+# native auto-close doesn't touch Projects v2 fields either — and the
+# claude-ticket-picker workflow's WIP check depends on Status leaving
+# In progress/In review once a ticket is actually finished.
 
 on:
   pull_request:
     types: [closed]
     branches: [development]
+
+env:
+  PROJECT_ID: "PVT_kwDOEvrGic4BhKyH"
+  STATUS_FIELD_ID: "PVTSSF_lADOEvrGic4BhKyHzhgHjp4"
+  STATUS_OPTION_DONE: "98236657"
 
 jobs:
   close-issues:
@@ -17,6 +26,7 @@ jobs:
       issues: write
     steps:
       - name: Close issues referenced by closing keywords
+        id: close
         uses: actions/github-script@v7
         with:
           script: |
@@ -48,3 +58,32 @@ jobs:
                 core.warning(`Could not close #${issue_number}: ${err.message}`);
               }
             }
+
+            core.setOutput("issue_numbers", [...issueNumbers].join(" "));
+
+      - name: Set project Status to Done
+        if: steps.close.outputs.issue_numbers != ''
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "PROJECT_TOKEN not set; skipping project Status update." >&2
+            exit 0
+          fi
+
+          items=$(gh project item-list 1 --owner chattersnow --format json --limit 300 | jq -c '.items')
+
+          for n in ${{ steps.close.outputs.issue_numbers }}; do
+            item_id=$(echo "$items" | jq -r --arg n "$n" '.[] | select(.content.number == ($n | tonumber)) | .id')
+            if [ -n "$item_id" ]; then
+              gh project item-edit \
+                --id "$item_id" \
+                --project-id "$PROJECT_ID" \
+                --field-id "$STATUS_FIELD_ID" \
+                --single-select-option-id "$STATUS_OPTION_DONE"
+            else
+              echo "Issue #$n has no item on project 1; skipping." >&2
+            fi
+          done
