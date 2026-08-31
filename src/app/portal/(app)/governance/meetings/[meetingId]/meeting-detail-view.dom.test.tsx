@@ -4,6 +4,7 @@ import * as AttendeesActions from "../attendees-actions";
 import * as AgendaActions from "../agenda-actions";
 import * as ActionItemsActions from "../action-items-actions";
 import * as DecisionsActions from "../decisions-actions";
+import * as MinutesApprovalActions from "../minutes-approval-actions";
 import * as ResolutionsActions from "../../resolutions/resolutions-actions";
 import * as PeopleActions from "../../../people/actions";
 import type { MeetingRow } from "../meeting-badges";
@@ -26,6 +27,10 @@ mock.module("../decisions-actions", () => ({
   ...DecisionsActions,
   listDecisionsAction: mock(async () => ({ data: [] })),
 }));
+mock.module("../minutes-approval-actions", () => ({
+  ...MinutesApprovalActions,
+  getPreviousMeetingMinutesAction: mock(async () => ({ data: null })),
+}));
 mock.module("../../resolutions/resolutions-actions", () => ({
   ...ResolutionsActions,
   listResolutionsAction: mock(async () => ({ data: [] })),
@@ -47,6 +52,7 @@ function makeMeeting(overrides: Partial<MeetingRow> = {}): MeetingRow {
     notes: null,
     facilitator: null,
     notetaker: null,
+    minutes_approved_at: null,
     ...overrides,
   };
 }
