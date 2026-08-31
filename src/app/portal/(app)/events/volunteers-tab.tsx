@@ -1,10 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  createEventVolunteerAction,
-  createEventVolunteerHoursAction,
   deleteEventVolunteerAction,
   deleteEventVolunteerHoursAction,
   listEventVolunteerHoursAction,
@@ -14,16 +12,15 @@ import {
   type EventVolunteerHours,
 } from "./volunteers-actions";
 import {
-  createEventShiftAction,
   deleteEventShiftAction,
   listEventShiftsAction,
   updateEventShiftAction,
   type EventShift,
 } from "./shifts-actions";
-import { type PickedPerson } from "../people/person-picker";
-import { listPeopleAction, type PersonListItem } from "../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
+import { useTabData } from "@/hooks/use-tab-data";
+import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
+import type { TabValue } from "./event-tabs-config";
 import { ShiftsSection } from "./volunteers/shifts";
 import { SignupsSection } from "./volunteers/signups";
 import { HoursSection } from "./volunteers/hours";
@@ -32,19 +29,16 @@ type VolunteersTabData = {
   volunteers: EventVolunteer[];
   hours: EventVolunteerHours[];
   shifts: EventShift[];
-  people: PersonListItem[];
 };
 
 async function fetchVolunteersTabData(
   eventId: string,
 ): Promise<{ error: string } | { data: VolunteersTabData }> {
-  const [volunteersResult, hoursResult, shiftsResult, peopleResult] =
-    await Promise.all([
-      listEventVolunteersAction(eventId),
-      listEventVolunteerHoursAction(eventId),
-      listEventShiftsAction(eventId),
-      listPeopleAction(),
-    ]);
+  const [volunteersResult, hoursResult, shiftsResult] = await Promise.all([
+    listEventVolunteersAction(eventId),
+    listEventVolunteerHoursAction(eventId),
+    listEventShiftsAction(eventId),
+  ]);
 
   if ("error" in volunteersResult) {
     return { error: volunteersResult.error };
@@ -55,7 +49,6 @@ async function fetchVolunteersTabData(
       volunteers: volunteersResult.data,
       hours: "error" in hoursResult ? [] : hoursResult.data,
       shifts: "error" in shiftsResult ? [] : shiftsResult.data,
-      people: "error" in peopleResult ? [] : peopleResult.data,
     },
   };
 }
@@ -82,27 +75,14 @@ export function VolunteersTab({
   const volunteers = tabData?.volunteers ?? [];
   const hours = tabData?.hours ?? [];
   const shifts = tabData?.shifts ?? [];
-  const [newPeople, setNewPeople] = useState<PersonListItem[]>([]);
-  const people = [...(tabData?.people ?? []), ...newPeople];
-  const [showAddVolunteer, setShowAddVolunteer] = useState(false);
-  const [showAddHours, setShowAddHours] = useState(false);
-  const [showAddShift, setShowAddShift] = useState(false);
   const [isDeleting, startDeleteTransition] = useTransition();
-
-  useResetOnModeChange(mode, () => {
-    setShowAddVolunteer(false);
-    setShowAddHours(false);
-    setShowAddShift(false);
-  });
 
   function refresh() {
     refreshTabData();
     router.refresh();
   }
 
-  function handlePersonCreated(person: PickedPerson) {
-    setNewPeople((prev) => [...prev, { ...person, is_sponsor: false }]);
-  }
+  useRegisterTabRefresh<TabValue>("volunteers", refresh);
 
   function handleDeleteVolunteer(id: string) {
     startDeleteTransition(async () => {
@@ -158,12 +138,6 @@ export function VolunteersTab({
         shiftHeadcounts={shiftHeadcounts}
         mode={mode}
         isDeleting={isDeleting}
-        showAddShift={showAddShift}
-        onToggleAddShift={(show) => {
-          setShowAddShift(show);
-          if (!show) refresh();
-        }}
-        onCreateShift={(formData) => createEventShiftAction(eventId, formData)}
         onUpdateShift={async (id, formData) => {
           const result = await updateEventShiftAction(id, formData);
           if (!("error" in result)) refresh();
@@ -175,39 +149,19 @@ export function VolunteersTab({
       <SignupsSection
         volunteers={volunteers}
         shifts={shifts}
-        people={people}
         mode={mode}
         isDeleting={isDeleting}
         loading={tabData === undefined}
-        showAddVolunteer={showAddVolunteer}
-        onToggleAddVolunteer={(show) => {
-          setShowAddVolunteer(show);
-          if (!show) refresh();
-        }}
-        onPersonCreated={handlePersonCreated}
-        onCreateVolunteer={(personId, formData) =>
-          createEventVolunteerAction(eventId, personId, formData)
-        }
         onDeleteVolunteer={handleDeleteVolunteer}
         onShiftReassign={handleShiftReassign}
       />
 
       <HoursSection
         hours={hours}
-        volunteers={volunteers}
-        shifts={shifts}
         mode={mode}
         isDeleting={isDeleting}
         loading={tabData === undefined}
         totalHours={totalHours}
-        showAddHours={showAddHours}
-        onToggleAddHours={(show) => {
-          setShowAddHours(show);
-          if (!show) refresh();
-        }}
-        onCreateHours={(personId, formData) =>
-          createEventVolunteerHoursAction(eventId, personId, formData)
-        }
         onDeleteHours={handleDeleteHours}
       />
     </div>

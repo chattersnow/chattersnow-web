@@ -186,30 +186,17 @@ export function AddVolunteerForm({
 export function SignupsSection({
   volunteers,
   shifts,
-  people,
   mode,
   isDeleting,
   loading,
-  showAddVolunteer,
-  onToggleAddVolunteer,
-  onPersonCreated,
-  onCreateVolunteer,
   onDeleteVolunteer,
   onShiftReassign,
 }: {
   volunteers: EventVolunteer[];
   shifts: EventShift[];
-  people: PersonListItem[];
   mode: "view" | "edit";
   isDeleting: boolean;
   loading: boolean;
-  showAddVolunteer: boolean;
-  onToggleAddVolunteer: (show: boolean) => void;
-  onPersonCreated: (person: PickedPerson) => void;
-  onCreateVolunteer: (
-    personId: string,
-    formData: FormData,
-  ) => Promise<{ error: string } | { success: true }>;
   onDeleteVolunteer: (id: string) => void;
   onShiftReassign: (volunteerId: string, shiftId: string | null) => void;
 }) {
@@ -218,7 +205,7 @@ export function SignupsSection({
       <h3 className="text-sm font-semibold">Volunteers signed up</h3>
       {loading ? (
         <TabLoadingSkeleton />
-      ) : volunteers.length === 0 && !showAddVolunteer ? (
+      ) : volunteers.length === 0 ? (
         <p className="app-muted text-sm">No volunteers recorded yet.</p>
       ) : (
         <Table>
@@ -304,26 +291,6 @@ export function SignupsSection({
           </TableBody>
         </Table>
       )}
-
-      {mode === "edit" &&
-        (showAddVolunteer ? (
-          <AddVolunteerForm
-            people={people}
-            shifts={shifts}
-            onPersonCreated={onPersonCreated}
-            onSubmit={onCreateVolunteer}
-            onCancel={() => onToggleAddVolunteer(false)}
-          />
-        ) : (
-          <Button
-            type="button"
-            variant="secondary"
-            className="self-start"
-            onClick={() => onToggleAddVolunteer(true)}
-          >
-            + Add volunteer
-          </Button>
-        ))}
     </div>
   );
 }

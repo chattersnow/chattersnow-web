@@ -1,10 +1,9 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Trash2 } from "lucide-react";
 import {
   assignDiscountCodeAction,
-  createDiscountCodesAction,
   deleteDiscountCodeAction,
   listDiscountCodesAction,
   markDiscountCodeSentAction,
@@ -14,11 +13,11 @@ import {
   listEventRegistrantsAction,
   type EventRegistrant,
 } from "./registrants-actions";
-import { useTabData, useResetOnModeChange } from "@/hooks/use-tab-data";
+import { useTabData } from "@/hooks/use-tab-data";
+import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
+import type { TabValue } from "./event-tabs-config";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -34,7 +33,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 
@@ -43,107 +41,6 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
 // Base UI's Select doesn't accept an empty-string item value, so "no
 // registrant assigned" needs its own sentinel instead.
 const UNASSIGNED = "__unassigned__";
-
-function AddCodesForm({
-  eventId,
-  onSaved,
-  onCancel,
-}: {
-  eventId: string;
-  onSaved: () => void;
-  onCancel: () => void;
-}) {
-  const [codes, setCodes] = useState("");
-  const [description, setDescription] = useState("");
-  const [source, setSource] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-
-    const formData = new FormData();
-    formData.set("codes", codes);
-    formData.set("description", description);
-    formData.set("source", source);
-
-    startTransition(async () => {
-      const result = await createDiscountCodesAction(eventId, formData);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      onSaved();
-    });
-  }
-
-  return (
-    <form
-      onSubmit={handleSubmit}
-      className="rounded-md border border-[var(--line)] p-4"
-    >
-      <FieldGroup>
-        <Field>
-          <FieldLabel htmlFor="discount-codes-batch">
-            Codes (one per line)
-          </FieldLabel>
-          <Textarea
-            id="discount-codes-batch"
-            placeholder={"SPRING10\nSPRING11\nSPRING12"}
-            value={codes}
-            onChange={(event) => setCodes(event.target.value)}
-            rows={6}
-          />
-        </Field>
-
-        <Field orientation="responsive">
-          <Field>
-            <FieldLabel htmlFor="discount-codes-description">
-              Discount description
-            </FieldLabel>
-            <Input
-              id="discount-codes-description"
-              placeholder="e.g. $10 off"
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="discount-codes-source">Source</FieldLabel>
-            <Input
-              id="discount-codes-source"
-              placeholder="e.g. ACME Vendor"
-              value={source}
-              onChange={(event) => setSource(event.target.value)}
-            />
-          </Field>
-        </Field>
-
-        {error && (
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isPending}>
-            {isPending ? (
-              <>
-                <Spinner /> Saving...
-              </>
-            ) : (
-              "Add codes"
-            )}
-          </Button>
-        </div>
-      </FieldGroup>
-    </form>
-  );
-}
 
 export function DiscountCodesTab({
   eventId,
@@ -166,16 +63,15 @@ export function DiscountCodesTab({
   const { data: registrants, refresh: refreshRegistrants } = useTabData<
     EventRegistrant[]
   >(() => listEventRegistrantsAction(eventId), active, [eventId]);
-  const [showAdd, setShowAdd] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-
-  useResetOnModeChange(mode, () => setShowAdd(false));
 
   function refreshAll() {
     refreshCodes();
     refreshRegistrants();
   }
+
+  useRegisterTabRefresh<TabValue>("discount-codes", refreshAll);
 
   function handleAssign(codeId: string, registrationId: string) {
     setActionError(null);
@@ -234,7 +130,7 @@ export function DiscountCodesTab({
 
       {codes === undefined ? (
         <TabLoadingSkeleton />
-      ) : list.length === 0 && !showAdd ? (
+      ) : list.length === 0 ? (
         <p className="app-muted text-sm">
           No discount codes recorded for this event yet.
         </p>
@@ -358,26 +254,6 @@ export function DiscountCodesTab({
           </TableBody>
         </Table>
       )}
-
-      {mode === "edit" &&
-        (showAdd ? (
-          <AddCodesForm
-            eventId={eventId}
-            onSaved={() => {
-              setShowAdd(false);
-              refreshAll();
-            }}
-            onCancel={() => setShowAdd(false)}
-          />
-        ) : (
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => setShowAdd(true)}
-          >
-            + Add codes
-          </Button>
-        ))}
     </div>
   );
 }

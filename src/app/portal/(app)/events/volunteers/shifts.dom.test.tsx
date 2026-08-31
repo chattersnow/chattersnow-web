@@ -87,9 +87,6 @@ describe("ShiftsSection", () => {
         shiftHeadcounts={new Map()}
         mode="view"
         isDeleting={false}
-        showAddShift={false}
-        onToggleAddShift={noop}
-        onCreateShift={async () => ({ success: true })}
         onUpdateShift={async () => ({ success: true })}
         onDeleteShift={noop}
         fetchRoleTypes={async () => ({ data: roleTypes })}
@@ -106,9 +103,6 @@ describe("ShiftsSection", () => {
         shiftHeadcounts={new Map()}
         mode="edit"
         isDeleting={false}
-        showAddShift={false}
-        onToggleAddShift={noop}
-        onCreateShift={async () => ({ success: true })}
         onUpdateShift={async () => ({ success: true })}
         onDeleteShift={noop}
         fetchRoleTypes={async () => ({

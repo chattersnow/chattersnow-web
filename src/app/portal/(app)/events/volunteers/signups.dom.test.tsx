@@ -182,14 +182,9 @@ describe("SignupsSection role label", () => {
       <SignupsSection
         volunteers={[makeVolunteer({ shift_id: "shift-1", role: "Ignored" })]}
         shifts={shifts}
-        people={people}
         mode="view"
         isDeleting={false}
         loading={false}
-        showAddVolunteer={false}
-        onToggleAddVolunteer={noop}
-        onPersonCreated={noop}
-        onCreateVolunteer={async () => ({ success: true })}
         onDeleteVolunteer={noop}
         onShiftReassign={noop}
       />,
@@ -202,14 +197,9 @@ describe("SignupsSection role label", () => {
       <SignupsSection
         volunteers={[makeVolunteer({ shift_id: "shift-2" })]}
         shifts={shifts}
-        people={people}
         mode="view"
         isDeleting={false}
         loading={false}
-        showAddVolunteer={false}
-        onToggleAddVolunteer={noop}
-        onPersonCreated={noop}
-        onCreateVolunteer={async () => ({ success: true })}
         onDeleteVolunteer={noop}
         onShiftReassign={noop}
       />,
@@ -222,14 +212,9 @@ describe("SignupsSection role label", () => {
       <SignupsSection
         volunteers={[makeVolunteer({ shift_id: null, role: "Setup Crew" })]}
         shifts={shifts}
-        people={people}
         mode="view"
         isDeleting={false}
         loading={false}
-        showAddVolunteer={false}
-        onToggleAddVolunteer={noop}
-        onPersonCreated={noop}
-        onCreateVolunteer={async () => ({ success: true })}
         onDeleteVolunteer={noop}
         onShiftReassign={noop}
       />,
@@ -242,14 +227,9 @@ describe("SignupsSection role label", () => {
       <SignupsSection
         volunteers={[makeVolunteer({ shift_id: null, role: null })]}
         shifts={shifts}
-        people={people}
         mode="view"
         isDeleting={false}
         loading={false}
-        showAddVolunteer={false}
-        onToggleAddVolunteer={noop}
-        onPersonCreated={noop}
-        onCreateVolunteer={async () => ({ success: true })}
         onDeleteVolunteer={noop}
         onShiftReassign={noop}
       />,
@@ -268,14 +248,9 @@ describe("SignupsSection role label", () => {
       <SignupsSection
         volunteers={[makeVolunteer({ shift_id: "shift-1" })]}
         shifts={shifts}
-        people={people}
         mode="edit"
         isDeleting={false}
         loading={false}
-        showAddVolunteer={false}
-        onToggleAddVolunteer={noop}
-        onPersonCreated={noop}
-        onCreateVolunteer={async () => ({ success: true })}
         onDeleteVolunteer={noop}
         onShiftReassign={onShiftReassign}
       />,

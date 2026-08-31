@@ -1,22 +1,19 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Undo2 } from "lucide-react";
 import {
   checkInRegistrantAction,
-  createWalkInCheckInAction,
   listEventRegistrantsAction,
   undoCheckInAction,
   type EventRegistrant,
 } from "./registrants-actions";
-import { PersonPicker, type PickedPerson } from "../people/person-picker";
-import { listPeopleAction, type PersonListItem } from "../people/actions";
-import { useTabData, useResetOnModeChange } from "@/hooks/use-tab-data";
+import { useTabData } from "@/hooks/use-tab-data";
+import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
+import type { TabValue } from "./event-tabs-config";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -25,120 +22,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Spinner } from "@/components/ui/spinner";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
   timeStyle: "short",
 });
-
-function WalkInForm({
-  eventId,
-  people,
-  onPersonCreated,
-  onSaved,
-  onCancel,
-}: {
-  eventId: string;
-  people: PersonListItem[];
-  onPersonCreated: (person: PickedPerson) => void;
-  onSaved: () => void;
-  onCancel: () => void;
-}) {
-  const [selectedPerson, setSelectedPerson] = useState<PickedPerson | null>(
-    null,
-  );
-  const [partySize, setPartySize] = useState("1");
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-
-    if (!selectedPerson) {
-      setError("Select or create a person to check in.");
-      return;
-    }
-    const size = Number(partySize);
-    if (!Number.isInteger(size) || size < 1) {
-      setError("Party size must be at least 1.");
-      return;
-    }
-
-    startTransition(async () => {
-      const result = await createWalkInCheckInAction(
-        eventId,
-        selectedPerson,
-        size,
-      );
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      onSaved();
-    });
-  }
-
-  return (
-    <form
-      onSubmit={handleSubmit}
-      className="rounded-md border border-[var(--line)] p-4"
-    >
-      <FieldGroup>
-        <Field>
-          <FieldLabel>Walk-in</FieldLabel>
-          {/* PersonPicker's "+ Create new person" defaults the Sponsor role
-              checkbox on; that's not right for a bare attendee, but there's
-              no "attendee" role to default to instead, so staff just leave
-              or uncheck it - same tradeoff the picker already makes
-              everywhere it's used without a role that fits. */}
-          <PersonPicker
-            people={people}
-            selected={selectedPerson}
-            onSelect={setSelectedPerson}
-            onPersonCreated={onPersonCreated}
-            placeholder="Search by name or email..."
-          />
-        </Field>
-
-        <Field>
-          <FieldLabel htmlFor="walkin-party-size">Party size</FieldLabel>
-          <Input
-            id="walkin-party-size"
-            type="number"
-            min={1}
-            step={1}
-            value={partySize}
-            onChange={(event) => setPartySize(event.target.value)}
-          />
-        </Field>
-
-        {error && (
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isPending}>
-            {isPending ? (
-              <>
-                <Spinner /> Checking in...
-              </>
-            ) : (
-              "Check in walk-in"
-            )}
-          </Button>
-        </div>
-      </FieldGroup>
-    </form>
-  );
-}
 
 export function RegistrantsTab({
   eventId,
@@ -161,25 +50,15 @@ export function RegistrantsTab({
     active,
     [eventId],
   );
-  const { data: people } = useTabData<PersonListItem[]>(
-    () => listPeopleAction(),
-    active,
-  );
-  const [peopleOverride, setPeopleOverride] = useState<PersonListItem[]>([]);
-  const [showWalkIn, setShowWalkIn] = useState(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-
-  useResetOnModeChange(mode, () => setShowWalkIn(false));
-
-  function handlePersonCreated(person: PickedPerson) {
-    setPeopleOverride((prev) => [...prev, { ...person, is_sponsor: false }]);
-  }
 
   function refreshAll() {
     refresh();
     router.refresh();
   }
+
+  useRegisterTabRefresh<TabValue>("registrants", refreshAll);
 
   function handleToggleCheckIn(registrant: EventRegistrant) {
     setPendingId(registrant.id);
@@ -199,7 +78,6 @@ export function RegistrantsTab({
     0,
   );
   const checkedInCount = list.filter((r) => r.checked_in_at !== null).length;
-  const availablePeople = [...(people ?? []), ...peopleOverride];
 
   return (
     <div className="flex flex-col gap-4">
@@ -279,28 +157,6 @@ export function RegistrantsTab({
           </TableBody>
         </Table>
       )}
-
-      {mode === "edit" &&
-        (showWalkIn ? (
-          <WalkInForm
-            eventId={eventId}
-            people={availablePeople}
-            onPersonCreated={handlePersonCreated}
-            onSaved={() => {
-              setShowWalkIn(false);
-              refreshAll();
-            }}
-            onCancel={() => setShowWalkIn(false)}
-          />
-        ) : (
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => setShowWalkIn(true)}
-          >
-            + Check in walk-in
-          </Button>
-        ))}
     </div>
   );
 }
