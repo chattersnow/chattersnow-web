@@ -278,3 +278,24 @@ body {
     @apply font-sans;
   }
 }
+
+/* Print only a `.agenda-print-area` element, regardless of where it sits in
+   the tree (e.g. inside a dialog portal) -- everything else is hidden but
+   stays in the layout, and the target opts back into visibility. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .agenda-print-area,
+  .agenda-print-area * {
+    visibility: visible;
+  }
+  .agenda-print-area {
+    position: absolute;
+    inset: 0;
+    max-height: none;
+    overflow: visible;
+    border: none;
+    padding: 0;
+  }
+}
