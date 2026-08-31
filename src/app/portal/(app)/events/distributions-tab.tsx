@@ -4,8 +4,9 @@ import {
   listEventDistributionsAction,
   type EventDistributionRow,
 } from "../home/distribution-actions";
-import { RecordDistributionModal } from "../home/record-distribution-modal";
 import { useTabData } from "@/hooks/use-tab-data";
+import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
+import type { TabValue } from "./event-tabs-config";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Table,
@@ -25,7 +26,6 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 export function DistributionsTab({
   eventId,
   active,
-  mode,
 }: {
   eventId: string;
   active: boolean;
@@ -41,20 +41,14 @@ export function DistributionsTab({
     [eventId],
   );
 
+  useRegisterTabRefresh<TabValue>("distributions", refresh);
+
   return (
     <div className="flex flex-col gap-4">
       {loadError && (
         <Alert variant="destructive">
           <AlertDescription>{loadError}</AlertDescription>
         </Alert>
-      )}
-
-      {mode === "edit" && (
-        <RecordDistributionModal
-          eventId={eventId}
-          triggerLabel="+ Record distribution"
-          onSaved={refresh}
-        />
       )}
 
       {distributions === undefined ? (

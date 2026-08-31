@@ -230,9 +230,6 @@ export function ShiftsSection({
   shiftHeadcounts,
   mode,
   isDeleting,
-  showAddShift,
-  onToggleAddShift,
-  onCreateShift,
   onUpdateShift,
   onDeleteShift,
   fetchRoleTypes = listRoleTypesAction,
@@ -241,11 +238,6 @@ export function ShiftsSection({
   shiftHeadcounts: Map<string, number>;
   mode: "view" | "edit";
   isDeleting: boolean;
-  showAddShift: boolean;
-  onToggleAddShift: (show: boolean) => void;
-  onCreateShift: (
-    formData: FormData,
-  ) => Promise<{ error: string } | { success: true }>;
   onUpdateShift: (
     id: string,
     formData: FormData,
@@ -275,7 +267,7 @@ export function ShiftsSection({
           <AlertDescription>{roleTypesError}</AlertDescription>
         </Alert>
       )}
-      {shifts.length === 0 && !showAddShift ? (
+      {shifts.length === 0 ? (
         <p className="app-muted text-sm">
           No shifts defined. Volunteers can still be signed up for the whole
           event.
@@ -370,24 +362,6 @@ export function ShiftsSection({
           </TableBody>
         </Table>
       )}
-
-      {mode === "edit" &&
-        (showAddShift ? (
-          <ShiftForm
-            roleTypes={roleTypes}
-            onSubmit={onCreateShift}
-            onCancel={() => onToggleAddShift(false)}
-          />
-        ) : (
-          <Button
-            type="button"
-            variant="secondary"
-            className="self-start"
-            onClick={() => onToggleAddShift(true)}
-          >
-            + Add shift
-          </Button>
-        ))}
     </div>
   );
 }

@@ -4,7 +4,6 @@ import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Trash2 } from "lucide-react";
 import {
-  createEventSponsorAction,
   deleteEventSponsorAction,
   listEventSponsorsAction,
   updateEventSponsorAction,
@@ -36,6 +35,8 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
+import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
+import type { TabValue } from "./event-tabs-config";
 import { Spinner } from "@/components/ui/spinner";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 
@@ -63,7 +64,7 @@ function formatValue(value: number | string | null) {
   return Number.isFinite(numeric) ? currencyFormatter.format(numeric) : "—";
 }
 
-type SponsorFormState = {
+export type SponsorFormState = {
   supportType: string;
   inKindDescription: string;
   contributionValue: string;
@@ -73,7 +74,7 @@ type SponsorFormState = {
   followUpNotes: string;
 };
 
-function emptySponsorForm(): SponsorFormState {
+export function emptySponsorForm(): SponsorFormState {
   return {
     supportType: "in_kind",
     inKindDescription: "",
@@ -100,7 +101,7 @@ function formStateFor(sponsor: EventSponsor): SponsorFormState {
   };
 }
 
-function SponsorForm({
+export function SponsorForm({
   initial,
   submitLabel,
   onSubmit,
@@ -359,12 +360,10 @@ export function SponsorsTab({
   >(() => listPeopleAction(), active, [eventId]);
   const [newPeople, setNewPeople] = useState<PersonListItem[]>([]);
   const people = [...(peopleData ?? []), ...newPeople];
-  const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isDeleting, startDeleteTransition] = useTransition();
 
   useResetOnModeChange(mode, () => {
-    setShowAdd(false);
     setEditingId(null);
   });
 
@@ -373,6 +372,8 @@ export function SponsorsTab({
     refreshPeople();
     router.refresh();
   }
+
+  useRegisterTabRefresh<TabValue>("sponsors", refresh);
 
   function handlePersonCreated(person: PickedPerson) {
     setNewPeople((prev) => [...prev, { ...person, is_sponsor: true }]);
@@ -399,7 +400,7 @@ export function SponsorsTab({
 
       {sponsors === undefined ? (
         <TabLoadingSkeleton />
-      ) : sortedSponsors.length === 0 && !showAdd ? (
+      ) : sortedSponsors.length === 0 ? (
         <p className="app-muted text-sm">
           No sponsors or partners recorded yet.
         </p>
@@ -483,31 +484,6 @@ export function SponsorsTab({
           </TableBody>
         </Table>
       )}
-
-      {mode === "edit" &&
-        (showAdd ? (
-          <SponsorForm
-            initial={emptySponsorForm()}
-            submitLabel="Add sponsor"
-            onSubmit={(formData, personId) =>
-              createEventSponsorAction(eventId, personId!, formData)
-            }
-            onCancel={() => {
-              setShowAdd(false);
-              refresh();
-            }}
-            people={people}
-            onPersonCreated={handlePersonCreated}
-          />
-        ) : (
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => setShowAdd(true)}
-          >
-            + Add sponsor
-          </Button>
-        ))}
     </div>
   );
 }

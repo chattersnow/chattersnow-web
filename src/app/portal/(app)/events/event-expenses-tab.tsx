@@ -7,7 +7,6 @@ import {
 } from "../finance/expenses/actions";
 import { EditExpenseModal } from "../finance/expenses/edit-expense-modal";
 import { ExpenseStatusBadge } from "../finance/expenses/expense-badges";
-import { NewExpenseDialog } from "../finance/expenses/new-expense-dialog";
 import {
   formatAmount,
   formatExpenseDate,
@@ -16,6 +15,8 @@ import {
   type ExpenseRow,
 } from "../finance/expenses/expenses-shared";
 import { useTabData } from "@/hooks/use-tab-data";
+import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
+import type { TabValue } from "./event-tabs-config";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Table,
@@ -39,7 +40,6 @@ export function EventExpensesTab({
   eventId,
   eventName,
   active,
-  mode,
 }: {
   eventId: string;
   eventName: string;
@@ -63,22 +63,14 @@ export function EventExpensesTab({
     getExpenseApprovalContextAction().then(setApprovalContext);
   }, [active, eventId]);
 
+  useRegisterTabRefresh<TabValue>("expenses", refresh);
+
   return (
     <div className="flex flex-col gap-4">
       {loadError && (
         <Alert variant="destructive">
           <AlertDescription>{loadError}</AlertDescription>
         </Alert>
-      )}
-
-      {mode === "edit" && (
-        <NewExpenseDialog
-          events={eventOptions}
-          defaultEventId={eventId}
-          lockEventSelection
-          triggerLabel="New Expense"
-          onSaved={refresh}
-        />
       )}
 
       {expenses === undefined ? (

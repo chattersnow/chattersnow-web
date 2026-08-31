@@ -184,30 +184,17 @@ export function AddHoursForm({
 
 export function HoursSection({
   hours,
-  volunteers,
-  shifts,
   mode,
   isDeleting,
   loading,
   totalHours,
-  showAddHours,
-  onToggleAddHours,
-  onCreateHours,
   onDeleteHours,
 }: {
   hours: EventVolunteerHours[];
-  volunteers: EventVolunteer[];
-  shifts: EventShift[];
   mode: "view" | "edit";
   isDeleting: boolean;
   loading: boolean;
   totalHours: number;
-  showAddHours: boolean;
-  onToggleAddHours: (show: boolean) => void;
-  onCreateHours: (
-    personId: string,
-    formData: FormData,
-  ) => Promise<{ error: string } | { success: true }>;
   onDeleteHours: (id: string) => void;
 }) {
   return (
@@ -218,7 +205,7 @@ export function HoursSection({
       </h3>
       {loading ? (
         <TabLoadingSkeleton />
-      ) : hours.length === 0 && !showAddHours ? (
+      ) : hours.length === 0 ? (
         <p className="app-muted text-sm">No hours logged yet.</p>
       ) : (
         <Table>
@@ -262,25 +249,6 @@ export function HoursSection({
           </TableBody>
         </Table>
       )}
-
-      {mode === "edit" &&
-        (showAddHours ? (
-          <AddHoursForm
-            volunteers={volunteers}
-            shifts={shifts}
-            onSubmit={onCreateHours}
-            onCancel={() => onToggleAddHours(false)}
-          />
-        ) : (
-          <Button
-            type="button"
-            variant="secondary"
-            className="self-start"
-            onClick={() => onToggleAddHours(true)}
-          >
-            + Log hours
-          </Button>
-        ))}
     </div>
   );
 }

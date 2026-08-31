@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { listEventRevenueAction } from "../finance/revenue/actions";
 import { EditRevenueModal } from "../finance/revenue/edit-revenue-modal";
-import { NewRevenueDialog } from "../finance/revenue/new-revenue-dialog";
 import {
   formatAmount,
   formatRevenueDate,
@@ -11,6 +10,8 @@ import {
   type EventOption,
   type RevenueRow,
 } from "../finance/revenue/revenue-shared";
+import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
+import type { TabValue } from "./event-tabs-config";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Table,
@@ -26,7 +27,6 @@ export function EventRevenueTab({
   eventId,
   eventName,
   active,
-  mode,
 }: {
   eventId: string;
   eventName: string;
@@ -55,22 +55,14 @@ export function EventRevenueTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, eventId]);
 
+  useRegisterTabRefresh<TabValue>("revenue", refresh);
+
   return (
     <div className="flex flex-col gap-4">
       {loadError && (
         <Alert variant="destructive">
           <AlertDescription>{loadError}</AlertDescription>
         </Alert>
-      )}
-
-      {mode === "edit" && (
-        <NewRevenueDialog
-          events={eventOptions}
-          defaultEventId={eventId}
-          lockEventSelection
-          triggerLabel="New Revenue"
-          onSaved={refresh}
-        />
       )}
 
       {revenue === null ? (

@@ -32,6 +32,7 @@ import {
   type TabValue,
 } from "../event-tabs-config";
 import { useFormTabState, type FormTabCallbacks } from "../use-form-tab-state";
+import { TabRefreshProvider, useTabRefresh } from "@/hooks/use-tab-refresh";
 
 const NOOP_CALLBACKS: FormTabCallbacks = {
   onPendingChange: () => {},
@@ -193,7 +194,20 @@ function PlainTabCard({
   );
 }
 
-export function EventDetailView({
+export function EventDetailView(props: {
+  event: EventRow;
+  programs: Program[];
+  canManage: boolean;
+  initialTab?: TabValue;
+}) {
+  return (
+    <TabRefreshProvider>
+      <EventDetailContent {...props} />
+    </TabRefreshProvider>
+  );
+}
+
+function EventDetailContent({
   event,
   programs,
   canManage,
@@ -207,6 +221,8 @@ export function EventDetailView({
   const [phaseKey, setPhaseKey] = useState<PhaseKey>(
     initialTab ? phaseForTab(initialTab) : "basic",
   );
+  const { notify } = useTabRefresh<TabValue>();
+  const currentPhase = PHASES.find((phase) => phase.key === phaseKey)!;
 
   return (
     <>
@@ -228,7 +244,7 @@ export function EventDetailView({
         onValueChange={(value) => setPhaseKey(value as PhaseKey)}
         className="mt-6"
       >
-        <div className="rainbow-surface flex flex-wrap items-center gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+        <div className="rainbow-surface flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
           <TabsList variant="line" className="flex-wrap">
             {PHASES.map((phase) => {
               const status = phaseStatus(phase.key, event);
@@ -240,6 +256,26 @@ export function EventDetailView({
               );
             })}
           </TabsList>
+          {canManage && (
+            <div className="flex flex-wrap items-center gap-2">
+              {currentPhase.tabs.map((t) => {
+                const entry = entryFor(t.value);
+                if (!entry.toolbarActions) return null;
+                return (
+                  <div
+                    key={t.value}
+                    className="flex flex-wrap items-center gap-2"
+                  >
+                    {entry.toolbarActions({
+                      eventId: event.id,
+                      eventName: event.name,
+                      onSaved: () => notify(t.value),
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {PHASES.map((phase) => (

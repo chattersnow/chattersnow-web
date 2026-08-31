@@ -4,9 +4,10 @@ import {
   listEventDonationsAction,
   type EventDonationRow,
 } from "../home/actions";
-import { AddDonationModal } from "../home/add-donation-modal";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useTabData } from "@/hooks/use-tab-data";
+import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
+import type { TabValue } from "./event-tabs-config";
 import {
   Table,
   TableBody,
@@ -33,7 +34,6 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
 export function DonationsTab({
   eventId,
   active,
-  mode,
 }: {
   eventId: string;
   active: boolean;
@@ -48,6 +48,8 @@ export function DonationsTab({
     active,
     [eventId],
   );
+
+  useRegisterTabRefresh<TabValue>("donations", refresh);
 
   const items = (donations ?? []).flatMap((donation) =>
     donation.inventory_items.map((item) => ({
@@ -65,14 +67,6 @@ export function DonationsTab({
         <Alert variant="destructive">
           <AlertDescription>{loadError}</AlertDescription>
         </Alert>
-      )}
-
-      {mode === "edit" && (
-        <AddDonationModal
-          triggerLabel="Record donation for this event"
-          eventId={eventId}
-          onSaved={refresh}
-        />
       )}
 
       {donations === undefined ? (

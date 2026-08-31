@@ -20,6 +20,18 @@ import { EventRevenueTab } from "./event-revenue-tab";
 import { GiveawayTab } from "./giveaway-tab";
 import { ReportTab } from "./report-tab";
 import { ImpactTab } from "./impact-tab";
+import { AddChecklistItemDialog } from "./add-checklist-item-dialog";
+import { LogIncidentDialog } from "./log-incident-dialog";
+import { AddDiscountCodesDialog } from "./add-discount-codes-dialog";
+import { CheckInWalkInDialog } from "./check-in-walkin-dialog";
+import { AddSponsorDialog } from "./add-sponsor-dialog";
+import { AddShiftDialog } from "./volunteers/add-shift-dialog";
+import { AddVolunteerDialog } from "./volunteers/add-volunteer-dialog";
+import { LogHoursDialog } from "./volunteers/log-hours-dialog";
+import { RecordDistributionModal } from "../home/record-distribution-modal";
+import { AddDonationModal } from "../home/add-donation-modal";
+import { NewExpenseDialog } from "../finance/expenses/new-expense-dialog";
+import { NewRevenueDialog } from "../finance/revenue/new-revenue-dialog";
 
 export const FORM_ID_PREFIX = "event-details-form";
 
@@ -54,12 +66,19 @@ export type TabRenderContext = {
   formCallbacks: Record<TabValue, FormTabCallbacks>;
 };
 
+export type ToolbarActionContext = {
+  eventId: string;
+  eventName: string;
+  onSaved: () => void;
+};
+
 export type TabConfigEntry = {
   value: TabValue;
   label: string;
   phase: PhaseKey;
   kind: "form" | "plain";
   render: (ctx: TabRenderContext) => ReactNode;
+  toolbarActions?: (ctx: ToolbarActionContext) => ReactNode;
 };
 
 export const TAB_CONFIG: readonly TabConfigEntry[] = [
@@ -92,6 +111,9 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         active={ctx.activeTab === "checklist"}
         mode={ctx.mode}
       />
+    ),
+    toolbarActions: (ctx) => (
+      <AddChecklistItemDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
     ),
   },
   {
@@ -141,6 +163,13 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         mode={ctx.mode}
       />
     ),
+    toolbarActions: (ctx) => (
+      <>
+        <AddShiftDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
+        <AddVolunteerDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
+        <LogHoursDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
+      </>
+    ),
   },
   {
     value: "sponsors",
@@ -153,6 +182,9 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         active={ctx.activeTab === "sponsors"}
         mode={ctx.mode}
       />
+    ),
+    toolbarActions: (ctx) => (
+      <AddSponsorDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
     ),
   },
   {
@@ -182,6 +214,9 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         mode={ctx.mode}
       />
     ),
+    toolbarActions: (ctx) => (
+      <CheckInWalkInDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
+    ),
   },
   {
     value: "discount-codes",
@@ -194,6 +229,9 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         active={ctx.activeTab === "discount-codes"}
         mode={ctx.mode}
       />
+    ),
+    toolbarActions: (ctx) => (
+      <AddDiscountCodesDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
     ),
   },
   {
@@ -208,6 +246,13 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         mode={ctx.mode}
       />
     ),
+    toolbarActions: (ctx) => (
+      <RecordDistributionModal
+        eventId={ctx.eventId}
+        triggerLabel="+ Record distribution"
+        onSaved={ctx.onSaved}
+      />
+    ),
   },
   {
     value: "incidents",
@@ -220,6 +265,9 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         active={ctx.activeTab === "incidents"}
         mode={ctx.mode}
       />
+    ),
+    toolbarActions: (ctx) => (
+      <LogIncidentDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
     ),
   },
   {
@@ -265,6 +313,13 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         mode={ctx.mode}
       />
     ),
+    toolbarActions: (ctx) => (
+      <AddDonationModal
+        triggerLabel="Record donation for this event"
+        eventId={ctx.eventId}
+        onSaved={ctx.onSaved}
+      />
+    ),
   },
   {
     value: "expenses",
@@ -279,6 +334,15 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         mode={ctx.mode}
       />
     ),
+    toolbarActions: (ctx) => (
+      <NewExpenseDialog
+        events={[{ id: ctx.eventId, name: ctx.eventName }]}
+        defaultEventId={ctx.eventId}
+        lockEventSelection
+        triggerLabel="New Expense"
+        onSaved={ctx.onSaved}
+      />
+    ),
   },
   {
     value: "revenue",
@@ -291,6 +355,15 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         eventName={ctx.event.name}
         active={ctx.activeTab === "revenue"}
         mode={ctx.mode}
+      />
+    ),
+    toolbarActions: (ctx) => (
+      <NewRevenueDialog
+        events={[{ id: ctx.eventId, name: ctx.eventName }]}
+        defaultEventId={ctx.eventId}
+        lockEventSelection
+        triggerLabel="New Revenue"
+        onSaved={ctx.onSaved}
       />
     ),
   },
