@@ -113,4 +113,51 @@ describe("MeetingDetailView", () => {
       screen.queryByRole("button", { name: "Edit agenda" }),
     ).not.toBeInTheDocument();
   });
+
+  test("confirms before discarding unsaved agenda edits when switching to Overview", async () => {
+    render(<MeetingDetailView meeting={makeMeeting()} canManage={true} />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Agenda" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit agenda" }));
+    fireEvent.change(await screen.findByLabelText("External link"), {
+      target: { value: "https://example.com/agenda" },
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Overview" }));
+
+    expect(screen.getByText("Discard changes?")).toBeInTheDocument();
+    // The tab switch hasn't happened yet -- still on the (dirty) Agenda form.
+    expect(screen.queryByText("Meeting details")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(screen.queryByText("Discard changes?")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("External link")).toHaveValue(
+      "https://example.com/agenda",
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Overview" }));
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+
+    expect(screen.queryByText("Discard changes?")).not.toBeInTheDocument();
+    expect(screen.getByText("Meeting details")).toBeInTheDocument();
+
+    // Agenda's edit mode -- and its unsaved value -- were discarded.
+    fireEvent.click(screen.getByRole("tab", { name: "Agenda" }));
+    expect(
+      screen.getByRole("button", { name: "Edit agenda" }),
+    ).toBeInTheDocument();
+  });
+
+  test("switches to Overview without a prompt when the agenda form isn't dirty", async () => {
+    render(<MeetingDetailView meeting={makeMeeting()} canManage={true} />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Agenda" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit agenda" }));
+    await screen.findByLabelText("External link");
+
+    fireEvent.click(screen.getByRole("tab", { name: "Overview" }));
+
+    expect(screen.queryByText("Discard changes?")).not.toBeInTheDocument();
+    expect(screen.getByText("Meeting details")).toBeInTheDocument();
+  });
 });
