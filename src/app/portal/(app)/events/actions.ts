@@ -7,8 +7,13 @@ import {
   parseEventForm,
   parseEventPlanningForm,
   parseEventReportForm,
+  parseReopenReason,
 } from "./event-form";
-import { checkPermission } from "@/lib/auth/permissions";
+import {
+  checkPermission,
+  getCurrentUserPermissions,
+  hasPermission,
+} from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
 
 export type CreateEventResult = { error: string } | { success: true };
@@ -294,6 +299,56 @@ export async function submitEventReportAction(
 
   if (error) {
     return { error: "Could not submit the event report. Please try again." };
+  }
+
+  revalidatePath("/portal/home");
+  revalidatePath("/portal/events");
+  return { success: true };
+}
+
+/**
+ * Whether the signed-in user can reopen a submitted event report. Checked
+ * separately from reopenEventReportAction so the Report tab can gate the
+ * "Reopen report" button's visibility before the user attempts the action.
+ */
+export async function getCanReopenEventReportAction(): Promise<{
+  data: { canReopen: boolean };
+}> {
+  const supabase = await createSupabaseServerClient();
+  const permissions = await getCurrentUserPermissions(supabase);
+  return {
+    data: { canReopen: hasPermission(permissions, "administration", "manage") },
+  };
+}
+
+export async function reopenEventReportAction(
+  id: string,
+  reason: string,
+): Promise<CreateEventResult> {
+  const parsed = parseReopenReason(reason);
+  if ("error" in parsed) return parsed;
+
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to reopen this report.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(
+    supabase,
+    "administration",
+    "manage",
+    "Only an administrator can reopen a submitted report.",
+  );
+  if (permissionError) return permissionError;
+
+  const { error } = await supabase.rpc("reopen_event_report", {
+    p_id: id,
+    p_reason: parsed.data,
+  });
+
+  if (error) {
+    return { error: error.message };
   }
 
   revalidatePath("/portal/home");
