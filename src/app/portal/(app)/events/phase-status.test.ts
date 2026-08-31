@@ -27,6 +27,7 @@ const baseEvent: EventRow = {
   registration_deadline: null,
   budget_amount: null,
   event_lead_id: null,
+  event_lead: null,
   report_status: "not_started",
   report_summary: null,
   lessons_learned: null,

@@ -271,7 +271,7 @@ begin
   set program_id = v_program_id, description = 'A community gear exchange and winter access event.',
       event_type = 'gear_swap', venue = 'Community Center', capacity = 100,
       registration_enabled = true, registration_deadline = now() + interval '14 days',
-      budget_amount = 2500.00, event_lead_id = v_admin_id
+      budget_amount = 2500.00, event_lead_id = v_person_volunteer
   where id = v_event_upcoming;
 
   insert into public.event_logistics (event_id, meeting_point, gear_requirements, transportation, food, supplies, created_by)
@@ -460,7 +460,6 @@ end $$;
 do $$
 declare
   v_admin_id uuid;
-  v_coordinator_id uuid;
   v_finance_id uuid;
   v_board_id uuid;
 
@@ -515,7 +514,6 @@ declare
   v_expense_status text;
 begin
   select id into v_admin_id from auth.users where email = 'admin@example.test';
-  select id into v_coordinator_id from auth.users where email = 'coordinator@example.test';
   select id into v_finance_id from auth.users where email = 'finance@example.test';
   select id into v_board_id from auth.users where email = 'board@example.test';
 
@@ -610,7 +608,7 @@ begin
       'Main hall', 20 + floor(random()*180)::int,
       random() < 0.5, v_starts_at - interval '7 days',
       round((200 + random() * 4800)::numeric, 2),
-      (array[v_coordinator_id, v_admin_id])[1 + floor(random()*2)::int],
+      v_people_ids[1 + floor(random()*array_length(v_people_ids,1))::int],
       case when random() < 0.4 and array_length(v_program_ids,1) is not null then v_program_ids[1 + floor(random()*array_length(v_program_ids,1))::int] else null end,
       v_admin_id
     )
