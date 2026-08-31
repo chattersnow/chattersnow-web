@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
@@ -15,6 +16,10 @@ import {
 import { NewProgramDialog } from "./new-program-dialog";
 import { ProgramDetailsDialog } from "./program-details-dialog";
 import { ProgramStatusBadge, type ProgramRow } from "./program-badges";
+
+export const metadata: Metadata = {
+  title: "Programs",
+};
 
 export default async function ProgramsPage() {
   const supabase = await createSupabaseServerClient();

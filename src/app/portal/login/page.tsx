@@ -1,7 +1,12 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import Image from "next/image";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { LoginForm } from "./login-form";
+
+export const metadata: Metadata = {
+  title: "Log In",
+};
 
 export default function PortalLoginPage() {
   return (

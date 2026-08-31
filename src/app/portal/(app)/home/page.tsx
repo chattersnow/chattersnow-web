@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
@@ -56,6 +57,10 @@ function SectionLabel({ children }: { children: string }) {
     </h2>
   );
 }
+
+export const metadata: Metadata = {
+  title: "Dashboard",
+};
 
 export default async function PortalHomePage() {
   const supabase = await createSupabaseServerClient();

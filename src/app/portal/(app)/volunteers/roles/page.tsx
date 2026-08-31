@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
@@ -17,6 +18,10 @@ import {
   RoleTypeDetailsSheet,
   type RoleTypeRow,
 } from "./role-type-details-sheet";
+
+export const metadata: Metadata = {
+  title: "Volunteers",
+};
 
 export default async function VolunteerRolesPage() {
   const supabase = await createSupabaseServerClient();

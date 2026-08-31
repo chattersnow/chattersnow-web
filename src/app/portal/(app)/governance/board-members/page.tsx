@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
@@ -7,6 +8,10 @@ import { BoardMembersTable } from "./board-members-table";
 import { NewBoardMemberDialog } from "./new-board-member-dialog";
 import type { BoardMemberRow } from "./board-members-shared";
 import type { PersonListItem } from "../../people/actions";
+
+export const metadata: Metadata = {
+  title: "Governance",
+};
 
 export default async function BoardMembersPage() {
   const supabase = await createSupabaseServerClient();

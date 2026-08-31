@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
@@ -23,6 +24,10 @@ function currentMonthParam(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
+
+export const metadata: Metadata = {
+  title: "Calendar",
+};
 
 export default async function CalendarPage({
   searchParams,
