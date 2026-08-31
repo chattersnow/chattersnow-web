@@ -91,7 +91,7 @@ export function CommunityCalendar({
           <div
             role="group"
             aria-label="Calendar view"
-            className="flex overflow-hidden rounded-lg border border-input bg-white"
+            className="flex overflow-hidden rounded-lg border border-input bg-card"
           >
             <Button
               type="button"
@@ -129,7 +129,7 @@ export function CommunityCalendar({
           >
             <SelectTrigger
               id="community-calendar-category-filter"
-              className="h-8 w-56 bg-white"
+              className="h-8 w-56 bg-card"
             >
               <SelectValue placeholder="Category">
                 {(value: string) =>
@@ -162,7 +162,7 @@ export function CommunityCalendar({
             >
               <SelectTrigger
                 id="community-calendar-month-filter"
-                className="h-8 bg-white"
+                className="h-8 bg-card"
               >
                 <SelectValue placeholder="Month">
                   {(value: string) =>

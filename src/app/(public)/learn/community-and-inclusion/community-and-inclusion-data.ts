@@ -56,7 +56,7 @@ export const COMMUNITY_AND_INCLUSION_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "This describes kinds of groups and programs in general terms, not an endorsement of any particular organization. What's available near you, who it serves, and how to join varies by region — check with the organization directly.",
+      "This describes the kinds of groups and programs out there in general terms, not an endorsement of any specific one. What's actually near you, who it serves, and how to join all vary by region — check with the organization directly.",
   },
   {
     id: "beginner-buddy-guide",
@@ -113,7 +113,7 @@ export const COMMUNITY_AND_INCLUSION_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "Riding with a friend is not a substitute for instruction from a certified instructor, and nothing here is technique guidance. If anyone is injured, contact ski patrol and seek medical attention.",
+      "A friend riding with you is not a substitute for a certified instructor, and nothing here is technique guidance. If anyone gets hurt, that's ski patrol and medical attention, not a mentor's call.",
   },
   {
     id: "mixed-skill-levels",
@@ -165,7 +165,7 @@ export const COMMUNITY_AND_INCLUSION_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "This is general guidance on organizing a group day, not advice about what terrain is appropriate for any particular person. Terrain choice and ability are best assessed with a certified instructor, and ski patrol handles anything that goes wrong on the mountain.",
+      "This is about organizing a group day, not a judgment on what terrain is right for any one person. A certified instructor is who actually assesses ability and terrain, and ski patrol handles anything that goes wrong on the mountain.",
   },
   {
     id: "first-timer-intimidation",
@@ -223,6 +223,6 @@ export const COMMUNITY_AND_INCLUSION_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "This is general encouragement and orientation, not instruction or advice about your own readiness or health. Anything involving technique or terrain choice belongs with a certified instructor, and anything involving a medical concern belongs with a qualified professional.",
+      "This is encouragement and orientation, not a read on your own readiness or health. Technique and terrain choice belong with a certified instructor, and anything medical belongs with a qualified professional — not this page.",
   },
 ];

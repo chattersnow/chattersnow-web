@@ -23,6 +23,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { HelpButton } from "./help/help-button";
 import { PortalHelpProvider } from "./help/help-context";
 import { getContentWorkSummary } from "./home/queries";
@@ -182,6 +183,7 @@ export default async function PortalAppLayout({
                     Hi, {displayName}
                   </span>
                 )}
+                <ThemeToggle className="size-10 rounded-full" />
                 <HelpButton />
                 <NotificationsMenu items={attentionItems} />
               </div>

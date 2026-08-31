@@ -54,7 +54,7 @@ export const GEAR_AND_SIZING_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "This is a general packing overview, not a personalized recommendation — a rental shop or your resort's own first-timer guidance can confirm what's actually included and what you'll need to bring.",
+      "Take this as a starting checklist, not a personalized packing list — your rental shop or the resort's own first-timer guidance will know exactly what's included and what's on you to bring.",
   },
   {
     id: "buying-vs-renting",
@@ -101,7 +101,7 @@ export const GEAR_AND_SIZING_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "These are general tradeoffs, not a recommendation for your specific situation — a rental shop can also give you a sense of local rental pricing to compare against buying.",
+      "These are the general tradeoffs, not a verdict for your specific situation — a rental shop can also give you real local pricing to weigh against buying.",
   },
   {
     id: "skis-vs-snowboard",
@@ -143,13 +143,13 @@ export const GEAR_AND_SIZING_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "This is a general comparison of the two sports, not a recommendation for you personally — how each one feels varies a lot person to person, and a lesson is the best way to find out.",
+      "This is a general comparison, not a personal verdict — how each sport actually feels varies wildly person to person, and a lesson is the fastest way to find out for yourself.",
   },
   {
     id: "binding-din-settings",
     title: "Understanding binding DIN settings",
     description:
-      "DIN (release setting) controls how much force it takes for a ski binding to release in a fall. It's determined from several factors together, not from any one of them alone, and it should always be set and tested by a certified binding technician — never chosen off a chart.",
+      "DIN (release setting) is how much force it takes for your binding to pop off in a fall. It comes from several factors together, never just one — so leave the actual number to a certified binding tech, not a chart.",
     list: [
       {
         label: "What DIN measures",
@@ -181,13 +181,13 @@ export const GEAR_AND_SIZING_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "This explains what DIN is and what it depends on — it is not a setting recommendation. Binding release force should always be set and tested by a certified binding technician working with your specific gear, never chosen from a chart or an article.",
+      "None of this is a setting recommendation — it's just what DIN is and what feeds into it. The actual number always comes from a certified binding tech working with your specific gear, not a chart and not this page.",
   },
   {
     id: "helmets-and-protective-gear",
     title: "Helmets & protective gear basics",
     description:
-      "An overview of the protective gear people commonly wear on snow and what each piece is generally understood to help with — not medical guidance or a substitute for professional fitting advice.",
+      "An overview of the protective gear people commonly wear on snow and roughly what each piece helps with — not medical guidance, and not a stand-in for a proper fitting.",
     list: [
       {
         label: "Helmets",
@@ -213,7 +213,7 @@ export const GEAR_AND_SIZING_ARTICLES: LearnArticle[] = [
     paragraphs: [
       "Helmet fit matters as much as wearing one at all — an oversized or loosely strapped helmet doesn't protect the way a properly fitted one does. A shop can help fit a helmet the same way they'd fit boots.",
       "Helmets are generally treated as single-impact items: after a significant crash, the protective foam may be compromised even without visible damage, and manufacturers publish recommended replacement intervals regardless of impacts. See the gear care article on knowing when gear needs replacing for more.",
-      "This is general awareness of what protective gear exists, not medical guidance — if you're unsure what's appropriate for a specific condition or injury history, that's a conversation for a doctor, and any actual injury should go to a medical professional or ski patrol, not be assessed from an article.",
+      "We're just covering what's out there, not giving medical advice — got a specific condition or injury history? Loop in a doctor. Someone actually hurt? Get them to ski patrol or a medical pro, not this page.",
     ],
     links: [
       {
@@ -223,7 +223,7 @@ export const GEAR_AND_SIZING_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "This is general awareness of common protective gear, not medical or safety-certification guidance — fit and suitability for you specifically are best confirmed by a shop, and any injury should be evaluated by a medical professional or ski patrol.",
+      "Nothing here is medical or safety-certification guidance — for fit and what's actually right for you, ask a shop, and for any real injury, that's ski patrol or a medical professional, full stop.",
   },
   {
     id: "used-and-secondhand-gear",
@@ -270,6 +270,6 @@ export const GEAR_AND_SIZING_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "These are general things to check, not a guarantee of a specific item's condition or safety — for bindings and any safety-relevant gear, a shop technician's assessment is worth more than a visual check on your own.",
+      "These are things worth checking, not a guarantee of any item's condition or safety — for bindings and anything safety-relevant, a shop tech's actual assessment beats an eyeball check every time.",
   },
 ];

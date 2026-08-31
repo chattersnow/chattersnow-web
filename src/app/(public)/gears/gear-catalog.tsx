@@ -141,7 +141,7 @@ export function GearCatalog({
             placeholder="Search description..."
             value={search}
             onChange={(event) => handleSearchChange(event.target.value)}
-            className="h-8 w-full bg-white sm:w-64"
+            className="h-8 w-full bg-card sm:w-64"
           />
         </div>
 

@@ -41,7 +41,7 @@ export const GEAR_CARE_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "These are general habits, not manufacturer instructions — care requirements vary by product, and the care tag or manual that came with your specific gear takes precedence over anything here.",
+      "These are general habits, not manufacturer instructions — care requirements vary by product, so whatever's on the care tag or manual for your specific gear wins over anything written here.",
   },
   {
     id: "waxing",
@@ -83,7 +83,7 @@ export const GEAR_CARE_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "This is an overview of what waxing is, not instructions for doing it — hot waxing involves heat and equipment that can damage a base, and a shop tech or in-person guidance is the right starting point if you want to try it yourself.",
+      "This explains what waxing is, not how to do it — hot waxing involves heat and equipment that can damage a base, so a shop tech or someone showing you in person is the right place to actually start.",
   },
   {
     id: "edge-tuning",
@@ -125,7 +125,7 @@ export const GEAR_CARE_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "This explains the terminology, not how to tune your own edges, and it isn't a recommendation of any particular bevel or setup — edge angles and binding settings should be set by a qualified shop technician working with your specific gear.",
+      "This is here so the terminology makes sense at the counter, not a how-to for tuning your own edges — and it's not a recommendation on any particular bevel. Edge angles and binding settings are a qualified shop tech's call, working with your actual gear.",
   },
   {
     id: "off-season-storage",
@@ -171,7 +171,7 @@ export const GEAR_CARE_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "These are general storage habits. Anything involving binding tension or release settings should be handled and re-tested by a certified binding technician, and manufacturer storage instructions for your specific gear take precedence over anything here.",
+      "These are general storage habits, nothing more. Binding tension or release settings are a certified binding technician's job to handle and re-test, and your gear's own manufacturer storage instructions beat anything written here.",
   },
   {
     id: "when-to-replace",
@@ -217,6 +217,6 @@ export const GEAR_CARE_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "This is general awareness, not an assessment of your equipment or a safety certification — whether a specific helmet, binding, or piece of avalanche equipment is still safe to use is a question for the manufacturer's guidance and a qualified shop technician.",
+      "This is general awareness, not an assessment of your actual equipment — whether a specific helmet, binding, or piece of avalanche gear is still safe to use is a question for the manufacturer's guidance and a qualified shop technician, not this page.",
   },
 ];

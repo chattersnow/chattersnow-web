@@ -47,7 +47,7 @@ export const BUDGET_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "All figures here are rough estimates for general orientation, not quotes, and they change season to season and vary widely by region and resort. Check current prices directly with the resort or shop before planning around any number in this article.",
+      "Every number above is a rough estimate, not a quote, and it'll shift season to season and resort to resort. Before you plan around any of it, check current prices directly with the resort or shop.",
   },
   {
     id: "getting-on-the-mountain-for-less",
@@ -108,7 +108,7 @@ export const BUDGET_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "Pricing structures, discount programs, and eligibility rules differ by resort and change every season, and any savings described here are general patterns rather than guarantees. Confirm current terms with the resort, shop, or program directly before counting on them.",
+      "Pricing, discounts, and eligibility rules all differ by resort and shift every season, so treat the savings above as general patterns, not guarantees. Confirm the actual terms with the resort, shop, or program before counting on them.",
   },
   {
     id: "passes-and-deals",
@@ -155,7 +155,7 @@ export const BUDGET_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "Any prices, break-even ranges, or discount categories described here are general estimates that vary by resort and change season to season — they aren't quotes or guarantees. Read the actual pass terms and confirm current pricing with the resort before buying.",
+      "The prices and break-even ranges above are general estimates, not quotes or guarantees — they shift by resort and by season. Read the actual pass terms and confirm current pricing with the resort before you buy.",
   },
   {
     id: "renting-vs-buying",
@@ -208,7 +208,7 @@ export const BUDGET_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "The rental rates and break-even framing here are rough estimates for orientation, not quotes, and they vary by region and shop. Sizing and fit decisions are best confirmed with a shop fitter or certified technician rather than an article.",
+      "The rental rates and break-even math here are ballpark, not quotes — they vary by region and shop. For sizing and fit, a shop fitter or certified technician will get you a better answer than an article will.",
   },
   {
     id: "used-gear",
@@ -261,6 +261,6 @@ export const BUDGET_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "This is general orientation to the used market, not an inspection, appraisal, or safety certification. Any prices mentioned are estimates that vary widely, and the condition and safety of used equipment — especially bindings — should be assessed by a shop or certified technician, not by this article.",
+      "Consider this a map of the used market, not an inspection or an appraisal. Prices here are rough estimates that vary a lot, and for the condition and safety of used gear — bindings especially — a shop or certified technician's actual assessment is what counts, not this page.",
   },
 ];

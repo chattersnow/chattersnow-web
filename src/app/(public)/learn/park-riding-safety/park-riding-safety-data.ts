@@ -46,7 +46,7 @@ export const PARK_SAFETY_ARTICLES: ParkSafetyArticle[] = [
       },
     ],
     disclaimer:
-      "These are general norms, not a specific mountain's official rules — always check posted signage or ask ski patrol how a particular resort runs its terrain park.",
+      "These are general norms, not any one mountain's official rulebook — check posted signage or ask ski patrol how your resort actually runs its park.",
   },
   {
     id: "progression",
@@ -84,7 +84,7 @@ export const PARK_SAFETY_ARTICLES: ParkSafetyArticle[] = [
       },
     ],
     disclaimer:
-      "This is a general overview of feature types, not instruction — technique and how to progress safely on a specific feature is best learned from an instructor or experienced rider, not an article.",
+      "This is a rundown of feature types, not a how-to. For actual technique and safely working up to a specific feature, an instructor or experienced rider will teach you more than an article ever could.",
   },
   {
     id: "safety-gear",
@@ -108,7 +108,7 @@ export const PARK_SAFETY_ARTICLES: ParkSafetyArticle[] = [
     paragraphs: [
       "Before dropping into a feature, take a moment to check that the landing and run-out are clear, wait for the rider ahead of you to fully clear the area, and know where you're headed once you're down.",
       "If you or someone nearby is hurt, get ski patrol involved — most resorts have a way to flag them down, and features are usually marked with the nearest contact point or call box. Ski patrol is trained for on-mountain injuries in a way a fellow rider isn't.",
-      "This isn't medical guidance: don't try to diagnose or treat an injury yourself beyond basic first aid you're trained in — get the injured person to ski patrol or another qualified professional and let them assess it.",
+      "And to be clear, none of this is medical guidance — don't try to diagnose or treat an injury beyond whatever first aid you're actually trained in. Get the person to ski patrol or another qualified professional and let them take it from there.",
     ],
     links: [
       {
@@ -117,6 +117,6 @@ export const PARK_SAFETY_ARTICLES: ParkSafetyArticle[] = [
       },
     ],
     disclaimer:
-      "This is general safety awareness, not medical or first-aid instruction — for anything involving an actual injury, ski patrol or a medical professional is the right call, not this article.",
+      "This is general awareness, not medical or first-aid training — if there's an actual injury involved, that's ski patrol or a medical professional, not this article.",
   },
 ];
