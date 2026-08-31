@@ -9,14 +9,28 @@ import {
   useTransition,
 } from "react";
 import { useRouter } from "next/navigation";
-import { submitEventReportAction, updateEventReportAction } from "./actions";
+import {
+  getCanReopenEventReportAction,
+  reopenEventReportAction,
+  submitEventReportAction,
+  updateEventReportAction,
+} from "./actions";
 import { ReportStatusBadge, type EventRow } from "./event-badges";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
+import { useTabData } from "@/hooks/use-tab-data";
 
 function formStateFor(event: EventRow) {
   return {
@@ -62,6 +76,15 @@ export function ReportTab({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isSubmitting, startSubmitTransition] = useTransition();
+  const locked = event.report_status === "submitted";
+  const { data: reopenContext } = useTabData<{ canReopen: boolean }>(
+    () => getCanReopenEventReportAction(),
+    locked,
+  );
+  const canReopen = reopenContext?.canReopen ?? false;
+  const [reopenDialogOpen, setReopenDialogOpen] = useState(false);
+  const [reopenReason, setReopenReason] = useState("");
+  const [isReopening, startReopenTransition] = useTransition();
 
   useEffect(() => {
     onPendingChange?.(isPending);
@@ -115,55 +138,130 @@ export function ReportTab({
     });
   }
 
-  const locked = event.report_status === "submitted";
+  function handleReopen(formEvent: FormEvent<HTMLFormElement>) {
+    formEvent.preventDefault();
+    setError(null);
+    startReopenTransition(async () => {
+      const result = await reopenEventReportAction(event.id, reopenReason);
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+      setReopenDialogOpen(false);
+      setReopenReason("");
+      router.refresh();
+    });
+  }
 
   if (mode === "view" || locked) {
     return (
-      <FieldGroup>
-        <Field>
-          <FieldLabel>Report status</FieldLabel>
-          <div>
-            <ReportStatusBadge status={event.report_status} />
-          </div>
-        </Field>
-        <ReadOnlyField label="Report summary" htmlFor="report-reportSummary">
-          {form.reportSummary || "—"}
-        </ReadOnlyField>
-        <ReadOnlyField
-          label="Participant feedback"
-          htmlFor="report-feedbackNotes"
-        >
-          {form.feedbackNotes || "—"}
-        </ReadOnlyField>
-        <ReadOnlyField label="Photos / content" htmlFor="report-contentNotes">
-          {form.contentNotes || "—"}
-        </ReadOnlyField>
-        <ReadOnlyField label="Lessons learned" htmlFor="report-lessonsLearned">
-          {form.lessonsLearned || "—"}
-        </ReadOnlyField>
-        {event.report_status !== "submitted" && (
-          <Button
-            type="button"
-            variant="secondary"
-            className="self-start"
-            onClick={handleSubmitReport}
-            disabled={isSubmitting}
+      <>
+        <FieldGroup>
+          <Field>
+            <FieldLabel>Report status</FieldLabel>
+            <div className="flex items-center gap-2">
+              <ReportStatusBadge status={event.report_status} />
+              {locked && canReopen && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setReopenDialogOpen(true)}
+                >
+                  Reopen report
+                </Button>
+              )}
+            </div>
+          </Field>
+          <ReadOnlyField label="Report summary" htmlFor="report-reportSummary">
+            {form.reportSummary || "—"}
+          </ReadOnlyField>
+          <ReadOnlyField
+            label="Participant feedback"
+            htmlFor="report-feedbackNotes"
           >
-            {isSubmitting ? (
-              <>
-                <Spinner /> Submitting...
-              </>
-            ) : (
-              "Submit report"
-            )}
-          </Button>
-        )}
-        {error && (
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-      </FieldGroup>
+            {form.feedbackNotes || "—"}
+          </ReadOnlyField>
+          <ReadOnlyField label="Photos / content" htmlFor="report-contentNotes">
+            {form.contentNotes || "—"}
+          </ReadOnlyField>
+          <ReadOnlyField
+            label="Lessons learned"
+            htmlFor="report-lessonsLearned"
+          >
+            {form.lessonsLearned || "—"}
+          </ReadOnlyField>
+          {event.report_status !== "submitted" && (
+            <Button
+              type="button"
+              variant="secondary"
+              className="self-start"
+              onClick={handleSubmitReport}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Spinner /> Submitting...
+                </>
+              ) : (
+                "Submit report"
+              )}
+            </Button>
+          )}
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+        </FieldGroup>
+
+        <Dialog
+          open={reopenDialogOpen}
+          onOpenChange={(next) => {
+            setReopenDialogOpen(next);
+            if (!next) setReopenReason("");
+          }}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Reopen report</DialogTitle>
+              <DialogDescription>
+                Explain why this submitted report is being reopened. Overview,
+                Planning, and Report will become editable again.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleReopen}>
+              <FieldGroup>
+                <Field>
+                  <FieldLabel htmlFor="reopen-report-reason">Reason</FieldLabel>
+                  <Textarea
+                    id="reopen-report-reason"
+                    required
+                    value={reopenReason}
+                    onChange={(event) => setReopenReason(event.target.value)}
+                  />
+                </Field>
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+              </FieldGroup>
+              <DialogFooter>
+                <Button type="submit" disabled={isReopening}>
+                  {isReopening ? (
+                    <>
+                      <Spinner /> Reopening...
+                    </>
+                  ) : (
+                    "Reopen report"
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </>
     );
   }
 

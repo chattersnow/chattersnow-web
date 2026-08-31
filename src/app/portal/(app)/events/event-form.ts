@@ -160,6 +160,14 @@ export function parseEventReportForm(
   };
 }
 
+export function parseReopenReason(reason: string): ParseResult<string> {
+  const trimmed = reason.trim();
+  if (!trimmed) {
+    return { error: "A reason is required to reopen this report." };
+  }
+  return { data: trimmed };
+}
+
 export type EventAttendanceFormData = {
   attendanceCount: number | null;
   attendanceNotes: string | null;
