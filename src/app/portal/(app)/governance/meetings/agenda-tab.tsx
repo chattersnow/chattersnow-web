@@ -1,6 +1,13 @@
 "use client";
 
-import { FormEvent, ReactNode, useState, useTransition } from "react";
+import {
+  FormEvent,
+  ReactNode,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter } from "next/navigation";
 import {
   getAgendaAction,
@@ -146,6 +153,7 @@ function AgendaForm({
   meetingId,
   onSaved,
   onCancel,
+  onDirtyChange,
 }: {
   agenda: Agenda | null;
   sections: AgendaTemplateSection[];
@@ -154,6 +162,7 @@ function AgendaForm({
   meetingId: string;
   onSaved: () => void;
   onCancel: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const router = useRouter();
   const [externalLink, setExternalLink] = useState(agenda?.external_link ?? "");
@@ -178,6 +187,49 @@ function AgendaForm({
   );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  // Captured once on mount so edits can be compared back to the loaded
+  // agenda, regardless of later prop changes (e.g. a background refresh).
+  const baselineRef = useRef({
+    externalLink: agenda?.external_link ?? "",
+    bodyText: agenda?.body_text ?? "",
+    ongoingItems: agenda?.ongoing_items ?? {},
+    newBusiness: agenda?.new_business ?? [],
+    parkingLot: agenda?.parking_lot ?? [],
+    upcomingDates: agenda?.upcoming_dates ?? [],
+    nextMeetingDate: agenda?.next_meeting_date ?? "",
+    nextMeetingTopics: agenda?.next_meeting_topics ?? "",
+  });
+
+  useEffect(() => {
+    const baseline = baselineRef.current;
+    const dirty =
+      externalLink !== baseline.externalLink ||
+      bodyText !== baseline.bodyText ||
+      JSON.stringify(ongoingItems) !== JSON.stringify(baseline.ongoingItems) ||
+      JSON.stringify(newBusiness) !== JSON.stringify(baseline.newBusiness) ||
+      JSON.stringify(parkingLot) !== JSON.stringify(baseline.parkingLot) ||
+      JSON.stringify(upcomingDates) !==
+        JSON.stringify(baseline.upcomingDates) ||
+      nextMeetingDate !== baseline.nextMeetingDate ||
+      nextMeetingTopics !== baseline.nextMeetingTopics;
+    onDirtyChange?.(dirty);
+  }, [
+    externalLink,
+    bodyText,
+    ongoingItems,
+    newBusiness,
+    parkingLot,
+    upcomingDates,
+    nextMeetingDate,
+    nextMeetingTopics,
+    onDirtyChange,
+  ]);
+
+  // Reported dirty state belongs to this mounted form only -- clear it when
+  // the form goes away (save, cancel, or a forced discard from the parent),
+  // so a stale "dirty" flag can't outlive the component that set it.
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
 
   function updateOngoingItem(key: string, patch: Partial<AgendaOngoingItem>) {
     setOngoingItems((prev) => ({
@@ -365,6 +417,7 @@ export function AgendaTab({
   onViewActionItems,
   onViewDecisions,
   onExitEdit,
+  onDirtyChange,
 }: {
   meetingId: string;
   meetingDate: string;
@@ -373,6 +426,7 @@ export function AgendaTab({
   onViewActionItems: () => void;
   onViewDecisions: () => void;
   onExitEdit: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const {
     data: agenda,
@@ -427,6 +481,7 @@ export function AgendaTab({
           refreshAgenda();
         }}
         onCancel={onExitEdit}
+        onDirtyChange={onDirtyChange}
       />
     );
   }
