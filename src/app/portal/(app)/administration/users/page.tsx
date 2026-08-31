@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { UsersTable } from "./users-table";
@@ -7,6 +8,10 @@ import {
   listRolesAction,
   listPendingGrantsAction,
 } from "./actions";
+
+export const metadata: Metadata = {
+  title: "Administration",
+};
 
 export default async function UsersPage() {
   const supabase = await createSupabaseServerClient();

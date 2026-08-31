@@ -57,9 +57,9 @@ export default async function MissionPage() {
           </div>
           <div className="app-muted mt-4 space-y-4 text-sm leading-relaxed sm:text-base">
             <p>
-              Bringing together LGBTQ+ skiers and snowboarders on and off the
-              mountain while creating inclusive, accessible spaces for everyone
-              on the East Coast.
+              &ldquo;Bringing together LGBTQ+ boarders and skiers on and off the
+              mountain. Creating inclusive safe spaces for everyone on the East
+              Coast.&rdquo;
             </p>
             <p>
               We believe snow sports should be something people can participate

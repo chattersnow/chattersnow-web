@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
@@ -21,6 +22,10 @@ function isContactMessageStatus(
     !!value && (CONTACT_MESSAGE_STATUSES as readonly string[]).includes(value)
   );
 }
+
+export const metadata: Metadata = {
+  title: "Messages",
+};
 
 export default async function CommunicationsPage({
   searchParams,

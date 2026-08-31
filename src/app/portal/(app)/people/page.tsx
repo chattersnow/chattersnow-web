@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Eye } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -46,6 +47,10 @@ function isRoleKey(value: string | undefined): value is RoleKey {
 
 const selectClassName =
   "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
+
+export const metadata: Metadata = {
+  title: "People",
+};
 
 export default async function PeoplePage({ searchParams }: PeoplePageProps) {
   const supabase = await createSupabaseServerClient();

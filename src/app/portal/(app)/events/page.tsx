@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Eye } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -70,6 +71,10 @@ const COLUMNS: { key: SortColumn; label: string }[] = [
   { key: "status", label: "Status" },
   { key: "visibility", label: "Visibility" },
 ];
+
+export const metadata: Metadata = {
+  title: "Events",
+};
 
 export default async function EventsPage({ searchParams }: EventsPageProps) {
   const supabase = await createSupabaseServerClient();

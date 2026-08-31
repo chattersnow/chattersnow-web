@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Eye } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -33,6 +34,10 @@ import { rolesFor, type PersonRow } from "../people/people-shared";
 
 type SponsorsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export const metadata: Metadata = {
+  title: "Sponsors",
 };
 
 export default async function SponsorsPage({

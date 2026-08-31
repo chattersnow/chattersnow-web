@@ -10,9 +10,9 @@ export const metadata: Metadata = {
 };
 
 const TEAM = [
-  { name: "Sofie Chavez", photoKey: "about_team_photo_sofie" },
   { name: "Cass Lainez", photoKey: "about_team_photo_cass" },
   { name: "Rickie Cruz", photoKey: "about_team_photo_rickie" },
+  { name: "Sofie Chavez", photoKey: "about_team_photo_sofie" },
 ];
 
 export default async function TeamPage() {
