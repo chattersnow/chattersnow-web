@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
+import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createExpenseAction } from "./actions";
 import {
@@ -10,6 +10,8 @@ import {
   type ExpenseFormState,
 } from "./expense-form-fields";
 import type { EventOption } from "./expenses-shared";
+import { PersonPicker, type PickedPerson } from "../../people/person-picker";
+import { listPeopleAction, type PersonListItem } from "../../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +23,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { FieldGroup } from "@/components/ui/field";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 
 export function NewExpenseDialog({
@@ -42,8 +44,17 @@ export function NewExpenseDialog({
   const [form, setForm] = useState<ExpenseFormState>(() =>
     emptyExpenseForm(defaultEventId),
   );
+  const [people, setPeople] = useState<PersonListItem[]>([]);
+  const [selectedPayer, setSelectedPayer] = useState<PickedPerson | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (!open) return;
+    listPeopleAction().then((result) => {
+      if (!("error" in result)) setPeople(result.data);
+    });
+  }, [open]);
 
   function update<K extends keyof ExpenseFormState>(
     key: K,
@@ -52,10 +63,15 @@ export function NewExpenseDialog({
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  function handlePersonCreated(person: PickedPerson) {
+    setPeople((prev) => [...prev, { ...person, is_sponsor: false }]);
+  }
+
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
     if (nextOpen) {
       setForm(emptyExpenseForm(defaultEventId));
+      setSelectedPayer(null);
       setError(null);
     }
   }
@@ -65,7 +81,9 @@ export function NewExpenseDialog({
     setError(null);
 
     startTransition(async () => {
-      const result = await createExpenseAction(packExpenseFormData(form));
+      const result = await createExpenseAction(
+        packExpenseFormData(form, selectedPayer?.id ?? null),
+      );
       if ("error" in result) {
         setError(result.error);
         return;
@@ -91,6 +109,17 @@ export function NewExpenseDialog({
 
         <form onSubmit={handleSubmit}>
           <FieldGroup>
+            <Field>
+              <FieldLabel>Paid by (optional)</FieldLabel>
+              <PersonPicker
+                people={people}
+                selected={selectedPayer}
+                onSelect={setSelectedPayer}
+                onPersonCreated={handlePersonCreated}
+                placeholder="Search if someone personally fronted this..."
+              />
+            </Field>
+
             <ExpenseFormFields
               form={form}
               update={update}

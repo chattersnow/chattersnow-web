@@ -402,6 +402,15 @@ export function EditReimbursementModal({
                 <ReadOnlyField label="Notes" htmlFor="edit-reimbursement-notes">
                   {reimbursement.notes || "—"}
                 </ReadOnlyField>
+                {reimbursement.source_expense && (
+                  <ReadOnlyField
+                    label="Source"
+                    htmlFor="edit-reimbursement-source"
+                  >
+                    Created from expense: &quot;
+                    {reimbursement.source_expense.description}&quot;
+                  </ReadOnlyField>
+                )}
 
                 {reimbursement.status === "approved" &&
                   reimbursement.approved_at && (

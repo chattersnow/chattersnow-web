@@ -30,7 +30,8 @@ mock.module("server-only", () => ({}));
 const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
 const serviceRoleClient = createSupabaseAdminClient();
 
-const { approveReimbursementAction } = await import("./actions");
+const { approveReimbursementAction, createReimbursementFromExpenseAction } =
+  await import("./actions");
 
 afterEach(() => {
   revalidatePathMock.mockClear();
@@ -96,6 +97,53 @@ async function getReimbursement(id: string) {
     .select("status, approved_by")
     .eq("id", id)
     .single();
+  if (error) throw error;
+  return data;
+}
+
+async function createExpense(overrides: {
+  submittedBy: string;
+  amount: number;
+  paidByPersonId?: string | null;
+  description?: string;
+}) {
+  const { data, error } = await serviceRoleClient
+    .from("event_expenses")
+    .insert({
+      description: overrides.description ?? "Integration test expense",
+      expense_date: new Date().toISOString().slice(0, 10),
+      amount: overrides.amount,
+      currency: "USD",
+      created_by: overrides.submittedBy,
+      submitted_by: overrides.submittedBy,
+      status: "submitted",
+      paid_by_person_id: overrides.paidByPersonId ?? null,
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+
+  const id = data.id as string;
+  return {
+    id,
+    async cleanup() {
+      await serviceRoleClient
+        .from("reimbursements")
+        .delete()
+        .eq("source_expense_id", id);
+      await serviceRoleClient.from("event_expenses").delete().eq("id", id);
+    },
+  };
+}
+
+async function getReimbursementBySource(expenseId: string) {
+  const { data, error } = await adminClient
+    .from("reimbursements")
+    .select(
+      "person_id, event_id, amount, description, status, source_expense_id",
+    )
+    .eq("source_expense_id", expenseId)
+    .maybeSingle();
   if (error) throw error;
   return data;
 }
@@ -260,6 +308,97 @@ describe("approveReimbursementAction (integration)", () => {
     });
 
     await reimbursement.cleanup();
+    await person.cleanup();
+  });
+});
+
+describe("createReimbursementFromExpenseAction (integration)", () => {
+  test("an anonymous session cannot create a reimbursement from an expense", async () => {
+    currentSupabase = anonClient();
+    const result = await createReimbursementFromExpenseAction(
+      crypto.randomUUID(),
+    );
+    expect(result).toEqual({
+      error: "You don't have permission to perform this action.",
+    });
+  });
+
+  test("board (no reimbursements access) cannot create a reimbursement from an expense", async () => {
+    currentSupabase = await signIn(SEEDED_USERS.board);
+    const result = await createReimbursementFromExpenseAction(
+      crypto.randomUUID(),
+    );
+    expect(result).toEqual({
+      error: "You don't have permission to perform this action.",
+    });
+  });
+
+  test("finance can create a reimbursement from a personally-fronted expense", async () => {
+    const financeId = await userId(SEEDED_USERS.finance);
+    const person = await createPerson();
+    const expense = await createExpense({
+      submittedBy: financeId,
+      amount: 42.5,
+      paidByPersonId: person.id,
+      description: "Camp stove fuel",
+    });
+    currentSupabase = await signIn(SEEDED_USERS.finance);
+
+    const result = await createReimbursementFromExpenseAction(expense.id);
+    expect(result).toEqual({ success: true });
+    expect(revalidatePathMock).toHaveBeenCalledWith(
+      "/portal/finance/reimbursements",
+    );
+    expect(revalidatePathMock).toHaveBeenCalledWith("/portal/finance/expenses");
+
+    const created = await getReimbursementBySource(expense.id);
+    expect(created).toMatchObject({
+      person_id: person.id,
+      amount: 42.5,
+      description: "Reimbursement for: Camp stove fuel",
+      status: "submitted",
+      source_expense_id: expense.id,
+    });
+
+    await expense.cleanup();
+    await person.cleanup();
+  });
+
+  test("cannot create a reimbursement from an expense with no payer on file", async () => {
+    const financeId = await userId(SEEDED_USERS.finance);
+    const expense = await createExpense({
+      submittedBy: financeId,
+      amount: 20,
+    });
+    currentSupabase = await signIn(SEEDED_USERS.finance);
+
+    const result = await createReimbursementFromExpenseAction(expense.id);
+    expect(result).toEqual({
+      error: "This expense isn't marked as personally paid.",
+    });
+
+    await expense.cleanup();
+  });
+
+  test("cannot create a second reimbursement from the same expense", async () => {
+    const financeId = await userId(SEEDED_USERS.finance);
+    const person = await createPerson();
+    const expense = await createExpense({
+      submittedBy: financeId,
+      amount: 15,
+      paidByPersonId: person.id,
+    });
+    currentSupabase = await signIn(SEEDED_USERS.finance);
+
+    const first = await createReimbursementFromExpenseAction(expense.id);
+    expect(first).toEqual({ success: true });
+
+    const second = await createReimbursementFromExpenseAction(expense.id);
+    expect(second).toEqual({
+      error: "A reimbursement has already been created from this expense.",
+    });
+
+    await expense.cleanup();
     await person.cleanup();
   });
 });

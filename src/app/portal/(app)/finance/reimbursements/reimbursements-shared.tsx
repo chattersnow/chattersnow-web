@@ -47,6 +47,8 @@ export type ReimbursementRow = {
   paid_by: string | null;
   paid_at: string | null;
   created_at: string;
+  source_expense_id: string | null;
+  source_expense: { id: string; description: string } | null;
 };
 
 export type EventOption = { id: string; name: string };
@@ -54,7 +56,7 @@ export type EventOption = { id: string; name: string };
 export const CURRENCIES = [{ value: "USD", label: "USD" }];
 
 export const REIMBURSEMENT_COLUMNS =
-  "id, person_id, event_id, description, amount, currency, receipt_url, notes, people(name, email), events(name), status, submitted_by, approved_by, approved_at, rejected_at, rejection_reason, paid_by, paid_at, created_at";
+  "id, person_id, event_id, description, amount, currency, receipt_url, notes, people(name, email), events(name), status, submitted_by, approved_by, approved_at, rejected_at, rejection_reason, paid_by, paid_at, created_at, source_expense_id, source_expense:event_expenses!source_expense_id(id, description)";
 
 export type ReimbursementApprovalContext = ApprovalContext;
 

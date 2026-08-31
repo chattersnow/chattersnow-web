@@ -159,7 +159,10 @@ export function ExpenseFormFields({
   );
 }
 
-export function packExpenseFormData(form: ExpenseFormState) {
+export function packExpenseFormData(
+  form: ExpenseFormState,
+  paidByPersonId: string | null,
+) {
   const formData = new FormData();
   formData.set("description", form.description);
   formData.set("eventId", form.eventId);
@@ -168,5 +171,6 @@ export function packExpenseFormData(form: ExpenseFormState) {
   formData.set("currency", form.currency);
   formData.set("receiptUrl", form.receiptUrl);
   formData.set("notes", form.notes);
+  formData.set("paidByPersonId", paidByPersonId ?? "");
   return formData;
 }

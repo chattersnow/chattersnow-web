@@ -8,6 +8,7 @@ export type ExpenseFormData = {
   currency: string;
   receipt_url: string | null;
   notes: string | null;
+  paid_by_person_id: string | null;
 };
 
 export function parseExpenseForm(
@@ -20,6 +21,7 @@ export function parseExpenseForm(
   const currency = String(formData.get("currency") ?? "USD").trim() || "USD";
   const receiptUrl = String(formData.get("receiptUrl") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim();
+  const paidByPersonId = String(formData.get("paidByPersonId") ?? "").trim();
 
   if (!description) return { error: "Description is required." };
   if (!expenseDate) return { error: "Expense date is required." };
@@ -38,6 +40,7 @@ export function parseExpenseForm(
       currency,
       receipt_url: receiptUrl || null,
       notes: notes || null,
+      paid_by_person_id: paidByPersonId || null,
     },
   };
 }

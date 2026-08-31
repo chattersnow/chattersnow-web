@@ -7,6 +7,7 @@ import {
   Banknote,
   Check,
   Eye,
+  HandCoins,
   Pencil,
   Trash2,
   X,
@@ -19,6 +20,7 @@ import {
   rejectExpenseAction,
   updateExpenseAction,
 } from "./actions";
+import { createReimbursementFromExpenseAction } from "../reimbursements/actions";
 import { ExpenseStatusBadge } from "./expense-badges";
 import {
   ExpenseFormFields,
@@ -34,6 +36,8 @@ import {
   type ExpenseApprovalContext,
   type ExpenseRow,
 } from "./expenses-shared";
+import { PersonPicker, type PickedPerson } from "../../people/person-picker";
+import { listPeopleAction, type PersonListItem } from "../../people/actions";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -91,11 +95,26 @@ function formStateFor(expense: ExpenseRow): ExpenseFormState {
   };
 }
 
-function isDirty(form: ExpenseFormState, expense: ExpenseRow) {
+function payerFor(expense: ExpenseRow): PickedPerson | null {
+  if (!expense.paid_by_person_id) return null;
+  return {
+    id: expense.paid_by_person_id,
+    name: expense.paid_by_person?.name ?? null,
+    email: expense.paid_by_person?.email ?? null,
+    phone: null,
+  };
+}
+
+function isDirty(
+  form: ExpenseFormState,
+  payer: PickedPerson | null,
+  expense: ExpenseRow,
+) {
   const baseline = formStateFor(expense);
-  return (Object.keys(baseline) as (keyof ExpenseFormState)[]).some(
-    (key) => form[key] !== baseline[key],
-  );
+  const formChanged = (
+    Object.keys(baseline) as (keyof ExpenseFormState)[]
+  ).some((key) => form[key] !== baseline[key]);
+  return formChanged || (payer?.id ?? null) !== expense.paid_by_person_id;
 }
 
 export function EditExpenseModal({
@@ -117,6 +136,10 @@ export function EditExpenseModal({
   const [form, setForm] = useState<ExpenseFormState>(() =>
     formStateFor(expense),
   );
+  const [people, setPeople] = useState<PersonListItem[]>([]);
+  const [selectedPayer, setSelectedPayer] = useState<PickedPerson | null>(() =>
+    payerFor(expense),
+  );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [discardTarget, setDiscardTarget] = useState<"toggle" | "close" | null>(
@@ -125,11 +148,19 @@ export function EditExpenseModal({
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [createReimbursementOpen, setCreateReimbursementOpen] = useState(false);
   const [actorNameById, setActorNameById] = useState<Map<string, string>>(
     new Map(),
   );
   const formId = `edit-expense-form-${expense.id}`;
-  const dirty = isDirty(form, expense);
+  const dirty = isDirty(form, selectedPayer, expense);
+
+  useEffect(() => {
+    if (!open) return;
+    listPeopleAction().then((result) => {
+      if (!("error" in result)) setPeople(result.data);
+    });
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -182,12 +213,27 @@ export function EditExpenseModal({
   const canEdit = expense.status === "submitted";
   const canDelete =
     expense.status === "submitted" || expense.status === "rejected";
+  const hasLinkedReimbursement = expense.source_reimbursements.length > 0;
+  const canCreateReimbursement =
+    !!expense.paid_by_person_id &&
+    !hasLinkedReimbursement &&
+    expense.status !== "rejected";
 
   function update<K extends keyof ExpenseFormState>(
     key: K,
     value: ExpenseFormState[K],
   ) {
     setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function handlePersonCreated(person: PickedPerson) {
+    setPeople((prev) => [...prev, { ...person, is_sponsor: false }]);
+  }
+
+  function resetToBaseline() {
+    setForm(formStateFor(expense));
+    setSelectedPayer(payerFor(expense));
+    setError(null);
   }
 
   function handleOpenChange(nextOpen: boolean) {
@@ -197,8 +243,7 @@ export function EditExpenseModal({
     }
     setOpen(nextOpen);
     if (nextOpen) {
-      setForm(formStateFor(expense));
-      setError(null);
+      resetToBaseline();
       setMode("view");
     }
   }
@@ -212,8 +257,7 @@ export function EditExpenseModal({
   }
 
   function confirmDiscard() {
-    setForm(formStateFor(expense));
-    setError(null);
+    resetToBaseline();
     setMode("view");
     if (discardTarget === "close") {
       setOpen(false);
@@ -228,13 +272,28 @@ export function EditExpenseModal({
     startTransition(async () => {
       const result = await updateExpenseAction(
         expense.id,
-        packExpenseFormData(form),
+        packExpenseFormData(form, selectedPayer?.id ?? null),
       );
       if ("error" in result) {
         setError(result.error);
         return;
       }
       setMode("view");
+      router.refresh();
+      onSaved?.();
+    });
+  }
+
+  function handleCreateReimbursement() {
+    setError(null);
+    startTransition(async () => {
+      const result = await createReimbursementFromExpenseAction(expense.id);
+      if ("error" in result) {
+        setCreateReimbursementOpen(false);
+        setError(result.error);
+        return;
+      }
+      setCreateReimbursementOpen(false);
       router.refresh();
       onSaved?.();
     });
@@ -449,6 +508,24 @@ export function EditExpenseModal({
                 <ReadOnlyField label="Notes" htmlFor="edit-expense-notes">
                   {expense.notes || "—"}
                 </ReadOnlyField>
+                <ReadOnlyField label="Paid by" htmlFor="edit-expense-paid-by">
+                  {expense.paid_by_person
+                    ? (expense.paid_by_person.name ??
+                      expense.paid_by_person.email ??
+                      "—")
+                    : "Chatter Snow (not personally fronted)"}
+                </ReadOnlyField>
+                {hasLinkedReimbursement && (
+                  <ReadOnlyField
+                    label="Reimbursement"
+                    htmlFor="edit-expense-reimbursement"
+                  >
+                    Created —{" "}
+                    <span className="capitalize">
+                      {expense.source_reimbursements[0]?.status}
+                    </span>
+                  </ReadOnlyField>
+                )}
 
                 {expense.status === "approved" && expense.approved_at && (
                   <>
@@ -517,6 +594,17 @@ export function EditExpenseModal({
             >
               <div className="flex-1 overflow-y-auto px-4 pb-4">
                 <FieldGroup>
+                  <Field>
+                    <FieldLabel>Paid by (optional)</FieldLabel>
+                    <PersonPicker
+                      people={people}
+                      selected={selectedPayer}
+                      onSelect={setSelectedPayer}
+                      onPersonCreated={handlePersonCreated}
+                      placeholder="Search if someone personally fronted this..."
+                    />
+                  </Field>
+
                   <ExpenseFormFields
                     form={form}
                     update={update}
@@ -549,52 +637,66 @@ export function EditExpenseModal({
             </SheetFooter>
           )}
 
-          {mode === "view" && (canApprove || canReject || canMarkPaid) && (
-            <SheetFooter className="flex-row justify-end gap-2 border-t bg-muted/50">
-              {canReject && (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={isPending}
-                  onClick={() => setRejectDialogOpen(true)}
-                >
-                  <X /> Reject
-                </Button>
-              )}
-              {canApprove && (
-                <Button
-                  type="button"
-                  disabled={isPending}
-                  onClick={handleApprove}
-                >
-                  <Check />{" "}
-                  {isPending ? (
-                    <>
-                      <Spinner /> Approving...
-                    </>
-                  ) : (
-                    "Approve"
-                  )}
-                </Button>
-              )}
-              {canMarkPaid && (
-                <Button
-                  type="button"
-                  disabled={isPending}
-                  onClick={handleMarkPaid}
-                >
-                  <Banknote />{" "}
-                  {isPending ? (
-                    <>
-                      <Spinner /> Marking paid...
-                    </>
-                  ) : (
-                    "Mark as paid"
-                  )}
-                </Button>
-              )}
-            </SheetFooter>
-          )}
+          {mode === "view" &&
+            (canApprove ||
+              canReject ||
+              canMarkPaid ||
+              canCreateReimbursement) && (
+              <SheetFooter className="flex-row justify-end gap-2 border-t bg-muted/50">
+                {canCreateReimbursement && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={isPending}
+                    onClick={() => setCreateReimbursementOpen(true)}
+                  >
+                    <HandCoins /> Create reimbursement
+                  </Button>
+                )}
+                {canReject && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={isPending}
+                    onClick={() => setRejectDialogOpen(true)}
+                  >
+                    <X /> Reject
+                  </Button>
+                )}
+                {canApprove && (
+                  <Button
+                    type="button"
+                    disabled={isPending}
+                    onClick={handleApprove}
+                  >
+                    <Check />{" "}
+                    {isPending ? (
+                      <>
+                        <Spinner /> Approving...
+                      </>
+                    ) : (
+                      "Approve"
+                    )}
+                  </Button>
+                )}
+                {canMarkPaid && (
+                  <Button
+                    type="button"
+                    disabled={isPending}
+                    onClick={handleMarkPaid}
+                  >
+                    <Banknote />{" "}
+                    {isPending ? (
+                      <>
+                        <Spinner /> Marking paid...
+                      </>
+                    ) : (
+                      "Mark as paid"
+                    )}
+                  </Button>
+                )}
+              </SheetFooter>
+            )}
         </SheetContent>
       </Sheet>
 
@@ -655,6 +757,50 @@ export function EditExpenseModal({
                 </>
               ) : (
                 "Delete expense"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={createReimbursementOpen}
+        onOpenChange={(next) => !next && setCreateReimbursementOpen(next)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Create a reimbursement?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This creates a submitted reimbursement request for{" "}
+              {expense.paid_by_person?.name ??
+                expense.paid_by_person?.email ??
+                "this person"}{" "}
+              for {formatAmount(expense.amount, expense.currency)}, prefilled
+              from this expense. The expense itself stays as-is.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => setCreateReimbursementOpen(false)}
+              disabled={isPending}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCreateReimbursement}
+              disabled={isPending}
+            >
+              {isPending ? (
+                <>
+                  <Spinner /> Creating...
+                </>
+              ) : (
+                "Create reimbursement"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

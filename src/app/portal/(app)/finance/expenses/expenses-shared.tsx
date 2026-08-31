@@ -6,6 +6,7 @@ import {
   isSelfApprovalEligible,
   type ApprovalContext,
 } from "@/lib/finance/approval-workflow";
+import type { ReimbursementStatus } from "../reimbursements/reimbursements-shared";
 
 export { formatAmount, isSelfApprovalEligible };
 
@@ -43,6 +44,9 @@ export type ExpenseRow = {
   rejection_reason: string | null;
   paid_by: string | null;
   paid_at: string | null;
+  paid_by_person_id: string | null;
+  paid_by_person: { name: string | null; email: string | null } | null;
+  source_reimbursements: { id: string; status: ReimbursementStatus }[];
 };
 
 export type EventOption = { id: string; name: string };
@@ -56,7 +60,7 @@ export type ExpenseActor = {
 export const CURRENCIES = [{ value: "USD", label: "USD" }];
 
 export const EXPENSE_COLUMNS =
-  "id, event_id, description, expense_date, amount, currency, receipt_url, notes, events(name), status, submitted_by, approved_by, approved_at, rejected_by, rejected_at, rejection_reason, paid_by, paid_at";
+  "id, event_id, description, expense_date, amount, currency, receipt_url, notes, events(name), status, submitted_by, approved_by, approved_at, rejected_by, rejected_at, rejection_reason, paid_by, paid_at, paid_by_person_id, paid_by_person:people!paid_by_person_id(name, email), source_reimbursements:reimbursements!source_expense_id(id, status)";
 
 export type ExpenseApprovalContext = ApprovalContext;
 
