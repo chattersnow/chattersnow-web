@@ -57,6 +57,7 @@ describe("parseExpenseForm", () => {
         currency: "CAD",
         receiptUrl: "https://example.com/receipt.pdf",
         notes: "Reimbursed",
+        paidByPersonId: "person-1",
       }),
     );
     expect(result).toEqual({
@@ -68,8 +69,20 @@ describe("parseExpenseForm", () => {
         currency: "CAD",
         receipt_url: "https://example.com/receipt.pdf",
         notes: "Reimbursed",
+        paid_by_person_id: "person-1",
       },
     });
+  });
+
+  test("defaults paid_by_person_id to null when not personally fronted", () => {
+    const result = parseExpenseForm(
+      formData({
+        description: "Tents",
+        expenseDate: "2026-01-01",
+        amount: "10",
+      }),
+    );
+    expect("data" in result && result.data.paid_by_person_id).toBeNull();
   });
 });
 
