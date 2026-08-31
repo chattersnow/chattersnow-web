@@ -35,7 +35,31 @@ export type GiveawayPrize = {
   donor: GiveawayPrizeDonor | null;
   estimated_value: number | string | null;
   notes: string | null;
+  source_inventory_item_id: string | null;
+  source_monetary_donation_id: string | null;
+  source_item: { id: string; description: string } | null;
+  source_donation: { id: string; amount: number | string } | null;
   giveaway_winners: GiveawayWinner | null;
+};
+
+export type AvailableGiveawaySourceDonor = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+};
+
+export type AvailableInventoryItemSource = {
+  id: string;
+  description: string;
+  face_value: number | string | null;
+  donor: AvailableGiveawaySourceDonor | null;
+};
+
+export type AvailableMonetaryDonationSource = {
+  id: string;
+  amount: number | string;
+  donor: AvailableGiveawaySourceDonor | null;
 };
 
 export type Giveaway = {
@@ -62,7 +86,7 @@ export async function getEventGiveawayAction(
   const { data, error } = await supabase
     .from("giveaways")
     .select(
-      "id, event_id, name, tickets_sold, ticket_price, revenue_amount, drawing_date, notes, giveaway_prizes(id, giveaway_id, prize_name, donor_person_id, donor:people(id, name, email, phone), estimated_value, notes, giveaway_winners(id, giveaway_prize_id, winner_name, winner_contact, distribution_status, distributed_at, notes))",
+      "id, event_id, name, tickets_sold, ticket_price, revenue_amount, drawing_date, notes, giveaway_prizes(id, giveaway_id, prize_name, donor_person_id, donor:people(id, name, email, phone), estimated_value, notes, source_inventory_item_id, source_monetary_donation_id, giveaway_winners(id, giveaway_prize_id, winner_name, winner_contact, distribution_status, distributed_at, notes))",
     )
     .eq("event_id", eventId)
     .maybeSingle();
@@ -72,7 +96,46 @@ export async function getEventGiveawayAction(
       error: "Could not load the giveaway for this event. Please try again.",
     };
   }
-  return { data: (data as unknown as Giveaway) ?? null };
+
+  const giveaway = (data as unknown as Giveaway) ?? null;
+  if (!giveaway) return { data: null };
+
+  // giveaway_prizes RLS is scoped to events:*, but inventory_items/
+  // monetary_donations are scoped to inventory:*/finance:* -- an
+  // event_coordinator can read the source id columns above but not embed
+  // those tables directly, so a security-definer RPC resolves the display
+  // label for any sourced prize (see 20260830200000).
+  const sourcedPrizeIds = giveaway.giveaway_prizes.filter(
+    (prize) =>
+      prize.source_inventory_item_id || prize.source_monetary_donation_id,
+  );
+  if (sourcedPrizeIds.length > 0) {
+    const { data: sources } = await supabase.rpc("get_giveaway_prize_sources", {
+      p_giveaway_id: giveaway.id,
+    });
+    const sourcesByPrizeId = new Map(
+      (
+        (sources ?? []) as {
+          id: string;
+          source_item: { id: string; description: string } | null;
+          source_donation: { id: string; amount: number | string } | null;
+        }[]
+      ).map((source) => [source.id, source]),
+    );
+    giveaway.giveaway_prizes = giveaway.giveaway_prizes.map((prize) => ({
+      ...prize,
+      source_item: sourcesByPrizeId.get(prize.id)?.source_item ?? null,
+      source_donation: sourcesByPrizeId.get(prize.id)?.source_donation ?? null,
+    }));
+  } else {
+    giveaway.giveaway_prizes = giveaway.giveaway_prizes.map((prize) => ({
+      ...prize,
+      source_item: null,
+      source_donation: null,
+    }));
+  }
+
+  return { data: giveaway };
 }
 
 export async function upsertEventGiveawayAction(
@@ -118,6 +181,8 @@ export async function createGiveawayPrizeAction(
   giveawayId: string,
   donorPersonId: string | null,
   formData: FormData,
+  sourceInventoryItemId: string | null = null,
+  sourceMonetaryDonationId: string | null = null,
 ): Promise<GiveawayActionResult> {
   const supabase = await createSupabaseServerClient();
   const userResult = await checkUser(
@@ -138,6 +203,8 @@ export async function createGiveawayPrizeAction(
     donor_person_id: donorPersonId,
     estimated_value: estimatedValue,
     notes,
+    source_inventory_item_id: sourceInventoryItemId,
+    source_monetary_donation_id: sourceMonetaryDonationId,
   });
 
   if (error) {
@@ -146,6 +213,38 @@ export async function createGiveawayPrizeAction(
 
   revalidatePath("/portal/events");
   return { success: true };
+}
+
+export async function listAvailableGiveawaySourcesAction(
+  eventId: string,
+): Promise<
+  | {
+      data: {
+        inventoryItems: AvailableInventoryItemSource[];
+        monetaryDonations: AvailableMonetaryDonationSource[];
+      };
+    }
+  | { error: string }
+> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
+
+  const { data, error } = await supabase.rpc(
+    "list_available_giveaway_sources",
+    { p_event_id: eventId },
+  );
+
+  if (error) {
+    return { error: "Could not load available donations. Please try again." };
+  }
+
+  const result = data as {
+    inventoryItems: AvailableInventoryItemSource[];
+    monetaryDonations: AvailableMonetaryDonationSource[];
+  };
+
+  return { data: result };
 }
 
 export async function deleteGiveawayPrizeAction(
