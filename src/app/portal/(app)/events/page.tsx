@@ -29,6 +29,7 @@ import { FilterSubmitButton } from "@/components/filter-submit-button";
 import { LinkPendingPulse } from "@/components/link-pending";
 import { SortHeaderLink } from "@/components/portal/sort-header-link";
 import { listProgramsAction } from "../programs/actions";
+import { formatDateTimeInZone } from "@/lib/time";
 
 const SORTABLE_COLUMNS = [
   "name",
@@ -57,10 +58,10 @@ type EventsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
+const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
   dateStyle: "medium",
   timeStyle: "short",
-});
+};
 
 const COLUMNS: { key: SortColumn; label: string }[] = [
   { key: "name", label: "Event" },
@@ -301,7 +302,12 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
                       {event.name}
                     </TableCell>
                     <TableCell>
-                      {dateFormatter.format(new Date(event.starts_at))}
+                      {formatDateTimeInZone(
+                        event.starts_at,
+                        event.timezone,
+                        DATE_FORMAT_OPTIONS,
+                        "en-US",
+                      )}
                     </TableCell>
                     <TableCell
                       className="app-muted max-w-xs truncate"
