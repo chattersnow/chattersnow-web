@@ -95,6 +95,9 @@ mock.module("../../volunteers/roles/actions", () => ({
 }));
 mock.module("../actions", () => ({
   ...EventsActions,
+  getCanReopenEventReportAction: mock(async () => ({
+    data: { canReopen: false },
+  })),
 }));
 
 const { EventDetailView } = await import("./event-detail-view");

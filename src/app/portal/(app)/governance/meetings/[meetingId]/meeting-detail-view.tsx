@@ -10,6 +10,16 @@ import { ActionItemsTab } from "../action-items-tab";
 import { DecisionsTab } from "../decisions-tab";
 import { ResolutionsTab } from "../resolutions-tab";
 import { MeetingDetailsCards } from "./meeting-details-cards";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -57,16 +67,20 @@ function SectionCard({
 function AgendaCard({
   meeting,
   canManage,
+  mode,
+  onModeChange,
+  onDirtyChange,
   onViewActionItems,
   onViewDecisions,
 }: {
   meeting: MeetingRow;
   canManage: boolean;
+  mode: "view" | "edit";
+  onModeChange: (mode: "view" | "edit") => void;
+  onDirtyChange: (dirty: boolean) => void;
   onViewActionItems: () => void;
   onViewDecisions: () => void;
 }) {
-  const [mode, setMode] = useState<"view" | "edit">("view");
-
   return (
     <Card>
       <CardHeader>
@@ -80,7 +94,7 @@ function AgendaCard({
               variant="ghost"
               size="icon-sm"
               aria-label="Edit agenda"
-              onClick={() => setMode("edit")}
+              onClick={() => onModeChange("edit")}
             >
               <Pencil />
             </Button>
@@ -95,7 +109,8 @@ function AgendaCard({
           mode={mode}
           onViewActionItems={onViewActionItems}
           onViewDecisions={onViewDecisions}
-          onExitEdit={() => setMode("view")}
+          onExitEdit={() => onModeChange("view")}
+          onDirtyChange={onDirtyChange}
         />
       </CardContent>
     </Card>
@@ -110,6 +125,9 @@ export function MeetingDetailView({
   canManage: boolean;
 }) {
   const [tab, setTab] = useState<TabValue>("overview");
+  const [agendaMode, setAgendaMode] = useState<"view" | "edit">("view");
+  const [agendaDirty, setAgendaDirty] = useState(false);
+  const [pendingTab, setPendingTab] = useState<TabValue | null>(null);
   const pendingScrollRef = useRef<string | null>(null);
 
   // Cross-tab links (agenda -> action items/decisions) scroll after the
@@ -125,6 +143,29 @@ export function MeetingDetailView({
   function goToOverviewSection(id: string) {
     pendingScrollRef.current = id;
     setTab("overview");
+  }
+
+  // Base UI's Tabs unmounts an inactive TabsContent's subtree by default, so
+  // switching away from Agenda while its form is mid-edit would otherwise
+  // silently discard whatever the user typed. Gate the switch on a confirm
+  // dialog when that's the case, mirroring the "Discard changes?" pattern
+  // used for the bylaws editor (edit-bylaws-modal.tsx).
+  function handleTabChange(value: string) {
+    const next = value as TabValue;
+    if (tab === "agenda" && agendaMode === "edit" && agendaDirty) {
+      setPendingTab(next);
+      return;
+    }
+    setTab(next);
+  }
+
+  function confirmDiscardAgenda() {
+    setAgendaMode("view");
+    setAgendaDirty(false);
+    if (pendingTab) {
+      setTab(pendingTab);
+      setPendingTab(null);
+    }
   }
 
   const listMode = canManage ? "edit" : "view";
@@ -144,11 +185,7 @@ export function MeetingDetailView({
         </div>
       </div>
 
-      <Tabs
-        value={tab}
-        onValueChange={(value) => setTab(value as TabValue)}
-        className="mt-6"
-      >
+      <Tabs value={tab} onValueChange={handleTabChange} className="mt-6">
         <div className="rainbow-surface flex flex-wrap items-center gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
           <TabsList variant="line" className="flex-wrap">
             <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -187,6 +224,9 @@ export function MeetingDetailView({
           <AgendaCard
             meeting={meeting}
             canManage={canManage}
+            mode={agendaMode}
+            onModeChange={setAgendaMode}
+            onDirtyChange={setAgendaDirty}
             onViewActionItems={() =>
               goToOverviewSection("action-items-section")
             }
@@ -194,6 +234,29 @@ export function MeetingDetailView({
           />
         </TabsContent>
       </Tabs>
+
+      <AlertDialog
+        open={pendingTab !== null}
+        onOpenChange={(next) => !next && setPendingTab(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes to this agenda. Leaving now will discard
+              them.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingTab(null)}>
+              Keep editing
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDiscardAgenda}>
+              Discard changes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
