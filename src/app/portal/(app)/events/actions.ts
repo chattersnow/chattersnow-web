@@ -202,27 +202,6 @@ export async function updateEventPlanningAction(
   return { success: true };
 }
 
-export type EventLead = {
-  user_id: string;
-  email: string | null;
-  full_name: string | null;
-};
-
-export async function listEventLeadsAction(): Promise<
-  { data: EventLead[] } | { error: string }
-> {
-  const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "events", "manage");
-  if (permissionError) return permissionError;
-
-  const { data, error } = await supabase.rpc("list_event_leads");
-
-  if (error) {
-    return { error: "Could not load event leads. Please try again." };
-  }
-  return { data: (data ?? []) as EventLead[] };
-}
-
 export async function updateEventReportAction(
   id: string,
   formData: FormData,

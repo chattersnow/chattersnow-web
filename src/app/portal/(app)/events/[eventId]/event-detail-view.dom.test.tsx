@@ -95,7 +95,6 @@ mock.module("../../volunteers/roles/actions", () => ({
 }));
 mock.module("../actions", () => ({
   ...EventsActions,
-  listEventLeadsAction: mock(async () => ({ data: [] })),
 }));
 
 const { EventDetailView } = await import("./event-detail-view");
@@ -121,6 +120,7 @@ function makeEvent(overrides: Partial<EventRow> = {}): EventRow {
     auto_assign_discount_codes: false,
     budget_amount: null,
     event_lead_id: null,
+    event_lead: null,
     report_status: "not_started",
     report_summary: null,
     lessons_learned: null,

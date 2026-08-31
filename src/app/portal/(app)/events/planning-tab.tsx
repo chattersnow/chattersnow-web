@@ -9,24 +9,15 @@ import {
   useTransition,
 } from "react";
 import { useRouter } from "next/navigation";
-import {
-  listEventLeadsAction,
-  updateEventPlanningAction,
-  type EventLead,
-} from "./actions";
+import { updateEventPlanningAction } from "./actions";
 import type { EventRow } from "./event-badges";
+import { PersonPicker, type PickedPerson } from "../people/person-picker";
+import { listPeopleAction, type PersonListItem } from "../people/actions";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useTabData } from "@/hooks/use-tab-data";
 import { datetimeLocalToUtcIso, utcIsoToDatetimeLocalInZone } from "@/lib/time";
 
@@ -57,7 +48,7 @@ function formatCurrency(value: number | string | null) {
 
 function formStateFor(event: EventRow) {
   return {
-    eventLeadId: event.event_lead_id ?? "",
+    eventLead: event.event_lead,
     capacity: event.capacity === null ? "" : String(event.capacity),
     registrationEnabled: event.registration_enabled,
     registrationDeadline: toDatetimeLocalValue(
@@ -74,9 +65,12 @@ type FormState = ReturnType<typeof formStateFor>;
 
 function isDirty(form: FormState, event: EventRow) {
   const baseline = formStateFor(event);
-  return (Object.keys(baseline) as (keyof FormState)[]).some(
-    (key) => form[key] !== baseline[key],
-  );
+  return (Object.keys(baseline) as (keyof FormState)[]).some((key) => {
+    if (key === "eventLead") {
+      return (form.eventLead?.id ?? null) !== (baseline.eventLead?.id ?? null);
+    }
+    return form[key] !== baseline[key];
+  });
 }
 
 export type PlanningTabHandle = {
@@ -102,13 +96,18 @@ export function PlanningTab({
 }) {
   const router = useRouter();
   const [form, setForm] = useState(() => formStateFor(event));
-  const { data: leadsData } = useTabData<EventLead[]>(
-    () => listEventLeadsAction(),
+  const { data: peopleData } = useTabData<PersonListItem[]>(
+    () => listPeopleAction(),
     true,
   );
-  const leads = leadsData ?? [];
+  const [newPeople, setNewPeople] = useState<PersonListItem[]>([]);
+  const people = [...(peopleData ?? []), ...newPeople];
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  function handlePersonCreated(person: PickedPerson) {
+    setNewPeople((prev) => [...prev, { ...person, is_sponsor: false }]);
+  }
 
   useEffect(() => {
     onPendingChange?.(isPending);
@@ -134,7 +133,7 @@ export function PlanningTab({
     setError(null);
 
     const formData = new FormData();
-    formData.set("eventLeadId", form.eventLeadId);
+    formData.set("eventLeadId", form.eventLead?.id ?? "");
     formData.set("capacity", form.capacity);
     formData.set(
       "registrationEnabled",
@@ -164,17 +163,13 @@ export function PlanningTab({
     });
   }
 
-  const selectedLead = leads.find((lead) => lead.user_id === form.eventLeadId);
-  const leadLabel = selectedLead
-    ? (selectedLead.full_name ?? selectedLead.email)
-    : undefined;
   const locked = event.report_status === "submitted";
 
   if (mode === "view" || locked) {
     return (
       <FieldGroup>
         <ReadOnlyField label="Event lead" htmlFor="planning-eventLeadId">
-          {leadLabel ?? "—"}
+          {form.eventLead?.name ?? form.eventLead?.email ?? "—"}
         </ReadOnlyField>
         <Field orientation="responsive">
           <ReadOnlyField label="Capacity" htmlFor="planning-capacity">
@@ -213,23 +208,12 @@ export function PlanningTab({
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="planning-eventLeadId">Event lead</FieldLabel>
-          <Select
-            value={form.eventLeadId || undefined}
-            onValueChange={(value) => update("eventLeadId", value ?? "")}
-          >
-            <SelectTrigger id="planning-eventLeadId" className="w-full">
-              <SelectValue placeholder="Select an event lead">
-                {() => leadLabel ?? "Select an event lead"}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {leads.map((lead) => (
-                <SelectItem key={lead.user_id} value={lead.user_id}>
-                  {lead.full_name ?? lead.email}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <PersonPicker
+            people={people}
+            selected={form.eventLead}
+            onSelect={(person) => update("eventLead", person)}
+            onPersonCreated={handlePersonCreated}
+          />
         </Field>
 
         <Field orientation="responsive">

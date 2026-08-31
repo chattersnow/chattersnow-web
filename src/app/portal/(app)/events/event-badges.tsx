@@ -1,6 +1,13 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
+export type EventLeadPerson = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+};
+
 export type EventRow = {
   id: string;
   name: string;
@@ -21,6 +28,7 @@ export type EventRow = {
   auto_assign_discount_codes: boolean;
   budget_amount: number | string | null;
   event_lead_id: string | null;
+  event_lead: EventLeadPerson | null;
   report_status: string;
   report_summary: string | null;
   lessons_learned: string | null;
