@@ -10,6 +10,7 @@ import { afterEach, describe, expect, mock, test } from "bun:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   SEEDED_USERS,
+  adminClient,
   anonClient,
   createPerson,
   createPublishedEvent,
@@ -35,11 +36,21 @@ afterEach(() => {
   revalidatePathMock.mockClear();
 });
 
-function sponsorForm(overrides: { notes?: string } = {}) {
+function sponsorForm(
+  overrides: {
+    notes?: string;
+    supportType?: string;
+    inKindDescription?: string;
+    contributionValue?: string;
+  } = {},
+) {
   const fd = new FormData();
-  fd.set("supportType", "in_kind");
-  fd.set("inKindDescription", "Donated 20 pairs of gloves");
-  fd.set("contributionValue", "250");
+  fd.set("supportType", overrides.supportType ?? "in_kind");
+  fd.set(
+    "inKindDescription",
+    overrides.inKindDescription ?? "Donated 20 pairs of gloves",
+  );
+  fd.set("contributionValue", overrides.contributionValue ?? "250");
   fd.set("isPublic", "on");
   fd.set("notes", overrides.notes ?? "Confirmed by phone");
   fd.set("followUpStatus", "in_progress");
@@ -173,6 +184,157 @@ describe("event sponsor actions (integration)", () => {
       await createEventSponsorAction(event.id, person.id, sponsorForm()),
     ).toEqual(DENIED);
 
+    await event.cleanup();
+    await person.cleanup();
+  });
+});
+
+// Issue #520: a sponsor contribution must mirror into the same
+// donations/monetary_donations tables Finance > Donations, Inventory >
+// Donations, and the event's own Donations tab read from -- otherwise it's
+// invisible everywhere but the Sponsors tab. These exercise the
+// create_event_sponsor/update_event_sponsor/delete_event_sponsor RPCs
+// (20260830180000) that keep the mirror in sync.
+describe("event sponsor contributions sync into donations/monetary_donations (integration)", () => {
+  test("a cash sponsor mirrors into monetary_donations, syncs on update, and is removed on delete", async () => {
+    const event = await createPublishedEvent();
+    const person = await createPerson();
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+    const created = await createEventSponsorAction(
+      event.id,
+      person.id,
+      sponsorForm({ supportType: "cash", contributionValue: "500" }),
+    );
+    expect(created).toEqual({ success: true });
+
+    const listed = await listEventSponsorsAction(event.id);
+    if (!("data" in listed)) throw new Error("expected data");
+    const sponsor = listed.data[0];
+    expect(sponsor.monetary_donation_id).not.toBeNull();
+    expect(sponsor.donation_id).toBeNull();
+
+    const { data: monetaryRow } = await adminClient
+      .from("monetary_donations")
+      .select("amount, donor_id, event_id")
+      .eq("id", sponsor.monetary_donation_id!)
+      .single();
+    expect(Number(monetaryRow!.amount)).toBe(500);
+    expect(monetaryRow!.donor_id).toBe(person.id);
+    expect(monetaryRow!.event_id).toBe(event.id);
+
+    await updateEventSponsorAction(
+      sponsor.id,
+      sponsorForm({ supportType: "cash", contributionValue: "750" }),
+    );
+    const { data: updatedRow } = await adminClient
+      .from("monetary_donations")
+      .select("amount")
+      .eq("id", sponsor.monetary_donation_id!)
+      .single();
+    expect(Number(updatedRow!.amount)).toBe(750);
+
+    await deleteEventSponsorAction(sponsor.id);
+    const { data: afterDelete } = await adminClient
+      .from("monetary_donations")
+      .select("id")
+      .eq("id", sponsor.monetary_donation_id!)
+      .maybeSingle();
+    expect(afterDelete).toBeNull();
+
+    await event.cleanup();
+    await person.cleanup();
+  });
+
+  test("an in-kind sponsor mirrors into donations + inventory_items, syncs on update, and is removed on delete", async () => {
+    const event = await createPublishedEvent();
+    const person = await createPerson();
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+    const created = await createEventSponsorAction(
+      event.id,
+      person.id,
+      sponsorForm({
+        supportType: "in_kind",
+        inKindDescription: "20 pairs of gloves",
+        contributionValue: "300",
+      }),
+    );
+    expect(created).toEqual({ success: true });
+
+    const listed = await listEventSponsorsAction(event.id);
+    if (!("data" in listed)) throw new Error("expected data");
+    const sponsor = listed.data[0];
+    expect(sponsor.donation_id).not.toBeNull();
+    expect(sponsor.inventory_item_id).not.toBeNull();
+    expect(sponsor.monetary_donation_id).toBeNull();
+
+    const { data: donationRow } = await adminClient
+      .from("donations")
+      .select("donor_id, event_id")
+      .eq("id", sponsor.donation_id!)
+      .single();
+    expect(donationRow!.donor_id).toBe(person.id);
+    expect(donationRow!.event_id).toBe(event.id);
+
+    const { data: itemRow } = await adminClient
+      .from("inventory_items")
+      .select("description, face_value")
+      .eq("id", sponsor.inventory_item_id!)
+      .single();
+    expect(itemRow!.description).toBe("20 pairs of gloves");
+    expect(Number(itemRow!.face_value)).toBe(300);
+
+    await updateEventSponsorAction(
+      sponsor.id,
+      sponsorForm({
+        supportType: "in_kind",
+        inKindDescription: "25 pairs of gloves",
+        contributionValue: "350",
+      }),
+    );
+    const { data: updatedItem } = await adminClient
+      .from("inventory_items")
+      .select("description, face_value")
+      .eq("id", sponsor.inventory_item_id!)
+      .single();
+    expect(updatedItem!.description).toBe("25 pairs of gloves");
+    expect(Number(updatedItem!.face_value)).toBe(350);
+
+    await deleteEventSponsorAction(sponsor.id);
+    const { data: afterDeleteDonation } = await adminClient
+      .from("donations")
+      .select("id")
+      .eq("id", sponsor.donation_id!)
+      .maybeSingle();
+    expect(afterDeleteDonation).toBeNull();
+    const { data: afterDeleteItem } = await adminClient
+      .from("inventory_items")
+      .select("id")
+      .eq("id", sponsor.inventory_item_id!)
+      .maybeSingle();
+    expect(afterDeleteItem).toBeNull();
+
+    await event.cleanup();
+    await person.cleanup();
+  });
+
+  test("'both' and 'other' support types do not mirror into either table", async () => {
+    const event = await createPublishedEvent();
+    const person = await createPerson();
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+    await createEventSponsorAction(
+      event.id,
+      person.id,
+      sponsorForm({ supportType: "both", contributionValue: "400" }),
+    );
+    const listed = await listEventSponsorsAction(event.id);
+    if (!("data" in listed)) throw new Error("expected data");
+    expect(listed.data[0].donation_id).toBeNull();
+    expect(listed.data[0].monetary_donation_id).toBeNull();
+
+    await deleteEventSponsorAction(listed.data[0].id);
     await event.cleanup();
     await person.cleanup();
   });

@@ -1,26 +1,49 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
-import { createGiveawayPrizeAction, type Giveaway } from "../giveaway-actions";
+import { FormEvent, useEffect, useState, useTransition } from "react";
+import {
+  createGiveawayPrizeAction,
+  listAvailableGiveawaySourcesAction,
+  type AvailableInventoryItemSource,
+  type AvailableMonetaryDonationSource,
+  type Giveaway,
+} from "../giveaway-actions";
 import { PersonPicker, type PickedPerson } from "../../people/person-picker";
 import { type PersonListItem } from "../../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { formatMoney } from "./format";
 import { PrizeWinnerSection } from "./winners";
 import { Spinner } from "@/components/ui/spinner";
 
+const NO_SOURCE = "none";
+
+function sourceKeyFor(kind: "item" | "donation", id: string) {
+  return `${kind}:${id}`;
+}
+
 export function AddPrizeForm({
   giveawayId,
+  eventId,
   people,
   onPersonCreated,
   onSaved,
   onCancel,
 }: {
   giveawayId: string;
+  eventId: string;
   people: PersonListItem[];
   onPersonCreated: (person: PickedPerson) => void;
   onSaved: () => void;
@@ -33,6 +56,46 @@ export function AddPrizeForm({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  const [sources, setSources] = useState<{
+    inventoryItems: AvailableInventoryItemSource[];
+    monetaryDonations: AvailableMonetaryDonationSource[];
+  } | null>(null);
+  const [selectedSourceKey, setSelectedSourceKey] = useState(NO_SOURCE);
+
+  useEffect(() => {
+    let cancelled = false;
+    listAvailableGiveawaySourcesAction(eventId).then((result) => {
+      if (cancelled) return;
+      if ("data" in result) setSources(result.data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [eventId]);
+
+  function handleSourceChange(key: string | null) {
+    if (!key) return;
+    setSelectedSourceKey(key);
+    if (key === NO_SOURCE) return;
+
+    const [kind, id] = key.split(":");
+    if (kind === "item") {
+      const item = sources?.inventoryItems.find((i) => i.id === id);
+      if (!item) return;
+      setPrizeName(item.description);
+      setEstimatedValue(
+        item.face_value === null ? "" : String(item.face_value),
+      );
+      if (item.donor) setSelectedDonor(item.donor);
+    } else if (kind === "donation") {
+      const donation = sources?.monetaryDonations.find((d) => d.id === id);
+      if (!donation) return;
+      setPrizeName("Cash contribution");
+      setEstimatedValue(String(donation.amount));
+      if (donation.donor) setSelectedDonor(donation.donor);
+    }
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -42,11 +105,18 @@ export function AddPrizeForm({
     formData.set("estimatedValue", estimatedValue);
     formData.set("notes", notes);
 
+    const [kind, id] =
+      selectedSourceKey === NO_SOURCE
+        ? [null, null]
+        : selectedSourceKey.split(":");
+
     startTransition(async () => {
       const result = await createGiveawayPrizeAction(
         giveawayId,
         selectedDonor?.id ?? null,
         formData,
+        kind === "item" ? id : null,
+        kind === "donation" ? id : null,
       );
       if ("error" in result) {
         setError(result.error);
@@ -56,12 +126,65 @@ export function AddPrizeForm({
     });
   }
 
+  const hasSources =
+    (sources?.inventoryItems.length ?? 0) > 0 ||
+    (sources?.monetaryDonations.length ?? 0) > 0;
+
   return (
     <form
       onSubmit={handleSubmit}
       className="rounded-md border border-[var(--line)] p-4"
     >
       <FieldGroup>
+        {hasSources && (
+          <Field>
+            <FieldLabel>Link to an existing donation (optional)</FieldLabel>
+            <Select
+              value={selectedSourceKey}
+              onValueChange={handleSourceChange}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Enter prize details manually" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_SOURCE}>
+                  Enter prize details manually
+                </SelectItem>
+                {(sources?.inventoryItems.length ?? 0) > 0 && (
+                  <SelectGroup>
+                    <SelectLabel>In-kind donations</SelectLabel>
+                    {sources!.inventoryItems.map((item) => (
+                      <SelectItem
+                        key={item.id}
+                        value={sourceKeyFor("item", item.id)}
+                      >
+                        {item.description}
+                        {item.donor?.name ? ` — ${item.donor.name}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                )}
+                {(sources?.monetaryDonations.length ?? 0) > 0 && (
+                  <SelectGroup>
+                    <SelectLabel>Cash donations</SelectLabel>
+                    {sources!.monetaryDonations.map((donation) => (
+                      <SelectItem
+                        key={donation.id}
+                        value={sourceKeyFor("donation", donation.id)}
+                      >
+                        {formatMoney(donation.amount)}
+                        {donation.donor?.name
+                          ? ` — ${donation.donor.name}`
+                          : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                )}
+              </SelectContent>
+            </Select>
+          </Field>
+        )}
+
         <Field>
           <FieldLabel htmlFor="prize-name">Prize name</FieldLabel>
           <Input
@@ -176,6 +299,13 @@ export function PrizesSection({
                 {prize.donor?.name ? `Donated by ${prize.donor.name} · ` : ""}
                 {formatMoney(prize.estimated_value)}
               </p>
+              {(prize.source_item || prize.source_donation) && (
+                <p className="app-muted text-xs">
+                  Sourced from:{" "}
+                  {prize.source_item?.description ??
+                    formatMoney(prize.source_donation?.amount ?? null)}
+                </p>
+              )}
             </div>
             {canEdit && (
               <Button
@@ -204,6 +334,7 @@ export function PrizesSection({
         (showAddPrize ? (
           <AddPrizeForm
             giveawayId={giveaway.id}
+            eventId={giveaway.event_id}
             people={people}
             onPersonCreated={onPersonCreated}
             onSaved={onPrizeAdded}
