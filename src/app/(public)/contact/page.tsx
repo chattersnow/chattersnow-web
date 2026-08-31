@@ -44,14 +44,6 @@ export default async function ContactPage() {
             <div className="app-muted mt-3 space-y-1 text-sm leading-relaxed sm:text-base">
               <p>
                 <a
-                  href="mailto:chattersnow@gmail.com"
-                  className="hover:text-foreground underline underline-offset-4"
-                >
-                  chattersnow@gmail.com
-                </a>
-              </p>
-              <p>
-                <a
                   href="mailto:info@chattersnow.org"
                   className="hover:text-foreground underline underline-offset-4"
                 >

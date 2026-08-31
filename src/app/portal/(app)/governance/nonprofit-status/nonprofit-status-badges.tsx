@@ -138,7 +138,7 @@ export function MilestoneDueFlag({
   return (
     <span
       title="This milestone is due soon"
-      className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700"
+      className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning"
     >
       <Clock className="size-3" />
       {days === 0 ? "Due today" : `Due in ${days} day${days === 1 ? "" : "s"}`}

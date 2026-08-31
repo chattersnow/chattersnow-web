@@ -48,7 +48,7 @@ export const MOUNTAIN_BASICS_ARTICLES: MountainBasicsArticle[] = [
       },
     ],
     disclaimer:
-      "Trail ratings are set by each resort and are relative to that mountain only — they aren't a standardized measure, and they don't account for current conditions. Check the mountain's own map legend and ask ski patrol or an instructor if you're unsure whether a run suits your ability.",
+      "Ratings are set resort by resort and only make sense relative to that mountain — they're not standardized, and they say nothing about the day's actual conditions. When in doubt, the map legend and ski patrol know more than a general guide does.",
   },
   {
     id: "trail-map",
@@ -95,7 +95,7 @@ export const MOUNTAIN_BASICS_ARTICLES: MountainBasicsArticle[] = [
       },
     ],
     disclaimer:
-      "This is a general guide to how trail maps are usually laid out. Every resort draws its own map with its own conventions and keeps its own hours and lift schedules — check the mountain's current map, app, and posted information for anything you're relying on.",
+      "This covers how trail maps tend to be laid out, not any one resort's actual map. Every mountain draws its own, on its own schedule, so lean on the current map, app, and posted info for anything you're actually relying on.",
   },
   {
     id: "lift-types",
@@ -143,7 +143,7 @@ export const MOUNTAIN_BASICS_ARTICLES: MountainBasicsArticle[] = [
       },
     ],
     disclaimer:
-      "This is an overview of common lift types, not instruction on riding any specific lift. Loading and unloading technique is best learned in person from an instructor, an experienced friend, or the lift operator at that lift — and posted instructions at the lift always take precedence.",
+      "This covers the common lift types, not how to actually ride one. For loading and unloading technique, an instructor, an experienced friend, or the lift operator will teach you better than a page can — and whatever's posted at the lift wins regardless.",
   },
   {
     id: "terrain-types",
@@ -195,7 +195,7 @@ export const MOUNTAIN_BASICS_ARTICLES: MountainBasicsArticle[] = [
       },
     ],
     disclaimer:
-      "This is a general description of terrain types, not instruction or a safety assessment for any specific slope or day. Backcountry and out-of-bounds travel in particular requires avalanche education, proper equipment, and experienced partners — seek out a recognized avalanche course and qualified instruction rather than treating this as preparation.",
+      "This describes terrain types in general, not any specific slope on any specific day. Backcountry and out-of-bounds travel especially needs real avalanche education, proper gear, and experienced partners — a recognized avalanche course is the actual preparation, not this page.",
   },
   {
     id: "signage-and-closures",
@@ -242,6 +242,6 @@ export const MOUNTAIN_BASICS_ARTICLES: MountainBasicsArticle[] = [
       },
     ],
     disclaimer:
-      "Signage conventions vary between resorts, regions, and countries, and this is a general overview rather than any mountain's official rules. Posted signage, ropes, and ski patrol instructions at the mountain you're on always take precedence over anything described here.",
+      "Signage conventions shift between resorts, regions, and countries, so treat this as background, not any mountain's official rulebook. Whatever's posted, roped off, or said by ski patrol at your actual mountain always wins over anything written here.",
   },
 ];

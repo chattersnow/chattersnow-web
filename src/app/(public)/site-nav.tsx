@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MenuIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -175,9 +176,13 @@ export function SiteNav() {
         </NavigationMenu>
       </nav>
 
+      <ThemeToggle />
+
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetTrigger
-          render={<Button variant="ghost" size="icon" className="sm:hidden" />}
+          render={
+            <Button variant="ghost" size="icon" className="size-11 sm:hidden" />
+          }
         >
           <MenuIcon />
           <span className="sr-only">Open menu</span>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Quicksand, Rock_Salt } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import { THEME_INIT_SCRIPT, ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
 const quicksand = Quicksand({
@@ -24,11 +25,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${quicksand.variable} ${rockSalt.variable} h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col">
-        {children}
-        <Analytics />
+        <ThemeProvider>
+          {children}
+          <Analytics />
+        </ThemeProvider>
       </body>
     </html>
   );

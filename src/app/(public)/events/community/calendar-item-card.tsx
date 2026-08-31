@@ -54,11 +54,11 @@ export function CalendarItemCard({ item }: { item: PublicCalendarItem }) {
             href={item.public_url}
             target="_blank"
             rel="noopener noreferrer"
+            aria-label={`Learn more about ${item.title} (opens in new tab)`}
             className="inline-flex items-center gap-1 text-xs font-medium text-[var(--purple-deep)] hover:underline"
           >
             Learn more
             <ExternalLink className="size-3" />
-            <span className="sr-only"> (opens in new tab)</span>
           </a>
         )}
       </CardContent>

@@ -50,7 +50,7 @@ export const GETTING_STARTED_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "Every resort runs its base area a little differently — this is a general picture, not any specific mountain's process. Check that resort's own website or guest services for how their day actually works.",
+      "Every mountain runs its base area a little differently, so treat this as the general shape of a first day, not your specific resort's playbook — their own site or guest services has the real details.",
   },
   {
     id: "what-to-pack",
@@ -110,7 +110,7 @@ export const GETTING_STARTED_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "This is a general packing overview, not a recommendation for specific products or brands. Any prices mentioned are rough estimates that vary by region and season — confirm with the resort or shop. What works for conditions on a given day is best confirmed with the forecast and the people fitting your gear.",
+      "Consider this a packing checklist, not a shopping list for particular brands. Any prices here are ballpark — check current numbers with the resort or shop — and for what actually suits the day's conditions, the forecast and whoever's fitting your gear will know better than an article.",
   },
   {
     id: "skiing-101",
@@ -161,7 +161,7 @@ export const GETTING_STARTED_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "This is an overview of what skiing involves, not instruction and not a lesson plan. Technique belongs with a certified instructor, and anything to do with binding release settings belongs with a certified shop technician — never set or adjusted from an article.",
+      "Think of this as the lay of the land, not a lesson. Actual technique is something a certified instructor should walk you through in person — and binding release settings always belong with a shop tech, never a website.",
   },
   {
     id: "snowboarding-101",
@@ -212,7 +212,7 @@ export const GETTING_STARTED_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "This is an overview of what snowboarding involves, not instruction and not a lesson plan. Technique, equipment setup, and what protective gear makes sense for you are all questions for a certified instructor or a shop, not an article.",
+      "Consider this the map, not the lesson. For actual technique, equipment setup, or what protective gear makes sense for you, that's a certified instructor or a shop talking — not a webpage.",
   },
   {
     id: "lesson-vs-going-it-alone",
@@ -263,6 +263,6 @@ export const GETTING_STARTED_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "This lays out factors to weigh, not a recommendation about how you should learn. Lesson formats, age minimums, and prices vary by resort and season — any figures are rough estimates, and the resort is the source of truth for what it currently offers.",
+      "These are the trade-offs to weigh, not a verdict on how you should learn. Lesson formats, age minimums, and pricing all shift by resort and season, so treat any numbers here as ballpark and let the resort confirm what's actually on offer.",
   },
 ];

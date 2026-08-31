@@ -44,6 +44,8 @@
   --accent: var(--purple-soft);
   --accent-foreground: var(--purple-deep);
   --destructive: #cc2936;
+  --warning: #b45309;
+  --warning-foreground: #ffffff;
   --border: var(--line);
   --input: var(--line);
   --ring: var(--purple);
@@ -88,6 +90,11 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-brand-purple: var(--purple);
+  --color-brand-purple-deep: var(--purple-deep);
+  --color-brand-purple-soft: var(--purple-soft);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);

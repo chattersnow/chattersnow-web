@@ -50,7 +50,7 @@ export const ETIQUETTE_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "These are general, widely shared norms rather than any specific mountain's official rules — posted signage, a resort's own website, and ski patrol are the authority on how a particular place expects people to ride.",
+      "These are widely shared norms, not any one mountain's official rulebook — posted signage, the resort's own site, and ski patrol are the actual authority on how a place expects people to ride.",
   },
   {
     id: "lift-lines",
@@ -101,7 +101,7 @@ export const ETIQUETTE_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "Lift procedures and rules vary by resort and by lift — follow the posted instructions and the lift attendants at the mountain you're at, not a general description like this one.",
+      "Lift procedures shift by resort and by lift, so follow the posted instructions and the attendants at your actual mountain — not a general description like this one.",
   },
   {
     id: "right-of-way",
@@ -152,7 +152,7 @@ export const ETIQUETTE_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "This is general orientation to how riders share terrain, not safety instruction or medical guidance. For anything involving an injury, ski patrol or a medical professional is the right call — and each resort's posted rules take precedence over any general description.",
+      "This is orientation to how riders share terrain, not safety training or medical guidance. If an injury's involved, that's ski patrol or a medical professional — and whatever your resort has posted always beats a general description like this.",
   },
   {
     id: "responsibility-code",
@@ -199,6 +199,6 @@ export const ETIQUETTE_ARTICLES: LearnArticle[] = [
       },
     ],
     disclaimer:
-      "This is a summary for orientation, not the code itself and not legal guidance — read the published code directly, and check the uphill and access policies of the specific resort you're visiting, since those differ from mountain to mountain.",
+      "This is a summary, not the code itself and not legal advice — read the published code directly, and check the uphill and access policy at whichever resort you're actually visiting, since those differ mountain to mountain.",
   },
 ];
