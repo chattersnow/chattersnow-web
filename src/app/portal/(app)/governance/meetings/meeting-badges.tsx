@@ -17,6 +17,7 @@ export type MeetingRow = {
   notes: string | null;
   facilitator: MeetingPerson | null;
   notetaker: MeetingPerson | null;
+  minutes_approved_at: string | null;
 };
 
 const TYPE_STYLES: Record<string, string> = {

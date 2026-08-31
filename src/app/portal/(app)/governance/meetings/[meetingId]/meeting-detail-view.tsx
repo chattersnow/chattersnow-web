@@ -107,6 +107,8 @@ function AgendaCard({
           meetingDate={meeting.meeting_date}
           active
           mode={mode}
+          canManage={canManage}
+          minutesApprovedAt={meeting.minutes_approved_at}
           onViewActionItems={onViewActionItems}
           onViewDecisions={onViewDecisions}
           onExitEdit={() => onModeChange("view")}

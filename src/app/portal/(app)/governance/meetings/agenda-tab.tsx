@@ -26,6 +26,11 @@ import {
   type ActionItem,
 } from "./action-items-actions";
 import { listDecisionsAction, type Decision } from "./decisions-actions";
+import {
+  getPreviousMeetingMinutesAction,
+  type PreviousMeetingMinutes,
+} from "./minutes-approval-actions";
+import { MinutesApprovalDialog } from "./minutes-approval-dialog";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -52,10 +57,12 @@ import { useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
 import { AgendaExportDialog } from "./agenda-export-dialog";
 
+const APPROVE_MINUTES_ITEM = "Approve previous meeting minutes";
+
 const OPENING_CHECKLIST = [
   "Welcome and call to order",
   "Confirm quorum",
-  "Approve previous meeting minutes",
+  APPROVE_MINUTES_ITEM,
   "Review agenda",
 ];
 
@@ -415,6 +422,8 @@ export function AgendaTab({
   meetingDate,
   active,
   mode,
+  canManage,
+  minutesApprovedAt,
   onViewActionItems,
   onViewDecisions,
   onExitEdit,
@@ -424,11 +433,14 @@ export function AgendaTab({
   meetingDate: string;
   active: boolean;
   mode: "view" | "edit";
+  canManage: boolean;
+  minutesApprovedAt: string | null;
   onViewActionItems: () => void;
   onViewDecisions: () => void;
   onExitEdit: () => void;
   onDirtyChange?: (dirty: boolean) => void;
 }) {
+  const router = useRouter();
   const {
     data: agenda,
     loadError,
@@ -455,6 +467,11 @@ export function AgendaTab({
     () => listDecisionsAction(meetingId),
     active,
     [meetingId],
+  );
+  const { data: previousMinutes } = useTabData<PreviousMeetingMinutes | null>(
+    () => getPreviousMeetingMinutesAction(meetingId, meetingDate),
+    active,
+    [meetingId, meetingDate],
   );
 
   if (agenda === undefined) {
@@ -517,7 +534,19 @@ export function AgendaTab({
             <p className="text-sm font-semibold">Opening</p>
             <ul className="app-muted mt-1 list-disc pl-5 text-sm">
               {OPENING_CHECKLIST.map((item) => (
-                <li key={item}>{item}</li>
+                <li key={item}>
+                  {item === APPROVE_MINUTES_ITEM && previousMinutes ? (
+                    <MinutesApprovalDialog
+                      meetingId={meetingId}
+                      previousMeeting={previousMinutes}
+                      approvedAt={minutesApprovedAt}
+                      canApprove={canManage}
+                      onApproved={() => router.refresh()}
+                    />
+                  ) : (
+                    item
+                  )}
+                </li>
               ))}
             </ul>
           </div>
