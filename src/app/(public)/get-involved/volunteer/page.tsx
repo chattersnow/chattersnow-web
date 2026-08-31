@@ -3,6 +3,7 @@ import Link from "next/link";
 import { HandHeart } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SiteImage } from "@/components/site-image";
+import { ImagePlaceholder } from "@/components/image-placeholder";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSiteImageUrls } from "@/lib/site-images";
 import { VolunteerApplicationSheet } from "../volunteer-application-sheet";
@@ -34,16 +35,17 @@ export default async function VolunteerPage() {
           Chatter runs on volunteers. Here are some of the ways you can get
           involved.
         </p>
+        <SiteImage
+          url={siteImages.get_involved_volunteer_photo ?? null}
+          alt="Chatter Snow volunteers"
+          className="mt-8 aspect-[21/9] rounded-2xl"
+        />
         {roleTypes && roleTypes.length > 0 ? (
           <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {roleTypes.map((roleType) => (
               <Card key={roleType.id}>
                 <CardHeader>
-                  <SiteImage
-                    url={siteImages.get_involved_volunteer_photo ?? null}
-                    alt={roleType.name}
-                    icon={HandHeart}
-                  />
+                  <ImagePlaceholder icon={HandHeart} />
                 </CardHeader>
                 <CardContent>
                   <CardTitle>{roleType.name}</CardTitle>

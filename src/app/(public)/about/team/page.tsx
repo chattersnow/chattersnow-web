@@ -10,9 +10,9 @@ export const metadata: Metadata = {
 };
 
 const TEAM = [
-  { name: "Sofie Chavez" },
-  { name: "Cass Lainez" },
-  { name: "Rickie Cruz" },
+  { name: "Sofie Chavez", photoKey: "about_team_photo_sofie" },
+  { name: "Cass Lainez", photoKey: "about_team_photo_cass" },
+  { name: "Rickie Cruz", photoKey: "about_team_photo_rickie" },
 ];
 
 export default async function TeamPage() {
@@ -39,7 +39,11 @@ export default async function TeamPage() {
           <Card key={member.name}>
             <CardHeader>
               <SiteImage
-                url={siteImages.about_team_photo ?? null}
+                url={
+                  siteImages[member.photoKey] ??
+                  siteImages.about_team_photo ??
+                  null
+                }
                 alt={member.name}
                 icon={UserRound}
               />

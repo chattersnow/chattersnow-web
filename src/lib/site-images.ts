@@ -56,6 +56,21 @@ export const SITE_IMAGE_SLOTS: SiteImageSlot[] = [
     description: "Shown for any team member who doesn't have their own photo.",
   },
   {
+    key: "about_team_photo_sofie",
+    label: "Team photo — Sofie Chavez",
+    description: "Sofie Chavez's photo on the Meet the Team page.",
+  },
+  {
+    key: "about_team_photo_cass",
+    label: "Team photo — Cass Lainez",
+    description: "Cass Lainez's photo on the Meet the Team page.",
+  },
+  {
+    key: "about_team_photo_rickie",
+    label: "Team photo — Rickie Cruz",
+    description: "Rickie Cruz's photo on the Meet the Team page.",
+  },
+  {
     key: "about_team_hero_photo",
     label: "Meet the Team — top photo",
     description:
@@ -79,8 +94,7 @@ export const SITE_IMAGE_SLOTS: SiteImageSlot[] = [
   {
     key: "get_involved_volunteer_photo",
     label: "Volunteer page photo",
-    description:
-      "Shown for any volunteer role that doesn't have its own photo.",
+    description: "Photo on the Volunteer page.",
   },
   {
     key: "get_involved_attend_photo",
