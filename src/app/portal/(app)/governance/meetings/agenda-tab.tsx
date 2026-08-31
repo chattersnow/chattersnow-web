@@ -50,6 +50,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
+import { AgendaExportDialog } from "./agenda-export-dialog";
 
 const OPENING_CHECKLIST = [
   "Welcome and call to order",
@@ -498,6 +499,20 @@ export function AgendaTab({
         <p className="app-muted text-sm">No agenda added yet.</p>
       ) : (
         <>
+          <div className="flex justify-end">
+            <AgendaExportDialog
+              input={{
+                meetingDate,
+                agenda,
+                sections,
+                openingChecklist: OPENING_CHECKLIST,
+                carriedOverItems: carriedOverItems ?? [],
+                createdItems: createdItems ?? [],
+                decisions: decisions ?? [],
+              }}
+            />
+          </div>
+
           <div>
             <p className="text-sm font-semibold">Opening</p>
             <ul className="app-muted mt-1 list-disc pl-5 text-sm">
