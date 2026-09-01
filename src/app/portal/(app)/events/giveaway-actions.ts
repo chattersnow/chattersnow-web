@@ -76,6 +76,19 @@ export type Giveaway = {
 
 export type GiveawayActionResult = { error: string } | { success: true };
 
+// The prize RPCs reserve the linked inventory item, so they can fail for a
+// reason the user can act on: someone else claimed the item first. Every
+// other DB error stays a generic message, per the convention elsewhere.
+function prizeSourceError(
+  error: { message?: string } | null,
+  fallback: string,
+): string {
+  if (error?.message?.includes("ITEM_NOT_AVAILABLE")) {
+    return "That donation is no longer available — it may have been used for another prize or distributed. Refresh and pick another.";
+  }
+  return `${fallback} Please try again.`;
+}
+
 export async function getEventGiveawayAction(
   eventId: string,
 ): Promise<{ data: Giveaway | null } | { error: string }> {
@@ -197,18 +210,59 @@ export async function createGiveawayPrizeAction(
   if ("error" in parsed) return parsed;
   const { prizeName, estimatedValue, notes } = parsed.data;
 
-  const { error } = await supabase.from("giveaway_prizes").insert({
-    giveaway_id: giveawayId,
-    prize_name: prizeName,
-    donor_person_id: donorPersonId,
-    estimated_value: estimatedValue,
-    notes,
-    source_inventory_item_id: sourceInventoryItemId,
-    source_monetary_donation_id: sourceMonetaryDonationId,
+  // Writing the prize and reserving its inventory item have to happen
+  // together, and inventory_items is out of reach of an event_coordinator's
+  // own RLS -- hence the security-definer RPC (see 20260901070000).
+  const { error } = await supabase.rpc("create_giveaway_prize", {
+    p_giveaway_id: giveawayId,
+    p_prize_name: prizeName,
+    p_donor_person_id: donorPersonId,
+    p_estimated_value: estimatedValue,
+    p_notes: notes,
+    p_source_inventory_item_id: sourceInventoryItemId,
+    p_source_monetary_donation_id: sourceMonetaryDonationId,
   });
 
   if (error) {
-    return { error: "Could not save the prize. Please try again." };
+    return { error: prizeSourceError(error, "Could not save the prize.") };
+  }
+
+  revalidatePath("/portal/events");
+  return { success: true };
+}
+
+export async function updateGiveawayPrizeAction(
+  prizeId: string,
+  donorPersonId: string | null,
+  formData: FormData,
+  sourceInventoryItemId: string | null = null,
+  sourceMonetaryDonationId: string | null = null,
+): Promise<GiveawayActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to edit a prize.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
+
+  const parsed = parseGiveawayPrizeForm(formData);
+  if ("error" in parsed) return parsed;
+  const { prizeName, estimatedValue, notes } = parsed.data;
+
+  const { error } = await supabase.rpc("update_giveaway_prize", {
+    p_prize_id: prizeId,
+    p_prize_name: prizeName,
+    p_donor_person_id: donorPersonId,
+    p_estimated_value: estimatedValue,
+    p_notes: notes,
+    p_source_inventory_item_id: sourceInventoryItemId,
+    p_source_monetary_donation_id: sourceMonetaryDonationId,
+  });
+
+  if (error) {
+    return { error: prizeSourceError(error, "Could not update the prize.") };
   }
 
   revalidatePath("/portal/events");
@@ -217,6 +271,12 @@ export async function createGiveawayPrizeAction(
 
 export async function listAvailableGiveawaySourcesAction(
   eventId: string,
+  /**
+   * When editing a prize, pass its id so its own current source is offered
+   * alongside the unlinked ones -- otherwise it would be missing from its
+   * own dropdown, since the RPC excludes everything already linked.
+   */
+  includePrizeId: string | null = null,
 ): Promise<
   | {
       data: {
@@ -232,7 +292,7 @@ export async function listAvailableGiveawaySourcesAction(
 
   const { data, error } = await supabase.rpc(
     "list_available_giveaway_sources",
-    { p_event_id: eventId },
+    { p_event_id: eventId, p_include_prize_id: includePrizeId },
   );
 
   if (error) {
@@ -259,10 +319,11 @@ export async function deleteGiveawayPrizeAction(
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return permissionError;
 
-  const { error } = await supabase
-    .from("giveaway_prizes")
-    .delete()
-    .eq("id", id);
+  // Goes through the RPC so a linked inventory item is released back to
+  // 'available' in the same transaction as the delete (20260901070000).
+  const { error } = await supabase.rpc("delete_giveaway_prize", {
+    p_prize_id: id,
+  });
   if (error) {
     return { error: "Could not remove the prize. Please try again." };
   }
