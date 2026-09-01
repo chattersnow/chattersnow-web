@@ -1,9 +1,24 @@
 "use client";
 
 import { ROLE_OPTIONS, type RoleKey } from "./people-shared";
+import {
+  EXPERIENCE_LEVELS,
+  RIDING_DISCIPLINES,
+  experienceLevelLabel,
+  ridesSki,
+  ridesSnowboard,
+  ridingDisciplineLabel,
+} from "@/lib/rider-profile";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 export type PersonFormState = {
@@ -16,6 +31,10 @@ export type PersonFormState = {
   website: string;
   roles: Record<RoleKey, boolean>;
   isOrganization: boolean;
+  ridingDiscipline: string;
+  skiExperienceLevel: string;
+  snowboardExperienceLevel: string;
+  preferredMountain: string;
 };
 
 export function emptyPersonForm(
@@ -37,6 +56,10 @@ export function emptyPersonForm(
       is_attendee: defaultRole === "is_attendee",
     },
     isOrganization: defaultIsOrganization,
+    ridingDiscipline: "",
+    skiExperienceLevel: "",
+    snowboardExperienceLevel: "",
+    preferredMountain: "",
   };
 }
 
@@ -152,6 +175,112 @@ export function PersonFormFields({
         </Field>
       </Field>
 
+      <Field orientation="responsive">
+        <Field>
+          <FieldLabel htmlFor={`${idPrefix}-ridingDiscipline`}>
+            Rides
+          </FieldLabel>
+          <Select
+            value={form.ridingDiscipline}
+            onValueChange={(value) =>
+              update("ridingDiscipline", String(value ?? ""))
+            }
+          >
+            <SelectTrigger
+              id={`${idPrefix}-ridingDiscipline`}
+              className="w-full"
+            >
+              <SelectValue placeholder="Not recorded">
+                {(value: string) => ridingDisciplineLabel(value)}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {RIDING_DISCIPLINES.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor={`${idPrefix}-preferredMountain`}>
+            Preferred mountain
+          </FieldLabel>
+          <Input
+            id={`${idPrefix}-preferredMountain`}
+            value={form.preferredMountain}
+            onChange={(event) =>
+              update("preferredMountain", event.target.value)
+            }
+          />
+        </Field>
+      </Field>
+
+      {(ridesSki(form.ridingDiscipline) ||
+        ridesSnowboard(form.ridingDiscipline)) && (
+        <Field orientation="responsive">
+          {ridesSki(form.ridingDiscipline) && (
+            <Field>
+              <FieldLabel htmlFor={`${idPrefix}-skiExperienceLevel`}>
+                Ski experience
+              </FieldLabel>
+              <Select
+                value={form.skiExperienceLevel}
+                onValueChange={(value) =>
+                  update("skiExperienceLevel", String(value ?? ""))
+                }
+              >
+                <SelectTrigger
+                  id={`${idPrefix}-skiExperienceLevel`}
+                  className="w-full"
+                >
+                  <SelectValue placeholder="Not recorded">
+                    {(value: string) => experienceLevelLabel(value)}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {EXPERIENCE_LEVELS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          )}
+          {ridesSnowboard(form.ridingDiscipline) && (
+            <Field>
+              <FieldLabel htmlFor={`${idPrefix}-snowboardExperienceLevel`}>
+                Snowboard experience
+              </FieldLabel>
+              <Select
+                value={form.snowboardExperienceLevel}
+                onValueChange={(value) =>
+                  update("snowboardExperienceLevel", String(value ?? ""))
+                }
+              >
+                <SelectTrigger
+                  id={`${idPrefix}-snowboardExperienceLevel`}
+                  className="w-full"
+                >
+                  <SelectValue placeholder="Not recorded">
+                    {(value: string) => experienceLevelLabel(value)}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {EXPERIENCE_LEVELS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          )}
+        </Field>
+      )}
+
       <Field>
         <FieldLabel htmlFor={`${idPrefix}-notes`}>Notes</FieldLabel>
         <Textarea
@@ -178,5 +307,9 @@ export function packPersonFormData(form: PersonFormState) {
   formData.set("isVolunteer", String(form.roles.is_volunteer));
   formData.set("isAttendee", String(form.roles.is_attendee));
   formData.set("isOrganization", String(form.isOrganization));
+  formData.set("ridingDiscipline", form.ridingDiscipline);
+  formData.set("skiExperienceLevel", form.skiExperienceLevel);
+  formData.set("snowboardExperienceLevel", form.snowboardExperienceLevel);
+  formData.set("preferredMountain", form.preferredMountain);
   return formData;
 }

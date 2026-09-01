@@ -40,6 +40,10 @@ const person: PersonRow = {
   is_attendee: false,
   primary_contact_person_id: null,
   primary_contact: null,
+  riding_discipline: "both",
+  ski_experience_level: "beginner",
+  snowboard_experience_level: "advanced",
+  preferred_mountain: "Hunter",
 };
 
 describe("ProfileCard", () => {

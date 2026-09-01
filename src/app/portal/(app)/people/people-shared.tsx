@@ -21,6 +21,10 @@ export type PersonRow = {
   is_attendee: boolean;
   primary_contact_person_id: string | null;
   primary_contact: PersonSummary | null;
+  riding_discipline: string | null;
+  ski_experience_level: string | null;
+  snowboard_experience_level: string | null;
+  preferred_mountain: string | null;
 };
 
 export type OrganizationMembership = {

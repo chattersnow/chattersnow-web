@@ -11,6 +11,12 @@ import {
 } from "../person-form-fields";
 import { PersonPicker, type PickedPerson } from "../person-picker";
 import { rolesFor, type PersonRow } from "../people-shared";
+import {
+  experienceLevelLabel,
+  ridesSki,
+  ridesSnowboard,
+  ridingDisciplineLabel,
+} from "@/lib/rider-profile";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,6 +47,10 @@ function formStateFor(person: PersonRow): PersonFormState {
       is_attendee: person.is_attendee,
     },
     isOrganization: person.is_organization,
+    ridingDiscipline: person.riding_discipline ?? "",
+    skiExperienceLevel: person.ski_experience_level ?? "",
+    snowboardExperienceLevel: person.snowboard_experience_level ?? "",
+    preferredMountain: person.preferred_mountain ?? "",
   };
 }
 
@@ -152,6 +162,26 @@ export function ProfileCard({
                 {person.primary_contact.name ?? "—"}
               </p>
             )}
+            <p>
+              <span className="app-muted">Rides:</span>{" "}
+              {ridingDisciplineLabel(person.riding_discipline) ?? "—"}
+            </p>
+            {ridesSki(person.riding_discipline) && (
+              <p>
+                <span className="app-muted">Ski experience:</span>{" "}
+                {experienceLevelLabel(person.ski_experience_level) ?? "—"}
+              </p>
+            )}
+            {ridesSnowboard(person.riding_discipline) && (
+              <p>
+                <span className="app-muted">Snowboard experience:</span>{" "}
+                {experienceLevelLabel(person.snowboard_experience_level) ?? "—"}
+              </p>
+            )}
+            <p>
+              <span className="app-muted">Preferred mountain:</span>{" "}
+              {person.preferred_mountain ?? "—"}
+            </p>
             <p>
               <span className="app-muted">Notes:</span> {person.notes ?? "—"}
             </p>

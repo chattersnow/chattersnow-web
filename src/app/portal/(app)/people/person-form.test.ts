@@ -62,6 +62,10 @@ describe("parsePersonForm", () => {
         is_volunteer: false,
         is_organization: false,
         is_attendee: false,
+        riding_discipline: null,
+        ski_experience_level: null,
+        snowboard_experience_level: null,
+        preferred_mountain: null,
       },
     });
   });
