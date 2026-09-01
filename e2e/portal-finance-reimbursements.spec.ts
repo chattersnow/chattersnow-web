@@ -67,6 +67,12 @@ async function logOut(page: Page) {
     await page.getByRole("button", { name: "Toggle Sidebar" }).click();
   }
   await logoutButton.click();
+  // Logging out asks for confirmation since 355a8f7; the dialog's action
+  // button carries the same "Log out" label as the sidebar trigger.
+  await page
+    .getByRole("alertdialog")
+    .getByRole("button", { name: "Log out" })
+    .click();
   await expect(page).toHaveURL(/\/portal\/login$/);
 }
 

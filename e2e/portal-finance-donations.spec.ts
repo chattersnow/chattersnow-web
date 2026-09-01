@@ -70,9 +70,15 @@ test.describe("portal finance donations", () => {
   test("lists the seeded donations, including the anonymous gift", async ({
     page,
   }) => {
-    const donorRow = page.getByRole("row").filter({ hasText: "Jamie Rivera" });
+    // Pin the row down to the seeded $100 gift: "creates a donation for a
+    // donor picked by search" (running concurrently in the other Playwright
+    // project) briefly adds its own, newer Jamie Rivera row, so `.first()`
+    // on the name alone can land on that transient row instead.
+    const donorRow = page
+      .getByRole("row")
+      .filter({ hasText: "Jamie Rivera" })
+      .filter({ hasText: "$100.00" });
     await expect(donorRow.first()).toBeVisible();
-    await expect(donorRow.first()).toContainText("$100.00");
     await expect(donorRow.first()).toContainText("Check");
 
     const anonymousRow = page
