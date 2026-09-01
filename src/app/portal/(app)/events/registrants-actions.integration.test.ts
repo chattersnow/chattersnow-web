@@ -151,6 +151,39 @@ describe("event registrant check-in actions (integration)", () => {
     await person.cleanup();
   });
 
+  // Regression: two different people with no email on file both fell back
+  // to email = '' in the insert and collided on the (event_id, email)
+  // unique index - the second add would fail as though it were a duplicate
+  // of the first, even though they're different people
+  // (20260901010000_fix_event_registrations_blank_email_collision.sql).
+  test("two different registrants with no email can both be added to the same event", async () => {
+    const event = await createPublishedEvent();
+    const personA = await createPerson({ name: "No Email A" });
+    const personB = await createPerson({ name: "No Email B" });
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+    const noEmail = (id: string, name: string) => ({
+      id,
+      name,
+      email: null,
+      phone: null,
+    });
+
+    expect(
+      await addRegistrantAction(event.id, noEmail(personA.id, "No Email A"), 1),
+    ).toEqual({ success: true });
+    expect(
+      await addRegistrantAction(event.id, noEmail(personB.id, "No Email B"), 1),
+    ).toEqual({ success: true });
+
+    const listed = await listEventRegistrantsAction(event.id);
+    if (!("data" in listed)) throw new Error("expected data");
+    expect(listed.data).toHaveLength(2);
+
+    await event.cleanup();
+    await personA.cleanup();
+    await personB.cleanup();
+  });
+
   test("event_coordinator role (events manage) can check in a registrant", async () => {
     const event = await createPublishedEvent();
     const registrationId = await seedRegistration(event.id);
