@@ -32,9 +32,10 @@ test.describe("portal people directory", () => {
     await page.goto("/portal/people?search=Priya");
 
     // The detail view is a dedicated /portal/people/[id] page since 575e431;
-    // the row action is an eye-icon link labeled "View <name>", not the old
-    // "View person" sheet button.
-    await page.getByRole("link", { name: "View Priya Natarajan" }).click();
+    // the row action is an eye-icon anchor labeled "View <name>", rendered
+    // through Base UI's Button with nativeButton={false}, which stamps
+    // role="button" on the anchor (same as the Clear control below).
+    await page.getByRole("button", { name: "View Priya Natarajan" }).click();
 
     await expect(page).toHaveURL(/\/portal\/people\/[0-9a-f-]+$/);
     await expect(
@@ -139,8 +140,9 @@ test.describe("portal people directory", () => {
     await expect(row).toContainText(personEmail);
 
     // The detail view is a dedicated /portal/people/[id] page since 575e431;
-    // editing happens inline in its Profile card.
-    await page.getByRole("link", { name: `View ${personName}` }).click();
+    // editing happens inline in its Profile card. The row's eye-icon anchor
+    // carries role="button" (Base UI Button, nativeButton={false}).
+    await page.getByRole("button", { name: `View ${personName}` }).click();
     await expect(
       page.getByRole("heading", { level: 1, name: personName }),
     ).toBeVisible();
