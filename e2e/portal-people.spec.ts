@@ -31,19 +31,20 @@ test.describe("portal people directory", () => {
     // Search first: Priya sits past page 1 of the paginated directory.
     await page.goto("/portal/people?search=Priya");
 
-    await page
-      .getByRole("row")
-      .filter({ hasText: "Priya Natarajan" })
-      .getByRole("button", { name: "View person" })
-      .click();
+    // The detail view is a dedicated /portal/people/[id] page since 575e431;
+    // the row action is an eye-icon link labeled "View <name>", not the old
+    // "View person" sheet button.
+    await page.getByRole("link", { name: "View Priya Natarajan" }).click();
 
-    const sheet = page.getByRole("dialog");
+    await expect(page).toHaveURL(/\/portal\/people\/[0-9a-f-]+$/);
     await expect(
-      sheet.getByRole("heading", { name: "Person", exact: true }),
+      page.getByRole("heading", { level: 1, name: "Priya Natarajan" }),
     ).toBeVisible();
-    await expect(sheet.getByText("Priya Natarajan")).toBeVisible();
-    await expect(sheet.getByText("priya.n@example.test")).toBeVisible();
-    await expect(sheet.getByText("Volunteer", { exact: true })).toBeVisible();
+    const profile = page
+      .locator('[data-slot="card"]')
+      .filter({ hasText: "Profile" });
+    await expect(profile.getByText("priya.n@example.test")).toBeVisible();
+    await expect(profile.getByText("Volunteer", { exact: true })).toBeVisible();
   });
 
   test("searches the directory by name", async ({ page }) => {
@@ -137,18 +138,25 @@ test.describe("portal people directory", () => {
     await expect(row).toContainText("Volunteer");
     await expect(row).toContainText(personEmail);
 
-    await row.getByRole("button", { name: "View person" }).click();
-    const sheet = page.getByRole("dialog");
-    await expect(sheet.getByText(personEmail)).toBeVisible();
+    // The detail view is a dedicated /portal/people/[id] page since 575e431;
+    // editing happens inline in its Profile card.
+    await page.getByRole("link", { name: `View ${personName}` }).click();
+    await expect(
+      page.getByRole("heading", { level: 1, name: personName }),
+    ).toBeVisible();
+    const profile = page
+      .locator('[data-slot="card"]')
+      .filter({ hasText: "Profile" });
+    await expect(profile.getByText(personEmail)).toBeVisible();
 
-    await sheet.getByRole("button", { name: "Edit person" }).click();
+    await profile.getByRole("button", { name: "Edit profile" }).click();
     const updatedNotes = `E2E updated notes ${Date.now()}`;
-    await sheet.getByLabel("Notes").fill(updatedNotes);
-    await sheet.getByRole("button", { name: "Save changes" }).click();
+    await profile.getByLabel("Notes").fill(updatedNotes);
+    await profile.getByRole("button", { name: "Save changes" }).click();
 
     await expect(
-      sheet.getByRole("button", { name: "Edit person" }),
+      profile.getByRole("button", { name: "Edit profile" }),
     ).toBeVisible();
-    await expect(sheet.getByText(updatedNotes)).toBeVisible();
+    await expect(profile.getByText(updatedNotes)).toBeVisible();
   });
 });
