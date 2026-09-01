@@ -24,6 +24,7 @@ import { AddChecklistItemDialog } from "./add-checklist-item-dialog";
 import { LogIncidentDialog } from "./log-incident-dialog";
 import { AddDiscountCodesDialog } from "./add-discount-codes-dialog";
 import { CheckInWalkInDialog } from "./check-in-walkin-dialog";
+import { AddRegistrantDialog } from "./add-registrant-dialog";
 import { AddSponsorDialog } from "./add-sponsor-dialog";
 import { AddShiftDialog } from "./volunteers/add-shift-dialog";
 import { AddVolunteerDialog } from "./volunteers/add-volunteer-dialog";
@@ -215,7 +216,10 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
       />
     ),
     toolbarActions: (ctx) => (
-      <CheckInWalkInDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
+      <>
+        <AddRegistrantDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
+        <CheckInWalkInDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
+      </>
     ),
   },
   {
