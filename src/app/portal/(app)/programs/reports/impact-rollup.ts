@@ -17,7 +17,26 @@ export type VolunteerHoursRow = {
   event_id: string | null;
   hours: number | string;
 };
-export type RegistrationRow = { person_id: string | null; event_id: string };
+export type RegistrationRow = {
+  person_id: string | null;
+  event_id: string;
+  checked_in_at: string | null;
+};
+
+export type EventRow = {
+  event_id: string;
+  attendance_count: number | string | null;
+};
+
+export type CheckinCountRow = {
+  person_id: string;
+  checked_in_event_count: number | string;
+};
+
+export type DiscountCodeRow = {
+  event_id: string;
+  registration_id: string | null;
+};
 
 export type ProgramImpactRollup = {
   eventCount: number;
@@ -76,20 +95,92 @@ export function countRepeatParticipants(
   return repeatCount;
 }
 
-export function computeProgramImpactRollup(
-  eventCount: number,
-  notes: ImpactNoteRow[],
-  distributedMovements: DistributedMovementRow[],
-  volunteerHours: VolunteerHoursRow[],
+export function computeParticipants(
+  events: EventRow[],
   registrations: RegistrationRow[],
+): number {
+  const checkedInCountByEvent = new Map<string, number>();
+  for (const registration of registrations) {
+    if (!registration.checked_in_at) continue;
+    checkedInCountByEvent.set(
+      registration.event_id,
+      (checkedInCountByEvent.get(registration.event_id) ?? 0) + 1,
+    );
+  }
+
+  return events.reduce((total, event) => {
+    const hasManualCount =
+      event.attendance_count !== null && event.attendance_count !== undefined;
+    const count = hasManualCount
+      ? toNumber(event.attendance_count)
+      : (checkedInCountByEvent.get(event.event_id) ?? 0);
+    return total + count;
+  }, 0);
+}
+
+export function computeFirstTimeParticipants(
+  registrations: RegistrationRow[],
+  checkinCounts: CheckinCountRow[],
+): number {
+  const eventCountByPerson = new Map<string, number>();
+  for (const row of checkinCounts) {
+    eventCountByPerson.set(row.person_id, toNumber(row.checked_in_event_count));
+  }
+
+  const seen = new Set<string>();
+  let firstTime = 0;
+  for (const registration of registrations) {
+    if (!registration.person_id || !registration.checked_in_at) continue;
+    if (seen.has(registration.person_id)) continue;
+    seen.add(registration.person_id);
+    if ((eventCountByPerson.get(registration.person_id) ?? 0) === 1) {
+      firstTime += 1;
+    }
+  }
+  return firstTime;
+}
+
+export function countSubsidizedTickets(
+  discountCodes: DiscountCodeRow[],
+): number {
+  return discountCodes.filter((row) => row.registration_id !== null).length;
+}
+
+export type ProgramImpactRollupInput = {
+  eventCount: number;
+  events: EventRow[];
+  notes: ImpactNoteRow[];
+  distributedMovements: DistributedMovementRow[];
+  volunteerHours: VolunteerHoursRow[];
+  registrations: RegistrationRow[];
+  checkinCounts: CheckinCountRow[];
+  discountCodes: DiscountCodeRow[];
+};
+
+export function computeProgramImpactRollup(
+  input: ProgramImpactRollupInput,
 ): ProgramImpactRollup {
+  const {
+    eventCount,
+    events,
+    notes,
+    distributedMovements,
+    volunteerHours,
+    registrations,
+    checkinCounts,
+    discountCodes,
+  } = input;
+
   return {
     eventCount,
-    participants: sumNotes(notes, "total_participants"),
-    firstTimeParticipants: sumNotes(notes, "first_time_participants"),
+    participants: computeParticipants(events, registrations),
+    firstTimeParticipants: computeFirstTimeParticipants(
+      registrations,
+      checkinCounts,
+    ),
     beginnerParticipants: sumNotes(notes, "beginner_participants"),
     assistedParticipants:
-      sumNotes(notes, "subsidized_tickets_count") +
+      countSubsidizedTickets(discountCodes) +
       sumNotes(notes, "rental_subsidies_count"),
     equipmentLoans: sumNotes(notes, "equipment_loans_count"),
     equipmentDistributed: sumDistributedQuantity(distributedMovements),

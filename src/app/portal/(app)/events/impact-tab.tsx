@@ -258,10 +258,14 @@ export function ImpactTab({
           <InfoIcon />
           <AlertTitle>How these numbers are calculated</AlertTitle>
           <AlertDescription>
-            These figures are entered manually per event by staff — they
-            aren&apos;t derived automatically from attendance or registrations.
-            Post-event survey percentages are the yes-count divided by the
-            number of survey respondents, rounded to the nearest whole percent.
+            These figures are entered manually per event by staff. The Program
+            Impact Report now computes Participants, First-time participants,
+            and Subsidized tickets from attendance, check-ins, and discount
+            codes instead of the Total participants / First-time participants /
+            Subsidized tickets fields below — the rest of these figures
+            aren&apos;t derived automatically. Post-event survey percentages are
+            the yes-count divided by the number of survey respondents, rounded
+            to the nearest whole percent.
           </AlertDescription>
         </Alert>
         <div className="flex flex-col gap-3">
