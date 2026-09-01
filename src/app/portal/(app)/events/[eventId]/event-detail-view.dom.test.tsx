@@ -39,6 +39,12 @@ mock.module("../sponsors-actions", () => ({
 mock.module("../registrants-actions", () => ({
   ...RegistrantsActions,
   listEventRegistrantsAction: mock(async () => ({ data: [] })),
+  // The registrants tab loads this alongside the list; without the mock the
+  // real action runs and throws (`cookies` outside a request scope), failing
+  // the deep-link test that mounts the tab.
+  getEventAttendanceBreakdownAction: mock(async () => ({
+    data: { recurring: 0, firstTime: 0 },
+  })),
 }));
 mock.module("../discount-codes-actions", () => ({
   ...DiscountCodesActions,
