@@ -34,7 +34,14 @@ function eventForm(overrides?: { name?: string }) {
     "name",
     overrides?.name ?? `Integration Test Event ${crypto.randomUUID()}`,
   );
-  fd.set("startsAt", new Date(Date.now() + 86_400_000).toISOString());
+  // A naive datetime-local value ("YYYY-MM-DDTHH:mm"), matching what the
+  // event form's <input type="datetime-local"> submits -- parseEventForm
+  // (since 355a8f7) parses it against the submitted timezone and rejects
+  // full ISO strings with milliseconds/offset.
+  fd.set(
+    "startsAt",
+    new Date(Date.now() + 86_400_000).toISOString().slice(0, 16),
+  );
   fd.set("timezone", "America/Chicago");
   fd.set("visibility", "public");
   fd.set("status", "draft");

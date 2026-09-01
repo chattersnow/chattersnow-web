@@ -228,11 +228,12 @@ describe("contact_messages table RLS (integration)", () => {
     const message = await createContactMessage();
     const anon = anonClient();
 
-    // Both policies are `to authenticated`, so anon matches none and the
-    // table reads back empty rather than erroring.
+    // Anon holds no table grant at all (20260826180000 grants select only to
+    // authenticated), so the read is refused at the privilege layer (42501)
+    // rather than filtering to an empty result.
     const { data, error } = await anon.from("contact_messages").select("id");
-    expect(error).toBeNull();
-    expect(data).toEqual([]);
+    expect(error?.code).toBe("42501");
+    expect(data).toBeNull();
 
     // The submission itself still landed -- anon's only write path is the
     // security-definer RPC, not table access.
@@ -271,16 +272,17 @@ describe("contact_messages table RLS (integration)", () => {
     expect(data).toEqual([]);
   });
 
-  test("even admin cannot delete a message directly (no delete policy)", async () => {
+  test("even admin cannot delete a message directly (no delete grant)", async () => {
     const message = await createContactMessage();
 
-    // Unlike the insert above (which trips the RLS with-check and errors), a
-    // delete with no matching policy simply matches no rows.
+    // Authenticated has no delete grant on the table (20260826180000 grants
+    // select, 20260826220000 adds update), so the delete is refused at the
+    // privilege layer (42501) rather than silently matching no rows.
     const { error } = await adminClient
       .from("contact_messages")
       .delete()
       .eq("id", message.id);
-    expect(error).toBeNull();
+    expect(error?.code).toBe("42501");
 
     // Still there: submissions are retained until a purge path exists.
     expect((await readMessage(message.id)).id).toBe(message.id);
