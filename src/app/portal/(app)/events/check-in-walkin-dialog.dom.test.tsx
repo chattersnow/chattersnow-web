@@ -77,6 +77,22 @@ describe("CheckInWalkInDialog", () => {
     );
   });
 
+  test("pre-checks Attendee when creating a new person", async () => {
+    // Issue #569: a bare walk-in defaulted to the Sponsor role.
+    const user = userEvent.setup();
+    render(<CheckInWalkInDialog eventId="event-1" />);
+
+    await user.click(
+      screen.getByRole("button", { name: "+ Check in walk-in" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "+ Create new person" }),
+    );
+
+    expect(screen.getByRole("checkbox", { name: "Attendee" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Sponsor" })).not.toBeChecked();
+  });
+
   test("rejects a walk-in with no person selected", async () => {
     const user = userEvent.setup();
     render(<CheckInWalkInDialog eventId="event-1" />);

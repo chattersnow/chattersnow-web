@@ -67,7 +67,10 @@ export function parsePersonForm(
 
   if (!name) return { error: "Name is required." };
   if (!is_donor && !is_sponsor && !is_volunteer && !is_attendee) {
-    return { error: "Select at least one role." };
+    return {
+      error:
+        "Select at least one role for this person — Donor, Sponsor, Volunteer, or Attendee.",
+    };
   }
   if (instagramHandle && !INSTAGRAM_HANDLE_PATTERN.test(instagramHandle)) {
     return {

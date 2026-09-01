@@ -189,6 +189,7 @@ export function SponsorForm({
               selected={selectedPerson}
               onSelect={setSelectedPerson}
               onPersonCreated={onPersonCreated}
+              newPersonRole="is_sponsor"
             />
           </Field>
         )}

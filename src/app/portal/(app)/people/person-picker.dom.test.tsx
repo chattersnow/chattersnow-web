@@ -109,6 +109,48 @@ describe("PersonPicker", () => {
     ).toBeInTheDocument();
   });
 
+  test("pre-checks no role when no newPersonRole is given", async () => {
+    // Regression for #569: this used to fall back to is_sponsor, so every
+    // picker in the app pre-checked Sponsor regardless of context.
+    const user = userEvent.setup();
+    render(
+      <PersonPicker
+        people={people}
+        selected={null}
+        onSelect={mock(() => {})}
+        onPersonCreated={mock(() => {})}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "+ Create new person" }),
+    );
+
+    for (const role of ["Donor", "Sponsor", "Volunteer", "Attendee"]) {
+      expect(screen.getByRole("checkbox", { name: role })).not.toBeChecked();
+    }
+  });
+
+  test("pre-checks the role it is given", async () => {
+    const user = userEvent.setup();
+    render(
+      <PersonPicker
+        people={people}
+        selected={null}
+        onSelect={mock(() => {})}
+        onPersonCreated={mock(() => {})}
+        newPersonRole="is_attendee"
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "+ Create new person" }),
+    );
+
+    expect(screen.getByRole("checkbox", { name: "Attendee" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Sponsor" })).not.toBeChecked();
+  });
+
   test("creates and selects a new person", async () => {
     const user = userEvent.setup();
     const onSelect = mock(() => {});

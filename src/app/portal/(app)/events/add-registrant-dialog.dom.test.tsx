@@ -75,6 +75,21 @@ describe("AddRegistrantDialog", () => {
     );
   });
 
+  test("pre-checks Attendee when creating a new person", async () => {
+    // Issue #569: this defaulted to Sponsor, so walk-up registrants were
+    // miscategorised whenever staff didn't notice and change it.
+    const user = userEvent.setup();
+    render(<AddRegistrantDialog eventId="event-1" />);
+
+    await user.click(screen.getByRole("button", { name: "+ Add registrant" }));
+    await user.click(
+      screen.getByRole("button", { name: "+ Create new person" }),
+    );
+
+    expect(screen.getByRole("checkbox", { name: "Attendee" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Sponsor" })).not.toBeChecked();
+  });
+
   test("rejects adding a registrant with no person selected", async () => {
     const user = userEvent.setup();
     render(<AddRegistrantDialog eventId="event-1" />);
