@@ -2,7 +2,7 @@
 // view/edit DonationSheet into a dedicated detail page plus this edit-only
 // sheet.
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { DonationRow } from "../donation-shared";
 import * as DonationActions from "../actions";
@@ -172,8 +172,16 @@ describe("EditDonationSheet", () => {
     expect(
       await screen.findByText("Could not save the donation. Please try again."),
     ).toBeInTheDocument();
-    expect(
-      await screen.findByRole("button", { name: "Save changes" }),
-    ).toBeInTheDocument();
+    // The role query must outwait Base UI's inert/aria-hidden transition on
+    // the sheet portal: byText finds the error regardless of aria-hidden, but
+    // byRole excludes inaccessible elements, and on contended CI runners the
+    // transition can outlast findByRole's default 1s timeout (#540).
+    await waitFor(
+      () =>
+        expect(
+          screen.getByRole("button", { name: "Save changes" }),
+        ).toBeEnabled(),
+      { timeout: 5000 },
+    );
   });
 });
