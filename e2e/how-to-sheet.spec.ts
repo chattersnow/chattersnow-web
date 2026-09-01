@@ -17,7 +17,9 @@ test("opens the how-to sheet on the Events page and shows its guidance", async (
 
   const dialog = page.getByRole("dialog");
   await expect(
-    dialog.getByRole("heading", { name: "How status and visibility work" }),
+    dialog.getByRole("heading", {
+      name: "How status, visibility, and phase tabs work",
+    }),
   ).toBeVisible();
   await expect(dialog.getByText("Who can do this")).toBeVisible();
   await expect(dialog.getByText("Common mistakes")).toBeVisible();

@@ -13,7 +13,10 @@ test.describe("portal people directory", () => {
   test("lists seeded people with their roles and contact details", async ({
     page,
   }) => {
-    await page.goto("/portal/people");
+    // The directory paginates at 50 and the bulk seed data puts ~85 names
+    // before Priya, so land on her via the server-side search param instead
+    // of expecting her on page 1.
+    await page.goto("/portal/people?search=Priya");
     await expect(
       page.getByRole("heading", { level: 1, name: "People", exact: true }),
     ).toBeVisible();
@@ -25,7 +28,8 @@ test.describe("portal people directory", () => {
   });
 
   test("opens a person's detail view from the directory", async ({ page }) => {
-    await page.goto("/portal/people");
+    // Search first: Priya sits past page 1 of the paginated directory.
+    await page.goto("/portal/people?search=Priya");
 
     await page
       .getByRole("row")
@@ -88,8 +92,11 @@ test.describe("portal people directory", () => {
     // locators. Close the sheet before asserting the unfiltered table.
     await page.keyboard.press("Escape");
     await expect(filters).not.toBeVisible();
+    // A non-sponsor row proves the role filter is gone. Priya can't anchor
+    // this any more (she's past page 1 of the paginated directory), so use
+    // the alphabetically-first seeded non-sponsor instead.
     await expect(
-      page.getByRole("row").filter({ hasText: "Priya Natarajan" }),
+      page.getByRole("row").filter({ hasText: "Alex Chen" }),
     ).toBeVisible();
   });
 
@@ -118,6 +125,12 @@ test.describe("portal people directory", () => {
     await addDialog.getByRole("button", { name: "Add person" }).click();
 
     await expect(addDialog).not.toBeVisible();
+
+    // Reload the directory searched down to the new person: the bare list
+    // re-renders under the post-add router.refresh() (and the dialog's close
+    // transition), which raced the row interactions below in CI, and the
+    // paginated full list gives no guarantee the new row lands on page 1.
+    await page.goto(`/portal/people?search=${encodeURIComponent(personName)}`);
 
     const row = page.getByRole("row").filter({ hasText: personName });
     await expect(row).toBeVisible();
