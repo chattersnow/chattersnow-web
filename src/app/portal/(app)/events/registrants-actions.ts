@@ -146,6 +146,56 @@ export async function undoCheckInAction(
   return { success: true };
 }
 
+// Registers someone without checking them in - e.g. backfilling a past
+// event's RSVP list, or a staff-entered pre-registration - so they show up
+// as "registered" but not "attended" until checked in separately. This is
+// the same table/RLS path as createWalkInCheckInAction, just without
+// setting checked_in_at.
+export async function addRegistrantAction(
+  eventId: string,
+  person: {
+    id: string;
+    name: string | null;
+    email: string | null;
+    phone: string | null;
+  },
+  partySize: number,
+): Promise<RegistrantActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to add a registrant.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
+
+  if (!Number.isInteger(partySize) || partySize < 1) {
+    return { error: "Party size must be at least 1." };
+  }
+
+  const { error } = await supabase.from("event_registrations").insert({
+    event_id: eventId,
+    person_id: person.id,
+    name: person.name ?? "Registrant",
+    email: person.email ?? "",
+    phone: person.phone,
+    party_size: partySize,
+  });
+
+  if (error) {
+    if (error.code === "23505") {
+      return {
+        error: "This person already has a registration for this event.",
+      };
+    }
+    return { error: "Could not add this registrant. Please try again." };
+  }
+
+  revalidatePath("/portal/events");
+  return { success: true };
+}
+
 export async function createWalkInCheckInAction(
   eventId: string,
   person: {

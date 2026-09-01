@@ -33,6 +33,7 @@ const {
   checkInRegistrantAction,
   undoCheckInAction,
   createWalkInCheckInAction,
+  addRegistrantAction,
 } = await import("./registrants-actions");
 
 afterEach(() => {
@@ -114,6 +115,42 @@ describe("event registrant check-in actions (integration)", () => {
     await person.cleanup();
   });
 
+  test("admin role can add a registrant without checking them in", async () => {
+    const event = await createPublishedEvent();
+    const person = await createPerson();
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+    expect(
+      await addRegistrantAction(event.id, walkInPerson(person.id), 2),
+    ).toEqual({ success: true });
+
+    const listed = await listEventRegistrantsAction(event.id);
+    if (!("data" in listed)) throw new Error("expected data");
+    expect(listed.data).toHaveLength(1);
+    expect(listed.data[0].checked_in_at).toBeNull();
+    expect(listed.data[0].party_size).toBe(2);
+
+    await event.cleanup();
+    await person.cleanup();
+  });
+
+  test("rejects adding a duplicate registrant for the same person/event", async () => {
+    const event = await createPublishedEvent();
+    const person = await createPerson();
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+    const person1 = walkInPerson(person.id);
+
+    expect(await addRegistrantAction(event.id, person1, 1)).toEqual({
+      success: true,
+    });
+    expect(await addRegistrantAction(event.id, person1, 1)).toEqual({
+      error: "This person already has a registration for this event.",
+    });
+
+    await event.cleanup();
+    await person.cleanup();
+  });
+
   test("event_coordinator role (events manage) can check in a registrant", async () => {
     const event = await createPublishedEvent();
     const registrationId = await seedRegistration(event.id);
@@ -153,6 +190,9 @@ describe("event registrant check-in actions (integration)", () => {
     expect(await undoCheckInAction(registrationId)).toEqual(DENIED);
     expect(
       await createWalkInCheckInAction(event.id, walkInPerson(person.id), 1),
+    ).toEqual(DENIED);
+    expect(
+      await addRegistrantAction(event.id, walkInPerson(person.id), 1),
     ).toEqual(DENIED);
 
     await event.cleanup();
