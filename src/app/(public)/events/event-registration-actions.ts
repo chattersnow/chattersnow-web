@@ -5,7 +5,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getClientIp } from "@/lib/get-client-ip";
 import { parseEventRegistrationForm } from "./event-registration-form";
 
-export type RegisterForEventResult = { error: string } | { success: true };
+export type RegisterForEventResult =
+  { error: string } | { success: true; registrationId: string };
 
 const ERROR_MESSAGES: Record<string, string> = {
   EVENT_NOT_FOUND: "This event could not be found.",
@@ -36,7 +37,7 @@ export async function registerForEventAction(
 
   const supabase = await createSupabaseServerClient();
 
-  const { error } = await supabase.rpc("register_for_event", {
+  const { data, error } = await supabase.rpc("register_for_event", {
     p_event_id: eventId,
     p_name: parsed.data.name,
     p_email: parsed.data.email,
@@ -58,5 +59,8 @@ export async function registerForEventAction(
 
   revalidatePath(`/events/${eventId}`);
   revalidatePath("/portal/events");
-  return { success: true };
+  // The new registration id is handed back so the rider-profile follow-up
+  // step (#564) can authorize its own write; it's an unguessable uuid and
+  // reveals nothing about the event or other registrants.
+  return { success: true, registrationId: String(data) };
 }

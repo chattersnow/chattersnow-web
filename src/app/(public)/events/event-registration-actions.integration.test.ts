@@ -79,7 +79,12 @@ describe("registerForEventAction (integration)", () => {
       formData({ name: "Jamie Rivera", email, partySize: "2" }),
     );
 
-    expect(result).toEqual({ success: true });
+    expect(result).toMatchObject({ success: true });
+    // The registration id is handed back so the rider-profile follow-up
+    // step can authorize its own write (#564).
+    expect("success" in result && result.registrationId).toMatch(
+      /^[0-9a-f-]{36}$/,
+    );
     expect(await countEventRegistrations(id, email)).toBe(1);
     expect(revalidatePathMock).toHaveBeenCalledWith(`/events/${id}`);
     expect(revalidatePathMock).toHaveBeenCalledWith("/portal/events");
@@ -128,7 +133,7 @@ describe("registerForEventAction (integration)", () => {
       id,
       formData({ name: "First Registrant", email: firstEmail, partySize: "2" }),
     );
-    expect(first).toEqual({ success: true });
+    expect(first).toMatchObject({ success: true });
 
     const second = await registerForEventAction(
       id,
@@ -151,7 +156,7 @@ describe("registerForEventAction (integration)", () => {
       id,
       formData({ name: "Jamie Rivera", email }),
     );
-    expect(first).toEqual({ success: true });
+    expect(first).toMatchObject({ success: true });
 
     const second = await registerForEventAction(
       id,
@@ -188,7 +193,7 @@ describe("registerForEventAction (integration)", () => {
 
     // The RPC reports fake success to avoid tipping off bots, but no row is
     // actually inserted -- only a DB check can catch a regression here.
-    expect(result).toEqual({ success: true });
+    expect(result).toMatchObject({ success: true });
     expect(await countEventRegistrations(id, email)).toBe(0);
   });
 
@@ -204,7 +209,7 @@ describe("registerForEventAction (integration)", () => {
           email: uniqueEmail(`rate-${i}`),
         }),
       );
-      expect(result).toEqual({ success: true });
+      expect(result).toMatchObject({ success: true });
     }
 
     const limited = await registerForEventAction(
@@ -226,7 +231,7 @@ describe("registerForEventAction (integration)", () => {
       id,
       formData({ name: "Auto Assignee", email }),
     );
-    expect(result).toEqual({ success: true });
+    expect(result).toMatchObject({ success: true });
     expect(await assignedRegistrationIds(id)).toHaveLength(1);
   });
 
@@ -239,14 +244,14 @@ describe("registerForEventAction (integration)", () => {
       id,
       formData({ name: "First Registrant", email: uniqueEmail("exhaust-1") }),
     );
-    expect(first).toEqual({ success: true });
+    expect(first).toMatchObject({ success: true });
 
     const second = await registerForEventAction(
       id,
       formData({ name: "Second Registrant", email: uniqueEmail("exhaust-2") }),
     );
     // No error and no waitlist -- the second registrant just gets no code.
-    expect(second).toEqual({ success: true });
+    expect(second).toMatchObject({ success: true });
     expect(await assignedRegistrationIds(id)).toHaveLength(1);
   });
 
@@ -266,7 +271,9 @@ describe("registerForEventAction (integration)", () => {
         ),
       ),
     );
-    expect(results).toEqual(results.map(() => ({ success: true })));
+    for (const result of results) {
+      expect(result).toMatchObject({ success: true });
+    }
 
     const assignedIds = await assignedRegistrationIds(id);
     expect(assignedIds).toHaveLength(2);
@@ -282,7 +289,7 @@ describe("registerForEventAction (integration)", () => {
       id,
       formData({ name: "Manual Only", email: uniqueEmail("manual-only") }),
     );
-    expect(result).toEqual({ success: true });
+    expect(result).toMatchObject({ success: true });
     expect(await assignedRegistrationIds(id)).toHaveLength(0);
   });
 });

@@ -2,6 +2,7 @@
 
 import { FormEvent, useState, useTransition } from "react";
 import { registerForEventAction } from "./event-registration-actions";
+import { RiderProfileForm } from "./rider-profile-form-fields";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -17,7 +18,9 @@ export function EventRegistrationForm({ eventId }: { eventId: string }) {
   const [notes, setNotes] = useState("");
   const [company, setCompany] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  // Holds the new registration's id once saved -- both the "did it work?"
+  // flag and the token the rider-profile follow-up needs to authorize itself.
+  const [registrationId, setRegistrationId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -39,18 +42,21 @@ export function EventRegistrationForm({ eventId }: { eventId: string }) {
         setError(result.error);
         return;
       }
-      setSuccess(true);
+      setRegistrationId(result.registrationId);
     });
   }
 
-  if (success) {
+  if (registrationId) {
     return (
-      <Alert>
-        <div className="rainbow-accent mb-2 w-10" />
-        <AlertDescription>
-          You&apos;re registered! We look forward to seeing you there.
-        </AlertDescription>
-      </Alert>
+      <div>
+        <Alert>
+          <div className="rainbow-accent mb-2 w-10" />
+          <AlertDescription>
+            You&apos;re registered! We look forward to seeing you there.
+          </AlertDescription>
+        </Alert>
+        <RiderProfileForm registrationId={registrationId} />
+      </div>
     );
   }
 
