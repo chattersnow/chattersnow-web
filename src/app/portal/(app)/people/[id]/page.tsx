@@ -50,6 +50,7 @@ type Registration = {
   id: string;
   party_size: number;
   created_at: string;
+  checked_in_at: string | null;
   event: EventRef;
 };
 type VolunteerSignup = { id: string; role: string | null; event: EventRef };
@@ -92,7 +93,7 @@ export default async function PersonDetailPage({
   const { data: person } = await supabase
     .from("people")
     .select(
-      "id, name, email, phone, instagram_handle, notes, logo_url, website, is_donor, is_sponsor, is_volunteer, is_organization, primary_contact_person_id, primary_contact:primary_contact_person_id(id, name, email, phone)",
+      "id, name, email, phone, instagram_handle, notes, logo_url, website, is_donor, is_sponsor, is_volunteer, is_organization, is_attendee, primary_contact_person_id, primary_contact:primary_contact_person_id(id, name, email, phone)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -137,7 +138,9 @@ export default async function PersonDetailPage({
       .eq("person_id", id),
     supabase
       .from("event_registrations")
-      .select("id, party_size, created_at, event:events(id, name, starts_at)")
+      .select(
+        "id, party_size, created_at, checked_in_at, event:events(id, name, starts_at)",
+      )
       .eq("person_id", id)
       .order("created_at", { ascending: false }),
     supabase
@@ -194,6 +197,9 @@ export default async function PersonDetailPage({
     (sum, entry) => sum + Number(entry.hours),
     0,
   );
+  const attendedEventCount = registrationRows.filter(
+    (registration) => registration.checked_in_at !== null,
+  ).length;
 
   return (
     <>
@@ -310,7 +316,8 @@ export default async function PersonDetailPage({
         <Card>
           <CardHeader>
             <CardTitle className="app-muted text-sm font-semibold">
-              Event registrations ({registrationRows.length})
+              Event registrations ({registrationRows.length}) · Attended{" "}
+              {attendedEventCount}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -325,6 +332,12 @@ export default async function PersonDetailPage({
                   >
                     <p className="font-medium">
                       {registration.event?.name ?? "—"}
+                      {registration.checked_in_at && (
+                        <span className="app-muted font-normal">
+                          {" "}
+                          · Attended
+                        </span>
+                      )}
                     </p>
                     <p className="app-muted">
                       Party of {registration.party_size} ·{" "}

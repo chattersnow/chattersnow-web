@@ -14,6 +14,7 @@ export type PersonFormData = {
   is_sponsor: boolean;
   is_volunteer: boolean;
   is_organization: boolean;
+  is_attendee: boolean;
 };
 
 export function parsePersonForm(
@@ -38,9 +39,12 @@ export function parsePersonForm(
   const is_organization =
     formData.get("isOrganization") === "on" ||
     formData.get("isOrganization") === "true";
+  const is_attendee =
+    formData.get("isAttendee") === "on" ||
+    formData.get("isAttendee") === "true";
 
   if (!name) return { error: "Name is required." };
-  if (!is_donor && !is_sponsor && !is_volunteer) {
+  if (!is_donor && !is_sponsor && !is_volunteer && !is_attendee) {
     return { error: "Select at least one role." };
   }
   if (instagramHandle && !INSTAGRAM_HANDLE_PATTERN.test(instagramHandle)) {
@@ -69,6 +73,7 @@ export function parsePersonForm(
       is_sponsor,
       is_volunteer,
       is_organization,
+      is_attendee,
     },
   };
 }

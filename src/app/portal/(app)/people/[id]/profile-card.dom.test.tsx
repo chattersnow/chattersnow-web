@@ -37,6 +37,7 @@ const person: PersonRow = {
   is_sponsor: false,
   is_volunteer: false,
   is_organization: false,
+  is_attendee: false,
   primary_contact_person_id: null,
   primary_contact: null,
 };

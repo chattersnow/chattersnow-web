@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { Check, Undo2 } from "lucide-react";
 import {
   checkInRegistrantAction,
+  getEventAttendanceBreakdownAction,
   listEventRegistrantsAction,
   undoCheckInAction,
+  type EventAttendanceBreakdown,
   type EventRegistrant,
 } from "./registrants-actions";
 import { useTabData } from "@/hooks/use-tab-data";
@@ -50,11 +52,18 @@ export function RegistrantsTab({
     active,
     [eventId],
   );
+  const { data: attendanceBreakdown, refresh: refreshBreakdown } =
+    useTabData<EventAttendanceBreakdown>(
+      () => getEventAttendanceBreakdownAction(eventId),
+      active,
+      [eventId],
+    );
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function refreshAll() {
     refresh();
+    refreshBreakdown();
     router.refresh();
   }
 
@@ -93,6 +102,9 @@ export function RegistrantsTab({
           {totalAttending} attending
           {capacity !== null && ` of ${capacity} capacity`} &middot;{" "}
           {checkedInCount} checked in
+          {attendanceBreakdown &&
+            checkedInCount > 0 &&
+            ` · ${attendanceBreakdown.recurring} recurring, ${attendanceBreakdown.firstTime} first-time`}
         </p>
       )}
 
