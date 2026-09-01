@@ -12,7 +12,10 @@ import {
 import { listProgramsAction } from "../actions";
 import {
   computeProgramImpactRollup,
+  type CheckinCountRow,
+  type DiscountCodeRow,
   type DistributedMovementRow,
+  type EventRow,
   type ImpactNoteRow,
   type ProgramImpactRollup,
   type RegistrationRow,
@@ -21,10 +24,13 @@ import {
 
 type RollupData = {
   event_ids: string[];
+  events: EventRow[];
   impact_notes: ImpactNoteRow[];
   distributed_movements: DistributedMovementRow[];
   volunteer_hours: VolunteerHoursRow[];
   registrations: RegistrationRow[];
+  checkin_counts: CheckinCountRow[];
+  discount_codes: DiscountCodeRow[];
 };
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
@@ -72,13 +78,16 @@ export default async function ProgramImpactReportPage({
     } else {
       const result = (data ?? {}) as RollupData;
       const eventIds = result.event_ids ?? [];
-      rollup = computeProgramImpactRollup(
-        eventIds.length,
-        result.impact_notes ?? [],
-        result.distributed_movements ?? [],
-        result.volunteer_hours ?? [],
-        result.registrations ?? [],
-      );
+      rollup = computeProgramImpactRollup({
+        eventCount: eventIds.length,
+        events: result.events ?? [],
+        notes: result.impact_notes ?? [],
+        distributedMovements: result.distributed_movements ?? [],
+        volunteerHours: result.volunteer_hours ?? [],
+        registrations: result.registrations ?? [],
+        checkinCounts: result.checkin_counts ?? [],
+        discountCodes: result.discount_codes ?? [],
+      });
     }
   }
 
@@ -136,8 +145,12 @@ export default async function ProgramImpactReportPage({
         <div className="rainbow-accent mt-3 w-full" />
       </div>
       <p className="app-muted mt-2 max-w-2xl text-sm">
-        Season/program rollup computed live from event impact notes, equipment
-        distribution, volunteer hours, and registrations across every event
+        Season/program rollup. Participants, first-time participants, and
+        subsidized tickets are computed live from attendance/check-ins and
+        discount codes; equipment distributed, volunteer hours, and repeat
+        participants are computed live from inventory and volunteer records.
+        Beginner participants, rental subsidies, equipment loans, and total
+        assistance dollars are still staff-entered per event, across every event
         tagged to the selected program.
       </p>
 

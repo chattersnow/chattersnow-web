@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import {
+  computeFirstTimeParticipants,
+  computeParticipants,
   computeProgramImpactRollup,
   countRepeatParticipants,
+  countSubsidizedTickets,
   sumDistributedQuantity,
   sumVolunteerHours,
   toNumber,
@@ -52,40 +55,218 @@ describe("sumVolunteerHours", () => {
 describe("countRepeatParticipants", () => {
   test("counts a person registered across 2 distinct events", () => {
     const registrations = [
-      { person_id: "p1", event_id: "e1" },
-      { person_id: "p1", event_id: "e2" },
+      { person_id: "p1", event_id: "e1", checked_in_at: null },
+      { person_id: "p1", event_id: "e2", checked_in_at: null },
     ];
     expect(countRepeatParticipants(registrations)).toBe(1);
   });
 
   test("does not count the same person/event pair twice as a repeat", () => {
     const registrations = [
-      { person_id: "p1", event_id: "e1" },
-      { person_id: "p1", event_id: "e1" },
+      { person_id: "p1", event_id: "e1", checked_in_at: null },
+      { person_id: "p1", event_id: "e1", checked_in_at: null },
     ];
     expect(countRepeatParticipants(registrations)).toBe(0);
   });
 
   test("ignores rows with no linked person", () => {
     const registrations = [
-      { person_id: null, event_id: "e1" },
-      { person_id: null, event_id: "e2" },
+      { person_id: null, event_id: "e1", checked_in_at: null },
+      { person_id: null, event_id: "e2", checked_in_at: null },
     ];
     expect(countRepeatParticipants(registrations)).toBe(0);
   });
 
   test("counts a person in 3 events once", () => {
     const registrations = [
-      { person_id: "p1", event_id: "e1" },
-      { person_id: "p1", event_id: "e2" },
-      { person_id: "p1", event_id: "e3" },
+      { person_id: "p1", event_id: "e1", checked_in_at: null },
+      { person_id: "p1", event_id: "e2", checked_in_at: null },
+      { person_id: "p1", event_id: "e3", checked_in_at: null },
     ];
     expect(countRepeatParticipants(registrations)).toBe(1);
   });
 });
 
+describe("computeParticipants", () => {
+  test("uses attendance_count when set, ignoring checked-in registrations", () => {
+    const events = [{ event_id: "e1", attendance_count: 25 }];
+    const registrations = [
+      {
+        person_id: "p1",
+        event_id: "e1",
+        checked_in_at: "2026-01-01T00:00:00Z",
+      },
+      {
+        person_id: "p2",
+        event_id: "e1",
+        checked_in_at: "2026-01-01T00:00:00Z",
+      },
+    ];
+    expect(computeParticipants(events, registrations)).toBe(25);
+  });
+
+  test("falls back to the checked-in registration count when attendance_count is null", () => {
+    const events = [{ event_id: "e1", attendance_count: null }];
+    const registrations = [
+      {
+        person_id: "p1",
+        event_id: "e1",
+        checked_in_at: "2026-01-01T00:00:00Z",
+      },
+      { person_id: "p2", event_id: "e1", checked_in_at: null },
+      {
+        person_id: "p3",
+        event_id: "e1",
+        checked_in_at: "2026-01-02T00:00:00Z",
+      },
+    ];
+    expect(computeParticipants(events, registrations)).toBe(2);
+  });
+
+  test("uses 0 when attendance_count is explicitly 0, not the checked-in count", () => {
+    const events = [{ event_id: "e1", attendance_count: 0 }];
+    const registrations = [
+      {
+        person_id: "p1",
+        event_id: "e1",
+        checked_in_at: "2026-01-01T00:00:00Z",
+      },
+    ];
+    expect(computeParticipants(events, registrations)).toBe(0);
+  });
+
+  test("contributes 0 for an event with no attendance_count and no checked-in registrations", () => {
+    const events = [{ event_id: "e1", attendance_count: null }];
+    const registrations = [
+      { person_id: "p1", event_id: "e1", checked_in_at: null },
+    ];
+    expect(computeParticipants(events, registrations)).toBe(0);
+  });
+
+  test("sums a mix of manual and checked-in-fallback events across the program", () => {
+    const events = [
+      { event_id: "e1", attendance_count: 25 },
+      { event_id: "e2", attendance_count: null },
+      { event_id: "e3", attendance_count: 0 },
+    ];
+    const registrations = [
+      {
+        person_id: "p1",
+        event_id: "e1",
+        checked_in_at: "2026-01-01T00:00:00Z",
+      },
+      {
+        person_id: "p2",
+        event_id: "e2",
+        checked_in_at: "2026-01-01T00:00:00Z",
+      },
+      {
+        person_id: "p3",
+        event_id: "e2",
+        checked_in_at: "2026-01-01T00:00:00Z",
+      },
+      { person_id: "p4", event_id: "e2", checked_in_at: null },
+      {
+        person_id: "p5",
+        event_id: "e3",
+        checked_in_at: "2026-01-01T00:00:00Z",
+      },
+    ];
+    // e1: 25 (manual) + e2: 2 (checked-in) + e3: 0 (manual) = 27
+    expect(computeParticipants(events, registrations)).toBe(27);
+  });
+});
+
+describe("computeFirstTimeParticipants", () => {
+  test("counts a person whose lifetime checked-in event count is 1", () => {
+    const registrations = [
+      {
+        person_id: "p1",
+        event_id: "e1",
+        checked_in_at: "2026-01-01T00:00:00Z",
+      },
+    ];
+    const checkinCounts = [{ person_id: "p1", checked_in_event_count: 1 }];
+    expect(computeFirstTimeParticipants(registrations, checkinCounts)).toBe(1);
+  });
+
+  test("does not count a person with more than one lifetime checked-in event", () => {
+    const registrations = [
+      {
+        person_id: "p1",
+        event_id: "e1",
+        checked_in_at: "2026-01-01T00:00:00Z",
+      },
+    ];
+    const checkinCounts = [{ person_id: "p1", checked_in_event_count: 3 }];
+    expect(computeFirstTimeParticipants(registrations, checkinCounts)).toBe(0);
+  });
+
+  test("ignores a registration with no linked person", () => {
+    const registrations = [
+      {
+        person_id: null,
+        event_id: "e1",
+        checked_in_at: "2026-01-01T00:00:00Z",
+      },
+    ];
+    expect(computeFirstTimeParticipants(registrations, [])).toBe(0);
+  });
+
+  test("ignores a registration that was never checked in", () => {
+    const registrations = [
+      { person_id: "p1", event_id: "e1", checked_in_at: null },
+    ];
+    const checkinCounts = [{ person_id: "p1", checked_in_event_count: 1 }];
+    expect(computeFirstTimeParticipants(registrations, checkinCounts)).toBe(0);
+  });
+
+  test("counts a person once even if they appear in multiple registration rows", () => {
+    const registrations = [
+      {
+        person_id: "p1",
+        event_id: "e1",
+        checked_in_at: "2026-01-01T00:00:00Z",
+      },
+      {
+        person_id: "p1",
+        event_id: "e2",
+        checked_in_at: "2026-01-02T00:00:00Z",
+      },
+    ];
+    const checkinCounts = [{ person_id: "p1", checked_in_event_count: 2 }];
+    expect(computeFirstTimeParticipants(registrations, checkinCounts)).toBe(0);
+  });
+});
+
+describe("countSubsidizedTickets", () => {
+  test("counts discount codes assigned to a registration", () => {
+    const codes = [
+      { event_id: "e1", registration_id: "r1" },
+      { event_id: "e1", registration_id: "r2" },
+    ];
+    expect(countSubsidizedTickets(codes)).toBe(2);
+  });
+
+  test("excludes unassigned discount codes", () => {
+    const codes = [
+      { event_id: "e1", registration_id: "r1" },
+      { event_id: "e1", registration_id: null },
+    ];
+    expect(countSubsidizedTickets(codes)).toBe(1);
+  });
+
+  test("returns 0 for an empty list", () => {
+    expect(countSubsidizedTickets([])).toBe(0);
+  });
+});
+
 describe("computeProgramImpactRollup", () => {
-  test("aggregates all 10 metrics from fixture rows", () => {
+  test("aggregates all metrics from fixture rows", () => {
+    const events = [
+      { event_id: "e1", attendance_count: 12 },
+      { event_id: "e2", attendance_count: null },
+    ];
     const notes = [
       {
         event_id: "e1",
@@ -117,25 +298,37 @@ describe("computeProgramImpactRollup", () => {
       { event_id: "e2", hours: "5.5" },
     ];
     const registrations = [
-      { person_id: "p1", event_id: "e1" },
-      { person_id: "p1", event_id: "e2" },
-      { person_id: "p2", event_id: "e1" },
+      { person_id: "p1", event_id: "e1", checked_in_at: null },
+      {
+        person_id: "p1",
+        event_id: "e2",
+        checked_in_at: "2026-01-01T00:00:00Z",
+      },
+      { person_id: "p2", event_id: "e1", checked_in_at: null },
+    ];
+    const checkinCounts = [{ person_id: "p1", checked_in_event_count: 1 }];
+    const discountCodes = [
+      { event_id: "e1", registration_id: "r1" },
+      { event_id: "e2", registration_id: null },
     ];
 
     expect(
-      computeProgramImpactRollup(
-        2,
+      computeProgramImpactRollup({
+        eventCount: 2,
+        events,
         notes,
         distributedMovements,
         volunteerHours,
         registrations,
-      ),
+        checkinCounts,
+        discountCodes,
+      }),
     ).toEqual({
       eventCount: 2,
-      participants: 35,
-      firstTimeParticipants: 7,
+      participants: 13, // e1: 12 (manual) + e2: 1 (checked-in) = 13
+      firstTimeParticipants: 1, // p1's only checked-in event ever
       beginnerParticipants: 11,
-      assistedParticipants: 6,
+      assistedParticipants: 3, // 1 assigned discount code + 2 rental_subsidies_count
       equipmentLoans: 5,
       equipmentDistributed: 10,
       volunteerHours: 15.5,
@@ -145,6 +338,7 @@ describe("computeProgramImpactRollup", () => {
   });
 
   test("treats a null column on an impact note as 0, not NaN", () => {
+    const events = [{ event_id: "e1", attendance_count: null }];
     const notes = [
       {
         event_id: "e1",
@@ -157,14 +351,33 @@ describe("computeProgramImpactRollup", () => {
         assistance_total: null,
       },
     ];
-    const result = computeProgramImpactRollup(1, notes, [], [], []);
+    const result = computeProgramImpactRollup({
+      eventCount: 1,
+      events,
+      notes,
+      distributedMovements: [],
+      volunteerHours: [],
+      registrations: [],
+      checkinCounts: [],
+      discountCodes: [],
+    });
     expect(result.participants).toBe(0);
     expect(result.participantAssistanceTotal).toBe(0);
     expect(Number.isNaN(result.assistedParticipants)).toBe(false);
   });
 
   test("an event with no impact_notes row yet contributes 0 across the board", () => {
-    const result = computeProgramImpactRollup(1, [], [], [], []);
+    const events = [{ event_id: "e1", attendance_count: null }];
+    const result = computeProgramImpactRollup({
+      eventCount: 1,
+      events,
+      notes: [],
+      distributedMovements: [],
+      volunteerHours: [],
+      registrations: [],
+      checkinCounts: [],
+      discountCodes: [],
+    });
     expect(result.eventCount).toBe(1);
     expect(result.participants).toBe(0);
     expect(result.repeatParticipants).toBe(0);
