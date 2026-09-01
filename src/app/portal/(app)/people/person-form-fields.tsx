@@ -34,6 +34,7 @@ export function emptyPersonForm(
       is_donor: defaultRole === "is_donor",
       is_sponsor: defaultRole === "is_sponsor",
       is_volunteer: defaultRole === "is_volunteer",
+      is_attendee: defaultRole === "is_attendee",
     },
     isOrganization: defaultIsOrganization,
   };
@@ -175,6 +176,7 @@ export function packPersonFormData(form: PersonFormState) {
   formData.set("isDonor", String(form.roles.is_donor));
   formData.set("isSponsor", String(form.roles.is_sponsor));
   formData.set("isVolunteer", String(form.roles.is_volunteer));
+  formData.set("isAttendee", String(form.roles.is_attendee));
   formData.set("isOrganization", String(form.isOrganization));
   return formData;
 }

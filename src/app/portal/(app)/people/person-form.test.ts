@@ -61,6 +61,7 @@ describe("parsePersonForm", () => {
         is_sponsor: true,
         is_volunteer: false,
         is_organization: false,
+        is_attendee: false,
       },
     });
   });

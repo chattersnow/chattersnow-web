@@ -29,18 +29,21 @@ import {
 import { FiltersSheet } from "@/components/filters-sheet";
 import { FilterSubmitButton } from "@/components/filter-submit-button";
 import { LinkPendingPulse } from "@/components/link-pending";
+import { StatTile } from "../home/stat-tile";
 import { NewPersonDialog } from "../people/new-person-dialog";
 import { rolesFor, type PersonRow } from "../people/people-shared";
 
-type DonorsPageProps = {
+type AttendeesPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 export const metadata: Metadata = {
-  title: "Donors",
+  title: "Attendees",
 };
 
-export default async function DonorsPage({ searchParams }: DonorsPageProps) {
+export default async function AttendeesPage({
+  searchParams,
+}: AttendeesPageProps) {
   const supabase = await createSupabaseServerClient();
   const permissions = await getCurrentUserPermissions(supabase);
   const canManage = hasPermission(permissions, "people", "manage");
@@ -60,7 +63,7 @@ export default async function DonorsPage({ searchParams }: DonorsPageProps) {
       "id, name, email, phone, instagram_handle, notes, logo_url, website, is_donor, is_sponsor, is_volunteer, is_organization, is_attendee, primary_contact_person_id, primary_contact:primary_contact_person_id(id, name, email, phone)",
       { count: "exact" },
     )
-    .eq("is_donor", true)
+    .eq("is_attendee", true)
     .order("name", { ascending: true })
     .order("id", { ascending: true });
 
@@ -72,20 +75,43 @@ export default async function DonorsPage({ searchParams }: DonorsPageProps) {
   }
 
   const { offset, to } = pageRange(page);
-  const [{ data: people, count }, { data: peopleOptions }] = await Promise.all([
+  const [
+    { data: people, count },
+    { data: peopleOptions },
+    { data: checkedInRegistrations },
+  ] = await Promise.all([
     query.range(offset, to),
     supabase
       .from("people")
       .select("id, name, email, phone, is_sponsor, is_organization")
       .order("name", { ascending: true }),
+    supabase
+      .from("event_registrations")
+      .select("person_id, event_id")
+      .not("checked_in_at", "is", null)
+      .not("person_id", "is", null),
   ]);
   const peopleRows = (people ?? []) as unknown as PersonRow[];
+
+  const attendedEventsByPerson = new Map<string, Set<string>>();
+  for (const registration of checkedInRegistrations ?? []) {
+    const personId = registration.person_id as string;
+    const events = attendedEventsByPerson.get(personId) ?? new Set<string>();
+    events.add(registration.event_id as string);
+    attendedEventsByPerson.set(personId, events);
+  }
+  let recurringCount = 0;
+  let firstTimeCount = 0;
+  for (const events of attendedEventsByPerson.values()) {
+    if (events.size > 1) recurringCount += 1;
+    else firstTimeCount += 1;
+  }
 
   const filterParams = new URLSearchParams();
   if (search) filterParams.set("search", search);
 
   function pageHref(nextPage: number) {
-    return buildHref("/portal/donors", filterParams, { page: nextPage });
+    return buildHref("/portal/attendees", filterParams, { page: nextPage });
   }
 
   const totalPages = totalPagesFor(count);
@@ -95,9 +121,22 @@ export default async function DonorsPage({ searchParams }: DonorsPageProps) {
     <>
       <div className="w-fit">
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-          Donors
+          Attendees
         </h1>
         <div className="rainbow-accent mt-3 w-full" />
+      </div>
+
+      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        <StatTile
+          label="Recurring attendees"
+          value={recurringCount}
+          caption="Checked in to more than one event"
+        />
+        <StatTile
+          label="First-time attendees"
+          value={firstTimeCount}
+          caption="Checked in to exactly one event so far"
+        />
       </div>
 
       <div className="mt-6 space-y-4">
@@ -125,7 +164,7 @@ export default async function DonorsPage({ searchParams }: DonorsPageProps) {
                   <Button
                     variant="ghost"
                     nativeButton={false}
-                    render={<Link href="/portal/donors" />}
+                    render={<Link href="/portal/attendees" />}
                   >
                     <LinkPendingPulse>Clear</LinkPendingPulse>
                   </Button>
@@ -137,8 +176,8 @@ export default async function DonorsPage({ searchParams }: DonorsPageProps) {
           {canManage && (
             <NewPersonDialog
               people={peopleOptions ?? []}
-              defaultRole="is_donor"
-              triggerLabel="New Donor"
+              defaultRole="is_attendee"
+              triggerLabel="New Attendee"
             />
           )}
         </div>
@@ -148,8 +187,8 @@ export default async function DonorsPage({ searchParams }: DonorsPageProps) {
             {peopleRows.length === 0 ? (
               <p className="app-muted px-4 py-6 text-sm">
                 {hasActiveFilters
-                  ? "No donors match your filters."
-                  : "No donors added yet."}
+                  ? "No attendees match your filters."
+                  : "No event attendees yet."}
               </p>
             ) : (
               <Table>
@@ -192,7 +231,7 @@ export default async function DonorsPage({ searchParams }: DonorsPageProps) {
                           variant="ghost"
                           size="icon-sm"
                           nativeButton={false}
-                          aria-label={`View ${person.name ?? "donor"}`}
+                          aria-label={`View ${person.name ?? "attendee"}`}
                           render={<Link href={`/portal/people/${person.id}`} />}
                         >
                           <LinkPendingPulse>

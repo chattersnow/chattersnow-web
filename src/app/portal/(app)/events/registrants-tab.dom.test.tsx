@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { EventRegistrant } from "./registrants-actions";
+import type {
+  EventAttendanceBreakdown,
+  EventRegistrant,
+} from "./registrants-actions";
 import * as RegistrantsActions from "./registrants-actions";
 
 type ActionResult = { error: string } | { success: true };
@@ -42,12 +45,16 @@ const checkInRegistrantActionMock = mock<(id: string) => Promise<ActionResult>>(
 const undoCheckInActionMock = mock<(id: string) => Promise<ActionResult>>(
   async () => ({ success: true }),
 );
+const getEventAttendanceBreakdownActionMock = mock(async () => ({
+  data: { recurring: 0, firstTime: 1 } satisfies EventAttendanceBreakdown,
+}));
 
 mock.module("./registrants-actions", () => ({
   ...RegistrantsActions,
   listEventRegistrantsAction: listEventRegistrantsActionMock,
   checkInRegistrantAction: checkInRegistrantActionMock,
   undoCheckInAction: undoCheckInActionMock,
+  getEventAttendanceBreakdownAction: getEventAttendanceBreakdownActionMock,
 }));
 
 const { RegistrantsTab } = await import("./registrants-tab");
@@ -57,8 +64,12 @@ describe("RegistrantsTab", () => {
     listEventRegistrantsActionMock.mockClear();
     checkInRegistrantActionMock.mockClear();
     undoCheckInActionMock.mockClear();
+    getEventAttendanceBreakdownActionMock.mockClear();
     listEventRegistrantsActionMock.mockImplementation(async () => ({
       data: registrants,
+    }));
+    getEventAttendanceBreakdownActionMock.mockImplementation(async () => ({
+      data: { recurring: 0, firstTime: 1 },
     }));
   });
 
@@ -70,8 +81,8 @@ describe("RegistrantsTab", () => {
     expect(await screen.findByText("Jamie Rivera")).toBeInTheDocument();
     expect(screen.getByText("Alex Chen")).toBeInTheDocument();
     expect(
-      screen.getByText(
-        "2 registrations, 3 attending of 10 capacity · 1 checked in",
+      await screen.findByText(
+        "2 registrations, 3 attending of 10 capacity · 1 checked in · 0 recurring, 1 first-time",
       ),
     ).toBeInTheDocument();
   });

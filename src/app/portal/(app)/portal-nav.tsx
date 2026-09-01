@@ -17,6 +17,7 @@ import {
   Package,
   Scale,
   ShieldCheck,
+  Ticket,
   Users,
 } from "lucide-react";
 import {
@@ -270,6 +271,13 @@ const NAV_ITEMS: readonly NavItem[] = [
     label: "Sponsors",
     href: "/portal/sponsors",
     icon: Handshake,
+    access: [{ resource: "people", level: "view" }],
+  },
+  {
+    value: "attendees",
+    label: "Attendees",
+    href: "/portal/attendees",
+    icon: Ticket,
     access: [{ resource: "people", level: "view" }],
   },
   {

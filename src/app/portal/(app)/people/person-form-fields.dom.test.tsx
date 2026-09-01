@@ -51,16 +51,20 @@ describe("PersonFormFields", () => {
       is_donor: false,
       is_sponsor: true,
       is_volunteer: false,
+      is_attendee: false,
     });
   });
 
-  test("renders all three role checkboxes unchecked by default", () => {
+  test("renders all four role checkboxes unchecked by default", () => {
     render(<ControlledForm />);
 
     expect(screen.getByRole("checkbox", { name: "Donor" })).not.toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Sponsor" })).not.toBeChecked();
     expect(
       screen.getByRole("checkbox", { name: "Volunteer" }),
+    ).not.toBeChecked();
+    expect(
+      screen.getByRole("checkbox", { name: "Attendee" }),
     ).not.toBeChecked();
   });
 

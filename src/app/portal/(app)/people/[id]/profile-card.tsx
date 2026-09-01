@@ -38,6 +38,7 @@ function formStateFor(person: PersonRow): PersonFormState {
       is_donor: person.is_donor,
       is_sponsor: person.is_sponsor,
       is_volunteer: person.is_volunteer,
+      is_attendee: person.is_attendee,
     },
     isOrganization: person.is_organization,
   };
