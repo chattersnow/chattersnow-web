@@ -15,17 +15,40 @@ const FOOTER_LINKS = [
   { label: "Contact", href: "/contact", slot: "contact" },
 ] as const;
 
+function FooterLinks({ hidden }: { hidden: string[] }) {
+  return FOOTER_LINKS.filter((link) => !hidden.includes(link.slot)).map(
+    (link) => (
+      <Link
+        key={link.href}
+        href={link.href}
+        className="app-muted text-sm hover:text-foreground"
+      >
+        {link.label}
+      </Link>
+    ),
+  );
+}
+
+// Deliberately awaited here rather than streamed, and the trade was measured
+// rather than assumed. Suspense-wrapping the nav so the shell flushes first
+// is a real TTFB win locally (~64ms -> ~7ms on pages that have their own
+// loading.tsx), but it makes the nav arrive after first paint: a click landing
+// in that window hits a node React is about to swap, and e2e/helpers/nav.ts's
+// point-in-time viewport check reads the wrong shape. `--repeat-each=3` over
+// the "nav resolves" specs failed 12/39 streamed against 2/39 awaited, where
+// 2/39 is this suite's background flake rate on `development`. One small
+// indexed query on initial load buys an always-interactive header.
+//
+// No loading.tsx can cover this either way: per Next's loading.js docs it
+// wraps page.js and nested layouts but never the layout in its own segment,
+// and it shows no fallback at all for a layout's runtime data access.
 export default async function PublicLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const supabase = await createSupabaseServerClient();
-  const visibility = await getPageVisibility(supabase);
-  const hidden = hiddenSlots(visibility);
-  const footerLinks = FOOTER_LINKS.filter(
-    (link) => !hidden.includes(link.slot),
-  );
+  const hidden = hiddenSlots(await getPageVisibility(supabase));
 
   return (
     <>
@@ -54,15 +77,7 @@ export default async function PublicLayout({
         <div className="rainbow-strip -mt-10 mb-10" />
         <div className="mx-auto flex max-w-6xl flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex flex-wrap gap-x-6 gap-y-2">
-            {footerLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="app-muted text-sm hover:text-foreground"
-              >
-                {link.label}
-              </Link>
-            ))}
+            <FooterLinks hidden={hidden} />
           </div>
 
           <div className="app-muted flex flex-col gap-1 text-sm sm:text-right">
