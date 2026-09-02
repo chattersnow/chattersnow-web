@@ -1,4 +1,6 @@
 import { describe, expect, spyOn, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   PUBLIC_PAGE_SLOTS,
@@ -57,6 +59,32 @@ describe("PUBLIC_PAGE_SLOTS", () => {
     for (const key of ["programs", "learn", "support"]) {
       const slot = PUBLIC_PAGE_SLOTS.find((entry) => entry.key === key);
       expect(slot?.defaultVisible).toBe(false);
+    }
+  });
+
+  // Registering a slot only filters it out of the nav and footer. Without a
+  // gate in the section's own layout its URLs stay live and indexable, so the
+  // board hides the link and believes it has hidden the section -- which is
+  // exactly what had happened to about/events/gears/get-involved/contact:
+  // five of the eight slots were registered but never gated.
+  test("every registered slot has a route gate in its section layout", () => {
+    const publicDir = join(import.meta.dirname, "..", "app", "(public)");
+
+    for (const slot of PUBLIC_PAGE_SLOTS) {
+      const layout = join(publicDir, slot.key, "layout.tsx");
+      let source: string;
+      try {
+        source = readFileSync(layout, "utf8");
+      } catch {
+        throw new Error(
+          `${slot.key} is registered in PUBLIC_PAGE_SLOTS but has no ${slot.key}/layout.tsx to gate it.`,
+        );
+      }
+
+      expect(
+        source.includes(`requireVisiblePage("${slot.key}")`),
+        `${slot.key}/layout.tsx must call requireVisiblePage("${slot.key}")`,
+      ).toBe(true);
     }
   });
 });
