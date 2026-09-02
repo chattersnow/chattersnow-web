@@ -1043,3 +1043,14 @@ begin
     end loop;
   end loop;
 end $$;
+
+-- Page visibility (issue #584). Production deliberately has no
+-- `page_visibility.*` rows, so the sections still awaiting board approval fall
+-- back to `defaultVisible: false` in src/lib/page-visibility.ts and stay dark.
+-- Local development and CI need them visible, otherwise the existing public
+-- e2e specs and the e2e/a11y-scan.ts route list would all 404.
+insert into public.app_settings (key, value) values
+  ('page_visibility.programs', to_jsonb(true)),
+  ('page_visibility.learn', to_jsonb(true)),
+  ('page_visibility.support', to_jsonb(true))
+on conflict (key) do update set value = excluded.value;

@@ -1,8 +1,10 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SITE_IMAGE_SLOTS, siteImageSettingKey } from "@/lib/site-images";
+import { PUBLIC_PAGE_SLOTS, getPageVisibility } from "@/lib/page-visibility";
 import { SystemSettingsForm } from "./system-settings-form";
 import { SiteImagesPanel } from "./site-images-panel";
+import { PageVisibilityPanel } from "./page-visibility-panel";
 
 function parseThreshold(value: unknown): number | null {
   const threshold = typeof value === "number" ? value : Number(value ?? NaN);
@@ -32,6 +34,8 @@ export default async function SystemSettingsPage() {
       .like("key", "site_images.%"),
   ]);
 
+  const pageVisibility = await getPageVisibility(supabase);
+
   const siteImageUrls: Record<string, string | null> = {};
   for (const slot of SITE_IMAGE_SLOTS) {
     const row = siteImageSettings?.find(
@@ -54,6 +58,7 @@ export default async function SystemSettingsPage() {
           <TabsList variant="line">
             <TabsTrigger value="workflow">Workflow settings</TabsTrigger>
             <TabsTrigger value="images">Image settings</TabsTrigger>
+            <TabsTrigger value="visibility">Page visibility</TabsTrigger>
           </TabsList>
         </div>
 
@@ -79,6 +84,20 @@ export default async function SystemSettingsPage() {
             placeholder.
           </p>
           <SiteImagesPanel slots={SITE_IMAGE_SLOTS} urls={siteImageUrls} />
+        </TabsContent>
+
+        <TabsContent value="visibility" className="mt-6 space-y-4">
+          <p className="app-muted max-w-3xl text-sm leading-relaxed">
+            Control which sections of the public website are live. A hidden
+            section disappears from the site navigation and its pages return
+            &ldquo;not found&rdquo; — use this to hold content back until the
+            board has approved it. Every change here is recorded in the audit
+            log.
+          </p>
+          <PageVisibilityPanel
+            slots={PUBLIC_PAGE_SLOTS}
+            visibility={pageVisibility}
+          />
         </TabsContent>
       </Tabs>
     </>

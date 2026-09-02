@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { SiteImage } from "@/components/site-image";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSiteImageUrls } from "@/lib/site-images";
+import { isPageVisible } from "@/lib/page-visibility";
 
 export const metadata: Metadata = {
   title: "Get Involved | Chatter Snow",
@@ -12,6 +13,7 @@ export const metadata: Metadata = {
 export default async function GetInvolvedPage() {
   const supabase = await createSupabaseServerClient();
   const siteImages = await getSiteImageUrls(supabase);
+  const supportVisible = await isPageVisible("support");
 
   return (
     <div className="space-y-12">
@@ -72,15 +74,20 @@ export default async function GetInvolvedPage() {
           Sponsor Chatter
         </h2>
         <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-          Sponsorships help fund events, gear, and programs. See sponsorship
-          details on our{" "}
-          <Link
-            href="/support#sponsorship"
-            className="underline underline-offset-4 hover:text-foreground"
-          >
-            Support page
-          </Link>
-          .
+          Sponsorships help fund events, gear, and programs.
+          {supportVisible ? (
+            <>
+              {" "}
+              See sponsorship details on our{" "}
+              <Link
+                href="/support#sponsorship"
+                className="underline underline-offset-4 hover:text-foreground"
+              >
+                Support page
+              </Link>
+              .
+            </>
+          ) : null}
         </p>
       </section>
 
