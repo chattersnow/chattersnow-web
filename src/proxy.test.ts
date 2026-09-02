@@ -19,8 +19,26 @@ describe("resolvePortalRoute on the portal host", () => {
     });
   });
 
-  test("leaves an already-prefixed portal path alone", () => {
+  test("strips the internal /portal prefix off a document request", () => {
     expect(resolvePortalRoute(PORTAL, "/portal/home")).toEqual({
+      kind: "redirect",
+      host: PORTAL,
+      pathname: "/home",
+      status: 307,
+    });
+  });
+
+  test("strips bare /portal down to the root", () => {
+    expect(resolvePortalRoute(PORTAL, "/portal")).toEqual({
+      kind: "redirect",
+      host: PORTAL,
+      pathname: "/",
+      status: 307,
+    });
+  });
+
+  test("serves prefixed RSC and Server Action requests instead of redirecting", () => {
+    expect(resolvePortalRoute(PORTAL, "/portal/home", true)).toEqual({
       kind: "pass",
     });
   });
@@ -50,6 +68,7 @@ describe("resolvePortalRoute on the public hosts", () => {
       kind: "redirect",
       host: PORTAL,
       pathname: "/home",
+      status: 308,
     });
   });
 
@@ -58,6 +77,7 @@ describe("resolvePortalRoute on the public hosts", () => {
       kind: "redirect",
       host: PORTAL,
       pathname: "/",
+      status: 308,
     });
   });
 

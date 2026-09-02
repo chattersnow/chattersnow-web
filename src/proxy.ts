@@ -1,8 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-
-const PRODUCTION_HOSTS = new Set(["chattersnow.org", "www.chattersnow.org"]);
-const PORTAL_HOST = "portal.chattersnow.org";
+import {
+  PORTAL_HOST,
+  PUBLIC_HOSTS,
+  isPortalPathname,
+  stripPortalPrefix,
+} from "@/lib/portal/paths";
 
 // Paths that live at the app root and must keep working unprefixed on the
 // portal host. `/portal` is a route-group prefix, not a mount point, so
@@ -20,16 +23,22 @@ const ROOT_PATH_PREFIXES = ["/auth/"];
 export type PortalRoute =
   | { kind: "pass" }
   | { kind: "rewrite"; pathname: string }
-  | { kind: "redirect"; host: string; pathname: string };
+  | { kind: "redirect"; host: string; pathname: string; status: 307 | 308 };
 
 // Pure host/path routing decision, split out so it can be unit tested without
 // a real request (fetch's Headers refuses to carry a `host` header).
+//
+// `isNonDocumentRequest` marks anything that isn't a page load the user can
+// see: RSC payload fetches and Server Action POSTs. Those skip the cosmetic
+// prefix-strip below -- there's no address bar to clean up, redirecting a
+// prefetch would double every navigation request, and bouncing an action POST
+// asks fetch to replay a body it may not be able to rewind.
 export function resolvePortalRoute(
   hostname: string,
   pathname: string,
+  isNonDocumentRequest = false,
 ): PortalRoute {
-  const isPortalPath =
-    pathname === "/portal" || pathname.startsWith("/portal/");
+  const isPortalPath = isPortalPathname(pathname);
 
   if (hostname === PORTAL_HOST) {
     const isRootPath =
@@ -37,17 +46,36 @@ export function resolvePortalRoute(
       // Anything with a file extension is a public/ asset, never a page route.
       /\.[^/]+$/.test(pathname);
 
-    if (isPortalPath || isRootPath) {
+    if (isRootPath) {
       return { kind: "pass" };
     }
+
+    // The prefix is internal here, so send the browser to the bare path and
+    // let the rewrite below put it back. App code keeps linking to the
+    // canonical `/portal/...` paths, which still resolve on every host; this
+    // is what stops them showing up as portal.chattersnow.org/portal/home.
+    // 307 rather than 308: nothing about the split is settled enough to want
+    // it burned into browser caches.
+    if (isPortalPath) {
+      return isNonDocumentRequest
+        ? { kind: "pass" }
+        : {
+            kind: "redirect",
+            host: PORTAL_HOST,
+            pathname: stripPortalPrefix(pathname),
+            status: 307,
+          };
+    }
+
     return { kind: "rewrite", pathname: `/portal${pathname}` };
   }
 
-  if (PRODUCTION_HOSTS.has(hostname) && isPortalPath) {
+  if (PUBLIC_HOSTS.has(hostname) && isPortalPath) {
     return {
       kind: "redirect",
       host: PORTAL_HOST,
-      pathname: pathname.slice("/portal".length) || "/",
+      pathname: stripPortalPrefix(pathname),
+      status: 308,
     };
   }
 
@@ -101,11 +129,15 @@ async function refreshPortalSession(request: NextRequest) {
 export async function proxy(request: NextRequest) {
   const hostname = request.headers.get("host") ?? "";
   const { pathname } = request.nextUrl;
-  const route = resolvePortalRoute(hostname, pathname);
+  const route = resolvePortalRoute(
+    hostname,
+    pathname,
+    request.method !== "GET" ||
+      request.headers.has("rsc") ||
+      request.headers.has("next-action"),
+  );
   const isPortalRequest =
-    hostname === PORTAL_HOST ||
-    pathname === "/portal" ||
-    pathname.startsWith("/portal/");
+    hostname === PORTAL_HOST || isPortalPathname(pathname);
 
   const refreshedResponse = isPortalRequest
     ? await refreshPortalSession(request)
@@ -128,7 +160,7 @@ export async function proxy(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.host = route.host;
     url.pathname = route.pathname;
-    return withRefreshedCookies(NextResponse.redirect(url, 308));
+    return withRefreshedCookies(NextResponse.redirect(url, route.status));
   }
 
   return refreshedResponse;
