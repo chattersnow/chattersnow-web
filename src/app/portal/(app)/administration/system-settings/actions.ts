@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkPermission } from "@/lib/auth/permissions";
 import { siteImageSettingKey } from "@/lib/site-images";
+import { pageVisibilitySettingKey } from "@/lib/page-visibility";
 
 export type SettingActionResult = { error: string } | { success: true };
 
@@ -69,4 +70,16 @@ export async function updateSiteImageAction(
   // upserts an empty string rather than removing the row; getSiteImageUrls
   // and resolveImageUrl both already treat an empty/non-string value as unset.
   return updateAppSettingAction(key, url);
+}
+
+/**
+ * Shows or hides a whole section of the public site (issue #584). The write is
+ * audit-logged by the app_settings trigger, which is what makes the toggle
+ * usable as a record of the board's approval.
+ */
+export async function updatePageVisibilityAction(
+  slot: string,
+  visible: boolean,
+): Promise<SettingActionResult> {
+  return updateAppSettingAction(pageVisibilitySettingKey(slot), visible);
 }

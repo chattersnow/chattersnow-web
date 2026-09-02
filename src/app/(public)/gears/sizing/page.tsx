@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SkiSizingSections } from "./ski-sizing-sections";
 import { SnowboardSizingSections } from "./snowboard-sizing-sections";
+import { isPageVisible } from "@/lib/page-visibility";
 
 export const metadata: Metadata = {
   title: "Sizing Guide | Chatter Snow",
@@ -20,7 +21,9 @@ const SNOWBOARD_CATEGORIES = [
   { href: "#snowboard-bindings", label: "Snowboard bindings" },
 ];
 
-export default function GearSizingPage() {
+export default async function GearSizingPage() {
+  const learnVisible = await isPageVisible("learn");
+
   return (
     <main className="app-shell px-6 py-8 sm:px-10">
       <div className="mx-auto max-w-6xl space-y-12">
@@ -41,15 +44,20 @@ export default function GearSizingPage() {
             </Link>
             ? These charts use standard, widely published industry sizing
             guidelines to help you find a good starting point for skis,
-            snowboards, boots, and bindings. New to snow sports altogether?
-            Start with{" "}
-            <Link
-              href="/learn"
-              className="underline underline-offset-4 hover:text-foreground"
-            >
-              Learn
-            </Link>
-            .
+            snowboards, boots, and bindings.
+            {learnVisible ? (
+              <>
+                {" "}
+                New to snow sports altogether? Start with{" "}
+                <Link
+                  href="/learn"
+                  className="underline underline-offset-4 hover:text-foreground"
+                >
+                  Learn
+                </Link>
+                .
+              </>
+            ) : null}
           </p>
         </section>
 

@@ -22,15 +22,25 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-type NavLink = { label: string; href: string };
+// `slot` ties a group (or an individual link within a group) to an entry in
+// PUBLIC_PAGE_SLOTS, so a section the board has hidden from Administration >
+// System Settings drops out of the nav. A group with no slot -- Home -- is
+// always shown; a group whose links are all hidden is dropped entirely.
+type NavLink = { label: string; href: string; slot?: string };
 type NavGroup =
-  | { label: string; href: string; links?: undefined }
-  | { label: string; href?: undefined; links: readonly NavLink[] };
+  | { label: string; href: string; slot?: string; links?: undefined }
+  | {
+      label: string;
+      href?: undefined;
+      slot?: string;
+      links: readonly NavLink[];
+    };
 
 const NAV_GROUPS: readonly NavGroup[] = [
   { label: "Home", href: "/home" },
   {
     label: "About",
+    slot: "about",
     links: [
       { label: "Our Story", href: "/about/story" },
       { label: "Mission & Values", href: "/about/mission" },
@@ -39,15 +49,17 @@ const NAV_GROUPS: readonly NavGroup[] = [
   },
   {
     label: "Events",
+    slot: "events",
     links: [
       { label: "All Events", href: "/events" },
       { label: "Community Calendar", href: "/events/community" },
     ],
   },
-  { label: "Programs", href: "/programs" },
-  { label: "Learn", href: "/learn" },
+  { label: "Programs", href: "/programs", slot: "programs" },
+  { label: "Learn", href: "/learn", slot: "learn" },
   {
     label: "Gear",
+    slot: "gears",
     links: [
       { label: "Gear Library", href: "/gears/library" },
       { label: "Sizing Guide", href: "/gears/sizing" },
@@ -59,6 +71,7 @@ const NAV_GROUPS: readonly NavGroup[] = [
   },
   {
     label: "Get Involved",
+    slot: "get-involved",
     links: [
       { label: "Attend", href: "/get-involved/attend" },
       { label: "Volunteer", href: "/get-involved/volunteer" },
@@ -67,12 +80,13 @@ const NAV_GROUPS: readonly NavGroup[] = [
   },
   {
     label: "Support",
+    slot: "support",
     links: [
       { label: "Donations", href: "/support/donations" },
       { label: "Sponsorship", href: "/support/sponsorship" },
     ],
   },
-  { label: "Contact", href: "/contact" },
+  { label: "Contact", href: "/contact", slot: "contact" },
 ] as const;
 
 function isActive(pathname: string, href: string) {
@@ -125,17 +139,40 @@ function MobileSubNavLink({
   );
 }
 
-export function SiteNav() {
+/**
+ * Drops every group and sub-link belonging to a hidden section. A group is
+ * removed when its own slot is hidden, and also when filtering its sub-links
+ * leaves it empty -- otherwise the board hiding the last page in a group would
+ * leave an empty dropdown behind.
+ */
+function visibleGroups(hidden: readonly string[]): NavGroup[] {
+  const isHidden = (slot?: string) => Boolean(slot && hidden.includes(slot));
+
+  return NAV_GROUPS.filter((group) => !isHidden(group.slot))
+    .map((group) => {
+      if (!group.links) return group;
+      const links = group.links.filter((link) => !isHidden(link.slot));
+      return { ...group, links };
+    })
+    .filter((group) => group.links === undefined || group.links.length > 0);
+}
+
+export function SiteNav({
+  hiddenSlots = [],
+}: {
+  hiddenSlots?: readonly string[];
+}) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const closeMobile = () => setMobileOpen(false);
+  const groups = visibleGroups(hiddenSlots);
 
   return (
     <>
       <nav className="hidden sm:block">
         <NavigationMenu>
           <NavigationMenuList>
-            {NAV_GROUPS.map((group) =>
+            {groups.map((group) =>
               !group.links ? (
                 <NavigationMenuItem key={group.label}>
                   <NavigationMenuLink
@@ -192,7 +229,7 @@ export function SiteNav() {
             <SheetTitle>Menu</SheetTitle>
           </SheetHeader>
           <nav className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 pb-4">
-            {NAV_GROUPS.map((group) =>
+            {groups.map((group) =>
               !group.links ? (
                 <MobileNavLink
                   key={group.label}

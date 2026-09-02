@@ -3,12 +3,15 @@ import { EducationalDisclaimer } from "@/components/educational-disclaimer";
 import { SiteImage } from "@/components/site-image";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSiteImageUrls } from "@/lib/site-images";
+import { requireVisiblePage } from "@/lib/page-visibility";
 
 export default async function LearnLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  await requireVisiblePage("learn");
+
   const supabase = await createSupabaseServerClient();
   const siteImages = await getSiteImageUrls(supabase);
 

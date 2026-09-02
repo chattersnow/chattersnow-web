@@ -10,6 +10,7 @@ import {
 import { SiteImage } from "@/components/site-image";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSiteImageUrls } from "@/lib/site-images";
+import { isPageVisible } from "@/lib/page-visibility";
 import { nowMs } from "@/lib/time";
 
 const CAROUSEL_SLOTS = [
@@ -33,6 +34,8 @@ export default async function Home() {
       .order("starts_at", { ascending: true }),
     getSiteImageUrls(supabase),
   ]);
+
+  const supportVisible = await isPageVisible("support");
 
   const now = nowMs();
   const nextEvent = (events ?? []).find(
@@ -88,13 +91,15 @@ export default async function Home() {
             >
               Get involved
             </Button>
-            <Button
-              variant="secondary"
-              nativeButton={false}
-              render={<Link href="/support" />}
-            >
-              Donate
-            </Button>
+            {supportVisible ? (
+              <Button
+                variant="secondary"
+                nativeButton={false}
+                render={<Link href="/support" />}
+              >
+                Donate
+              </Button>
+            ) : null}
           </div>
         </section>
 
