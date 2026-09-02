@@ -3,7 +3,8 @@
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { ArrowLeft, Eye, ImageOff, Pencil } from "lucide-react";
+import { ArrowLeft, Eye, Pencil } from "lucide-react";
+import { BrandImageFallback } from "@/components/brand-image-fallback";
 import { updateInventoryItemAction } from "./actions";
 import {
   CONDITIONS,
@@ -248,12 +249,7 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
                     className="object-cover"
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center">
-                    <ImageOff
-                      className="size-10 text-muted-foreground"
-                      aria-hidden
-                    />
-                  </div>
+                  <BrandImageFallback label="No photo" />
                 )}
               </div>
               <FieldGroup>

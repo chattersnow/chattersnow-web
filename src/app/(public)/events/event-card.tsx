@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { ImageOff } from "lucide-react";
+import { BrandImageFallback } from "@/components/brand-image-fallback";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDateTimeInZone } from "@/lib/time";
 import { resolveImageUrl } from "@/lib/inventory";
@@ -59,9 +59,7 @@ export function EventCard({
             className="object-cover"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center">
-            <ImageOff className="size-6 text-muted-foreground" aria-hidden />
-          </div>
+          <BrandImageFallback label="Flier coming soon" />
         )}
       </div>
       <CardContent className="space-y-1 px-4 py-3">
