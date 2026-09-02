@@ -72,12 +72,23 @@ const RETENTION = [
   },
   {
     what: "Volunteer applications",
+    // 2 years, not 3: there is little operational reason to hold an
+    // application we did not act on for three seasons, and the shorter
+    // clock still covers a volunteer's history across two winters.
     howLong:
-      "3 years after your last activity with us, or 1 year if the application is withdrawn or declined.",
+      "2 years after your last activity with us, or 1 year if the application is withdrawn or declined.",
   },
   {
-    what: "Event registrations and rider profiles",
+    what: "Event registrations",
     howLong: "3 years after the event.",
+  },
+  {
+    // Split out from event registrations: a rider profile is standing
+    // information about a person, not a record of one event, so tying its
+    // clock to an event they happened to attend is the wrong shape.
+    what: "Rider profiles",
+    howLong:
+      "Until you ask us to delete your profile, or after 2 years of inactivity.",
   },
   {
     what: "Gear requests",
@@ -90,7 +101,7 @@ const RETENTION = [
   {
     what: "Portal accounts",
     howLong:
-      "For as long as you hold the role, then removed when your role ends.",
+      "For as long as you hold the role. When your role ends your access is disabled and the account is removed. Records of what was done through the portal are kept separately, for governance, security, audit, insurance, and legal reasons.",
   },
 ] as const;
 
@@ -228,7 +239,14 @@ export default function PrivacyPage() {
 
       <section id="how-long-we-keep-it">
         <SectionHeading>How long we keep it</SectionHeading>
-        <dl className="mt-4 space-y-3">
+        <p className="app-muted mt-4 text-sm leading-relaxed sm:text-base">
+          We keep personal information only for as long as we reasonably need it
+          for the purposes described here. When we no longer need it, we delete
+          it, or we strip the personal details and keep only the count — how
+          many people came to an event, how many first-time riders — which tells
+          us nothing about you.
+        </p>
+        <dl className="mt-6 space-y-3">
           {RETENTION.map((item) => (
             <div key={item.what} className="sm:flex sm:gap-4">
               <dt className="font-semibold sm:w-2/5 sm:shrink-0">
@@ -241,11 +259,13 @@ export default function PrivacyPage() {
           ))}
         </dl>
         <p className="app-muted mt-6 text-sm leading-relaxed sm:text-base">
-          Some records have to outlive those periods because the law says so —
-          for example, donation records we need for our financial reporting and
-          tax filings. If you ask us to delete your information and something
-          falls into that category, we&apos;ll tell you what we have to keep and
-          why.
+          Some records have to outlive those periods because the law or our own
+          accounting requires it — donation and financial records we need for
+          our reporting and tax filings, for example. A few organizational
+          records, such as tax filings, financial statements, and governance
+          records, we keep permanently. If you ask us to delete your information
+          and something falls into one of those categories, we&apos;ll tell you
+          what we have to keep and why.
         </p>
       </section>
 
