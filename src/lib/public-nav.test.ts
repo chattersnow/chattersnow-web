@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
-  FOOTER_ONLY_LINKS,
+  LEGAL_LINKS,
   NAV_GROUPS,
   isSlotVisible,
   visibleGroups,
@@ -119,16 +119,18 @@ describe("visibleGroups", () => {
   });
 });
 
-describe("FOOTER_ONLY_LINKS", () => {
-  test("links to the privacy policy", () => {
-    expect(FOOTER_ONLY_LINKS.map((link) => link.href)).toContain("/privacy");
+describe("LEGAL_LINKS", () => {
+  test("links to the privacy policy and the terms of use", () => {
+    const hrefs = LEGAL_LINKS.map((link) => link.href);
+    expect(hrefs).toContain("/privacy");
+    expect(hrefs).toContain("/terms");
   });
 
   // The whole point of these links is that the board can't hide them and the
   // header doesn't carry them -- a slot, or a duplicate NAV_GROUPS entry,
   // would undo one or the other.
   test("carries no visibility slot", () => {
-    for (const link of FOOTER_ONLY_LINKS) {
+    for (const link of LEGAL_LINKS) {
       expect(link.slot, link.label).toBeUndefined();
     }
   });
@@ -141,7 +143,7 @@ describe("FOOTER_ONLY_LINKS", () => {
       ),
     ]);
 
-    for (const link of FOOTER_ONLY_LINKS) {
+    for (const link of LEGAL_LINKS) {
       expect(
         navHrefs.has(link.href),
         `${link.label} is already in the nav`,

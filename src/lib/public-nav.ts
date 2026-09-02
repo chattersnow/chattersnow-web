@@ -99,17 +99,21 @@ export const NAV_GROUPS: readonly NavGroup[] = [
 ] as const;
 
 /**
- * Links that belong in the footer but not in the header nav, appended after
- * the visible groups.
+ * The site's legal notices. These render in the footer's bottom bar, next to
+ * the copyright line, rather than mixed into the section links above it --
+ * they are utility links, not destinations, and listing them alongside Events
+ * and Gear read as if the privacy policy were a fifth part of the site.
  *
- * The privacy policy is deliberately not a NAV_GROUPS entry with a slot: it
- * has to stay reachable from every page for as long as the site collects
- * personal information through its forms, so it is neither a header
- * destination competing with the sections nor something the board can hide
- * from Administration > System Settings.
+ * They are deliberately not NAV_GROUPS entries with slots: they have to stay
+ * reachable from every page for as long as the site collects personal
+ * information and takes event, volunteer and gear submissions, so they are
+ * neither header destinations competing with the sections nor something the
+ * board can hide from Administration > System Settings.
  */
-export const FOOTER_ONLY_LINKS: readonly NavLink[] = [
+export const LEGAL_LINKS: readonly NavLink[] = [
   { label: "Privacy Policy", href: "/privacy" },
+  { label: "Terms of Use", href: "/terms" },
+  { label: "Code of Conduct", href: "/code-of-conduct" },
 ] as const;
 
 /**

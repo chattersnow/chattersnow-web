@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import {
+  LegalPageShell,
+  type LegalSection,
+} from "@/components/legal-page-shell";
 
 export const metadata: Metadata = {
   title: "Privacy Policy | Chatter Snow",
@@ -95,18 +99,29 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Drives the section nav beside the document. Every entry has to match an
+// id on a <section> below, or the link scrolls nowhere -- legal-page.dom.test.tsx
+// checks the two stay in step.
+const SECTIONS: readonly LegalSection[] = [
+  { id: "what-we-collect", title: "What we collect, and why" },
+  { id: "what-we-dont-do", title: "What we don’t do" },
+  { id: "how-long-we-keep-it", title: "How long we keep it" },
+  { id: "who-can-see-it", title: "Who can see it" },
+  { id: "cookies-and-analytics", title: "Cookies and analytics" },
+  { id: "your-choices", title: "Your choices" },
+  { id: "minors", title: "Minors" },
+  { id: "changes", title: "Changes to this policy" },
+  { id: "contact", title: "Contact" },
+] as const;
+
 export default function PrivacyPage() {
   return (
-    <div className="space-y-12">
-      <section>
-        <div className="w-fit">
-          <div className="rainbow-accent w-full" />
-          <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-            Privacy Policy
-          </h1>
-        </div>
-        <p className="app-muted mt-4 text-sm">Last updated: {LAST_UPDATED}</p>
-        <div className="app-muted mt-4 space-y-4 text-sm leading-relaxed sm:text-base">
+    <LegalPageShell
+      title="Privacy Policy"
+      lastUpdated={LAST_UPDATED}
+      sections={SECTIONS}
+      summary={
+        <>
           <p>
             Chatter Snow is an LGBTQ+ ski and snowboard community organization
             on the East Coast. This policy explains what personal information we
@@ -125,10 +140,10 @@ export default function PrivacyPage() {
             </a>
             .
           </p>
-        </div>
-      </section>
-
-      <section>
+        </>
+      }
+    >
+      <section id="what-we-collect">
         <SectionHeading>What we collect, and why</SectionHeading>
         <p className="app-muted mt-4 text-sm leading-relaxed sm:text-base">
           Everything below is information you type into a form yourself. We
@@ -165,7 +180,7 @@ export default function PrivacyPage() {
         </p>
       </section>
 
-      <section>
+      <section id="what-we-dont-do">
         <SectionHeading>What we don&apos;t do</SectionHeading>
         <ul className="app-muted mt-4 list-disc space-y-2 pl-5 text-sm leading-relaxed sm:text-base">
           <li>
@@ -196,7 +211,7 @@ export default function PrivacyPage() {
         </ul>
       </section>
 
-      <section>
+      <section id="how-long-we-keep-it">
         <SectionHeading>How long we keep it</SectionHeading>
         <dl className="mt-4 space-y-3">
           {RETENTION.map((item) => (
@@ -219,7 +234,7 @@ export default function PrivacyPage() {
         </p>
       </section>
 
-      <section>
+      <section id="who-can-see-it">
         <SectionHeading>Who can see it</SectionHeading>
         <div className="app-muted mt-4 space-y-4 text-sm leading-relaxed sm:text-base">
           <p>
@@ -256,7 +271,7 @@ export default function PrivacyPage() {
         </div>
       </section>
 
-      <section>
+      <section id="cookies-and-analytics">
         <SectionHeading>Cookies and analytics</SectionHeading>
         <div className="app-muted mt-4 space-y-4 text-sm leading-relaxed sm:text-base">
           <p>
@@ -273,7 +288,7 @@ export default function PrivacyPage() {
         </div>
       </section>
 
-      <section>
+      <section id="your-choices">
         <SectionHeading>Your choices</SectionHeading>
         <div className="app-muted mt-4 space-y-4 text-sm leading-relaxed sm:text-base">
           <p>
@@ -304,7 +319,7 @@ export default function PrivacyPage() {
         </div>
       </section>
 
-      <section>
+      <section id="minors">
         <SectionHeading>Minors</SectionHeading>
         <p className="app-muted mt-4 text-sm leading-relaxed sm:text-base">
           This site isn&apos;t directed at children under 13, and we don&apos;t
@@ -315,7 +330,7 @@ export default function PrivacyPage() {
         </p>
       </section>
 
-      <section>
+      <section id="changes">
         <SectionHeading>Changes to this policy</SectionHeading>
         <p className="app-muted mt-4 text-sm leading-relaxed sm:text-base">
           If we start collecting something new or using it differently,
@@ -326,7 +341,7 @@ export default function PrivacyPage() {
         </p>
       </section>
 
-      <section>
+      <section id="contact">
         <SectionHeading>Contact</SectionHeading>
         <p className="app-muted mt-4 text-sm leading-relaxed sm:text-base">
           Questions about this policy, or about anything we hold on you, go to{" "}
@@ -346,6 +361,6 @@ export default function PrivacyPage() {
           .
         </p>
       </section>
-    </div>
+    </LegalPageShell>
   );
 }

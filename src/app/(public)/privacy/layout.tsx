@@ -8,5 +8,10 @@ export default function PrivacyLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <PageShell maxWidth="max-w-3xl">{children}</PageShell>;
+  // Deliberately the default max-w-6xl, same as every other public section, so
+  // the page's left edge lines up with the header and footer. The policy text
+  // is held to a readable measure inside page.tsx instead -- the same split
+  // /about/story and /about/mission use -- rather than by narrowing the shell,
+  // which centered the whole page and made it look like a different site.
+  return <PageShell>{children}</PageShell>;
 }
