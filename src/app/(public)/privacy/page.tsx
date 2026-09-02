@@ -110,7 +110,9 @@ const SECTIONS: readonly LegalSection[] = [
   { id: "what-we-dont-do", title: "What we don’t do" },
   { id: "how-long-we-keep-it", title: "How long we keep it" },
   { id: "who-can-see-it", title: "Who can see it" },
+  { id: "how-we-protect-it", title: "How we protect it" },
   { id: "cookies-and-analytics", title: "Cookies and analytics" },
+  { id: "other-sites", title: "Other sites we link to" },
   { id: "your-choices", title: "Your choices" },
   { id: "minors", title: "Minors" },
   { id: "changes", title: "Changes to this policy" },
@@ -132,9 +134,11 @@ export default function PrivacyPage() {
             long we keep it, and how to ask us for a copy or a deletion.
           </p>
           <p>
-            The short version: we only ask for what we need to run our events,
-            programs, and gear library, we don&apos;t sell or rent it to anyone,
-            and you can ask us to delete it at any time by emailing{" "}
+            The short version: we try to collect only the information we need to
+            run our events, programs, and gear library and to keep in touch with
+            you, we don&apos;t sell or rent it to anyone, and you can ask us to
+            delete it — apart from the few records we&apos;re legally required
+            to keep — by emailing{" "}
             <a
               href={`mailto:${PRIVACY_EMAIL}`}
               className="hover:text-foreground underline underline-offset-4"
@@ -180,6 +184,14 @@ export default function PrivacyPage() {
           limit how many times the same sender can submit a form in a short
           window — and it is deleted when the submission it belongs to is
           deleted.
+        </p>
+        <p className="app-muted mt-4 text-sm leading-relaxed sm:text-base">
+          We are an LGBTQ+ organization, and you never have to tell us anything
+          about your sexual orientation or gender identity to take part. None of
+          our forms ask for it, and nothing about your participation is
+          published by us. The rider details we do ask for — whether you ski or
+          snowboard, your experience level, your preferred mountain — are there
+          to plan the day around the group that&apos;s coming, nothing else.
         </p>
       </section>
 
@@ -248,9 +260,18 @@ export default function PrivacyPage() {
             permissions attached to each role, not just hidden in the interface.
           </p>
           <p>
+            Running an event means the volunteers staffing it may need to see
+            who registered — a check-in list, a head count, who asked for gear
+            or noted something we should know about on the day. We don&apos;t
+            publish participant lists, and we don&apos;t give your name or
+            contact details to a mountain, a partner, or a sponsor unless you
+            have agreed to that separately, or the venue requires it to let the
+            group in and we&apos;ve told you so when you registered.
+          </p>
+          <p>
             Outside Chatter, we rely on a small number of service providers to
-            run the site. They process information on our behalf and are not
-            allowed to use it for their own purposes:
+            run the site. They handle information on our behalf, under their own
+            terms and privacy policies:
           </p>
           <ul className="list-disc space-y-2 pl-5">
             <li>
@@ -274,6 +295,25 @@ export default function PrivacyPage() {
         </div>
       </section>
 
+      <section id="how-we-protect-it">
+        <SectionHeading>How we protect it</SectionHeading>
+        <div className="app-muted mt-4 space-y-4 text-sm leading-relaxed sm:text-base">
+          <p>
+            We use reasonable administrative, technical, and organizational
+            safeguards to protect what you give us: information travels to the
+            site over an encrypted connection, portal accounts are individual
+            rather than shared, and access to each kind of record is limited to
+            the roles that need it and enforced by the database itself.
+          </p>
+          <p>
+            No website or database is perfectly secure, and we can&apos;t
+            promise otherwise. If a breach ever affects your information,
+            we&apos;ll tell you and the authorities we&apos;re required to tell,
+            as promptly as we can.
+          </p>
+        </div>
+      </section>
+
       <section id="cookies-and-analytics">
         <SectionHeading>Cookies and analytics</SectionHeading>
         <div className="app-muted mt-4 space-y-4 text-sm leading-relaxed sm:text-base">
@@ -284,11 +324,24 @@ export default function PrivacyPage() {
             someone signs in.
           </p>
           <p>
-            We use Vercel Analytics to count page views. It reports visits in
-            aggregate, doesn&apos;t use cookies, and doesn&apos;t follow you
-            across other websites.
+            We use Vercel Web Analytics to count page views. It reports visits
+            in aggregate, sets no cookies and stores nothing on your device, and
+            doesn&apos;t follow you across other websites. We don&apos;t run
+            Google Analytics or any advertising analytics on this site.
           </p>
         </div>
+      </section>
+
+      <section id="other-sites">
+        <SectionHeading>Other sites we link to</SectionHeading>
+        <p className="app-muted mt-4 text-sm leading-relaxed sm:text-base">
+          We link out to mountains, partner organizations, sponsors, and our
+          social accounts. Once you follow one of those links you&apos;re on
+          someone else&apos;s site, and what they collect is covered by their
+          privacy policy, not this one — worth a read before you hand them
+          anything. The same goes for the ticketing or payment services we may
+          use in the future; if we add one, we&apos;ll name it here first.
+        </p>
       </section>
 
       <section id="your-choices">
