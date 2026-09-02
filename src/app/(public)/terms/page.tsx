@@ -9,7 +9,7 @@ import {
 export const metadata: Metadata = {
   title: "Terms of Use | Chatter Snow",
   description:
-    "The terms you agree to when you use the Chatter Snow website, sign up for an event, apply to volunteer, or borrow gear.",
+    "The terms you agree to when you use the Chatter Snow website, sign up for an event, apply to volunteer, or take gear from our library.",
 };
 
 // Shown to visitors and kept in sync by hand: bump it in the same commit as
@@ -27,35 +27,47 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 // NOTE FOR MAINTAINERS: several statements below track facts that are expected
 // to change and must be revisited when they do.
 //
-//   - "Who we are" says Chatter Snow is an unincorporated community
-//     organization and not a 501(c)(3). Both are true as of the date above:
-//     see planning/decisions/2026-08-22-state-of-incorporation.md, which only
-//     *recommends* New Jersey and has not been filed. Update this section, the
-//     governing-law section, and the copyright line in (public)/layout.tsx on
-//     the day incorporation completes.
+//   - "Who we are" says Chatter Snow is unincorporated and not a 501(c)(3).
+//     Both are true as of the date above: see
+//     planning/decisions/2026-08-22-state-of-incorporation.md, which only
+//     *recommends* New Jersey and has not been filed. On the day incorporation
+//     completes, revisit this whole page rather than deleting one sentence --
+//     the entity's legal name, liability position, insurance and charitable
+//     status all have to line up, here and in the footer copyright line.
 //   - "Donations and payments" says the site takes no money. The privacy
 //     policy makes the same promise; change both together, and note that
 //     contributions are not tax-deductible until the IRS determination letter
 //     is in hand.
-//   - Governing law names New Jersey because that is where the recurring
-//     programming happens and the proposed home state. It is the one clause
-//     here most exposed to the incorporation decision.
-// Drives the section nav beside the document. Every entry has to match an
-// id on a <section> below, or the link scrolls nowhere -- legal-page.dom.test.tsx
-// checks the two stay in step.
+//   - Governing law names New Jersey. It is the clause most exposed to the
+//     incorporation decision, and it does not by itself decide which state's
+//     law governs a dispute arising from NY activity.
+//   - The gear library gives donated equipment away permanently. It is not a
+//     lending program: supabase's inventory_movements has 'received' and
+//     'distributed' and no 'returned', because nothing comes back. Do not
+//     reintroduce return, due-date, or damage-liability language here.
+//   - This page deliberately does NOT carry a general release of claims.
+//     Event waivers, the gear acknowledgement and volunteer agreements each
+//     cover their own activity -- see "Other agreements". Keep it that way.
+
 const SECTIONS: readonly LegalSection[] = [
   { id: "who-we-are", title: "Who we are" },
   { id: "using-this-site", title: "Using this site" },
   { id: "events-and-programs", title: "Events and programs" },
+  { id: "snow-sports-risks", title: "Snow-sports risks" },
   { id: "gear-library", title: "Gear library" },
   { id: "volunteering", title: "Volunteering" },
+  { id: "accessibility-and-inclusion", title: "Accessibility and inclusion" },
   { id: "educational-content", title: "Educational content" },
   { id: "donations-and-payments", title: "Donations and payments" },
-  { id: "content-and-photos", title: "Content and photos" },
-  { id: "other-sites-we-link-to", title: "Other sites we link to" },
-  { id: "no-warranties", title: "No warranties and liability" },
+  { id: "photos-and-content", title: "Photos, video and what you send us" },
+  { id: "other-sites-and-venues", title: "Other websites and venues" },
+  { id: "other-agreements", title: "Other agreements" },
+  { id: "no-warranties", title: "No warranties" },
+  { id: "limitation-of-liability", title: "Limits on liability" },
+  { id: "indemnification", title: "Your responsibility to us" },
   { id: "changes", title: "Changes to these terms" },
   { id: "governing-law", title: "Governing law" },
+  { id: "severability", title: "Severability" },
   { id: "contact", title: "Contact" },
 ] as const;
 
@@ -70,16 +82,17 @@ export default function TermsPage() {
           <p>
             These terms cover this website and the things you can do through it
             — reading about us, signing up for an event, applying to volunteer,
-            asking to borrow gear, and getting in touch. By using the site
-            you&apos;re agreeing to them. If you don&apos;t agree, please
-            don&apos;t use the site.
+            asking for gear, and getting in touch. By using the site you&apos;re
+            agreeing to them. If you don&apos;t agree, please don&apos;t use the
+            site.
           </p>
           <p>
             The short version: we&apos;re volunteers, not a company. Signing up
             here is a request, not a confirmed spot. Skiing and snowboarding
             carry real risk and you take it on yourself. Gear from our library
-            is lent as-is. We&apos;re not a registered charity yet, so
-            contributions aren&apos;t tax-deductible.
+            is free and yours to keep, and we give it to you exactly as it
+            reached us — we don&apos;t check it. We&apos;re not a registered
+            charity yet, so contributions aren&apos;t tax-deductible.
           </p>
           <p>
             How we handle the information you give us is covered separately, in
@@ -103,12 +116,19 @@ export default function TermsPage() {
             on the East Coast, run by volunteers. We are currently an
             unincorporated community organization: we have not completed
             incorporation, and we are not a registered 501(c)(3) tax-exempt
-            charity. We&apos;ll say so on this page when that changes.
+            charity.
           </p>
           <p>
             That means contributions to Chatter Snow are not tax-deductible
             charitable donations, and nothing on this site should be read as
-            claiming otherwise.
+            claiming otherwise. We&apos;ll update this page when our legal
+            status or our tax-exempt status changes — they are two separate
+            things and they won&apos;t necessarily happen at the same time.
+          </p>
+          <p>
+            Where these terms refer to our board, organizers, or volunteers,
+            that describes how we govern and run ourselves, not a corporation
+            that exists today.
           </p>
         </div>
       </section>
@@ -160,22 +180,6 @@ export default function TermsPage() {
             otherwise for a specific event.
           </p>
           <p>
-            Skiing and snowboarding carry real and inherent risks, including
-            serious injury. You take part at your own risk, and you&apos;re
-            responsible for riding within your ability, following the
-            mountain&apos;s rules, and wearing appropriate safety equipment.
-            Chatter Snow doesn&apos;t provide instruction, supervision, guiding,
-            or medical care, and our volunteers aren&apos;t acting as
-            instructors or patrollers.
-          </p>
-          <p>
-            Venues and resorts set their own rules, tickets, and waivers, and
-            those apply to you directly — we don&apos;t control them. Some
-            events also require you to sign a separate participation waiver on
-            the day; where one applies, it governs the event alongside these
-            terms.
-          </p>
-          <p>
             Everyone at a Chatter Snow event is also covered by our{" "}
             <Link
               href="/code-of-conduct"
@@ -187,8 +191,41 @@ export default function TermsPage() {
             problem.
           </p>
           <p>
-            Where a program is open to riders under 18, a parent or guardian has
-            to complete the forms and give permission.
+            Participants under 18 may take part only where a parent or legal
+            guardian has completed the required forms and given permission.
+            Individual programs may set additional rules, supervision
+            requirements, age limits, or screening, and those apply on top of
+            these terms. Parental permission on its own doesn&apos;t make a
+            program open to a minor.
+          </p>
+        </div>
+      </section>
+
+      <section id="snow-sports-risks">
+        <SectionHeading>Snow-sports risks</SectionHeading>
+        <div className="app-muted mt-4 space-y-4 text-sm leading-relaxed sm:text-base">
+          <p>
+            Skiing and snowboarding carry real and inherent risks, including
+            serious injury, permanent disability, and death. Those risks come
+            from things nobody controls — snow and weather, terrain, ice and
+            bare patches, other people on the hill, lifts, and equipment — and
+            they cannot be eliminated. If you take part in anything we organize,
+            you take those risks on yourself.
+          </p>
+          <p>
+            You&apos;re responsible for riding within your ability, following
+            the mountain&apos;s rules and Your Responsibility Code, and wearing
+            appropriate safety equipment. Chatter Snow doesn&apos;t provide
+            instruction, supervision, guiding, coaching, or medical care, and
+            our volunteers aren&apos;t acting as instructors or ski patrol.
+            Nobody at a Chatter event is checking whether a run suits you — that
+            call is yours.
+          </p>
+          <p>
+            Riding at a mountain is a separate matter between you and that
+            venue. Venues and resorts set their own rules, tickets, and waivers,
+            and those apply to you directly; we don&apos;t control them and
+            aren&apos;t responsible for them.
           </p>
         </div>
       </section>
@@ -197,17 +234,38 @@ export default function TermsPage() {
         <SectionHeading>Gear library</SectionHeading>
         <div className="app-muted mt-4 space-y-4 text-sm leading-relaxed sm:text-base">
           <p>
-            Gear in our library is donated and lent free of charge, as-is. We
-            don&apos;t inspect, service, certify, or guarantee it, and we make
-            no promise that a piece of gear fits you, suits your ability, or is
-            safe for what you plan to do with it. Get bindings and any other
-            safety-critical setup checked by a qualified technician before you
-            use them.
+            The gear library is a give-away, not a rental or a loan. People
+            donate equipment to us, we catalog it, and we pass it on free of
+            charge to someone who needs it. What you pick up is yours to keep —
+            there&apos;s no return date, no deposit, and nothing to bring back.
+            If it stops being useful to you, we&apos;d love it back for someone
+            else, but that&apos;s a kindness, not an obligation.
           </p>
           <p>
-            If you borrow gear, you&apos;re responsible for looking after it and
-            returning it by the date we agree. Submitting a request doesn&apos;t
-            reserve anything — availability is confirmed by a person.
+            Requesting an item holds it for you while we get in touch.
+            We&apos;ll confirm pickup by email.
+          </p>
+          <p>
+            <span className="font-semibold">
+              We give gear away exactly as it reaches us.
+            </span>{" "}
+            We don&apos;t inspect, test, service, repair, certify, or guarantee
+            it, and we make no promise that a piece of gear fits you, suits your
+            ability, or is safe for what you plan to do with it. We have no way
+            of knowing how old it is, how hard it was ridden, or whether it was
+            ever damaged before it reached us.
+          </p>
+          <p>
+            <span className="font-semibold">
+              We do not perform binding mounting or adjustment, DIN setting,
+              boot fitting, or any other safety-critical equipment service.
+            </span>{" "}
+            Taking gear from us is not us telling you it is safe. Before you use
+            anything from the library, it&apos;s on you to decide whether it
+            suits you, and to have anything safety-critical — bindings above all
+            — inspected and set up by an appropriately qualified technician.
+            Helmets that have taken an impact, and gear past its service life,
+            should be replaced rather than used.
           </p>
         </div>
       </section>
@@ -220,6 +278,18 @@ export default function TermsPage() {
           Snow is unpaid. Some roles may require screening before you can take
           them on. Volunteers act on behalf of Chatter Snow only within the role
           they&apos;ve been given.
+        </p>
+      </section>
+
+      <section id="accessibility-and-inclusion">
+        <SectionHeading>Accessibility and inclusion</SectionHeading>
+        <p className="app-muted mt-4 text-sm leading-relaxed sm:text-base">
+          We want Chatter Snow&apos;s programs, events, and communications to be
+          welcoming and usable. If you need an accommodation to take part in
+          something — at an event, on this site, or in how we contact you — tell
+          us and we&apos;ll work with you to find a reasonable way to make it
+          happen. If something here is inaccessible, we&apos;d rather hear about
+          it than not.
         </p>
       </section>
 
@@ -244,8 +314,8 @@ export default function TermsPage() {
         </p>
       </section>
 
-      <section id="content-and-photos">
-        <SectionHeading>Content and photos</SectionHeading>
+      <section id="photos-and-content">
+        <SectionHeading>Photos, video and what you send us</SectionHeading>
         <div className="app-muted mt-4 space-y-4 text-sm leading-relaxed sm:text-base">
           <p>
             The text, images, logo, and design on this site belong to Chatter
@@ -255,53 +325,108 @@ export default function TermsPage() {
             event and program pages as they are.
           </p>
           <p>
-            We take photos and video at events. We use them to show what Chatter
-            is like, and we only publish a photo where the people in it have
-            agreed to that. If a photo of you is on this site and you&apos;d
-            rather it weren&apos;t, email{" "}
+            We take photos and video at events. Where we photograph or record
+            participants for Chatter Snow&apos;s own communications, we rely on
+            the consent process described at registration or at the event
+            itself, not on this page — and for anyone under 18, on a parent or
+            guardian&apos;s consent.
+          </p>
+          <p>
+            If a photo of you appears on this site or on a Chatter Snow social
+            media account and you&apos;d rather it didn&apos;t, email{" "}
             <a
               href={`mailto:${CONTACT_EMAIL}`}
               className="hover:text-foreground underline underline-offset-4"
             >
               {CONTACT_EMAIL}
             </a>{" "}
-            and we&apos;ll take it down.
+            and we&apos;ll take it down. We can only remove things we control —
+            once an image has been shared onward by someone else, that&apos;s
+            out of our hands.
           </p>
           <p>
-            When you send us a message, an application, or a request, you keep
-            what you wrote. You&apos;re giving us permission to use it to run
-            the thing you contacted us about.
+            You keep ownership of anything you send us — a message, an
+            application, a request. You&apos;re giving us permission to use,
+            store, and share it as far as we reasonably need to in order to
+            answer you, run the program you contacted us about, and keep our
+            records.
           </p>
         </div>
       </section>
 
-      <section id="other-sites-we-link-to">
-        <SectionHeading>Other sites we link to</SectionHeading>
+      <section id="other-sites-and-venues">
+        <SectionHeading>Other websites and venues</SectionHeading>
         <p className="app-muted mt-4 text-sm leading-relaxed sm:text-base">
           We link to mountains, partners, and other organizations. We don&apos;t
-          control those sites and aren&apos;t responsible for their content,
-          their terms, or how they handle your information.
+          control those sites or venues and aren&apos;t responsible for their
+          content, their terms, their safety practices, or how they handle your
+          information.
+        </p>
+      </section>
+
+      <section id="other-agreements">
+        <SectionHeading>Other agreements</SectionHeading>
+        <p className="app-muted mt-4 text-sm leading-relaxed sm:text-base">
+          These terms cover this website. Separate agreements cover separate
+          activities — event waivers and participation agreements, gear
+          acknowledgements, volunteer agreements, our{" "}
+          <Link
+            href="/code-of-conduct"
+            className="hover:text-foreground underline underline-offset-4"
+          >
+            code of conduct
+          </Link>
+          , and any rules a venue sets. Where one of those applies to something
+          you&apos;re doing, it governs that activity, and nothing on this page
+          replaces it or waives it on your behalf.
         </p>
       </section>
 
       <section id="no-warranties">
-        <SectionHeading>No warranties, and limits on liability</SectionHeading>
+        <SectionHeading>No warranties</SectionHeading>
+        <p className="app-muted mt-4 text-sm leading-relaxed sm:text-base">
+          We run this site as a volunteer organization and provide it as-is. We
+          can&apos;t promise it will always be available, up to date, accurate,
+          or free of errors, and we don&apos;t make any warranty about it beyond
+          what the law requires of us.
+        </p>
+      </section>
+
+      <section id="limitation-of-liability">
+        <SectionHeading>Limits on liability</SectionHeading>
         <div className="app-muted mt-4 space-y-4 text-sm leading-relaxed sm:text-base">
-          <p>
-            We run this site as a volunteer organization and provide it as-is.
-            We can&apos;t promise it will always be available, up to date, or
-            free of errors.
-          </p>
           <p>
             To the fullest extent the law allows, Chatter Snow and its board
             members, volunteers, and organizers aren&apos;t liable for indirect
-            or consequential losses arising from your use of this site. Nothing
-            here limits any liability that can&apos;t be limited by law, and
-            nothing here is a waiver of your rights in connection with an
-            in-person event — those are addressed by the waiver you sign for
-            that event, where one applies.
+            or consequential losses arising from your use of this site.
+          </p>
+          <p>
+            Nothing here limits any liability that can&apos;t be limited by law,
+            and nothing here is a waiver of your rights in connection with an
+            in-person event or with gear you took from the library — those are
+            addressed by the agreements described under{" "}
+            <a
+              href="#other-agreements"
+              className="hover:text-foreground underline underline-offset-4"
+            >
+              other agreements
+            </a>
+            , where they apply.
           </p>
         </div>
+      </section>
+
+      <section id="indemnification">
+        <SectionHeading>Your responsibility to us</SectionHeading>
+        <p className="app-muted mt-4 text-sm leading-relaxed sm:text-base">
+          To the fullest extent the law allows, you agree to be responsible for
+          claims, losses, damages, and reasonable expenses that arise from your
+          breach of these terms, your misuse of this site, or your intentional
+          or negligent conduct in connection with Chatter Snow activities —
+          except to the extent they were caused by Chatter Snow&apos;s own
+          negligence, or by anything we can&apos;t lawfully disclaim
+          responsibility for.
+        </p>
       </section>
 
       <section id="changes">
@@ -317,9 +442,16 @@ export default function TermsPage() {
       <section id="governing-law">
         <SectionHeading>Governing law</SectionHeading>
         <p className="app-muted mt-4 text-sm leading-relaxed sm:text-base">
-          These terms are governed by the laws of the State of New Jersey, where
-          most of our programming takes place, without regard to its
-          conflict-of-laws rules.
+          These terms are governed by the laws of the State of New Jersey,
+          without regard to its conflict-of-laws rules.
+        </p>
+      </section>
+
+      <section id="severability">
+        <SectionHeading>Severability</SectionHeading>
+        <p className="app-muted mt-4 text-sm leading-relaxed sm:text-base">
+          If any part of these terms turns out to be unenforceable, the rest
+          stays in effect to the fullest extent the law allows.
         </p>
       </section>
 

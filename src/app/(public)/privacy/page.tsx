@@ -50,7 +50,7 @@ const COLLECTION = [
     collected:
       "Your name, email address, and — optionally — your phone number and any notes about what you need.",
     purpose:
-      "To coordinate handing gear to you and getting it back into the library afterward.",
+      "To match you with the gear you asked for and arrange a time to hand it over.",
   },
   {
     source: "Portal accounts",
@@ -81,7 +81,11 @@ const RETENTION = [
   },
   {
     what: "Gear requests",
-    howLong: "3 years after the gear comes back.",
+    // Was "3 years after the gear comes back", which describes a lending
+    // program Chatter does not run: donated gear is given away and never
+    // returned (inventory_movements has 'distributed' and no 'returned'), so
+    // the clock never started. Same 3 years, from an event that happens.
+    howLong: "3 years after we hand the gear over.",
   },
   {
     what: "Portal accounts",
