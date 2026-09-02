@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { ImageOff } from "lucide-react";
+import { BrandImageFallback } from "@/components/brand-image-fallback";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -44,9 +44,7 @@ export function GearCard({
               className="object-cover"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <ImageOff className="size-8 text-muted-foreground" aria-hidden />
-            </div>
+            <BrandImageFallback label="Photo coming soon" />
           )}
         </div>
         <CardContent className="space-y-1.5 px-4 py-3">

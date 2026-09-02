@@ -121,8 +121,10 @@ describe("RiderProfileForm", () => {
     await user.click(screen.getByRole("button", { name: "Save details" }));
 
     expect(await screen.findByText(/too many attempts/i)).toBeInTheDocument();
+    // setError runs inside the transition, so the alert can paint while the
+    // submit button still reads "Saving..." -- wait for it to settle back.
     expect(
-      screen.getByRole("button", { name: "Save details" }),
+      await screen.findByRole("button", { name: "Save details" }),
     ).toBeInTheDocument();
   });
 });

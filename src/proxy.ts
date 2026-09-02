@@ -4,6 +4,56 @@ import { NextResponse, type NextRequest } from "next/server";
 const PRODUCTION_HOSTS = new Set(["chattersnow.org", "www.chattersnow.org"]);
 const PORTAL_HOST = "portal.chattersnow.org";
 
+// Paths that live at the app root and must keep working unprefixed on the
+// portal host. `/portal` is a route-group prefix, not a mount point, so
+// blanket-rewriting every path into it makes these unreachable:
+//   - /auth/* is the Supabase OAuth/email callback. The session cookie has to
+//     be set on the portal host, so the provider redirect must land here --
+//     but /portal/auth/callback doesn't exist, so it 404s and Google sign-in
+//     never completes.
+//   - files in public/ (the logo on the login page). next/image is exempt from
+//     the matcher, but the optimizer re-fetches the source through this same
+//     host, so a rewritten /portal/<file>.png 404 turns into a 400
+//     INVALID_IMAGE_OPTIMIZE_REQUEST and the image never renders.
+const ROOT_PATH_PREFIXES = ["/auth/"];
+
+export type PortalRoute =
+  | { kind: "pass" }
+  | { kind: "rewrite"; pathname: string }
+  | { kind: "redirect"; host: string; pathname: string };
+
+// Pure host/path routing decision, split out so it can be unit tested without
+// a real request (fetch's Headers refuses to carry a `host` header).
+export function resolvePortalRoute(
+  hostname: string,
+  pathname: string,
+): PortalRoute {
+  const isPortalPath =
+    pathname === "/portal" || pathname.startsWith("/portal/");
+
+  if (hostname === PORTAL_HOST) {
+    const isRootPath =
+      ROOT_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
+      // Anything with a file extension is a public/ asset, never a page route.
+      /\.[^/]+$/.test(pathname);
+
+    if (isPortalPath || isRootPath) {
+      return { kind: "pass" };
+    }
+    return { kind: "rewrite", pathname: `/portal${pathname}` };
+  }
+
+  if (PRODUCTION_HOSTS.has(hostname) && isPortalPath) {
+    return {
+      kind: "redirect",
+      host: PORTAL_HOST,
+      pathname: pathname.slice("/portal".length) || "/",
+    };
+  }
+
+  return { kind: "pass" };
+}
+
 // Refreshes the Supabase session for portal requests and forwards any
 // rotated cookies to both the downstream request and the browser response.
 // Without this, a session refresh triggered from a Server Component (e.g.
@@ -51,9 +101,11 @@ async function refreshPortalSession(request: NextRequest) {
 export async function proxy(request: NextRequest) {
   const hostname = request.headers.get("host") ?? "";
   const { pathname } = request.nextUrl;
-  const isPortalPath =
-    pathname === "/portal" || pathname.startsWith("/portal/");
-  const isPortalRequest = hostname === PORTAL_HOST || isPortalPath;
+  const route = resolvePortalRoute(hostname, pathname);
+  const isPortalRequest =
+    hostname === PORTAL_HOST ||
+    pathname === "/portal" ||
+    pathname.startsWith("/portal/");
 
   const refreshedResponse = isPortalRequest
     ? await refreshPortalSession(request)
@@ -66,19 +118,16 @@ export async function proxy(request: NextRequest) {
     return response;
   };
 
-  if (hostname === PORTAL_HOST) {
-    if (isPortalPath) {
-      return refreshedResponse;
-    }
+  if (route.kind === "rewrite") {
     const url = request.nextUrl.clone();
-    url.pathname = `/portal${pathname}`;
+    url.pathname = route.pathname;
     return withRefreshedCookies(NextResponse.rewrite(url, { request }));
   }
 
-  if (PRODUCTION_HOSTS.has(hostname) && isPortalPath) {
+  if (route.kind === "redirect") {
     const url = request.nextUrl.clone();
-    url.host = PORTAL_HOST;
-    url.pathname = pathname.slice("/portal".length) || "/";
+    url.host = route.host;
+    url.pathname = route.pathname;
     return withRefreshedCookies(NextResponse.redirect(url, 308));
   }
 

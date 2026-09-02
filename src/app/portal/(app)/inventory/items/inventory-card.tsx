@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { ImageOff } from "lucide-react";
+import { BrandImageFallback } from "@/components/brand-image-fallback";
 import { Card, CardContent } from "@/components/ui/card";
 import { EditInventoryModal } from "./edit-inventory-modal";
 import {
@@ -28,9 +28,7 @@ export function InventoryCard({ item }: { item: InventoryItem }) {
             className="object-cover"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center">
-            <ImageOff className="size-8 text-muted-foreground" aria-hidden />
-          </div>
+          <BrandImageFallback label="No photo" />
         )}
       </div>
       <CardContent className="space-y-1.5 px-4 py-3">
