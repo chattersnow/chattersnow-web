@@ -188,7 +188,7 @@ export default async function PortalAppLayout({
                 <NotificationsMenu items={attentionItems} />
               </div>
             </header>
-            <main className="app-shell flex-1 px-6 py-8 sm:px-10">
+            <main className="app-shell px-6 py-8 sm:px-10">
               <div className="mx-auto max-w-6xl">{children}</div>
             </main>
           </SidebarInset>
