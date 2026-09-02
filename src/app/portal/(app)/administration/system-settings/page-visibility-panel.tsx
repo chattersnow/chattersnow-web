@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   updatePageVisibilityAction,
@@ -26,24 +26,30 @@ function PageVisibilityRow({
 }) {
   const router = useRouter();
   // Mirrors the switch immediately so the toggle doesn't feel stuck while the
-  // Server Action round-trips; reverted below if the write fails.
-  const [checked, setChecked] = useState(visible);
+  // Server Action round-trips. `useOptimistic` rather than plain state on
+  // purpose: it drops back to the server's own value the moment the transition
+  // ends, so the switch can never keep showing a change the server didn't
+  // actually make. Plain state kept the optimistic value forever, which is how
+  // a read that was failing server-side still looked like a successful save --
+  // right up until a later navigation remounted the row and it "reverted".
+  const [checked, setChecked] = useOptimistic(visible);
   const [isPending, startTransition] = useTransition();
 
   function handleChange(next: boolean) {
     onError(null);
-    setChecked(next);
 
     startTransition(async () => {
+      setChecked(next);
       const result: SettingActionResult = await updatePageVisibilityAction(
         slot.key,
         next,
       );
       if ("error" in result) {
-        setChecked(!next);
         onError(result.error);
         return;
       }
+      // Keeps the transition open until the server tree is refetched, so the
+      // optimistic value hands off directly to the re-read one.
       router.refresh();
     });
   }

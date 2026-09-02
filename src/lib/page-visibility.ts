@@ -103,9 +103,22 @@ function resolveVisibility(value: unknown, defaultVisible: boolean): boolean {
  */
 export const getPageVisibility = cache(
   async (supabase: SupabaseClient): Promise<Record<string, boolean>> => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("public_page_visibility")
       .select("slot, value");
+
+    // A failed read and "nothing configured yet" both land on the registry
+    // defaults below. Falling back is the right call -- an unreadable flag must
+    // not publish an unapproved section -- but it must not be silent: this view
+    // was missing from production for a while, and the PGRST205 that came back
+    // on every request was swallowed here, so the admin toggles looked like
+    // they simply refused to save. A broken read has to say so out loud.
+    if (error) {
+      console.error(
+        "[page-visibility] could not read public_page_visibility; every section is falling back to its registry default",
+        error,
+      );
+    }
 
     const visibility: Record<string, boolean> = {};
     for (const slot of PUBLIC_PAGE_SLOTS) {

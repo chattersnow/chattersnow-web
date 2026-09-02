@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   PUBLIC_PAGE_SLOTS,
@@ -12,6 +12,28 @@ type Row = { slot: string; value: unknown };
 function clientReturning(data: Row[] | null): SupabaseClient {
   return {
     from: () => ({ select: async () => ({ data, error: null }) }),
+  } as unknown as SupabaseClient;
+}
+
+/**
+ * The shape PostgREST actually returns when the view is missing -- which is how
+ * this failed in production, where the migration creating
+ * `public_page_visibility` had never been pushed.
+ */
+function clientFailing(): SupabaseClient {
+  return {
+    from: () => ({
+      select: async () => ({
+        data: null,
+        error: {
+          code: "PGRST205",
+          message:
+            "Could not find the table 'public.public_page_visibility' in the schema cache",
+          details: null,
+          hint: "Perhaps you meant the table 'public.public_site_images'",
+        },
+      }),
+    }),
   } as unknown as SupabaseClient;
 }
 
@@ -74,10 +96,30 @@ describe("getPageVisibility", () => {
   });
 
   test("a failed query leaves every slot on its default", async () => {
-    const visibility = await getPageVisibility(clientReturning(null));
+    const error = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const visibility = await getPageVisibility(clientFailing());
 
-    expect(visibility.programs).toBe(false);
-    expect(visibility.contact).toBe(true);
+      expect(visibility.programs).toBe(false);
+      expect(visibility.contact).toBe(true);
+    } finally {
+      error.mockRestore();
+    }
+  });
+
+  // The fallback above is safe but indistinguishable from "not configured yet",
+  // so the failure itself has to reach the server logs -- otherwise a broken
+  // read shows up only as admin toggles that appear not to save.
+  test("logs the failure rather than falling back silently", async () => {
+    const error = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      await getPageVisibility(clientFailing());
+
+      expect(error).toHaveBeenCalledTimes(1);
+      expect(error.mock.calls[0]?.[1]).toMatchObject({ code: "PGRST205" });
+    } finally {
+      error.mockRestore();
+    }
   });
 
   test("ignores rows for slots that aren't in the registry", async () => {

@@ -1,0 +1,58 @@
+# Applies supabase/migrations/** to the hosted Supabase project.
+#
+# Nothing used to do this. CI only ever ran `supabase db reset` against a
+# throwaway local database, so a merged migration was applied everywhere except
+# the database the deployed site actually reads from. Issue #584 shipped that
+# way: `public_page_visibility` existed locally and in CI but not in production,
+# every read of it 404'd, and the board's page-visibility toggles looked like
+# they simply refused to save.
+#
+# Runs on `development` as well as `main` because both branches deploy (see
+# vercel.json) and both deployments point at the same Supabase project. Split
+# this to `main` only if a separate staging project is ever introduced.
+name: Database migrations
+
+on:
+  push:
+    branches: [main, development]
+    paths:
+      - "supabase/migrations/**"
+      - ".github/workflows/db-migrate.yml"
+  workflow_dispatch:
+
+# Two pushes applying migrations at once would race on the same database.
+concurrency:
+  group: db-migrate
+  cancel-in-progress: false
+
+jobs:
+  push:
+    name: Push migrations to Supabase
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      # Not a secret: the same ref is already public in NEXT_PUBLIC_SUPABASE_URL.
+      SUPABASE_PROJECT_REF: eorxcscxvqgiqbcrrpyj
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.114.0
+
+      - name: Link project
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+
+      # Logged before and after so a failed push leaves a record of exactly
+      # which migrations were outstanding.
+      - name: Pending migrations
+        run: supabase migration list --linked
+
+      - name: Push migrations
+        run: supabase db push
+
+      - name: Applied migrations
+        run: supabase migration list --linked
