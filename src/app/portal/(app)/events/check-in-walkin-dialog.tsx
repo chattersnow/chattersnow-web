@@ -116,16 +116,12 @@ export function CheckInWalkInDialog({
           <FieldGroup>
             <Field>
               <FieldLabel>Walk-in</FieldLabel>
-              {/* PersonPicker's "+ Create new person" defaults the Sponsor role
-                  checkbox on; that's not right for a bare attendee, but there's
-                  no "attendee" role to default to instead, so staff just leave
-                  or uncheck it - same tradeoff the picker already makes
-                  everywhere it's used without a role that fits. */}
               <PersonPicker
                 people={people}
                 selected={selectedPerson}
                 onSelect={setSelectedPerson}
                 onPersonCreated={handlePersonCreated}
+                newPersonRole="is_attendee"
                 placeholder="Search by name or email..."
               />
             </Field>

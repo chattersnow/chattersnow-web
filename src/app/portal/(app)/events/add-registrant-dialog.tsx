@@ -119,6 +119,7 @@ export function AddRegistrantDialog({
                 selected={selectedPerson}
                 onSelect={setSelectedPerson}
                 onPersonCreated={handlePersonCreated}
+                newPersonRole="is_attendee"
                 placeholder="Search by name or email..."
               />
             </Field>

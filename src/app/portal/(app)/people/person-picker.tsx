@@ -29,7 +29,7 @@ export function PersonPicker({
   selected,
   onSelect,
   onPersonCreated,
-  newPersonRole = "is_sponsor",
+  newPersonRole,
   placeholder = "Search by name or email...",
   allowCreate = true,
   onlyOrganizations = false,
@@ -38,6 +38,12 @@ export function PersonPicker({
   selected: PickedPerson | null;
   onSelect: (person: PickedPerson | null) => void;
   onPersonCreated: (person: PickedPerson) => void;
+  /**
+   * Role to pre-check in "+ Create new person". Intentionally has no default:
+   * this used to fall back to is_sponsor, which pre-checked Sponsor on every
+   * picker in the app (issue #569). Pass one only where the surrounding
+   * context implies a role; leave it unset elsewhere so nothing is guessed.
+   */
   newPersonRole?: RoleKey;
   placeholder?: string;
   allowCreate?: boolean;
@@ -160,7 +166,7 @@ export function PersonPicker({
             <PersonFormFields
               form={createForm}
               update={updateCreateForm}
-              idPrefix="sponsor-new-person"
+              idPrefix="picker-new-person"
             />
 
             {createError && (
