@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CONTACT_EMAIL } from "@/lib/contact-addresses";
 import {
   LegalPageShell,
   type LegalSection,
@@ -14,8 +15,6 @@ export const metadata: Metadata = {
 // Shown to visitors and kept in sync by hand: bump it in the same commit as
 // any change to the terms below, since a stale date is worse than none.
 const LAST_UPDATED = "September 2, 2026";
-
-const CONTACT_EMAIL = "info@chattersnow.org";
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (

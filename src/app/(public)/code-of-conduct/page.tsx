@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LifeBuoyIcon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { CONDUCT_EMAIL, CONTACT_EMAIL } from "@/lib/contact-addresses";
 import {
   LegalPageShell,
   type LegalSection,
@@ -17,9 +18,6 @@ export const metadata: Metadata = {
 // any change to the text below, since a stale date is worse than none.
 const LAST_UPDATED = "September 2, 2026";
 
-const REPORT_EMAIL = "conduct@chattersnow.org";
-const CONTACT_EMAIL = "info@chattersnow.org";
-
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
     <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
@@ -30,7 +28,7 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 
 // NOTE FOR MAINTAINERS: this page is published policy, not marketing copy.
 //
-//   - REPORT_EMAIL must be a real, monitored inbox before this page ships. A
+//   - CONDUCT_EMAIL must be a real, monitored inbox before this page ships. A
 //     code of conduct whose reporting address bounces is worse than none: it
 //     tells someone they have a route, and then loses their report.
 //   - The response commitments below ("within 5 days", "two board members")
@@ -40,6 +38,14 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 //     "How we handle a report" matters in practice, not in theory. Revisit it
 //     if the board grows or if a dedicated safety role is created --
 //     see planning/governance/roles-and-responsibilities.md.
+//   - CONDUCT_EMAIL is a distribution list reaching every board member, not a
+//     mailbox someone can be excluded from, so "Reporting a problem" says so
+//     outright. Do not soften that back into "it goes to the board": a reader
+//     reporting a board member will assume that means the person won't see
+//     it, and they will. The missing piece is a direct route to one person
+//     for exactly that case -- add it here and on /about/team once there is
+//     an individual address to publish.
+
 // Drives the section nav beside the document. Every entry has to match an
 // id on a <section> below, or the link scrolls nowhere -- legal-page.dom.test.tsx
 // checks the two stay in step.
@@ -89,10 +95,10 @@ export default function CodeOfConductPage() {
             At an event, find any Chatter organizer or volunteer. Any time,
             email{" "}
             <a
-              href={`mailto:${REPORT_EMAIL}`}
+              href={`mailto:${CONDUCT_EMAIL}`}
               className="hover:text-foreground underline underline-offset-4"
             >
-              {REPORT_EMAIL}
+              {CONDUCT_EMAIL}
             </a>
             . You don&apos;t need to be certain, be the person it happened to,
             or have proof. See{" "}
@@ -226,20 +232,23 @@ export default function CodeOfConductPage() {
           <p>
             <span className="font-semibold">Any time:</span> email{" "}
             <a
-              href={`mailto:${REPORT_EMAIL}`}
+              href={`mailto:${CONDUCT_EMAIL}`}
               className="hover:text-foreground underline underline-offset-4"
             >
-              {REPORT_EMAIL}
+              {CONDUCT_EMAIL}
             </a>
             . It goes to the board. Tell us what happened, roughly when, and
             what you&apos;d like to see happen — and say if you&apos;d rather a
             particular person not be involved in handling it.
           </p>
           <p>
-            If your report is about a board member, say so and it will be
-            handled by board members who aren&apos;t involved. If that
-            isn&apos;t possible, we&apos;ll tell you and find someone outside
-            the board.
+            Being straight with you about what that address is: it&apos;s a list
+            that reaches all three board members, not a separate mailbox. So if
+            your report is about a board member, they will see it. It will be{" "}
+            <em>handled</em> by the board members who aren&apos;t involved, and
+            if that isn&apos;t possible we&apos;ll tell you and find someone
+            outside the board — but we&apos;d rather you knew who reads it
+            before you write than found out afterward.
           </p>
           <p>
             In an emergency, or if someone is in immediate danger, call 911 or
@@ -298,10 +307,10 @@ export default function CodeOfConductPage() {
           </Link>
           . Please use{" "}
           <a
-            href={`mailto:${REPORT_EMAIL}`}
+            href={`mailto:${CONDUCT_EMAIL}`}
             className="hover:text-foreground underline underline-offset-4"
           >
-            {REPORT_EMAIL}
+            {CONDUCT_EMAIL}
           </a>{" "}
           for reports, so they don&apos;t sit in a general inbox.
         </p>

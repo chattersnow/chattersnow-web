@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PRIVACY_EMAIL } from "@/lib/contact-addresses";
 import {
   LegalPageShell,
   type LegalSection,
@@ -14,8 +15,6 @@ export const metadata: Metadata = {
 // Shown to visitors and kept in sync by hand: bump it in the same commit as
 // any change to the policy text below, since a stale date is worse than none.
 const LAST_UPDATED = "September 2, 2026";
-
-const PRIVACY_EMAIL = "info@chattersnow.org";
 
 // One entry per place on this site that asks a visitor for personal
 // information. The fields listed here are the ones the form actually submits

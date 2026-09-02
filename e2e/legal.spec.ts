@@ -32,3 +32,24 @@ test.describe("legal pages", () => {
     });
   }
 });
+
+// RFC 9116 requires an Expires field and treats the file as invalid once it
+// passes -- a security.txt nobody bumps stops being a disclosure route without
+// ever failing loudly. This is the alarm for that.
+test("security.txt is served and has not expired", async ({ request }) => {
+  const response = await request.get("/.well-known/security.txt");
+  expect(response.status()).toBe(200);
+
+  const body = await response.text();
+  expect(body).toContain("Contact: mailto:security@chattersnow.org");
+
+  const expires = body.match(/^Expires: (.+)$/m)?.[1];
+  expect(
+    expires,
+    "security.txt is missing its required Expires field",
+  ).toBeDefined();
+  expect(
+    new Date(expires!).getTime(),
+    `security.txt expired on ${expires} -- bump it, and the note in the file`,
+  ).toBeGreaterThan(Date.now());
+});

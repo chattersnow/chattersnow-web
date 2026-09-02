@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { InstagramLink } from "@/components/instagram-link";
+import { CONTACT_EMAIL } from "@/lib/contact-addresses";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPageVisibility, hiddenSlots } from "@/lib/page-visibility";
 import { LEGAL_LINKS, visibleGroups } from "@/lib/public-nav";
@@ -104,10 +105,10 @@ export default async function PublicLayout({
               <span className="app-eyebrow">Get in touch</span>
               <div className="app-muted flex flex-col gap-1 text-sm sm:items-end">
                 <a
-                  href="mailto:info@chattersnow.org"
+                  href={`mailto:${CONTACT_EMAIL}`}
                   className="hover:text-foreground underline-offset-4 hover:underline"
                 >
-                  info@chattersnow.org
+                  {CONTACT_EMAIL}
                 </a>
                 <InstagramLink />
               </div>
