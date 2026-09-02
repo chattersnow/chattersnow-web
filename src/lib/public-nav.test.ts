@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { NAV_GROUPS, isSlotVisible, visibleGroups } from "./public-nav";
+import {
+  FOOTER_ONLY_LINKS,
+  NAV_GROUPS,
+  isSlotVisible,
+  visibleGroups,
+} from "./public-nav";
 import { PUBLIC_PAGE_SLOTS } from "./page-visibility";
 
 /** The four sections the board had hidden when this nav was reworked. */
@@ -111,6 +116,37 @@ describe("visibleGroups", () => {
     const before = JSON.stringify(NAV_GROUPS);
     visibleGroups(HIDDEN);
     expect(JSON.stringify(NAV_GROUPS)).toBe(before);
+  });
+});
+
+describe("FOOTER_ONLY_LINKS", () => {
+  test("links to the privacy policy", () => {
+    expect(FOOTER_ONLY_LINKS.map((link) => link.href)).toContain("/privacy");
+  });
+
+  // The whole point of these links is that the board can't hide them and the
+  // header doesn't carry them -- a slot, or a duplicate NAV_GROUPS entry,
+  // would undo one or the other.
+  test("carries no visibility slot", () => {
+    for (const link of FOOTER_ONLY_LINKS) {
+      expect(link.slot, link.label).toBeUndefined();
+    }
+  });
+
+  test("does not duplicate a nav destination", () => {
+    const navHrefs = new Set([
+      ...NAV_GROUPS.map((group) => group.href),
+      ...NAV_GROUPS.flatMap((group) =>
+        (group.links ?? []).map((link) => link.href),
+      ),
+    ]);
+
+    for (const link of FOOTER_ONLY_LINKS) {
+      expect(
+        navHrefs.has(link.href),
+        `${link.label} is already in the nav`,
+      ).toBe(false);
+    }
   });
 });
 

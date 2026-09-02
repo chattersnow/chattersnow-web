@@ -2,20 +2,21 @@ import Image from "next/image";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPageVisibility, hiddenSlots } from "@/lib/page-visibility";
-import { visibleGroups } from "@/lib/public-nav";
+import { FOOTER_ONLY_LINKS, visibleGroups } from "@/lib/public-nav";
 import { SiteNav } from "./site-nav";
 
 // Derived from the same NAV_GROUPS the header renders, rather than a second
 // hardcoded list -- the old FOOTER_LINKS had no About or Learn entry, so those
-// sections stayed missing from the footer even when they were visible.
+// sections stayed missing from the footer even when they were visible. The
+// footer-only links (the privacy policy) come last, after the sections.
 function FooterLinks({ hidden }: { hidden: string[] }) {
-  return visibleGroups(hidden).map((group) => (
+  return [...visibleGroups(hidden), ...FOOTER_ONLY_LINKS].map((link) => (
     <Link
-      key={group.href}
-      href={group.href}
+      key={link.href}
+      href={link.href}
       className="app-muted text-sm hover:text-foreground"
     >
-      {group.label}
+      {link.label}
     </Link>
   ));
 }

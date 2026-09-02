@@ -99,6 +99,20 @@ export const NAV_GROUPS: readonly NavGroup[] = [
 ] as const;
 
 /**
+ * Links that belong in the footer but not in the header nav, appended after
+ * the visible groups.
+ *
+ * The privacy policy is deliberately not a NAV_GROUPS entry with a slot: it
+ * has to stay reachable from every page for as long as the site collects
+ * personal information through its forms, so it is neither a header
+ * destination competing with the sections nor something the board can hide
+ * from Administration > System Settings.
+ */
+export const FOOTER_ONLY_LINKS: readonly NavLink[] = [
+  { label: "Privacy Policy", href: "/privacy" },
+] as const;
+
+/**
  * Drops every group and sub-link belonging to a hidden section. A group is
  * removed when its own slot is hidden, and also when filtering its sub-links
  * leaves it empty -- otherwise the board hiding the last page in a group would
