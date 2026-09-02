@@ -1,0 +1,20 @@
+# Chatter Snow -- how to report a security problem with this site.
+#
+# security@chattersnow.org is a distribution list reaching the board, not a
+# staffed security team: we are a volunteer organization, we have no bounty
+# programme, and a reply may take days rather than hours. Please report
+# anyway. The operations portal holds personal data behind Postgres RLS
+# policies, so a mistake there is a real one and we would much rather hear
+# about it from you.
+#
+# Please do not access, modify, or retain anyone else's personal data while
+# demonstrating an issue -- tell us what you found and we will reproduce it.
+#
+# NOTE FOR MAINTAINERS: RFC 9116 requires Expires, and an expired file is
+# treated as invalid. Bump it, and this comment, at least annually.
+
+Contact: mailto:security@chattersnow.org
+Expires: 2027-09-01T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://chattersnow.org/.well-known/security.txt
+Policy: https://chattersnow.org/terms

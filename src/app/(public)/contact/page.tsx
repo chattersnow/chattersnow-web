@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { InstagramLink } from "@/components/instagram-link";
 import { SiteImage } from "@/components/site-image";
+import { CONTACT_EMAIL } from "@/lib/contact-addresses";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSiteImageUrls } from "@/lib/site-images";
 import { ContactForm } from "./contact-form";
@@ -44,10 +46,10 @@ export default async function ContactPage() {
             <div className="app-muted mt-3 space-y-1 text-sm leading-relaxed sm:text-base">
               <p>
                 <a
-                  href="mailto:info@chattersnow.org"
+                  href={`mailto:${CONTACT_EMAIL}`}
                   className="hover:text-foreground underline underline-offset-4"
                 >
-                  info@chattersnow.org
+                  {CONTACT_EMAIL}
                 </a>
               </p>
             </div>
@@ -56,17 +58,7 @@ export default async function ContactPage() {
           <div>
             <span className="app-eyebrow">Follow us</span>
             <div className="app-muted mt-3 text-sm leading-relaxed sm:text-base">
-              <p>
-                Instagram{" "}
-                <a
-                  href="https://www.instagram.com/chattersnow"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-foreground underline underline-offset-4"
-                >
-                  @chattersnow
-                </a>
-              </p>
+              <InstagramLink />
             </div>
           </div>
         </div>

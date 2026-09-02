@@ -14,6 +14,7 @@ const PUBLIC_ROUTES = [
   "/",
   "/home",
   "/contact",
+  "/privacy",
   "/learn",
   "/learn/getting-started",
   "/get-involved",
