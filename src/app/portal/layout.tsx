@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PortalUrlCanonicalizer } from "./portal-url-canonicalizer";
 
 export const metadata: Metadata = {
   title: {
@@ -12,5 +13,10 @@ export default function PortalLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return (
+    <>
+      <PortalUrlCanonicalizer />
+      {children}
+    </>
+  );
 }

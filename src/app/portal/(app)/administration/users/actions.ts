@@ -6,6 +6,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { checkPermission } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
 import { friendlyError } from "@/lib/db-errors";
+import { getPortalOrigin } from "@/lib/portal/paths";
 
 export type PortalUser = {
   user_id: string;
@@ -246,7 +247,13 @@ export async function createInviteLinkAction(
   }
 
   const admin = createSupabaseAdminClient();
-  const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/confirm`;
+  // Must be the portal origin, not the public site: verifyOtp() in
+  // /auth/confirm sets the session cookie on whichever host serves the link,
+  // and cookies don't cross the www <-> portal subdomain boundary. An invite
+  // consumed on www leaves the recipient signed in there and still staring at
+  // a login form on the portal.
+  const portalOrigin = getPortalOrigin();
+  const redirectTo = `${portalOrigin}/auth/confirm`;
 
   let result = await admin.auth.admin.generateLink({
     type: "invite",
@@ -270,9 +277,8 @@ export async function createInviteLinkAction(
     };
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
   const link =
-    `${siteUrl}/auth/confirm?token_hash=${result.data.properties.hashed_token}` +
+    `${portalOrigin}/auth/confirm?token_hash=${result.data.properties.hashed_token}` +
     `&type=${linkType}&next=/portal/set-password`;
 
   await supabase
