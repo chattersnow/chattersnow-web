@@ -2,31 +2,22 @@ import Image from "next/image";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPageVisibility, hiddenSlots } from "@/lib/page-visibility";
+import { visibleGroups } from "@/lib/public-nav";
 import { SiteNav } from "./site-nav";
 
-// `slot` ties each link to an entry in PUBLIC_PAGE_SLOTS so a section the
-// board has hidden disappears from the footer as well as from the nav.
-const FOOTER_LINKS = [
-  { label: "Events", href: "/events", slot: "events" },
-  { label: "Programs", href: "/programs", slot: "programs" },
-  { label: "Gear", href: "/gears", slot: "gears" },
-  { label: "Get Involved", href: "/get-involved", slot: "get-involved" },
-  { label: "Support", href: "/support", slot: "support" },
-  { label: "Contact", href: "/contact", slot: "contact" },
-] as const;
-
+// Derived from the same NAV_GROUPS the header renders, rather than a second
+// hardcoded list -- the old FOOTER_LINKS had no About or Learn entry, so those
+// sections stayed missing from the footer even when they were visible.
 function FooterLinks({ hidden }: { hidden: string[] }) {
-  return FOOTER_LINKS.filter((link) => !hidden.includes(link.slot)).map(
-    (link) => (
-      <Link
-        key={link.href}
-        href={link.href}
-        className="app-muted text-sm hover:text-foreground"
-      >
-        {link.label}
-      </Link>
-    ),
-  );
+  return visibleGroups(hidden).map((group) => (
+    <Link
+      key={group.href}
+      href={group.href}
+      className="app-muted text-sm hover:text-foreground"
+    >
+      {group.label}
+    </Link>
+  ));
 }
 
 // Deliberately awaited here rather than streamed, and the trade was measured
@@ -76,9 +67,9 @@ export default async function PublicLayout({
       <footer className="mt-16 px-6 py-10 sm:px-10">
         <div className="rainbow-strip -mt-10 mb-10" />
         <div className="mx-auto flex max-w-6xl flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex flex-wrap gap-x-6 gap-y-2">
+          <nav aria-label="Footer" className="flex flex-wrap gap-x-6 gap-y-2">
             <FooterLinks hidden={hidden} />
-          </div>
+          </nav>
 
           <div className="app-muted flex flex-col gap-1 text-sm sm:text-right">
             <a

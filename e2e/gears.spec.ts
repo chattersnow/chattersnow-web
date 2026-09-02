@@ -93,7 +93,7 @@ test.describe("public gears pages", () => {
 
   test("nav resolves to the gear donation page", async ({ page }) => {
     await page.goto("/home");
-    await clickNavLink(page, "How It Works", { group: "Gear" });
+    await clickNavLink(page, "Donate or Request Gear", { group: "Gear" });
 
     await expect(page).toHaveURL(/\/gears\/donate/);
     await expect(
