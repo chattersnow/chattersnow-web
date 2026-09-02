@@ -1,0 +1,50 @@
+name: Close Linked Issues
+
+# GitHub's native "Closes #N" auto-close only fires when a PR merges into
+# the repo's default branch (main). This repo's working branch is
+# development, so we replicate that behavior here for PRs merged into it.
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [development]
+
+jobs:
+  close-issues:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Close issues referenced by closing keywords
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const text = `${pr.title}\n${pr.body ?? ""}`;
+            const keywords = "close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved";
+            const re = new RegExp(`\\b(?:${keywords})\\s+#(\\d+)`, "gi");
+            const issueNumbers = new Set();
+            for (const match of text.matchAll(re)) {
+              issueNumbers.add(Number(match[1]));
+            }
+
+            for (const issue_number of issueNumbers) {
+              try {
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number,
+                  state: "closed",
+                  state_reason: "completed",
+                });
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number,
+                  body: `Closed by merge of #${pr.number} into \`development\`.`,
+                });
+              } catch (err) {
+                core.warning(`Could not close #${issue_number}: ${err.message}`);
+              }
+            }

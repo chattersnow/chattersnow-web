@@ -1,34 +1,42 @@
 import type { Metadata } from "next";
-import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
+import { Quicksand, Rock_Salt } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
+import { THEME_INIT_SCRIPT, ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const quicksand = Quicksand({
+  variable: "--font-quicksand",
   subsets: ["latin"],
 });
 
-const bricolageGrotesque = Bricolage_Grotesque({
-  variable: "--font-bricolage-grotesque",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const rockSalt = Rock_Salt({
+  variable: "--font-rock-salt",
+  weight: "400",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "Chatter Snow | Coming soon",
-  description: "Chatter is currently a work in progress.",
+  title: "Chatter Snow",
+  description:
+    "Chatter Snow is a queer ski and snowboard community bringing LGBTQ+ skiers and snowboarders together on and off the East Coast mountains.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${bricolageGrotesque.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
+      className={`${quicksand.variable} ${rockSalt.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
+      <body className="min-h-full flex flex-col">
+        <ThemeProvider>
+          {children}
+          <Analytics />
+        </ThemeProvider>
+      </body>
     </html>
   );
 }

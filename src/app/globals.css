@@ -6,6 +6,7 @@
 
 :root {
   --surface: #ffffff;
+  --surface-muted: color-mix(in oklch, var(--foreground) 8%, var(--surface));
   --purple: #70419a;
   --purple-deep: #32134f;
   --purple-soft: #ede1fb;
@@ -19,6 +20,15 @@
     #38a5db 80%,
     #8f55ba 100%
   );
+  --rainbow-soft: linear-gradient(
+    90deg,
+    rgb(232 72 85 / 12%) 0%,
+    rgb(245 158 66 / 12%) 20%,
+    rgb(244 211 94 / 12%) 40%,
+    rgb(80 184 120 / 12%) 60%,
+    rgb(56 165 219 / 12%) 80%,
+    rgb(143 85 186 / 12%) 100%
+  );
   --background: #f7f0ff;
   --foreground: #32134f;
   --card: var(--surface);
@@ -30,10 +40,12 @@
   --secondary: var(--purple-soft);
   --secondary-foreground: var(--purple-deep);
   --muted: var(--purple-soft);
-  --muted-foreground: rgb(50 19 79 / 64%);
+  --muted-foreground: rgb(50 19 79 / 72%);
   --accent: var(--purple-soft);
   --accent-foreground: var(--purple-deep);
-  --destructive: #e84855;
+  --destructive: #cc2936;
+  --warning: #b45309;
+  --warning-foreground: #ffffff;
   --border: var(--line);
   --input: var(--line);
   --ring: var(--purple);
@@ -43,22 +55,24 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--purple-deep);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--purple-soft);
+  --sidebar-accent-foreground: var(--purple-deep);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--purple);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-quicksand);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-bricolage-grotesque);
+  --font-heading: var(--font-quicksand);
+  --font-accent-marker: var(--font-quicksand);
+  --font-accent-rock-salt: var(--font-rock-salt);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -76,6 +90,11 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-brand-purple: var(--purple);
+  --color-brand-purple-deep: var(--purple-deep);
+  --color-brand-purple-soft: var(--purple-soft);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -98,7 +117,7 @@
 }
 
 body {
-  font-family: var(--font-geist-sans), sans-serif;
+  font-family: var(--font-quicksand), sans-serif;
 }
 
 @layer components {
@@ -109,11 +128,12 @@ body {
   }
 
   .brand-display {
-    font-family: var(--font-bricolage-grotesque), sans-serif;
+    font-family: var(--font-quicksand), sans-serif;
   }
 
   .app-eyebrow {
     color: var(--purple);
+    font-family: var(--font-accent-marker), cursive;
     font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.2em;
@@ -125,15 +145,122 @@ body {
     color: var(--muted-foreground);
   }
 
+  .bell-ring {
+    transform-origin: top center;
+    animation: bell-ring 0.8s ease-in-out 0.6s 2;
+  }
+
+  @keyframes bell-ring {
+    0%,
+    100% {
+      transform: rotate(0deg);
+    }
+    15% {
+      transform: rotate(14deg);
+    }
+    30% {
+      transform: rotate(-11deg);
+    }
+    45% {
+      transform: rotate(8deg);
+    }
+    60% {
+      transform: rotate(-5deg);
+    }
+    75% {
+      transform: rotate(2deg);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bell-ring {
+      animation: none;
+    }
+  }
+
   .rainbow-accent {
     height: 0.375rem;
     width: 8rem;
     border-radius: 999px;
     background: var(--rainbow);
   }
+
+  .rainbow-strip {
+    height: 0.25rem;
+    width: 100%;
+    background: var(--rainbow);
+  }
+
+  .rainbow-ring-hover {
+    border: 2px solid transparent;
+    transition: background-image 0.15s ease;
+  }
+
+  .rainbow-ring-hover:hover,
+  .rainbow-ring-hover:focus-within {
+    background-image: linear-gradient(var(--card), var(--card)), var(--rainbow);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
+
+  .rainbow-surface {
+    background-color: var(--surface);
+    background-image: var(--rainbow-soft);
+  }
+
+  .rainbow-cta {
+    background: var(--rainbow);
+    color: #ffffff;
+  }
+
+  .rainbow-cta:hover {
+    opacity: 0.9;
+  }
+
+  .rainbow-underline {
+    position: relative;
+  }
+
+  .rainbow-underline::after {
+    content: "";
+    position: absolute;
+    left: 0.5rem;
+    right: 0.5rem;
+    bottom: 0.25rem;
+    height: 2px;
+    border-radius: 999px;
+    background: var(--rainbow);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  .rainbow-underline:hover::after,
+  .rainbow-underline[data-active]::after {
+    opacity: 1;
+  }
 }
 
 .dark {
+  /* Brand primitives first: the hand-written brand classes (`rainbow-surface`,
+     `app-eyebrow`) and the many `bg-[var(--purple-soft)]` /
+     `border-[var(--line)]` / `text-[var(--purple-deep)]` utilities read these
+     directly rather than through the shadcn semantic vars below, so they stay
+     on the light palette unless dark values are defined here too. Keep
+     `--surface` in step with `--card` -- they alias each other in `:root`. */
+  --surface: oklch(0.205 0 0);
+  --purple: #c8a8ea;
+  --purple-deep: #e2d0f6;
+  --purple-soft: oklch(0.269 0 0);
+  --line: oklch(1 0 0 / 12%);
+  --rainbow-soft: linear-gradient(
+    90deg,
+    rgb(232 72 85 / 10%) 0%,
+    rgb(245 158 66 / 10%) 20%,
+    rgb(244 211 94 / 10%) 40%,
+    rgb(80 184 120 / 10%) 60%,
+    rgb(56 165 219 / 10%) 80%,
+    rgb(143 85 186 / 10%) 100%
+  );
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -176,5 +303,26 @@ body {
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* Print only a `.agenda-print-area` element, regardless of where it sits in
+   the tree (e.g. inside a dialog portal) -- everything else is hidden but
+   stays in the layout, and the target opts back into visibility. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .agenda-print-area,
+  .agenda-print-area * {
+    visibility: visible;
+  }
+  .agenda-print-area {
+    position: absolute;
+    inset: 0;
+    max-height: none;
+    overflow: visible;
+    border: none;
+    padding: 0;
   }
 }
