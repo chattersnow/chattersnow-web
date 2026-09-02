@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { ImageOff } from "lucide-react";
+import { BrandImageFallback } from "@/components/brand-image-fallback";
 import {
   Sheet,
   SheetContent,
@@ -71,12 +71,7 @@ export function GearDetailSheet({
                     className="object-cover"
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center">
-                    <ImageOff
-                      className="size-10 text-muted-foreground"
-                      aria-hidden
-                    />
-                  </div>
+                  <BrandImageFallback label="Photo coming soon" />
                 )}
               </div>
 

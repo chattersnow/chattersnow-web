@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { ImageOff, X } from "lucide-react";
+import { X } from "lucide-react";
+import { BrandImageFallback } from "@/components/brand-image-fallback";
 import {
   Sheet,
   SheetContent,
@@ -77,12 +78,7 @@ export function GearCartSheet({
                             className="object-cover"
                           />
                         ) : (
-                          <div className="flex h-full w-full items-center justify-center">
-                            <ImageOff
-                              className="size-4 text-muted-foreground"
-                              aria-hidden
-                            />
-                          </div>
+                          <BrandImageFallback />
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
