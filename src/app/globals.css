@@ -241,6 +241,26 @@ body {
 }
 
 .dark {
+  /* Brand primitives first: the hand-written brand classes (`rainbow-surface`,
+     `app-eyebrow`) and the many `bg-[var(--purple-soft)]` /
+     `border-[var(--line)]` / `text-[var(--purple-deep)]` utilities read these
+     directly rather than through the shadcn semantic vars below, so they stay
+     on the light palette unless dark values are defined here too. Keep
+     `--surface` in step with `--card` -- they alias each other in `:root`. */
+  --surface: oklch(0.205 0 0);
+  --purple: #c8a8ea;
+  --purple-deep: #e2d0f6;
+  --purple-soft: oklch(0.269 0 0);
+  --line: oklch(1 0 0 / 12%);
+  --rainbow-soft: linear-gradient(
+    90deg,
+    rgb(232 72 85 / 10%) 0%,
+    rgb(245 158 66 / 10%) 20%,
+    rgb(244 211 94 / 10%) 40%,
+    rgb(80 184 120 / 10%) 60%,
+    rgb(56 165 219 / 10%) 80%,
+    rgb(143 85 186 / 10%) 100%
+  );
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
