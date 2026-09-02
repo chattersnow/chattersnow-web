@@ -121,8 +121,19 @@ body {
 }
 
 @layer components {
+  /*
+   * The page's flex column lives on <body> (`min-h-full flex flex-col` in
+   * src/app/layout.tsx), so main takes whatever height is left over rather
+   * than claiming a viewport of its own.
+   *
+   * This was `min-height: 100vh`, which made every document at least
+   * `header + 100vh + footer` tall, since main is not the whole page. On a
+   * page shorter than the viewport -- /home zoomed out -- main padded itself
+   * out to a full viewport and left a band of dead background above the
+   * footer, pushing the footer off the bottom of the screen.
+   */
   .app-shell {
-    min-height: 100vh;
+    flex: 1;
     background: var(--background);
     color: var(--foreground);
   }
