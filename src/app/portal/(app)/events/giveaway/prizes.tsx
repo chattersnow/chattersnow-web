@@ -3,10 +3,12 @@
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import {
   createGiveawayPrizeAction,
+  updateGiveawayPrizeAction,
   listAvailableGiveawaySourcesAction,
   type AvailableInventoryItemSource,
   type AvailableMonetaryDonationSource,
   type Giveaway,
+  type GiveawayPrize,
 } from "../giveaway-actions";
 import { PersonPicker, type PickedPerson } from "../../people/person-picker";
 import { type PersonListItem } from "../../people/actions";
@@ -34,9 +36,24 @@ function sourceKeyFor(kind: "item" | "donation", id: string) {
   return `${kind}:${id}`;
 }
 
-export function AddPrizeForm({
+function initialSourceKey(prize?: GiveawayPrize) {
+  if (prize?.source_inventory_item_id) {
+    return sourceKeyFor("item", prize.source_inventory_item_id);
+  }
+  if (prize?.source_monetary_donation_id) {
+    return sourceKeyFor("donation", prize.source_monetary_donation_id);
+  }
+  return NO_SOURCE;
+}
+
+/**
+ * Add or edit a prize. `prize` switches it to edit mode -- the fields start
+ * from that prize and saving updates it in place instead of inserting.
+ */
+export function PrizeForm({
   giveawayId,
   eventId,
+  prize,
   people,
   onPersonCreated,
   onSaved,
@@ -44,15 +61,23 @@ export function AddPrizeForm({
 }: {
   giveawayId: string;
   eventId: string;
+  prize?: GiveawayPrize;
   people: PersonListItem[];
   onPersonCreated: (person: PickedPerson) => void;
   onSaved: () => void;
   onCancel: () => void;
 }) {
-  const [prizeName, setPrizeName] = useState("");
-  const [selectedDonor, setSelectedDonor] = useState<PickedPerson | null>(null);
-  const [estimatedValue, setEstimatedValue] = useState("");
-  const [notes, setNotes] = useState("");
+  const isEdit = prize !== undefined;
+  const [prizeName, setPrizeName] = useState(prize?.prize_name ?? "");
+  const [selectedDonor, setSelectedDonor] = useState<PickedPerson | null>(
+    prize?.donor ?? null,
+  );
+  const [estimatedValue, setEstimatedValue] = useState(
+    prize?.estimated_value === null || prize?.estimated_value === undefined
+      ? ""
+      : String(prize.estimated_value),
+  );
+  const [notes, setNotes] = useState(prize?.notes ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -60,18 +85,24 @@ export function AddPrizeForm({
     inventoryItems: AvailableInventoryItemSource[];
     monetaryDonations: AvailableMonetaryDonationSource[];
   } | null>(null);
-  const [selectedSourceKey, setSelectedSourceKey] = useState(NO_SOURCE);
+  const [selectedSourceKey, setSelectedSourceKey] = useState(() =>
+    initialSourceKey(prize),
+  );
 
+  const prizeId = prize?.id ?? null;
+  const idPrefix = isEdit ? `prize-${prize.id}` : "prize-new";
   useEffect(() => {
     let cancelled = false;
-    listAvailableGiveawaySourcesAction(eventId).then((result) => {
+    // Passing the prize id keeps its own current source in the list; without
+    // it the RPC filters out everything already linked, including this one.
+    listAvailableGiveawaySourcesAction(eventId, prizeId).then((result) => {
       if (cancelled) return;
       if ("data" in result) setSources(result.data);
     });
     return () => {
       cancelled = true;
     };
-  }, [eventId]);
+  }, [eventId, prizeId]);
 
   function handleSourceChange(key: string | null) {
     if (!key) return;
@@ -111,13 +142,21 @@ export function AddPrizeForm({
         : selectedSourceKey.split(":");
 
     startTransition(async () => {
-      const result = await createGiveawayPrizeAction(
-        giveawayId,
-        selectedDonor?.id ?? null,
-        formData,
-        kind === "item" ? id : null,
-        kind === "donation" ? id : null,
-      );
+      const result = isEdit
+        ? await updateGiveawayPrizeAction(
+            prize.id,
+            selectedDonor?.id ?? null,
+            formData,
+            kind === "item" ? id : null,
+            kind === "donation" ? id : null,
+          )
+        : await createGiveawayPrizeAction(
+            giveawayId,
+            selectedDonor?.id ?? null,
+            formData,
+            kind === "item" ? id : null,
+            kind === "donation" ? id : null,
+          );
       if ("error" in result) {
         setError(result.error);
         return;
@@ -126,9 +165,12 @@ export function AddPrizeForm({
     });
   }
 
+  // In edit mode the picker stays visible even with nothing else to pick, so
+  // an existing link can always be seen and cleared.
   const hasSources =
     (sources?.inventoryItems.length ?? 0) > 0 ||
-    (sources?.monetaryDonations.length ?? 0) > 0;
+    (sources?.monetaryDonations.length ?? 0) > 0 ||
+    selectedSourceKey !== NO_SOURCE;
 
   return (
     <form
@@ -186,9 +228,9 @@ export function AddPrizeForm({
         )}
 
         <Field>
-          <FieldLabel htmlFor="prize-name">Prize name</FieldLabel>
+          <FieldLabel htmlFor={`${idPrefix}-name`}>Prize name</FieldLabel>
           <Input
-            id="prize-name"
+            id={`${idPrefix}-name`}
             required
             value={prizeName}
             onChange={(e) => setPrizeName(e.target.value)}
@@ -207,9 +249,11 @@ export function AddPrizeForm({
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="prize-value">Estimated value ($)</FieldLabel>
+          <FieldLabel htmlFor={`${idPrefix}-value`}>
+            Estimated value ($)
+          </FieldLabel>
           <Input
-            id="prize-value"
+            id={`${idPrefix}-value`}
             type="number"
             min="0"
             step="0.01"
@@ -219,9 +263,9 @@ export function AddPrizeForm({
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="prize-notes">Notes</FieldLabel>
+          <FieldLabel htmlFor={`${idPrefix}-notes`}>Notes</FieldLabel>
           <Textarea
-            id="prize-notes"
+            id={`${idPrefix}-notes`}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />
@@ -242,6 +286,8 @@ export function AddPrizeForm({
               <>
                 <Spinner /> Saving...
               </>
+            ) : isEdit ? (
+              "Save prize"
             ) : (
               "Add prize"
             )}
@@ -258,9 +304,13 @@ export function PrizesSection({
   canEdit,
   isDeleting,
   editingWinnerId,
+  editingPrizeId,
   showAddPrize,
   onPersonCreated,
   onDeletePrize,
+  onEditPrize,
+  onPrizeSaved,
+  onCancelPrizeEdit,
   onEditWinner,
   onWinnerSaved,
   onCancelWinnerEdit,
@@ -272,9 +322,13 @@ export function PrizesSection({
   canEdit: boolean;
   isDeleting: boolean;
   editingWinnerId: string | null;
+  editingPrizeId: string | null;
   showAddPrize: boolean;
   onPersonCreated: (person: PickedPerson) => void;
   onDeletePrize: (id: string) => void;
+  onEditPrize: (prizeId: string) => void;
+  onPrizeSaved: () => void;
+  onCancelPrizeEdit: () => void;
   onEditWinner: (prizeId: string) => void;
   onWinnerSaved: () => void;
   onCancelWinnerEdit: () => void;
@@ -287,52 +341,75 @@ export function PrizesSection({
       {giveaway.giveaway_prizes.length === 0 && (
         <p className="app-muted text-sm">No prizes added yet.</p>
       )}
-      {giveaway.giveaway_prizes.map((prize) => (
-        <div
-          key={prize.id}
-          className="rounded-md border border-[var(--line)] p-3"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="font-medium">{prize.prize_name}</p>
-              <p className="app-muted text-xs">
-                {prize.donor?.name ? `Donated by ${prize.donor.name} · ` : ""}
-                {formatMoney(prize.estimated_value)}
-              </p>
-              {(prize.source_item || prize.source_donation) && (
+      {giveaway.giveaway_prizes.map((prize) =>
+        editingPrizeId === prize.id ? (
+          <PrizeForm
+            key={prize.id}
+            giveawayId={giveaway.id}
+            eventId={giveaway.event_id}
+            prize={prize}
+            people={people}
+            onPersonCreated={onPersonCreated}
+            onSaved={onPrizeSaved}
+            onCancel={onCancelPrizeEdit}
+          />
+        ) : (
+          <div
+            key={prize.id}
+            className="rounded-md border border-[var(--line)] p-3"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-medium">{prize.prize_name}</p>
                 <p className="app-muted text-xs">
-                  Sourced from:{" "}
-                  {prize.source_item?.description ??
-                    formatMoney(prize.source_donation?.amount ?? null)}
+                  {prize.donor?.name ? `Donated by ${prize.donor.name} · ` : ""}
+                  {formatMoney(prize.estimated_value)}
                 </p>
+                {(prize.source_item || prize.source_donation) && (
+                  <p className="app-muted text-xs">
+                    Sourced from:{" "}
+                    {prize.source_item?.description ??
+                      formatMoney(prize.source_donation?.amount ?? null)}
+                  </p>
+                )}
+              </div>
+              {canEdit && (
+                <div className="flex shrink-0 gap-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onEditPrize(prize.id)}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={isDeleting}
+                    onClick={() => onDeletePrize(prize.id)}
+                  >
+                    Remove
+                  </Button>
+                </div>
               )}
             </div>
-            {canEdit && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={isDeleting}
-                onClick={() => onDeletePrize(prize.id)}
-              >
-                Remove
-              </Button>
-            )}
+            <PrizeWinnerSection
+              prize={prize}
+              editing={editingWinnerId === prize.id}
+              canEdit={canEdit}
+              onEdit={() => onEditWinner(prize.id)}
+              onSaved={onWinnerSaved}
+              onCancel={onCancelWinnerEdit}
+            />
           </div>
-          <PrizeWinnerSection
-            prize={prize}
-            editing={editingWinnerId === prize.id}
-            canEdit={canEdit}
-            onEdit={() => onEditWinner(prize.id)}
-            onSaved={onWinnerSaved}
-            onCancel={onCancelWinnerEdit}
-          />
-        </div>
-      ))}
+        ),
+      )}
 
       {canEdit &&
         (showAddPrize ? (
-          <AddPrizeForm
+          <PrizeForm
             giveawayId={giveaway.id}
             eventId={giveaway.event_id}
             people={people}

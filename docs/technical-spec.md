@@ -293,7 +293,9 @@ The initial inventory workflow is the primary way administrators manage donated 
 
 ### 5.8 Giveaways
 
-Giveaway recording is implemented for the initial release: authorized users can record, per event, tickets sold and revenue, prizes (name, prize donor as free text, estimated value), and winners (name, contact, distribution status/date, drawing date), via the event editor's Giveaway tab (`giveaways`, `giveaway_prizes`, `giveaway_winners` tables). This is a manual recording tool only — there is no public ticket-purchase flow, and the prize donor field is not yet linked to the `people` directory the way event sponsors are.
+Giveaway recording is implemented for the initial release: authorized users can record, per event, tickets sold and revenue, prizes (name, prize donor, estimated value), and winners (name, contact, distribution status/date, drawing date), via the event editor's Giveaway tab (`giveaways`, `giveaway_prizes`, `giveaway_winners` tables). This is a manual recording tool only — there is no public ticket-purchase flow.
+
+The prize donor is a `people` foreign key (`donor_person_id`, issue #20), and a prize can additionally record the donation record it came from — either an `inventory_items` row or a `monetary_donations` row (`source_inventory_item_id` / `source_monetary_donation_id`, issue #520). Selecting an in-kind source reserves that inventory item (issue #570), so a donated item allocated to a giveaway stops appearing as available in the distribution picker and the public gear catalog; removing the prize or changing its source releases the item again. Prizes with no inventory record behind them (cash, gift cards) are still entered as free text.
 
 Public online ticket sales remain out of scope and must be reviewed for applicable legal, tax, and jurisdictional requirements before being enabled.
 
@@ -364,7 +366,7 @@ Governance records contain sensitive organizational and personal information and
 
 - **Volunteer-facing donation/distribution recording**: recording a donation or distribution from an event should be quick and easy for a volunteer to reach in the field, not just from the main inventory workflow.
 - **Quick edit from the events list**: editing a donation/distribution via the events list may only need to collect a number and notes tied to the event, rather than the full inventory workflow.
-- **Giveaway prizes drawn from in-kind donations**: when a donated item is used as a giveaway prize, decide whether it should still follow the standard in-kind donation/inventory process (receipt, status, movement) or a separate giveaway-specific path.
+- ~~**Giveaway prizes drawn from in-kind donations**~~: **decided** (issues #520, #570) — a donated item used as a prize stays on the standard inventory path rather than getting a giveaway-specific one. The prize references the `inventory_items` row, and allocating it reserves the item and writes an `inventory_movements` row, so receipt, status and movement history all behave as they do for any other reservation. See §5.8.
 
 ### 5.14 Program management
 
@@ -557,7 +559,7 @@ Impact rollups themselves (per-event, per-program, and season reports, including
 - `event_expenses`: implemented, with an optional `event_id` (nullable — expenses may or may not be tied to an event) and `receipt_url` (a plain text link to the file in an external solution, not an upload — see §5.6). **Implemented** (issue #29): an approval state (`status`: submitted/approved/rejected/paid), `submitted_by`, `approved_by`/`approved_at`, `rejected_by`/`rejected_at`/`rejection_reason`, `paid_by`/`paid_at` — see §5.16.
 - `reimbursements`: **implemented** (issue #51) — requester `person_id`, amount, description, `receipt_url` (external link, same pattern as `event_expenses`), optional `event_id`, and the same approval-state shape as `event_expenses` but with its own resources (`reimbursements`, `reimbursement_approvals`, `reimbursement_self_approval`) and `app_settings` threshold (see §5.16, §5.18)
 - `file_attachments`: not planned — a permanent design decision, not an initial-release gap; see §2, §5.12
-- `giveaways`, `giveaway_prizes`, and `giveaway_winners`: implemented (see §5.8); `giveaway_prizes.donor_name` is free text, not a `people` foreign key
+- `giveaways`, `giveaway_prizes`, and `giveaway_winners`: implemented (see §5.8); `giveaway_prizes` references its donor via `donor_person_id` (a `people` foreign key) and, optionally, the donation it was sourced from via `source_inventory_item_id` / `source_monetary_donation_id` (mutually exclusive, both `on delete set null`)
 
 ### Governance
 

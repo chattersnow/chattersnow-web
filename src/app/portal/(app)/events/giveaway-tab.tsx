@@ -43,11 +43,13 @@ export function GiveawayTab({
   const people = [...(peopleData ?? []), ...newPeople];
   const [isDeleting, startDeleteTransition] = useTransition();
   const [editingWinnerId, setEditingWinnerId] = useState<string | null>(null);
+  const [editingPrizeId, setEditingPrizeId] = useState<string | null>(null);
   const [showAddPrize, setShowAddPrize] = useState(false);
   const canEdit = mode === "edit";
 
   useResetOnModeChange(mode, () => {
     setEditingWinnerId(null);
+    setEditingPrizeId(null);
     setShowAddPrize(false);
   });
 
@@ -103,9 +105,16 @@ export function GiveawayTab({
               canEdit={canEdit}
               isDeleting={isDeleting}
               editingWinnerId={editingWinnerId}
+              editingPrizeId={editingPrizeId}
               showAddPrize={showAddPrize}
               onPersonCreated={handlePersonCreated}
               onDeletePrize={handleDeletePrize}
+              onEditPrize={(prizeId) => setEditingPrizeId(prizeId)}
+              onPrizeSaved={() => {
+                setEditingPrizeId(null);
+                refresh();
+              }}
+              onCancelPrizeEdit={() => setEditingPrizeId(null)}
               onEditWinner={(prizeId) => setEditingWinnerId(prizeId)}
               onWinnerSaved={() => {
                 setEditingWinnerId(null);
