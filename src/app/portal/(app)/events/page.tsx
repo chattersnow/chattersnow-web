@@ -26,11 +26,16 @@ import {
 import { NewEventDialog } from "./new-event-dialog";
 import { StatusBadge, VisibilityBadge } from "./event-badges";
 import { FiltersSheet } from "@/components/filters-sheet";
+import { OutstandingTasksSheet } from "./outstanding-tasks-sheet";
 import { FilterSubmitButton } from "@/components/filter-submit-button";
 import { LinkPendingPulse } from "@/components/link-pending";
 import { SortHeaderLink } from "@/components/portal/sort-header-link";
 import { listProgramsAction } from "../programs/actions";
 import { formatDateTimeInZone } from "@/lib/time";
+import {
+  getEventTaskSummary,
+  groupEventTasksByEvent,
+} from "@/lib/portal/attention-items";
 
 const SORTABLE_COLUMNS = [
   "name",
@@ -113,6 +118,10 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
     : "all";
 
   const page = parsePage(raw("page"));
+  // Deep link from the dashboard's "Outstanding tasks" count. Deliberately not
+  // part of `filterParams` below -- it isn't a filter on the table, and sort/
+  // page links shouldn't carry it and reopen the sheet on every navigation.
+  const tasksOpen = raw("tasks") === "open";
   const nowIso = new Date().toISOString();
 
   let query = supabase
@@ -138,8 +147,12 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
 
   const { offset, to } = pageRange(page);
   const { data: events, error, count } = await query.range(offset, to);
-  const programsResult = await listProgramsAction();
+  const [programsResult, eventTasks] = await Promise.all([
+    listProgramsAction(),
+    getEventTaskSummary(supabase, { canManageEvents: canManage }, nowIso),
+  ]);
   const programs = "data" in programsResult ? programsResult.data : [];
+  const taskGroups = groupEventTasksByEvent(eventTasks.items);
 
   const filterParams = new URLSearchParams();
   if (statusFilter !== "all") filterParams.set("status", statusFilter);
@@ -188,6 +201,14 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
       </div>
 
       <div className="rainbow-surface mt-6 flex flex-wrap items-center justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+        {taskGroups.length > 0 && (
+          <OutstandingTasksSheet
+            groups={taskGroups}
+            totalCount={eventTasks.items.length}
+            defaultOpen={tasksOpen}
+          />
+        )}
+
         <FiltersSheet activeCount={activeFilterCount}>
           <form method="get" className="flex flex-col gap-4">
             <input type="hidden" name="sort" value={sort} />

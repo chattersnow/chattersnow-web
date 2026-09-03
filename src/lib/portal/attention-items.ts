@@ -304,12 +304,84 @@ type OpenChecklistItemRow = {
   id: string;
   event_id: string;
   title: string;
-  events: { name: string };
+  events: { name: string; starts_at: string };
+};
+
+export type EventTaskKind = "planning" | "attendance" | "report" | "checklist";
+
+/**
+ * One open piece of event work. Unlike `PendingApprovalItem` (a flat,
+ * pre-formatted line for the portal shell's attention list), this keeps the
+ * event identity separate from the task text so callers can group by event --
+ * the events list sheet groups, the dashboard only counts.
+ */
+export type EventTaskItem = {
+  key: string;
+  eventId: string;
+  eventName: string;
+  eventStartsAt: string;
+  kind: EventTaskKind;
+  taskLabel: string;
+  href: string;
+};
+
+export type EventTaskSummary = { items: EventTaskItem[] };
+
+export type EventTaskGroup = {
+  eventId: string;
+  eventName: string;
+  eventStartsAt: string;
+  tasks: EventTaskItem[];
+};
+
+const TASK_KIND_ORDER: Record<EventTaskKind, number> = {
+  planning: 0,
+  attendance: 1,
+  report: 2,
+  checklist: 3,
 };
 
 /**
- * Backs the dashboard's "Outstanding tasks" row (home/page.tsx). Combines
- * two sources of open work:
+ * Collapses the flat task list into one group per event, oldest start date
+ * first so the most overdue work sits at the top of the sheet. Within a group,
+ * tasks read in event-lifecycle order regardless of which query produced them
+ * (checklist items are appended after all phase tasks by `getEventTaskSummary`).
+ */
+export function groupEventTasksByEvent(
+  items: EventTaskItem[],
+): EventTaskGroup[] {
+  const groups = new Map<string, EventTaskGroup>();
+
+  for (const item of items) {
+    let group = groups.get(item.eventId);
+    if (!group) {
+      group = {
+        eventId: item.eventId,
+        eventName: item.eventName,
+        eventStartsAt: item.eventStartsAt,
+        tasks: [],
+      };
+      groups.set(item.eventId, group);
+    }
+    group.tasks.push(item);
+  }
+
+  for (const group of groups.values()) {
+    group.tasks.sort(
+      (a, b) => TASK_KIND_ORDER[a.kind] - TASK_KIND_ORDER[b.kind],
+    );
+  }
+
+  return [...groups.values()].sort(
+    (a, b) =>
+      new Date(a.eventStartsAt).getTime() - new Date(b.eventStartsAt).getTime(),
+  );
+}
+
+/**
+ * Backs the dashboard's "Outstanding tasks" count (home/page.tsx) and the
+ * events list's Outstanding tasks sheet (events/outstanding-tasks-sheet.tsx),
+ * which groups these items per event. Combines two sources of open work:
  *  - phase-derived tasks, using the same per-phase status logic that drives
  *    the event detail page's Planning/During/After badges (see
  *    events/phase-status.ts) -- an event whose phase isn't "done" yet is an
@@ -325,7 +397,7 @@ export async function getEventTaskSummary(
   supabase: SupabaseClient,
   options: { canManageEvents: boolean },
   nowIso: string = new Date().toISOString(),
-): Promise<PendingApprovalsSummary> {
+): Promise<EventTaskSummary> {
   if (!options.canManageEvents) return { items: [] };
 
   const { data: events } = await supabase
@@ -336,37 +408,45 @@ export async function getEventTaskSummary(
     .in("status", ["draft", "published"]);
 
   const now = new Date(nowIso);
-  const items: PendingApprovalItem[] = [];
+  const items: EventTaskItem[] = [];
 
   for (const row of (events ?? []) as EventTaskRow[]) {
     // planning/during/after only read the fields selected above, so this
     // narrower row can stand in for the full EventRow they're typed against.
     const event = row as unknown as EventRow;
     const hasStarted = new Date(row.starts_at) <= now;
+    const base = {
+      eventId: row.id,
+      eventName: row.name,
+      eventStartsAt: row.starts_at,
+    };
 
     if (!hasStarted && planningStatus(event) !== "done") {
       items.push({
+        ...base,
         key: `event_planning_${row.id}`,
-        label: `Planning incomplete · ${row.name}`,
-        count: 1,
+        kind: "planning",
+        taskLabel: "Planning incomplete",
         href: `/portal/events/${row.id}?tab=planning`,
       });
     }
 
     if (duringStatus(event, now) === "in_progress") {
       items.push({
+        ...base,
         key: `event_attendance_${row.id}`,
-        label: `Attendance not logged · ${row.name}`,
-        count: 1,
+        kind: "attendance",
+        taskLabel: "Attendance not logged",
         href: `/portal/events/${row.id}?tab=attendance`,
       });
     }
 
     if (hasStarted && afterStatus(event) !== "done") {
       items.push({
+        ...base,
         key: `event_report_${row.id}`,
-        label: `After-report not started · ${row.name}`,
-        count: 1,
+        kind: "report",
+        taskLabel: "After-report not started",
         href: `/portal/events/${row.id}?tab=report`,
       });
     }
@@ -374,15 +454,18 @@ export async function getEventTaskSummary(
 
   const { data: checklistItems } = await supabase
     .from("event_checklist_items")
-    .select("id, event_id, title, events!inner(name)")
+    .select("id, event_id, title, events!inner(name, starts_at)")
     .eq("is_done", false);
 
   for (const row of (checklistItems ??
     []) as unknown as OpenChecklistItemRow[]) {
     items.push({
       key: `event_checklist_${row.id}`,
-      label: `${row.title} · ${row.events.name}`,
-      count: 1,
+      eventId: row.event_id,
+      eventName: row.events.name,
+      eventStartsAt: row.events.starts_at,
+      kind: "checklist",
+      taskLabel: row.title,
       href: `/portal/events/${row.event_id}?tab=checklist`,
     });
   }
