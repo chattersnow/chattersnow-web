@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import type { PermissionMap } from "@/lib/auth/permissions";
-import { activeSectionFor, firstAccessibleHref, visibleNavItems } from "./nav";
+import {
+  NAV_ITEMS,
+  activeSectionFor,
+  activeSubItemFor,
+  firstAccessibleHref,
+  visibleNavItems,
+} from "./nav";
 
 describe("firstAccessibleHref", () => {
   test("skips section children the user can't open", () => {
@@ -56,5 +62,39 @@ describe("activeSectionFor", () => {
     // Dashboard while the user was on their account page.
     expect(activeSectionFor("/portal/account")).toBeUndefined();
     expect(activeSectionFor("/portal/welcome")).toBeUndefined();
+  });
+});
+
+describe("People section", () => {
+  test("owns its segments even though they sit outside /portal/people", () => {
+    // Donors, Sponsors, Attendees, and Organizations are top-level routes, so
+    // a basePath prefix alone would highlight nothing while the user is on
+    // one of them.
+    for (const path of [
+      "/portal/donors",
+      "/portal/sponsors",
+      "/portal/attendees",
+      "/portal/organizations",
+    ]) {
+      expect(activeSectionFor(path)).toBe("people");
+    }
+  });
+
+  test("still owns the directory and its detail routes", () => {
+    expect(activeSectionFor("/portal/people")).toBe("people");
+    expect(activeSectionFor("/portal/people/abc-123")).toBe("people");
+  });
+
+  test("picks the segment the user is actually on", () => {
+    const people = NAV_ITEMS.find((item) => item.value === "people")!;
+    expect(activeSubItemFor("/portal/donors", people)).toBe("donors");
+    expect(activeSubItemFor("/portal/organizations", people)).toBe(
+      "organizations",
+    );
+    // A person's detail page belongs to the directory, not to whichever
+    // segment linked to it.
+    expect(activeSubItemFor("/portal/people/abc-123", people)).toBe(
+      "directory",
+    );
   });
 });
