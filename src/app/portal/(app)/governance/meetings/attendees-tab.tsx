@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/table";
 import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
+import { personDisplayName } from "@/lib/format";
 
 function AddAttendeeForm({
   people,
@@ -195,7 +196,7 @@ export function AttendeesTab({
                   className="max-w-xs truncate font-medium"
                   title={attendee.person?.name ?? undefined}
                 >
-                  {attendee.person?.name ?? "—"}
+                  {personDisplayName(attendee.person)}
                 </TableCell>
                 <TableCell className="app-muted">
                   {attendee.attended ? "Yes" : "No"}

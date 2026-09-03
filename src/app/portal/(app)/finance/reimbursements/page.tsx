@@ -39,6 +39,7 @@ import {
   type ReimbursementStatus,
 } from "./reimbursements-shared";
 import type { PersonListItem } from "../../people/actions";
+import { personDisplayName } from "@/lib/format";
 
 type ReimbursementsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -117,7 +118,9 @@ export default async function ReimbursementsPage({
     query.range(offset, to),
     supabase
       .from("people")
-      .select("id, name, email, phone, is_sponsor")
+      .select(
+        "id, name, preferred_name, email, phone, is_sponsor, auth_user_id",
+      )
       .order("name", { ascending: true }),
     supabase
       .from("events")
@@ -390,7 +393,7 @@ export default async function ReimbursementsPage({
                         )}
                       </TableCell>
                       <TableCell className="app-muted">
-                        {reimbursement.people?.name ?? "—"}
+                        {personDisplayName(reimbursement.people)}
                       </TableCell>
                       <TableCell className="app-muted">
                         {reimbursement.events?.name ?? "—"}

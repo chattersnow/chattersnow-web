@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { resolveCurrentPersonId } from "@/lib/auth/current-person";
 import { Button } from "@/components/ui/button";
 import { listCalendarOwnersAction } from "../actions";
 import { listWorkQueueItems } from "../queries";
@@ -30,21 +31,21 @@ export default async function WorkQueuePage({
   const tab: WorkQueueTab = raw("tab") === "queue" ? "queue" : "my-work";
   const overdueOnly = raw("filter") === "overdue";
 
-  const [{ data: userData }, items, ownersResult] = await Promise.all([
-    supabase.auth.getUser(),
+  // owner_id/reviewer_id are people ids, so "my work" has to match on the
+  // signed-in user's people row, not their auth id.
+  const [currentPersonId, items, ownersResult] = await Promise.all([
+    resolveCurrentPersonId(supabase),
     listWorkQueueItems(supabase),
     listCalendarOwnersAction(),
   ]);
-
-  const currentUserId = userData.user?.id ?? null;
   const owners = "data" in ownersResult ? ownersResult.data : [];
 
-  const myWorkItems = currentUserId
+  const myWorkItems = currentPersonId
     ? items
         .filter(
           (item) =>
             item.content_opportunity &&
-            isMyContentWork(item.content_opportunity, currentUserId),
+            isMyContentWork(item.content_opportunity, currentPersonId),
         )
         .sort((a, b) => {
           const aChanged = a.content_opportunity?.status_changed_at ?? "";
@@ -139,14 +140,14 @@ export default async function WorkQueuePage({
         <WorkQueueTable
           items={myWorkItems}
           owners={owners}
-          currentUserId={currentUserId}
+          currentPersonId={currentPersonId}
           emptyMessage="Nothing is assigned to you as an owner or reviewer right now."
         />
       ) : (
         <WorkQueueTable
           items={queueItems}
           owners={owners}
-          currentUserId={currentUserId}
+          currentPersonId={currentPersonId}
           emptyMessage={
             overdueOnly
               ? "Nothing is overdue right now."

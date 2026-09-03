@@ -33,6 +33,7 @@ import {
 import type { MilestoneStatus } from "./nonprofit-status-form";
 import type { PersonListItem } from "../../people/actions";
 import { Spinner } from "@/components/ui/spinner";
+import { personDisplayName } from "@/lib/format";
 
 // The Phase 1-5 checklist from supabase/migrations/20260824210000_create_nonprofit_status_milestones.sql,
 // in migration order. `milestones` already arrives sorted by `sort_order`
@@ -210,7 +211,7 @@ export function NonprofitStatusChecklist({
                           {milestone.description}
                         </TableCell>
                         <TableCell className="app-muted">
-                          {milestone.owner?.name ?? "—"}
+                          {personDisplayName(milestone.owner)}
                         </TableCell>
                         <TableCell className="app-muted">
                           <div className="flex flex-wrap items-center gap-1.5">

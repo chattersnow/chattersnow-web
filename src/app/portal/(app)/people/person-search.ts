@@ -10,6 +10,7 @@ export function filterPeople(
   return people.filter(
     (person) =>
       (person.name ?? "").toLowerCase().includes(normalizedQuery) ||
+      (person.preferred_name ?? "").toLowerCase().includes(normalizedQuery) ||
       (person.email ?? "").toLowerCase().includes(normalizedQuery),
   );
 }

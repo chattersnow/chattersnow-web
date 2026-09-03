@@ -462,13 +462,17 @@ export async function getOrganizationSummary(
  * (unlike getPendingApprovalsSummary's RPC): content_calendar is granted
  * consistently across roles, so RLS already returns the right rows for
  * anyone who can see the counts.
+ *
+ * `personId` is a public.people id: content_opportunities.owner_id/reviewer_id
+ * reference people, not auth.users (20260902010000). Passing an auth id here
+ * compiles fine and silently counts zero.
  */
 export async function getContentWorkSummary(
   supabase: SupabaseClient,
-  options: { canSeeContentCalendar: boolean; userId: string | null },
+  options: { canSeeContentCalendar: boolean; personId: string | null },
 ): Promise<PendingApprovalsSummary> {
   const items: PendingApprovalItem[] = [];
-  if (!options.canSeeContentCalendar || !options.userId) return { items };
+  if (!options.canSeeContentCalendar || !options.personId) return { items };
 
   const [
     { count: myWorkCount },
@@ -480,7 +484,7 @@ export async function getContentWorkSummary(
       .select("id", { count: "exact", head: true })
       .neq("content_status", "published")
       .neq("content_status", "skipped")
-      .or(`owner_id.eq.${options.userId},reviewer_id.eq.${options.userId}`),
+      .or(`owner_id.eq.${options.personId},reviewer_id.eq.${options.personId}`),
     supabase
       .from("content_opportunities")
       .select("content_status, draft_due_at, review_due_at, publish_due_at")

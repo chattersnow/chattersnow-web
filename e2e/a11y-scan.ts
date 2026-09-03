@@ -74,6 +74,7 @@ const PORTAL_ROUTES = [
   "/portal/volunteers/roles",
   "/portal/volunteers/applications",
   "/portal/volunteers/participation",
+  "/portal/account",
   "/portal/administration",
   "/portal/administration/access-management",
   "/portal/administration/roles",

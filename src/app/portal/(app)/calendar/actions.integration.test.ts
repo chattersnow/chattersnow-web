@@ -256,3 +256,68 @@ describe("calendar item actions (integration)", () => {
     expect(await createCalendarItemAction(calendarItemForm())).toEqual(DENIED);
   });
 });
+
+describe("listCalendarOwnersAction (people-backed)", () => {
+  async function owners() {
+    const result = await listCalendarOwnersAction();
+    if ("error" in result) throw new Error(result.error);
+    return result.data;
+  }
+
+  test("returns people rows with names, not auth ids and emails", async () => {
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+    const data = await owners();
+
+    expect(data.length).toBeGreaterThan(0);
+    for (const owner of data) {
+      expect(typeof owner.person_id).toBe("string");
+      expect(owner.auth_user_id).not.toBeNull();
+      // The whole point of the change: a name is available to display.
+      expect(owner.name ?? owner.preferred_name).not.toBeNull();
+    }
+  });
+
+  test("offers only admin and event_coordinator accounts as candidates", async () => {
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+    const emails = (await owners()).map((owner) => owner.email);
+
+    expect(emails).toContain(SEEDED_USERS.admin);
+    expect(emails).toContain(SEEDED_USERS.coordinator);
+    // multi@ holds event_coordinator among its roles, so it qualifies.
+    expect(emails).toContain(SEEDED_USERS.multi);
+
+    expect(emails).not.toContain(SEEDED_USERS.finance);
+    expect(emails).not.toContain(SEEDED_USERS.board);
+    expect(emails).not.toContain(SEEDED_USERS.volunteer);
+    expect(emails).not.toContain(SEEDED_USERS.noAccess);
+  });
+
+  test("surfaces the preferred name when one is set", async () => {
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+    const admin = (await owners()).find(
+      (owner) => owner.email === SEEDED_USERS.admin,
+    );
+    // seed.sql sets a preferred name on the admin account.
+    expect(admin?.preferred_name).toBe("Ave");
+  });
+
+  test("a content_calendar:view role gets a NON-EMPTY list", async () => {
+    // Regression: the old RPC self-gated on has_role('admin') or
+    // has_role('event_coordinator'), so finance/board/volunteer -- who all
+    // hold content_calendar:view and resolve owner names from this same
+    // array -- silently got [] and rendered "--" for every owner.
+    for (const email of [
+      SEEDED_USERS.finance,
+      SEEDED_USERS.board,
+      SEEDED_USERS.volunteer,
+    ]) {
+      currentSupabase = await signInAs(email);
+      expect((await owners()).length).toBeGreaterThan(0);
+    }
+  });
+
+  test("a no-role account still cannot list owners", async () => {
+    currentSupabase = await signInAs(SEEDED_USERS.noAccess);
+    expect(await listCalendarOwnersAction()).toEqual(DENIED);
+  });
+});

@@ -5,8 +5,10 @@
 // supabase/seed.sql rather than creating its own:
 //
 //   - "Winter Gear Swap Promotion" -- a Tier 1 item whose content
-//     opportunity is in `draft` with admin@example.test as both owner and
-//     reviewer, which is what puts it in the My work tab.
+//     opportunity is in `draft` with the admin account's People row as both
+//     owner and reviewer, which is what puts it in the My work tab. Owners
+//     are people rows, not auth users (20260902010000), and render as a
+//     display name -- seed.sql gives the admin the preferred name "Ave".
 //   - "Sample Recurring Observance" -- a Tier 1 item with no content
 //     opportunity at all, so it only ever shows in the Upcoming queue.
 //
@@ -38,9 +40,11 @@ test.describe("portal calendar work queue", () => {
     await expect(row).toContainText("Content opportunity");
     await expect(row).toContainText("Tier 1");
     await expect(row).toContainText("Draft");
-    // Owner and reviewer both resolve to the signed-in admin -- that pairing
-    // is exactly what isMyContentWork() keys off.
-    await expect(row).toContainText("admin@example.test");
+    // Owner and reviewer both resolve to the signed-in admin's People row --
+    // that pairing is exactly what isMyContentWork() keys off. Shown as the
+    // preferred name seed.sql sets, never as an email.
+    await expect(row).toContainText("Ave");
+    await expect(row).not.toContainText("admin@example.test");
     // No lead-time due dates are seeded, so the Due cell stays empty.
     await expect(row).toContainText("—");
 

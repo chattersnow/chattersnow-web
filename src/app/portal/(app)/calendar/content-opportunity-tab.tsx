@@ -33,7 +33,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { calendarActorName, ownerName, ownerOptions } from "./calendar-shared";
 import type { CalendarOwner } from "./calendar-shared";
+import { PersonSelect } from "../people/person-select";
 import type {
   ActiveContentBriefTemplate,
   TemplateField,
@@ -379,12 +381,10 @@ export function ContentOpportunityTab({
           </Field>
           <Field orientation="responsive">
             <ReadOnlyField label="Owner" htmlFor="brief-owner">
-              {owners.find((owner) => owner.user_id === opportunity.owner_id)
-                ?.email ?? "—"}
+              {ownerName(owners, opportunity.owner_id)}
             </ReadOnlyField>
             <ReadOnlyField label="Reviewer" htmlFor="brief-reviewer">
-              {owners.find((owner) => owner.user_id === opportunity.reviewer_id)
-                ?.email ?? "—"}
+              {ownerName(owners, opportunity.reviewer_id)}
             </ReadOnlyField>
           </Field>
           <Field orientation="responsive">
@@ -567,9 +567,11 @@ export function ContentOpportunityTab({
             <p className="app-muted text-xs">
               Status last changed{" "}
               {dateFormatter.format(new Date(opportunity.status_changed_at))} by{" "}
-              {owners.find(
-                (owner) => owner.user_id === opportunity.status_changed_by,
-              )?.email ?? "someone no longer listed"}
+              {calendarActorName(
+                owners,
+                opportunity.status_changed_by,
+                "someone no longer listed",
+              )}
             </p>
           )}
         </FieldGroup>
@@ -713,59 +715,23 @@ export function ContentOpportunityTab({
             <Field orientation="responsive">
               <Field>
                 <FieldLabel htmlFor="brief-ownerId">Owner</FieldLabel>
-                <Select
-                  value={form.ownerId || "none"}
-                  onValueChange={(value) =>
-                    update("ownerId", value === "none" ? "" : (value ?? ""))
-                  }
-                >
-                  <SelectTrigger id="brief-ownerId" className="w-full">
-                    <SelectValue placeholder="No owner">
-                      {(value: string) =>
-                        value && value !== "none"
-                          ? (owners.find((owner) => owner.user_id === value)
-                              ?.email ?? "No owner")
-                          : "No owner"
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No owner</SelectItem>
-                    {owners.map((owner) => (
-                      <SelectItem key={owner.user_id} value={owner.user_id}>
-                        {owner.email}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <PersonSelect
+                  id="brief-ownerId"
+                  people={ownerOptions(owners)}
+                  value={form.ownerId || null}
+                  onChange={(personId) => update("ownerId", personId ?? "")}
+                  noneLabel="No owner"
+                />
               </Field>
               <Field>
                 <FieldLabel htmlFor="brief-reviewerId">Reviewer</FieldLabel>
-                <Select
-                  value={form.reviewerId || "none"}
-                  onValueChange={(value) =>
-                    update("reviewerId", value === "none" ? "" : (value ?? ""))
-                  }
-                >
-                  <SelectTrigger id="brief-reviewerId" className="w-full">
-                    <SelectValue placeholder="No reviewer">
-                      {(value: string) =>
-                        value && value !== "none"
-                          ? (owners.find((owner) => owner.user_id === value)
-                              ?.email ?? "No reviewer")
-                          : "No reviewer"
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No reviewer</SelectItem>
-                    {owners.map((owner) => (
-                      <SelectItem key={owner.user_id} value={owner.user_id}>
-                        {owner.email}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <PersonSelect
+                  id="brief-reviewerId"
+                  people={ownerOptions(owners)}
+                  value={form.reviewerId || null}
+                  onChange={(personId) => update("reviewerId", personId ?? "")}
+                  noneLabel="No reviewer"
+                />
               </Field>
             </Field>
 

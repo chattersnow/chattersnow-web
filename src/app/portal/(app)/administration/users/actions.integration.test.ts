@@ -39,6 +39,7 @@ const serviceRoleClient = createSupabaseAdminClient();
 const {
   listRolesAction,
   listUsersAction,
+  updateUserPreferredNameAction,
   assignRoleAction,
   revokeRoleAction,
   listPendingGrantsAction,
@@ -397,4 +398,87 @@ describe("administration/users actions (integration)", () => {
       await user.cleanup();
     });
   }
+});
+
+describe("updateUserPreferredNameAction (integration)", () => {
+  async function personFor(userId: string) {
+    const { data, error } = await adminClient
+      .from("people")
+      .select("id, name, preferred_name, auth_user_id")
+      .eq("auth_user_id", userId)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  }
+
+  test("listUsersAction surfaces the linked person and preferred name", async () => {
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+    const listed = await listUsersAction();
+    if ("error" in listed) throw new Error(listed.error);
+
+    const admin = listed.data.find((u) => u.email === SEEDED_USERS.admin);
+    expect(admin?.person_id).toBeTruthy();
+    expect(admin?.person_name).toBe("Avery Morgan");
+    // seed.sql sets this one, so it proves the join, not just the column.
+    expect(admin?.preferred_name).toBe("Ave");
+  });
+
+  test("an admin can set and then clear another account's preferred name", async () => {
+    const user = await createThrowawayUser();
+    try {
+      currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+      expect(await updateUserPreferredNameAction(user.id, "Nickname")).toEqual({
+        success: true,
+      });
+      expect((await personFor(user.id))?.preferred_name).toBe("Nickname");
+
+      // Blank clears the override rather than storing an empty string, so
+      // personDisplayName falls back to the real name.
+      expect(await updateUserPreferredNameAction(user.id, "   ")).toEqual({
+        success: true,
+      });
+      expect((await personFor(user.id))?.preferred_name).toBeNull();
+    } finally {
+      await user.cleanup();
+    }
+  });
+
+  test("it provisions a people row for an account that has never signed in", async () => {
+    const user = await createThrowawayUser();
+    try {
+      expect(await personFor(user.id)).toBeNull();
+
+      currentSupabase = await signInAs(SEEDED_USERS.admin);
+      expect(await updateUserPreferredNameAction(user.id, "Newcomer")).toEqual({
+        success: true,
+      });
+
+      const person = await personFor(user.id);
+      expect(person).not.toBeNull();
+      expect(person?.preferred_name).toBe("Newcomer");
+    } finally {
+      await user.cleanup();
+    }
+  });
+
+  test("a non-admin cannot rename anyone", async () => {
+    const adminId = await adminUserId();
+    for (const email of [SEEDED_USERS.volunteer, SEEDED_USERS.finance]) {
+      currentSupabase = await signInAs(email);
+      expect(await updateUserPreferredNameAction(adminId, "Hacked")).toEqual(
+        DENIED,
+      );
+    }
+    // The seeded value is untouched.
+    expect((await personFor(adminId))?.preferred_name).toBe("Ave");
+  });
+
+  test("a signed-out caller cannot rename anyone", async () => {
+    const adminId = await adminUserId();
+    currentSupabase = anonClient();
+    expect(await updateUserPreferredNameAction(adminId, "Hacked")).toEqual(
+      SIGNED_OUT,
+    );
+  });
 });

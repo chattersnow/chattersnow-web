@@ -116,13 +116,15 @@ export default async function PersonDetailPage({
   ] = await Promise.all([
     supabase
       .from("people")
-      .select("id, name, email, phone, is_sponsor, is_organization")
+      .select(
+        "id, name, preferred_name, email, phone, is_sponsor, is_organization, auth_user_id",
+      )
       .neq("id", id)
       .order("name", { ascending: true }),
     supabase
       .from("person_organizations")
       .select(
-        "id, role, is_primary, organization:people!organization_id(id, name, email, phone), person:people!person_id(id, name, email, phone)",
+        "id, role, is_primary, organization:people!organization_id(id, name, preferred_name, email, phone), person:people!person_id(id, name, preferred_name, email, phone)",
       )
       .eq(personRow.is_organization ? "organization_id" : "person_id", id),
     supabase
@@ -166,7 +168,7 @@ export default async function PersonDetailPage({
     supabase
       .from("partnership_opportunities")
       .select(
-        "id, stage, next_step_date, organization:people!organization_person_id(id, name)",
+        "id, stage, next_step_date, organization:people!organization_person_id(id, name, preferred_name)",
       )
       .eq("owner_person_id", id),
     supabase

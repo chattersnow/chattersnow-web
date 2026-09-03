@@ -45,6 +45,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
+import { personDisplayName } from "@/lib/format";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -291,7 +292,7 @@ export function EditRequirementModal({
                   label="Responsible person"
                   htmlFor="edit-requirement-responsible"
                 >
-                  {requirement.responsible?.name || "—"}
+                  {personDisplayName(requirement.responsible)}
                 </ReadOnlyField>
                 <ReadOnlyField
                   label="External link"

@@ -28,6 +28,7 @@ import {
 } from "./annual-requirements-actions";
 import type { PersonListItem } from "../../people/actions";
 import { Spinner } from "@/components/ui/spinner";
+import { personDisplayName } from "@/lib/format";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -140,7 +141,7 @@ export function AnnualRequirementsChecklist({
                       {formatDate(requirement.due_date)}
                     </TableCell>
                     <TableCell className="app-muted">
-                      {requirement.responsible?.name ?? "—"}
+                      {personDisplayName(requirement.responsible)}
                     </TableCell>
                     <TableCell>
                       {canManage && (

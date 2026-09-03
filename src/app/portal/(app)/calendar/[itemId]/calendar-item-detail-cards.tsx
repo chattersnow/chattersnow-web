@@ -17,11 +17,14 @@ import {
   VISIBILITIES,
   labelFor,
   needsSensitiveReview,
-  ownerEmail,
+  ownerName,
+  calendarActorName,
+  ownerOptions,
   type CalendarItemRow,
   type CalendarOwner,
   type CalendarProgram,
 } from "../calendar-shared";
+import { PersonSelect } from "../../people/person-select";
 import {
   CalendarStatusBadge,
   CalendarVisibilityBadge,
@@ -495,7 +498,7 @@ export function PlanningDecisionCard({
               <CalendarVisibilityBadge visibility={item.visibility} />
             </ReadOnlyField>
             <ReadOnlyField label="Owner" htmlFor="item-owner">
-              {ownerEmail(owners, item.owner_id)}
+              {ownerName(owners, item.owner_id)}
             </ReadOnlyField>
           </Field>
           <ReadOnlyField label="Categories" htmlFor="item-categories">
@@ -618,31 +621,13 @@ export function PlanningDecisionCard({
               </Field>
               <Field>
                 <FieldLabel htmlFor="edit-ownerId">Owner</FieldLabel>
-                <Select
-                  value={form.ownerId || "none"}
-                  onValueChange={(value) =>
-                    update("ownerId", value === "none" ? "" : (value ?? ""))
-                  }
-                >
-                  <SelectTrigger id="edit-ownerId" className="w-full">
-                    <SelectValue placeholder="No owner">
-                      {(value: string) =>
-                        value && value !== "none"
-                          ? (owners.find((owner) => owner.user_id === value)
-                              ?.email ?? "No owner")
-                          : "No owner"
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No owner</SelectItem>
-                    {owners.map((owner) => (
-                      <SelectItem key={owner.user_id} value={owner.user_id}>
-                        {owner.email}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <PersonSelect
+                  id="edit-ownerId"
+                  people={ownerOptions(owners)}
+                  value={form.ownerId || null}
+                  onChange={(personId) => update("ownerId", personId ?? "")}
+                  noneLabel="No owner"
+                />
               </Field>
             </Field>
 
@@ -831,7 +816,7 @@ export function SensitiveTopicCard({
                 <p className="app-muted text-xs">
                   Reviewed{" "}
                   {dateFormatter.format(new Date(item.sensitive_review_at!))} by{" "}
-                  {ownerEmail(owners, item.sensitive_review_by)}
+                  {calendarActorName(owners, item.sensitive_review_by)}
                 </p>
               ) : (
                 canManage && (

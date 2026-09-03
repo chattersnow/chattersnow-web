@@ -8,7 +8,7 @@ import type { AnnualRequirement } from "./annual-requirements-actions";
 import type { PersonListItem } from "../../people/actions";
 
 const REQUIREMENT_SELECT =
-  "id, name, due_date, status, completed_at, external_link, body_text, responsible:people!responsible_person_id(id, name, email, phone)";
+  "id, name, due_date, status, completed_at, external_link, body_text, responsible:people!responsible_person_id(id, name, preferred_name, email, phone)";
 
 export default async function AnnualRequirementsPage() {
   const supabase = await createSupabaseServerClient();
@@ -22,7 +22,9 @@ export default async function AnnualRequirementsPage() {
       .order("due_date", { ascending: true }),
     supabase
       .from("people")
-      .select("id, name, email, phone, is_sponsor")
+      .select(
+        "id, name, preferred_name, email, phone, is_sponsor, auth_user_id",
+      )
       .order("name", { ascending: true }),
   ]);
 

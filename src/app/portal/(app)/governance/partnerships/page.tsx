@@ -9,7 +9,7 @@ import type { PartnershipOpportunity } from "./partnerships-actions";
 import type { PersonListItem } from "../../people/actions";
 
 const PARTNERSHIP_SELECT =
-  "id, stage, next_step_date, notes, organization:people!organization_person_id(id, name, email, phone), owner:people!owner_person_id(id, name, email, phone)";
+  "id, stage, next_step_date, notes, organization:people!organization_person_id(id, name, preferred_name, email, phone), owner:people!owner_person_id(id, name, preferred_name, email, phone)";
 
 export default async function PartnershipsPage() {
   const supabase = await createSupabaseServerClient();
@@ -23,7 +23,9 @@ export default async function PartnershipsPage() {
       .order("next_step_date", { ascending: true, nullsFirst: false }),
     supabase
       .from("people")
-      .select("id, name, email, phone, is_sponsor")
+      .select(
+        "id, name, preferred_name, email, phone, is_sponsor, auth_user_id",
+      )
       .order("name", { ascending: true }),
   ]);
 

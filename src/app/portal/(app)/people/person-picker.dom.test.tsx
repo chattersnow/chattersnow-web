@@ -23,13 +23,17 @@ const people: PersonListItem[] = [
     email: "jane@example.com",
     phone: null,
     is_sponsor: false,
+    // Holds a portal login -- the only fixture that should get the badge.
+    auth_user_id: "auth-1",
   },
   {
     id: "2",
     name: "John Smith",
+    preferred_name: "Johnny",
     email: "john@acme.com",
     phone: null,
     is_sponsor: true,
+    auth_user_id: null,
   },
 ];
 
@@ -205,5 +209,103 @@ describe("PersonPicker", () => {
     expect(
       await screen.findByText("Could not save this person. Please try again."),
     ).toBeInTheDocument();
+  });
+});
+
+describe("PersonPicker portal accounts and preferred names", () => {
+  test("badges only the people who hold a portal login", async () => {
+    const user = userEvent.setup();
+    render(
+      <PersonPicker
+        people={people}
+        selected={null}
+        onSelect={noop}
+        onPersonCreated={noop}
+      />,
+    );
+
+    await user.type(
+      screen.getByPlaceholderText("Search by name or email..."),
+      "example.com",
+    );
+    expect(await screen.findByText("Jane Doe")).toBeInTheDocument();
+    expect(screen.getByText("Portal user")).toBeInTheDocument();
+  });
+
+  test("a directory-only person gets no badge", async () => {
+    const user = userEvent.setup();
+    render(
+      <PersonPicker
+        people={people}
+        selected={null}
+        onSelect={noop}
+        onPersonCreated={noop}
+      />,
+    );
+
+    await user.type(
+      screen.getByPlaceholderText("Search by name or email..."),
+      "acme",
+    );
+    expect(await screen.findByText("Johnny")).toBeInTheDocument();
+    expect(screen.queryByText("Portal user")).not.toBeInTheDocument();
+  });
+
+  test("results show the preferred name in place of the legal name", async () => {
+    const user = userEvent.setup();
+    render(
+      <PersonPicker
+        people={people}
+        selected={null}
+        onSelect={noop}
+        onPersonCreated={noop}
+      />,
+    );
+
+    await user.type(
+      screen.getByPlaceholderText("Search by name or email..."),
+      "John Smith",
+    );
+    expect(await screen.findByText("Johnny")).toBeInTheDocument();
+    expect(screen.queryByText("John Smith")).not.toBeInTheDocument();
+  });
+
+  test("matches a search on the preferred name", async () => {
+    const user = userEvent.setup();
+    render(
+      <PersonPicker
+        people={people}
+        selected={null}
+        onSelect={noop}
+        onPersonCreated={noop}
+      />,
+    );
+
+    await user.type(
+      screen.getByPlaceholderText("Search by name or email..."),
+      "johnny",
+    );
+    expect(await screen.findByText("Johnny")).toBeInTheDocument();
+  });
+
+  test("the selected chip badges a portal user and uses the preferred name", () => {
+    render(
+      <PersonPicker
+        people={people}
+        selected={{
+          id: "2",
+          name: "John Smith",
+          preferred_name: "Johnny",
+          email: "john@acme.com",
+          phone: null,
+          auth_user_id: "auth-2",
+        }}
+        onSelect={noop}
+        onPersonCreated={noop}
+      />,
+    );
+
+    expect(screen.getByText("Johnny")).toBeInTheDocument();
+    expect(screen.getByText("Portal user")).toBeInTheDocument();
   });
 });

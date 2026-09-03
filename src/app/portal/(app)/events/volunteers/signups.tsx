@@ -30,6 +30,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatShiftRange, NONE_VALUE } from "./shifts";
 import { Spinner } from "@/components/ui/spinner";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
+import { personDisplayName } from "@/lib/format";
 
 export function AddVolunteerForm({
   people,
@@ -231,7 +232,7 @@ export function SignupsSection({
                     className="max-w-xs truncate font-medium"
                     title={volunteer.person?.name ?? undefined}
                   >
-                    {volunteer.person?.name ?? "—"}
+                    {personDisplayName(volunteer.person)}
                   </TableCell>
                   <TableCell className="app-muted">
                     {mode === "edit" && shifts.length > 0 ? (

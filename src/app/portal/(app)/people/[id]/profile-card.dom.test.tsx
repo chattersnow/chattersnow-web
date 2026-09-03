@@ -27,6 +27,7 @@ const { ProfileCard } = await import("./profile-card");
 const person: PersonRow = {
   id: "1",
   name: "Jane Donor",
+  preferred_name: null,
   email: "jane@example.com",
   phone: "555-1234",
   instagram_handle: null,

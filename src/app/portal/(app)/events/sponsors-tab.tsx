@@ -39,6 +39,7 @@ import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
 import type { TabValue } from "./event-tabs-config";
 import { Spinner } from "@/components/ui/spinner";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
+import { personDisplayName } from "@/lib/format";
 
 const SUPPORT_TYPES = [
   { value: "cash", label: "Cash" },
@@ -443,7 +444,7 @@ export function SponsorsTab({
                     className="max-w-xs truncate font-medium"
                     title={sponsor.person?.name ?? undefined}
                   >
-                    {sponsor.person?.name ?? "—"}
+                    {personDisplayName(sponsor.person)}
                   </TableCell>
                   <TableCell className="app-muted capitalize">
                     {sponsor.support_type.replace("_", " ")}

@@ -9,7 +9,7 @@ import type { Grant } from "./grants-actions";
 import type { PersonListItem } from "../../people/actions";
 
 const GRANT_SELECT =
-  "id, funder_name, amount, application_deadline, status, notes, owner:people!owner_person_id(id, name, email, phone)";
+  "id, funder_name, amount, application_deadline, status, notes, owner:people!owner_person_id(id, name, preferred_name, email, phone)";
 
 export default async function GrantsPage() {
   const supabase = await createSupabaseServerClient();
@@ -23,7 +23,9 @@ export default async function GrantsPage() {
       .order("application_deadline", { ascending: true }),
     supabase
       .from("people")
-      .select("id, name, email, phone, is_sponsor")
+      .select(
+        "id, name, preferred_name, email, phone, is_sponsor, auth_user_id",
+      )
       .order("name", { ascending: true }),
   ]);
 

@@ -65,6 +65,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
+import { personDisplayName } from "@/lib/format";
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -365,7 +366,7 @@ export function EditReimbursementModal({
                   label="Requester"
                   htmlFor="edit-reimbursement-requester"
                 >
-                  {reimbursement.people?.name ?? "—"}
+                  {personDisplayName(reimbursement.people)}
                   {reimbursement.people?.email
                     ? ` (${reimbursement.people.email})`
                     : ""}

@@ -83,7 +83,9 @@ export default async function AttendeesPage({
     query.range(offset, to),
     supabase
       .from("people")
-      .select("id, name, email, phone, is_sponsor, is_organization")
+      .select(
+        "id, name, preferred_name, email, phone, is_sponsor, is_organization, auth_user_id",
+      )
       .order("name", { ascending: true }),
     supabase
       .from("event_registrations")

@@ -6,21 +6,13 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { checkPermission } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
 import { friendlyError } from "@/lib/db-errors";
+import type {
+  PendingGrant,
+  PortalRoleOption,
+  PortalUser,
+} from "./users-shared";
 
-export type PortalUser = {
-  user_id: string;
-  email: string | null;
-  full_name: string | null;
-  roles: string[];
-  created_at: string;
-  deactivated_at: string | null;
-};
-
-export type PortalRoleOption = {
-  id: string;
-  name: string;
-  description: string | null;
-};
+export type { PortalUser, PortalRoleOption } from "./users-shared";
 
 export async function listRolesAction(): Promise<
   { data: PortalRoleOption[] } | { error: string }
@@ -63,6 +55,35 @@ export async function listUsersAction(): Promise<
   return { data: (data ?? []) as PortalUser[] };
 }
 
+export async function updateUserPreferredNameAction(
+  userId: string,
+  preferredName: string,
+): Promise<{ error: string } | { success: true }> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(supabase);
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(
+    supabase,
+    "administration",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  // Goes through the RPC rather than people.update() because the target may
+  // have no people row yet -- an account invited via a pending grant that has
+  // never signed in -- where an update would silently affect zero rows.
+  const { error } = await supabase.rpc("set_preferred_name_for_user", {
+    p_user_id: userId,
+    p_preferred_name: preferredName,
+  });
+  if (error) {
+    return { error: "Could not save the preferred name. Please try again." };
+  }
+
+  revalidatePath("/portal/administration/users");
+  return { success: true };
+}
+
 export async function assignRoleAction(
   userId: string,
   role: string,
@@ -98,16 +119,7 @@ export async function assignRoleAction(
   return { success: true };
 }
 
-export type PendingGrant = {
-  id: string;
-  email: string;
-  name: string | null;
-  status: "pending" | "claimed" | "revoked";
-  expires_at: string | null;
-  created_at: string;
-  invited_at: string | null;
-  roles: { name: string };
-};
+export type { PendingGrant } from "./users-shared";
 
 export async function listPendingGrantsAction(): Promise<
   { data: PendingGrant[] } | { error: string }

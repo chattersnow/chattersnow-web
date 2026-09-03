@@ -34,6 +34,7 @@ import { Spinner } from "@/components/ui/spinner";
 function formStateFor(person: PersonRow): PersonFormState {
   return {
     name: person.name ?? "",
+    preferredName: person.preferred_name ?? "",
     email: person.email ?? "",
     phone: person.phone ?? "",
     instagramHandle: person.instagram_handle ?? "",

@@ -42,6 +42,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
+import { personDisplayName } from "@/lib/format";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -277,7 +278,7 @@ export function EditGrantModal({
                   {GRANT_STATUS_LABELS[grant.status]}
                 </ReadOnlyField>
                 <ReadOnlyField label="Owner" htmlFor="edit-grant-owner">
-                  {grant.owner?.name || "—"}
+                  {personDisplayName(grant.owner)}
                 </ReadOnlyField>
                 <ReadOnlyField label="Notes" htmlFor="edit-grant-notes">
                   <span className="whitespace-pre-wrap">

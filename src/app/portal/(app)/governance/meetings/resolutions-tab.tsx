@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/table";
 import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
+import { personDisplayName } from "@/lib/format";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -369,7 +370,7 @@ export function ResolutionsTab({
                   {resolution.motion_text}
                 </TableCell>
                 <TableCell className="app-muted">
-                  {resolution.mover?.name ?? "—"}
+                  {personDisplayName(resolution.mover)}
                 </TableCell>
                 <TableCell>
                   <VoteOutcomeBadge outcome={resolution.vote_outcome} />

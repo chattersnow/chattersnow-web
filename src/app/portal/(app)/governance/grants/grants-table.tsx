@@ -23,6 +23,7 @@ import { GrantStatusBadge } from "./grant-badges";
 import { GRANT_STATUS_LABELS } from "./grant-form-fields";
 import type { Grant } from "./grants-actions";
 import type { PersonListItem } from "../../people/actions";
+import { personDisplayName } from "@/lib/format";
 
 const FILTER_ALL = "all";
 
@@ -167,7 +168,7 @@ export function GrantsTable({
                         <GrantStatusBadge status={grant.status} />
                       </TableCell>
                       <TableCell className="app-muted">
-                        {grant.owner?.name ?? "—"}
+                        {personDisplayName(grant.owner)}
                       </TableCell>
                       <TableCell>
                         {canManage && (

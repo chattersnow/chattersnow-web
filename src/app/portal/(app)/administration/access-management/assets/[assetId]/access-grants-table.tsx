@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/tooltip";
 import { AccessGrantDetailsSheet } from "./access-grant-details-sheet";
 import { Spinner } from "@/components/ui/spinner";
+import { personDisplayName } from "@/lib/format";
 
 const STATUS_BADGE_VARIANT: Record<
   string,
@@ -200,7 +201,7 @@ export function AccessGrantsTable({
             {grants.map((grant) => (
               <TableRow key={grant.id}>
                 <TableCell className="font-medium">
-                  {grant.person?.name ?? "—"}
+                  {personDisplayName(grant.person)}
                 </TableCell>
                 <TableCell className="app-muted">
                   {humanize(grant.access_level)}

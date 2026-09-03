@@ -15,6 +15,10 @@ export type PersonActionResult =
         name: string | null;
         email: string | null;
         phone: string | null;
+        // Optional for the same reason as on PersonListItem/PickedPerson:
+        // callers that build a person literal need not carry these.
+        preferred_name?: string | null;
+        auth_user_id?: string | null;
       };
     };
 
@@ -29,6 +33,12 @@ export type PersonListItem = {
   // callers across the app that select a narrower PersonListItem shape don't
   // carry this column and should treat it as unknown/false.
   is_organization?: boolean;
+  // Optional for the same reason as is_organization: the many narrower
+  // PersonListItem selects across the app don't carry these columns.
+  // personDisplayName() degrades to `name` when preferred_name is absent, and
+  // a missing auth_user_id simply means no "Portal user" badge is shown.
+  preferred_name?: string | null;
+  auth_user_id?: string | null;
 };
 
 export type OrganizationMembershipActionResult =
@@ -61,7 +71,7 @@ export async function createPersonAction(
       source_type: "other",
       primary_contact_person_id: primaryContactPersonId,
     })
-    .select("id, name, email, phone")
+    .select("id, name, preferred_name, email, phone, auth_user_id")
     .single();
   if (error) {
     return { error: "Could not save this person. Please try again." };
@@ -86,7 +96,9 @@ export async function listPeopleAction(): Promise<
 
   const { data, error } = await supabase
     .from("people")
-    .select("id, name, email, phone, is_sponsor, is_organization")
+    .select(
+      "id, name, preferred_name, email, phone, is_sponsor, is_organization, auth_user_id",
+    )
     .order("name", { ascending: true });
 
   if (error) {

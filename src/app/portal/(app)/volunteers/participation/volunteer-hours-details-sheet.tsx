@@ -51,6 +51,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
+import { personDisplayName } from "@/lib/format";
 
 const NONE_VALUE = "none";
 const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
@@ -289,7 +290,7 @@ export function VolunteerHoursDetailsSheet({
             <div className="flex-1 overflow-y-auto px-4 pb-4">
               <FieldGroup>
                 <ReadOnlyField label="Volunteer" htmlFor="hours-view-volunteer">
-                  {entry.person?.name ?? "—"}
+                  {personDisplayName(entry.person)}
                 </ReadOnlyField>
                 <ReadOnlyField label="Event" htmlFor="hours-view-event">
                   {entry.event?.name ?? "—"}

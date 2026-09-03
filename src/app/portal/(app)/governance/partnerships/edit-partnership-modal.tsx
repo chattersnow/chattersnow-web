@@ -45,6 +45,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
+import { personDisplayName } from "@/lib/format";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -276,7 +277,7 @@ export function EditPartnershipModal({
                   label="Internal owner"
                   htmlFor="edit-partnership-owner"
                 >
-                  {opportunity.owner?.name || "—"}
+                  {personDisplayName(opportunity.owner)}
                 </ReadOnlyField>
                 <ReadOnlyField label="Stage" htmlFor="edit-partnership-stage">
                   {PARTNERSHIP_STAGE_LABELS[opportunity.stage]}

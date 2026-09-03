@@ -12,6 +12,7 @@ const INSTAGRAM_HANDLE_PATTERN = /^[A-Za-z0-9._]{1,30}$/;
 
 export type PersonFormData = {
   name: string;
+  preferred_name: string | null;
   email: string | null;
   phone: string | null;
   instagram_handle: string | null;
@@ -33,6 +34,7 @@ export function parsePersonForm(
   formData: FormData,
 ): ParseResult<PersonFormData> {
   const name = String(formData.get("name") ?? "").trim();
+  const preferredName = String(formData.get("preferredName") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim();
   const instagramHandle = String(formData.get("instagramHandle") ?? "")
@@ -98,6 +100,7 @@ export function parsePersonForm(
   return {
     data: {
       name,
+      preferred_name: preferredName || null,
       email: email || null,
       phone: phone || null,
       instagram_handle: instagramHandle || null,

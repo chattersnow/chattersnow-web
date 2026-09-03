@@ -16,7 +16,7 @@ import {
   SENSITIVITY_OPTIONS,
   humanize,
 } from "../../labels";
-import { PersonSelect } from "../../person-select";
+import { PersonSelect } from "../../../../people/person-select";
 import { ServiceSelect } from "../../service-select";
 import type { PersonListItem } from "../../../../people/actions";
 import type {
@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { personDisplayName } from "@/lib/format";
 
 function formStateFor(asset: AssetDetail): AssetFormState {
   return {
@@ -266,19 +267,19 @@ export function AssetDetailsCard({
             {asset.is_org_owned ? "Yes" : "No"}
           </ReadOnlyField>
           <ReadOnlyField label="Owner" htmlFor="asset-detail-owner">
-            {asset.owner?.name ?? "—"}
+            {personDisplayName(asset.owner)}
           </ReadOnlyField>
           <ReadOnlyField
             label="Primary administrator"
             htmlFor="asset-detail-primary-admin"
           >
-            {asset.primary_admin?.name ?? "—"}
+            {personDisplayName(asset.primary_admin)}
           </ReadOnlyField>
           <ReadOnlyField
             label="Backup administrator"
             htmlFor="asset-detail-backup-admin"
           >
-            {asset.backup_admin?.name ?? "—"}
+            {personDisplayName(asset.backup_admin)}
           </ReadOnlyField>
           <ReadOnlyField label="Notes" htmlFor="asset-detail-notes">
             {asset.notes || "—"}
@@ -453,7 +454,7 @@ export function AssetSecurityCard({
             label="Recovery owner"
             htmlFor="asset-detail-recovery-owner"
           >
-            {asset.recovery_owner?.name ?? "—"}
+            {personDisplayName(asset.recovery_owner)}
           </ReadOnlyField>
           <ReadOnlyField
             label="Credential management location"

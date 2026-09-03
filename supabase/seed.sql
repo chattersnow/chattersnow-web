@@ -53,6 +53,43 @@ select
   'email', now(), now(), now()
 from inserted_users;
 
+-- Every portal account needs a linked people row: every owner/assignee column
+-- in the portal references public.people, so an account without one can't be
+-- assigned anything and won't appear in the calendar owner picker.
+--
+-- ensure_current_person() (20260902040000) does this at login and
+-- 20260902050000 backfills existing accounts, but migrations run *before*
+-- this file on `db reset` -- so the seeded accounts have to be linked here or
+-- list_calendar_owners() comes back empty locally.
+--
+-- Two accounts get a preferred_name so the override is exercisable locally
+-- and in e2e without having to set one first.
+--
+-- volunteer@example.test and noaccess@example.test are deliberately left
+-- WITHOUT a people row: ensure_current_person() only runs at login, so an
+-- account that has never signed in legitimately has none, and these two are
+-- the local fixtures for that state (see
+-- src/lib/auth/current-person.integration.test.ts, which exercises the
+-- link-by-email and no-row paths against them).
+insert into public.people (name, is_anonymous, source_type, email, auth_user_id, created_by, preferred_name)
+select
+  coalesce(u.raw_user_meta_data ->> 'full_name', u.email),
+  false,
+  'other',
+  u.email,
+  u.id,
+  u.id,
+  case u.email
+    when 'admin@example.test' then 'Ave'
+    when 'coordinator@example.test' then 'Jordy'
+  end
+from auth.users u
+where u.email in (
+  'admin@example.test', 'coordinator@example.test', 'finance@example.test',
+  'board@example.test', 'multi@example.test', 'former@example.test'
+)
+and not exists (select 1 from public.people p where p.auth_user_id = u.id);
+
 insert into public.user_roles (user_id, role_id, created_by)
 select u.id, r.id, u.id
 from auth.users u
@@ -75,6 +112,9 @@ where u.email in (
 do $$
 declare
   v_admin_id uuid;
+  -- Calendar owner/reviewer reference public.people (20260902010000), not
+  -- auth.users -- created_by still takes the auth id.
+  v_admin_person_id uuid;
   v_person_donor1 uuid;
   v_person_donor2 uuid;
   v_person_sponsor uuid;
@@ -108,6 +148,7 @@ declare
   v_item5 uuid;
 begin
   select id into v_admin_id from auth.users where email = 'admin@example.test';
+  select id into v_admin_person_id from public.people where auth_user_id = v_admin_id;
   select id into v_former_id from auth.users where email = 'former@example.test';
 
   -- People: donors, a sponsor org, and a volunteer.
@@ -346,7 +387,7 @@ begin
   values (
     'Winter Gear Swap Promotion', 'content_opportunity', now() + interval '12 days', now() + interval '12 days' + interval '1 hour',
     'America/Denver', 'Promote the upcoming gear swap and registration link.', 1, 'Directly supports participant access and event turnout.',
-    'active', 'public', v_admin_id, 'https://example.test/events/winter-gear-swap', v_admin_id
+    'active', 'public', v_admin_person_id, 'https://example.test/events/winter-gear-swap', v_admin_id
   )
   returning id into v_calendar_item_id;
 
@@ -367,7 +408,7 @@ begin
   values (
     v_calendar_item_id, 'draft', 'Show how shared gear helps neighbors participate outdoors.',
     'Instagram post; email; event page', 'Publish a participant-centered event announcement.',
-    'Confirm final registration link and accessibility details.', v_admin_id, v_admin_id, 14,
+    'Confirm final registration link and accessibility details.', v_admin_person_id, v_admin_person_id, 14,
     now() + interval '7 days', v_template_id, v_template_version_id,
     '{"subject_name":"Chatter Snow community","setting":"Local winter trail","publish_permission":"Internal demo content only"}'::jsonb,
     v_admin_id
@@ -460,6 +501,9 @@ end $$;
 do $$
 declare
   v_admin_id uuid;
+  -- Calendar owner/reviewer reference public.people (20260902010000), not
+  -- auth.users -- created_by still takes the auth id.
+  v_admin_person_id uuid;
   v_finance_id uuid;
   v_board_id uuid;
 
@@ -514,6 +558,7 @@ declare
   v_expense_status text;
 begin
   select id into v_admin_id from auth.users where email = 'admin@example.test';
+  select id into v_admin_person_id from public.people where auth_user_id = v_admin_id;
   select id into v_finance_id from auth.users where email = 'finance@example.test';
   select id into v_board_id from auth.users where email = 'board@example.test';
 
@@ -906,7 +951,7 @@ begin
       1 + floor(random()*3)::int,
       (array['idea','active','complete','archived'])[1 + floor(random()*4)::int],
       (array['public','internal','unlisted_draft'])[1 + floor(random()*3)::int],
-      v_admin_id, v_admin_id
+      v_admin_person_id, v_admin_id
     )
     returning id into v_calendar_item_id;
 
@@ -933,7 +978,7 @@ begin
         v_calendar_item_id,
         (array['not_planned','idea','draft','in_review','changes_requested','approved','scheduled','published'])[1 + floor(random()*8)::int],
         'Seed bulk-data content connection note.', 'Instagram post; email',
-        'Seed recommended action.', v_admin_id, v_admin_id,
+        'Seed recommended action.', v_admin_person_id, v_admin_person_id,
         7 + floor(random()*21)::int, v_starts_at - interval '7 days', v_admin_id
       );
     end if;

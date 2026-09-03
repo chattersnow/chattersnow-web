@@ -24,7 +24,7 @@ import {
 import {
   isPastUndecided,
   needsDecision,
-  ownerEmail,
+  ownerName,
   type CalendarItemRow,
   type CalendarOwner,
 } from "./calendar-shared";
@@ -170,7 +170,7 @@ export function ListView({
                     <CalendarVisibilityBadge visibility={item.visibility} />
                   </TableCell>
                   <TableCell className="app-muted">
-                    {ownerEmail(owners, item.owner_id)}
+                    {ownerName(owners, item.owner_id)}
                   </TableCell>
                   <TableCell className="text-right">
                     <Button

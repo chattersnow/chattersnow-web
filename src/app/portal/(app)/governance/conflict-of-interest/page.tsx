@@ -9,7 +9,7 @@ import type { Disclosure } from "./disclosures-actions";
 import type { PersonListItem } from "../../people/actions";
 
 const DISCLOSURE_SELECT =
-  "id, disclosure_year, on_file_date, notes, external_link, body_text, person:people!person_id(id, name, email, phone)";
+  "id, disclosure_year, on_file_date, notes, external_link, body_text, person:people!person_id(id, name, preferred_name, email, phone)";
 
 export default async function ConflictOfInterestPage() {
   const supabase = await createSupabaseServerClient();
@@ -23,7 +23,9 @@ export default async function ConflictOfInterestPage() {
       .order("disclosure_year", { ascending: false }),
     supabase
       .from("people")
-      .select("id, name, email, phone, is_sponsor")
+      .select(
+        "id, name, preferred_name, email, phone, is_sponsor, auth_user_id",
+      )
       .order("name", { ascending: true }),
   ]);
 

@@ -25,6 +25,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
+import { personDisplayName } from "@/lib/format";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
 
@@ -224,7 +225,7 @@ export function HoursSection({
                   className="max-w-xs truncate font-medium"
                   title={entry.person?.name ?? undefined}
                 >
-                  {entry.person?.name ?? "—"}
+                  {personDisplayName(entry.person)}
                 </TableCell>
                 <TableCell className="app-muted">
                   {dateFormatter.format(new Date(entry.logged_date))}

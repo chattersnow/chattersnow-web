@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { personDisplayName } from "@/lib/format";
 
 const MEETING_TYPES = [
   { value: "board", label: "Board" },
@@ -367,10 +368,10 @@ function PeopleNotesCard({
       {card.mode === "view" ? (
         <FieldGroup>
           <ReadOnlyField label="Facilitator" htmlFor="meeting-facilitator-view">
-            {meeting.facilitator?.name || "—"}
+            {personDisplayName(meeting.facilitator)}
           </ReadOnlyField>
           <ReadOnlyField label="Notes-taker" htmlFor="meeting-notetaker-view">
-            {meeting.notetaker?.name || "—"}
+            {personDisplayName(meeting.notetaker)}
           </ReadOnlyField>
           <ReadOnlyField label="Notes" htmlFor="meeting-notes-view">
             {meeting.notes || "—"}
