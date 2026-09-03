@@ -18,6 +18,9 @@ import * as LogisticsActions from "../logistics-actions";
 import * as RoleTypesActions from "../../volunteers/roles/actions";
 import * as EventsActions from "../actions";
 import type { EventRow } from "../event-badges";
+import { mockUrlTabState } from "@/../test/url-tab-state-mock";
+
+mockUrlTabState();
 
 mock.module("../../people/actions", () => ({
   ...PeopleActions,

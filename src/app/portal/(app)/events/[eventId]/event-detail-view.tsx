@@ -20,7 +20,7 @@ import {
   StatusBadge,
   VisibilityBadge,
 } from "../event-badges";
-import { phaseStatus, type PhaseKey } from "../phase-status";
+import { isPhaseKey, phaseStatus, type PhaseKey } from "../phase-status";
 import {
   FORM_ID_PREFIX,
   LOCKED_ON_REPORT_SUBMIT_TABS,
@@ -33,6 +33,7 @@ import {
 } from "../event-tabs-config";
 import { useFormTabState, type FormTabCallbacks } from "../use-form-tab-state";
 import { TabRefreshProvider, useTabRefresh } from "@/hooks/use-tab-refresh";
+import { useUrlTabState } from "@/components/portal/use-url-tab-state";
 
 const NOOP_CALLBACKS: FormTabCallbacks = {
   onPendingChange: () => {},
@@ -218,9 +219,14 @@ function EventDetailContent({
   canManage: boolean;
   initialTab?: TabValue;
 }) {
-  const [phaseKey, setPhaseKey] = useState<PhaseKey>(
-    initialTab ? phaseForTab(initialTab) : "basic",
-  );
+  // ?tab= stays the deep-link entry point (the notification bell and the
+  // outstanding-tasks sheet both link with it), but the phase is what the
+  // page actually shows, so that's what round-trips through the URL.
+  const [phaseKey, setPhaseKey] = useUrlTabState<PhaseKey>({
+    param: "phase",
+    fallback: initialTab ? phaseForTab(initialTab) : "basic",
+    isValid: isPhaseKey,
+  });
   const { notify } = useTabRefresh<TabValue>();
   const currentPhase = PHASES.find((phase) => phase.key === phaseKey)!;
 

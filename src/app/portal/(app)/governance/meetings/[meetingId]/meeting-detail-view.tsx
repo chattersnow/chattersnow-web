@@ -1,6 +1,7 @@
 "use client";
 
 import { ReactNode, useEffect, useRef, useState } from "react";
+import { useUrlTabState } from "@/components/portal/use-url-tab-state";
 import { Pencil } from "lucide-react";
 import type { MeetingRow } from "../meeting-badges";
 import { MeetingStatusBadge, MeetingTypeBadge } from "../meeting-badges";
@@ -36,6 +37,10 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 });
 
 type TabValue = "overview" | "agenda";
+
+function isTabValue(value: string): value is TabValue {
+  return value === "overview" || value === "agenda";
+}
 
 function SectionCard({
   id,
@@ -126,7 +131,12 @@ export function MeetingDetailView({
   meeting: MeetingRow;
   canManage: boolean;
 }) {
-  const [tab, setTab] = useState<TabValue>("overview");
+  // In the URL rather than in state, so Back returns to the previous tab
+  // instead of leaving the meeting, and a link can point at the agenda.
+  const [tab, setTab] = useUrlTabState<TabValue>({
+    fallback: "overview",
+    isValid: isTabValue,
+  });
   const [agendaMode, setAgendaMode] = useState<"view" | "edit">("view");
   const [agendaDirty, setAgendaDirty] = useState(false);
   const [pendingTab, setPendingTab] = useState<TabValue | null>(null);
