@@ -343,7 +343,7 @@ function PeopleNotesCard({
   }, [editing]);
 
   function handlePersonCreated(person: PickedPerson) {
-    setPeople((prev) => [...prev, { ...person, is_sponsor: false }]);
+    setPeople((prev) => [...prev, person]);
   }
 
   return (

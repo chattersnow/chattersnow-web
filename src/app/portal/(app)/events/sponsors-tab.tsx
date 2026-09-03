@@ -369,7 +369,7 @@ export function SponsorsTab({
   useRegisterTabRefresh<TabValue>("sponsors", refresh);
 
   function handlePersonCreated(person: PickedPerson) {
-    setNewPeople((prev) => [...prev, { ...person, is_sponsor: true }]);
+    setNewPeople((prev) => [...prev, person]);
   }
 
   function handleDelete(id: string) {

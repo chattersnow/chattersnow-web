@@ -130,9 +130,7 @@ export default async function ReimbursementsPage({
     query.range(offset, to),
     supabase
       .from("people")
-      .select(
-        "id, name, preferred_name, email, phone, is_sponsor, auth_user_id",
-      )
+      .select("id, name, preferred_name, email, phone, auth_user_id")
       .order("name", { ascending: true }),
     supabase
       .from("events")

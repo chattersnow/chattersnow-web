@@ -207,10 +207,7 @@ export function RecordDistributionModal({
                   selected={recipient}
                   onSelect={setRecipient}
                   onPersonCreated={(person) =>
-                    setPeople((prev) => [
-                      ...prev,
-                      { ...person, is_sponsor: false },
-                    ])
+                    setPeople((prev) => [...prev, person])
                   }
                   placeholder="Search recipient by name or email..."
                 />

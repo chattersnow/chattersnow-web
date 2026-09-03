@@ -42,7 +42,6 @@ const people: PersonListItem[] = [
     name: "Jane Doe",
     email: "jane@example.com",
     phone: null,
-    is_sponsor: false,
   },
 ];
 

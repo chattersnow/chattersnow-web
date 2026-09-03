@@ -27,9 +27,7 @@ export default async function AnnualRequirementsPage() {
       .order("due_date", { ascending: true }),
     supabase
       .from("people")
-      .select(
-        "id, name, preferred_name, email, phone, is_sponsor, auth_user_id",
-      )
+      .select("id, name, preferred_name, email, phone, auth_user_id")
       .order("name", { ascending: true }),
   ]);
 

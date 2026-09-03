@@ -87,7 +87,7 @@ export function PlanningTab({
   const [isPending, startTransition] = useTransition();
 
   function handlePersonCreated(person: PickedPerson) {
-    setNewPeople((prev) => [...prev, { ...person, is_sponsor: false }]);
+    setNewPeople((prev) => [...prev, person]);
   }
 
   useEffect(() => {

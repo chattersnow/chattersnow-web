@@ -28,9 +28,7 @@ export default async function PartnershipsPage() {
       .order("next_step_date", { ascending: true, nullsFirst: false }),
     supabase
       .from("people")
-      .select(
-        "id, name, preferred_name, email, phone, is_sponsor, auth_user_id",
-      )
+      .select("id, name, preferred_name, email, phone, auth_user_id")
       .order("name", { ascending: true }),
   ]);
 

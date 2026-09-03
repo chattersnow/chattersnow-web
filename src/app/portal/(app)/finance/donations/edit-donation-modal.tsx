@@ -126,10 +126,7 @@ export function EditDonationModal({
   }
 
   function handlePersonCreated(person: PickedPerson) {
-    setPeopleOptions((prev) => [
-      ...prev,
-      { ...person, is_sponsor: false } as PersonListItem,
-    ]);
+    setPeopleOptions((prev) => [...prev, person as PersonListItem]);
   }
 
   function handleOpenChange(nextOpen: boolean) {

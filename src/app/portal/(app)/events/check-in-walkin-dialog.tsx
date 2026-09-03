@@ -48,7 +48,7 @@ export function CheckInWalkInDialog({
   }, [open]);
 
   function handlePersonCreated(person: PickedPerson) {
-    setPeople((prev) => [...prev, { ...person, is_sponsor: false }]);
+    setPeople((prev) => [...prev, person]);
   }
 
   function reset() {

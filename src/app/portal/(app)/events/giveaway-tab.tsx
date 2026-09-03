@@ -60,7 +60,7 @@ export function GiveawayTab({
   }
 
   function handlePersonCreated(person: PickedPerson) {
-    setNewPeople((prev) => [...prev, { ...person, is_sponsor: false }]);
+    setNewPeople((prev) => [...prev, person]);
   }
 
   function handleDeletePrize(id: string) {

@@ -31,7 +31,6 @@ const listPeopleActionMock = mock(async () => ({
       name: "Sam Maybe",
       email: "sam@example.test",
       phone: null,
-      is_sponsor: false,
     },
   ],
 }));
@@ -69,7 +68,6 @@ describe("AddRegistrantDialog", () => {
         name: "Sam Maybe",
         email: "sam@example.test",
         phone: null,
-        is_sponsor: false,
       },
       1,
     );
