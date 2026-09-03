@@ -29,6 +29,7 @@ import {
 import { Toaster } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { CommandPalette } from "./command-palette";
 import { HelpButton } from "./help/help-button";
 import { PortalHelpProvider } from "./help/help-context";
 import { getContentWorkSummary } from "./home/queries";
@@ -249,6 +250,7 @@ export default async function PortalAppLayout({
                     Hi, {displayName}
                   </Link>
                 )}
+                <CommandPalette permissions={permissions} />
                 <ThemeToggle className="size-10 rounded-full" />
                 <HelpButton />
                 <NotificationsMenu items={attentionItems} />
