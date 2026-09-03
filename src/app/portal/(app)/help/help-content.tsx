@@ -719,7 +719,12 @@ export const helpContent: Record<string, HelpEntry> = {
               </strong>{" "}
               — face value times quantity of <code>received</code> and{" "}
               <code>distributed</code> movements whose date falls in the From/To
-              range, which defaults to the current month.
+              range, which defaults to the current month. Value donated also
+              breaks its total into{" "}
+              <strong className="text-foreground">Sponsors &amp; orgs</strong>{" "}
+              and <strong className="text-foreground">Individuals</strong>,
+              using the donor&apos;s source type on the donation behind each
+              item.
             </li>
             <li>
               <strong className="text-foreground">
@@ -729,6 +734,20 @@ export const helpContent: Record<string, HelpEntry> = {
               statuses (Available, Reserved, Distributed, Damaged, Lost,
               Retired, Other) out separately. Neither is affected by the date
               range.
+            </li>
+            <li>
+              <strong className="text-foreground">
+                Donated value by donor type
+              </strong>{" "}
+              — the same <code>received</code> value and item count as the Value
+              donated card, split into Sponsors &amp; orgs (donors whose source
+              type is Brand or Organization), Individuals, and Other (Event or
+              Other). Unlike the two tables above, this one <em>is</em> scoped
+              to the date range. An{" "}
+              <strong className="text-foreground">Unattributed</strong> row
+              appears only if a donation or donor could not be read, which needs
+              a role holding inventory reports access without Finance or People
+              view.
             </li>
           </ul>
         </HowToSection>
@@ -745,9 +764,10 @@ export const helpContent: Record<string, HelpEntry> = {
         </HowToSection>
         <HowToSection heading="What happens downstream">
           <p>
-            Changing the date range only re-runs Value donated and Value
-            distributed — the on-hand cards and tables always reflect the
-            catalog&apos;s current state. Nothing here is cached.
+            Changing the date range re-runs Value donated, Value distributed,
+            and Donated value by donor type — the on-hand cards and the by-type
+            and by-status tables always reflect the catalog&apos;s current
+            state. Nothing here is cached.
           </p>
         </HowToSection>
         <HowToSection heading="Common mistakes">

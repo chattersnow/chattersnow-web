@@ -19,6 +19,7 @@ import {
 import {
   summarizeByStatus,
   summarizeByType,
+  summarizeReceivedByDonorBucket,
   sumMovementValue,
   type ValuationMovement,
 } from "./valuation";
@@ -62,7 +63,7 @@ export default async function InventoryReportsPage({
     supabase
       .from("inventory_movements")
       .select(
-        "movement_type, quantity, occurred_at, inventory_items(face_value)",
+        "movement_type, quantity, occurred_at, inventory_items(face_value, donations(people(source_type)))",
       )
       .in("movement_type", ["received", "distributed"])
       .gte("occurred_at", `${fromDate}T00:00:00.000Z`)
@@ -79,6 +80,16 @@ export default async function InventoryReportsPage({
     []) as unknown as ValuationMovement[];
   const valueDonated = sumMovementValue(valuationMovements, "received");
   const valueDistributed = sumMovementValue(valuationMovements, "distributed");
+  const donatedByBucket = summarizeReceivedByDonorBucket(valuationMovements);
+  const donatedRows = donatedByBucket.filter(
+    (row) => row.bucket !== "unattributed" || row.count > 0,
+  );
+  const sponsorDonated = donatedByBucket.find(
+    (row) => row.bucket === "sponsor",
+  )!;
+  const individualDonated = donatedByBucket.find(
+    (row) => row.bucket === "individual",
+  )!;
 
   const hasCustomRange = fromDate !== defaultFrom || toDate !== defaultTo;
 
@@ -133,6 +144,16 @@ export default async function InventoryReportsPage({
             <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
               {formatFaceValue(valueDonated)}
             </p>
+            <dl className="app-muted mt-2 space-y-0.5 text-sm">
+              <div className="flex items-baseline justify-between gap-2">
+                <dt>{sponsorDonated.label}</dt>
+                <dd>{formatFaceValue(sponsorDonated.totalValue)}</dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-2">
+                <dt>{individualDonated.label}</dt>
+                <dd>{formatFaceValue(individualDonated.totalValue)}</dd>
+              </div>
+            </dl>
             <p className="app-muted mt-2 text-sm">
               {fromDate} – {toDate}
             </p>
@@ -207,7 +228,7 @@ export default async function InventoryReportsPage({
         </form>
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+      <div className="mt-6 grid gap-4 lg:grid-cols-3">
         <Card>
           <CardHeader>
             <CardTitle>On-hand value by type</CardTitle>
@@ -267,6 +288,35 @@ export default async function InventoryReportsPage({
                 ))}
               </TableBody>
             </Table>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Donated value by donor type</CardTitle>
+          </CardHeader>
+          <CardContent className="px-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Donor type</TableHead>
+                  <TableHead>Items</TableHead>
+                  <TableHead>Total value</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {donatedRows.map((row) => (
+                  <TableRow key={row.bucket}>
+                    <TableCell>{row.label}</TableCell>
+                    <TableCell>{row.count}</TableCell>
+                    <TableCell>{formatFaceValue(row.totalValue)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <p className="app-muted mt-3 px-4 text-sm">
+              Received in {fromDate} – {toDate}
+            </p>
           </CardContent>
         </Card>
       </div>
