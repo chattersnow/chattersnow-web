@@ -1,14 +1,17 @@
-// Integration test: the role-flag recompute added by
-// 20260903010000_sync_person_role_flags. The whole point of the change is
-// behavior that only exists in the database -- triggers, a security-definer
-// recompute, and RLS on the new tags table -- so none of it is reachable
-// from a mocked client. Requires `bun run db:start && bun run db:reset`
-// first; run via `bun run test:integration`. Not picked up by `bun run test`.
+// Integration test: public.people_with_roles, the derived role model from
+// 20260903030000. The whole point of the change is behavior that only exists
+// in the database -- a security-definer derivation, a security_invoker view
+// over the people RLS policy, and PostgREST's ability to embed and filter
+// through that view -- so none of it is reachable from a mocked client.
+// Requires `bun run db:start && bun run db:reset` first; run via
+// `bun run test:integration`. Not picked up by `bun run test`.
 import { afterEach, describe, expect, test } from "bun:test";
 import {
+  SEEDED_USERS,
   adminClient,
   createPerson,
   createPublishedEvent,
+  signInAs,
 } from "../../../../../test/integration-setup";
 
 const cleanups: Array<() => Promise<void>> = [];
@@ -18,7 +21,7 @@ afterEach(async () => {
 
 async function flagsFor(personId: string) {
   const { data, error } = await adminClient
-    .from("people")
+    .from("people_with_roles")
     .select("is_donor, is_sponsor, is_volunteer, is_attendee")
     .eq("id", personId)
     .single();
@@ -26,15 +29,16 @@ async function flagsFor(personId: string) {
   return data;
 }
 
-describe("sync_person_role_flags", () => {
+describe("people_with_roles", () => {
   test("linking an existing person as an event sponsor sets is_sponsor", async () => {
     const person = await createPerson();
     cleanups.push(person.cleanup);
     const event = await createPublishedEvent();
     cleanups.push(event.cleanup);
 
-    // The bug this ticket fixes: before the trigger, this insert left
-    // is_sponsor false and the person never showed on /portal/sponsors.
+    // The bug #620 fixed and this model makes structural: linking an
+    // existing person used to leave is_sponsor false, and /portal/sponsors
+    // was missing sponsors.
     expect((await flagsFor(person.id)).is_sponsor).toBe(false);
 
     const { error } = await adminClient.from("event_sponsors").insert({
@@ -66,11 +70,11 @@ describe("sync_person_role_flags", () => {
 
     await adminClient.from("event_sponsors").delete().eq("id", sponsor!.id);
 
-    // The second defect: no flag was ever cleared before this migration.
+    // The second defect: no flag was ever cleared while they were stored.
     expect((await flagsFor(person.id)).is_sponsor).toBe(false);
   });
 
-  test("registering sets is_attendee, replacing the old insert-only trigger", async () => {
+  test("a registration makes someone an attendee, and its removal unmakes them", async () => {
     const person = await createPerson();
     cleanups.push(person.cleanup);
     const event = await createPublishedEvent();
@@ -107,9 +111,9 @@ describe("sync_person_role_flags", () => {
     expect(error).toBeNull();
     expect((await flagsFor(person.id)).is_sponsor).toBe(true);
 
-    // And an unrelated sync -- triggered here by gaining a different role --
-    // must not wipe the manual assertion. This is why the tags table exists:
-    // without it, "recompute and clear" would drop directory-only sponsors.
+    // And gaining a different role must not wipe the manual assertion.
+    // This is why the tags table exists: derivation alone would drop a
+    // sponsor entered in the directory before any event link.
     const event = await createPublishedEvent();
     cleanups.push(event.cleanup);
     await adminClient.from("event_registrations").insert({
@@ -155,8 +159,94 @@ describe("sync_person_role_flags", () => {
       .update({ donor_id: second.id })
       .eq("id", donation!.id);
 
-    // Both sides of the update are synced, not just the new one.
+    // Nothing to keep in step: both answers are read from the donation.
     expect((await flagsFor(first.id)).is_donor).toBe(false);
     expect((await flagsFor(second.id)).is_donor).toBe(true);
+  });
+  test("the view keeps PostgREST's embed, count, and range working", async () => {
+    // The whole reason the view carries people.* rather than the ticket's
+    // person_id + flags: the directory reads roles, the primary-contact
+    // embed, and its page count in one query, and would owe a second round
+    // trip per page if any of the three stopped working through a view.
+    // Contact first: cleanups run last-in-first-out, so the organization
+    // holding the reference has to be deleted before the row it points at.
+    const contact = await createPerson();
+    cleanups.push(contact.cleanup);
+    const organization = await createPerson({ name: "Integration Test Org" });
+    cleanups.push(organization.cleanup);
+
+    await adminClient
+      .from("people")
+      .update({ primary_contact_person_id: contact.id })
+      .eq("id", organization.id);
+    await adminClient
+      .from("person_role_tags")
+      .insert({ person_id: organization.id, role: "sponsor" });
+
+    const { data, count, error } = await adminClient
+      .from("people_with_roles")
+      // A computed relationship, not the usual column embed: from the view,
+      // both directions of people's self-reference are visible and PostgREST
+      // rejects the plain form as ambiguous (20260903030000).
+      .select("id, name, is_sponsor, primary_contact(id, name, email)", {
+        count: "exact",
+      })
+      .in("id", [organization.id, contact.id])
+      .order("name", { ascending: true })
+      .range(0, 1);
+
+    expect(error).toBeNull();
+    expect(count).toBe(2);
+    const row = (data ?? []).find((person) => person.id === organization.id);
+    expect(row?.is_sponsor).toBe(true);
+    expect(row?.primary_contact).toMatchObject({ id: contact.id });
+  });
+
+  test("a role does not depend on the reader's access to the evidence", async () => {
+    // event_coordinator holds people:view and finance:none. The derivation
+    // runs security definer precisely so this reader sees a donor as a donor
+    // without being able to see the donation that makes them one.
+    const person = await createPerson();
+    cleanups.push(person.cleanup);
+    const { data: donation } = await adminClient
+      .from("donations")
+      .insert({ donor_id: person.id })
+      .select("id")
+      .single();
+    cleanups.push(async () => {
+      await adminClient.from("donations").delete().eq("id", donation!.id);
+    });
+
+    const coordinator = await signInAs(SEEDED_USERS.coordinator);
+
+    const { data: row, error } = await coordinator
+      .from("people_with_roles")
+      .select("id, is_donor")
+      .eq("id", person.id)
+      .single();
+    expect(error).toBeNull();
+    expect(row?.is_donor).toBe(true);
+
+    const { data: donations } = await coordinator
+      .from("donations")
+      .select("id")
+      .eq("id", donation!.id);
+    expect(donations).toEqual([]);
+  });
+
+  test("the view is still gated by the people select policy", async () => {
+    // security_invoker: definer applies to the derivation only, never to who
+    // may see the person. An account with no role assigned sees no rows.
+    const person = await createPerson();
+    cleanups.push(person.cleanup);
+
+    const noAccess = await signInAs(SEEDED_USERS.noAccess);
+    const { data, error } = await noAccess
+      .from("people_with_roles")
+      .select("id")
+      .eq("id", person.id);
+
+    expect(error).toBeNull();
+    expect(data).toEqual([]);
   });
 });

@@ -1,5 +1,13 @@
 import { Badge } from "@/components/ui/badge";
 
+/**
+ * The read model for a person *with* their roles (20260903030000). The four
+ * role flags are derived at query time from the records that create each role,
+ * unioned with person_role_tags, so they exist on this view rather than on
+ * `people` -- which is still where every write goes.
+ */
+export const PEOPLE_WITH_ROLES = "people_with_roles";
+
 export type PersonSummary = {
   id: string;
   name: string | null;

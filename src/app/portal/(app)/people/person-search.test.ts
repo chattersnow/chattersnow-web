@@ -8,21 +8,18 @@ const people: PersonListItem[] = [
     name: "Jane Doe",
     email: "jane@example.com",
     phone: null,
-    is_sponsor: false,
   },
   {
     id: "2",
     name: "John Smith",
     email: "john@acme.com",
     phone: null,
-    is_sponsor: true,
   },
   {
     id: "3",
     name: null,
     email: "anon@example.com",
     phone: null,
-    is_sponsor: false,
   },
 ];
 
@@ -64,7 +61,6 @@ describe("filterPeople preferred names", () => {
       preferred_name: "Bex",
       email: "rebecca@example.test",
       phone: null,
-      is_sponsor: false,
     },
   ];
 
