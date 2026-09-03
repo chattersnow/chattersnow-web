@@ -8,11 +8,28 @@ import {
 } from "@/app/portal/(app)/events/phase-status";
 import type { EventRow } from "@/app/portal/(app)/events/event-badges";
 
+/**
+ * How loudly an attention item should ask.
+ *
+ * Every count used to render in the same red destructive badge, so a pending
+ * expense approval, an unread contact message and a content-calendar coverage
+ * reminder were indistinguishable -- and red is the token still carrying an
+ * unresolved contrast finding (#436).
+ */
+export type AttentionSeverity =
+  /** A control gap or a missed deadline: act now. */
+  | "urgent"
+  /** Waiting on someone, with a deadline that hasn't passed. */
+  | "attention"
+  /** New work in the queue, no clock on it. */
+  | "info";
+
 export type PendingApprovalItem = {
   key: string;
   label: string;
   count: number;
   href: string;
+  severity: AttentionSeverity;
 };
 export type PendingApprovalsSummary = { items: PendingApprovalItem[] };
 
@@ -36,6 +53,7 @@ export async function getPendingApprovalsSummary(
         label: "Expense approvals",
         count,
         href: "/portal/finance/expenses?status=submitted",
+        severity: "attention",
       });
     }
   }
@@ -51,6 +69,7 @@ export async function getPendingApprovalsSummary(
         label: "Reimbursement approvals",
         count,
         href: "/portal/finance/reimbursements?status=submitted",
+        severity: "attention",
       });
     }
   }
@@ -85,6 +104,7 @@ export async function getCalendarCoverageReminderSummary(
         label: `${missing.length} recurring observance${missing.length === 1 ? "" : "s"} missing for ${targetYear}`,
         count: missing.length,
         href: "/portal/calendar/import",
+        severity: "attention",
       },
     ],
   };
@@ -131,6 +151,7 @@ export async function getOpsInboxSummary(
         label: "New volunteer applications",
         count: count ?? 0,
         href: "/portal/volunteers/applications?status=new",
+        severity: "info",
       });
     }
   }
@@ -146,6 +167,7 @@ export async function getOpsInboxSummary(
         label: "New messages",
         count: count ?? 0,
         href: "/portal/communications?status=new",
+        severity: "info",
       });
     }
   }
@@ -192,6 +214,8 @@ export async function getOpsInboxSummary(
             label: `${count} awaiting check-in · ${event.name}`,
             count,
             href: `/portal/events/${event.id}?tab=registrants`,
+            // People are standing at the door.
+            severity: "urgent",
           });
         }
       }
@@ -232,6 +256,7 @@ export async function getAccessManagementAttentionSummary(
       label: `${reviewsDueCount} asset review${reviewsDueCount === 1 ? "" : "s"} due`,
       count: reviewsDueCount ?? 0,
       href: "/portal/administration/access-management?filter=reviews_due",
+      severity: "attention",
     });
   }
 
@@ -247,6 +272,7 @@ export async function getAccessManagementAttentionSummary(
       label: `${criticalNoMfaCount} critical asset${criticalNoMfaCount === 1 ? "" : "s"} without MFA enabled`,
       count: criticalNoMfaCount ?? 0,
       href: "/portal/administration/access-management?filter=critical_no_mfa",
+      severity: "urgent",
     });
   }
 
@@ -281,6 +307,7 @@ export async function getAccessManagementAttentionSummary(
         label: `${singleAdministratorCount} asset${singleAdministratorCount === 1 ? "" : "s"} with only one administrator`,
         count: singleAdministratorCount,
         href: "/portal/administration/access-management?filter=single_administrator",
+        severity: "urgent",
       });
     }
   }

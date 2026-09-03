@@ -504,6 +504,7 @@ export async function getContentWorkSummary(
       label: "My content work",
       count: myWorkCount ?? 0,
       href: "/portal/calendar/work-queue?tab=my-work",
+      severity: "info",
     });
   }
 
@@ -516,6 +517,7 @@ export async function getContentWorkSummary(
       label: "Overdue content work",
       count: overdueCount,
       href: "/portal/calendar/work-queue?tab=queue&filter=overdue",
+      severity: "urgent",
     });
   }
 
@@ -525,6 +527,7 @@ export async function getContentWorkSummary(
       label: "Tier 1 needs a decision",
       count: tier1Count ?? 0,
       href: "/portal/calendar?priority=1&decision=none",
+      severity: "info",
     });
   }
 

@@ -264,16 +264,19 @@ export default async function PortalHomePage({
               label="Registrations"
               value={upcoming.registrationCount}
               caption="For upcoming events"
+              href="/portal/events"
             />
             <DashboardStatRow
               label="Volunteers"
               value={upcoming.volunteerCount}
               caption="Assigned to upcoming events"
+              href="/portal/events"
             />
             <DashboardStatRow
               label="Partners"
               value={upcoming.partnerCount}
               caption="Sponsoring upcoming events"
+              href="/portal/events"
             />
             <DashboardStatRow
               label="Outstanding tasks"
@@ -294,15 +297,18 @@ export default async function PortalHomePage({
               label="Cash position"
               value={currencyFormatter.format(financial.cashPositionTotal)}
               caption="Income minus paid expenses, all time"
+              href="/portal/finance/reports"
             />
             <DashboardStatRow
               label="Monthly income"
+              href="/portal/finance/donations"
               value={currencyFormatter.format(financial.incomeThisMonth)}
               caption={`This month · ${currencyFormatter.format(financial.incomeThisYear)} this year`}
             />
             {canSeeExpenses && (
               <DashboardStatRow
                 label="Expenses"
+                href="/portal/finance/expenses"
                 value={currencyFormatter.format(financial.expensesThisMonth)}
                 caption={`This month · ${currencyFormatter.format(financial.expensesThisYear)} this year`}
               />
@@ -310,6 +316,7 @@ export default async function PortalHomePage({
             {canSeeRevenue && (
               <DashboardStatRow
                 label="Revenue"
+                href="/portal/finance/revenue"
                 value={currencyFormatter.format(financial.revenueThisMonth)}
                 caption={`This month · ${currencyFormatter.format(financial.revenueThisYear)} this year`}
               />
@@ -321,11 +328,16 @@ export default async function PortalHomePage({
                   financial.outstandingReimbursementTotal,
                 )}
                 caption="Submitted or approved, not yet paid"
+                // Deliberately unfiltered: this figure spans two statuses and
+                // the list filters to one, so any single filter would show a
+                // total that didn't match the number clicked.
+                href="/portal/finance/reimbursements"
               />
             )}
             {canSeeEventBudgets && (
               <DashboardStatRow
                 label="Event budgets"
+                href="/portal/events"
                 value={currencyFormatter.format(financial.eventBudgetTotal)}
                 caption="Published, upcoming events"
               />
@@ -372,10 +384,12 @@ export default async function PortalHomePage({
           <DashboardSectionCard className="lg:mt-6" title="Access management">
             <DashboardStatRow
               label="Active assets"
+              href="/portal/administration/access-management"
               value={accessManagementStats.assetsCount}
             />
             <DashboardStatRow
               label="Active access grants"
+              href="/portal/administration/access-management"
               value={accessManagementStats.activeGrantsCount}
             />
           </DashboardSectionCard>
@@ -385,18 +399,22 @@ export default async function PortalHomePage({
           <DashboardSectionCard className="mt-6" title="Inventory">
             <DashboardStatRow
               label="Total items"
+              href="/portal/inventory/items"
               value={inventory.totalItems}
             />
             <DashboardStatRow
               label="Available"
+              href="/portal/inventory/items?status=available"
               value={inventory.itemsAvailable}
             />
             <DashboardStatRow
               label="Distributed"
+              href="/portal/inventory/items?status=distributed"
               value={inventory.itemsDistributed}
             />
             <DashboardStatRow
               label="Needing attention"
+              href="/portal/inventory/items"
               value={inventory.itemsNeedingAttention}
               caption="Damaged or lost"
             />
@@ -424,6 +442,7 @@ export default async function PortalHomePage({
             />
             <DashboardStatRow
               label="Compliance deadlines"
+              href="/portal/governance/annual-requirements"
               value={organization.openRequirementCount}
               caption={
                 organization.overdueRequirementCount > 0
@@ -433,6 +452,7 @@ export default async function PortalHomePage({
             />
             <DashboardStatRow
               label="Nonprofit status milestones"
+              href="/portal/governance/nonprofit-status"
               value={organization.openMilestoneCount}
               caption={
                 organization.overdueMilestoneCount > 0
@@ -442,6 +462,7 @@ export default async function PortalHomePage({
             />
             <DashboardStatRow
               label="Open action items"
+              href="/portal/governance/meetings"
               value={organization.openActionItemCount}
               caption={
                 organization.overdueActionItemCount > 0
@@ -451,6 +472,7 @@ export default async function PortalHomePage({
             />
             <DashboardStatRow
               label="Missing COI disclosures"
+              href="/portal/governance/conflict-of-interest"
               value={organization.missingDisclosureCount}
               caption={`Active board members without a ${organization.disclosureYear} disclosure on file`}
             />
