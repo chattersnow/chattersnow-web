@@ -159,8 +159,12 @@ export function OrganizationsCard({
                   setNewPeople((prev) => [
                     ...prev,
                     {
+                      // The card links the opposite kind, and the picker
+                      // filters on it, so the new row has to carry it.
                       ...created,
-                      is_organization: !isOrganization,
+                      person_type: isOrganization
+                        ? ("individual" as const)
+                        : ("organization" as const),
                     },
                   ])
                 }

@@ -5,7 +5,11 @@ import {
 } from "@/lib/auth/permissions";
 import { listUsersAction } from "../../administration/users/actions";
 import type { PersonListItem } from "../actions";
-import type { OrganizationMembership, PersonRow } from "../people-shared";
+import {
+  isOrganization,
+  type OrganizationMembership,
+  type PersonRow,
+} from "../people-shared";
 import { AccountCard } from "./account-card";
 import { OrganizationsCard } from "./organizations-card";
 import { ProfileCard } from "./profile-card";
@@ -37,7 +41,7 @@ export async function PersonCoreCards({ person }: { person: PersonRow }) {
     supabase
       .from("people")
       .select(
-        "id, name, preferred_name, email, phone, is_organization, auth_user_id",
+        "id, name, preferred_name, email, phone, person_type, auth_user_id",
       )
       .neq("id", person.id)
       .order("name", { ascending: true }),
@@ -46,7 +50,7 @@ export async function PersonCoreCards({ person }: { person: PersonRow }) {
       .select(
         "id, role, is_primary, organization:people!organization_id(id, name, preferred_name, email, phone), person:people!person_id(id, name, preferred_name, email, phone)",
       )
-      .eq(person.is_organization ? "organization_id" : "person_id", person.id),
+      .eq(isOrganization(person) ? "organization_id" : "person_id", person.id),
   ]);
 
   const peopleOptionRows = (peopleOptions ?? []) as unknown as PersonListItem[];
@@ -70,7 +74,7 @@ export async function PersonCoreCards({ person }: { person: PersonRow }) {
 
       <OrganizationsCard
         personId={person.id}
-        isOrganization={person.is_organization}
+        isOrganization={isOrganization(person)}
         memberships={membershipRows}
         people={peopleOptionRows}
         canManage={canManage}
