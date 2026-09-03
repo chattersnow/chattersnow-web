@@ -63,4 +63,15 @@ export const ASPECT_ACTIONS: Record<RoleKey, readonly PersonAspectAction[]> = {
       access: [{ resource: "events", level: "view" }],
     },
   ],
+  // event_staff rows are managed from an event's Staff tab, for the same
+  // reason event_sponsors are: events owns the relationship and there is no
+  // `staff` resource.
+  is_staff: [
+    {
+      key: "events",
+      label: "Events",
+      href: "/portal/events",
+      access: [{ resource: "events", level: "view" }],
+    },
+  ],
 };

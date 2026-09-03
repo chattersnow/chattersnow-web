@@ -17,7 +17,7 @@ describe("parsePersonForm", () => {
   test("requires at least one role, and names the field in the error", () => {
     expect(parsePersonForm(formData({ name: "Jane" }))).toEqual({
       error:
-        "Select at least one role for this person — Donor, Sponsor, Volunteer, or Attendee.",
+        "Select at least one role for this person — Donor, Sponsor, Volunteer, Attendee, or Staff.",
     });
   });
 

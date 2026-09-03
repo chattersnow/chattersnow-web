@@ -57,6 +57,7 @@ export type PersonRow = {
   is_sponsor: boolean;
   is_volunteer: boolean;
   is_attendee: boolean;
+  is_staff: boolean;
   person_type: PersonType;
   primary_contact_person_id: string | null;
   primary_contact: PersonSummary | null;
@@ -79,6 +80,7 @@ export const ROLE_OPTIONS = [
   { key: "is_sponsor", label: "Sponsor" },
   { key: "is_volunteer", label: "Volunteer" },
   { key: "is_attendee", label: "Attendee" },
+  { key: "is_staff", label: "Staff" },
 ] as const;
 
 export type RoleKey = (typeof ROLE_OPTIONS)[number]["key"];
@@ -86,7 +88,7 @@ export type RoleKey = (typeof ROLE_OPTIONS)[number]["key"];
 export function rolesFor(
   person: Pick<
     PersonRow,
-    "is_donor" | "is_sponsor" | "is_volunteer" | "is_attendee"
+    "is_donor" | "is_sponsor" | "is_volunteer" | "is_attendee" | "is_staff"
   >,
 ) {
   return ROLE_OPTIONS.filter((option) => person[option.key]).map(

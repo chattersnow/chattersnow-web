@@ -8,6 +8,7 @@ import { PlanningTab } from "./planning-tab";
 import { LogisticsTab } from "./logistics-tab";
 import { VolunteersTab } from "./volunteers-tab";
 import { SponsorsTab } from "./sponsors-tab";
+import { StaffTab } from "./staff-tab";
 import { AttendanceTab } from "./attendance-tab";
 import { RegistrantsTab } from "./registrants-tab";
 import { DiscountCodesTab } from "./discount-codes-tab";
@@ -26,6 +27,7 @@ import { AddDiscountCodesDialog } from "./add-discount-codes-dialog";
 import { CheckInWalkInDialog } from "./check-in-walkin-dialog";
 import { AddRegistrantDialog } from "./add-registrant-dialog";
 import { AddSponsorDialog } from "./add-sponsor-dialog";
+import { AddStaffDialog } from "./add-staff-dialog";
 import { AddShiftDialog } from "./volunteers/add-shift-dialog";
 import { AddVolunteerDialog } from "./volunteers/add-volunteer-dialog";
 import { LogHoursDialog } from "./volunteers/log-hours-dialog";
@@ -44,6 +46,7 @@ export type TabValue =
   | "planning"
   | "logistics"
   | "volunteers"
+  | "staff"
   | "sponsors"
   | "attendance"
   | "registrants"
@@ -170,6 +173,22 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         <AddVolunteerDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
         <LogHoursDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
       </>
+    ),
+  },
+  {
+    value: "staff",
+    label: "Staff",
+    phase: "planning",
+    kind: "plain",
+    render: (ctx) => (
+      <StaffTab
+        eventId={ctx.event.id}
+        active={ctx.activeTab === "staff"}
+        mode={ctx.mode}
+      />
+    ),
+    toolbarActions: (ctx) => (
+      <AddStaffDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
     ),
   },
   {

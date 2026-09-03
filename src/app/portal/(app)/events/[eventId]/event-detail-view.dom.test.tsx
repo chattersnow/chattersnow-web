@@ -4,6 +4,7 @@ import * as PeopleActions from "../../people/actions";
 import * as VolunteersActions from "../volunteers-actions";
 import * as ShiftsActions from "../shifts-actions";
 import * as SponsorsActions from "../sponsors-actions";
+import * as StaffActions from "../staff-actions";
 import * as RegistrantsActions from "../registrants-actions";
 import * as DiscountCodesActions from "../discount-codes-actions";
 import * as DistributionActions from "../../home/distribution-actions";
@@ -38,6 +39,10 @@ mock.module("../shifts-actions", () => ({
 mock.module("../sponsors-actions", () => ({
   ...SponsorsActions,
   listEventSponsorsAction: mock(async () => ({ data: [] })),
+}));
+mock.module("../staff-actions", () => ({
+  ...StaffActions,
+  listEventStaffAction: mock(async () => ({ data: [] })),
 }));
 mock.module("../registrants-actions", () => ({
   ...RegistrantsActions,

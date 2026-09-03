@@ -143,6 +143,19 @@ export const ATTENDEES_SEGMENT: PeopleSegment = {
   stats: attendeeStats,
 };
 
+export const STAFF_SEGMENT: PeopleSegment = {
+  basePath: "/portal/staff",
+  title: "Staff",
+  filterColumn: "is_staff",
+  newPerson: { triggerLabel: "New Staff Member", defaultRole: "is_staff" },
+  noun: "staff member",
+  emptyTitle: "No staff added yet",
+  emptyDescriptionManage:
+    "Add the first one with New Staff Member above, or assign someone on an event's Staff tab.",
+  emptyDescriptionView:
+    "Staff appear here once someone is added with the staff role or assigned on an event's Staff tab.",
+};
+
 export const ORGANIZATIONS_SEGMENT: PeopleSegment = {
   basePath: "/portal/organizations",
   title: "Organizations",
