@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
+import { ShieldAlert } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
+  DENIED_PARAM,
   getCurrentUserPermissions,
   hasPermission,
   hasAnyPermission,
 } from "@/lib/auth/permissions";
 import { resolveCurrentPersonId } from "@/lib/auth/current-person";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ActiveEventCard } from "./active-event-card";
 import {
@@ -61,7 +64,28 @@ export const metadata: Metadata = {
   title: "Dashboard",
 };
 
-export default async function PortalHomePage() {
+type PortalHomePageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+/**
+ * The area a permission guard refused, if this render is the tail end of one.
+ * A denial used to be a bare redirect here, which reads as a broken link
+ * rather than as "you don't have that yet".
+ */
+function deniedAreaFrom(
+  params: Record<string, string | string[] | undefined>,
+): string | null {
+  const raw = params[DENIED_PARAM];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (!value) return null;
+  return value === "1" ? "That page" : value;
+}
+
+export default async function PortalHomePage({
+  searchParams,
+}: PortalHomePageProps) {
+  const deniedArea = deniedAreaFrom(await searchParams);
   const supabase = await createSupabaseServerClient();
   const permissions = await getCurrentUserPermissions(supabase);
 
@@ -176,6 +200,21 @@ export default async function PortalHomePage() {
         </h1>
         <div className="rainbow-accent mt-3 w-full" />
       </div>
+
+      {deniedArea && (
+        <Alert variant="destructive" className="mt-6">
+          <ShieldAlert />
+          <AlertTitle>
+            {deniedArea === "That page"
+              ? "You don't have access to that page"
+              : `You don't have access to ${deniedArea}`}
+          </AlertTitle>
+          <AlertDescription>
+            You were sent to the dashboard instead. If you need it for your
+            work, ask an administrator to grant it.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {!anySectionVisible && (
         <Card className="mt-4">

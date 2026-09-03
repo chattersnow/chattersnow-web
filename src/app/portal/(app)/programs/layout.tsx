@@ -7,9 +7,13 @@ export default async function ProgramsLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createSupabaseServerClient();
-  await requireAnyPermission(supabase, [
-    { resource: "programs", level: "view" },
-    { resource: "programs_reports", level: "view" },
-  ]);
+  await requireAnyPermission(
+    supabase,
+    [
+      { resource: "programs", level: "view" },
+      { resource: "programs_reports", level: "view" },
+    ],
+    "Programs",
+  );
   return children;
 }

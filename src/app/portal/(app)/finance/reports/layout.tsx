@@ -7,6 +7,11 @@ export default async function FinanceReportsLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createSupabaseServerClient();
-  await requirePermission(supabase, "finance_reports", "view");
+  await requirePermission(
+    supabase,
+    "finance_reports",
+    "view",
+    "Financial Reports",
+  );
   return children;
 }

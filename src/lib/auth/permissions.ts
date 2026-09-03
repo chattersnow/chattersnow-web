@@ -53,17 +53,36 @@ export function hasAnyPermission(
   );
 }
 
+/** Query parameter the dashboard reads to explain a denied navigation. */
+export const DENIED_PARAM = "denied";
+
 /**
- * Redirects to /portal/home if the signed-in user (already verified by the
+ * Where a refused navigation lands. Carries the area name so the dashboard can
+ * say what was refused: a bare redirect makes every shared deep link to a
+ * gated section look like a broken link rather than a permissions gap.
+ */
+export function deniedRedirectHref(area?: string): string {
+  return area
+    ? `/portal/home?${DENIED_PARAM}=${encodeURIComponent(area)}`
+    : `/portal/home?${DENIED_PARAM}=1`;
+}
+
+/**
+ * Redirects to the dashboard if the signed-in user (already verified by the
  * portal layout) doesn't meet any of the given resource/level checks.
+ *
+ * `area` is the human name of what was refused ("Finance", "Audit log") and is
+ * passed through to the dashboard so the user is told, rather than silently
+ * relocated.
  */
 export async function requireAnyPermission(
   supabase: SupabaseClient,
   checks: readonly PermissionCheck[],
+  area?: string,
 ): Promise<PermissionMap> {
   const permissions = await getCurrentUserPermissions(supabase);
   if (!hasAnyPermission(permissions, checks)) {
-    redirect("/portal/home");
+    redirect(deniedRedirectHref(area));
   }
   return permissions;
 }
@@ -72,8 +91,9 @@ export async function requirePermission(
   supabase: SupabaseClient,
   resource: string,
   level: PermissionLevel = "view",
+  area?: string,
 ): Promise<PermissionMap> {
-  return requireAnyPermission(supabase, [{ resource, level }]);
+  return requireAnyPermission(supabase, [{ resource, level }], area);
 }
 
 export type PermissionDenied = { error: string };

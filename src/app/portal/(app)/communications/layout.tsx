@@ -7,6 +7,6 @@ export default async function CommunicationsLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createSupabaseServerClient();
-  await requirePermission(supabase, "communications", "view");
+  await requirePermission(supabase, "communications", "view", "Messages");
   return children;
 }

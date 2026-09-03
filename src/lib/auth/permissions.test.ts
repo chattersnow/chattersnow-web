@@ -106,13 +106,24 @@ describe("requirePermission / requireAnyPermission", () => {
     expect(redirectMock).not.toHaveBeenCalled();
   });
 
-  test("redirects to /portal/home when unsatisfied", async () => {
+  test("redirects to the dashboard when unsatisfied", async () => {
     redirectMock.mockClear();
     const supabase = fakeSupabase([{ resource_key: "events", level: "none" }]);
     await expect(
       requirePermission(supabase, "events", "manage"),
-    ).rejects.toThrow("REDIRECT:/portal/home");
-    expect(redirectMock).toHaveBeenCalledWith("/portal/home");
+    ).rejects.toThrow("REDIRECT:/portal/home?denied=1");
+    expect(redirectMock).toHaveBeenCalledWith("/portal/home?denied=1");
+  });
+
+  test("carries the refused area so the dashboard can name it", async () => {
+    redirectMock.mockClear();
+    const supabase = fakeSupabase([{ resource_key: "events", level: "none" }]);
+    await expect(
+      requirePermission(supabase, "events", "manage", "Financial Reports"),
+    ).rejects.toThrow("REDIRECT:/portal/home?denied=Financial%20Reports");
+    expect(redirectMock).toHaveBeenCalledWith(
+      "/portal/home?denied=Financial%20Reports",
+    );
   });
 
   test("requireAnyPermission is satisfied if any check passes", async () => {
