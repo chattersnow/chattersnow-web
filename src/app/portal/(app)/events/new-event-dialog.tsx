@@ -1,9 +1,9 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
+import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createEventAction } from "./actions";
-import type { Program } from "../programs/actions";
+import { listProgramsAction, type Program } from "../programs/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,12 +54,30 @@ function getInitialFormState() {
   };
 }
 
-export function NewEventDialog({ programs = [] }: { programs?: Program[] }) {
+export function NewEventDialog({
+  programs,
+  triggerLabel = "New Event",
+}: {
+  programs?: Program[];
+  triggerLabel?: string;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  // Callers that already query programs server-side pass them in; the sidebar
+  // quick action has no such query, so fall back to loading them on open
+  // rather than leaving the picker stuck on "No program".
+  const [loadedPrograms, setLoadedPrograms] = useState<Program[]>([]);
+  const programOptions = programs ?? loadedPrograms;
   const [form, setForm] = useState(getInitialFormState);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (!open || programs) return;
+    listProgramsAction().then((result) => {
+      if (!("error" in result)) setLoadedPrograms(result.data);
+    });
+  }, [open, programs]);
 
   function update<K extends keyof ReturnType<typeof getInitialFormState>>(
     key: K,
@@ -110,7 +128,7 @@ export function NewEventDialog({ programs = [] }: { programs?: Program[] }) {
       <DialogTrigger
         render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
       >
-        New Event
+        {triggerLabel}
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
@@ -154,15 +172,16 @@ export function NewEventDialog({ programs = [] }: { programs?: Program[] }) {
                   <SelectValue placeholder="No program">
                     {(value: string) =>
                       value && value !== "none"
-                        ? (programs.find((program) => program.id === value)
-                            ?.name ?? "No program")
+                        ? (programOptions.find(
+                            (program) => program.id === value,
+                          )?.name ?? "No program")
                         : "No program"
                     }
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No program</SelectItem>
-                  {programs.map((program) => (
+                  {programOptions.map((program) => (
                     <SelectItem key={program.id} value={program.id}>
                       {program.name}
                     </SelectItem>

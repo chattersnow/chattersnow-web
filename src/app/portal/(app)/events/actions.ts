@@ -334,3 +334,31 @@ export async function reopenEventReportAction(
   revalidatePath("/portal/events");
   return { success: true };
 }
+
+export type EventOption = { id: string; name: string };
+
+/**
+ * Event picker options for dialogs that can be opened outside their own
+ * module -- notably the sidebar quick actions, where there's no page query to
+ * pass options down from. Gated on events:view rather than the narrower gate
+ * used by the volunteers copy of this query, so the finance role (volunteers:
+ * none) can still populate an event picker.
+ */
+export async function listEventOptionsAction(): Promise<
+  { data: EventOption[] } | { error: string }
+> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "events", "view");
+  if (permissionError) return permissionError;
+
+  const { data, error } = await supabase
+    .from("events")
+    .select("id, name")
+    .order("starts_at", { ascending: false });
+
+  if (error) {
+    return { error: "Could not load events. Please try again." };
+  }
+
+  return { data: (data ?? []) as EventOption[] };
+}

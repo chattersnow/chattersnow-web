@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
+import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createDonationAction } from "./actions";
 import {
@@ -10,7 +10,8 @@ import {
   type DonationFormState,
 } from "./donation-form-fields";
 import type { EventOption } from "./donations-shared";
-import type { PersonListItem } from "../../people/actions";
+import { listPeopleAction, type PersonListItem } from "../../people/actions";
+import { listEventOptionsAction } from "../../events/actions";
 import type { PickedPerson } from "../../people/person-picker";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -29,18 +30,40 @@ import { Spinner } from "@/components/ui/spinner";
 export function NewDonationDialog({
   events,
   people,
+  triggerLabel = "New donation",
 }: {
-  events: EventOption[];
-  people: PersonListItem[];
+  events?: EventOption[];
+  people?: PersonListItem[];
+  triggerLabel?: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<DonationFormState>(() =>
     emptyDonationForm(),
   );
-  const [peopleOptions, setPeopleOptions] = useState<PersonListItem[]>(people);
+  // The donations page passes both option lists down from its own query; the
+  // sidebar quick action has no such query, so load them on open instead.
+  const [peopleOptions, setPeopleOptions] = useState<PersonListItem[]>(
+    people ?? [],
+  );
+  const [loadedEvents, setLoadedEvents] = useState<EventOption[]>([]);
+  const eventOptions = events ?? loadedEvents;
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (!open) return;
+    if (!events) {
+      listEventOptionsAction().then((result) => {
+        if (!("error" in result)) setLoadedEvents(result.data);
+      });
+    }
+    if (!people) {
+      listPeopleAction().then((result) => {
+        if (!("error" in result)) setPeopleOptions(result.data);
+      });
+    }
+  }, [open, events, people]);
 
   function update<K extends keyof DonationFormState>(
     key: K,
@@ -84,7 +107,7 @@ export function NewDonationDialog({
       <DialogTrigger
         render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
       >
-        New donation
+        {triggerLabel}
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
@@ -99,7 +122,7 @@ export function NewDonationDialog({
             <DonationFormFields
               form={form}
               update={update}
-              events={events}
+              events={eventOptions}
               people={peopleOptions}
               onPersonCreated={handlePersonCreated}
               idPrefix="new-donation"

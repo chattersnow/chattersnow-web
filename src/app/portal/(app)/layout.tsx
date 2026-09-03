@@ -181,7 +181,10 @@ export default async function PortalAppLayout({
               </Link>
             </SidebarHeader>
             <SidebarContent>
-              <SidebarQuickActions permissions={permissions} />
+              <SidebarQuickActions
+                permissions={permissions}
+                currentPerson={currentPerson}
+              />
               <PortalNav permissions={permissions} />
             </SidebarContent>
             <SidebarFooter>
