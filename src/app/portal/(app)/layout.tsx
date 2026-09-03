@@ -1,9 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { UserRound } from "lucide-react";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  DEFAULT_DESTINATION,
+  safePortalDestination,
+} from "@/lib/auth/next-destination";
+import { PORTAL_PATH_HEADER } from "@/proxy";
 import {
   getCurrentUserPermissions,
   hasPermission,
@@ -55,7 +60,16 @@ export default async function PortalAppLayout({
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/portal/login");
+    // The proxy stamps the requested path on the request; a layout can't see
+    // it on its own. Without this, every shared portal link lands a signed-out
+    // recipient on the dashboard with their destination gone.
+    const requestHeaders = await headers();
+    const next = safePortalDestination(requestHeaders.get(PORTAL_PATH_HEADER));
+    redirect(
+      next === DEFAULT_DESTINATION
+        ? "/portal/login"
+        : `/portal/login?next=${encodeURIComponent(next)}`,
+    );
   }
 
   const permissions = await getCurrentUserPermissions(supabase);
