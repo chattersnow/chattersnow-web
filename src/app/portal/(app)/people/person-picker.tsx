@@ -9,11 +9,10 @@ import {
   type PersonFormState,
 } from "./person-form-fields";
 import type { PersonListItem } from "./actions";
-import type { RoleKey } from "./people-shared";
+import { PortalUserBadge, type RoleKey } from "./people-shared";
 import { filterPeople } from "./person-search";
 import { personDisplayName } from "@/lib/format";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -29,23 +28,6 @@ export type PickedPerson = {
   preferred_name?: string | null;
   auth_user_id?: string | null;
 };
-
-/**
- * Marks a person who holds a portal login account, so whoever is assigning
- * can tell who can actually sign in and act on the item.
- */
-function PortalUserBadge({
-  person,
-}: {
-  person: { auth_user_id?: string | null };
-}) {
-  if (!person.auth_user_id) return null;
-  return (
-    <Badge variant="secondary" className="shrink-0">
-      Portal user
-    </Badge>
-  );
-}
 
 export function PersonPicker({
   people,

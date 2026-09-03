@@ -10,7 +10,7 @@ import {
   type PersonFormState,
 } from "../person-form-fields";
 import { PersonPicker, type PickedPerson } from "../person-picker";
-import { rolesFor, type PersonRow } from "../people-shared";
+import { PortalUserBadge, rolesFor, type PersonRow } from "../people-shared";
 import {
   experienceLevelLabel,
   ridesSki,
@@ -142,6 +142,7 @@ export function ProfileCard({
               {person.is_organization && (
                 <Badge variant="outline">Organization</Badge>
               )}
+              <PortalUserBadge person={person} />
             </div>
             <p>
               <span className="app-muted">Email:</span> {person.email ?? "—"}

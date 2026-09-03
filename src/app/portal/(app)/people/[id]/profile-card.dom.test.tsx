@@ -34,6 +34,7 @@ const person: PersonRow = {
   notes: "VIP",
   logo_url: null,
   website: null,
+  auth_user_id: null,
   is_donor: true,
   is_sponsor: false,
   is_volunteer: false,
