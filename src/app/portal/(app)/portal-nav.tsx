@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   CalendarDays,
   CalendarRange,
@@ -61,7 +61,6 @@ const SECTION_ICONS: Record<string, typeof LayoutDashboard> = {
 
 export function PortalNav({ permissions }: { permissions: PermissionMap }) {
   const pathname = usePathname();
-  const router = useRouter();
   const { state: sidebarState } = useSidebar();
   const activeSection = activeSectionFor(pathname);
 
@@ -88,20 +87,24 @@ export function PortalNav({ permissions }: { permissions: PermissionMap }) {
           ? activeSubItemFor(pathname, item)
           : undefined;
         const Icon = SECTION_ICONS[item.value] ?? LayoutDashboard;
+        const submenuId = `nav-section-${item.value}`;
+        // Collapsed to icons there is nowhere to put a sub-list, so a section
+        // is a link to its first reachable page. Rendering it as a link rather
+        // than a button that quietly navigates means the control always looks
+        // like what it does -- it used to be the same button either way, and
+        // which behaviour you got depended on a sidebar mode you may not have
+        // set deliberately.
+        const isLink = !item.subItems || sidebarState === "collapsed";
 
         return (
           <SidebarMenuItem key={item.value}>
-            {item.subItems ? (
+            {!isLink ? (
               <SidebarMenuButton
                 isActive={isSectionActive}
                 tooltip={item.label}
-                onClick={() => {
-                  if (sidebarState === "collapsed") {
-                    router.push(item.href);
-                    return;
-                  }
-                  toggleSection(item.value);
-                }}
+                aria-expanded={isOpen}
+                aria-controls={isOpen ? submenuId : undefined}
+                onClick={() => toggleSection(item.value)}
               >
                 <Icon />
                 <span>{item.label}</span>
@@ -123,8 +126,8 @@ export function PortalNav({ permissions }: { permissions: PermissionMap }) {
               </SidebarMenuButton>
             )}
 
-            {item.subItems && isOpen ? (
-              <SidebarMenuSub>
+            {item.subItems && isOpen && !isLink ? (
+              <SidebarMenuSub id={submenuId}>
                 {item.subItems.map((sub) => (
                   <SidebarMenuSubItem key={sub.value}>
                     <SidebarMenuSubButton

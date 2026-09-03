@@ -234,6 +234,17 @@ export default async function PortalAppLayout({
             </SidebarFooter>
           </Sidebar>
           <SidebarInset>
+            {/* First thing in the tab order. Reaching the page content
+                otherwise costs 25-40 tab stops on every navigation: the
+                sidebar trigger, the logo, up to 6 quick actions, 14 nav items
+                with the open section expanded, account, log out, then the
+                whole header. */}
+            <a
+              href="#portal-main"
+              className="sr-only rounded-lg bg-[var(--purple)] px-4 py-2 text-sm font-semibold text-white focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50"
+            >
+              Skip to main content
+            </a>
             <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-[var(--line)] bg-[var(--background)] px-6 py-4 sm:px-10">
               <SidebarTrigger />
               <Link href="/portal/home" className="flex items-center">
@@ -256,7 +267,13 @@ export default async function PortalAppLayout({
                 <NotificationsMenu items={attentionItems} />
               </div>
             </header>
-            <main className="app-shell px-6 py-8 sm:px-10">
+            <main
+              id="portal-main"
+              // Focusable only as a skip-link target, so focus actually lands
+              // in the content rather than staying on the link.
+              tabIndex={-1}
+              className="app-shell px-6 py-8 outline-none sm:px-10"
+            >
               <div className="mx-auto max-w-6xl">{children}</div>
             </main>
             {/* Rendered here rather than on the dashboard: the sidebar, help
