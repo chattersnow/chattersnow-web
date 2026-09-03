@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
@@ -6,6 +7,10 @@ import {
 import { MeetingsTable } from "./meetings-table";
 import { NewMeetingDialog } from "./new-meeting-dialog";
 import type { MeetingRow } from "./meeting-badges";
+
+export const metadata: Metadata = {
+  title: "Meetings",
+};
 
 export default async function MeetingsPage() {
   const supabase = await createSupabaseServerClient();

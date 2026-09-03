@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
@@ -11,6 +12,10 @@ import type { PersonListItem } from "../../people/actions";
 
 const RESOLUTION_SELECT =
   "id, meeting_id, motion_text, vote_outcome, effective_date, external_link, body_text, mover:people!mover_person_id(id, name, preferred_name, email, phone), seconder:people!seconder_person_id(id, name, preferred_name, email, phone)";
+
+export const metadata: Metadata = {
+  title: "Resolutions",
+};
 
 export default async function ResolutionsPage() {
   const supabase = await createSupabaseServerClient();

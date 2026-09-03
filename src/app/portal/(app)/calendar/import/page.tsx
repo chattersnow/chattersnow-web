@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDateInZone } from "@/lib/time";
@@ -8,6 +9,10 @@ import { CsvImportPanel } from "./csv-import-panel";
 
 type CalendarImportPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export const metadata: Metadata = {
+  title: "Calendar Import",
 };
 
 export default async function CalendarImportPage({

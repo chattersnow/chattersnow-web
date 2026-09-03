@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +30,10 @@ function formatDays(days: number | null): string {
 
 type CalendarAnnualReviewPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export const metadata: Metadata = {
+  title: "Annual Review",
 };
 
 export default async function CalendarAnnualReviewPage({

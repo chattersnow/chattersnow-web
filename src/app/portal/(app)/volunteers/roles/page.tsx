@@ -20,7 +20,7 @@ import {
 } from "./role-type-details-sheet";
 
 export const metadata: Metadata = {
-  title: "Volunteers",
+  title: "Volunteer Roles",
 };
 
 export default async function VolunteerRolesPage() {

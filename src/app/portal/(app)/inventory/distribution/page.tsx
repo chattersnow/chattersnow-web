@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Eye } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -24,6 +25,10 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
   timeStyle: "short",
 });
+
+export const metadata: Metadata = {
+  title: "Distribution",
+};
 
 export default async function DistributionPage() {
   const supabase = await createSupabaseServerClient();

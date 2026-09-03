@@ -1,15 +1,43 @@
+import type { Metadata } from "next";
+import { detailTitle } from "@/lib/portal/detail-title";
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
   hasPermission,
 } from "@/lib/auth/permissions";
-import { Button } from "@/components/ui/button";
+import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Card, CardContent } from "@/components/ui/card";
 import type { MeetingRow } from "../meeting-badges";
 import { MeetingDetailView } from "./meeting-detail-view";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ meetingId: string }>;
+}): Promise<Metadata> {
+  const { meetingId } = await params;
+  return {
+    title: await detailTitle({
+      table: "governance_meetings",
+      column: "meeting_date",
+      id: meetingId,
+      fallback: "Meeting",
+    }),
+  };
+}
+
+// Meetings have no name; the detail view heads the page with the date, so
+// the trail says the same thing. Pinned to UTC because meeting_date is a
+// plain `date` column.
+const meetingDateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "long",
+  timeZone: "UTC",
+});
+
+function meetingDateLabel(meetingDate: string) {
+  return meetingDateFormatter.format(new Date(meetingDate));
+}
 
 export default async function MeetingDetailPage({
   params,
@@ -42,15 +70,9 @@ export default async function MeetingDetailPage({
 
   return (
     <>
-      <Button
-        variant="ghost"
-        size="sm"
-        nativeButton={false}
-        className="mb-2"
-        render={<Link href="/portal/governance/meetings" />}
-      >
-        <ArrowLeft /> Meetings
-      </Button>
+      <PortalBreadcrumbs
+        current={meetingDateLabel(meeting.meeting_date as string)}
+      />
 
       <MeetingDetailView
         meeting={meeting as unknown as MeetingRow}

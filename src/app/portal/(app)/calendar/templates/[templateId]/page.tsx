@@ -1,15 +1,31 @@
+import type { Metadata } from "next";
+import { detailTitle } from "@/lib/portal/detail-title";
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
   hasPermission,
 } from "@/lib/auth/permissions";
-import { Button } from "@/components/ui/button";
+import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Card, CardContent } from "@/components/ui/card";
 import { TEMPLATE_ROW_SELECT, mapTemplateRow } from "../template-shared";
 import { TemplateDetailView } from "./template-detail-view";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ templateId: string }>;
+}): Promise<Metadata> {
+  const { templateId } = await params;
+  return {
+    title: await detailTitle({
+      table: "content_brief_templates",
+      column: "name",
+      id: templateId,
+      fallback: "Brief Template",
+    }),
+  };
+}
 
 export default async function TemplateDetailPage({
   params,
@@ -41,15 +57,7 @@ export default async function TemplateDetailPage({
 
   return (
     <>
-      <Button
-        variant="ghost"
-        size="sm"
-        nativeButton={false}
-        className="mb-2"
-        render={<Link href="/portal/calendar/templates" />}
-      >
-        <ArrowLeft /> Brief templates
-      </Button>
+      <PortalBreadcrumbs current={template.name} />
 
       <TemplateDetailView template={template} canManage={canManage} />
     </>

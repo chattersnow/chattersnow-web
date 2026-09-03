@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { RevenueTable } from "./revenue-table";
 import { NewRevenueDialog } from "./new-revenue-dialog";
@@ -6,6 +7,10 @@ import {
   type EventOption,
   type RevenueRow,
 } from "./revenue-shared";
+
+export const metadata: Metadata = {
+  title: "Revenue",
+};
 
 export default async function RevenuePage() {
   const supabase = await createSupabaseServerClient();

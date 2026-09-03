@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
@@ -9,6 +10,10 @@ import type { PersonListItem } from "../../people/actions";
 
 const MILESTONE_SELECT =
   "id, description, phase, due_date, status, notes, owner:people!owner_person_id(id, name, preferred_name, email, phone)";
+
+export const metadata: Metadata = {
+  title: "Nonprofit Status",
+};
 
 export default async function NonprofitStatusPage() {
   const supabase = await createSupabaseServerClient();

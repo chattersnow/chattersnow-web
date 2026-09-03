@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,10 @@ const numberFormatter = new Intl.NumberFormat("en-US");
 
 // event_revenue has no currency column and CURRENCIES is USD-only across
 // Finance today, so every figure on this page is formatted as USD.
+export const metadata: Metadata = {
+  title: "Financial Reports",
+};
+
 export default async function FinancialReportsPage({
   searchParams,
 }: FinanceReportsPageProps) {

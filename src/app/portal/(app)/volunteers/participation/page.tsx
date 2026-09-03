@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
@@ -8,6 +9,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { listVolunteerHoursAction } from "./actions";
 import { LogHoursDialog } from "./log-hours-dialog";
 import { HoursTable } from "./hours-table";
+
+export const metadata: Metadata = {
+  title: "Volunteer Participation",
+};
 
 export default async function ParticipationPage() {
   const supabase = await createSupabaseServerClient();

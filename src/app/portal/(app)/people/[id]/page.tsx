@@ -1,12 +1,13 @@
+import type { Metadata } from "next";
+import { detailTitle } from "@/lib/portal/detail-title";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
   hasPermission,
 } from "@/lib/auth/permissions";
-import { Button } from "@/components/ui/button";
+import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { PersonListItem } from "../actions";
 import { type OrganizationMembership, type PersonRow } from "../people-shared";
@@ -79,6 +80,22 @@ type PartnershipAsOwner = {
   organization: { id: string; name: string | null } | null;
 };
 type ContactFor = { id: string; name: string | null; email: string | null };
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  return {
+    title: await detailTitle({
+      table: "people",
+      column: "name",
+      id: id,
+      fallback: "Person",
+    }),
+  };
+}
 
 export default async function PersonDetailPage({
   params,
@@ -205,15 +222,7 @@ export default async function PersonDetailPage({
 
   return (
     <>
-      <Button
-        variant="ghost"
-        size="sm"
-        nativeButton={false}
-        className="mb-2"
-        render={<Link href="/portal/people" />}
-      >
-        <ArrowLeft /> People
-      </Button>
+      <PortalBreadcrumbs current={personRow.name ?? "Person"} />
 
       <div className="w-fit">
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { resolveCurrentPersonId } from "@/lib/auth/current-person";
@@ -15,6 +16,10 @@ type WorkQueueTab = "my-work" | "queue";
 
 type WorkQueuePageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export const metadata: Metadata = {
+  title: "Work Queue",
 };
 
 export default async function WorkQueuePage({

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,10 @@ import {
   listPeopleForAccessManagement,
   listServices,
 } from "./queries";
+
+export const metadata: Metadata = {
+  title: "Access Management",
+};
 
 export default async function AccessManagementPage() {
   const supabase = await createSupabaseServerClient();

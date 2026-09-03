@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SITE_IMAGE_SLOTS, siteImageSettingKey } from "@/lib/site-images";
@@ -10,6 +11,10 @@ function parseThreshold(value: unknown): number | null {
   const threshold = typeof value === "number" ? value : Number(value ?? NaN);
   return Number.isFinite(threshold) ? threshold : null;
 }
+
+export const metadata: Metadata = {
+  title: "System Settings",
+};
 
 export default async function SystemSettingsPage() {
   const supabase = await createSupabaseServerClient();

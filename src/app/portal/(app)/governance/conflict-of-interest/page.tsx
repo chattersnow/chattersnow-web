@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
@@ -10,6 +11,10 @@ import type { PersonListItem } from "../../people/actions";
 
 const DISCLOSURE_SELECT =
   "id, disclosure_year, on_file_date, notes, external_link, body_text, person:people!person_id(id, name, preferred_name, email, phone)";
+
+export const metadata: Metadata = {
+  title: "Conflict of Interest",
+};
 
 export default async function ConflictOfInterestPage() {
   const supabase = await createSupabaseServerClient();

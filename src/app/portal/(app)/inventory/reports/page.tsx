@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,10 @@ type InventoryReportsPageProps = {
 function toDateInput(date: Date) {
   return date.toISOString().slice(0, 10);
 }
+
+export const metadata: Metadata = {
+  title: "Inventory Reports",
+};
 
 export default async function InventoryReportsPage({
   searchParams,

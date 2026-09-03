@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
@@ -9,6 +10,10 @@ import type { PersonListItem } from "../../people/actions";
 
 const REQUIREMENT_SELECT =
   "id, name, due_date, status, completed_at, external_link, body_text, responsible:people!responsible_person_id(id, name, preferred_name, email, phone)";
+
+export const metadata: Metadata = {
+  title: "Annual Requirements",
+};
 
 export default async function AnnualRequirementsPage() {
   const supabase = await createSupabaseServerClient();
