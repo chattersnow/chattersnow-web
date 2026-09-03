@@ -226,25 +226,39 @@ export const NAV_ITEMS: readonly NavItem[] = [
     value: "people",
     label: "People",
     href: "/portal/people",
-    access: [{ resource: "people", level: "view" }],
-  },
-  {
-    value: "donors",
-    label: "Donors",
-    href: "/portal/donors",
-    access: [{ resource: "people", level: "view" }],
-  },
-  {
-    value: "sponsors",
-    label: "Sponsors",
-    href: "/portal/sponsors",
-    access: [{ resource: "people", level: "view" }],
-  },
-  {
-    value: "attendees",
-    label: "Attendees",
-    href: "/portal/attendees",
-    access: [{ resource: "people", level: "view" }],
+    basePath: "/portal/people",
+    subItems: [
+      {
+        value: "directory",
+        label: "People",
+        href: "/portal/people",
+        access: [{ resource: "people", level: "view" }],
+      },
+      {
+        value: "donors",
+        label: "Donors",
+        href: "/portal/donors",
+        access: [{ resource: "people", level: "view" }],
+      },
+      {
+        value: "sponsors",
+        label: "Sponsors",
+        href: "/portal/sponsors",
+        access: [{ resource: "people", level: "view" }],
+      },
+      {
+        value: "attendees",
+        label: "Attendees",
+        href: "/portal/attendees",
+        access: [{ resource: "people", level: "view" }],
+      },
+      {
+        value: "organizations",
+        label: "Organizations",
+        href: "/portal/organizations",
+        access: [{ resource: "people", level: "view" }],
+      },
+    ],
   },
   {
     value: "governance",
@@ -377,6 +391,16 @@ export function activeSectionFor(pathname: string): string | undefined {
   for (const item of NAV_ITEMS) {
     const testPath = item.basePath ?? item.href;
     if (pathname === testPath || pathname.startsWith(`${testPath}/`)) {
+      return item.value;
+    }
+    // People's segments live at their own top-level routes (/portal/donors and
+    // friends) rather than under /portal/people, so a basePath prefix alone
+    // would leave the sidebar highlighting nothing while the user is on one.
+    if (
+      item.subItems?.some(
+        (sub) => pathname === sub.href || pathname.startsWith(`${sub.href}/`),
+      )
+    ) {
       return item.value;
     }
   }

@@ -33,17 +33,20 @@ import { toast } from "@/components/ui/toast";
 export function NewPersonDialog({
   people,
   defaultRole,
+  defaultIsOrganization = false,
   triggerLabel = "New Person",
 }: {
   people: PersonListItem[];
   defaultRole?: RoleKey;
+  /** Opens the form with "This is an organization" already ticked. */
+  defaultIsOrganization?: boolean;
   triggerLabel?: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [availablePeople, setAvailablePeople] = useState(people);
   const [form, setForm] = useState<PersonFormState>(() =>
-    emptyPersonForm(defaultRole),
+    emptyPersonForm(defaultRole, defaultIsOrganization),
   );
   const [contact, setContact] = useState<PickedPerson | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -58,14 +61,14 @@ export function NewPersonDialog({
 
   // Compared against a fresh empty form rather than tracked with a flag, so
   // typing and then clearing a field doesn't count as unsaved work.
-  const baseline = emptyPersonForm(defaultRole);
+  const baseline = emptyPersonForm(defaultRole, defaultIsOrganization);
   const dirty = (Object.keys(baseline) as (keyof PersonFormState)[]).some(
     (key) => form[key] !== baseline[key],
   );
   const guard = useUnsavedChangesGuard(dirty);
 
   function resetForm() {
-    setForm(emptyPersonForm(defaultRole));
+    setForm(emptyPersonForm(defaultRole, defaultIsOrganization));
     setError(null);
   }
 
