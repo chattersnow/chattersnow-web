@@ -1,9 +1,9 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -13,8 +13,6 @@ import { Spinner } from "@/components/ui/spinner";
 function urlErrorMessage(reason: string | null) {
   if (reason === "oauth_failed")
     return "Google sign-in failed. Please try again.";
-  if (reason === "no_access")
-    return "Your account is signed in but hasn't been granted portal access yet. Contact an administrator.";
   if (reason === "invite_failed")
     return "This invite link is invalid or has expired. Ask an administrator for a new one.";
   return null;
@@ -23,6 +21,13 @@ function urlErrorMessage(reason: string | null) {
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  // A signed-in account with no roles is bounced here. Without a way out,
+  // "Continue with Google" reuses the cached session and lands straight back
+  // -- and the likeliest cause is being signed into a personal Google account
+  // rather than an org one, which is exactly the case that needs to switch.
+  const isNoAccess = searchParams.get("error") === "no_access";
+  const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(() =>
@@ -30,6 +35,24 @@ export function LoginForm() {
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!isNoAccess) return;
+    const supabase = createSupabaseBrowserClient();
+    supabase.auth
+      .getUser()
+      .then(({ data }) => setSignedInEmail(data.user?.email ?? null));
+  }, [isNoAccess]);
+
+  async function handleSignOut() {
+    setIsSigningOut(true);
+    const supabase = createSupabaseBrowserClient();
+    await supabase.auth.signOut();
+    // Back to a clean login with the banner cleared, so the page stops
+    // describing a session that has just ended.
+    router.replace("/portal/login");
+    router.refresh();
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -60,6 +83,10 @@ export function LoginForm() {
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}/auth/callback?next=/portal/home`,
+        // Force the account chooser when the current session is the problem:
+        // Google would otherwise silently re-authorise the same account and
+        // return the user to this screen.
+        ...(isNoAccess ? { queryParams: { prompt: "select_account" } } : {}),
       },
     });
 
@@ -71,6 +98,36 @@ export function LoginForm() {
 
   return (
     <>
+      {isNoAccess && (
+        <Alert variant="destructive">
+          <AlertTitle>Portal access not granted yet</AlertTitle>
+          <AlertDescription>
+            <p>
+              {signedInEmail
+                ? `You're signed in as ${signedInEmail}, but that account hasn't been granted portal access.`
+                : "You're signed in, but this account hasn't been granted portal access."}{" "}
+              Ask an administrator to grant it, or sign out and use a different
+              account.
+            </p>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleSignOut}
+              disabled={isSigningOut}
+              className="w-full"
+            >
+              {isSigningOut ? (
+                <>
+                  <Spinner /> Signing out...
+                </>
+              ) : (
+                "Sign out"
+              )}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <Button
         type="button"
         variant="secondary"
