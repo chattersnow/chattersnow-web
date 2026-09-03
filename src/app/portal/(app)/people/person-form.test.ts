@@ -25,14 +25,14 @@ describe("parsePersonForm", () => {
     const result = parsePersonForm(
       formData({ name: "Jane", isVolunteer: "true" }),
     );
-    expect("data" in result && result.data.is_volunteer).toBe(true);
+    expect("roles" in result && result.roles).toEqual(["volunteer"]);
   });
 
   test('accepts a native checkbox value of "on"', () => {
     const result = parsePersonForm(
       formData({ name: "Jane", isVolunteer: "on" }),
     );
-    expect("data" in result && result.data.is_volunteer).toBe(true);
+    expect("roles" in result && result.roles).toEqual(["volunteer"]);
   });
 
   test("parses valid input", () => {
@@ -50,6 +50,7 @@ describe("parsePersonForm", () => {
       }),
     );
     expect(result).toEqual({
+      roles: ["donor", "sponsor"],
       data: {
         name: "Jane",
         preferred_name: null,
@@ -59,11 +60,7 @@ describe("parsePersonForm", () => {
         notes: "VIP",
         logo_url: "https://example.com/logo.png",
         website: "https://example.com",
-        is_donor: true,
-        is_sponsor: true,
-        is_volunteer: false,
         is_organization: false,
-        is_attendee: false,
         riding_discipline: null,
         ski_experience_level: null,
         snowboard_experience_level: null,

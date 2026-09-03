@@ -1119,3 +1119,12 @@ from auth.users u
 on conflict (user_id) do update
   set welcome_completed_at = now(),
       last_release_seen = '9999-12-31';
+
+-- The people inserts above write is_donor/is_sponsor/is_volunteer straight
+-- onto the row, which predates 20260903010000_sync_person_role_flags: those
+-- columns are now recomputed from the records that create each role, unioned
+-- with public.person_role_tags. seed.sql runs after migrations, so the
+-- migration's own reconcile pass ran before any of this data existed --
+-- repeat it here so a seeded sponsor with no event_sponsors row keeps its
+-- flag instead of being cleared by the first unrelated recompute.
+select public.reconcile_person_role_flags();

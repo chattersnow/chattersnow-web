@@ -33,6 +33,7 @@ describe("packPersonFormData", () => {
 
     const result = parsePersonForm(packPersonFormData(form));
     expect(result).toEqual({
+      roles: ["sponsor"],
       data: {
         name: "Jane Donor",
         preferred_name: "Janey",
@@ -42,11 +43,7 @@ describe("packPersonFormData", () => {
         notes: null,
         logo_url: null,
         website: null,
-        is_donor: false,
-        is_sponsor: true,
-        is_volunteer: false,
         is_organization: false,
-        is_attendee: false,
         riding_discipline: null,
         ski_experience_level: null,
         snowboard_experience_level: null,

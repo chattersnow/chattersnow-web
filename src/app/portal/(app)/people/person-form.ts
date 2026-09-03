@@ -1,4 +1,3 @@
-import type { ParseResult } from "@/lib/forms";
 import {
   isExperienceLevel,
   isRidingDiscipline,
@@ -10,6 +9,21 @@ import {
 
 const INSTAGRAM_HANDLE_PATTERN = /^[A-Za-z0-9._]{1,30}$/;
 
+/** The manual role assertions behind the form's role checkboxes. */
+export type PersonRoleTag = "donor" | "sponsor" | "volunteer" | "attendee";
+
+/**
+ * The role columns are no longer written directly: since
+ * 20260903010000_sync_person_role_flags they are recomputed from the records
+ * that create each role, unioned with these manual tags, so a column write
+ * would just be erased by the next recompute. The parsed form therefore
+ * carries the checkbox state separately from the person's own columns.
+ */
+export type ParsedPersonForm = {
+  data: PersonFormData;
+  roles: PersonRoleTag[];
+};
+
 export type PersonFormData = {
   name: string;
   preferred_name: string | null;
@@ -19,11 +33,7 @@ export type PersonFormData = {
   notes: string | null;
   logo_url: string | null;
   website: string | null;
-  is_donor: boolean;
-  is_sponsor: boolean;
-  is_volunteer: boolean;
   is_organization: boolean;
-  is_attendee: boolean;
   riding_discipline: RidingDiscipline | null;
   ski_experience_level: ExperienceLevel | null;
   snowboard_experience_level: ExperienceLevel | null;
@@ -32,7 +42,7 @@ export type PersonFormData = {
 
 export function parsePersonForm(
   formData: FormData,
-): ParseResult<PersonFormData> {
+): { error: string } | ParsedPersonForm {
   const name = String(formData.get("name") ?? "").trim();
   const preferredName = String(formData.get("preferredName") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
@@ -97,7 +107,14 @@ export function parsePersonForm(
     ? ridingDiscipline
     : null;
 
+  const roles: PersonRoleTag[] = [];
+  if (is_donor) roles.push("donor");
+  if (is_sponsor) roles.push("sponsor");
+  if (is_volunteer) roles.push("volunteer");
+  if (is_attendee) roles.push("attendee");
+
   return {
+    roles,
     data: {
       name,
       preferred_name: preferredName || null,
@@ -107,11 +124,7 @@ export function parsePersonForm(
       notes: notes || null,
       logo_url: logoUrl || null,
       website: website || null,
-      is_donor,
-      is_sponsor,
-      is_volunteer,
       is_organization,
-      is_attendee,
       riding_discipline,
       ski_experience_level:
         ridesSki(riding_discipline) && isExperienceLevel(skiLevel)

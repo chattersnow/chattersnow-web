@@ -6,6 +6,26 @@ import { parsePersonForm } from "./person-form";
 import { checkPermission, checkAnyPermission } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
 
+/**
+ * Replaces a person's manual role tags, which the DB then folds into the
+ * recomputed is_donor/is_sponsor/is_volunteer/is_attendee columns. Returns an
+ * error result to hand straight back to the caller, or null on success.
+ */
+async function setRoleTags(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  personId: string,
+  roles: string[],
+): Promise<{ error: string } | null> {
+  const { error } = await supabase.rpc("set_person_role_tags", {
+    p_person_id: personId,
+    p_roles: roles,
+  });
+  if (error) {
+    return { error: "Could not save this person's roles. Please try again." };
+  }
+  return null;
+}
+
 export type PersonActionResult =
   | { error: string }
   | {
@@ -77,6 +97,12 @@ export async function createPersonAction(
     return { error: "Could not save this person. Please try again." };
   }
 
+  // The role columns are recomputed from source records unioned with these
+  // tags (20260903010000), so the checkboxes write tags -- a column write on
+  // the insert above would be erased by the next recompute.
+  const rolesError = await setRoleTags(supabase, data.id, parsed.roles);
+  if (rolesError) return rolesError;
+
   revalidatePath("/portal/people");
   return { success: true, person: data };
 }
@@ -134,6 +160,9 @@ export async function updatePersonAction(
   if (error) {
     return { error: "Could not update this person. Please try again." };
   }
+
+  const rolesError = await setRoleTags(supabase, id, parsed.roles);
+  if (rolesError) return rolesError;
 
   revalidatePath("/portal/people");
   revalidatePath(`/portal/people/${id}`);
