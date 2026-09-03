@@ -1,8 +1,9 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
+import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createDonationAction, type CreateDonationInput } from "./actions";
+import { listEventOptionsAction } from "../events/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -107,7 +108,21 @@ export function AddDonationModal({
   const [sourceEventId, setSourceEventId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const showEventPicker = !eventId && !!events?.length;
+  // Callers on a page that already queried events pass them in; the sidebar
+  // quick action has none, so load them on open instead of silently dropping
+  // the event picker.
+  const [loadedEvents, setLoadedEvents] = useState<
+    { id: string; name: string }[]
+  >([]);
+  const eventOptions = events ?? loadedEvents;
+  const showEventPicker = !eventId && !!eventOptions.length;
+
+  useEffect(() => {
+    if (!open || eventId || events) return;
+    listEventOptionsAction().then((result) => {
+      if (!("error" in result)) setLoadedEvents(result.data);
+    });
+  }, [open, eventId, events]);
 
   function updateDonor<K extends keyof DonorState>(
     key: K,
@@ -313,13 +328,13 @@ export function AddDonationModal({
                       <SelectTrigger id="sourceEventId" className="w-full">
                         <SelectValue placeholder="No event">
                           {(value: string) =>
-                            events?.find((event) => event.id === value)?.name ??
-                            "No event"
+                            eventOptions.find((event) => event.id === value)
+                              ?.name ?? "No event"
                           }
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        {events?.map((event) => (
+                        {eventOptions.map((event) => (
                           <SelectItem key={event.id} value={event.id}>
                             {event.name}
                           </SelectItem>

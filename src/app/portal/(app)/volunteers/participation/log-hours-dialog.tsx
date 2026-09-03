@@ -49,9 +49,11 @@ function getInitialFormState() {
 export function LogHoursDialog({
   canManage,
   selfPerson,
+  triggerLabel = "Log hours",
 }: {
   canManage: boolean;
   selfPerson: PickedPerson | null;
+  triggerLabel?: string;
 }) {
   const router = useRouter();
   const lockedToSelf = !canManage && selfPerson !== null;
@@ -134,7 +136,7 @@ export function LogHoursDialog({
       <DialogTrigger
         render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
       >
-        Log hours
+        {triggerLabel}
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>

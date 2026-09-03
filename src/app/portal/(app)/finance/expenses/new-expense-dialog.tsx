@@ -12,6 +12,7 @@ import {
 import type { EventOption } from "./expenses-shared";
 import { PersonPicker, type PickedPerson } from "../../people/person-picker";
 import { listPeopleAction, type PersonListItem } from "../../people/actions";
+import { listEventOptionsAction } from "../../events/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,7 +34,7 @@ export function NewExpenseDialog({
   triggerLabel = "New Expense",
   onSaved,
 }: {
-  events: EventOption[];
+  events?: EventOption[];
   defaultEventId?: string;
   lockEventSelection?: boolean;
   triggerLabel?: string;
@@ -45,6 +46,10 @@ export function NewExpenseDialog({
     emptyExpenseForm(defaultEventId),
   );
   const [people, setPeople] = useState<PersonListItem[]>([]);
+  // The finance page passes events down from its own query; the sidebar quick
+  // action has no such query, so load them on open instead.
+  const [loadedEvents, setLoadedEvents] = useState<EventOption[]>([]);
+  const eventOptions = events ?? loadedEvents;
   const [selectedPayer, setSelectedPayer] = useState<PickedPerson | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -55,6 +60,13 @@ export function NewExpenseDialog({
       if (!("error" in result)) setPeople(result.data);
     });
   }, [open]);
+
+  useEffect(() => {
+    if (!open || events) return;
+    listEventOptionsAction().then((result) => {
+      if (!("error" in result)) setLoadedEvents(result.data);
+    });
+  }, [open, events]);
 
   function update<K extends keyof ExpenseFormState>(
     key: K,
@@ -123,7 +135,7 @@ export function NewExpenseDialog({
             <ExpenseFormFields
               form={form}
               update={update}
-              events={events}
+              events={eventOptions}
               lockEventSelection={lockEventSelection}
               idPrefix="new-expense"
             />

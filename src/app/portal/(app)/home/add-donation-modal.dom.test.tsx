@@ -15,6 +15,12 @@ mock.module("./actions", () => ({
   createDonationAction: createDonationActionMock,
 }));
 
+// The sheet loads event options on open whenever a caller passes neither an
+// events list nor a fixed eventId.
+mock.module("../events/actions", () => ({
+  listEventOptionsAction: async () => ({ data: [] }),
+}));
+
 const { AddDonationModal } = await import("./add-donation-modal");
 
 async function openModal(user: ReturnType<typeof userEvent.setup>) {
