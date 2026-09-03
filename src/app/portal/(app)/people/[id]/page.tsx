@@ -9,7 +9,7 @@ import { FieldCardSkeleton } from "@/components/portal/page-skeleton";
 import { AspectActions } from "../aspects/aspect-action-row";
 import { PERSON_ASPECTS } from "../aspects/registry";
 import { aspectsFor } from "../aspects/types";
-import type { PersonRow } from "../people-shared";
+import { PEOPLE_WITH_ROLES, type PersonRow } from "../people-shared";
 import { ContactFor } from "./contact-for";
 import { PartnershipsCard } from "./partnerships-card";
 import { PersonCoreCards } from "./person-core-cards";
@@ -44,9 +44,11 @@ export default async function PersonDetailPage({
   // waiting on one another -- and each streams in behind its own Suspense
   // boundary instead of the route's all-or-nothing loading.tsx.
   const { data: person } = await supabase
-    .from("people")
+    .from(PEOPLE_WITH_ROLES)
     .select(
-      "id, name, email, phone, instagram_handle, notes, logo_url, website, auth_user_id, is_donor, is_sponsor, is_volunteer, is_organization, is_attendee, riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain, primary_contact_person_id, primary_contact:primary_contact_person_id(id, name, email, phone)",
+      // primary_contact is a computed relationship on the view; see
+      // PERSON_COLUMNS in people-directory.tsx for why.
+      "id, name, email, phone, instagram_handle, notes, logo_url, website, auth_user_id, is_donor, is_sponsor, is_volunteer, is_organization, is_attendee, riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain, primary_contact_person_id, primary_contact(id, name, email, phone)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -74,8 +76,8 @@ export default async function PersonDetailPage({
           <PersonCoreCards person={personRow} />
         </Suspense>
 
-        {/* One card per role the person actually holds. The flags are derived
-            from the records behind them (20260903010000), so a person without
+        {/* One card per role the person actually holds. The flags come from
+            the records behind them (20260903030000), so a person without
             is_donor provably has no donations -- before the registry every
             card rendered for everybody, empty or not. */}
         {aspectsFor(PERSON_ASPECTS, personRow).map((aspect) => (

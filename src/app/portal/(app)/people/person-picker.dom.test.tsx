@@ -22,7 +22,6 @@ const people: PersonListItem[] = [
     name: "Jane Doe",
     email: "jane@example.com",
     phone: null,
-    is_sponsor: false,
     // Holds a portal login -- the only fixture that should get the badge.
     auth_user_id: "auth-1",
   },
@@ -32,7 +31,6 @@ const people: PersonListItem[] = [
     preferred_name: "Johnny",
     email: "john@acme.com",
     phone: null,
-    is_sponsor: true,
     auth_user_id: null,
   },
 ];

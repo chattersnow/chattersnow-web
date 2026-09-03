@@ -37,7 +37,7 @@ export async function PersonCoreCards({ person }: { person: PersonRow }) {
     supabase
       .from("people")
       .select(
-        "id, name, preferred_name, email, phone, is_sponsor, is_organization, auth_user_id",
+        "id, name, preferred_name, email, phone, is_organization, auth_user_id",
       )
       .neq("id", person.id)
       .order("name", { ascending: true }),

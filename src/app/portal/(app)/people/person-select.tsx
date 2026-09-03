@@ -19,7 +19,7 @@ const NONE_VALUE = "__none__";
  *
  * The option type is structural rather than PersonListItem so a caller can
  * pass any row carrying a name -- e.g. the calendar's CalendarOwner, which
- * has no phone/is_sponsor to offer.
+ * has no phone to offer.
  */
 export type PersonSelectOption = {
   id: string;

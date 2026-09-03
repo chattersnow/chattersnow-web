@@ -22,7 +22,7 @@ async function seedApplication(admin: AdminClient, status = "new") {
 
   const { data: person, error: personError } = await admin
     .from("people")
-    .insert({ name, email, source_type: "individual", is_volunteer: true })
+    .insert({ name, email, source_type: "individual" })
     .select("id")
     .single();
   if (personError) throw personError;

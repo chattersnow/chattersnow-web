@@ -160,7 +160,6 @@ export function OrganizationsCard({
                     ...prev,
                     {
                       ...created,
-                      is_sponsor: false,
                       is_organization: !isOrganization,
                     },
                   ])

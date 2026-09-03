@@ -43,9 +43,9 @@ export type PersonAspect = {
  * are new.
  *
  * Filtering on the flag is only trustworthy because the flags are derived from
- * the records that create each role (20260903010000): a person without
- * is_donor provably has no donations, so this hides only cards that would have
- * rendered empty.
+ * the records that create each role -- read straight off people_with_roles
+ * (20260903030000): a person without is_donor provably has no donations, so
+ * this hides only cards that would have rendered empty.
  */
 export function aspectsFor(
   aspects: readonly PersonAspect[],

@@ -269,7 +269,7 @@ Event sponsors/partners are people or organizations that already live in the sha
 
 1. The event editor's Sponsors tab provides a type-ahead search (matching on name and email) over `people`. Staff pick an existing person/organization from the results to link them to the event.
 2. If no existing record matches, the same control lets staff create a new `people` record inline (name required; email, phone, and notes optional) and link it to the event in one step, without leaving the event editor.
-3. Linking a person who is not yet tagged `is_sponsor` sets that flag, so they appear correctly in the People directory (`/portal/people`) going forward. Existing donor/volunteer flags on that person are left unchanged. **Implemented** by the recompute described in §5.9, not by the sponsor-linking code itself: until that trigger existed, linking an _existing_ person set nothing and `/portal/sponsors` was missing sponsors (issue #620).
+3. Linking a person makes them a sponsor in the People directory (`/portal/people`) going forward, and their other roles are unaffected. **Implemented** by the derived role model described in §5.9 rather than by the sponsor-linking code: the `event_sponsors` row _is_ what makes them a sponsor, and unlinking their last sponsorship stops it. While the roles were stored flags each caller had to remember to set, linking an _existing_ person set nothing and `/portal/sponsors` was missing sponsors (issue #620).
 4. Per-event sponsorship details — support type (cash, in-kind, both, other), in-kind description, contribution value, public visibility, and notes — are stored on the event-sponsor link, not on the person record, since the same sponsor can support different events differently.
 5. A person may be linked to a given event only once; re-selecting an already-linked person edits the existing link rather than creating a duplicate.
 
@@ -301,20 +301,22 @@ Public online ticket sales remain out of scope and must be reviewed for applicab
 
 ### 5.9 People directory
 
-A person's record in the People directory (`/portal/people`) shall show that individual's full operational history across roles, not just their contact details and role flags:
+A person's record in the People directory (`/portal/people`) shall show that individual's full operational history across roles, not just their contact details and roles:
 
-- Donations given, if `is_donor`
-- Events sponsored and sponsorship details (support type, in-kind description, contribution value), if `is_sponsor`
-- Volunteer activity (role types, logged hours), if `is_volunteer`
-- Staff assignments across events, if `is_staff`
+- Donations given, if they are a donor
+- Events sponsored and sponsorship details (support type, in-kind description, contribution value), if they are a sponsor
+- Volunteer activity (role types, logged hours), if they are a volunteer
+- Staff assignments across events, if they are staff
 
 This view should read from the existing donation, event-sponsor, event-volunteer, and event-staff records rather than duplicating that history onto the `people` row.
 
-The role flags themselves follow the same principle. They are recomputed by `sync_person_role_flags()` from those same records rather than written by whichever code path happened to create the relationship, unioned with `person_role_tags` for assertions that have no record behind them yet. Triggers on every source table keep them current, so linking an existing person as a sponsor now flags them, and removing their last sponsorship clears the flag again — neither of which happened while each caller was responsible for remembering (issue #620). `person_role_tags` is the manual half of the derived-roles model in the follow-up that replaces the columns with a view.
+Role membership itself follows the same principle: it is **derived, not stored**. `public.people_with_roles` (issue #624) is a `security_invoker` view carrying every `people` column plus `is_donor` / `is_sponsor` / `is_volunteer` / `is_attendee`, each answered at read time by the `security definer` helper `person_role_flags()` from the records that create the role — donations, monetary donations, giveaway prizes, event sponsors, event registrations, event volunteers, volunteer hours, volunteer applications — unioned with `person_role_tags`. The helper is definer so a role never depends on the reader's access to the evidence behind it: an event coordinator holds `people:view` and `finance:none` and must still see a donor as a donor. The view is invoker so who may see the person is still decided by the `people` select policy. Reads use the view; every write still goes to `people`, and `person_role_tags` — a staff assertion with a date and an author — is the only place a role is ever written by hand.
 
-A person may also be tagged `is_staff` — someone who works events in a paid or formally-scheduled capacity, as distinct from `is_volunteer`. Staff are drawn from the same `people` directory (a person can be both staff and a volunteer) and are assigned to individual events the same way sponsors and volunteers are: a Staff tab on the event editor links `people` rows to the event via `event_staff`, with an optional role/title and notes per assignment. Managing event staff requires the same permission as managing the rest of the event (§5.3).
+This replaced four stored boolean columns. They were written by whichever code path happened to create the relationship, so linking an existing person as a sponsor flagged nobody and removing their last sponsorship cleared nothing (issue #620); the intermediate fix, a `sync_person_role_flags()` recompute on triggers over all nine source tables, was retired along with the columns.
 
-**Not yet implemented.** No `is_staff` column or `event_staff` table exists yet; see §6.
+A person may also hold a **staff** role — someone who works events in a paid or formally-scheduled capacity, as distinct from a volunteer. Staff are drawn from the same `people` directory (a person can be both staff and a volunteer) and are assigned to individual events the same way sponsors and volunteers are: a Staff tab on the event editor links `people` rows to the event via `event_staff`, with an optional role/title and notes per assignment. Managing event staff requires the same permission as managing the rest of the event (§5.3).
+
+**Not yet implemented.** No `event_staff` table exists yet; see §6. When it lands, staff becomes a fifth derived role over that table plus a `'staff'` value in `person_role_tags` — not a column on `people`.
 
 ### 5.10 Dashboard and reporting
 
@@ -418,7 +420,7 @@ Routine, in-budget expenses may be self-approved by `finance`; expenses above a 
 Authorized users shall be able to track volunteer participation, per the "Volunteers — roles"/"participation" rows already named in the entitlement matrix (§5.3) and the reporting need described in `planning/drafts/BUSINESS_PLAN.md` §10–§11:
 
 - A catalog of volunteer role types (e.g. Ride Buddy, Event Setup, Basecamp Staffing) that events can be tagged with.
-- Volunteer profiles, reusing the existing `people` directory and its `is_volunteer` flag rather than a separate contact record.
+- Volunteer profiles, reusing the existing `people` directory and its derived volunteer role rather than a separate contact record.
 - Hours logging: person, optional event, date, hours, role type, and who logged the entry. The `volunteer` role may log and view their own hours; `admin` and `event_coordinator` may view all.
 
 Volunteer hours feed the Impact Tracking rollups in §5.15 (e.g. "290 volunteer hours" in a season report).
@@ -521,7 +523,7 @@ Implemented for the tables listed below (see §5.11, issue #18):
 - `event_incidents`: **implemented** — see §5.5/§16.1: `event_id`, `occurred_at`, `description`, `severity` (minor/moderate/serious), `people_involved`, `reported_by`. Restricted to `admin`/`event_coordinator`.
 - `event_shifts`: **implemented** (issue #70) — time-bounded shifts within an event (e.g. basecamp AM/PM on a multi-day trip): `event_id`, `label`, `starts_at`/`ends_at`, optional `target_headcount`, notes. Scoped to `event_volunteers` for now; staff-side shift assignment is left for a follow-up once `event_staff` (§5.9) lands. Managed from the event editor's Volunteers tab, gated by the `events` resource.
 - `event_volunteer_hours`: **implemented** — a lightweight, event-scoped hours log (`event_id`, `person_id`, `hours`, `logged_date`, notes, `logged_by`), predating and distinct from the org-wide `volunteer_hours` table under "Volunteers" below (no `volunteer_role_type_id` yet). Logged from the event editor's Volunteers tab and rolled into the impact reporting in §5.15.
-- `event_staff`: not yet implemented — see §5.9; mirrors `event_volunteers` (`event_id`, `person_id`, optional role/title, notes, unique per event/person pair) for people tagged `is_staff`.
+- `event_staff`: not yet implemented — see §5.9; mirrors `event_volunteers` (`event_id`, `person_id`, optional role/title, notes, unique per event/person pair), and would itself be what derives the staff role.
 - `event_registrations`: **implemented** — public registration for an event (name, email, phone, party size, notes), submitted via the anon-callable `register_for_event()` RPC (validates the event is public/published, registration is open, and capacity). Links to a `people` record via `person_id`, resolved-or-created by normalized email inside the RPC (`resolve_or_create_person_by_email()`, since there's no signed-in user to drive a `PersonPicker`); existing rows were backfilled by matching `people.email` where possible. `create_donation_with_items` uses the same helper to resolve an existing `people` row by email instead of always inserting a duplicate. `checked_in_at`: explicit per-registrant check-in (set by staff from the portal, not derived from `events.attendance_count`/`attendance_notes`, which remain a separate manual estimate — see §5.9-adjacent event-day tooling). A walk-in who never pre-registered gets their own `event_registrations` row, created at check-in time via `PersonPicker`, rather than a separate table.
 - `discount_codes`: manual tracking of discount codes a partner/vendor issues for an event (code, description, source) and which registrant each was given to (`registration_id` → `event_registrations.id`, single-use via a unique constraint on `registration_id`, plus a unique `(event_id, lower(code))` index). No payment/pricing integration — redemption happens outside chattersnow-web. No automatic assignment at registration time (needs board input; tracked separately).
 - `contact_messages`: **implemented** (issue #172) — `name`, `email`, `topic`, `message`, persisted via the `security definer` `submit_contact_message()` RPC (honeypot + rate-limited — see §7 item 9); no email is sent. **Implemented — portal triage** (issue #173): a `status` column (new/read/resolved) plus `updated_at`/`updated_by`, gated by the dedicated `communications` resource (§5.3) rather than the original `is_admin()`-only `select` policy. Staff review submissions at `/portal/communications`; opening a message auto-marks it read, and new messages are flagged in the notification bell and dashboard.
@@ -537,11 +539,13 @@ Impact rollups themselves (per-event, per-program, and season reports, including
 
 ### Inventory and donations
 
-- `people`: shared directory of donors, sponsors, volunteers, and staff (name, email, phone, notes, `is_donor`/`is_sponsor`/`is_volunteer`/`is_attendee` flags), so the same contact can be reused across roles instead of being duplicated per context. The role flags are **derived, not written by callers**: `sync_person_role_flags()` recomputes them from the records that create each role (donations, monetary donations, giveaway prizes, event sponsors, event registrations, event volunteers, volunteer hours, volunteer applications), unioned with `person_role_tags` — manual assertions such as a sponsor entered in the directory before any event link exists. Triggers on each of those tables keep the flags current in both directions, so a role is cleared when its last backing record goes away. `is_staff`: not yet implemented — see §5.9.
+- `people`: shared directory of donors, sponsors, volunteers, and staff (name, email, phone, notes, `is_organization`), so the same contact can be reused across roles instead of being duplicated per context. It carries **no role columns**: role membership is derived by `public.people_with_roles` (§5.9), the view every read site uses, from the records that create each role unioned with `person_role_tags`. A role is therefore never stale — it appears with the record behind it and goes away with the last one.
 - `donations`
 - `donation_items`
 - `inventory_items`: donation-managed inventory records with description, size, type, gender, condition, face value, photo, and status
 - `inventory_movements`: receipt, distribution, adjustment, and retirement transactions
+- `person_role_tags`: manual role assertions (`person_id`, `role`, `granted_at`, `granted_by`, `notes`) — the half of the derived role model no source record backs, such as a sponsor entered in the directory before any event link exists. Unlike a boolean it carries when the role was asserted and by whom
+- `people_with_roles`: `security_invoker` view over `people` adding the four derived role flags via the `security definer` helper `person_role_flags()` (§5.9); granted to `authenticated` only, and read-only — writes go to `people`
 - `public_gear_catalog`: read-only view over `inventory_items` limited to `status = available` rows and a curated column set (description, size, type, gender, condition, photo); granted to the `anon` role so it can back the public gear gallery without relaxing RLS on the base table
 - `inventory_photos`
 - `distribution_recipients`: protected recipient records, if needed

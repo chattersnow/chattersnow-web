@@ -78,10 +78,7 @@ export function NewDonationDialog({
   }
 
   function handlePersonCreated(person: PickedPerson) {
-    setPeopleOptions((prev) => [
-      ...prev,
-      { ...person, is_sponsor: false } as PersonListItem,
-    ]);
+    setPeopleOptions((prev) => [...prev, person as PersonListItem]);
   }
 
   // Compared against a fresh empty form rather than tracked with a flag, so

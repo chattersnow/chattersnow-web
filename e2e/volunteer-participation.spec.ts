@@ -26,11 +26,18 @@ async function seedVolunteer(admin: AdminClient) {
       name,
       email: `e2e-participation-${id}@example.test`,
       source_type: "individual",
-      is_volunteer: true,
     })
     .select("id")
     .single();
   if (error) throw error;
+
+  // The volunteer role is derived from records, and this person has none yet
+  // -- the test logs their first hours through the UI -- so the tag is what
+  // makes them a volunteer until then. It cascades with the person row.
+  const { error: tagError } = await admin
+    .from("person_role_tags")
+    .insert({ person_id: data.id, role: "volunteer" });
+  if (tagError) throw tagError;
 
   return {
     id: data.id as string,

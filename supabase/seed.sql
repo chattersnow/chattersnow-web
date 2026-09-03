@@ -151,26 +151,36 @@ begin
   select id into v_admin_person_id from public.people where auth_user_id = v_admin_id;
   select id into v_former_id from auth.users where email = 'former@example.test';
 
-  -- People: donors, a sponsor org, and a volunteer.
-  insert into public.people (name, is_anonymous, source_type, email, phone, notes, is_donor, created_by)
-  values ('Jamie Rivera', false, 'individual', 'jamie.rivera@example.test', '555-0101', null, true, v_admin_id)
+  -- People: donors, a sponsor org, and a volunteer. Roles are derived from the
+  -- records below (#624), so each of these gets a person_role_tags row instead
+  -- of a column write -- the tag is what carries a role until its first
+  -- donation, sponsorship, or signup exists.
+  insert into public.people (name, is_anonymous, source_type, email, phone, notes, created_by)
+  values ('Jamie Rivera', false, 'individual', 'jamie.rivera@example.test', '555-0101', null, v_admin_id)
   returning id into v_person_donor1;
 
-  insert into public.people (name, is_anonymous, source_type, email, phone, notes, is_donor, created_by)
-  values ('Alex Chen', false, 'individual', 'alex.chen@example.test', '555-0102', null, true, v_admin_id)
+  insert into public.people (name, is_anonymous, source_type, email, phone, notes, created_by)
+  values ('Alex Chen', false, 'individual', 'alex.chen@example.test', '555-0102', null, v_admin_id)
   returning id into v_person_donor2;
 
-  insert into public.people (name, is_anonymous, source_type, email, phone, notes, is_sponsor, logo_url, website, created_by)
-  values ('Summit Outdoor Co.', false, 'brand', 'partnerships@summitoutdoor.example.test', '555-0103', 'Local gear retailer, annual sponsor.', true, 'https://example.test/logos/summit-outdoor.png', 'https://summitoutdoor.example.test', v_admin_id)
+  insert into public.people (name, is_anonymous, source_type, email, phone, notes, logo_url, website, created_by)
+  values ('Summit Outdoor Co.', false, 'brand', 'partnerships@summitoutdoor.example.test', '555-0103', 'Local gear retailer, annual sponsor.', 'https://example.test/logos/summit-outdoor.png', 'https://summitoutdoor.example.test', v_admin_id)
   returning id into v_person_sponsor;
 
-  insert into public.people (name, is_anonymous, source_type, email, phone, notes, is_volunteer, created_by)
-  values ('Priya Natarajan', false, 'individual', 'priya.n@example.test', '555-0104', null, true, v_admin_id)
+  insert into public.people (name, is_anonymous, source_type, email, phone, notes, created_by)
+  values ('Priya Natarajan', false, 'individual', 'priya.n@example.test', '555-0104', null, v_admin_id)
   returning id into v_person_volunteer;
 
-  insert into public.people (name, is_anonymous, source_type, is_donor, created_by)
-  values ('Local Roasters Coffee', false, 'brand', true, v_admin_id)
+  insert into public.people (name, is_anonymous, source_type, created_by)
+  values ('Local Roasters Coffee', false, 'brand', v_admin_id)
   returning id into v_person_local_roasters;
+
+  insert into public.person_role_tags (person_id, role) values
+    (v_person_donor1, 'donor'),
+    (v_person_donor2, 'donor'),
+    (v_person_sponsor, 'sponsor'),
+    (v_person_volunteer, 'volunteer'),
+    (v_person_local_roasters, 'donor');
 
   -- Events: one upcoming/published/public, one past/published/public with
   -- attendance recorded, one draft/private.
@@ -341,15 +351,17 @@ begin
   -- Public volunteer applications, submitted via the /get-involved intake
   -- flow: one not yet followed up on, one an admin has picked up but not
   -- yet contacted.
-  insert into public.people (name, is_anonymous, source_type, email, phone, is_volunteer, created_by)
-  values ('Morgan Ellis', false, 'individual', 'morgan.ellis@example.test', '555-0105', true, v_admin_id)
+  -- No role tag: the volunteer_applications row inserted right after is what
+  -- derives the volunteer role (#624).
+  insert into public.people (name, is_anonymous, source_type, email, phone, created_by)
+  values ('Morgan Ellis', false, 'individual', 'morgan.ellis@example.test', '555-0105', v_admin_id)
   returning id into v_person_applicant;
 
   insert into public.volunteer_applications (person_id, name, email, phone, role_interest, availability, status, reference_code)
   values (v_person_applicant, 'Morgan Ellis', 'morgan.ellis@example.test', '555-0105', 'Ride Buddy', 'Weekend mornings', 'new', 'MRGNELLS');
 
-  insert into public.people (name, is_anonymous, source_type, email, phone, is_volunteer, created_by)
-  values ('Taylor Kim', false, 'individual', 'taylor.kim@example.test', '555-0106', true, v_admin_id)
+  insert into public.people (name, is_anonymous, source_type, email, phone, created_by)
+  values ('Taylor Kim', false, 'individual', 'taylor.kim@example.test', '555-0106', v_admin_id)
   returning id into v_person_applicant;
 
   insert into public.volunteer_applications (person_id, name, email, phone, role_interest, availability, status, reference_code)
@@ -556,52 +568,73 @@ declare
   v_item_type text;
   v_visibility text;
   v_expense_status text;
+  v_is_donor boolean;
+  v_is_volunteer boolean;
+  v_is_sponsor boolean;
 begin
   select id into v_admin_id from auth.users where email = 'admin@example.test';
   select id into v_admin_person_id from public.people where auth_user_id = v_admin_id;
   select id into v_finance_id from auth.users where email = 'finance@example.test';
   select id into v_board_id from auth.users where email = 'board@example.test';
 
-  -- ~65 individual people, mixed donor/volunteer flags.
+  -- ~65 individual people, mixed donor/volunteer roles. The two draws are
+  -- taken once and reused for both the role tag and the pool this person is
+  -- eligible for: they used to be drawn twice, so the flag on the row and the
+  -- records behind it disagreed -- harmless while the flags were stored, and
+  -- visibly wrong now that the roles are derived from those records (#624).
   for i in 1..65 loop
     v_first := first_names[1 + floor(random() * array_length(first_names, 1))::int];
     v_last := last_names[1 + floor(random() * array_length(last_names, 1))::int];
+    v_is_donor := random() < 0.6;
+    v_is_volunteer := random() < 0.35;
     insert into public.people (
-      name, is_anonymous, source_type, email, phone, is_donor, is_volunteer, created_by
+      name, is_anonymous, source_type, email, phone, created_by
     )
     values (
       v_first || ' ' || v_last, false, 'individual',
       lower(v_first || '.' || v_last || i || '@example.test'),
       '555-' || lpad((1000 + i)::text, 4, '0'),
-      random() < 0.6, random() < 0.35, v_admin_id
+      v_admin_id
     )
     returning id into v_person_id;
 
     v_people_ids := array_append(v_people_ids, v_person_id);
-    if random() < 0.6 then
+    if v_is_donor then
       v_donor_ids := array_append(v_donor_ids, v_person_id);
+      insert into public.person_role_tags (person_id, role) values (v_person_id, 'donor');
     end if;
-    if random() < 0.35 then
+    if v_is_volunteer then
       v_volunteer_ids := array_append(v_volunteer_ids, v_person_id);
+      insert into public.person_role_tags (person_id, role) values (v_person_id, 'volunteer');
     end if;
   end loop;
 
-  -- ~12 brand/org sponsors and donors.
+  -- ~12 brand/org sponsors and donors. Every brand joins both pools, so some
+  -- of them earn a role from an event_sponsors or donations row below even
+  -- without the tag drawn here.
   for i in 1..array_length(brand_names, 1) loop
+    v_is_sponsor := random() < 0.7;
+    v_is_donor := random() < 0.5;
     insert into public.people (
-      name, is_anonymous, source_type, email, phone, is_sponsor, is_donor,
+      name, is_anonymous, source_type, email, phone,
       logo_url, website, notes, created_by
     )
     values (
       brand_names[i], false, 'brand',
       lower(replace(brand_names[i], ' ', '')) || '@example.test',
       '555-' || lpad((2000 + i)::text, 4, '0'),
-      random() < 0.7, random() < 0.5,
       'https://example.test/logos/' || i || '.png',
       'https://' || lower(replace(replace(brand_names[i], ' ', ''), '.', '')) || '.example.test',
       'Seed bulk-data sponsor/donor org.', v_admin_id
     )
     returning id into v_person_id;
+
+    if v_is_sponsor then
+      insert into public.person_role_tags (person_id, role) values (v_person_id, 'sponsor');
+    end if;
+    if v_is_donor then
+      insert into public.person_role_tags (person_id, role) values (v_person_id, 'donor');
+    end if;
 
     v_people_ids := array_append(v_people_ids, v_person_id);
     v_sponsor_ids := array_append(v_sponsor_ids, v_person_id);
@@ -906,8 +939,9 @@ begin
   for i in 1..45 loop
     v_first := first_names[1 + floor(random() * array_length(first_names, 1))::int];
     v_last := last_names[1 + floor(random() * array_length(last_names, 1))::int];
-    insert into public.people (name, is_anonymous, source_type, email, phone, is_volunteer, created_by)
-    values (v_first || ' ' || v_last, false, 'individual', lower(v_first || '.' || v_last || '.app' || i || '@example.test'), '555-' || lpad((4000+i)::text,4,'0'), true, v_admin_id)
+    -- No role tag: the volunteer_applications row below derives it (#624).
+    insert into public.people (name, is_anonymous, source_type, email, phone, created_by)
+    values (v_first || ' ' || v_last, false, 'individual', lower(v_first || '.' || v_last || '.app' || i || '@example.test'), '555-' || lpad((4000+i)::text,4,'0'), v_admin_id)
     returning id into v_person_id;
 
     insert into public.volunteer_applications (person_id, name, email, phone, role_interest, availability, status, reference_code)
@@ -1119,12 +1153,3 @@ from auth.users u
 on conflict (user_id) do update
   set welcome_completed_at = now(),
       last_release_seen = '9999-12-31';
-
--- The people inserts above write is_donor/is_sponsor/is_volunteer straight
--- onto the row, which predates 20260903010000_sync_person_role_flags: those
--- columns are now recomputed from the records that create each role, unioned
--- with public.person_role_tags. seed.sql runs after migrations, so the
--- migration's own reconcile pass ran before any of this data existed --
--- repeat it here so a seeded sponsor with no event_sponsors row keeps its
--- flag instead of being cleared by the first unrelated recompute.
-select public.reconcile_person_role_flags();

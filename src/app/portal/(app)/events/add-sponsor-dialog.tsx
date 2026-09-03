@@ -35,7 +35,7 @@ export function AddSponsorDialog({
   }, [open]);
 
   function handlePersonCreated(person: PickedPerson) {
-    setPeople((prev) => [...prev, { ...person, is_sponsor: true }]);
+    setPeople((prev) => [...prev, person]);
   }
 
   function handleOpenChange(nextOpen: boolean) {

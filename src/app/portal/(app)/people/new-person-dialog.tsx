@@ -79,7 +79,7 @@ export function NewPersonDialog({
   }
 
   function handlePersonCreated(person: PickedPerson) {
-    setAvailablePeople((prev) => [...prev, { ...person, is_sponsor: false }]);
+    setAvailablePeople((prev) => [...prev, person]);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {

@@ -56,7 +56,6 @@ export function AddHoursForm({
   const router = useRouter();
   const people: PersonListItem[] = volunteers.map((volunteer) => ({
     ...volunteer.person,
-    is_sponsor: false,
   }));
   const [selectedPerson, setSelectedPerson] = useState<PickedPerson | null>(
     null,

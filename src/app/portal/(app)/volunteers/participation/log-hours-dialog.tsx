@@ -163,10 +163,7 @@ export function LogHoursDialog({
                     selected={selectedPerson}
                     onSelect={setSelectedPerson}
                     onPersonCreated={(person) =>
-                      setPeople((prev) => [
-                        ...prev,
-                        { ...person, is_sponsor: false },
-                      ])
+                      setPeople((prev) => [...prev, person])
                     }
                     newPersonRole="is_volunteer"
                   />

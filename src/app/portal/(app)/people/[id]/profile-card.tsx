@@ -206,10 +206,7 @@ export function ProfileCard({
                   selected={contact}
                   onSelect={setContact}
                   onPersonCreated={(created) =>
-                    setNewPeople((prev) => [
-                      ...prev,
-                      { ...created, is_sponsor: false },
-                    ])
+                    setNewPeople((prev) => [...prev, created])
                   }
                 />
               </Field>

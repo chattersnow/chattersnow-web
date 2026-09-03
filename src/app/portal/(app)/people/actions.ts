@@ -7,9 +7,9 @@ import { checkPermission, checkAnyPermission } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
 
 /**
- * Replaces a person's manual role tags, which the DB then folds into the
- * recomputed is_donor/is_sponsor/is_volunteer/is_attendee columns. Returns an
- * error result to hand straight back to the caller, or null on success.
+ * Replaces a person's manual role tags -- the half of the derived role model
+ * that no source record backs (20260903030000). Returns an error result to
+ * hand straight back to the caller, or null on success.
  */
 async function setRoleTags(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
@@ -47,7 +47,6 @@ export type PersonListItem = {
   name: string | null;
   email: string | null;
   phone: string | null;
-  is_sponsor: boolean;
   // Optional: only selected where organization filtering is needed (e.g. the
   // People list, and PersonPicker's `onlyOrganizations` mode). The many other
   // callers across the app that select a narrower PersonListItem shape don't
@@ -97,9 +96,8 @@ export async function createPersonAction(
     return { error: "Could not save this person. Please try again." };
   }
 
-  // The role columns are recomputed from source records unioned with these
-  // tags (20260903010000), so the checkboxes write tags -- a column write on
-  // the insert above would be erased by the next recompute.
+  // Roles are derived from source records unioned with these tags, so the
+  // checkboxes write tags: there is no role column on `people` to set.
   const rolesError = await setRoleTags(supabase, data.id, parsed.roles);
   if (rolesError) return rolesError;
 
@@ -123,7 +121,7 @@ export async function listPeopleAction(): Promise<
   const { data, error } = await supabase
     .from("people")
     .select(
-      "id, name, preferred_name, email, phone, is_sponsor, is_organization, auth_user_id",
+      "id, name, preferred_name, email, phone, is_organization, auth_user_id",
     )
     .order("name", { ascending: true });
 

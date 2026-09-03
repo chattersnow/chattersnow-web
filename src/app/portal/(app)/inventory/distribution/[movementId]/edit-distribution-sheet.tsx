@@ -228,10 +228,7 @@ export function EditDistributionSheet({
                     selected={form.recipient}
                     onSelect={(person) => update("recipient", person)}
                     onPersonCreated={(person) =>
-                      setPeople((prev) => [
-                        ...prev,
-                        { ...person, is_sponsor: false },
-                      ])
+                      setPeople((prev) => [...prev, person])
                     }
                     placeholder="Search recipient by name or email..."
                   />

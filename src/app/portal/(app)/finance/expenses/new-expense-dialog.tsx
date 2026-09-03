@@ -81,7 +81,7 @@ export function NewExpenseDialog({
   }
 
   function handlePersonCreated(person: PickedPerson) {
-    setPeople((prev) => [...prev, { ...person, is_sponsor: false }]);
+    setPeople((prev) => [...prev, person]);
   }
 
   // Compared against a fresh empty form rather than tracked with a flag, so
