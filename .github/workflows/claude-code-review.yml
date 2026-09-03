@@ -30,4 +30,9 @@ jobs:
           plugin_marketplaces: "https://github.com/anthropics/claude-code.git"
           plugins: "code-review@claude-code-plugins"
           prompt: "/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
-          claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment"'
+          # Pin the model. With no --model the CLI defaults to the
+          # claude-opus-5[1m] alias, which the Messages API does not accept:
+          # every run died in ~400ms with no model call and no cost, the
+          # shape of an instant API rejection. Plain claude-opus-5 is the
+          # same model and is already 1M-context.
+          claude_args: '--model claude-opus-5 --allowedTools "mcp__github_inline_comment__create_inline_comment"'
