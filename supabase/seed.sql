@@ -1099,3 +1099,23 @@ insert into public.app_settings (key, value) values
   ('page_visibility.learn', to_jsonb(true)),
   ('page_visibility.support', to_jsonb(true))
 on conflict (key) do update set value = excluded.value;
+
+-- The first-login welcome tour (20260902060000) opens a modal over the portal
+-- shell for any account whose welcome_completed_at is null. Every e2e spec
+-- signs in as one of these accounts and drives portal pages, so leaving them
+-- un-toured would put a dialog in front of all of them. Mark them done here;
+-- the tour itself is covered by welcome-dialog.dom.test.tsx and
+-- welcome/actions.integration.test.ts, and can be replayed locally from
+-- /portal/account.
+-- last_release_seen gets a key no CURRENT_RELEASE will ever exceed, for the
+-- same reason: the "what's new" dialog (20260902070000) would otherwise sit
+-- over the e2e suite every time someone bumps the release, and seed.sql has no
+-- way to read that constant out of the TypeScript that owns it. To see the
+-- release notes locally, clear it for your account:
+--   update public.user_onboarding set last_release_seen = null;
+insert into public.user_onboarding (user_id, first_seen_at, welcome_completed_at, last_release_seen)
+select u.id, u.created_at, now(), '9999-12-31'
+from auth.users u
+on conflict (user_id) do update
+  set welcome_completed_at = now(),
+      last_release_seen = '9999-12-31';

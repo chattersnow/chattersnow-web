@@ -32,11 +32,15 @@ import { HelpButton } from "./help/help-button";
 import { PortalHelpProvider } from "./help/help-context";
 import { getContentWorkSummary } from "./home/queries";
 import { ensureCurrentPerson } from "@/lib/auth/current-person";
+import { ensureMyOnboarding } from "@/lib/portal/onboarding";
 import { personDisplayName } from "@/lib/format";
 import { LogoutButton } from "./logout-button";
 import { NotificationsMenu } from "./notifications-menu";
 import { PortalNav } from "./portal-nav";
 import { SidebarQuickActions } from "./sidebar-quick-actions";
+import { CURRENT_RELEASE, RELEASE_NOTES } from "./welcome/releases";
+import { WelcomeDialog } from "./welcome/welcome-dialog";
+import { WhatsNewDialog } from "./welcome/whats-new-dialog";
 
 export default async function PortalAppLayout({
   children,
@@ -104,6 +108,21 @@ export default async function PortalAppLayout({
   // owner column in the portal references public.people, so a portal user
   // without one can't be assigned anything.
   const currentPerson = await ensureCurrentPerson(supabase);
+
+  // Records this account's first arrival and tells us what it has already been
+  // shown. No-ops after the first call.
+  const onboarding = await ensureMyOnboarding(supabase);
+  const welcomeOwed =
+    onboarding !== null && onboarding.welcomeCompletedAt === null;
+  // Release notes wait their turn: a brand-new user gets the introduction, not
+  // a changelog. They also never show at all for a release with nothing to say
+  // -- an empty or stale modal is worse than no modal.
+  const whatsNewOwed =
+    onboarding !== null &&
+    !welcomeOwed &&
+    RELEASE_NOTES.length > 0 &&
+    (onboarding.lastReleaseSeen === null ||
+      onboarding.lastReleaseSeen < CURRENT_RELEASE);
 
   const contentWork = canSeeContentCalendar
     ? await getContentWorkSummary(supabase, {
@@ -229,6 +248,20 @@ export default async function PortalAppLayout({
             <main className="app-shell px-6 py-8 sm:px-10">
               <div className="mx-auto max-w-6xl">{children}</div>
             </main>
+            {/* Rendered here rather than on the dashboard: the sidebar, help
+                button and bell the tour explains are all part of this shell,
+                and a new user's first URL is often an invite deep link.
+
+                Mounted conditionally rather than always-rendered-and-hidden:
+                each dialog seeds its own open state at mount and this layout
+                doesn't remount on navigation, so unmounting when the flag
+                clears is what lets "Show the tour again" (or a release bump)
+                bring it back. Only one is ever mounted -- whatsNewOwed already
+                excludes welcomeOwed. */}
+            {welcomeOwed && <WelcomeDialog key="welcome" initialOpen />}
+            {whatsNewOwed && (
+              <WhatsNewDialog key={CURRENT_RELEASE} initialOpen />
+            )}
           </SidebarInset>
         </SidebarProvider>
       </PortalHelpProvider>

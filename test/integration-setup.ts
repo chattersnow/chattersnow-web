@@ -488,6 +488,37 @@ export async function deleteContactMessages(email: string) {
   if (error) throw error;
 }
 
+// public.user_onboarding (20260902060000) grants select/insert/update to
+// authenticated and no delete, and every policy on it is self-scoped -- that
+// is the whole point of the table, so a fixture genuinely cannot reach another
+// account's row, or remove its own, through a signed-in client. Same situation
+// as contact_messages above: these go through the service-role key instead.
+// supabase/seed.sql gives every seeded account a completed tour and a
+// far-future release pointer, so tests that need a different starting state
+// have to set it explicitly.
+export async function setOnboarding(
+  userId: string,
+  fields: {
+    first_seen_at?: string;
+    welcome_completed_at?: string | null;
+    last_release_seen?: string | null;
+  },
+) {
+  const { error } = await serviceRoleClient()
+    .from("user_onboarding")
+    .update(fields)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
+export async function deleteOnboarding(userId: string) {
+  const { error } = await serviceRoleClient()
+    .from("user_onboarding")
+    .delete()
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
 type VolunteerApplicationOverrides = {
   name?: string;
   email?: string;
