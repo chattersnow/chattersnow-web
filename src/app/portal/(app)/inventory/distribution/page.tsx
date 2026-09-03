@@ -68,15 +68,15 @@ export default async function DistributionPage() {
                   No distributions recorded yet.
                 </p>
               ) : (
-                <Table>
+                <Table stickyFirstColumn>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Item</TableHead>
                       <TableHead>Qty</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Event</TableHead>
-                      <TableHead>Recipient</TableHead>
-                      <TableHead>Reason</TableHead>
+                      <TableHead hideBelow="sm">Date</TableHead>
+                      <TableHead hideBelow="md">Event</TableHead>
+                      <TableHead hideBelow="lg">Recipient</TableHead>
+                      <TableHead hideBelow="lg">Reason</TableHead>
                       <TableHead className="w-0">
                         <span className="sr-only">Actions</span>
                       </TableHead>
@@ -99,22 +99,24 @@ export default async function DistributionPage() {
                           </span>
                         </TableCell>
                         <TableCell>{movement.quantity}</TableCell>
-                        <TableCell className="app-muted">
+                        <TableCell hideBelow="sm" className="app-muted">
                           {dateFormatter.format(new Date(movement.occurred_at))}
                         </TableCell>
                         <TableCell
+                          hideBelow="md"
                           className="max-w-xs truncate app-muted"
                           title={movement.event?.name ?? undefined}
                         >
                           {movement.event?.name ?? "—"}
                         </TableCell>
                         <TableCell
+                          hideBelow="lg"
                           className="max-w-xs truncate app-muted"
                           title={movement.recipient?.name ?? undefined}
                         >
                           {personDisplayName(movement.recipient)}
                         </TableCell>
-                        <TableCell className="app-muted">
+                        <TableCell hideBelow="lg" className="app-muted">
                           {movement.reason || "—"}
                         </TableCell>
                         <TableCell>

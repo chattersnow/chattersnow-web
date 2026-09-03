@@ -11,6 +11,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  type HideBelow,
 } from "@/components/ui/table";
 import { HowToSection } from "@/components/how-to-section";
 import { PageHelpContent } from "../../help/help-context";
@@ -52,10 +53,14 @@ function isSortColumn(value: string | undefined): value is SortColumn {
   return !!value && (SORTABLE_COLUMNS as readonly string[]).includes(value);
 }
 
-const COLUMNS: { key: SortColumn; label: string }[] = [
-  { key: "received_date", label: "Date" },
+const COLUMNS: {
+  key: SortColumn;
+  label: string;
+  hideBelow?: HideBelow;
+}[] = [
+  { key: "received_date", label: "Date", hideBelow: "sm" },
   { key: "amount", label: "Amount" },
-  { key: "method", label: "Method" },
+  { key: "method", label: "Method", hideBelow: "lg" },
 ];
 
 const selectClassName =
@@ -343,12 +348,12 @@ export default async function FinanceDonationsPage({
                   : "No donations recorded yet."}
               </p>
             ) : (
-              <Table>
+              <Table stickyFirstColumn>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Donor</TableHead>
                     {COLUMNS.map((column) => (
-                      <TableHead key={column.key}>
+                      <TableHead key={column.key} hideBelow={column.hideBelow}>
                         <SortHeaderLink
                           href={sortHref(column.key)}
                           label={column.label}
@@ -356,7 +361,7 @@ export default async function FinanceDonationsPage({
                         />
                       </TableHead>
                     ))}
-                    <TableHead>Event</TableHead>
+                    <TableHead hideBelow="md">Event</TableHead>
                     <TableHead className="w-0">
                       <span className="sr-only">Actions</span>
                     </TableHead>
@@ -368,14 +373,14 @@ export default async function FinanceDonationsPage({
                       <TableCell className="whitespace-normal">
                         {donorLabel(donation)}
                       </TableCell>
-                      <TableCell>
+                      <TableCell hideBelow="sm">
                         {formatDonationDate(donation.received_date)}
                       </TableCell>
                       <TableCell>{formatAmount(donation.amount)}</TableCell>
-                      <TableCell>
+                      <TableCell hideBelow="lg">
                         <PaymentMethodBadge method={donation.method} />
                       </TableCell>
-                      <TableCell className="app-muted">
+                      <TableCell hideBelow="md" className="app-muted">
                         {donation.events?.name ?? "—"}
                       </TableCell>
                       <TableCell>

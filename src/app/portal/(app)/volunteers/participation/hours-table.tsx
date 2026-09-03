@@ -38,13 +38,13 @@ export function HoursTable({
   }
 
   return (
-    <Table>
+    <Table stickyFirstColumn>
       <TableHeader>
         <TableRow>
           <TableHead>Volunteer</TableHead>
-          <TableHead>Event</TableHead>
-          <TableHead>Role</TableHead>
-          <TableHead>Date</TableHead>
+          <TableHead hideBelow="md">Event</TableHead>
+          <TableHead hideBelow="lg">Role</TableHead>
+          <TableHead hideBelow="sm">Date</TableHead>
           <TableHead>Hours</TableHead>
           <TableHead className="w-px" />
         </TableRow>
@@ -59,15 +59,16 @@ export function HoursTable({
               {personDisplayName(entry.person)}
             </TableCell>
             <TableCell
+              hideBelow="md"
               className="max-w-xs truncate app-muted"
               title={entry.event?.name ?? undefined}
             >
               {entry.event?.name ?? "—"}
             </TableCell>
-            <TableCell className="app-muted">
+            <TableCell hideBelow="lg" className="app-muted">
               {entry.volunteer_role_type?.name ?? "—"}
             </TableCell>
-            <TableCell className="app-muted">
+            <TableCell hideBelow="sm" className="app-muted">
               {dateFormatter.format(new Date(entry.logged_date))}
             </TableCell>
             <TableCell>{entry.hours}</TableCell>

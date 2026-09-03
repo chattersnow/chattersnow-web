@@ -4,7 +4,32 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+/**
+ * Breakpoint below which a column is dropped. Written out as whole class
+ * strings rather than composed at runtime, because Tailwind scans source text
+ * and never sees an interpolated class name.
+ */
+const HIDE_BELOW = {
+  sm: "hidden sm:table-cell",
+  md: "hidden md:table-cell",
+  lg: "hidden lg:table-cell",
+} as const;
+
+export type HideBelow = keyof typeof HIDE_BELOW;
+
+function Table({
+  className,
+  stickyFirstColumn,
+  ...props
+}: React.ComponentProps<"table"> & {
+  /**
+   * Pins the first cell of every row while the rest scrolls. Row actions are
+   * always the last column, so on a phone -- where a 7-column table shows
+   * about two columns at a time -- scrolling right to reach them took the
+   * row's identifying name off screen with no way to tell rows apart.
+   */
+  stickyFirstColumn?: boolean;
+}) {
   return (
     <div
       data-slot="table-container"
@@ -12,7 +37,19 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
     >
       <table
         data-slot="table"
-        className={cn("w-full caption-bottom text-sm", className)}
+        className={cn(
+          "w-full caption-bottom text-sm",
+          stickyFirstColumn && [
+            "[&_tr>*:first-child]:sticky [&_tr>*:first-child]:left-0 [&_tr>*:first-child]:z-10 [&_tr>*:first-child]:bg-card",
+            // The pinned cell needs an opaque background to sit over the
+            // scrolling columns, which means it can't inherit the row's
+            // translucent hover/selected tint -- mix it in explicitly, or the
+            // hovered row highlights every cell except this one.
+            "[&_tr:hover>*:first-child]:bg-[color-mix(in_oklab,var(--muted)_50%,var(--card))]",
+            "[&_tr[data-state=selected]>*:first-child]:bg-muted",
+          ],
+          className,
+        )}
         {...props}
       />
     </div>
@@ -65,12 +102,20 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   );
 }
 
-function TableHead({ className, ...props }: React.ComponentProps<"th">) {
+function TableHead({
+  className,
+  hideBelow,
+  ...props
+}: React.ComponentProps<"th"> & {
+  /** Drop this column below the given breakpoint. Must match the body cell. */
+  hideBelow?: HideBelow;
+}) {
   return (
     <th
       data-slot="table-head"
       className={cn(
         "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
+        hideBelow && HIDE_BELOW[hideBelow],
         className,
       )}
       {...props}
@@ -78,12 +123,20 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   );
 }
 
-function TableCell({ className, ...props }: React.ComponentProps<"td">) {
+function TableCell({
+  className,
+  hideBelow,
+  ...props
+}: React.ComponentProps<"td"> & {
+  /** Drop this column below the given breakpoint. Must match the header. */
+  hideBelow?: HideBelow;
+}) {
   return (
     <td
       data-slot="table-cell"
       className={cn(
         "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
+        hideBelow && HIDE_BELOW[hideBelow],
         className,
       )}
       {...props}

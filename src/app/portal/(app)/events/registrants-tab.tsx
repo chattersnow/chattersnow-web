@@ -113,13 +113,13 @@ export function RegistrantsTab({
       ) : list.length === 0 ? (
         <p className="app-muted text-sm">No one has registered yet.</p>
       ) : (
-        <Table>
+        <Table stickyFirstColumn>
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>Contact</TableHead>
-              <TableHead>Party size</TableHead>
-              <TableHead>Registered</TableHead>
+              <TableHead hideBelow="md">Contact</TableHead>
+              <TableHead hideBelow="sm">Party size</TableHead>
+              <TableHead hideBelow="lg">Registered</TableHead>
               <TableHead>Checked in</TableHead>
               {mode === "edit" && <TableHead className="w-px" />}
             </TableRow>
@@ -133,14 +133,17 @@ export function RegistrantsTab({
                 >
                   {registrant.name}
                 </TableCell>
-                <TableCell className="app-muted">
+                <TableCell hideBelow="md" className="app-muted">
                   {registrant.email}
                   {registrant.phone && (
                     <span className="block text-xs">{registrant.phone}</span>
                   )}
                 </TableCell>
-                <TableCell>{registrant.party_size}</TableCell>
-                <TableCell className="app-muted whitespace-nowrap">
+                <TableCell hideBelow="sm">{registrant.party_size}</TableCell>
+                <TableCell
+                  hideBelow="lg"
+                  className="app-muted whitespace-nowrap"
+                >
                   {dateFormatter.format(new Date(registrant.created_at))}
                 </TableCell>
                 <TableCell className="app-muted whitespace-nowrap">

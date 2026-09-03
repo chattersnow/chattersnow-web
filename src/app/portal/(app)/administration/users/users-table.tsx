@@ -134,13 +134,13 @@ export function UsersTable({
 
       <Card>
         <CardContent className="px-0">
-          <Table>
+          <Table stickyFirstColumn>
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Preferred name</TableHead>
+                <TableHead hideBelow="lg">Preferred name</TableHead>
                 <TableHead>Roles</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead hideBelow="sm">Status</TableHead>
                 <TableHead className="w-0">
                   <span className="sr-only">Add role</span>
                 </TableHead>
@@ -165,7 +165,7 @@ export function UsersTable({
                     >
                       {portalUserDisplayName(portalUser)}
                     </TableCell>
-                    <TableCell>
+                    <TableCell hideBelow="lg">
                       <PreferredNameCell
                         value={portalUser.preferred_name}
                         label={portalUserDisplayName(portalUser)}
@@ -221,7 +221,9 @@ export function UsersTable({
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>{statusBadge(portalUser)}</TableCell>
+                    <TableCell hideBelow="sm">
+                      {statusBadge(portalUser)}
+                    </TableCell>
                     <TableCell>
                       {addingFor === portalUser.user_id ? (
                         <div className="flex items-center gap-2">

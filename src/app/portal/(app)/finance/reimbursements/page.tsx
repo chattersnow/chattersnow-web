@@ -11,6 +11,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  type HideBelow,
 } from "@/components/ui/table";
 import { HowToSection } from "@/components/how-to-section";
 import { PageHelpContent } from "../../help/help-context";
@@ -59,9 +60,13 @@ const STATUS_OPTIONS: ReimbursementStatus[] = [
   "paid",
 ];
 
-const COLUMNS: { key: SortColumn; label: string }[] = [
+const COLUMNS: {
+  key: SortColumn;
+  label: string;
+  hideBelow?: HideBelow;
+}[] = [
   { key: "description", label: "Description" },
-  { key: "created_at", label: "Submitted" },
+  { key: "created_at", label: "Submitted", hideBelow: "lg" },
   { key: "amount", label: "Amount" },
 ];
 
@@ -351,11 +356,11 @@ export default async function ReimbursementsPage({
                   : "No reimbursements recorded yet."}
               </p>
             ) : (
-              <Table>
+              <Table stickyFirstColumn>
                 <TableHeader>
                   <TableRow>
                     {COLUMNS.map((column) => (
-                      <TableHead key={column.key}>
+                      <TableHead key={column.key} hideBelow={column.hideBelow}>
                         <SortHeaderLink
                           href={sortHref(column.key)}
                           label={column.label}
@@ -363,8 +368,8 @@ export default async function ReimbursementsPage({
                         />
                       </TableHead>
                     ))}
-                    <TableHead>Requester</TableHead>
-                    <TableHead>Event</TableHead>
+                    <TableHead hideBelow="sm">Requester</TableHead>
+                    <TableHead hideBelow="md">Event</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-0">
                       <span className="sr-only">Actions</span>
@@ -377,7 +382,7 @@ export default async function ReimbursementsPage({
                       <TableCell className="whitespace-normal">
                         {reimbursement.description}
                       </TableCell>
-                      <TableCell>
+                      <TableCell hideBelow="lg">
                         {formatReimbursementDate(reimbursement.created_at)}
                       </TableCell>
                       <TableCell>
@@ -386,10 +391,10 @@ export default async function ReimbursementsPage({
                           reimbursement.currency,
                         )}
                       </TableCell>
-                      <TableCell className="app-muted">
+                      <TableCell hideBelow="sm" className="app-muted">
                         {personDisplayName(reimbursement.people)}
                       </TableCell>
-                      <TableCell className="app-muted">
+                      <TableCell hideBelow="md" className="app-muted">
                         {reimbursement.events?.name ?? "—"}
                       </TableCell>
                       <TableCell>

@@ -12,6 +12,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  type HideBelow,
 } from "@/components/ui/table";
 import { HowToSection } from "@/components/how-to-section";
 import { PageHelpContent } from "../../help/help-context";
@@ -58,9 +59,13 @@ const STATUS_OPTIONS: ExpenseStatus[] = [
   "paid",
 ];
 
-const COLUMNS: { key: SortColumn; label: string }[] = [
+const COLUMNS: {
+  key: SortColumn;
+  label: string;
+  hideBelow?: HideBelow;
+}[] = [
   { key: "description", label: "Description" },
-  { key: "expense_date", label: "Date" },
+  { key: "expense_date", label: "Date", hideBelow: "sm" },
   { key: "amount", label: "Amount" },
 ];
 
@@ -341,11 +346,11 @@ export default async function ExpensesPage({
                   : "No expenses recorded yet."}
               </p>
             ) : (
-              <Table>
+              <Table stickyFirstColumn>
                 <TableHeader>
                   <TableRow>
                     {COLUMNS.map((column) => (
-                      <TableHead key={column.key}>
+                      <TableHead key={column.key} hideBelow={column.hideBelow}>
                         <SortHeaderLink
                           href={sortHref(column.key)}
                           label={column.label}
@@ -353,7 +358,7 @@ export default async function ExpensesPage({
                         />
                       </TableHead>
                     ))}
-                    <TableHead>Event</TableHead>
+                    <TableHead hideBelow="md">Event</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-0">
                       <span className="sr-only">Actions</span>
@@ -366,13 +371,13 @@ export default async function ExpensesPage({
                       <TableCell className="whitespace-normal">
                         {expense.description}
                       </TableCell>
-                      <TableCell>
+                      <TableCell hideBelow="sm">
                         {formatExpenseDate(expense.expense_date)}
                       </TableCell>
                       <TableCell>
                         {formatAmount(expense.amount, expense.currency)}
                       </TableCell>
-                      <TableCell className="app-muted">
+                      <TableCell hideBelow="md" className="app-muted">
                         {expense.events?.name ?? "—"}
                       </TableCell>
                       <TableCell>

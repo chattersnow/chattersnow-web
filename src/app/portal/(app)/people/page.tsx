@@ -184,13 +184,13 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
                   : "No people added yet."}
               </p>
             ) : (
-              <Table>
+              <Table stickyFirstColumn>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Roles</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Phone</TableHead>
+                    <TableHead hideBelow="md">Email</TableHead>
+                    <TableHead hideBelow="lg">Phone</TableHead>
                     <TableHead className="w-0">
                       <span className="sr-only">Actions</span>
                     </TableHead>
@@ -213,10 +213,10 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
                       <TableCell className="app-muted">
                         {rolesFor(person).join(", ") || "—"}
                       </TableCell>
-                      <TableCell className="app-muted">
+                      <TableCell hideBelow="md" className="app-muted">
                         {person.email ?? "—"}
                       </TableCell>
-                      <TableCell className="app-muted">
+                      <TableCell hideBelow="lg" className="app-muted">
                         {person.phone ?? "—"}
                       </TableCell>
                       <TableCell className="text-right">
