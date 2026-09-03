@@ -13,6 +13,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { PersonListItem } from "../actions";
 import { type OrganizationMembership, type PersonRow } from "../people-shared";
 import { ProfileCard } from "./profile-card";
+import { AccountCard } from "./account-card";
+import { resolvePersonAccount } from "./person-account";
+import { listUsersAction } from "../../administration/users/actions";
 import { OrganizationsCard } from "./organizations-card";
 import {
   formatCalendarDate,
@@ -99,17 +102,31 @@ export default async function PersonDetailPage({
   const supabase = await createSupabaseServerClient();
   const permissions = await getCurrentUserPermissions(supabase);
   const canManage = hasPermission(permissions, "people", "manage");
+  const canManageAccounts = hasPermission(
+    permissions,
+    "administration",
+    "manage",
+  );
 
   const { data: person } = await supabase
     .from("people")
     .select(
-      "id, name, email, phone, instagram_handle, notes, logo_url, website, is_donor, is_sponsor, is_volunteer, is_organization, is_attendee, riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain, primary_contact_person_id, primary_contact:primary_contact_person_id(id, name, email, phone)",
+      "id, name, email, phone, instagram_handle, notes, logo_url, website, auth_user_id, is_donor, is_sponsor, is_volunteer, is_organization, is_attendee, riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain, primary_contact_person_id, primary_contact:primary_contact_person_id(id, name, email, phone)",
     )
     .eq("id", id)
     .maybeSingle();
 
   if (!person) notFound();
   const personRow = person as unknown as PersonRow;
+
+  // Admin-only, and deliberately after the notFound() guard so a non-existent
+  // id never triggers the users lookup. listUsersAction re-checks
+  // administration:manage itself, so a non-admin gets { error } and no rows.
+  // Started here but awaited below so it runs alongside the history queries
+  // rather than adding a round-trip in front of them.
+  const portalUsersPromise = canManageAccounts
+    ? listUsersAction()
+    : Promise.resolve(null);
 
   const [
     { data: peopleOptions },
@@ -205,6 +222,13 @@ export default async function PersonDetailPage({
     []) as unknown as PartnershipAsOwner[];
   const contactForRows = (contactFor ?? []) as unknown as ContactFor[];
 
+  const portalUsers = await portalUsersPromise;
+  const { account, linkable } = resolvePersonAccount(
+    personRow.id,
+    personRow.email,
+    portalUsers && "data" in portalUsers ? portalUsers.data : [],
+  );
+
   const totalVolunteerHours = volunteerHoursRows.reduce(
     (sum, entry) => sum + Number(entry.hours),
     0,
@@ -254,6 +278,14 @@ export default async function PersonDetailPage({
           people={peopleOptionRows}
           canManage={canManage}
         />
+
+        {canManageAccounts && (
+          <AccountCard
+            personId={personRow.id}
+            account={account}
+            linkable={linkable}
+          />
+        )}
 
         <Card>
           <CardHeader>

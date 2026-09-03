@@ -58,7 +58,7 @@ export default async function SponsorsPage({
   let query = supabase
     .from("people")
     .select(
-      "id, name, email, phone, instagram_handle, notes, logo_url, website, is_donor, is_sponsor, is_volunteer, is_organization, is_attendee, riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain, primary_contact_person_id, primary_contact:primary_contact_person_id(id, name, email, phone)",
+      "id, name, email, phone, instagram_handle, notes, logo_url, website, auth_user_id, is_donor, is_sponsor, is_volunteer, is_organization, is_attendee, riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain, primary_contact_person_id, primary_contact:primary_contact_person_id(id, name, email, phone)",
       { count: "exact" },
     )
     .eq("is_sponsor", true)

@@ -1,3 +1,5 @@
+import { Badge } from "@/components/ui/badge";
+
 export type PersonSummary = {
   id: string;
   name: string | null;
@@ -16,6 +18,8 @@ export type PersonRow = {
   notes: string | null;
   logo_url: string | null;
   website: string | null;
+  /** The portal login this record belongs to, null when it has no account. */
+  auth_user_id: string | null;
   is_donor: boolean;
   is_sponsor: boolean;
   is_volunteer: boolean;
@@ -54,5 +58,24 @@ export function rolesFor(
 ) {
   return ROLE_OPTIONS.filter((option) => person[option.key]).map(
     (option) => option.label,
+  );
+}
+
+/**
+ * Marks a person who holds a portal login account, so whoever is looking can
+ * tell who can actually sign in and act on things. Lives here rather than in
+ * person-picker.tsx because the person detail page shows the same badge; when
+ * the picker owned it, the detail page had no way to say the same thing.
+ */
+export function PortalUserBadge({
+  person,
+}: {
+  person: { auth_user_id?: string | null };
+}) {
+  if (!person.auth_user_id) return null;
+  return (
+    <Badge variant="secondary" className="shrink-0">
+      Portal user
+    </Badge>
   );
 }

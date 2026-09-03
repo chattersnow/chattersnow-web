@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -167,7 +168,19 @@ export function UsersTable({
                       className="max-w-xs truncate font-medium"
                       title={portalUserDisplayName(portalUser)}
                     >
-                      {portalUserDisplayName(portalUser)}
+                      {/* An account with no people row yet (invited but never
+                          signed in) has nothing to link to, so it stays plain
+                          text rather than a dead link. */}
+                      {portalUser.person_id ? (
+                        <Link
+                          href={`/portal/people/${portalUser.person_id}`}
+                          className="hover:underline"
+                        >
+                          {portalUserDisplayName(portalUser)}
+                        </Link>
+                      ) : (
+                        portalUserDisplayName(portalUser)
+                      )}
                     </TableCell>
                     <TableCell hideBelow="lg">
                       <PreferredNameCell

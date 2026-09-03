@@ -191,3 +191,44 @@ export async function removeOrganizationMembershipAction(
   revalidatePath("/portal/people");
   return { success: true };
 }
+
+/**
+ * Links a directory record to an existing portal login. Gated on
+ * administration:manage rather than people:manage: this grants an account
+ * whatever the person record is entitled to across the portal, which is an
+ * account-administration decision, not a contact-editing one. The RPC
+ * re-checks is_admin() server-side regardless.
+ */
+export async function linkPersonToAuthUserAction(
+  personId: string,
+  userId: string,
+): Promise<{ error: string } | { success: true }> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to link a portal account.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(
+    supabase,
+    "administration",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  const { error } = await supabase.rpc("link_person_to_auth_user", {
+    p_person_id: personId,
+    p_user_id: userId,
+  });
+  if (error) {
+    // The RPC raises readable messages for the three conflict cases (already
+    // linked elsewhere, account taken, no such record); pass them through
+    // rather than flattening them into one generic failure.
+    return { error: error.message || "Could not link this portal account." };
+  }
+
+  revalidatePath("/portal/people");
+  revalidatePath(`/portal/people/${personId}`);
+  revalidatePath("/portal/administration/users");
+  return { success: true };
+}
