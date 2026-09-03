@@ -138,3 +138,68 @@ describe("requirePermission / requireAnyPermission", () => {
     expect(redirectMock).not.toHaveBeenCalled();
   });
 });
+
+describe("permission memoization", () => {
+  test("resolves once per Supabase client, not once per call site", async () => {
+    let calls = 0;
+    const supabase = {
+      rpc: async (name: string) => {
+        calls += 1;
+        return name === "my_permissions"
+          ? { data: [{ resource_key: "events", level: "manage" }] }
+          : { data: null };
+      },
+    } as never;
+
+    // A single portal page resolves permissions from the root layout, each
+    // section layout, the page, and every Server Action it fires.
+    const [first, second, third] = await Promise.all([
+      getCurrentUserPermissions(supabase),
+      getCurrentUserPermissions(supabase),
+      getCurrentUserPermissions(supabase),
+    ]);
+
+    expect(first).toEqual({ events: "manage" });
+    expect(second).toBe(first);
+    expect(third).toBe(first);
+    // claim_pending_role_grants + my_permissions, once between them.
+    expect(calls).toBe(2);
+  });
+
+  test("a different client resolves again", async () => {
+    let calls = 0;
+    function makeClient() {
+      return {
+        rpc: async (name: string) => {
+          calls += 1;
+          return name === "my_permissions" ? { data: [] } : { data: null };
+        },
+      } as never;
+    }
+
+    await getCurrentUserPermissions(makeClient());
+    await getCurrentUserPermissions(makeClient());
+    expect(calls).toBe(4);
+  });
+
+  test("a failure isn't pinned to the client for the rest of the request", async () => {
+    let attempt = 0;
+    const supabase = {
+      rpc: async (name: string) => {
+        if (name === "claim_pending_role_grants") {
+          attempt += 1;
+          if (attempt === 1) throw new Error("network");
+          return { data: null };
+        }
+        return { data: [{ resource_key: "events", level: "view" }] };
+      },
+    } as never;
+
+    await expect(getCurrentUserPermissions(supabase)).rejects.toThrow(
+      "network",
+    );
+    await expect(getCurrentUserPermissions(supabase)).resolves.toEqual({
+      events: "view",
+    });
+  });
+});

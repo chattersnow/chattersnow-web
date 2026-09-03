@@ -13,7 +13,41 @@ const LEVEL_RANK: Record<PermissionLevel, number> = {
 
 export type PermissionMap = Record<string, PermissionLevel>;
 
+/**
+ * Memoized per Supabase client rather than with React's `cache`, because this
+ * module is also pulled into client bundles (PortalNav, the command palette)
+ * and must stay free of server-only imports.
+ *
+ * `createSupabaseServerClient` hands out one client per request, so this keys
+ * cleanly to a request: /portal/finance/expenses resolves permissions in the
+ * root layout, finance/layout.tsx, finance/expenses/layout.tsx, the page, and
+ * inside any Server Action it fires -- six-plus identical pairs of RPCs, all
+ * on the critical path. A client is per-request and collectable, so the
+ * WeakMap holds nothing between requests.
+ */
+const permissionsByClient = new WeakMap<
+  SupabaseClient,
+  Promise<PermissionMap>
+>();
+
 export async function getCurrentUserPermissions(
+  supabase: SupabaseClient,
+): Promise<PermissionMap> {
+  const cached = permissionsByClient.get(supabase);
+  if (cached) return cached;
+
+  const pending = resolvePermissions(supabase);
+  permissionsByClient.set(supabase, pending);
+  try {
+    return await pending;
+  } catch (error) {
+    // Don't pin a rejection to the client for the rest of the request.
+    permissionsByClient.delete(supabase);
+    throw error;
+  }
+}
+
+async function resolvePermissions(
   supabase: SupabaseClient,
 ): Promise<PermissionMap> {
   // Best-effort: picks up a pending_role_grants row staged after this user's
