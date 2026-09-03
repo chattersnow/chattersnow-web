@@ -62,7 +62,7 @@ const SECTION_ICONS: Record<string, typeof LayoutDashboard> = {
 export function PortalNav({ permissions }: { permissions: PermissionMap }) {
   const pathname = usePathname();
   const { state: sidebarState } = useSidebar();
-  const activeSection = activeSectionFor(pathname);
+  const activeSection = activeSectionFor(pathname) ?? null;
 
   const [openSection, setOpenSection] = useState<string | null>(activeSection);
   const [syncedSection, setSyncedSection] = useState(activeSection);

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { PermissionMap } from "@/lib/auth/permissions";
-import { firstAccessibleHref, visibleNavItems } from "./nav";
+import { activeSectionFor, firstAccessibleHref, visibleNavItems } from "./nav";
 
 describe("firstAccessibleHref", () => {
   test("skips section children the user can't open", () => {
@@ -42,5 +42,19 @@ describe("visibleNavItems", () => {
 
   test("always keeps the permission-free Dashboard entry", () => {
     expect(visibleNavItems({}).map((item) => item.value)).toEqual(["overview"]);
+  });
+});
+
+describe("activeSectionFor", () => {
+  test("matches a section by its base path, including nested routes", () => {
+    expect(activeSectionFor("/portal/finance/expenses/abc")).toBe("finance");
+    expect(activeSectionFor("/portal/home")).toBe("overview");
+  });
+
+  test("owns no section for routes outside the nav tree", () => {
+    // /portal/account used to report "overview", so the sidebar highlighted
+    // Dashboard while the user was on their account page.
+    expect(activeSectionFor("/portal/account")).toBeUndefined();
+    expect(activeSectionFor("/portal/welcome")).toBeUndefined();
   });
 });

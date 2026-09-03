@@ -367,14 +367,20 @@ export const NAV_ITEMS: readonly NavItem[] = [
   },
 ] as const;
 
-export function activeSectionFor(pathname: string): string {
+/**
+ * The nav section that owns `pathname`, or undefined when none does. Pages
+ * outside the tree (/portal/account, /portal/welcome, the 404) used to fall
+ * back to "overview", so the sidebar highlighted Dashboard while the user
+ * was somewhere else.
+ */
+export function activeSectionFor(pathname: string): string | undefined {
   for (const item of NAV_ITEMS) {
     const testPath = item.basePath ?? item.href;
     if (pathname === testPath || pathname.startsWith(`${testPath}/`)) {
       return item.value;
     }
   }
-  return "overview";
+  return undefined;
 }
 
 export function activeSubItemFor(
