@@ -1,10 +1,29 @@
 import { describe, expect, test } from "bun:test";
 import {
+  DONOR_BUCKETS,
+  donorBucketFor,
   summarizeByStatus,
   summarizeByType,
+  summarizeReceivedByDonorBucket,
   sumMovementValue,
   toNumber,
+  type ValuationMovement,
 } from "./valuation";
+
+function received(
+  sourceType: string | null,
+  faceValue: number | string | null,
+  quantity = 1,
+): ValuationMovement {
+  return {
+    movement_type: "received",
+    quantity,
+    inventory_items: {
+      face_value: faceValue,
+      donations: { people: { source_type: sourceType } },
+    },
+  };
+}
 
 describe("toNumber", () => {
   test("coerces numeric strings", () => {
@@ -75,21 +94,13 @@ describe("summarizeByStatus", () => {
 });
 
 describe("sumMovementValue", () => {
-  const movements = [
-    {
-      movement_type: "received",
-      quantity: 1,
-      inventory_items: { face_value: 50 },
-    },
-    {
-      movement_type: "received",
-      quantity: 2,
-      inventory_items: { face_value: "30" },
-    },
+  const movements: ValuationMovement[] = [
+    received("individual", 50),
+    received("individual", "30", 2),
     {
       movement_type: "distributed",
       quantity: 1,
-      inventory_items: { face_value: 20 },
+      inventory_items: { face_value: 20, donations: null },
     },
     { movement_type: "received", quantity: 1, inventory_items: null },
   ];
@@ -104,5 +115,111 @@ describe("sumMovementValue", () => {
 
   test("returns 0 when no movements match", () => {
     expect(sumMovementValue(movements, "lost")).toBe(0);
+  });
+});
+
+describe("donorBucketFor", () => {
+  test("groups brands and organizations as sponsors", () => {
+    expect(donorBucketFor("brand")).toBe("sponsor");
+    expect(donorBucketFor("organization")).toBe("sponsor");
+  });
+
+  test("keeps individuals separate", () => {
+    expect(donorBucketFor("individual")).toBe("individual");
+  });
+
+  test("groups event and other donors as other", () => {
+    expect(donorBucketFor("event")).toBe("other");
+    expect(donorBucketFor("other")).toBe("other");
+  });
+
+  test("treats a missing or unknown source type as unattributed", () => {
+    expect(donorBucketFor(null)).toBe("unattributed");
+    expect(donorBucketFor(undefined)).toBe("unattributed");
+    expect(donorBucketFor("foundation")).toBe("unattributed");
+  });
+});
+
+describe("summarizeReceivedByDonorBucket", () => {
+  const movements: ValuationMovement[] = [
+    received("brand", 100),
+    received("organization", "50", 2),
+    received("individual", 40),
+    received("event", 10),
+    received("other", 5),
+    {
+      movement_type: "distributed",
+      quantity: 1,
+      inventory_items: {
+        face_value: 999,
+        donations: { people: { source_type: "brand" } },
+      },
+    },
+  ];
+
+  test("buckets received value and quantity by donor source type", () => {
+    expect(summarizeReceivedByDonorBucket(movements)).toEqual([
+      {
+        bucket: "sponsor",
+        label: "Sponsors & orgs",
+        count: 3,
+        totalValue: 200,
+      },
+      { bucket: "individual", label: "Individuals", count: 1, totalValue: 40 },
+      { bucket: "other", label: "Other", count: 2, totalValue: 15 },
+      {
+        bucket: "unattributed",
+        label: "Unattributed",
+        count: 0,
+        totalValue: 0,
+      },
+    ]);
+  });
+
+  test("excludes movements that are not received", () => {
+    const sponsor = summarizeReceivedByDonorBucket(movements)[0];
+    expect(sponsor.totalValue).toBe(200);
+  });
+
+  test("bucket totals sum to the Value donated card figure", () => {
+    const bucketed = summarizeReceivedByDonorBucket(movements).reduce(
+      (total, row) => total + row.totalValue,
+      0,
+    );
+    expect(bucketed).toBe(sumMovementValue(movements, "received"));
+  });
+
+  test("counts an unreadable donation or donor as unattributed", () => {
+    const hidden: ValuationMovement[] = [
+      { movement_type: "received", quantity: 1, inventory_items: null },
+      {
+        movement_type: "received",
+        quantity: 1,
+        inventory_items: { face_value: 20, donations: null },
+      },
+      {
+        movement_type: "received",
+        quantity: 1,
+        inventory_items: { face_value: 30, donations: { people: null } },
+      },
+    ];
+    const result = summarizeReceivedByDonorBucket(hidden);
+    expect(result.find((row) => row.bucket === "unattributed")).toEqual({
+      bucket: "unattributed",
+      label: "Unattributed",
+      count: 3,
+      totalValue: 50,
+    });
+    expect(result.find((row) => row.bucket === "individual")?.count).toBe(0);
+  });
+
+  test("zero-fills every bucket and preserves DONOR_BUCKETS order", () => {
+    const result = summarizeReceivedByDonorBucket([]);
+    expect(result.map((row) => row.bucket)).toEqual(
+      DONOR_BUCKETS.map((bucket) => bucket.value),
+    );
+    expect(result.every((row) => row.count === 0 && row.totalValue === 0)).toBe(
+      true,
+    );
   });
 });
