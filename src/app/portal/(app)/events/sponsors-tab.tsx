@@ -2,7 +2,7 @@
 
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil } from "lucide-react";
 import {
   deleteEventSponsorAction,
   listEventSponsorsAction,
@@ -38,6 +38,7 @@ import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
 import type { TabValue } from "./event-tabs-config";
 import { Spinner } from "@/components/ui/spinner";
+import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { personDisplayName } from "@/lib/format";
 
@@ -467,16 +468,14 @@ export function SponsorsTab({
                         >
                           <Pencil />
                         </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label="Remove sponsor"
-                          disabled={isDeleting}
-                          onClick={() => handleDelete(sponsor.id)}
-                        >
-                          {isDeleting ? <Spinner /> : <Trash2 />}
-                        </Button>
+                        <ConfirmDeleteButton
+                          label="Remove sponsor"
+                          title={`Remove ${personDisplayName(sponsor.person)} as a sponsor?`}
+                          description="This deletes the sponsorship record for this event, including its contribution value. It can't be undone."
+                          confirmLabel="Remove"
+                          pending={isDeleting}
+                          onConfirm={() => handleDelete(sponsor.id)}
+                        />
                       </>
                     )}
                   </TableCell>

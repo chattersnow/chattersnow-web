@@ -2,13 +2,12 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
 import {
   deleteVolunteerHoursAction,
   type VolunteerHoursEntry,
 } from "./actions";
 import { VolunteerHoursDetailsSheet } from "./volunteer-hours-details-sheet";
-import { Button } from "@/components/ui/button";
+import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import {
   Table,
   TableBody,
@@ -17,7 +16,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Spinner } from "@/components/ui/spinner";
 import { personDisplayName } from "@/lib/format";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
@@ -80,16 +78,14 @@ export function HoursTable({
                   canManage={canManage}
                 />
                 {canManage && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Remove hours entry"
-                    disabled={isDeleting}
-                    onClick={() => handleDelete(entry.id)}
-                  >
-                    {isDeleting ? <Spinner /> : <Trash2 />}
-                  </Button>
+                  <ConfirmDeleteButton
+                    label="Remove hours entry"
+                    title={`Remove ${personDisplayName(entry.person)}'s logged hours?`}
+                    description="Volunteer hours feed grant reporting, so removing this changes reported totals. It can't be undone."
+                    confirmLabel="Remove"
+                    pending={isDeleting}
+                    onConfirm={() => handleDelete(entry.id)}
+                  />
                 )}
               </div>
             </TableCell>

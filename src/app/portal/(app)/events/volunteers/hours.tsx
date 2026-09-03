@@ -2,7 +2,6 @@
 
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
 import {
   type EventVolunteer,
   type EventVolunteerHours,
@@ -24,6 +23,7 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
+import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { personDisplayName } from "@/lib/format";
 
@@ -233,16 +233,14 @@ export function HoursSection({
                 <TableCell>{entry.hours}</TableCell>
                 <TableCell className="text-right">
                   {mode === "edit" && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Remove hours entry"
-                      disabled={isDeleting}
-                      onClick={() => onDeleteHours(entry.id)}
-                    >
-                      {isDeleting ? <Spinner /> : <Trash2 />}
-                    </Button>
+                    <ConfirmDeleteButton
+                      label="Remove hours entry"
+                      title={`Remove ${personDisplayName(entry.person)}'s logged hours?`}
+                      description="Volunteer hours feed grant reporting, so removing this changes reported totals. It can't be undone."
+                      confirmLabel="Remove"
+                      pending={isDeleting}
+                      onConfirm={() => onDeleteHours(entry.id)}
+                    />
                   )}
                 </TableCell>
               </TableRow>

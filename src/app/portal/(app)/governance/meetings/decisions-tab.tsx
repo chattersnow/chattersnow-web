@@ -2,13 +2,13 @@
 
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
 import {
   createDecisionAction,
   deleteDecisionAction,
   listDecisionsAction,
   type Decision,
 } from "./decisions-actions";
+import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -224,16 +224,14 @@ export function DecisionsTab({
                 </TableCell>
                 <TableCell className="text-right">
                   {mode === "edit" && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Remove decision"
-                      disabled={isDeleting}
-                      onClick={() => handleDelete(decision.id)}
-                    >
-                      {isDeleting ? <Spinner /> : <Trash2 />}
-                    </Button>
+                    <ConfirmDeleteButton
+                      label="Remove decision"
+                      title="Remove this decision?"
+                      description="This deletes the decision and its vote result from the meeting record. It can't be undone."
+                      confirmLabel="Remove"
+                      pending={isDeleting}
+                      onConfirm={() => handleDelete(decision.id)}
+                    />
                   )}
                 </TableCell>
               </TableRow>

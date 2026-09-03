@@ -70,6 +70,13 @@ export function UsersTable({
   const [deactivateTarget, setDeactivateTarget] = useState<PortalUser | null>(
     null,
   );
+  // Revoking a live role takes effect on the target's next request, so it
+  // gets the same confirmation step deactivation and pending-grant revocation
+  // already had -- it was the only one of the three that acted on one click.
+  const [revokeTarget, setRevokeTarget] = useState<{
+    user: PortalUser;
+    role: string;
+  } | null>(null);
 
   function runAction(promise: Promise<{ error: string } | { success: true }>) {
     setError(null);
@@ -83,6 +90,13 @@ export function UsersTable({
       setPendingRole("");
       router.refresh();
     });
+  }
+
+  function handleRevokeRole() {
+    if (!revokeTarget) return;
+    const target = revokeTarget;
+    setRevokeTarget(null);
+    runAction(revokeRoleAction(target.user.user_id, target.role));
   }
 
   function handleDeactivate() {
@@ -189,16 +203,14 @@ export function UsersTable({
                                       : undefined
                                   }
                                   onClick={() =>
-                                    runAction(
-                                      revokeRoleAction(
-                                        portalUser.user_id,
-                                        role,
-                                      ),
-                                    )
+                                    setRevokeTarget({
+                                      user: portalUser,
+                                      role,
+                                    })
                                   }
-                                  className="rounded-full p-0.5 hover:bg-black/10 disabled:pointer-events-none disabled:opacity-40 dark:hover:bg-white/10"
+                                  className="-mr-1 flex size-6 items-center justify-center rounded-full hover:bg-black/10 disabled:pointer-events-none disabled:opacity-40 dark:hover:bg-white/10"
                                 >
-                                  <X className="size-3" />
+                                  <X className="size-3.5" />
                                   <span className="sr-only">
                                     Remove {formatRoleLabel(role)}
                                   </span>
@@ -313,6 +325,43 @@ export function UsersTable({
           </Table>
         </CardContent>
       </Card>
+
+      <AlertDialog
+        open={revokeTarget !== null}
+        onOpenChange={(next) => !next && setRevokeTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {revokeTarget
+                ? `Remove the ${formatRoleLabel(revokeTarget.role)} role?`
+                : "Remove role?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {revokeTarget && (
+                <>
+                  {portalUserDisplayName(revokeTarget.user)} loses everything
+                  that role grants, from their next request onward.
+                  {revokeTarget.user.roles.length === 1
+                    ? " It's their only role, so they'll have no portal access at all."
+                    : " Their other roles are unaffected."}{" "}
+                  You can assign it again afterwards.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={handleRevokeRole}
+              disabled={isPending}
+            >
+              Remove role
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={deactivateTarget !== null}

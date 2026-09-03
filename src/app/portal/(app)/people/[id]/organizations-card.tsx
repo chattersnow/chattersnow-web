@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Trash2 } from "lucide-react";
 import {
   addOrganizationMembershipAction,
   removeOrganizationMembershipAction,
@@ -11,6 +10,7 @@ import {
 } from "../actions";
 import { PersonPicker, type PickedPerson } from "../person-picker";
 import type { OrganizationMembership } from "../people-shared";
+import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -120,20 +120,14 @@ export function OrganizationsCard({
                     </TableCell>
                     <TableCell className="text-right">
                       {canManage && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label="Remove link"
-                          disabled={isRemoving && removingId === membership.id}
-                          onClick={() => handleRemove(membership.id)}
-                        >
-                          {isRemoving && removingId === membership.id ? (
-                            <Spinner />
-                          ) : (
-                            <Trash2 />
-                          )}
-                        </Button>
+                        <ConfirmDeleteButton
+                          label="Remove link"
+                          title={`Remove the link to ${linked.name ?? "this record"}?`}
+                          description="This unlinks the two records. Neither record is deleted, and the link can be added again. "
+                          confirmLabel="Remove"
+                          pending={isRemoving && removingId === membership.id}
+                          onConfirm={() => handleRemove(membership.id)}
+                        />
                       )}
                     </TableCell>
                   </TableRow>

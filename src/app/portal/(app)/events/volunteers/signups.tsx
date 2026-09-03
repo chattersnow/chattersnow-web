@@ -2,7 +2,6 @@
 
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
 import { type EventVolunteer } from "../volunteers-actions";
 import { type EventShift } from "../shifts-actions";
 import { PersonPicker, type PickedPerson } from "../../people/person-picker";
@@ -29,6 +28,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { formatShiftRange, NONE_VALUE } from "./shifts";
 import { Spinner } from "@/components/ui/spinner";
+import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { personDisplayName } from "@/lib/format";
 
@@ -274,16 +274,14 @@ export function SignupsSection({
                   <TableCell className="app-muted">{roleLabel}</TableCell>
                   <TableCell className="text-right">
                     {mode === "edit" && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Remove volunteer"
-                        disabled={isDeleting}
-                        onClick={() => onDeleteVolunteer(volunteer.id)}
-                      >
-                        {isDeleting ? <Spinner /> : <Trash2 />}
-                      </Button>
+                      <ConfirmDeleteButton
+                        label="Remove volunteer"
+                        title={`Remove ${personDisplayName(volunteer.person)} from this event?`}
+                        description="This deletes their signup and any shift assigned to it. It can't be undone."
+                        confirmLabel="Remove"
+                        pending={isDeleting}
+                        onConfirm={() => onDeleteVolunteer(volunteer.id)}
+                      />
                     )}
                   </TableCell>
                 </TableRow>

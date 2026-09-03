@@ -2,13 +2,13 @@
 
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
 import {
   createMeetingAttendeeAction,
   deleteMeetingAttendeeAction,
   listMeetingAttendeesAction,
   type MeetingAttendee,
 } from "./attendees-actions";
+import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { PersonPicker, type PickedPerson } from "../../people/person-picker";
 import { listPeopleAction, type PersonListItem } from "../../people/actions";
@@ -203,16 +203,14 @@ export function AttendeesTab({
                 </TableCell>
                 <TableCell className="text-right">
                   {mode === "edit" && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Remove attendee"
-                      disabled={isDeleting}
-                      onClick={() => handleDelete(attendee.id)}
-                    >
-                      {isDeleting ? <Spinner /> : <Trash2 />}
-                    </Button>
+                    <ConfirmDeleteButton
+                      label="Remove attendee"
+                      title={`Remove ${personDisplayName(attendee.person)} from the attendance record?`}
+                      description="Attendance is what establishes quorum for this meeting's decisions. It can't be undone."
+                      confirmLabel="Remove"
+                      pending={isDeleting}
+                      onConfirm={() => handleDelete(attendee.id)}
+                    />
                   )}
                 </TableCell>
               </TableRow>

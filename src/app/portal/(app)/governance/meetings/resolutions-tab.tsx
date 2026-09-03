@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil } from "lucide-react";
 import {
   createResolutionAction,
   deleteResolutionAction,
@@ -17,6 +17,7 @@ import {
   type ResolutionFormState,
 } from "../resolutions/resolution-form-fields";
 import { VoteOutcomeBadge } from "../resolutions/resolution-badges";
+import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { PersonPicker, type PickedPerson } from "../../people/person-picker";
 import { listPeopleAction, type PersonListItem } from "../../people/actions";
@@ -390,16 +391,14 @@ export function ResolutionsTab({
                       >
                         <Pencil />
                       </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Remove resolution"
-                        disabled={isMutating}
-                        onClick={() => handleDelete(resolution.id)}
-                      >
-                        {isMutating ? <Spinner /> : <Trash2 />}
-                      </Button>
+                      <ConfirmDeleteButton
+                        label="Remove resolution"
+                        title="Remove this resolution?"
+                        description="This deletes the motion, its mover and its vote outcome from the meeting record. It can't be undone."
+                        confirmLabel="Remove"
+                        pending={isMutating}
+                        onConfirm={() => handleDelete(resolution.id)}
+                      />
                     </>
                   )}
                 </TableCell>

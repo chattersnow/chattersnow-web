@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
 import {
   deleteEventIncidentAction,
   listEventIncidentsAction,
@@ -12,7 +11,6 @@ import { SeverityBadge } from "./event-badges";
 import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
 import type { TabValue } from "./event-tabs-config";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -21,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Spinner } from "@/components/ui/spinner";
+import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -109,16 +107,14 @@ export function IncidentsTab({
                 </TableCell>
                 <TableCell className="text-right">
                   {mode === "edit" && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Remove incident"
-                      disabled={isDeleting}
-                      onClick={() => handleDelete(incident.id)}
-                    >
-                      {isDeleting ? <Spinner /> : <Trash2 />}
-                    </Button>
+                    <ConfirmDeleteButton
+                      label="Remove incident"
+                      title="Remove this incident?"
+                      description="This deletes the incident report, including its severity and description. Incident history is part of the record of how an event ran, and this can't be undone."
+                      confirmLabel="Remove"
+                      pending={isDeleting}
+                      onConfirm={() => handleDelete(incident.id)}
+                    />
                   )}
                 </TableCell>
               </TableRow>

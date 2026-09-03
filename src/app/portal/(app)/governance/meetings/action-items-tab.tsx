@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil } from "lucide-react";
 import {
   createActionItemAction,
   deleteActionItemAction,
@@ -17,6 +17,7 @@ import {
   packActionItemFormData,
   type ActionItemFormState,
 } from "./action-item-form-fields";
+import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { PersonPicker, type PickedPerson } from "../../people/person-picker";
 import { listPeopleAction, type PersonListItem } from "../../people/actions";
@@ -378,16 +379,14 @@ export function ActionItemsTab({
                       >
                         <Pencil />
                       </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Remove action item"
-                        disabled={isMutating}
-                        onClick={() => handleDelete(actionItem.id)}
-                      >
-                        {isMutating ? <Spinner /> : <Trash2 />}
-                      </Button>
+                      <ConfirmDeleteButton
+                        label="Remove action item"
+                        title="Remove this action item?"
+                        description="This deletes the item, its owner and its due date from the meeting record. It can't be undone."
+                        confirmLabel="Remove"
+                        pending={isMutating}
+                        onConfirm={() => handleDelete(actionItem.id)}
+                      />
                     </>
                   )}
                 </TableCell>
