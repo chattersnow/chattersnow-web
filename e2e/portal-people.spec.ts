@@ -49,6 +49,27 @@ test.describe("portal people directory", () => {
     await expect(profile.getByText("Volunteer", { exact: true })).toBeVisible();
   });
 
+  test("shows only the history cards for the roles a person holds", async ({
+    page,
+  }) => {
+    // The detail page builds its cards from the aspect registry, keyed on the
+    // person's role flags -- which are derived from the records behind them
+    // (20260903010000). Before that, every card rendered for everybody, so a
+    // person who had never donated still got an empty Donations card.
+    const card = (name: string) =>
+      page.locator('[data-slot="card"]').filter({ hasText: name });
+
+    await page.goto("/portal/people?search=Priya");
+    await page.getByRole("button", { name: "View Priya Natarajan" }).click();
+    await expect(card("Volunteer activity")).toBeVisible();
+    await expect(card("Donations")).toHaveCount(0);
+
+    await page.goto("/portal/people?search=Jamie");
+    await page.getByRole("button", { name: "View Jamie Rivera" }).click();
+    await expect(card("Donations")).toBeVisible();
+    await expect(card("Volunteer activity")).toHaveCount(0);
+  });
+
   test("searches the directory by name", async ({ page }) => {
     await page.goto("/portal/people");
 
