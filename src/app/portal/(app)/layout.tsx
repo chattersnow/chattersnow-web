@@ -26,6 +26,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { Toaster } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { HelpButton } from "./help/help-button";
@@ -71,14 +72,6 @@ export default async function PortalAppLayout({
     "reimbursement_approvals",
     "manage",
   );
-  const pendingApprovals =
-    canSeeExpenseApprovals || canSeeReimbursementApprovals
-      ? await getPendingApprovalsSummary(supabase, {
-          canSeeExpenseApprovals,
-          canSeeReimbursementApprovals,
-        })
-      : { items: [] };
-
   const canSeeVolunteerApplications = hasPermission(
     permissions,
     "volunteers",
@@ -90,28 +83,71 @@ export default async function PortalAppLayout({
     "view",
   );
   const canSeeEventCheckins = hasPermission(permissions, "events", "view");
-  const opsInbox =
-    canSeeVolunteerApplications || canSeeContactMessages || canSeeEventCheckins
-      ? await getOpsInboxSummary(supabase, {
-          canSeeVolunteerApplications,
-          canSeeContactMessages,
-          canSeeEventCheckins,
-        })
-      : { items: [] };
-
   const canSeeContentCalendar = hasPermission(
     permissions,
     "content_calendar",
     "view",
   );
+  const canManageContentCalendar = hasPermission(
+    permissions,
+    "content_calendar",
+    "manage",
+  );
+  const canSeeAccessManagement = hasPermission(
+    permissions,
+    "access_management_assets",
+    "view",
+  );
+
+  // These reads are independent of each other, and this layout re-runs on
+  // every portal navigation -- including every filter submit, which is a full
+  // document navigation. Awaiting them one at a time put seven round trips on
+  // the critical path of literally every interaction. Only the content-work
+  // summary has a dependency (it needs the current person's id), so it chains
+  // off that promise rather than forcing a second wave for everything.
+  //
   // Also provisions a people row for this account on first sign-in: every
   // owner column in the portal references public.people, so a portal user
   // without one can't be assigned anything.
-  const currentPerson = await ensureCurrentPerson(supabase);
+  const currentPersonPromise = ensureCurrentPerson(supabase);
+  const [
+    currentPerson,
+    onboarding,
+    pendingApprovals,
+    opsInbox,
+    contentWork,
+    calendarCoverageReminder,
+    accessManagementAlerts,
+  ] = await Promise.all([
+    currentPersonPromise,
+    // Records this account's first arrival and tells us what it has already
+    // been shown. No-ops after the first call.
+    ensureMyOnboarding(supabase),
+    canSeeExpenseApprovals || canSeeReimbursementApprovals
+      ? getPendingApprovalsSummary(supabase, {
+          canSeeExpenseApprovals,
+          canSeeReimbursementApprovals,
+        })
+      : { items: [] },
+    canSeeVolunteerApplications || canSeeContactMessages || canSeeEventCheckins
+      ? getOpsInboxSummary(supabase, {
+          canSeeVolunteerApplications,
+          canSeeContactMessages,
+          canSeeEventCheckins,
+        })
+      : { items: [] },
+    canSeeContentCalendar
+      ? currentPersonPromise.then((person) =>
+          getContentWorkSummary(supabase, {
+            canSeeContentCalendar,
+            personId: person?.person_id ?? null,
+          }),
+        )
+      : { items: [] },
+    getCalendarCoverageReminderSummary(supabase, { canManageContentCalendar }),
+    getAccessManagementAttentionSummary(supabase, { canSeeAccessManagement }),
+  ]);
 
-  // Records this account's first arrival and tells us what it has already been
-  // shown. No-ops after the first call.
-  const onboarding = await ensureMyOnboarding(supabase);
   const welcomeOwed =
     onboarding !== null && onboarding.welcomeCompletedAt === null;
   // Release notes wait their turn: a brand-new user gets the introduction, not
@@ -123,33 +159,6 @@ export default async function PortalAppLayout({
     RELEASE_NOTES.length > 0 &&
     (onboarding.lastReleaseSeen === null ||
       onboarding.lastReleaseSeen < CURRENT_RELEASE);
-
-  const contentWork = canSeeContentCalendar
-    ? await getContentWorkSummary(supabase, {
-        canSeeContentCalendar,
-        personId: currentPerson?.person_id ?? null,
-      })
-    : { items: [] };
-
-  const canManageContentCalendar = hasPermission(
-    permissions,
-    "content_calendar",
-    "manage",
-  );
-  const calendarCoverageReminder = await getCalendarCoverageReminderSummary(
-    supabase,
-    { canManageContentCalendar },
-  );
-
-  const canSeeAccessManagement = hasPermission(
-    permissions,
-    "access_management_assets",
-    "view",
-  );
-  const accessManagementAlerts = await getAccessManagementAttentionSummary(
-    supabase,
-    { canSeeAccessManagement },
-  );
 
   const attentionItems = [
     ...pendingApprovals.items,
@@ -262,6 +271,10 @@ export default async function PortalAppLayout({
             {whatsNewOwed && (
               <WhatsNewDialog key={CURRENT_RELEASE} initialOpen />
             )}
+            {/* One viewport for the whole portal: the sidebar quick actions
+                save from every route, so the confirmation has to live above
+                the page rather than inside it. */}
+            <Toaster />
           </SidebarInset>
         </SidebarProvider>
       </PortalHelpProvider>
