@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { SortHeaderButton } from "@/components/portal/sort-header-link";
 import { Card, CardContent } from "@/components/ui/card";
 import { FiltersSheet } from "@/components/filters-sheet";
 import { Input } from "@/components/ui/input";
@@ -216,23 +216,17 @@ export function RevenueTable({
             <TableHeader>
               <TableRow>
                 {SORT_COLUMNS.map((column) => (
-                  <TableHead key={column.key}>
-                    <button
-                      type="button"
-                      onClick={() => handleSort(column.key)}
-                      className="inline-flex items-center gap-1 hover:text-foreground"
-                    >
-                      {column.label}
-                      {sortKey === column.key ? (
-                        sortDirection === "asc" ? (
-                          <ArrowUp className="size-3.5" />
-                        ) : (
-                          <ArrowDown className="size-3.5" />
-                        )
-                      ) : (
-                        <ArrowUpDown className="size-3.5 text-muted-foreground" />
-                      )}
-                    </button>
+                  <TableHead
+                    key={column.key}
+                    sortDirection={
+                      sortKey === column.key ? sortDirection : null
+                    }
+                  >
+                    <SortHeaderButton
+                      label={column.label}
+                      dir={sortKey === column.key ? sortDirection : null}
+                      onSort={() => handleSort(column.key)}
+                    />
                   </TableHead>
                 ))}
                 <TableHead>Event</TableHead>

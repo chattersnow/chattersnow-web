@@ -2,7 +2,8 @@
 
 import { ReactNode, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowDown, ArrowUp, ArrowUpDown, Eye } from "lucide-react";
+import { Eye } from "lucide-react";
+import { SortHeaderButton } from "@/components/portal/sort-header-link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -121,23 +122,17 @@ export function MeetingsTable({
               <TableHeader>
                 <TableRow>
                   {SORT_COLUMNS.map((column) => (
-                    <TableHead key={column.key}>
-                      <button
-                        type="button"
-                        onClick={() => handleSort(column.key)}
-                        className="inline-flex items-center gap-1 hover:text-foreground"
-                      >
-                        {column.label}
-                        {sortKey === column.key ? (
-                          sortDirection === "asc" ? (
-                            <ArrowUp className="size-3.5" />
-                          ) : (
-                            <ArrowDown className="size-3.5" />
-                          )
-                        ) : (
-                          <ArrowUpDown className="size-3.5 text-muted-foreground" />
-                        )}
-                      </button>
+                    <TableHead
+                      key={column.key}
+                      sortDirection={
+                        sortKey === column.key ? sortDirection : null
+                      }
+                    >
+                      <SortHeaderButton
+                        label={column.label}
+                        dir={sortKey === column.key ? sortDirection : null}
+                        onSort={() => handleSort(column.key)}
+                      />
                     </TableHead>
                   ))}
                   <TableHead className="w-0">

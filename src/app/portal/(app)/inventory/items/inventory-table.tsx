@@ -80,7 +80,10 @@ export function InventoryTable({
               <TableHeader>
                 <TableRow>
                   {SORT_COLUMNS.map((column) => (
-                    <TableHead key={column.key}>
+                    <TableHead
+                      key={column.key}
+                      sortDirection={sort === column.key ? dir : null}
+                    >
                       <SortHeaderLink
                         href={sortHref(column.key)}
                         label={column.label}

@@ -39,6 +39,12 @@ function Table({
         data-slot="table"
         className={cn(
           "w-full caption-bottom text-sm",
+          // Row actions are ghost icon buttons, which show no border or fill
+          // until hovered -- on a touch device that means no affordance at
+          // all, just a column of grey glyphs to guess at. Inside a cell they
+          // keep a faint resting outline; the hover and focus treatments the
+          // variant already provides still take over on top.
+          "[&_td_[data-slot=button][data-variant=ghost]]:border-[var(--line)]",
           stickyFirstColumn && [
             "[&_tr>*:first-child]:sticky [&_tr>*:first-child]:left-0 [&_tr>*:first-child]:z-10 [&_tr>*:first-child]:bg-card",
             // The pinned cell needs an opaque background to sit over the
@@ -105,14 +111,30 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
 function TableHead({
   className,
   hideBelow,
+  sortDirection,
   ...props
 }: React.ComponentProps<"th"> & {
   /** Drop this column below the given breakpoint. Must match the body cell. */
   hideBelow?: HideBelow;
+  /**
+   * Set on every header of a sortable table -- null for the columns that
+   * aren't the active sort. `aria-sort` appeared nowhere in the codebase, so
+   * no sorted table announced its state.
+   */
+  sortDirection?: "asc" | "desc" | null;
 }) {
   return (
     <th
       data-slot="table-head"
+      aria-sort={
+        sortDirection === undefined
+          ? undefined
+          : sortDirection === "asc"
+            ? "ascending"
+            : sortDirection === "desc"
+              ? "descending"
+              : "none"
+      }
       className={cn(
         "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
         hideBelow && HIDE_BELOW[hideBelow],

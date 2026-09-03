@@ -401,7 +401,11 @@ export default async function FinanceDonationsPage({
                   <TableRow>
                     <TableHead>Donor</TableHead>
                     {COLUMNS.map((column) => (
-                      <TableHead key={column.key} hideBelow={column.hideBelow}>
+                      <TableHead
+                        key={column.key}
+                        hideBelow={column.hideBelow}
+                        sortDirection={sort === column.key ? dir : null}
+                      >
                         <SortHeaderLink
                           href={sortHref(column.key)}
                           label={column.label}
