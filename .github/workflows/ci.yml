@@ -210,24 +210,10 @@ jobs:
         if: always()
         run: supabase stop
 
-  dependency-review:
-    name: Dependency review
-    runs-on: ubuntu-latest
-    # Diffs the PR's dependency changes against the base branch and blocks
-    # newly *introduced* vulnerabilities. This is the complement to the
-    # `bun audit` step above, which judges the whole tree: a PR that adds a
-    # vulnerable package fails here even while the existing tree is clean.
-    # The action reads the dependency graph, which only exists for a PR.
-    if: github.event_name == 'pull_request'
-    permissions:
-      contents: read
-      pull-requests: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Dependency review
-        uses: actions/dependency-review-action@v4
-        with:
-          fail-on-severity: high
-          comment-summary-in-pr: on-failure
+  # A `dependency-review` job belongs here, to block PRs that introduce a
+  # vulnerable dependency (the per-PR complement to the whole-tree `bun audit`
+  # step above). It is left out for now because this repository has no
+  # dependency graph — the action fails with "Dependency review is not
+  # supported on this repository", and /dependency-graph/sbom returns 404.
+  # Enable the dependency graph under Settings > Advanced Security (it may be
+  # disabled at the organization level), then add the job back.
