@@ -12,16 +12,8 @@ import {
 import { EditBylawsModal } from "./edit-bylaws-modal";
 import { NewBylawsDialog } from "./new-bylaws-dialog";
 import type { Bylaws } from "./bylaws-actions";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
+import { formatCalendarDate } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 export function BylawsTable({
   bylaws,
@@ -40,9 +32,14 @@ export function BylawsTable({
         )}
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No bylaws recorded yet.
-            </p>
+            <EmptyState
+              title="No bylaws recorded yet"
+              description={
+                canManage
+                  ? "Add the first one with Add bylaws version above."
+                  : "Bylaws appear here once a governance manager adds them."
+              }
+            />
           </CardContent>
         </Card>
       </div>
@@ -68,7 +65,7 @@ export function BylawsTable({
             <span className="font-medium">{current.version}</span>
           </div>
           <p className="app-muted text-sm">
-            Effective {formatDate(current.effective_date)}
+            Effective {formatCalendarDate(current.effective_date)}
           </p>
           {current.external_link && (
             <a
@@ -119,7 +116,7 @@ export function BylawsTable({
                         {entry.version}
                       </TableCell>
                       <TableCell className="app-muted">
-                        {formatDate(entry.effective_date)}
+                        {formatCalendarDate(entry.effective_date)}
                       </TableCell>
                       <TableCell
                         className="app-muted max-w-xs truncate"

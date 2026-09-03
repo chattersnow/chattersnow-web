@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { SortHeaderButton } from "@/components/portal/sort-header-link";
 import { Card, CardContent } from "@/components/ui/card";
 import { FiltersSheet } from "@/components/filters-sheet";
 import { Input } from "@/components/ui/input";
@@ -24,13 +24,13 @@ import { EditRevenueModal } from "./edit-revenue-modal";
 import { RevenueSourceBadge } from "./revenue-badges";
 import {
   REVENUE_SOURCES,
-  formatAmount,
-  formatRevenueDate,
   revenueSourceLabel,
   type EventOption,
   type RevenueRow,
   type RevenueSource,
 } from "./revenue-shared";
+import { formatCalendarDate, formatCurrency } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 type SortKey = "received_date" | "source" | "amount";
 
@@ -112,9 +112,14 @@ export function RevenueTable({
         )}
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No revenue recorded yet.
-            </p>
+            <EmptyState
+              title="No revenue recorded yet"
+              description={
+                action
+                  ? "Record the first one with New Revenue above."
+                  : "Revenue appears here once someone records it."
+              }
+            />
           </CardContent>
         </Card>
       </div>
@@ -216,23 +221,17 @@ export function RevenueTable({
             <TableHeader>
               <TableRow>
                 {SORT_COLUMNS.map((column) => (
-                  <TableHead key={column.key}>
-                    <button
-                      type="button"
-                      onClick={() => handleSort(column.key)}
-                      className="inline-flex items-center gap-1 hover:text-foreground"
-                    >
-                      {column.label}
-                      {sortKey === column.key ? (
-                        sortDirection === "asc" ? (
-                          <ArrowUp className="size-3.5" />
-                        ) : (
-                          <ArrowDown className="size-3.5" />
-                        )
-                      ) : (
-                        <ArrowUpDown className="size-3.5 text-muted-foreground" />
-                      )}
-                    </button>
+                  <TableHead
+                    key={column.key}
+                    sortDirection={
+                      sortKey === column.key ? sortDirection : null
+                    }
+                  >
+                    <SortHeaderButton
+                      label={column.label}
+                      dir={sortKey === column.key ? sortDirection : null}
+                      onSort={() => handleSort(column.key)}
+                    />
                   </TableHead>
                 ))}
                 <TableHead>Event</TableHead>
@@ -258,9 +257,9 @@ export function RevenueTable({
                       <RevenueSourceBadge source={row.source} />
                     </TableCell>
                     <TableCell>
-                      {formatRevenueDate(row.received_date)}
+                      {formatCalendarDate(row.received_date)}
                     </TableCell>
-                    <TableCell>{formatAmount(row.amount)}</TableCell>
+                    <TableCell>{formatCurrency(row.amount)}</TableCell>
                     <TableCell className="app-muted">
                       {row.events?.name ?? "—"}
                     </TableCell>

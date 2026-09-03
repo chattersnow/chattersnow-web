@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
@@ -10,6 +11,10 @@ import type { PersonListItem } from "../../people/actions";
 
 const PARTNERSHIP_SELECT =
   "id, stage, next_step_date, notes, organization:people!organization_person_id(id, name, preferred_name, email, phone), owner:people!owner_person_id(id, name, preferred_name, email, phone)";
+
+export const metadata: Metadata = {
+  title: "Partnerships",
+};
 
 export default async function PartnershipsPage() {
   const supabase = await createSupabaseServerClient();

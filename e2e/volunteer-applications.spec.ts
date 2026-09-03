@@ -11,6 +11,7 @@ import { test, expect } from "@playwright/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { seedUserWithRole } from "./helpers/rbac";
+import { modal } from "./helpers/dialog";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -83,7 +84,7 @@ test.describe("portal volunteer applications", () => {
       await expect(row).toBeVisible();
       await expect(row).toContainText(application.email);
       await expect(row).toContainText("Ride Buddy");
-      await expect(row).toContainText("new");
+      await expect(row).toContainText("New");
     } finally {
       await application.cleanup();
     }
@@ -98,7 +99,7 @@ test.describe("portal volunteer applications", () => {
       await page.goto("/portal/volunteers/applications");
 
       await page.getByRole("button", { name: /^Filters/ }).click();
-      const filters = page.getByRole("dialog");
+      const filters = modal(page);
       await filters.getByLabel("Search").fill(application.name);
       await filters
         .getByRole("button", { name: "Filter", exact: true })
@@ -107,7 +108,7 @@ test.describe("portal volunteer applications", () => {
       await expect(page).toHaveURL(/search=E2E/);
       const row = page.getByRole("row").filter({ hasText: application.name });
       await expect(row).toBeVisible();
-      await expect(row).toContainText("being reviewed");
+      await expect(row).toContainText("Being reviewed");
 
       // Apply the status filter by URL: the sheet's form-submit path is
       // covered just above, and a click issued right after that native GET
@@ -115,7 +116,7 @@ test.describe("portal volunteer applications", () => {
       // pattern as portal-people.spec.ts).
       await page.goto(`${application.url}&status=declined`);
       await expect(
-        page.getByText("No applications match your filters."),
+        page.getByText("No applications match your filters"),
       ).toBeVisible();
     } finally {
       await application.cleanup();
@@ -136,7 +137,7 @@ test.describe("portal volunteer applications", () => {
         })
         .click();
 
-      const sheet = page.getByRole("dialog");
+      const sheet = modal(page);
       await expect(
         sheet.getByRole("heading", { name: "Volunteer application" }),
       ).toBeVisible();
@@ -150,8 +151,8 @@ test.describe("portal volunteer applications", () => {
       await status.click();
       // Base UI renders the popup outside the sheet, so the options are
       // only reachable from the page root.
-      await page.getByRole("option", { name: "placed", exact: true }).click();
-      await expect(status).toContainText("placed");
+      await page.getByRole("option", { name: "Placed", exact: true }).click();
+      await expect(status).toContainText("Placed");
 
       // The sheet is modal, so the table behind it is aria-hidden until
       // it's closed -- no role-based locator resolves against the row
@@ -160,7 +161,7 @@ test.describe("portal volunteer applications", () => {
       await expect(sheet).not.toBeVisible();
 
       const row = page.getByRole("row").filter({ hasText: application.name });
-      await expect(row).toContainText("placed");
+      await expect(row).toContainText("Placed");
     } finally {
       await application.cleanup();
     }
@@ -187,9 +188,9 @@ test.describe("portal volunteer applications", () => {
         })
         .click();
 
-      const sheet = page.getByRole("dialog");
+      const sheet = modal(page);
       await expect(sheet.getByText("Weekend mornings")).toBeVisible();
-      await expect(sheet.getByText("new", { exact: true })).toBeVisible();
+      await expect(sheet.getByText("New", { exact: true })).toBeVisible();
       await expect(
         sheet.getByRole("combobox", { name: "Application status" }),
       ).not.toBeAttached();

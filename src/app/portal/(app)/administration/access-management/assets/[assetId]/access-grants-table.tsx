@@ -23,6 +23,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/portal/empty-state";
 import {
   Table,
   TableBody,
@@ -176,8 +177,11 @@ export function AccessGrantsTable({
   if (grants.length === 0) {
     return (
       <Card>
-        <CardContent className="app-muted px-4 py-6 text-sm">
-          No access grants recorded for this asset yet.
+        <CardContent>
+          <EmptyState
+            title="No access grants recorded for this asset yet"
+            description="Record who has access with Add access grant above."
+          />
         </CardContent>
       </Card>
     );

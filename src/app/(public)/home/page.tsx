@@ -12,17 +12,13 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSiteImageUrls } from "@/lib/site-images";
 import { isPageVisible } from "@/lib/page-visibility";
 import { nowMs } from "@/lib/time";
+import { formatDateTime } from "@/lib/format";
 
 const CAROUSEL_SLOTS = [
   "home_carousel_1",
   "home_carousel_2",
   "home_carousel_3",
 ] as const;
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
 
 export default async function Home() {
   const supabase = await createSupabaseServerClient();
@@ -110,7 +106,7 @@ export default async function Home() {
               {nextEvent.name}
             </h2>
             <p className="app-muted mt-2 text-sm">
-              {dateFormatter.format(new Date(nextEvent.starts_at))}
+              {formatDateTime(nextEvent.starts_at)}
               {nextEvent.location && ` · ${nextEvent.location}`}
             </p>
             <Button

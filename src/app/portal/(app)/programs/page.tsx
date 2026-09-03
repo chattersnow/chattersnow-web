@@ -4,6 +4,7 @@ import {
   getCurrentUserPermissions,
   hasPermission,
 } from "@/lib/auth/permissions";
+import { EmptyState } from "@/components/portal/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -57,7 +58,14 @@ export default async function ProgramsPage() {
               Could not load programs. Please try again.
             </p>
           ) : !programs || programs.length === 0 ? (
-            <p className="app-muted px-4 py-6 text-sm">No programs yet.</p>
+            <EmptyState
+              title="No programs yet"
+              description={
+                canManage
+                  ? "Add the first one with New program above."
+                  : "Programs appear here once someone with programs access creates one."
+              }
+            />
           ) : (
             <Table>
               <TableHeader>

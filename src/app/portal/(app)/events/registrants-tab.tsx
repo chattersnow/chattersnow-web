@@ -25,11 +25,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+import { formatDateTime } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 export function RegistrantsTab({
   eventId,
@@ -111,15 +108,18 @@ export function RegistrantsTab({
       {registrants === undefined ? (
         <TabLoadingSkeleton />
       ) : list.length === 0 ? (
-        <p className="app-muted text-sm">No one has registered yet.</p>
+        <EmptyState
+          title="No one has registered yet"
+          description="Registrations arrive from the public event page. Walk-ins can be added with + Add registrant or + Check in walk-in above."
+        />
       ) : (
-        <Table>
+        <Table stickyFirstColumn>
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>Contact</TableHead>
-              <TableHead>Party size</TableHead>
-              <TableHead>Registered</TableHead>
+              <TableHead hideBelow="md">Contact</TableHead>
+              <TableHead hideBelow="sm">Party size</TableHead>
+              <TableHead hideBelow="lg">Registered</TableHead>
               <TableHead>Checked in</TableHead>
               {mode === "edit" && <TableHead className="w-px" />}
             </TableRow>
@@ -133,20 +133,21 @@ export function RegistrantsTab({
                 >
                   {registrant.name}
                 </TableCell>
-                <TableCell className="app-muted">
+                <TableCell hideBelow="md" className="app-muted">
                   {registrant.email}
                   {registrant.phone && (
                     <span className="block text-xs">{registrant.phone}</span>
                   )}
                 </TableCell>
-                <TableCell>{registrant.party_size}</TableCell>
-                <TableCell className="app-muted whitespace-nowrap">
-                  {dateFormatter.format(new Date(registrant.created_at))}
+                <TableCell hideBelow="sm">{registrant.party_size}</TableCell>
+                <TableCell
+                  hideBelow="lg"
+                  className="app-muted whitespace-nowrap"
+                >
+                  {formatDateTime(registrant.created_at)}
                 </TableCell>
                 <TableCell className="app-muted whitespace-nowrap">
-                  {registrant.checked_in_at
-                    ? dateFormatter.format(new Date(registrant.checked_in_at))
-                    : "—"}
+                  {formatDateTime(registrant.checked_in_at)}
                 </TableCell>
                 {mode === "edit" && (
                   <TableCell className="text-right whitespace-nowrap">

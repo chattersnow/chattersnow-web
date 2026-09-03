@@ -1,6 +1,11 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { PermissionsMatrix } from "./permissions-matrix";
+
+export const metadata: Metadata = {
+  title: "Permissions",
+};
 
 export default async function PermissionsPage() {
   const supabase = await createSupabaseServerClient();

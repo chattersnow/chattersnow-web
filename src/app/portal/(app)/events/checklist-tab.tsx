@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
 import {
   deleteEventChecklistItemAction,
   listEventChecklistItemsAction,
@@ -12,10 +11,11 @@ import {
 import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
 import type { TabValue } from "./event-tabs-config";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
+import { EmptyState } from "@/components/portal/empty-state";
 
 export function ChecklistTab({
   eventId,
@@ -93,7 +93,10 @@ export function ChecklistTab({
       {items === null ? (
         <TabLoadingSkeleton />
       ) : items.length === 0 ? (
-        <p className="app-muted text-sm">No checklist items yet.</p>
+        <EmptyState
+          title="No checklist items yet"
+          description="Add the first one with + Add item above."
+        />
       ) : (
         <div className="flex flex-col gap-1">
           {items.length > 0 && (
@@ -121,16 +124,14 @@ export function ChecklistTab({
                   {item.title}
                 </span>
                 {mode === "edit" && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Remove checklist item"
-                    disabled={pendingIds.has(item.id)}
-                    onClick={() => handleDelete(item.id)}
-                  >
-                    <Trash2 />
-                  </Button>
+                  <ConfirmDeleteButton
+                    label="Remove checklist item"
+                    title={`Remove "${item.title}"?`}
+                    description="This deletes the checklist item from this event. It can't be undone."
+                    confirmLabel="Remove"
+                    pending={pendingIds.has(item.id)}
+                    onConfirm={() => handleDelete(item.id)}
+                  />
                 )}
               </li>
             ))}

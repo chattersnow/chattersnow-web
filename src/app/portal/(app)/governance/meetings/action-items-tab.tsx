@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil } from "lucide-react";
 import {
   createActionItemAction,
   deleteActionItemAction,
@@ -17,6 +17,7 @@ import {
   packActionItemFormData,
   type ActionItemFormState,
 } from "./action-item-form-fields";
+import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { PersonPicker, type PickedPerson } from "../../people/person-picker";
 import { listPeopleAction, type PersonListItem } from "../../people/actions";
@@ -42,17 +43,8 @@ import {
 } from "@/components/ui/table";
 import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
-import { personDisplayName } from "@/lib/format";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
+import { formatCalendarDate, personDisplayName } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 function ownerFrom(actionItem: ActionItem): PickedPerson {
   return actionItem.owner;
@@ -335,7 +327,14 @@ export function ActionItemsTab({
       {actionItems === undefined ? (
         <TabLoadingSkeleton />
       ) : actionItems.length === 0 && !showAdd ? (
-        <p className="app-muted text-sm">No action items recorded yet.</p>
+        <EmptyState
+          title="No action items recorded yet"
+          description={
+            mode === "edit"
+              ? "Add the first one with Add action item below."
+              : "Action items appear here once a governance manager records them for this meeting."
+          }
+        />
       ) : (
         <Table>
           <TableHeader>
@@ -357,7 +356,7 @@ export function ActionItemsTab({
                   {personDisplayName(actionItem.owner)}
                 </TableCell>
                 <TableCell className="app-muted">
-                  {formatDate(actionItem.due_date)}
+                  {formatCalendarDate(actionItem.due_date)}
                 </TableCell>
                 <TableCell>
                   <Checkbox
@@ -378,16 +377,14 @@ export function ActionItemsTab({
                       >
                         <Pencil />
                       </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Remove action item"
-                        disabled={isMutating}
-                        onClick={() => handleDelete(actionItem.id)}
-                      >
-                        {isMutating ? <Spinner /> : <Trash2 />}
-                      </Button>
+                      <ConfirmDeleteButton
+                        label="Remove action item"
+                        title="Remove this action item?"
+                        description="This deletes the item, its owner and its due date from the meeting record. It can't be undone."
+                        confirmLabel="Remove"
+                        pending={isMutating}
+                        onConfirm={() => handleDelete(actionItem.id)}
+                      />
                     </>
                   )}
                 </TableCell>

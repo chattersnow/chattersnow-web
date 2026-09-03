@@ -36,11 +36,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+import { toast } from "@/components/ui/toast";
+import { formatDateTime } from "@/lib/format";
 
 export function MessageDetailsSheet({
   message,
@@ -62,7 +59,12 @@ export function MessageDetailsSheet({
         if (refresh) setError(result.error);
         return;
       }
-      if (refresh) router.refresh();
+      // `refresh` is false only for the automatic mark-as-read on open, which
+      // isn't a user action and shouldn't be announced as one.
+      if (refresh) {
+        toast.success("Message status updated.");
+        router.refresh();
+      }
     });
   }
 
@@ -120,7 +122,7 @@ export function MessageDetailsSheet({
           <div className="flex flex-1 flex-col gap-0.5">
             <SheetTitle>Contact message</SheetTitle>
             <SheetDescription>
-              Submitted {dateFormatter.format(new Date(message.created_at))}
+              Submitted {formatDateTime(message.created_at)}
             </SheetDescription>
           </div>
         </SheetHeader>

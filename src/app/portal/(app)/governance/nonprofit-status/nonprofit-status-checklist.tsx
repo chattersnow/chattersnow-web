@@ -1,5 +1,7 @@
 "use client";
 
+import { StatusBadge } from "@/components/portal/status-badge";
+
 import { useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,7 +35,8 @@ import {
 import type { MilestoneStatus } from "./nonprofit-status-form";
 import type { PersonListItem } from "../../people/actions";
 import { Spinner } from "@/components/ui/spinner";
-import { personDisplayName } from "@/lib/format";
+import { formatCalendarDate, personDisplayName } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 // The Phase 1-5 checklist from supabase/migrations/20260824210000_create_nonprofit_status_milestones.sql,
 // in migration order. `milestones` already arrives sorted by `sort_order`
@@ -48,16 +51,6 @@ const PHASE_ORDER = [
   "Phase 4 — State fundraising registration (NY)",
   "Phase 5 — Fundraising infrastructure",
 ];
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
 
 function groupByPhase(milestones: Milestone[]) {
   const groups = new Map<string, Milestone[]>();
@@ -153,9 +146,9 @@ export function NonprofitStatusChecklist({
             {completeCount} of {milestones.length} complete
           </p>
           {atRiskCount > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
+            <StatusBadge tone="warning" className="gap-1">
               {atRiskCount} due soon or overdue
-            </span>
+            </StatusBadge>
           )}
         </div>
         {canManage && (
@@ -166,9 +159,14 @@ export function NonprofitStatusChecklist({
       {phaseGroups.length === 0 ? (
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No milestones recorded yet.
-            </p>
+            <EmptyState
+              title="No milestones recorded yet"
+              description={
+                canManage
+                  ? "Add the first one with Add milestone above."
+                  : "Milestones appear here once a governance manager adds them."
+              }
+            />
           </CardContent>
         </Card>
       ) : (
@@ -215,7 +213,9 @@ export function NonprofitStatusChecklist({
                         </TableCell>
                         <TableCell className="app-muted">
                           <div className="flex flex-wrap items-center gap-1.5">
-                            <span>{formatDate(milestone.due_date)}</span>
+                            <span>
+                              {formatCalendarDate(milestone.due_date)}
+                            </span>
                             <MilestoneDueFlag
                               dueDate={milestone.due_date}
                               status={milestone.status}

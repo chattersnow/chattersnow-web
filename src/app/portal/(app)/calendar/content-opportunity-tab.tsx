@@ -41,11 +41,8 @@ import type {
   TemplateField,
 } from "./content-brief-template-shared";
 import { Spinner } from "@/components/ui/spinner";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+import { formatDateTime } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 function toDatetimeLocalValue(iso: string | null) {
   if (!iso) return "";
@@ -300,14 +297,24 @@ export function ContentOpportunityTab({
 
   if (!opportunity && mode === "view") {
     return (
-      <div className="flex flex-col items-start gap-3 py-2">
+      <div className="flex flex-col gap-3 py-2">
         {toneGuidanceBanner}
-        <p className="app-muted text-sm">No content brief yet for this item.</p>
-        {canManage && (
-          <Button type="button" variant="secondary" onClick={startEditing}>
-            Start content brief
-          </Button>
-        )}
+        <EmptyState
+          className="py-4"
+          title="No content brief yet for this item"
+          description={
+            canManage
+              ? "Start one to capture the angle, owner, and consent for this piece."
+              : "A brief appears here once a content manager starts one."
+          }
+          action={
+            canManage ? (
+              <Button type="button" variant="secondary" onClick={startEditing}>
+                Start content brief
+              </Button>
+            ) : undefined
+          }
+        />
       </div>
     );
   }
@@ -389,19 +396,13 @@ export function ContentOpportunityTab({
           </Field>
           <Field orientation="responsive">
             <ReadOnlyField label="Draft due" htmlFor="brief-draft-due">
-              {opportunity.draft_due_at
-                ? dateFormatter.format(new Date(opportunity.draft_due_at))
-                : "—"}
+              {formatDateTime(opportunity.draft_due_at)}
             </ReadOnlyField>
             <ReadOnlyField label="Review due" htmlFor="brief-review-due">
-              {opportunity.review_due_at
-                ? dateFormatter.format(new Date(opportunity.review_due_at))
-                : "—"}
+              {formatDateTime(opportunity.review_due_at)}
             </ReadOnlyField>
             <ReadOnlyField label="Publish due" htmlFor="brief-publish-due">
-              {opportunity.publish_due_at
-                ? dateFormatter.format(new Date(opportunity.publish_due_at))
-                : "—"}
+              {formatDateTime(opportunity.publish_due_at)}
             </ReadOnlyField>
           </Field>
           <ReadOnlyField label="Lead time" htmlFor="brief-lead-time">
@@ -566,7 +567,7 @@ export function ContentOpportunityTab({
           {opportunity.status_changed_at && (
             <p className="app-muted text-xs">
               Status last changed{" "}
-              {dateFormatter.format(new Date(opportunity.status_changed_at))} by{" "}
+              {formatDateTime(opportunity.status_changed_at)} by{" "}
               {calendarActorName(
                 owners,
                 opportunity.status_changed_by,

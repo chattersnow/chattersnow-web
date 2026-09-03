@@ -2,13 +2,12 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
 import {
   deleteVolunteerHoursAction,
   type VolunteerHoursEntry,
 } from "./actions";
 import { VolunteerHoursDetailsSheet } from "./volunteer-hours-details-sheet";
-import { Button } from "@/components/ui/button";
+import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import {
   Table,
   TableBody,
@@ -17,10 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Spinner } from "@/components/ui/spinner";
-import { personDisplayName } from "@/lib/format";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
+import { formatCalendarDate, personDisplayName } from "@/lib/format";
 
 export function HoursTable({
   entries,
@@ -40,13 +36,13 @@ export function HoursTable({
   }
 
   return (
-    <Table>
+    <Table stickyFirstColumn>
       <TableHeader>
         <TableRow>
           <TableHead>Volunteer</TableHead>
-          <TableHead>Event</TableHead>
-          <TableHead>Role</TableHead>
-          <TableHead>Date</TableHead>
+          <TableHead hideBelow="md">Event</TableHead>
+          <TableHead hideBelow="lg">Role</TableHead>
+          <TableHead hideBelow="sm">Date</TableHead>
           <TableHead>Hours</TableHead>
           <TableHead className="w-px" />
         </TableRow>
@@ -61,16 +57,17 @@ export function HoursTable({
               {personDisplayName(entry.person)}
             </TableCell>
             <TableCell
+              hideBelow="md"
               className="max-w-xs truncate app-muted"
               title={entry.event?.name ?? undefined}
             >
               {entry.event?.name ?? "—"}
             </TableCell>
-            <TableCell className="app-muted">
+            <TableCell hideBelow="lg" className="app-muted">
               {entry.volunteer_role_type?.name ?? "—"}
             </TableCell>
-            <TableCell className="app-muted">
-              {dateFormatter.format(new Date(entry.logged_date))}
+            <TableCell hideBelow="sm" className="app-muted">
+              {formatCalendarDate(entry.logged_date)}
             </TableCell>
             <TableCell>{entry.hours}</TableCell>
             <TableCell className="text-right">
@@ -80,16 +77,14 @@ export function HoursTable({
                   canManage={canManage}
                 />
                 {canManage && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Remove hours entry"
-                    disabled={isDeleting}
-                    onClick={() => handleDelete(entry.id)}
-                  >
-                    {isDeleting ? <Spinner /> : <Trash2 />}
-                  </Button>
+                  <ConfirmDeleteButton
+                    label="Remove hours entry"
+                    title={`Remove ${personDisplayName(entry.person)}'s logged hours?`}
+                    description="Volunteer hours feed grant reporting, so removing this changes reported totals. It can't be undone."
+                    confirmLabel="Remove"
+                    pending={isDeleting}
+                    onConfirm={() => handleDelete(entry.id)}
+                  />
                 )}
               </div>
             </TableCell>

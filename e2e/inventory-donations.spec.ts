@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { reloadStayingSignedIn, signIn } from "./helpers/auth";
+import { modal } from "./helpers/dialog";
 
 test.describe("portal inventory donations", () => {
   test.beforeEach(async ({ page }) => {
@@ -25,7 +26,7 @@ test.describe("portal inventory donations", () => {
     const itemDescription = `E2E Test Jacket ${Date.now()}`;
 
     await page.getByRole("button", { name: "Add donation" }).click();
-    const addSheet = page.getByRole("dialog");
+    const addSheet = modal(page);
     await expect(
       addSheet.getByRole("heading", { name: "Record a donation" }),
     ).toBeVisible();
@@ -69,7 +70,7 @@ test.describe("portal inventory donations", () => {
     await expect(page.getByText(itemDescription)).toBeVisible();
 
     await page.getByRole("button", { name: "Edit", exact: true }).click();
-    const editSheet = page.getByRole("dialog");
+    const editSheet = modal(page);
     await expect(
       editSheet.getByRole("heading", { name: "Edit donation" }),
     ).toBeVisible();
@@ -80,12 +81,11 @@ test.describe("portal inventory donations", () => {
     await expect(editSheet).not.toBeVisible();
     await expect(page.getByText(updatedNotes)).toBeVisible();
 
-    // The back link returns to the list (a Link rendered through the Button
-    // primitive, so it's exposed as a button). Scoped to main: the sidebar
-    // has its own "Donations" nav entry.
+    // The breadcrumb trail returns to the list. Scoped to the breadcrumb nav:
+    // the sidebar has its own "Donations" nav entry.
     await page
-      .getByRole("main")
-      .getByRole("button", { name: "Donations", exact: true })
+      .getByRole("navigation", { name: "Breadcrumb" })
+      .getByRole("link", { name: "Donations", exact: true })
       .click();
     await expect(page).toHaveURL(/\/portal\/inventory\/donations(\?.*)?$/);
   });

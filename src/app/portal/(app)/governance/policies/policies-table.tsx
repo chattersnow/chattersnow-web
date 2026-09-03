@@ -20,18 +20,10 @@ import {
 } from "@/components/ui/table";
 import { EditPolicyModal } from "./edit-policy-modal";
 import type { Policy } from "./policies-actions";
+import { formatCalendarDate } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 const FILTER_ALL = "all";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
 
 export function PoliciesTable({
   policies,
@@ -113,9 +105,14 @@ export function PoliciesTable({
       {policies.length === 0 ? (
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No policies recorded yet.
-            </p>
+            <EmptyState
+              title="No policies recorded yet"
+              description={
+                canManage
+                  ? "Add the first one with Add policy above."
+                  : "Policies appear here once a governance manager adds them."
+              }
+            />
           </CardContent>
         </Card>
       ) : (
@@ -153,7 +150,7 @@ export function PoliciesTable({
                         {policy.version}
                       </TableCell>
                       <TableCell className="app-muted">
-                        {formatDate(policy.effective_date)}
+                        {formatCalendarDate(policy.effective_date)}
                       </TableCell>
                       <TableCell>
                         {canManage && <EditPolicyModal policy={policy} />}

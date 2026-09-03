@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil } from "lucide-react";
 import {
   createResolutionAction,
   deleteResolutionAction,
@@ -17,6 +17,7 @@ import {
   type ResolutionFormState,
 } from "../resolutions/resolution-form-fields";
 import { VoteOutcomeBadge } from "../resolutions/resolution-badges";
+import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { PersonPicker, type PickedPerson } from "../../people/person-picker";
 import { listPeopleAction, type PersonListItem } from "../../people/actions";
@@ -41,17 +42,8 @@ import {
 } from "@/components/ui/table";
 import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
-import { personDisplayName } from "@/lib/format";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
+import { formatCalendarDate, personDisplayName } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 function AddResolutionForm({
   people,
@@ -351,7 +343,14 @@ export function ResolutionsTab({
       {resolutions === undefined ? (
         <TabLoadingSkeleton />
       ) : resolutions.length === 0 && !showAdd ? (
-        <p className="app-muted text-sm">No resolutions recorded yet.</p>
+        <EmptyState
+          title="No resolutions recorded yet"
+          description={
+            mode === "edit"
+              ? "Record the first one with Add resolution below."
+              : "Resolutions appear here once a governance manager records them for this meeting."
+          }
+        />
       ) : (
         <Table>
           <TableHeader>
@@ -376,7 +375,7 @@ export function ResolutionsTab({
                   <VoteOutcomeBadge outcome={resolution.vote_outcome} />
                 </TableCell>
                 <TableCell className="app-muted">
-                  {formatDate(resolution.effective_date)}
+                  {formatCalendarDate(resolution.effective_date)}
                 </TableCell>
                 <TableCell className="text-right whitespace-nowrap">
                   {mode === "edit" && (
@@ -390,16 +389,14 @@ export function ResolutionsTab({
                       >
                         <Pencil />
                       </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Remove resolution"
-                        disabled={isMutating}
-                        onClick={() => handleDelete(resolution.id)}
-                      >
-                        {isMutating ? <Spinner /> : <Trash2 />}
-                      </Button>
+                      <ConfirmDeleteButton
+                        label="Remove resolution"
+                        title="Remove this resolution?"
+                        description="This deletes the motion, its mover and its vote outcome from the meeting record. It can't be undone."
+                        confirmLabel="Remove"
+                        pending={isMutating}
+                        onConfirm={() => handleDelete(resolution.id)}
+                      />
                     </>
                   )}
                 </TableCell>

@@ -41,16 +41,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
+import { toast } from "@/components/ui/toast";
+import { formatCalendarDate } from "@/lib/format";
 
 function formStateFor(disclosure: Disclosure): DisclosureFormState {
   return {
@@ -170,6 +162,7 @@ export function EditDisclosureModal({
         return;
       }
       setMode("view");
+      toast.success("Disclosure saved.");
       router.refresh();
     });
   }
@@ -272,7 +265,7 @@ export function EditDisclosureModal({
                   label="On-file date"
                   htmlFor="edit-disclosure-on-file-date"
                 >
-                  {formatDate(disclosure.on_file_date)}
+                  {formatCalendarDate(disclosure.on_file_date)}
                 </ReadOnlyField>
                 <ReadOnlyField label="Notes" htmlFor="edit-disclosure-notes">
                   <span className="whitespace-pre-wrap">

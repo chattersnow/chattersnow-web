@@ -2,7 +2,7 @@
 
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil } from "lucide-react";
 import {
   deleteEventSponsorAction,
   listEventSponsorsAction,
@@ -38,8 +38,10 @@ import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
 import type { TabValue } from "./event-tabs-config";
 import { Spinner } from "@/components/ui/spinner";
+import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
-import { personDisplayName } from "@/lib/format";
+import { formatCurrency, personDisplayName } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 const SUPPORT_TYPES = [
   { value: "cash", label: "Cash" },
@@ -53,17 +55,6 @@ const FOLLOW_UP_STATUSES = [
   { value: "in_progress", label: "In progress" },
   { value: "done", label: "Done" },
 ];
-
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
-
-function formatValue(value: number | string | null) {
-  if (value === null || value === undefined) return "—";
-  const numeric = typeof value === "string" ? Number(value) : value;
-  return Number.isFinite(numeric) ? currencyFormatter.format(numeric) : "—";
-}
 
 export type SponsorFormState = {
   supportType: string;
@@ -403,9 +394,10 @@ export function SponsorsTab({
       {sponsors === undefined ? (
         <TabLoadingSkeleton />
       ) : sortedSponsors.length === 0 ? (
-        <p className="app-muted text-sm">
-          No sponsors or partners recorded yet.
-        </p>
+        <EmptyState
+          title="No sponsors or partners recorded yet"
+          description="Add the first one with + Add sponsor above."
+        />
       ) : (
         <Table>
           <TableHeader>
@@ -450,7 +442,7 @@ export function SponsorsTab({
                     {sponsor.support_type.replace("_", " ")}
                   </TableCell>
                   <TableCell>
-                    {formatValue(sponsor.contribution_value)}
+                    {formatCurrency(sponsor.contribution_value)}
                   </TableCell>
                   <TableCell className="app-muted">
                     {sponsor.is_public ? "Yes" : "No"}
@@ -467,16 +459,14 @@ export function SponsorsTab({
                         >
                           <Pencil />
                         </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label="Remove sponsor"
-                          disabled={isDeleting}
-                          onClick={() => handleDelete(sponsor.id)}
-                        >
-                          {isDeleting ? <Spinner /> : <Trash2 />}
-                        </Button>
+                        <ConfirmDeleteButton
+                          label="Remove sponsor"
+                          title={`Remove ${personDisplayName(sponsor.person)} as a sponsor?`}
+                          description="This deletes the sponsorship record for this event, including its contribution value. It can't be undone."
+                          confirmLabel="Remove"
+                          pending={isDeleting}
+                          onConfirm={() => handleDelete(sponsor.id)}
+                        />
                       </>
                     )}
                   </TableCell>

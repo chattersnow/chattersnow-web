@@ -1,9 +1,9 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { SortHeaderLink } from "@/components/portal/sort-header-link";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import {
   Table,
@@ -12,10 +12,13 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  type HideBelow,
 } from "@/components/ui/table";
 import { HowToSection } from "@/components/how-to-section";
 import { PageHelpContent } from "../../help/help-context";
+import { ActiveFilters, type ActiveFilter } from "@/components/active-filters";
 import { FiltersSheet } from "@/components/filters-sheet";
+import { SearchField } from "@/components/search-field";
 import { FilterSubmitButton } from "@/components/filter-submit-button";
 import { LinkPendingPulse } from "@/components/link-pending";
 import {
@@ -33,13 +36,13 @@ import {
   DONATION_COLUMNS,
   PAYMENT_METHODS,
   donorLabel,
-  formatAmount,
-  formatDonationDate,
   isPaymentMethod,
   paymentMethodLabel,
   type EventOption,
   type MonetaryDonationRow,
 } from "./donations-shared";
+import { formatCalendarDate, formatCurrency } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 type DonationsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -52,14 +55,22 @@ function isSortColumn(value: string | undefined): value is SortColumn {
   return !!value && (SORTABLE_COLUMNS as readonly string[]).includes(value);
 }
 
-const COLUMNS: { key: SortColumn; label: string }[] = [
-  { key: "received_date", label: "Date" },
+const COLUMNS: {
+  key: SortColumn;
+  label: string;
+  hideBelow?: HideBelow;
+}[] = [
+  { key: "received_date", label: "Date", hideBelow: "sm" },
   { key: "amount", label: "Amount" },
-  { key: "method", label: "Method" },
+  { key: "method", label: "Method", hideBelow: "lg" },
 ];
 
 const selectClassName =
   "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
+
+export const metadata: Metadata = {
+  title: "Donations",
+};
 
 export default async function FinanceDonationsPage({
   searchParams,
@@ -156,11 +167,39 @@ export default async function FinanceDonationsPage({
     donorFilter !== "all" ||
     methodFilter !== "all";
   const activeFilterCount = [
-    !!search,
     eventFilter !== "all",
     donorFilter !== "all",
     methodFilter !== "all",
   ].filter(Boolean).length;
+  // Named in the toolbar rather than hidden behind the Filters count, so a
+  // partially filtered table says why it's short.
+  const appliedFilters: ActiveFilter[] = [];
+  if (search) {
+    appliedFilters.push({ param: "search", label: "Search", value: search });
+  }
+  if (eventFilter !== "all") {
+    appliedFilters.push({
+      param: "event",
+      label: "Event",
+      value:
+        eventOptions.find((event) => event.id === eventFilter)?.name ??
+        eventFilter,
+    });
+  }
+  if (donorFilter !== "all") {
+    appliedFilters.push({
+      param: "donor",
+      label: "Donor",
+      value: "Anonymous",
+    });
+  }
+  if (methodFilter !== "all") {
+    appliedFilters.push({
+      param: "method",
+      label: "Method",
+      value: paymentMethodLabel(methodFilter),
+    });
+  }
 
   return (
     <>
@@ -233,25 +272,26 @@ export default async function FinanceDonationsPage({
 
       <div className="mt-6 space-y-4">
         <div className="rainbow-surface flex flex-wrap items-center justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+          <SearchField
+            action="/portal/finance/donations"
+            defaultValue={search}
+            placeholder="Search donor, notes..."
+            preserve={{
+              event: eventFilter,
+              donor: donorFilter,
+              method: methodFilter,
+              sort,
+              dir,
+            }}
+          />
           <FiltersSheet activeCount={activeFilterCount}>
             <form method="get" className="flex flex-col gap-4">
               <input type="hidden" name="sort" value={sort} />
               <input type="hidden" name="dir" value={dir} />
 
-              <div className="flex flex-col gap-1">
-                <label
-                  htmlFor="search"
-                  className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-                >
-                  Search
-                </label>
-                <Input
-                  id="search"
-                  name="search"
-                  placeholder="Search notes..."
-                  defaultValue={search}
-                />
-              </div>
+              {/* Search lives in the toolbar now; carry it through so
+                  applying a filter here doesn't drop the current query. */}
+              <input type="hidden" name="search" value={search} />
 
               <div className="flex flex-col gap-1">
                 <label
@@ -334,21 +374,44 @@ export default async function FinanceDonationsPage({
           <NewDonationDialog events={eventOptions} people={peopleOptions} />
         </div>
 
+        <ActiveFilters
+          action="/portal/finance/donations"
+          filters={appliedFilters}
+          params={{
+            search,
+            event: eventFilter,
+            donor: donorFilter,
+            method: methodFilter,
+            sort,
+            dir,
+          }}
+        />
+
         <Card>
           <CardContent className="px-0">
             {donationRows.length === 0 ? (
-              <p className="app-muted px-4 py-6 text-sm">
-                {hasActiveFilters
-                  ? "No donations match your filters."
-                  : "No donations recorded yet."}
-              </p>
+              hasActiveFilters ? (
+                <EmptyState
+                  title="No donations match your filters"
+                  description="Clear or loosen the filters to see more."
+                />
+              ) : (
+                <EmptyState
+                  title="No donations recorded yet"
+                  description="Record the first one with New donation above."
+                />
+              )
             ) : (
-              <Table>
+              <Table stickyFirstColumn>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Donor</TableHead>
                     {COLUMNS.map((column) => (
-                      <TableHead key={column.key}>
+                      <TableHead
+                        key={column.key}
+                        hideBelow={column.hideBelow}
+                        sortDirection={sort === column.key ? dir : null}
+                      >
                         <SortHeaderLink
                           href={sortHref(column.key)}
                           label={column.label}
@@ -356,7 +419,7 @@ export default async function FinanceDonationsPage({
                         />
                       </TableHead>
                     ))}
-                    <TableHead>Event</TableHead>
+                    <TableHead hideBelow="md">Event</TableHead>
                     <TableHead className="w-0">
                       <span className="sr-only">Actions</span>
                     </TableHead>
@@ -368,14 +431,14 @@ export default async function FinanceDonationsPage({
                       <TableCell className="whitespace-normal">
                         {donorLabel(donation)}
                       </TableCell>
-                      <TableCell>
-                        {formatDonationDate(donation.received_date)}
+                      <TableCell hideBelow="sm">
+                        {formatCalendarDate(donation.received_date)}
                       </TableCell>
-                      <TableCell>{formatAmount(donation.amount)}</TableCell>
-                      <TableCell>
+                      <TableCell>{formatCurrency(donation.amount)}</TableCell>
+                      <TableCell hideBelow="lg">
                         <PaymentMethodBadge method={donation.method} />
                       </TableCell>
-                      <TableCell className="app-muted">
+                      <TableCell hideBelow="md" className="app-muted">
                         {donation.events?.name ?? "—"}
                       </TableCell>
                       <TableCell>

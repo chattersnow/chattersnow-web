@@ -7,6 +7,6 @@ export default async function AdministrationPermissionsLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createSupabaseServerClient();
-  await requirePermission(supabase, "administration", "manage");
+  await requirePermission(supabase, "administration", "manage", "Permissions");
   return children;
 }

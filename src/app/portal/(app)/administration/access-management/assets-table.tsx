@@ -15,6 +15,7 @@ import { isReviewDue } from "@/lib/portal/access-management/review-cadence";
 import type { AssetListRow } from "@/lib/portal/access-management/types";
 import { DeleteAssetButton } from "./delete-asset-button";
 import { humanize } from "./labels";
+import { EmptyState } from "@/components/portal/empty-state";
 
 const SENSITIVITY_BADGE_VARIANT: Record<
   string,
@@ -36,8 +37,11 @@ export function AssetsTable({
   if (assets.length === 0) {
     return (
       <Card>
-        <CardContent className="app-muted px-4 py-6 text-sm">
-          No assets found. Add the first one to start tracking access.
+        <CardContent>
+          <EmptyState
+            title="No assets found"
+            description="Add the first one with New asset above to start tracking access."
+          />
         </CardContent>
       </Card>
     );
@@ -46,17 +50,17 @@ export function AssetsTable({
   return (
     <Card>
       <CardContent className="px-0">
-        <Table>
+        <Table stickyFirstColumn>
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>Service</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Sensitivity</TableHead>
-              <TableHead>MFA</TableHead>
+              <TableHead hideBelow="md">Service</TableHead>
+              <TableHead hideBelow="lg">Category</TableHead>
+              <TableHead hideBelow="lg">Sensitivity</TableHead>
+              <TableHead hideBelow="lg">MFA</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Permissions</TableHead>
-              <TableHead>Next review</TableHead>
+              <TableHead hideBelow="lg">Permissions</TableHead>
+              <TableHead hideBelow="md">Next review</TableHead>
               <TableHead className="w-px" />
             </TableRow>
           </TableHeader>
@@ -71,13 +75,13 @@ export function AssetsTable({
                     {asset.name}
                   </Link>
                 </TableCell>
-                <TableCell className="app-muted">
+                <TableCell hideBelow="md" className="app-muted">
                   {asset.service?.name ?? "—"}
                 </TableCell>
-                <TableCell className="app-muted">
+                <TableCell hideBelow="lg" className="app-muted">
                   {humanize(asset.category)}
                 </TableCell>
-                <TableCell>
+                <TableCell hideBelow="lg">
                   <Badge
                     variant={
                       SENSITIVITY_BADGE_VARIANT[asset.sensitivity] ?? "outline"
@@ -87,18 +91,18 @@ export function AssetsTable({
                     {asset.sensitivity}
                   </Badge>
                 </TableCell>
-                <TableCell className="app-muted capitalize">
+                <TableCell hideBelow="lg" className="app-muted capitalize">
                   {asset.mfa_status}
                 </TableCell>
                 <TableCell className="app-muted capitalize">
                   {asset.status}
                 </TableCell>
-                <TableCell>
+                <TableCell hideBelow="lg">
                   <Badge variant="outline">
                     {activeGrantCounts[asset.id] ?? 0}
                   </Badge>
                 </TableCell>
-                <TableCell>
+                <TableCell hideBelow="md">
                   {asset.next_review ? (
                     <span
                       className={

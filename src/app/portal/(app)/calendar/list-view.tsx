@@ -28,11 +28,7 @@ import {
   type CalendarItemRow,
   type CalendarOwner,
 } from "./calendar-shared";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+import { formatDateTime } from "@/lib/format";
 
 export type ListSortColumn = "title" | "starts_at" | "calendar_status";
 
@@ -160,9 +156,7 @@ export function ListView({
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    {dateFormatter.format(new Date(item.starts_at))}
-                  </TableCell>
+                  <TableCell>{formatDateTime(item.starts_at)}</TableCell>
                   <TableCell>
                     <CalendarStatusBadge status={item.calendar_status} />
                   </TableCell>

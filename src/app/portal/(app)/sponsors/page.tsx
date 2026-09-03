@@ -7,8 +7,8 @@ import {
   hasPermission,
 } from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/portal/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import {
   Table,
@@ -26,8 +26,7 @@ import {
   quoteOrValue,
   totalPagesFor,
 } from "@/lib/pagination";
-import { FiltersSheet } from "@/components/filters-sheet";
-import { FilterSubmitButton } from "@/components/filter-submit-button";
+import { SearchField } from "@/components/search-field";
 import { LinkPendingPulse } from "@/components/link-pending";
 import { NewPersonDialog } from "../people/new-person-dialog";
 import { rolesFor, type PersonRow } from "../people/people-shared";
@@ -105,38 +104,12 @@ export default async function SponsorsPage({
       </div>
 
       <div className="mt-6 space-y-4">
-        <div className="rainbow-surface flex flex-wrap items-center justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
-          <FiltersSheet activeCount={hasActiveFilters ? 1 : 0}>
-            <form method="get" className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <label
-                  htmlFor="search"
-                  className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-                >
-                  Search
-                </label>
-                <Input
-                  id="search"
-                  name="search"
-                  placeholder="Search name, email, phone..."
-                  defaultValue={search}
-                />
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <FilterSubmitButton />
-                {hasActiveFilters && (
-                  <Button
-                    variant="ghost"
-                    nativeButton={false}
-                    render={<Link href="/portal/sponsors" />}
-                  >
-                    <LinkPendingPulse>Clear</LinkPendingPulse>
-                  </Button>
-                )}
-              </div>
-            </form>
-          </FiltersSheet>
+        <div className="rainbow-surface flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+          <SearchField
+            action="/portal/sponsors"
+            defaultValue={search}
+            placeholder="Search name, email, phone..."
+          />
 
           {canManage && (
             <NewPersonDialog
@@ -150,11 +123,20 @@ export default async function SponsorsPage({
         <Card>
           <CardContent className="px-0">
             {peopleRows.length === 0 ? (
-              <p className="app-muted px-4 py-6 text-sm">
-                {hasActiveFilters
-                  ? "No sponsors match your filters."
-                  : "No sponsors added yet."}
-              </p>
+              <EmptyState
+                title={
+                  hasActiveFilters
+                    ? "No sponsors match your filters"
+                    : "No sponsors added yet"
+                }
+                description={
+                  hasActiveFilters
+                    ? "Clear the search to see everyone."
+                    : canManage
+                      ? "Add the first one with New Sponsor above, or record a sponsor on an event's Sponsors tab."
+                      : "Sponsors appear here once someone is added with the sponsor role or recorded on an event's Sponsors tab."
+                }
+              />
             ) : (
               <Table>
                 <TableHeader>
@@ -213,7 +195,12 @@ export default async function SponsorsPage({
         </Card>
 
         {peopleRows.length > 0 && (
-          <Pagination page={page} totalPages={totalPages} hrefFor={pageHref} />
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            count={count}
+            hrefFor={pageHref}
+          />
         )}
       </div>
     </>

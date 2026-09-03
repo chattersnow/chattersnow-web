@@ -39,16 +39,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
+import { toast } from "@/components/ui/toast";
+import { formatCalendarDate } from "@/lib/format";
 
 function formStateFor(policy: Policy): PolicyFormState {
   return {
@@ -141,6 +133,7 @@ export function EditPolicyModal({ policy }: { policy: Policy }) {
         return;
       }
       setMode("view");
+      toast.success("Policy saved.");
       router.refresh();
     });
   }
@@ -243,7 +236,7 @@ export function EditPolicyModal({ policy }: { policy: Policy }) {
                   label="Effective date"
                   htmlFor="edit-policy-effective-date"
                 >
-                  {formatDate(policy.effective_date)}
+                  {formatCalendarDate(policy.effective_date)}
                 </ReadOnlyField>
                 <ReadOnlyField
                   label="External link"

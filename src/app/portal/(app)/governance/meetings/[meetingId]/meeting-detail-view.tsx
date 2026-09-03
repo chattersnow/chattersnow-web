@@ -1,6 +1,7 @@
 "use client";
 
 import { ReactNode, useEffect, useRef, useState } from "react";
+import { useUrlTabState } from "@/components/portal/use-url-tab-state";
 import { Pencil } from "lucide-react";
 import type { MeetingRow } from "../meeting-badges";
 import { MeetingStatusBadge, MeetingTypeBadge } from "../meeting-badges";
@@ -29,13 +30,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+import { formatDateTime } from "@/lib/format";
 
 type TabValue = "overview" | "agenda";
+
+function isTabValue(value: string): value is TabValue {
+  return value === "overview" || value === "agenda";
+}
 
 function SectionCard({
   id,
@@ -126,7 +127,12 @@ export function MeetingDetailView({
   meeting: MeetingRow;
   canManage: boolean;
 }) {
-  const [tab, setTab] = useState<TabValue>("overview");
+  // In the URL rather than in state, so Back returns to the previous tab
+  // instead of leaving the meeting, and a link can point at the agenda.
+  const [tab, setTab] = useUrlTabState<TabValue>({
+    fallback: "overview",
+    isValid: isTabValue,
+  });
   const [agendaMode, setAgendaMode] = useState<"view" | "edit">("view");
   const [agendaDirty, setAgendaDirty] = useState(false);
   const [pendingTab, setPendingTab] = useState<TabValue | null>(null);
@@ -177,7 +183,7 @@ export function MeetingDetailView({
       <div>
         <div className="w-fit">
           <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-            {dateFormatter.format(new Date(meeting.meeting_date))}
+            {formatDateTime(meeting.meeting_date)}
           </h1>
           <div className="rainbow-accent mt-3 w-full" />
         </div>

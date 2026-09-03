@@ -7,8 +7,8 @@ import {
   hasPermission,
 } from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/portal/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import {
   Table,
@@ -26,7 +26,9 @@ import {
   quoteOrValue,
   totalPagesFor,
 } from "@/lib/pagination";
+import { ActiveFilters, type ActiveFilter } from "@/components/active-filters";
 import { FiltersSheet } from "@/components/filters-sheet";
+import { SearchField } from "@/components/search-field";
 import { FilterSubmitButton } from "@/components/filter-submit-button";
 import { LinkPendingPulse } from "@/components/link-pending";
 import { NewPersonDialog } from "./new-person-dialog";
@@ -110,9 +112,22 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
 
   const totalPages = totalPagesFor(count);
   const hasActiveFilters = !!search || roleFilter !== "all";
-  const activeFilterCount = [!!search, roleFilter !== "all"].filter(
-    Boolean,
-  ).length;
+  const activeFilterCount = [roleFilter !== "all"].filter(Boolean).length;
+  // Named in the toolbar rather than hidden behind the Filters count, so a
+  // partially filtered table says why it's short.
+  const appliedFilters: ActiveFilter[] = [];
+  if (search) {
+    appliedFilters.push({ param: "search", label: "Search", value: search });
+  }
+  if (roleFilter !== "all") {
+    appliedFilters.push({
+      param: "role",
+      label: "Role",
+      value:
+        ROLE_OPTIONS.find((option) => option.key === roleFilter)?.label ??
+        roleFilter,
+    });
+  }
 
   return (
     <>
@@ -125,22 +140,17 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
 
       <div className="mt-6 space-y-4">
         <div className="rainbow-surface flex flex-wrap items-center justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+          <SearchField
+            action="/portal/people"
+            defaultValue={search}
+            placeholder="Search name, email, phone..."
+            preserve={{ role: roleFilter }}
+          />
           <FiltersSheet activeCount={activeFilterCount}>
             <form method="get" className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <label
-                  htmlFor="search"
-                  className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-                >
-                  Search
-                </label>
-                <Input
-                  id="search"
-                  name="search"
-                  placeholder="Search name, email, phone..."
-                  defaultValue={search}
-                />
-              </div>
+              {/* Search lives in the toolbar now; carry it through so
+                  applying a filter here doesn't drop the current query. */}
+              <input type="hidden" name="search" value={search} />
 
               <div className="flex flex-col gap-1">
                 <label
@@ -182,22 +192,37 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
           {canManage && <NewPersonDialog people={peopleOptions ?? []} />}
         </div>
 
+        <ActiveFilters
+          action="/portal/people"
+          filters={appliedFilters}
+          params={{ search, role: roleFilter }}
+        />
+
         <Card>
           <CardContent className="px-0">
             {peopleRows.length === 0 ? (
-              <p className="app-muted px-4 py-6 text-sm">
-                {hasActiveFilters
-                  ? "No people match your filters."
-                  : "No people added yet."}
-              </p>
+              <EmptyState
+                title={
+                  hasActiveFilters
+                    ? "No people match your filters"
+                    : "No people added yet"
+                }
+                description={
+                  hasActiveFilters
+                    ? "Clear or loosen the filters to see more."
+                    : canManage
+                      ? "Add the first one with New Person above."
+                      : "People appear here once someone is added to the directory or registers for an event."
+                }
+              />
             ) : (
-              <Table>
+              <Table stickyFirstColumn>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Roles</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Phone</TableHead>
+                    <TableHead hideBelow="md">Email</TableHead>
+                    <TableHead hideBelow="lg">Phone</TableHead>
                     <TableHead className="w-0">
                       <span className="sr-only">Actions</span>
                     </TableHead>
@@ -220,10 +245,10 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
                       <TableCell className="app-muted">
                         {rolesFor(person).join(", ") || "—"}
                       </TableCell>
-                      <TableCell className="app-muted">
+                      <TableCell hideBelow="md" className="app-muted">
                         {person.email ?? "—"}
                       </TableCell>
-                      <TableCell className="app-muted">
+                      <TableCell hideBelow="lg" className="app-muted">
                         {person.phone ?? "—"}
                       </TableCell>
                       <TableCell className="text-right">
@@ -248,7 +273,12 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
         </Card>
 
         {peopleRows.length > 0 && (
-          <Pagination page={page} totalPages={totalPages} hrefFor={pageHref} />
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            count={count}
+            hrefFor={pageHref}
+          />
         )}
       </div>
     </>

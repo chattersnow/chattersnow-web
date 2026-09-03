@@ -23,6 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { TemplateListRow } from "./template-shared";
+import { EmptyState } from "@/components/portal/empty-state";
 
 const FILTER_ALL = "all";
 
@@ -100,7 +101,14 @@ export function TemplatesTable({
       {templates.length === 0 ? (
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">No templates yet.</p>
+            <EmptyState
+              title="No templates yet"
+              description={
+                newAction
+                  ? "Add the first one with New template above."
+                  : "Templates appear here once a calendar manager adds them."
+              }
+            />
           </CardContent>
         </Card>
       ) : (

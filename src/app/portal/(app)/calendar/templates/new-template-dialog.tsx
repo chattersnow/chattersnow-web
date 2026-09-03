@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { TemplateField } from "../content-brief-template-shared";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 function getInitialFormState() {
   return { key: "", name: "", description: "", requiresConsent: false };
@@ -71,6 +72,7 @@ export function NewTemplateDialog() {
         return;
       }
       handleOpenChange(false);
+      toast.success("Brief template created.");
       router.refresh();
     });
   }

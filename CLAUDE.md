@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Chatter Snow's public website and operations portal — a Next.js App Router site with a public marketing site and an authenticated admin portal for managing events, donations, inventory, expenses, programs, and a content/community calendar. The full product spec lives in `docs/technical-spec.md`; read it before implementing any portal/data-model feature. The portal is well past skeleton stage: it has built-out administration, finance (donations, expenses, reimbursements, revenue), governance, inventory, events, people, programs, volunteers, and content/community-calendar modules (`src/app/portal/(app)/*`), backed by 100+ Supabase migrations covering donations/inventory, events, event sponsors/expenses/revenue, people, role-scoped and data-driven RLS, giveaways, governance (board members, meetings, agendas, resolutions), volunteers, programs, reimbursements, nonprofit-status tracking, and the content/community calendar.
 
-Keep your replies extremely concise and focus on coveying the key information. No unnecessary fluff, no long code snippets.
+Keep your replies extremely concise and focus on coveying the key information. No unnecessary fluff, no long code snippets. Follow solid principles.
 
 ## Commands
 

@@ -13,6 +13,8 @@ import {
 import { cn } from "@/lib/utils";
 import { ActionBadge, TABLE_LABELS } from "./audit-log-badges";
 import { computeDiff } from "./diff";
+import { formatDateTime } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 export type AuditLogRow = {
   id: string;
@@ -24,11 +26,6 @@ export type AuditLogRow = {
   old_data: Record<string, unknown> | null;
   new_data: Record<string, unknown> | null;
 };
-
-const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
 
 function formatValue(value: unknown): string {
   if (value === null || value === undefined) return "—";
@@ -64,15 +61,18 @@ export function AuditLogDetailSheet({ row }: { row: AuditLogRow }) {
             <ActionBadge action={row.action} />
           </SheetTitle>
           <SheetDescription>
-            {dateTimeFormatter.format(new Date(row.occurred_at))} by{" "}
-            {row.actor_label} · record{" "}
+            {formatDateTime(row.occurred_at)} by {row.actor_label} · record{" "}
             <span className="font-mono">{row.record_id}</span>
           </SheetDescription>
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto px-4 pb-4">
           {entries.length === 0 ? (
-            <p className="app-muted text-sm">No field changes recorded.</p>
+            <EmptyState
+              className="py-4"
+              title="No field changes recorded"
+              description="This entry did not change any tracked fields."
+            />
           ) : (
             <div className="flex flex-col gap-2">
               {entries.map((entry) => (

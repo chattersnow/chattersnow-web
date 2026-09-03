@@ -12,6 +12,8 @@
 import { test, expect, type Page } from "@playwright/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
+import { modal } from "./helpers/dialog";
+import { markOnboarded } from "./helpers/onboarding";
 
 type RoleUser = {
   userId: string;
@@ -34,6 +36,7 @@ async function createRoleUser(
     throw userError ?? new Error("createUser returned no user");
   }
   const userId = userData.user.id;
+  await markOnboarded(admin, userId);
 
   const { data: role, error: roleError } = await admin
     .from("roles")
@@ -103,7 +106,7 @@ test.describe("portal finance reimbursements", () => {
       const description = `E2E Reimbursement ${Date.now()}`;
 
       await page.getByRole("button", { name: "New Reimbursement" }).click();
-      const addDialog = page.getByRole("dialog");
+      const addDialog = modal(page);
       await expect(
         addDialog.getByRole("heading", { name: "Add reimbursement" }),
       ).toBeVisible();
@@ -124,10 +127,10 @@ test.describe("portal finance reimbursements", () => {
 
       const row = page.getByRole("row").filter({ hasText: description });
       await expect(row).toBeVisible();
-      await expect(row).toContainText("submitted");
+      await expect(row).toContainText("Submitted");
 
       await row.getByRole("button", { name: "View reimbursement" }).click();
-      const viewSheet = page.getByRole("dialog");
+      const viewSheet = modal(page);
       await expect(
         viewSheet.getByText("you can self-approve this"),
       ).toBeVisible();
@@ -169,7 +172,7 @@ test.describe("portal finance reimbursements", () => {
       const description = `E2E Reimbursement ${Date.now()}`;
 
       await page.getByRole("button", { name: "New Reimbursement" }).click();
-      const addDialog = page.getByRole("dialog");
+      const addDialog = modal(page);
       await addDialog
         .getByPlaceholder("Search by name or email...")
         .fill(requester.name);
@@ -189,7 +192,7 @@ test.describe("portal finance reimbursements", () => {
       await submitterRow
         .getByRole("button", { name: "View reimbursement" })
         .click();
-      const submitterSheet = page.getByRole("dialog");
+      const submitterSheet = modal(page);
       await expect(
         submitterSheet.getByText(
           "needs approval from another admin or board member",
@@ -216,7 +219,7 @@ test.describe("portal finance reimbursements", () => {
       await approverRow
         .getByRole("button", { name: "View reimbursement" })
         .click();
-      const approverSheet = page.getByRole("dialog");
+      const approverSheet = modal(page);
       await expect(
         approverSheet.getByRole("button", { name: "Reject" }),
       ).toBeVisible();

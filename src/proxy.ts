@@ -17,6 +17,16 @@ const PORTAL_HOST = "portal.chattersnow.org";
 //     INVALID_IMAGE_OPTIMIZE_REQUEST and the image never renders.
 const ROOT_PATH_PREFIXES = ["/auth/"];
 
+/**
+ * Header carrying the portal path the browser actually asked for.
+ *
+ * The portal layout redirects signed-out users to the login page, but a
+ * layout can't see the request path, so every shared portal link -- "look at
+ * this event", "here's the reimbursement" -- used to land the recipient on
+ * the dashboard with the original URL gone. The proxy does see it.
+ */
+export const PORTAL_PATH_HEADER = "x-portal-path";
+
 export type PortalRoute =
   | { kind: "pass" }
   | { kind: "rewrite"; pathname: string }
@@ -69,8 +79,32 @@ export function resolvePortalRoute(
 // request, so that difference matters; the portal layout still calls
 // getUser() itself for the real authorization check, once the cookies here
 // are already current.
-async function refreshPortalSession(request: NextRequest) {
-  let refreshedResponse = NextResponse.next({ request });
+/**
+ * Clones the incoming headers and stamps the requested portal path on them.
+ * Cloned at call time, never snapshotted up front: `request.cookies.set` in
+ * the refresh path below writes through `request.headers`, so an early copy
+ * would forward a stale cookie header and undo the session refresh.
+ */
+function forwardHeaders(request: NextRequest, portalPath: string | null) {
+  const headers = new Headers(request.headers);
+  if (portalPath) {
+    headers.set(PORTAL_PATH_HEADER, portalPath);
+  } else {
+    // Never let a client-supplied value through: it decides a redirect target.
+    headers.delete(PORTAL_PATH_HEADER);
+  }
+  return headers;
+}
+
+async function refreshPortalSession(
+  request: NextRequest,
+  portalPath: string | null,
+) {
+  const forward = () =>
+    NextResponse.next({
+      request: { headers: forwardHeaders(request, portalPath) },
+    });
+  let refreshedResponse = forward();
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -84,7 +118,7 @@ async function refreshPortalSession(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value),
           );
-          refreshedResponse = NextResponse.next({ request });
+          refreshedResponse = forward();
           cookiesToSet.forEach(({ name, value, options }) =>
             refreshedResponse.cookies.set(name, value, options),
           );
@@ -107,9 +141,18 @@ export async function proxy(request: NextRequest) {
     pathname === "/portal" ||
     pathname.startsWith("/portal/");
 
+  // The path as the browser asked for it. On the portal host the route group
+  // is a rewrite target, so use the rewritten path -- that's what a login
+  // redirect has to send the user back to.
+  const portalPath = isPortalRequest
+    ? `${route.kind === "rewrite" ? route.pathname : pathname}${request.nextUrl.search}`
+    : null;
+
   const refreshedResponse = isPortalRequest
-    ? await refreshPortalSession(request)
-    : NextResponse.next({ request });
+    ? await refreshPortalSession(request, portalPath)
+    : NextResponse.next({
+        request: { headers: forwardHeaders(request, portalPath) },
+      });
 
   const withRefreshedCookies = (response: NextResponse) => {
     refreshedResponse.cookies.getAll().forEach((cookie) => {
@@ -121,7 +164,11 @@ export async function proxy(request: NextRequest) {
   if (route.kind === "rewrite") {
     const url = request.nextUrl.clone();
     url.pathname = route.pathname;
-    return withRefreshedCookies(NextResponse.rewrite(url, { request }));
+    return withRefreshedCookies(
+      NextResponse.rewrite(url, {
+        request: { headers: forwardHeaders(request, portalPath) },
+      }),
+    );
   }
 
   if (route.kind === "redirect") {

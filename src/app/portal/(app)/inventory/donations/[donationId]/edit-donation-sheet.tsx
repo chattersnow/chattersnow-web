@@ -53,6 +53,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 function donationFormStateFor(donation: DonationRow) {
   return {
@@ -206,6 +207,7 @@ export function EditDonationSheet({ donation }: { donation: DonationRow }) {
         }
       }
 
+      toast.success("Donation saved.");
       router.refresh();
       setOpen(false);
     });

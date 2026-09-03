@@ -1,5 +1,8 @@
-import type { ReactNode } from "react";
-import { cn } from "@/lib/utils";
+import {
+  humanizeStatus,
+  StatusBadge as StatusPill,
+  type StatusTone,
+} from "@/components/portal/status-badge";
 
 export type EventLeadPerson = {
   id: string;
@@ -40,23 +43,23 @@ export type EventRow = {
   flier_url: string | null;
 };
 
-const STATUS_STYLES: Record<string, string> = {
-  draft: "bg-muted text-muted-foreground",
-  published: "bg-primary/10 text-primary",
-  completed: "bg-secondary text-secondary-foreground",
-  cancelled: "bg-destructive/10 text-destructive",
-  archived: "bg-muted text-muted-foreground",
+const STATUS_STYLES: Record<string, StatusTone> = {
+  draft: "neutral",
+  published: "progress",
+  completed: "success",
+  cancelled: "danger",
+  archived: "neutral",
 };
 
-const VISIBILITY_STYLES: Record<string, string> = {
-  private: "bg-muted text-muted-foreground",
-  public: "bg-secondary text-secondary-foreground",
+const VISIBILITY_STYLES: Record<string, StatusTone> = {
+  private: "neutral",
+  public: "info",
 };
 
-const REPORT_STATUS_STYLES: Record<string, string> = {
-  not_started: "bg-muted text-muted-foreground",
-  in_progress: "bg-primary/10 text-primary",
-  submitted: "bg-secondary text-secondary-foreground",
+const REPORT_STATUS_STYLES: Record<string, StatusTone> = {
+  not_started: "neutral",
+  in_progress: "progress",
+  submitted: "success",
 };
 
 const REPORT_STATUS_LABELS: Record<string, string> = {
@@ -65,63 +68,34 @@ const REPORT_STATUS_LABELS: Record<string, string> = {
   submitted: "Submitted",
 };
 
-function Pill({
-  className,
-  children,
-}: {
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize",
-        className,
-      )}
-    >
-      {children}
-    </span>
-  );
-}
-
 export function StatusBadge({ status }: { status: string }) {
   return (
-    <Pill className={STATUS_STYLES[status] ?? "bg-muted text-muted-foreground"}>
-      {status}
-    </Pill>
+    <StatusPill tone={STATUS_STYLES[status] ?? "neutral"}>{status}</StatusPill>
   );
 }
 
 export function VisibilityBadge({ visibility }: { visibility: string }) {
   return (
-    <Pill
-      className={
-        VISIBILITY_STYLES[visibility] ?? "bg-muted text-muted-foreground"
-      }
-    >
-      {visibility}
-    </Pill>
+    <StatusPill tone={VISIBILITY_STYLES[visibility] ?? "neutral"}>
+      {humanizeStatus(visibility)}
+    </StatusPill>
   );
 }
 
 export function ReportStatusBadge({ status }: { status: string }) {
   return (
-    <Pill
-      className={
-        REPORT_STATUS_STYLES[status] ?? "bg-muted text-muted-foreground"
-      }
-    >
+    <StatusPill tone={REPORT_STATUS_STYLES[status] ?? "neutral"}>
       {REPORT_STATUS_LABELS[status] ?? status}
-    </Pill>
+    </StatusPill>
   );
 }
 
 export type PhaseStatus = "not_started" | "in_progress" | "done";
 
-const PHASE_STATUS_STYLES: Record<PhaseStatus, string> = {
-  not_started: "bg-muted text-muted-foreground",
-  in_progress: "bg-primary/10 text-primary",
-  done: "bg-secondary text-secondary-foreground",
+const PHASE_STATUS_STYLES: Record<PhaseStatus, StatusTone> = {
+  not_started: "neutral",
+  in_progress: "progress",
+  done: "success",
 };
 
 const PHASE_STATUS_LABELS: Record<PhaseStatus, string> = {
@@ -132,24 +106,22 @@ const PHASE_STATUS_LABELS: Record<PhaseStatus, string> = {
 
 export function PhaseStatusBadge({ status }: { status: PhaseStatus }) {
   return (
-    <Pill className={PHASE_STATUS_STYLES[status]}>
+    <StatusPill tone={PHASE_STATUS_STYLES[status]}>
       {PHASE_STATUS_LABELS[status]}
-    </Pill>
+    </StatusPill>
   );
 }
 
-const SEVERITY_STYLES: Record<string, string> = {
-  minor: "bg-muted text-muted-foreground",
-  moderate: "bg-primary/10 text-primary",
-  serious: "bg-destructive/10 text-destructive",
+const SEVERITY_STYLES: Record<string, StatusTone> = {
+  minor: "neutral",
+  moderate: "progress",
+  serious: "danger",
 };
 
 export function SeverityBadge({ severity }: { severity: string }) {
   return (
-    <Pill
-      className={SEVERITY_STYLES[severity] ?? "bg-muted text-muted-foreground"}
-    >
-      {severity}
-    </Pill>
+    <StatusPill tone={SEVERITY_STYLES[severity] ?? "neutral"}>
+      {humanizeStatus(severity)}
+    </StatusPill>
   );
 }

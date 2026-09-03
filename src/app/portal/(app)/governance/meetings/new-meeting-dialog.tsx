@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 const MEETING_TYPES = [
   { value: "board", label: "Board" },
@@ -85,6 +86,7 @@ export function NewMeetingDialog() {
         return;
       }
       handleOpenChange(false);
+      toast.success("Meeting created.");
       router.refresh();
     });
   }

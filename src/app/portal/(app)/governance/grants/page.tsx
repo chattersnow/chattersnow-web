@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
@@ -10,6 +11,10 @@ import type { PersonListItem } from "../../people/actions";
 
 const GRANT_SELECT =
   "id, funder_name, amount, application_deadline, status, notes, owner:people!owner_person_id(id, name, preferred_name, email, phone)";
+
+export const metadata: Metadata = {
+  title: "Grants",
+};
 
 export default async function GrantsPage() {
   const supabase = await createSupabaseServerClient();

@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { signIn } from "./helpers/auth";
+import { modal } from "./helpers/dialog";
 
 test.beforeEach(async ({ page }) => {
   await signIn(page);
@@ -15,7 +16,7 @@ test("opens the how-to sheet on the Events page and shows its guidance", async (
 
   await page.getByRole("button", { name: "Help for this page" }).click();
 
-  const dialog = page.getByRole("dialog");
+  const dialog = modal(page);
   await expect(
     dialog.getByRole("heading", {
       name: "How status, visibility, and phase tabs work",
@@ -38,7 +39,7 @@ test("opens the how-to sheet on the Permissions page and shows its guidance", as
 
   await page.getByRole("button", { name: "Help for this page" }).click();
 
-  const dialog = page.getByRole("dialog");
+  const dialog = modal(page);
   await expect(
     dialog.getByRole("heading", {
       name: "How the permissions matrix works",

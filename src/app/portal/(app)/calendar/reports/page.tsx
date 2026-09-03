@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,14 +9,13 @@ import {
   type AnnualReviewOpportunityRow,
   type AnnualReviewPermissionRow,
 } from "./annual-review";
+import { formatNumber } from "@/lib/format";
 
 type AnnualReviewData = {
   items: AnnualReviewItemRow[];
   opportunities: AnnualReviewOpportunityRow[];
   permissions: AnnualReviewPermissionRow[];
 };
-
-const numberFormatter = new Intl.NumberFormat("en-US");
 
 function formatPercent(numerator: number, denominator: number): string {
   if (denominator === 0) return "—";
@@ -24,11 +24,15 @@ function formatPercent(numerator: number, denominator: number): string {
 
 function formatDays(days: number | null): string {
   if (days === null) return "—";
-  return `${numberFormatter.format(Math.round(days * 10) / 10)} days`;
+  return `${formatNumber(Math.round(days * 10) / 10)} days`;
 }
 
 type CalendarAnnualReviewPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export const metadata: Metadata = {
+  title: "Annual Review",
 };
 
 export default async function CalendarAnnualReviewPage({
@@ -82,7 +86,7 @@ export default async function CalendarAnnualReviewPage({
         {
           label: "Tier 1 items with a decision",
           value: formatPercent(review.tier1Decided, review.tier1Total),
-          detail: `${numberFormatter.format(review.tier1Decided)} of ${numberFormatter.format(review.tier1Total)}`,
+          detail: `${formatNumber(review.tier1Decided)} of ${formatNumber(review.tier1Total)}`,
         },
         {
           label: "Planned opportunities completed on time",
@@ -90,11 +94,11 @@ export default async function CalendarAnnualReviewPage({
             review.plannedCompletedOnTime,
             review.plannedWithPublishTarget,
           ),
-          detail: `${numberFormatter.format(review.plannedCompletedOnTime)} of ${numberFormatter.format(review.plannedWithPublishTarget)}`,
+          detail: `${formatNumber(review.plannedCompletedOnTime)} of ${formatNumber(review.plannedWithPublishTarget)}`,
         },
         {
           label: "Overdue content tasks",
-          value: numberFormatter.format(review.overdueCount),
+          value: formatNumber(review.overdueCount),
         },
         {
           label: "Median time to first review",
@@ -104,11 +108,11 @@ export default async function CalendarAnnualReviewPage({
         },
         {
           label: "Public items with a clear Chatter connection",
-          value: numberFormatter.format(review.publicWithConnectionCount),
+          value: formatNumber(review.publicWithConnectionCount),
         },
         {
           label: "Publication permissions recorded",
-          value: numberFormatter.format(review.permissionsRecordedCount),
+          value: formatNumber(review.permissionsRecordedCount),
         },
       ]
     : [];

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
@@ -8,6 +9,10 @@ import { NewSuggestionRuleDialog } from "./new-suggestion-rule-dialog";
 import type { SuggestionRuleListRow } from "./suggestion-rule-details-sheet";
 import { SuggestionRulesTable } from "./suggestion-rules-table";
 import { listProgramsAction } from "../../programs/actions";
+
+export const metadata: Metadata = {
+  title: "Program Suggestions",
+};
 
 export default async function ProgramSuggestionRulesPage() {
   const supabase = await createSupabaseServerClient();
@@ -28,7 +33,7 @@ export default async function ProgramSuggestionRulesPage() {
     <>
       <div className="w-fit">
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-          Program suggestions
+          Program Suggestions
         </h1>
         <div className="rainbow-accent mt-3 w-full" />
       </div>

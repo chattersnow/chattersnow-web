@@ -12,6 +12,10 @@ import {
 import type { EventOption } from "./reimbursements-shared";
 import { PersonPicker, type PickedPerson } from "../../people/person-picker";
 import type { PersonListItem } from "../../people/actions";
+import {
+  DiscardChangesDialog,
+  useUnsavedChangesGuard,
+} from "@/components/portal/unsaved-changes-guard";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 export function NewReimbursementDialog({
   people,
@@ -54,14 +59,26 @@ export function NewReimbursementDialog({
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  // Compared against a fresh empty form rather than tracked with a flag, so
+  // typing and then clearing a field doesn't count as unsaved work.
+  const baseline = emptyReimbursementForm(defaultEventId);
+  const dirty =
+    selectedPerson !== null ||
+    (Object.keys(baseline) as (keyof ReimbursementFormState)[]).some(
+      (key) => form[key] !== baseline[key],
+    );
+  const guard = useUnsavedChangesGuard(dirty);
+
+  function resetForm() {
+    setSelectedPerson(null);
+    setForm(emptyReimbursementForm(defaultEventId));
+    setError(null);
+  }
+
   function handleOpenChange(nextOpen: boolean) {
+    if (!guard.allowOpenChange(nextOpen)) return;
     setOpen(nextOpen);
-    if (nextOpen) {
-      setAvailablePeople(people);
-      setSelectedPerson(null);
-      setForm(emptyReimbursementForm(defaultEventId));
-      setError(null);
-    }
+    if (nextOpen) resetForm();
   }
 
   function handlePersonCreated(person: PickedPerson) {
@@ -85,65 +102,79 @@ export function NewReimbursementDialog({
         setError(result.error);
         return;
       }
+      resetForm();
       setOpen(false);
+      toast.success("Reimbursement request submitted.");
       router.refresh();
     });
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
-      >
-        New Reimbursement
-      </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Add reimbursement</DialogTitle>
-          <DialogDescription>
-            Record a new reimbursement request.
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <DiscardChangesDialog
+        guard={guard}
+        subject="this reimbursement request"
+        onDiscard={() => {
+          resetForm();
+          setOpen(false);
+        }}
+      />
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogTrigger
+          render={
+            <Button type="button" className="shrink-0 whitespace-nowrap" />
+          }
+        >
+          New Reimbursement
+        </DialogTrigger>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add reimbursement</DialogTitle>
+            <DialogDescription>
+              Record a new reimbursement request.
+            </DialogDescription>
+          </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
-          <FieldGroup>
-            <Field>
-              <FieldLabel>Requester</FieldLabel>
-              <PersonPicker
-                people={availablePeople}
-                selected={selectedPerson}
-                onSelect={setSelectedPerson}
-                onPersonCreated={handlePersonCreated}
+          <form onSubmit={handleSubmit}>
+            <FieldGroup>
+              <Field>
+                <FieldLabel>Requester</FieldLabel>
+                <PersonPicker
+                  people={availablePeople}
+                  selected={selectedPerson}
+                  onSelect={setSelectedPerson}
+                  onPersonCreated={handlePersonCreated}
+                />
+              </Field>
+
+              <ReimbursementFormFields
+                form={form}
+                update={update}
+                events={events}
+                idPrefix="new-reimbursement"
               />
-            </Field>
 
-            <ReimbursementFormFields
-              form={form}
-              update={update}
-              events={events}
-              idPrefix="new-reimbursement"
-            />
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-          </FieldGroup>
-
-          <DialogFooter>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? (
-                <>
-                  <Spinner /> Saving...
-                </>
-              ) : (
-                "Add reimbursement"
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
               )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+            </FieldGroup>
+
+            <DialogFooter>
+              <Button type="submit" disabled={isPending}>
+                {isPending ? (
+                  <>
+                    <Spinner /> Saving...
+                  </>
+                ) : (
+                  "Add reimbursement"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

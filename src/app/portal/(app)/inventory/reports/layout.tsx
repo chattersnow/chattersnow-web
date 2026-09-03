@@ -7,6 +7,11 @@ export default async function InventoryReportsLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createSupabaseServerClient();
-  await requirePermission(supabase, "inventory_reports", "view");
+  await requirePermission(
+    supabase,
+    "inventory_reports",
+    "view",
+    "Inventory Reports",
+  );
   return children;
 }

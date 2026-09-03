@@ -55,6 +55,236 @@ export const helpContent: Record<string, HelpEntry> = {
       </>
     ),
   },
+  "/portal/home": {
+    title: "Reading the dashboard",
+    description: "What the figures cover, and where each one leads.",
+    body: (
+      <>
+        <HowToSection heading="What you see depends on your roles">
+          <p>
+            Each card is gated on its own permission, and individual figures
+            inside a card are gated more narrowly still — a board member with
+            read-only finance sees the Financial card without the event-expense
+            rows. A card you can&apos;t see is an access question, not an empty
+            one.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Every figure opens">
+          <p>
+            Clicking a row takes you to the records behind it. Where a figure
+            spans two statuses — outstanding reimbursements is submitted{" "}
+            <em>and</em> approved-but-unpaid, inventory needing attention is
+            damaged <em>and</em> lost — the link goes to the unfiltered list on
+            purpose, since any single filter would show a total that didn&apos;t
+            match the number you clicked.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Happening now">
+          <p>
+            Events currently running appear at the top with their in-context
+            actions, so checking someone in doesn&apos;t start with finding the
+            event.
+          </p>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/governance": {
+    title: "How the governance record works",
+    description:
+      "What each record set is for, and why the board keeps it current.",
+    body: (
+      <>
+        <HowToSection heading="What lives here">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">Board members</strong> and{" "}
+              <strong className="text-foreground">Meetings</strong> — who
+              serves, their terms, and what was decided. Attendance is what
+              establishes quorum for a meeting&apos;s decisions, so removing an
+              attendee changes what those decisions rest on.
+            </li>
+            <li>
+              <strong className="text-foreground">Bylaws</strong>,{" "}
+              <strong className="text-foreground">Policies</strong> and{" "}
+              <strong className="text-foreground">Resolutions</strong> — the
+              rules and the formal decisions that changed them. Bylaws are
+              versioned rather than edited in place, so the history of what was
+              in force when stays intact.
+            </li>
+            <li>
+              <strong className="text-foreground">Conflict of Interest</strong>{" "}
+              and{" "}
+              <strong className="text-foreground">Annual Requirements</strong> —
+              the compliance calendar. A missing disclosure or an overdue
+              requirement surfaces on the dashboard and in the bell.
+            </li>
+            <li>
+              <strong className="text-foreground">Nonprofit Status</strong>,{" "}
+              <strong className="text-foreground">Grants</strong> and{" "}
+              <strong className="text-foreground">Partnerships</strong> — work
+              in flight toward funding and recognition, each with its own stage
+              or milestone track.
+            </li>
+          </ul>
+        </HowToSection>
+        <HowToSection heading="Why it's kept in the portal">
+          <p>
+            Grant applications and state filings ask for this record, and
+            reconstructing it after the fact is where nonprofits lose time. The
+            board keeping it current as it goes is the whole point — nothing
+            here is generated from anywhere else.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Who can change it">
+          <p>
+            Governance records need{" "}
+            <strong className="text-foreground">governance</strong> at manage
+            level, which the board and admin roles hold. Read-only governance
+            access shows the record without the edit controls.
+          </p>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/inventory": {
+    title: "How gear moves through inventory",
+    description: "Item statuses, and what a distribution actually records.",
+    body: (
+      <>
+        <HowToSection heading="The lifecycle">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              A donation brings items in. Each physical item becomes its own
+              row, because gear is tracked and given out one piece at a time.
+            </li>
+            <li>
+              Items sit <strong className="text-foreground">available</strong>{" "}
+              until they&apos;re reserved for someone or distributed.
+            </li>
+            <li>
+              A distribution records who received what and when, which is what
+              impact reporting counts. It isn&apos;t a stock adjustment — the
+              recipient is part of the record.
+            </li>
+          </ol>
+        </HowToSection>
+        <HowToSection heading="Damaged, lost and retired">
+          <p>
+            These are statuses, not deletions, so a written-off item stays in
+            the history and in the totals it was part of. The dashboard&apos;s
+            &ldquo;needing attention&rdquo; figure counts damaged and lost
+            together.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Who can do what">
+          <p>
+            <strong className="text-foreground">inventory_intake</strong> covers
+            recording donations and distributions — the work that happens at an
+            event or in the van. Editing the catalogue itself needs{" "}
+            <strong className="text-foreground">inventory</strong> at manage
+            level.
+          </p>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/volunteers": {
+    title: "How volunteering is tracked",
+    description: "Roles, applications, and the hours that feed reporting.",
+    body: (
+      <>
+        <HowToSection heading="Three separate things">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">Roles</strong> are the kinds
+              of work someone can sign up for. Marking one public lists it on
+              the website&apos;s volunteer page; the rest stay internal.
+            </li>
+            <li>
+              <strong className="text-foreground">Applications</strong> come
+              from the public form and move through their own status track until
+              someone is placed or the application is closed.
+            </li>
+            <li>
+              <strong className="text-foreground">Participation</strong> is
+              logged hours: who did what, on which event, for how long.
+            </li>
+          </ul>
+        </HowToSection>
+        <HowToSection heading="Why hours matter more than they look">
+          <p>
+            Volunteer hours are reported to grantmakers and count toward in-kind
+            contribution totals, so an entry deleted here changes a number the
+            organization has already reported. That&apos;s why removing one asks
+            first.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Logging for someone else">
+          <p>
+            <strong className="text-foreground">volunteer_hours_logging</strong>{" "}
+            lets a coordinator log their own hours; logging on behalf of another
+            person needs <strong className="text-foreground">volunteers</strong>{" "}
+            at manage level.
+          </p>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/programs": {
+    title: "What a program is",
+    description: "The unit impact is reported against.",
+    body: (
+      <>
+        <HowToSection heading="Programs group the work">
+          <p>
+            A program is an ongoing strand of activity — a season of trips, a
+            gear library, a mentorship track. Events and calendar items are
+            attached to one, and the Impact Report totals up from that
+            attachment. An event with no program still runs; it just
+            doesn&apos;t roll up anywhere.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Status is about reporting, not visibility">
+          <p>
+            Marking a program complete stops it collecting new work; it
+            doesn&apos;t hide what it already holds, and past events keep
+            counting toward its totals.
+          </p>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/account": {
+    title: "Your account",
+    description: "What you can change here, and what an admin has to.",
+    body: (
+      <>
+        <HowToSection heading="Preferred name">
+          <p>
+            Set it and the whole portal uses it — sidebar, record owners,
+            attendance lists — in place of the name on your sign-in account.
+            It&apos;s the only place your own display name comes from, so
+            it&apos;s worth setting if your account name isn&apos;t what
+            colleagues call you.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What an admin controls">
+          <p>
+            Roles and portal access aren&apos;t editable here. If a section you
+            expect is missing, an admin grants your role access under
+            Administration and it appears immediately, without a re-login.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Password and the tour">
+          <p>
+            Password changes go through the reset link on the sign-in page. The
+            portal introduction can be replayed from here any time.
+          </p>
+        </HowToSection>
+      </>
+    ),
+  },
   "/portal/calendar": {
     title: "How calendar items work",
     description: "Priority tiers, sensitive topics, and content opportunities.",
@@ -84,7 +314,7 @@ export const helpContent: Record<string, HelpEntry> = {
                 href="/portal/calendar/work-queue"
                 className="underline hover:text-foreground"
               >
-                Work queue
+                Work Queue
               </Link>{" "}
               page.
             </li>
@@ -279,7 +509,7 @@ export const helpContent: Record<string, HelpEntry> = {
             <li>
               <strong className="text-foreground">Overdue content tasks</strong>{" "}
               — this year&apos;s opportunities currently past their stage&apos;s
-              due date, using the same overdue logic as the Work queue page.
+              due date, using the same overdue logic as the Work Queue page.
             </li>
             <li>
               <strong className="text-foreground">

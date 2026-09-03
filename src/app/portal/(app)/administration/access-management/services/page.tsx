@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -6,6 +7,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { listServicesWithAssetCounts } from "../queries";
 import { NewServiceDialog } from "./new-service-dialog";
 import { ServicesTable } from "./services-table";
+
+export const metadata: Metadata = {
+  title: "Services",
+};
 
 export default async function ServicesPage() {
   const supabase = await createSupabaseServerClient();

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { resolveCurrentPersonId } from "@/lib/auth/current-person";
@@ -15,6 +16,10 @@ type WorkQueueTab = "my-work" | "queue";
 
 type WorkQueuePageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export const metadata: Metadata = {
+  title: "Work Queue",
 };
 
 export default async function WorkQueuePage({
@@ -86,7 +91,7 @@ export default async function WorkQueuePage({
     <>
       <div className="w-fit">
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-          Work queue
+          Work Queue
         </h1>
         <div className="rainbow-accent mt-3 w-full" />
       </div>
@@ -141,7 +146,8 @@ export default async function WorkQueuePage({
           items={myWorkItems}
           owners={owners}
           currentPersonId={currentPersonId}
-          emptyMessage="Nothing is assigned to you as an owner or reviewer right now."
+          emptyMessage="Nothing is assigned to you as an owner or reviewer right now"
+          emptyDescription="Items land here when you are set as owner or reviewer on a calendar item."
         />
       ) : (
         <WorkQueueTable
@@ -150,8 +156,13 @@ export default async function WorkQueuePage({
           currentPersonId={currentPersonId}
           emptyMessage={
             overdueOnly
-              ? "Nothing is overdue right now."
-              : "No calendar items to show."
+              ? "Nothing is overdue right now"
+              : "No calendar items to show"
+          }
+          emptyDescription={
+            overdueOnly
+              ? "Turn off Overdue only above to see the whole queue."
+              : "Add items on the Calendar page with New calendar item, or import a batch from Calendar › Import."
           }
         />
       )}

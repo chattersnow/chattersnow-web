@@ -24,6 +24,7 @@ import {
   type InventoryItem,
   type SortColumn,
 } from "./inventory-shared";
+import { EmptyState } from "@/components/portal/empty-state";
 
 export function InventoryTable({
   items,
@@ -54,11 +55,17 @@ export function InventoryTable({
       <div className="space-y-4">
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              {hasActiveFilters
-                ? "No items match your filters."
-                : "No inventory items yet."}
-            </p>
+            {hasActiveFilters ? (
+              <EmptyState
+                title="No items match your filters"
+                description="Clear or loosen the filters to see more."
+              />
+            ) : (
+              <EmptyState
+                title="No inventory items yet"
+                description="Items are added by recording a donation under Inventory › Donations."
+              />
+            )}
           </CardContent>
         </Card>
       </div>
@@ -80,7 +87,10 @@ export function InventoryTable({
               <TableHeader>
                 <TableRow>
                   {SORT_COLUMNS.map((column) => (
-                    <TableHead key={column.key}>
+                    <TableHead
+                      key={column.key}
+                      sortDirection={sort === column.key ? dir : null}
+                    >
                       <SortHeaderLink
                         href={sortHref(column.key)}
                         label={column.label}

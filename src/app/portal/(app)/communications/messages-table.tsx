@@ -30,12 +30,10 @@ import {
   type ContactMessage,
   type ContactMessageStatus,
 } from "./message-types";
+import { formatInstantDate } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 const FILTER_ALL = "all";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-});
 
 export function MessagesTable({
   messages,
@@ -79,7 +77,10 @@ export function MessagesTable({
     return (
       <Card>
         <CardContent className="px-0">
-          <p className="app-muted px-4 py-6 text-sm">No messages yet.</p>
+          <EmptyState
+            title="No messages yet"
+            description="Messages appear here when someone submits the public contact form."
+          />
         </CardContent>
       </Card>
     );
@@ -173,7 +174,7 @@ export function MessagesTable({
                       {CONTACT_TOPIC_LABELS[message.topic] ?? message.topic}
                     </TableCell>
                     <TableCell className="app-muted">
-                      {dateFormatter.format(new Date(message.created_at))}
+                      {formatInstantDate(message.created_at)}
                     </TableCell>
                     <TableCell>
                       <ContactMessageStatusBadge status={message.status} />

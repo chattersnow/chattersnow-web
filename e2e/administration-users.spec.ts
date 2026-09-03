@@ -75,6 +75,11 @@ test.describe("portal administration users", () => {
       await expect(removeRole).toBeVisible();
 
       await removeRole.click();
+      // Revoking a live role now confirms first: it's a security action that
+      // takes effect on the target's next request.
+      const confirmRevoke = page.getByRole("alertdialog");
+      await expect(confirmRevoke).toContainText("Remove the Volunteer role?");
+      await confirmRevoke.getByRole("button", { name: "Remove role" }).click();
       await expect(row).toContainText("No access");
     } finally {
       await user.cleanup();
@@ -222,7 +227,7 @@ test.describe("portal administration users", () => {
       }).toPass({ timeout: 60_000 });
 
       await reloadStayingSignedIn(page);
-      await expect(pendingCard).not.toContainText("No pending access staged.");
+      await expect(pendingCard).not.toContainText("No pending access staged");
       await expect(grantRow).toContainText("Revoked", { timeout: 30_000 });
     } finally {
       await invite.cleanup();

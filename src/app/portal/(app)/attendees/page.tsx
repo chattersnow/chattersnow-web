@@ -7,8 +7,8 @@ import {
   hasPermission,
 } from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/portal/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import {
   Table,
@@ -26,8 +26,7 @@ import {
   quoteOrValue,
   totalPagesFor,
 } from "@/lib/pagination";
-import { FiltersSheet } from "@/components/filters-sheet";
-import { FilterSubmitButton } from "@/components/filter-submit-button";
+import { SearchField } from "@/components/search-field";
 import { LinkPendingPulse } from "@/components/link-pending";
 import { StatTile } from "../home/stat-tile";
 import { NewPersonDialog } from "../people/new-person-dialog";
@@ -142,38 +141,12 @@ export default async function AttendeesPage({
       </div>
 
       <div className="mt-6 space-y-4">
-        <div className="rainbow-surface flex flex-wrap items-center justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
-          <FiltersSheet activeCount={hasActiveFilters ? 1 : 0}>
-            <form method="get" className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <label
-                  htmlFor="search"
-                  className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-                >
-                  Search
-                </label>
-                <Input
-                  id="search"
-                  name="search"
-                  placeholder="Search name, email, phone..."
-                  defaultValue={search}
-                />
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <FilterSubmitButton />
-                {hasActiveFilters && (
-                  <Button
-                    variant="ghost"
-                    nativeButton={false}
-                    render={<Link href="/portal/attendees" />}
-                  >
-                    <LinkPendingPulse>Clear</LinkPendingPulse>
-                  </Button>
-                )}
-              </div>
-            </form>
-          </FiltersSheet>
+        <div className="rainbow-surface flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+          <SearchField
+            action="/portal/attendees"
+            defaultValue={search}
+            placeholder="Search name, email, phone..."
+          />
 
           {canManage && (
             <NewPersonDialog
@@ -187,11 +160,20 @@ export default async function AttendeesPage({
         <Card>
           <CardContent className="px-0">
             {peopleRows.length === 0 ? (
-              <p className="app-muted px-4 py-6 text-sm">
-                {hasActiveFilters
-                  ? "No attendees match your filters."
-                  : "No event attendees yet."}
-              </p>
+              <EmptyState
+                title={
+                  hasActiveFilters
+                    ? "No attendees match your filters"
+                    : "No event attendees yet"
+                }
+                description={
+                  hasActiveFilters
+                    ? "Clear the search to see everyone."
+                    : canManage
+                      ? "Attendees appear here once someone registers for an event, or add one with New Attendee above."
+                      : "Attendees appear here once someone registers for or is checked in at an event."
+                }
+              />
             ) : (
               <Table>
                 <TableHeader>
@@ -250,7 +232,12 @@ export default async function AttendeesPage({
         </Card>
 
         {peopleRows.length > 0 && (
-          <Pagination page={page} totalPages={totalPages} hrefFor={pageHref} />
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            count={count}
+            hrefFor={pageHref}
+          />
         )}
       </div>
     </>

@@ -1,11 +1,17 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { ShieldAlert } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
+  DENIED_PARAM,
   getCurrentUserPermissions,
   hasPermission,
   hasAnyPermission,
 } from "@/lib/auth/permissions";
 import { resolveCurrentPersonId } from "@/lib/auth/current-person";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { EmptyState } from "@/components/portal/empty-state";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ActiveEventCard } from "./active-event-card";
 import {
@@ -23,25 +29,15 @@ import {
 import { getAccessManagementStatsSummary } from "@/lib/portal/access-management/queries";
 import { getEventTaskSummary } from "@/lib/portal/attention-items";
 import { listRecentDonationsAction } from "./actions";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+import {
+  formatCalendarDate,
+  formatCurrency,
+  formatDateTime,
+} from "@/lib/format";
 
 // For plain `date` columns (e.g. grants.application_deadline) rather than
 // timestamptz -- pinned to UTC so `new Date("2026-09-10")` (parsed as UTC
 // midnight) doesn't roll back a day in timezones behind UTC.
-const dateOnlyFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
-
 const meetingTypeLabels: Record<string, string> = {
   board: "Board meeting",
   committee: "Committee meeting",
@@ -61,7 +57,28 @@ export const metadata: Metadata = {
   title: "Dashboard",
 };
 
-export default async function PortalHomePage() {
+type PortalHomePageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+/**
+ * The area a permission guard refused, if this render is the tail end of one.
+ * A denial used to be a bare redirect here, which reads as a broken link
+ * rather than as "you don't have that yet".
+ */
+function deniedAreaFrom(
+  params: Record<string, string | string[] | undefined>,
+): string | null {
+  const raw = params[DENIED_PARAM];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (!value) return null;
+  return value === "1" ? "That page" : value;
+}
+
+export default async function PortalHomePage({
+  searchParams,
+}: PortalHomePageProps) {
+  const deniedArea = deniedAreaFrom(await searchParams);
   const supabase = await createSupabaseServerClient();
   const permissions = await getCurrentUserPermissions(supabase);
 
@@ -177,13 +194,36 @@ export default async function PortalHomePage() {
         <div className="rainbow-accent mt-3 w-full" />
       </div>
 
+      {deniedArea && (
+        <Alert variant="destructive" className="mt-6">
+          <ShieldAlert />
+          <AlertTitle>
+            {deniedArea === "That page"
+              ? "You don't have access to that page"
+              : `You don't have access to ${deniedArea}`}
+          </AlertTitle>
+          <AlertDescription>
+            You were sent to the dashboard instead. If you need it for your
+            work, ask an administrator to grant it.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {!anySectionVisible && (
         <Card className="mt-4">
-          <CardContent className="pt-6">
-            <p className="app-muted text-sm">
-              Your activity summary will appear here as volunteer participation
-              tracking is added.
-            </p>
+          <CardContent>
+            <EmptyState
+              title="Nothing to show yet"
+              description={
+                <>
+                  You&apos;re signed in, but none of your roles include a portal
+                  section, so there is nothing for this dashboard to summarize.
+                  An administrator can grant you a role from Administration
+                  &rsaquo; Users; the sections that role can see will appear
+                  here as soon as they do.
+                </>
+              }
+            />
           </CardContent>
         </Card>
       )}
@@ -213,7 +253,7 @@ export default async function PortalHomePage() {
               eventName={upcoming.nextEvent ? upcoming.nextEvent.name : "—"}
               caption={
                 upcoming.nextEvent
-                  ? `${dateFormatter.format(new Date(upcoming.nextEvent.starts_at))}${
+                  ? `${formatDateTime(upcoming.nextEvent.starts_at)}${
                       upcoming.nextEvent.location
                         ? ` · ${upcoming.nextEvent.location}`
                         : ""
@@ -225,16 +265,19 @@ export default async function PortalHomePage() {
               label="Registrations"
               value={upcoming.registrationCount}
               caption="For upcoming events"
+              href="/portal/events"
             />
             <DashboardStatRow
               label="Volunteers"
               value={upcoming.volunteerCount}
               caption="Assigned to upcoming events"
+              href="/portal/events"
             />
             <DashboardStatRow
               label="Partners"
               value={upcoming.partnerCount}
               caption="Sponsoring upcoming events"
+              href="/portal/events"
             />
             <DashboardStatRow
               label="Outstanding tasks"
@@ -253,41 +296,48 @@ export default async function PortalHomePage() {
           <DashboardSectionCard className="lg:mt-6" title="Financial">
             <DashboardStatRow
               label="Cash position"
-              value={currencyFormatter.format(financial.cashPositionTotal)}
+              value={formatCurrency(financial.cashPositionTotal)}
               caption="Income minus paid expenses, all time"
+              href="/portal/finance/reports"
             />
             <DashboardStatRow
               label="Monthly income"
-              value={currencyFormatter.format(financial.incomeThisMonth)}
-              caption={`This month · ${currencyFormatter.format(financial.incomeThisYear)} this year`}
+              href="/portal/finance/donations"
+              value={formatCurrency(financial.incomeThisMonth)}
+              caption={`This month · ${formatCurrency(financial.incomeThisYear)} this year`}
             />
             {canSeeExpenses && (
               <DashboardStatRow
                 label="Expenses"
-                value={currencyFormatter.format(financial.expensesThisMonth)}
-                caption={`This month · ${currencyFormatter.format(financial.expensesThisYear)} this year`}
+                href="/portal/finance/expenses"
+                value={formatCurrency(financial.expensesThisMonth)}
+                caption={`This month · ${formatCurrency(financial.expensesThisYear)} this year`}
               />
             )}
             {canSeeRevenue && (
               <DashboardStatRow
                 label="Revenue"
-                value={currencyFormatter.format(financial.revenueThisMonth)}
-                caption={`This month · ${currencyFormatter.format(financial.revenueThisYear)} this year`}
+                href="/portal/finance/revenue"
+                value={formatCurrency(financial.revenueThisMonth)}
+                caption={`This month · ${formatCurrency(financial.revenueThisYear)} this year`}
               />
             )}
             {canSeeReimbursements && (
               <DashboardStatRow
                 label="Outstanding reimbursements"
-                value={currencyFormatter.format(
-                  financial.outstandingReimbursementTotal,
-                )}
+                value={formatCurrency(financial.outstandingReimbursementTotal)}
                 caption="Submitted or approved, not yet paid"
+                // Deliberately unfiltered: this figure spans two statuses and
+                // the list filters to one, so any single filter would show a
+                // total that didn't match the number clicked.
+                href="/portal/finance/reimbursements"
               />
             )}
             {canSeeEventBudgets && (
               <DashboardStatRow
                 label="Event budgets"
-                value={currencyFormatter.format(financial.eventBudgetTotal)}
+                href="/portal/events"
+                value={formatCurrency(financial.eventBudgetTotal)}
                 caption="Published, upcoming events"
               />
             )}
@@ -303,7 +353,20 @@ export default async function PortalHomePage() {
             </CardHeader>
             <CardContent>
               {recentDonations.length === 0 ? (
-                <p className="app-muted text-sm">No donations recorded yet.</p>
+                <EmptyState
+                  className="py-4"
+                  title="No donations recorded yet"
+                  description="Record the first gear donation from Inventory › Donations and it will show up here."
+                  action={
+                    <Button
+                      variant="secondary"
+                      nativeButton={false}
+                      render={<Link href="/portal/inventory/donations" />}
+                    >
+                      Go to donations
+                    </Button>
+                  }
+                />
               ) : (
                 <ul className="divide-border divide-y">
                   {recentDonations.map((donation) => (
@@ -317,7 +380,7 @@ export default async function PortalHomePage() {
                           : donation.donor.name}
                       </span>
                       <span className="app-muted">
-                        {dateFormatter.format(new Date(donation.donated_at))} ·{" "}
+                        {formatDateTime(donation.donated_at)} ·{" "}
                         {donation.inventory_items.length} item
                         {donation.inventory_items.length === 1 ? "" : "s"}
                       </span>
@@ -333,10 +396,12 @@ export default async function PortalHomePage() {
           <DashboardSectionCard className="lg:mt-6" title="Access management">
             <DashboardStatRow
               label="Active assets"
+              href="/portal/administration/access-management"
               value={accessManagementStats.assetsCount}
             />
             <DashboardStatRow
               label="Active access grants"
+              href="/portal/administration/access-management"
               value={accessManagementStats.activeGrantsCount}
             />
           </DashboardSectionCard>
@@ -346,18 +411,22 @@ export default async function PortalHomePage() {
           <DashboardSectionCard className="mt-6" title="Inventory">
             <DashboardStatRow
               label="Total items"
+              href="/portal/inventory/items"
               value={inventory.totalItems}
             />
             <DashboardStatRow
               label="Available"
+              href="/portal/inventory/items?status=available"
               value={inventory.itemsAvailable}
             />
             <DashboardStatRow
               label="Distributed"
+              href="/portal/inventory/items?status=distributed"
               value={inventory.itemsDistributed}
             />
             <DashboardStatRow
               label="Needing attention"
+              href="/portal/inventory/items"
               value={inventory.itemsNeedingAttention}
               caption="Damaged or lost"
             />
@@ -375,7 +444,7 @@ export default async function PortalHomePage() {
               }
               caption={
                 organization.nextMeeting
-                  ? `${dateFormatter.format(new Date(organization.nextMeeting.meeting_date))}${
+                  ? `${formatDateTime(organization.nextMeeting.meeting_date)}${
                       organization.nextMeeting.location
                         ? ` · ${organization.nextMeeting.location}`
                         : ""
@@ -385,6 +454,7 @@ export default async function PortalHomePage() {
             />
             <DashboardStatRow
               label="Compliance deadlines"
+              href="/portal/governance/annual-requirements"
               value={organization.openRequirementCount}
               caption={
                 organization.overdueRequirementCount > 0
@@ -394,6 +464,7 @@ export default async function PortalHomePage() {
             />
             <DashboardStatRow
               label="Nonprofit status milestones"
+              href="/portal/governance/nonprofit-status"
               value={organization.openMilestoneCount}
               caption={
                 organization.overdueMilestoneCount > 0
@@ -403,6 +474,7 @@ export default async function PortalHomePage() {
             />
             <DashboardStatRow
               label="Open action items"
+              href="/portal/governance/meetings"
               value={organization.openActionItemCount}
               caption={
                 organization.overdueActionItemCount > 0
@@ -412,6 +484,7 @@ export default async function PortalHomePage() {
             />
             <DashboardStatRow
               label="Missing COI disclosures"
+              href="/portal/governance/conflict-of-interest"
               value={organization.missingDisclosureCount}
               caption={`Active board members without a ${organization.disclosureYear} disclosure on file`}
             />
@@ -429,7 +502,7 @@ export default async function PortalHomePage() {
               }
               caption={
                 organization.nextGrantDeadline
-                  ? `${dateOnlyFormatter.format(new Date(organization.nextGrantDeadline.application_deadline))}${
+                  ? `${formatCalendarDate(organization.nextGrantDeadline.application_deadline)}${
                       organization.overdueGrantCount > 0
                         ? ` · ${organization.overdueGrantCount} overdue`
                         : ""

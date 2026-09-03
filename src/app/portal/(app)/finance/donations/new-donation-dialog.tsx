@@ -13,6 +13,10 @@ import type { EventOption } from "./donations-shared";
 import { listPeopleAction, type PersonListItem } from "../../people/actions";
 import { listEventOptionsAction } from "../../events/actions";
 import type { PickedPerson } from "../../people/person-picker";
+import {
+  DiscardChangesDialog,
+  useUnsavedChangesGuard,
+} from "@/components/portal/unsaved-changes-guard";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { FieldGroup } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 export function NewDonationDialog({
   events,
@@ -79,12 +84,23 @@ export function NewDonationDialog({
     ]);
   }
 
+  // Compared against a fresh empty form rather than tracked with a flag, so
+  // typing and then clearing a field doesn't count as unsaved work.
+  const baseline = emptyDonationForm();
+  const dirty = (Object.keys(baseline) as (keyof DonationFormState)[]).some(
+    (key) => form[key] !== baseline[key],
+  );
+  const guard = useUnsavedChangesGuard(dirty);
+
+  function resetForm() {
+    setForm(emptyDonationForm());
+    setError(null);
+  }
+
   function handleOpenChange(nextOpen: boolean) {
+    if (!guard.allowOpenChange(nextOpen)) return;
     setOpen(nextOpen);
-    if (nextOpen) {
-      setForm(emptyDonationForm());
-      setError(null);
-    }
+    if (nextOpen) resetForm();
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -97,57 +113,71 @@ export function NewDonationDialog({
         setError(result.error);
         return;
       }
+      resetForm();
       setOpen(false);
+      toast.success("Donation logged.");
       router.refresh();
     });
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
-      >
-        {triggerLabel}
-      </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Add donation</DialogTitle>
-          <DialogDescription>
-            Record a monetary donation received.
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <DiscardChangesDialog
+        guard={guard}
+        subject="this donation"
+        onDiscard={() => {
+          resetForm();
+          setOpen(false);
+        }}
+      />
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogTrigger
+          render={
+            <Button type="button" className="shrink-0 whitespace-nowrap" />
+          }
+        >
+          {triggerLabel}
+        </DialogTrigger>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add donation</DialogTitle>
+            <DialogDescription>
+              Record a monetary donation received.
+            </DialogDescription>
+          </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
-          <FieldGroup>
-            <DonationFormFields
-              form={form}
-              update={update}
-              events={eventOptions}
-              people={peopleOptions}
-              onPersonCreated={handlePersonCreated}
-              idPrefix="new-donation"
-            />
+          <form onSubmit={handleSubmit}>
+            <FieldGroup>
+              <DonationFormFields
+                form={form}
+                update={update}
+                events={eventOptions}
+                people={peopleOptions}
+                onPersonCreated={handlePersonCreated}
+                idPrefix="new-donation"
+              />
 
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-          </FieldGroup>
-
-          <DialogFooter>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? (
-                <>
-                  <Spinner /> Saving...
-                </>
-              ) : (
-                "Add donation"
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
               )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+            </FieldGroup>
+
+            <DialogFooter>
+              <Button type="submit" disabled={isPending}>
+                {isPending ? (
+                  <>
+                    <Spinner /> Saving...
+                  </>
+                ) : (
+                  "Add donation"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

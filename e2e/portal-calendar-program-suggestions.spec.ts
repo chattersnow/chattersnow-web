@@ -12,6 +12,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
+import { modal } from "./helpers/dialog";
 
 const SEEDED_PROGRAM = "Winter Access Program";
 
@@ -49,14 +50,14 @@ async function seedProgram(label: string): Promise<ProgramFixture> {
 }
 
 async function selectOption(page: Page, trigger: string, option: string) {
-  await page.getByRole("dialog").getByLabel(trigger).click();
+  await modal(page).getByLabel(trigger).click();
   await page.getByRole("listbox").getByText(option, { exact: true }).click();
 }
 
 /** Creates a rule through the New rule dialog and returns its table row. */
 async function createRule(page: Page, programName: string, note: string) {
   await page.getByRole("button", { name: "New rule" }).click();
-  const dialog = page.getByRole("dialog");
+  const dialog = modal(page);
   await expect(
     dialog.getByRole("heading", { name: "Create program suggestion rule" }),
   ).toBeVisible();
@@ -84,7 +85,7 @@ test.describe("portal calendar program suggestions", () => {
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: "Program suggestions",
+        name: "Program Suggestions",
         exact: true,
       }),
     ).toBeVisible();
@@ -125,7 +126,7 @@ test.describe("portal calendar program suggestions", () => {
         .getByRole("button", { name: `View rule suggesting ${program.name}` })
         .click();
 
-      const sheet = page.getByRole("dialog");
+      const sheet = modal(page);
       await expect(
         sheet.getByRole("heading", { name: program.name }),
       ).toBeVisible();
@@ -161,7 +162,7 @@ test.describe("portal calendar program suggestions", () => {
       // Deleting closes the sheet. Wait for that before checking the table:
       // while a modal is open the rows behind it are out of the
       // accessibility tree, so a row query would come back empty either way.
-      await expect(page.getByRole("dialog")).toHaveCount(0);
+      await expect(modal(page)).toHaveCount(0);
       await expect(
         page.getByRole("row").filter({ hasText: program.name }),
       ).toHaveCount(0);
@@ -176,7 +177,7 @@ test.describe("portal calendar program suggestions", () => {
     await page.goto("/portal/calendar/program-suggestions");
 
     await page.getByRole("button", { name: "New rule" }).click();
-    const dialog = page.getByRole("dialog");
+    const dialog = modal(page);
 
     // Item type and category both left on "Any". Nothing is created, so this
     // one can point at the seeded program without risking the unique index.

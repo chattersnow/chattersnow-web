@@ -89,9 +89,3 @@ export function getExpenseNextStepMessage(
 ): string {
   return getApprovalNextStepMessage(expense, approvalContext, "expense");
 }
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
-
-export function formatExpenseDate(value: string) {
-  return dateFormatter.format(new Date(`${value}T00:00:00`));
-}

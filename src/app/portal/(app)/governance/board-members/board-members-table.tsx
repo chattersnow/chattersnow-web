@@ -20,20 +20,12 @@ import {
 } from "@/components/ui/table";
 import { EditBoardMemberModal } from "./edit-board-member-modal";
 import type { BoardMemberRow } from "./board-members-shared";
+import { formatCalendarDate } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 const FILTER_ALL = "all";
 const FILTER_ACTIVE = "active";
 const FILTER_PAST = "past";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
 
 export function BoardMembersTable({
   boardMembers,
@@ -117,9 +109,14 @@ export function BoardMembersTable({
       {boardMembers.length === 0 ? (
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No board members added yet.
-            </p>
+            <EmptyState
+              title="No board members added yet"
+              description={
+                canManage
+                  ? "Add the first one with Add board member above."
+                  : "Board members appear here once a governance manager adds them."
+              }
+            />
           </CardContent>
         </Card>
       ) : (
@@ -158,10 +155,10 @@ export function BoardMembersTable({
                         {boardMember.role_title}
                       </TableCell>
                       <TableCell className="app-muted">
-                        {formatDate(boardMember.term_start)}
+                        {formatCalendarDate(boardMember.term_start)}
                       </TableCell>
                       <TableCell className="app-muted">
-                        {formatDate(boardMember.term_end)}
+                        {formatCalendarDate(boardMember.term_end)}
                       </TableCell>
                       <TableCell className="app-muted">
                         {boardMember.is_active ? "Active" : "Past"}

@@ -19,21 +19,12 @@ import {
   approveMinutesAction,
   type PreviousMeetingMinutes,
 } from "./minutes-approval-actions";
-import { personDisplayName } from "@/lib/format";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-
-function formatDate(value: string) {
-  return dateFormatter.format(new Date(value));
-}
+import {
+  formatDateTime,
+  formatInstantDate,
+  personDisplayName,
+} from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 export function MinutesApprovalDialog({
   meetingId,
@@ -84,7 +75,8 @@ export function MinutesApprovalDialog({
         <DialogHeader>
           <DialogTitle>Previous meeting minutes</DialogTitle>
           <DialogDescription>
-            {formatDate(previousMeeting.meetingDate)} — review before approving.
+            {formatInstantDate(previousMeeting.meetingDate)} — review before
+            approving.
           </DialogDescription>
         </DialogHeader>
 
@@ -103,7 +95,11 @@ export function MinutesApprovalDialog({
               Decisions & votes
             </p>
             {previousMeeting.decisions.length === 0 ? (
-              <p className="app-muted mt-1">No decisions recorded.</p>
+              <EmptyState
+                className="py-4"
+                title="No decisions recorded"
+                description="That meeting has nothing in its Decisions section."
+              />
             ) : (
               <ul className="mt-1 flex flex-col gap-1">
                 {previousMeeting.decisions.map((decision) => (
@@ -129,7 +125,11 @@ export function MinutesApprovalDialog({
               Action items
             </p>
             {previousMeeting.actionItems.length === 0 ? (
-              <p className="app-muted mt-1">No action items recorded.</p>
+              <EmptyState
+                className="py-4"
+                title="No action items recorded"
+                description="That meeting has nothing in its Action Items section."
+              />
             ) : (
               <ul className="mt-1 flex flex-col gap-1">
                 {previousMeeting.actionItems.map((item) => (
@@ -147,7 +147,7 @@ export function MinutesApprovalDialog({
 
           {approvedAt && (
             <p className="app-muted text-xs">
-              Approved {dateTimeFormatter.format(new Date(approvedAt))}
+              Approved {formatDateTime(approvedAt)}
             </p>
           )}
 

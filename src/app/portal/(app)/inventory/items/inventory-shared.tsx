@@ -5,6 +5,7 @@ import {
   labelFor,
   resolveImageUrl,
 } from "@/lib/inventory";
+import { formatCurrency } from "@/lib/format";
 
 export { CONDITIONS, GENDERS, labelFor, resolveImageUrl };
 
@@ -60,15 +61,8 @@ export const STATUSES = [
   { value: "other", label: "Other" },
 ];
 
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
-
 export function formatFaceValue(value: number | string | null) {
-  if (value === null || value === undefined) return "—";
-  const numeric = typeof value === "string" ? Number(value) : value;
-  return Number.isFinite(numeric) ? currencyFormatter.format(numeric) : "—";
+  return formatCurrency(value);
 }
 
 export function StatusBadge({ status }: { status: string }) {

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
@@ -8,6 +9,10 @@ import type { Bylaws } from "./bylaws-actions";
 
 const BYLAWS_SELECT =
   "id, version, effective_date, amendment_summary, external_link, body_text";
+
+export const metadata: Metadata = {
+  title: "Bylaws",
+};
 
 export default async function BylawsPage() {
   const supabase = await createSupabaseServerClient();

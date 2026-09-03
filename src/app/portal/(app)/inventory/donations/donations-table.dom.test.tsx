@@ -37,13 +37,13 @@ function makeDonation(overrides: Partial<DonationRow> = {}): DonationRow {
 describe("DonationsTable", () => {
   test("shows an empty state when there are no donations", () => {
     render(<DonationsTable donations={[]} hasActiveFilters={false} />);
-    expect(screen.getByText("No donations recorded yet.")).toBeInTheDocument();
+    expect(screen.getByText("No donations recorded yet")).toBeInTheDocument();
   });
 
   test("shows a filtered empty state when filters are active", () => {
     render(<DonationsTable donations={[]} hasActiveFilters={true} />);
     expect(
-      screen.getByText("No donations match your filters."),
+      screen.getByText("No donations match your filters"),
     ).toBeInTheDocument();
   });
 

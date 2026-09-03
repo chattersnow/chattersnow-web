@@ -2,7 +2,6 @@
 
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
 import {
   type EventVolunteer,
   type EventVolunteerHours,
@@ -24,10 +23,10 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
+import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
-import { personDisplayName } from "@/lib/format";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
+import { formatCalendarDate, personDisplayName } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 function shiftHoursAndDate(shift: EventShift) {
   const durationHours =
@@ -207,7 +206,10 @@ export function HoursSection({
       {loading ? (
         <TabLoadingSkeleton />
       ) : hours.length === 0 ? (
-        <p className="app-muted text-sm">No hours logged yet.</p>
+        <EmptyState
+          title="No hours logged yet"
+          description="Log the first entry with + Log hours above."
+        />
       ) : (
         <Table>
           <TableHeader>
@@ -228,21 +230,19 @@ export function HoursSection({
                   {personDisplayName(entry.person)}
                 </TableCell>
                 <TableCell className="app-muted">
-                  {dateFormatter.format(new Date(entry.logged_date))}
+                  {formatCalendarDate(entry.logged_date)}
                 </TableCell>
                 <TableCell>{entry.hours}</TableCell>
                 <TableCell className="text-right">
                   {mode === "edit" && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Remove hours entry"
-                      disabled={isDeleting}
-                      onClick={() => onDeleteHours(entry.id)}
-                    >
-                      {isDeleting ? <Spinner /> : <Trash2 />}
-                    </Button>
+                    <ConfirmDeleteButton
+                      label="Remove hours entry"
+                      title={`Remove ${personDisplayName(entry.person)}'s logged hours?`}
+                      description="Volunteer hours feed grant reporting, so removing this changes reported totals. It can't be undone."
+                      confirmLabel="Remove"
+                      pending={isDeleting}
+                      onConfirm={() => onDeleteHours(entry.id)}
+                    />
                   )}
                 </TableCell>
               </TableRow>

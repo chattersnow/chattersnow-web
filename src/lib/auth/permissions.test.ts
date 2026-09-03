@@ -106,13 +106,24 @@ describe("requirePermission / requireAnyPermission", () => {
     expect(redirectMock).not.toHaveBeenCalled();
   });
 
-  test("redirects to /portal/home when unsatisfied", async () => {
+  test("redirects to the dashboard when unsatisfied", async () => {
     redirectMock.mockClear();
     const supabase = fakeSupabase([{ resource_key: "events", level: "none" }]);
     await expect(
       requirePermission(supabase, "events", "manage"),
-    ).rejects.toThrow("REDIRECT:/portal/home");
-    expect(redirectMock).toHaveBeenCalledWith("/portal/home");
+    ).rejects.toThrow("REDIRECT:/portal/home?denied=1");
+    expect(redirectMock).toHaveBeenCalledWith("/portal/home?denied=1");
+  });
+
+  test("carries the refused area so the dashboard can name it", async () => {
+    redirectMock.mockClear();
+    const supabase = fakeSupabase([{ resource_key: "events", level: "none" }]);
+    await expect(
+      requirePermission(supabase, "events", "manage", "Financial Reports"),
+    ).rejects.toThrow("REDIRECT:/portal/home?denied=Financial%20Reports");
+    expect(redirectMock).toHaveBeenCalledWith(
+      "/portal/home?denied=Financial%20Reports",
+    );
   });
 
   test("requireAnyPermission is satisfied if any check passes", async () => {
@@ -125,5 +136,70 @@ describe("requirePermission / requireAnyPermission", () => {
       { resource: "finance", level: "manage" },
     ]);
     expect(redirectMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("permission memoization", () => {
+  test("resolves once per Supabase client, not once per call site", async () => {
+    let calls = 0;
+    const supabase = {
+      rpc: async (name: string) => {
+        calls += 1;
+        return name === "my_permissions"
+          ? { data: [{ resource_key: "events", level: "manage" }] }
+          : { data: null };
+      },
+    } as never;
+
+    // A single portal page resolves permissions from the root layout, each
+    // section layout, the page, and every Server Action it fires.
+    const [first, second, third] = await Promise.all([
+      getCurrentUserPermissions(supabase),
+      getCurrentUserPermissions(supabase),
+      getCurrentUserPermissions(supabase),
+    ]);
+
+    expect(first).toEqual({ events: "manage" });
+    expect(second).toBe(first);
+    expect(third).toBe(first);
+    // claim_pending_role_grants + my_permissions, once between them.
+    expect(calls).toBe(2);
+  });
+
+  test("a different client resolves again", async () => {
+    let calls = 0;
+    function makeClient() {
+      return {
+        rpc: async (name: string) => {
+          calls += 1;
+          return name === "my_permissions" ? { data: [] } : { data: null };
+        },
+      } as never;
+    }
+
+    await getCurrentUserPermissions(makeClient());
+    await getCurrentUserPermissions(makeClient());
+    expect(calls).toBe(4);
+  });
+
+  test("a failure isn't pinned to the client for the rest of the request", async () => {
+    let attempt = 0;
+    const supabase = {
+      rpc: async (name: string) => {
+        if (name === "claim_pending_role_grants") {
+          attempt += 1;
+          if (attempt === 1) throw new Error("network");
+          return { data: null };
+        }
+        return { data: [{ resource_key: "events", level: "view" }] };
+      },
+    } as never;
+
+    await expect(getCurrentUserPermissions(supabase)).rejects.toThrow(
+      "network",
+    );
+    await expect(getCurrentUserPermissions(supabase)).resolves.toEqual({
+      events: "view",
+    });
   });
 });

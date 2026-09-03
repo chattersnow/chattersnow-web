@@ -17,11 +17,18 @@ const updatePreferredNameMock = mock(
 // into a client-component module graph.
 const ok = async () => ({ success: true }) as const;
 
+const revokeRoleMock = mock(
+  async (
+    _userId: string,
+    _role: string,
+  ): Promise<{ error: string } | { success: true }> => ({ success: true }),
+);
+
 mock.module("./actions", () => ({
   assignRoleAction: ok,
   deactivateUserAction: ok,
   reactivateUserAction: ok,
-  revokeRoleAction: ok,
+  revokeRoleAction: revokeRoleMock,
   updateUserPreferredNameAction: updatePreferredNameMock,
 }));
 
@@ -171,5 +178,46 @@ describe("UsersTable preferred name", () => {
         "Could not save the preferred name. Please try again.",
       ),
     ).toBeInTheDocument();
+  });
+});
+
+describe("UsersTable role revoke", () => {
+  beforeEach(() => {
+    revokeRoleMock.mockClear();
+  });
+
+  test("asks before revoking, and names what the user loses", async () => {
+    const user = userEvent.setup();
+    render(
+      <UsersTable
+        users={[portalUser({ roles: ["admin", "treasurer"] })]}
+        currentUserId="someone-else"
+        availableRoles={[]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Remove Treasurer" }));
+    expect(revokeRoleMock).not.toHaveBeenCalled();
+    expect(screen.getByText("Remove the Treasurer role?")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Remove role" }));
+    await waitFor(() =>
+      expect(revokeRoleMock).toHaveBeenCalledWith("auth-1", "treasurer"),
+    );
+  });
+
+  test("cancelling leaves the role in place", async () => {
+    const user = userEvent.setup();
+    render(
+      <UsersTable
+        users={[portalUser({ roles: ["admin"] })]}
+        currentUserId="someone-else"
+        availableRoles={[]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Remove Admin" }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(revokeRoleMock).not.toHaveBeenCalled();
   });
 });

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
@@ -9,6 +10,10 @@ import type { Policy } from "./policies-actions";
 
 const POLICY_SELECT =
   "id, name, category, effective_date, version, external_link, body_text";
+
+export const metadata: Metadata = {
+  title: "Policies",
+};
 
 export default async function PoliciesPage() {
   const supabase = await createSupabaseServerClient();

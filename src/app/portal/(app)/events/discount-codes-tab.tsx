@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Trash2 } from "lucide-react";
 import {
   assignDiscountCodeAction,
   deleteDiscountCodeAction,
@@ -33,10 +32,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Spinner } from "@/components/ui/spinner";
+import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
+import { formatInstantDate } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 // Base UI's Select doesn't accept an empty-string item value, so "no
 // registrant assigned" needs its own sentinel instead.
@@ -131,9 +130,10 @@ export function DiscountCodesTab({
       {codes === undefined ? (
         <TabLoadingSkeleton />
       ) : list.length === 0 ? (
-        <p className="app-muted text-sm">
-          No discount codes recorded for this event yet.
-        </p>
+        <EmptyState
+          title="No discount codes recorded for this event yet"
+          description="Add the first ones with + Add codes above."
+        />
       ) : (
         <Table>
           <TableHeader>
@@ -212,14 +212,12 @@ export function DiscountCodesTab({
                   )}
                 </TableCell>
                 <TableCell className="app-muted whitespace-nowrap">
-                  {code.assigned_at
-                    ? dateFormatter.format(new Date(code.assigned_at))
-                    : "—"}
+                  {formatInstantDate(code.assigned_at)}
                 </TableCell>
                 <TableCell className="whitespace-nowrap">
                   {code.sent_at ? (
                     <span className="app-muted">
-                      {dateFormatter.format(new Date(code.sent_at))}
+                      {formatInstantDate(code.sent_at)}
                     </span>
                   ) : mode === "edit" && code.registration_id ? (
                     <Button
@@ -237,16 +235,14 @@ export function DiscountCodesTab({
                 </TableCell>
                 {mode === "edit" && (
                   <TableCell className="text-right whitespace-nowrap">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Remove code"
-                      disabled={isPending}
-                      onClick={() => handleDelete(code.id)}
-                    >
-                      {isPending ? <Spinner /> : <Trash2 />}
-                    </Button>
+                    <ConfirmDeleteButton
+                      label="Remove code"
+                      title={`Remove discount code ${code.code}?`}
+                      description="This deletes the code and unassigns it from any registrant it was issued to. It can't be undone."
+                      confirmLabel="Remove"
+                      pending={isPending}
+                      onConfirm={() => handleDelete(code.id)}
+                    />
                   </TableCell>
                 )}
               </TableRow>

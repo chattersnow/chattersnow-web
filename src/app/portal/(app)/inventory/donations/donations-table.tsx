@@ -13,7 +13,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { dateFormatter, donorLabel, type DonationRow } from "./donation-shared";
+import { donorLabel, type DonationRow } from "./donation-shared";
+import { formatInstantDate } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 export function DonationsTable({
   donations,
@@ -26,11 +28,17 @@ export function DonationsTable({
     return (
       <Card>
         <CardContent className="px-0">
-          <p className="app-muted px-4 py-6 text-sm">
-            {hasActiveFilters
-              ? "No donations match your filters."
-              : "No donations recorded yet."}
-          </p>
+          {hasActiveFilters ? (
+            <EmptyState
+              title="No donations match your filters"
+              description="Clear or loosen the filters to see more."
+            />
+          ) : (
+            <EmptyState
+              title="No donations recorded yet"
+              description="Record the first one with Add donation above."
+            />
+          )}
         </CardContent>
       </Card>
     );
@@ -69,7 +77,7 @@ export function DonationsTable({
                   </TableCell>
                   <TableCell>{donation.event?.name ?? "—"}</TableCell>
                   <TableCell>
-                    {dateFormatter.format(new Date(donation.donated_at))}
+                    {formatInstantDate(donation.donated_at)}
                   </TableCell>
                   <TableCell>
                     <Button

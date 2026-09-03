@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 function nowLocalValue() {
   const date = new Date();
@@ -116,6 +117,7 @@ export function RecordDistributionModal({
         return;
       }
       handleOpenChange(false);
+      toast.success("Distribution recorded.");
       router.refresh();
       onSaved?.();
     });

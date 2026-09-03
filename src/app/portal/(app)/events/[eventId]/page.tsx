@@ -1,17 +1,33 @@
+import type { Metadata } from "next";
+import { detailTitle } from "@/lib/portal/detail-title";
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
   hasPermission,
 } from "@/lib/auth/permissions";
-import { Button } from "@/components/ui/button";
+import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Card, CardContent } from "@/components/ui/card";
 import type { EventRow } from "../event-badges";
 import { isTabValue } from "../event-tabs-config";
 import { listProgramsAction } from "../../programs/actions";
 import { EventDetailView } from "./event-detail-view";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ eventId: string }>;
+}): Promise<Metadata> {
+  const { eventId } = await params;
+  return {
+    title: await detailTitle({
+      table: "events",
+      column: "name",
+      id: eventId,
+      fallback: "Event",
+    }),
+  };
+}
 
 export default async function EventDetailPage({
   params,
@@ -53,15 +69,7 @@ export default async function EventDetailPage({
 
   return (
     <>
-      <Button
-        variant="ghost"
-        size="sm"
-        nativeButton={false}
-        className="mb-2"
-        render={<Link href="/portal/events" />}
-      >
-        <ArrowLeft /> Events
-      </Button>
+      <PortalBreadcrumbs current={event.name} />
 
       <EventDetailView
         event={event}

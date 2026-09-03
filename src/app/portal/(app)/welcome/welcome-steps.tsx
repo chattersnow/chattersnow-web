@@ -48,7 +48,7 @@ export const WELCOME_STEPS: DialogStep[] = [
         </p>
         <p>
           Use the toggle beside the Chatter Snow logo to collapse the sidebar to
-          icons. <strong>My account</strong> at the bottom is where you set the
+          icons. <strong>My Account</strong> at the bottom is where you set the
           preferred name that shows up wherever the portal names you.
         </p>
       </>

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
@@ -7,6 +8,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { NewTemplateDialog } from "./new-template-dialog";
 import { TemplatesTable } from "./templates-table";
 import { TEMPLATE_ROW_SELECT, mapTemplateRow } from "./template-shared";
+
+export const metadata: Metadata = {
+  title: "Brief Templates",
+};
 
 export default async function ContentBriefTemplatesPage() {
   const supabase = await createSupabaseServerClient();
@@ -27,7 +32,7 @@ export default async function ContentBriefTemplatesPage() {
     <>
       <div className="w-fit">
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-          Brief templates
+          Brief Templates
         </h1>
         <div className="rainbow-accent mt-3 w-full" />
       </div>

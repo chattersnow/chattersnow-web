@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 const VISIBILITIES = [
   { value: "private", label: "Private" },
@@ -119,6 +120,7 @@ export function NewEventDialog({
         return;
       }
       handleOpenChange(false);
+      toast.success("Event created.");
       router.refresh();
     });
   }

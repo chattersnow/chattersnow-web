@@ -7,6 +7,6 @@ export default async function DonorsLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createSupabaseServerClient();
-  await requirePermission(supabase, "people", "view");
+  await requirePermission(supabase, "people", "view", "Donors");
   return children;
 }

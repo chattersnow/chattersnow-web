@@ -1,6 +1,12 @@
 import type { EventRow, PhaseStatus } from "./event-badges";
 
-export type PhaseKey = "basic" | "planning" | "during" | "after";
+export const PHASE_KEYS = ["basic", "planning", "during", "after"] as const;
+
+export type PhaseKey = (typeof PHASE_KEYS)[number];
+
+export function isPhaseKey(value: string): value is PhaseKey {
+  return (PHASE_KEYS as readonly string[]).includes(value);
+}
 
 export function planningStatus(event: EventRow): PhaseStatus {
   const signals = [event.event_lead_id, event.capacity, event.budget_amount];

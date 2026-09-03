@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { buildHref, totalPagesFor } from "@/lib/pagination";
 import { listUsersAction } from "../users/actions";
@@ -8,6 +9,10 @@ import { fetchAuditLogEntries } from "./audit-log-query";
 
 type AuditLogPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export const metadata: Metadata = {
+  title: "Audit Log",
 };
 
 export default async function AuditLogPage({
@@ -84,6 +89,7 @@ export default async function AuditLogPage({
         actorEmailById={actorEmailById}
         page={filters.page}
         totalPages={totalPages}
+        count={count}
         pageHref={pageHref}
       />
     </>

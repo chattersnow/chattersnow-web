@@ -1,25 +1,20 @@
-import { cn } from "@/lib/utils";
+import { StatusBadge, type StatusTone } from "@/components/portal/status-badge";
 import { PARTNERSHIP_STAGE_LABELS } from "./partnership-opportunity-form-fields";
 import type { PartnershipStage } from "./partnership-opportunity-form";
 
-const STAGE_STYLES: Record<PartnershipStage, string> = {
-  prospecting: "bg-muted text-muted-foreground",
-  contacted: "bg-[var(--purple-soft)] text-foreground",
-  proposal_sent: "bg-[var(--purple-soft)] text-foreground",
-  negotiating: "bg-[var(--purple-soft)] text-foreground",
-  closed_won: "bg-secondary text-secondary-foreground",
-  closed_lost: "bg-destructive/10 text-destructive",
+const STAGE_STYLES: Record<PartnershipStage, StatusTone> = {
+  prospecting: "neutral",
+  contacted: "progress",
+  proposal_sent: "progress",
+  negotiating: "progress",
+  closed_won: "success",
+  closed_lost: "danger",
 };
 
 export function PartnershipStageBadge({ stage }: { stage: PartnershipStage }) {
   return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-        STAGE_STYLES[stage] ?? "bg-muted text-muted-foreground",
-      )}
-    >
+    <StatusBadge tone={STAGE_STYLES[stage] ?? "neutral"}>
       {PARTNERSHIP_STAGE_LABELS[stage] ?? stage}
-    </span>
+    </StatusBadge>
   );
 }

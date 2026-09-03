@@ -8,6 +8,7 @@
 // database -- anything shared would race.
 import { test, expect } from "@playwright/test";
 import { reloadStayingSignedIn, signIn } from "./helpers/auth";
+import { modal } from "./helpers/dialog";
 
 function uniqueSuffix() {
   return `${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
@@ -26,7 +27,7 @@ test.describe("portal calendar brief templates", () => {
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: "Brief templates",
+        name: "Brief Templates",
         exact: true,
       }),
     ).toBeVisible();
@@ -83,11 +84,10 @@ test.describe("portal calendar brief templates", () => {
       "Permission to publish + usage limits",
     );
 
-    // The back link returns to the list (a Link rendered through the Button
-    // primitive, so it's exposed as a button).
+    // The breadcrumb trail returns to the list.
     await page
-      .getByRole("main")
-      .getByRole("button", { name: "Brief templates", exact: true })
+      .getByRole("navigation", { name: "Breadcrumb" })
+      .getByRole("link", { name: "Brief Templates", exact: true })
       .click();
     await expect(page).toHaveURL(/\/portal\/calendar\/templates$/);
   });
@@ -102,7 +102,7 @@ test.describe("portal calendar brief templates", () => {
     await page.goto("/portal/calendar/templates");
 
     await page.getByRole("button", { name: "New template" }).click();
-    const dialog = page.getByRole("dialog");
+    const dialog = modal(page);
     await expect(
       dialog.getByRole("heading", { name: "Create content brief template" }),
     ).toBeVisible();
@@ -143,7 +143,7 @@ test.describe("portal calendar brief templates", () => {
 
     // Editing metadata leaves the pinned version alone.
     await page.getByRole("button", { name: "Edit details" }).click();
-    const detailsSheet = page.getByRole("dialog");
+    const detailsSheet = modal(page);
     const updatedDescription = `E2E updated description ${suffix}`;
     await detailsSheet.getByLabel("Description").fill(updatedDescription);
     await detailsSheet.getByRole("button", { name: "Save changes" }).click();
@@ -156,7 +156,7 @@ test.describe("portal calendar brief templates", () => {
 
     // Revising the field list publishes v2 instead of mutating v1.
     await page.getByRole("button", { name: "Revise fields" }).click();
-    const fieldsSheet = page.getByRole("dialog");
+    const fieldsSheet = modal(page);
     await fieldsSheet.getByRole("button", { name: "Add field" }).click();
     await fieldsSheet.locator("#field-key-1").fill("call_to_action");
     await fieldsSheet.locator("#field-label-1").fill("Call to action");
@@ -170,8 +170,8 @@ test.describe("portal calendar brief templates", () => {
 
     // Back on the list, the row picked up the new version.
     await page
-      .getByRole("main")
-      .getByRole("button", { name: "Brief templates", exact: true })
+      .getByRole("navigation", { name: "Breadcrumb" })
+      .getByRole("link", { name: "Brief Templates", exact: true })
       .click();
     await expect(page).toHaveURL(/\/portal\/calendar\/templates$/);
     await expect(
@@ -185,7 +185,7 @@ test.describe("portal calendar brief templates", () => {
     await page.goto("/portal/calendar/templates");
 
     await page.getByRole("button", { name: "New template" }).click();
-    const dialog = page.getByRole("dialog");
+    const dialog = modal(page);
 
     await dialog.getByLabel("Key", { exact: true }).fill("Not A Key");
     await dialog

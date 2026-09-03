@@ -2,13 +2,13 @@
 
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
 import {
   createDecisionAction,
   deleteDecisionAction,
   listDecisionsAction,
   type Decision,
 } from "./decisions-actions";
+import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -25,15 +25,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string) {
-  return dateFormatter.format(new Date(value));
-}
+import { formatCalendarDate } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 function AddDecisionForm({
   defaultDate,
@@ -195,7 +188,14 @@ export function DecisionsTab({
       {decisions === undefined ? (
         <TabLoadingSkeleton />
       ) : decisions.length === 0 && !showAdd ? (
-        <p className="app-muted text-sm">No decisions recorded yet.</p>
+        <EmptyState
+          title="No decisions recorded yet"
+          description={
+            mode === "edit"
+              ? "Record the first one with Add decision below."
+              : "Decisions appear here once a governance manager records them for this meeting."
+          }
+        />
       ) : (
         <Table>
           <TableHeader>
@@ -220,20 +220,18 @@ export function DecisionsTab({
                   {decision.vote_result || "—"}
                 </TableCell>
                 <TableCell className="app-muted">
-                  {formatDate(decision.decision_date)}
+                  {formatCalendarDate(decision.decision_date)}
                 </TableCell>
                 <TableCell className="text-right">
                   {mode === "edit" && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Remove decision"
-                      disabled={isDeleting}
-                      onClick={() => handleDelete(decision.id)}
-                    >
-                      {isDeleting ? <Spinner /> : <Trash2 />}
-                    </Button>
+                    <ConfirmDeleteButton
+                      label="Remove decision"
+                      title="Remove this decision?"
+                      description="This deletes the decision and its vote result from the meeting record. It can't be undone."
+                      confirmLabel="Remove"
+                      pending={isDeleting}
+                      onConfirm={() => handleDelete(decision.id)}
+                    />
                   )}
                 </TableCell>
               </TableRow>

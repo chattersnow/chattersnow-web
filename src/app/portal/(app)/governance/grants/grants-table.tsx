@@ -23,29 +23,14 @@ import { GrantStatusBadge } from "./grant-badges";
 import { GRANT_STATUS_LABELS } from "./grant-form-fields";
 import type { Grant } from "./grants-actions";
 import type { PersonListItem } from "../../people/actions";
-import { personDisplayName } from "@/lib/format";
+import {
+  formatCalendarDate,
+  formatCurrency,
+  personDisplayName,
+} from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 const FILTER_ALL = "all";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
-
-function formatAmount(value: number | null) {
-  if (value === null) return "—";
-  return currencyFormatter.format(value);
-}
 
 export function GrantsTable({
   grants,
@@ -121,9 +106,14 @@ export function GrantsTable({
       {grants.length === 0 ? (
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No grants recorded yet.
-            </p>
+            <EmptyState
+              title="No grants recorded yet"
+              description={
+                canManage
+                  ? "Add the first one with Add grant above."
+                  : "Grants appear here once a governance manager adds them."
+              }
+            />
           </CardContent>
         </Card>
       ) : (
@@ -159,10 +149,10 @@ export function GrantsTable({
                         {grant.funder_name}
                       </TableCell>
                       <TableCell className="app-muted">
-                        {formatAmount(grant.amount)}
+                        {formatCurrency(grant.amount)}
                       </TableCell>
                       <TableCell className="app-muted">
-                        {formatDate(grant.application_deadline)}
+                        {formatCalendarDate(grant.application_deadline)}
                       </TableCell>
                       <TableCell>
                         <GrantStatusBadge status={grant.status} />

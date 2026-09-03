@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Trash2 } from "lucide-react";
 import {
   addOrganizationMembershipAction,
   removeOrganizationMembershipAction,
@@ -11,8 +10,10 @@ import {
 } from "../actions";
 import { PersonPicker, type PickedPerson } from "../person-picker";
 import type { OrganizationMembership } from "../people-shared";
+import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/portal/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -88,11 +89,21 @@ export function OrganizationsCard({
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {memberships.length === 0 ? (
-          <p className="app-muted text-sm">
-            {isOrganization
-              ? "No people linked yet."
-              : "Not linked to any organizations yet."}
-          </p>
+          <EmptyState
+            className="py-4"
+            title={
+              isOrganization
+                ? "No people linked yet"
+                : "Not linked to any organizations yet"
+            }
+            description={
+              canManage
+                ? `Link one with + Add ${isOrganization ? "person" : "organization"} below.`
+                : isOrganization
+                  ? "People appear here once they are linked to this organization."
+                  : "Organizations appear here once this person is linked to one."
+            }
+          />
         ) : (
           <Table>
             <TableHeader>
@@ -120,20 +131,14 @@ export function OrganizationsCard({
                     </TableCell>
                     <TableCell className="text-right">
                       {canManage && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label="Remove link"
-                          disabled={isRemoving && removingId === membership.id}
-                          onClick={() => handleRemove(membership.id)}
-                        >
-                          {isRemoving && removingId === membership.id ? (
-                            <Spinner />
-                          ) : (
-                            <Trash2 />
-                          )}
-                        </Button>
+                        <ConfirmDeleteButton
+                          label="Remove link"
+                          title={`Remove the link to ${linked.name ?? "this record"}?`}
+                          description="This unlinks the two records. Neither record is deleted, and the link can be added again. "
+                          confirmLabel="Remove"
+                          pending={isRemoving && removingId === membership.id}
+                          onConfirm={() => handleRemove(membership.id)}
+                        />
                       )}
                     </TableCell>
                   </TableRow>

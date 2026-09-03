@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
@@ -5,6 +6,7 @@ import {
   hasPermission,
 } from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/portal/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
 import { FiltersSheet } from "@/components/filters-sheet";
 import { FilterSubmitButton } from "@/components/filter-submit-button";
@@ -34,6 +36,7 @@ import {
   type VolunteerApplication,
   type VolunteerApplicationStatus,
 } from "./application-types";
+import { formatInstantDate } from "@/lib/format";
 
 type ApplicationsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -48,12 +51,12 @@ function isVolunteerApplicationStatus(
   );
 }
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-});
-
 const selectClassName =
   "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
+
+export const metadata: Metadata = {
+  title: "Volunteer Applications",
+};
 
 export default async function VolunteerApplicationsPage({
   searchParams,
@@ -195,11 +198,18 @@ export default async function VolunteerApplicationsPage({
             <Card>
               <CardContent className="px-0">
                 {applicationRows.length === 0 ? (
-                  <p className="app-muted px-4 py-6 text-sm">
-                    {hasActiveFilters
-                      ? "No applications match your filters."
-                      : "No volunteer applications yet."}
-                  </p>
+                  <EmptyState
+                    title={
+                      hasActiveFilters
+                        ? "No applications match your filters"
+                        : "No volunteer applications yet"
+                    }
+                    description={
+                      hasActiveFilters
+                        ? "Clear or loosen the filters to see more."
+                        : "Applications appear here once someone submits the volunteer form on the public Get Involved page."
+                    }
+                  />
                 ) : (
                   <Table>
                     <TableHeader>
@@ -227,9 +237,7 @@ export default async function VolunteerApplicationsPage({
                             {application.role_interest || "—"}
                           </TableCell>
                           <TableCell className="app-muted">
-                            {dateFormatter.format(
-                              new Date(application.created_at),
-                            )}
+                            {formatInstantDate(application.created_at)}
                           </TableCell>
                           <TableCell>
                             <VolunteerApplicationStatusBadge

@@ -28,17 +28,8 @@ import {
 } from "./annual-requirements-actions";
 import type { PersonListItem } from "../../people/actions";
 import { Spinner } from "@/components/ui/spinner";
-import { personDisplayName } from "@/lib/format";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
+import { formatCalendarDate, personDisplayName } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 function RequirementStatusSelect({
   requirement,
@@ -104,9 +95,14 @@ export function AnnualRequirementsChecklist({
       {requirements.length === 0 ? (
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No annual requirements recorded yet.
-            </p>
+            <EmptyState
+              title="No annual requirements recorded yet"
+              description={
+                canManage
+                  ? "Add the first one with Add requirement above."
+                  : "Requirements appear here once a governance manager adds them."
+              }
+            />
           </CardContent>
         </Card>
       ) : (
@@ -138,7 +134,7 @@ export function AnnualRequirementsChecklist({
                       {requirement.name}
                     </TableCell>
                     <TableCell className="app-muted">
-                      {formatDate(requirement.due_date)}
+                      {formatCalendarDate(requirement.due_date)}
                     </TableCell>
                     <TableCell className="app-muted">
                       {personDisplayName(requirement.responsible)}

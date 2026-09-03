@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +22,7 @@ import {
   type RegistrationRow,
   type VolunteerHoursRow,
 } from "./impact-rollup";
+import { formatCurrency, formatNumber } from "@/lib/format";
 
 type RollupData = {
   event_ids: string[];
@@ -33,14 +35,12 @@ type RollupData = {
   discount_codes: DiscountCodeRow[];
 };
 
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
-const numberFormatter = new Intl.NumberFormat("en-US");
-
 type ProgramImpactReportPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export const metadata: Metadata = {
+  title: "Impact Report",
 };
 
 export default async function ProgramImpactReportPage({
@@ -96,42 +96,42 @@ export default async function ProgramImpactReportPage({
 
   const metricRows = rollup
     ? [
-        { label: "Events", value: numberFormatter.format(rollup.eventCount) },
+        { label: "Events", value: formatNumber(rollup.eventCount) },
         {
           label: "Participants",
-          value: numberFormatter.format(rollup.participants),
+          value: formatNumber(rollup.participants),
         },
         {
           label: "First-time participants",
-          value: numberFormatter.format(rollup.firstTimeParticipants),
+          value: formatNumber(rollup.firstTimeParticipants),
         },
         {
           label: "Beginner participants",
-          value: numberFormatter.format(rollup.beginnerParticipants),
+          value: formatNumber(rollup.beginnerParticipants),
         },
         {
           label: "Participants receiving financial assistance",
-          value: numberFormatter.format(rollup.assistedParticipants),
+          value: formatNumber(rollup.assistedParticipants),
         },
         {
           label: "Equipment loans",
-          value: numberFormatter.format(rollup.equipmentLoans),
+          value: formatNumber(rollup.equipmentLoans),
         },
         {
           label: "Equipment distributed",
-          value: numberFormatter.format(rollup.equipmentDistributed),
+          value: formatNumber(rollup.equipmentDistributed),
         },
         {
           label: "Volunteer hours",
-          value: numberFormatter.format(rollup.volunteerHours),
+          value: formatNumber(rollup.volunteerHours),
         },
         {
           label: "Participant assistance ($)",
-          value: currencyFormatter.format(rollup.participantAssistanceTotal),
+          value: formatCurrency(rollup.participantAssistanceTotal),
         },
         {
           label: "Repeat participants",
-          value: numberFormatter.format(rollup.repeatParticipants),
+          value: formatNumber(rollup.repeatParticipants),
         },
       ]
     : [];
@@ -212,7 +212,7 @@ export default async function ProgramImpactReportPage({
               </CardHeader>
               <CardContent>
                 <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
-                  {numberFormatter.format(rollup.eventCount)}
+                  {formatNumber(rollup.eventCount)}
                 </p>
               </CardContent>
             </Card>
@@ -224,7 +224,7 @@ export default async function ProgramImpactReportPage({
               </CardHeader>
               <CardContent>
                 <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
-                  {numberFormatter.format(rollup.participants)}
+                  {formatNumber(rollup.participants)}
                 </p>
               </CardContent>
             </Card>
@@ -236,7 +236,7 @@ export default async function ProgramImpactReportPage({
               </CardHeader>
               <CardContent>
                 <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
-                  {numberFormatter.format(rollup.volunteerHours)}
+                  {formatNumber(rollup.volunteerHours)}
                 </p>
               </CardContent>
             </Card>
@@ -248,7 +248,7 @@ export default async function ProgramImpactReportPage({
               </CardHeader>
               <CardContent>
                 <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
-                  {currencyFormatter.format(rollup.participantAssistanceTotal)}
+                  {formatCurrency(rollup.participantAssistanceTotal)}
                 </p>
               </CardContent>
             </Card>

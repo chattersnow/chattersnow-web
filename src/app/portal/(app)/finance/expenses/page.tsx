@@ -1,10 +1,10 @@
+import { humanizeStatus } from "@/components/portal/status-badge";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { SortHeaderLink } from "@/components/portal/sort-header-link";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import {
   Table,
@@ -13,10 +13,13 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  type HideBelow,
 } from "@/components/ui/table";
 import { HowToSection } from "@/components/how-to-section";
 import { PageHelpContent } from "../../help/help-context";
+import { ActiveFilters, type ActiveFilter } from "@/components/active-filters";
 import { FiltersSheet } from "@/components/filters-sheet";
+import { SearchField } from "@/components/search-field";
 import { FilterSubmitButton } from "@/components/filter-submit-button";
 import { LinkPendingPulse } from "@/components/link-pending";
 import {
@@ -32,13 +35,14 @@ import { NewExpenseDialog } from "./new-expense-dialog";
 import {
   EXPENSE_COLUMNS,
   formatAmount,
-  formatExpenseDate,
   getExpenseApprovalContext,
   isExpenseStatus,
   type EventOption,
   type ExpenseRow,
   type ExpenseStatus,
 } from "./expenses-shared";
+import { formatCalendarDate } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 type ExpensesPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -58,9 +62,13 @@ const STATUS_OPTIONS: ExpenseStatus[] = [
   "paid",
 ];
 
-const COLUMNS: { key: SortColumn; label: string }[] = [
+const COLUMNS: {
+  key: SortColumn;
+  label: string;
+  hideBelow?: HideBelow;
+}[] = [
   { key: "description", label: "Description" },
-  { key: "expense_date", label: "Date" },
+  { key: "expense_date", label: "Date", hideBelow: "sm" },
   { key: "amount", label: "Amount" },
 ];
 
@@ -150,10 +158,31 @@ export default async function ExpensesPage({
   const hasActiveFilters =
     !!search || eventFilter !== "all" || statusFilter !== "all";
   const activeFilterCount = [
-    !!search,
     eventFilter !== "all",
     statusFilter !== "all",
   ].filter(Boolean).length;
+  // Named in the toolbar rather than hidden behind the Filters count, so a
+  // partially filtered table says why it's short.
+  const appliedFilters: ActiveFilter[] = [];
+  if (search) {
+    appliedFilters.push({ param: "search", label: "Search", value: search });
+  }
+  if (eventFilter !== "all") {
+    appliedFilters.push({
+      param: "event",
+      label: "Event",
+      value:
+        eventOptions.find((event) => event.id === eventFilter)?.name ??
+        eventFilter,
+    });
+  }
+  if (statusFilter !== "all") {
+    appliedFilters.push({
+      param: "status",
+      label: "Status",
+      value: humanizeStatus(statusFilter),
+    });
+  }
 
   return (
     <>
@@ -255,25 +284,20 @@ export default async function ExpensesPage({
 
       <div className="mt-6 space-y-4">
         <div className="rainbow-surface flex flex-wrap items-center justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+          <SearchField
+            action="/portal/finance/expenses"
+            defaultValue={search}
+            placeholder="Search vendor, notes..."
+            preserve={{ event: eventFilter, status: statusFilter, sort, dir }}
+          />
           <FiltersSheet activeCount={activeFilterCount}>
             <form method="get" className="flex flex-col gap-4">
               <input type="hidden" name="sort" value={sort} />
               <input type="hidden" name="dir" value={dir} />
 
-              <div className="flex flex-col gap-1">
-                <label
-                  htmlFor="search"
-                  className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-                >
-                  Search
-                </label>
-                <Input
-                  id="search"
-                  name="search"
-                  placeholder="Search description..."
-                  defaultValue={search}
-                />
-              </div>
+              {/* Search lives in the toolbar now; carry it through so
+                  applying a filter here doesn't drop the current query. */}
+              <input type="hidden" name="search" value={search} />
 
               <div className="flex flex-col gap-1">
                 <label
@@ -338,20 +362,42 @@ export default async function ExpensesPage({
           <NewExpenseDialog events={eventOptions} />
         </div>
 
+        <ActiveFilters
+          action="/portal/finance/expenses"
+          filters={appliedFilters}
+          params={{
+            search,
+            event: eventFilter,
+            status: statusFilter,
+            sort,
+            dir,
+          }}
+        />
+
         <Card>
           <CardContent className="px-0">
             {expenseRows.length === 0 ? (
-              <p className="app-muted px-4 py-6 text-sm">
-                {hasActiveFilters
-                  ? "No expenses match your filters."
-                  : "No expenses recorded yet."}
-              </p>
+              hasActiveFilters ? (
+                <EmptyState
+                  title="No expenses match your filters"
+                  description="Clear or loosen the filters to see more."
+                />
+              ) : (
+                <EmptyState
+                  title="No expenses recorded yet"
+                  description="Record the first one with New Expense above."
+                />
+              )
             ) : (
-              <Table>
+              <Table stickyFirstColumn>
                 <TableHeader>
                   <TableRow>
                     {COLUMNS.map((column) => (
-                      <TableHead key={column.key}>
+                      <TableHead
+                        key={column.key}
+                        hideBelow={column.hideBelow}
+                        sortDirection={sort === column.key ? dir : null}
+                      >
                         <SortHeaderLink
                           href={sortHref(column.key)}
                           label={column.label}
@@ -359,7 +405,7 @@ export default async function ExpensesPage({
                         />
                       </TableHead>
                     ))}
-                    <TableHead>Event</TableHead>
+                    <TableHead hideBelow="md">Event</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-0">
                       <span className="sr-only">Actions</span>
@@ -372,13 +418,13 @@ export default async function ExpensesPage({
                       <TableCell className="whitespace-normal">
                         {expense.description}
                       </TableCell>
-                      <TableCell>
-                        {formatExpenseDate(expense.expense_date)}
+                      <TableCell hideBelow="sm">
+                        {formatCalendarDate(expense.expense_date)}
                       </TableCell>
                       <TableCell>
                         {formatAmount(expense.amount, expense.currency)}
                       </TableCell>
-                      <TableCell className="app-muted">
+                      <TableCell hideBelow="md" className="app-muted">
                         {expense.events?.name ?? "—"}
                       </TableCell>
                       <TableCell>
@@ -400,7 +446,12 @@ export default async function ExpensesPage({
         </Card>
 
         {expenseRows.length > 0 && (
-          <Pagination page={page} totalPages={totalPages} hrefFor={pageHref} />
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            count={count}
+            hrefFor={pageHref}
+          />
         )}
       </div>
     </>

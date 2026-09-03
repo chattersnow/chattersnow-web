@@ -38,6 +38,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 export type RoleRow = { id: string; name: string; description: string | null };
 
@@ -118,6 +119,7 @@ export function RoleDetailsDialog({ role }: { role: RoleRow }) {
         return;
       }
       setMode("view");
+      toast.success("Role deleted.");
       router.refresh();
     });
   }
@@ -133,6 +135,7 @@ export function RoleDetailsDialog({ role }: { role: RoleRow }) {
       }
       setDeleteConfirmOpen(false);
       setOpen(false);
+      toast.success("Role deleted.");
       router.refresh();
     });
   }

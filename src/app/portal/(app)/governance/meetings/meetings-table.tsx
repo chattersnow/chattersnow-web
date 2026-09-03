@@ -2,7 +2,8 @@
 
 import { ReactNode, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowDown, ArrowUp, ArrowUpDown, Eye } from "lucide-react";
+import { Eye } from "lucide-react";
+import { SortHeaderButton } from "@/components/portal/sort-header-link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -25,13 +26,10 @@ import {
   MeetingTypeBadge,
   type MeetingRow,
 } from "./meeting-badges";
+import { formatDateTime } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 const FILTER_ALL = "all";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
 
 type SortKey = "meeting_date" | "meeting_type" | "status" | "location";
 
@@ -109,9 +107,14 @@ export function MeetingsTable({
       {meetings.length === 0 ? (
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No meetings scheduled yet.
-            </p>
+            <EmptyState
+              title="No meetings scheduled yet"
+              description={
+                newAction
+                  ? "Schedule the first one with Schedule meeting above."
+                  : "Meetings appear here once a governance manager schedules one."
+              }
+            />
           </CardContent>
         </Card>
       ) : (
@@ -121,23 +124,17 @@ export function MeetingsTable({
               <TableHeader>
                 <TableRow>
                   {SORT_COLUMNS.map((column) => (
-                    <TableHead key={column.key}>
-                      <button
-                        type="button"
-                        onClick={() => handleSort(column.key)}
-                        className="inline-flex items-center gap-1 hover:text-foreground"
-                      >
-                        {column.label}
-                        {sortKey === column.key ? (
-                          sortDirection === "asc" ? (
-                            <ArrowUp className="size-3.5" />
-                          ) : (
-                            <ArrowDown className="size-3.5" />
-                          )
-                        ) : (
-                          <ArrowUpDown className="size-3.5 text-muted-foreground" />
-                        )}
-                      </button>
+                    <TableHead
+                      key={column.key}
+                      sortDirection={
+                        sortKey === column.key ? sortDirection : null
+                      }
+                    >
+                      <SortHeaderButton
+                        label={column.label}
+                        dir={sortKey === column.key ? sortDirection : null}
+                        onSort={() => handleSort(column.key)}
+                      />
                     </TableHead>
                   ))}
                   <TableHead className="w-0">
@@ -159,7 +156,7 @@ export function MeetingsTable({
                   visibleMeetings.map((meeting) => (
                     <TableRow key={meeting.id}>
                       <TableCell className="font-medium">
-                        {dateFormatter.format(new Date(meeting.meeting_date))}
+                        {formatDateTime(meeting.meeting_date)}
                       </TableCell>
                       <TableCell>
                         <MeetingTypeBadge type={meeting.meeting_type} />
@@ -175,9 +172,7 @@ export function MeetingsTable({
                           variant="ghost"
                           size="icon-sm"
                           nativeButton={false}
-                          aria-label={`View meeting on ${dateFormatter.format(
-                            new Date(meeting.meeting_date),
-                          )}`}
+                          aria-label={`View meeting on ${formatDateTime(meeting.meeting_date)}`}
                           render={
                             <Link
                               href={`/portal/governance/meetings/${meeting.id}`}

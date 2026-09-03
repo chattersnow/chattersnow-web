@@ -8,8 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { formatDate, formatMoney, toDateInputValue } from "./format";
+import { toDateInputValue } from "./format";
 import { Spinner } from "@/components/ui/spinner";
+import { formatCurrency, formatInstantDate } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 export function GiveawaySalesForm({
   eventId,
@@ -179,16 +181,16 @@ export function GiveawaySummary({ giveaway }: { giveaway: Giveaway }) {
             {giveaway.tickets_sold}
           </ReadOnlyField>
           <ReadOnlyField label="Ticket price" htmlFor="giveaway-ticketPrice">
-            {formatMoney(giveaway.ticket_price)}
+            {formatCurrency(giveaway.ticket_price)}
           </ReadOnlyField>
         </Field>
 
         <Field orientation="responsive">
           <ReadOnlyField label="Revenue" htmlFor="giveaway-revenue">
-            {formatMoney(giveaway.revenue_amount)}
+            {formatCurrency(giveaway.revenue_amount)}
           </ReadOnlyField>
           <ReadOnlyField label="Drawing date" htmlFor="giveaway-drawingDate">
-            {formatDate(giveaway.drawing_date)}
+            {formatInstantDate(giveaway.drawing_date)}
           </ReadOnlyField>
         </Field>
 
@@ -228,5 +230,10 @@ export function SalesSection({
     return <GiveawaySummary giveaway={giveaway} />;
   }
 
-  return <p className="app-muted text-sm">No giveaway set up yet.</p>;
+  return (
+    <EmptyState
+      title="No giveaway set up yet"
+      description="Open the editor with Edit giveaway (the pencil above) and choose Set up giveaway to record ticket sales and prizes."
+    />
+  );
 }

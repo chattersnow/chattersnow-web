@@ -1,5 +1,8 @@
-import type { ReactNode } from "react";
-import { cn } from "@/lib/utils";
+import {
+  humanizeStatus,
+  StatusBadge,
+  type StatusTone,
+} from "@/components/portal/status-badge";
 
 export const TABLE_LABELS: Record<string, string> = {
   donations: "Donations",
@@ -16,35 +19,16 @@ export const TABLE_LABELS: Record<string, string> = {
   access_grants: "Access grants",
 };
 
-const ACTION_STYLES: Record<string, string> = {
-  insert: "bg-secondary text-secondary-foreground",
-  update: "bg-primary/10 text-primary",
-  delete: "bg-destructive/10 text-destructive",
+const ACTION_STYLES: Record<string, StatusTone> = {
+  insert: "info",
+  update: "progress",
+  delete: "danger",
 };
-
-function Pill({
-  className,
-  children,
-}: {
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize",
-        className,
-      )}
-    >
-      {children}
-    </span>
-  );
-}
 
 export function ActionBadge({ action }: { action: string }) {
   return (
-    <Pill className={ACTION_STYLES[action] ?? "bg-muted text-muted-foreground"}>
-      {action}
-    </Pill>
+    <StatusBadge tone={ACTION_STYLES[action] ?? "neutral"}>
+      {humanizeStatus(action)}
+    </StatusBadge>
   );
 }

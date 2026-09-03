@@ -43,10 +43,6 @@ export type DonationRow = {
   inventory_items: DonationItemRow[];
 };
 
-export const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-});
-
 export function donorLabel(donor: DonationRow["donor"]) {
   return donor.is_anonymous ? "Anonymous" : donor.name || "—";
 }

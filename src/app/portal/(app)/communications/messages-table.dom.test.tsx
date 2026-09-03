@@ -35,7 +35,7 @@ async function openStatusFilter(user: ReturnType<typeof userEvent.setup>) {
 describe("MessagesTable", () => {
   test("shows an empty state when there are no messages", () => {
     render(<MessagesTable messages={[]} canManage={true} />);
-    expect(screen.getByText("No messages yet.")).toBeInTheDocument();
+    expect(screen.getByText("No messages yet")).toBeInTheDocument();
   });
 
   test("without a pinned filter, statuses filter normally as they change", () => {

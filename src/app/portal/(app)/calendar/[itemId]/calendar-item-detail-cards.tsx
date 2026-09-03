@@ -60,11 +60,7 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+import { formatDateTime } from "@/lib/format";
 
 function toDatetimeLocalValue(iso: string | null, timeZone: string) {
   if (!iso) return "";
@@ -304,12 +300,10 @@ export function ScheduleDetailsCard({
           </ReadOnlyField>
           <Field orientation="responsive">
             <ReadOnlyField label="Starts" htmlFor="item-starts">
-              {dateFormatter.format(new Date(item.starts_at))}
+              {formatDateTime(item.starts_at)}
             </ReadOnlyField>
             <ReadOnlyField label="Ends" htmlFor="item-ends">
-              {item.ends_at
-                ? dateFormatter.format(new Date(item.ends_at))
-                : "—"}
+              {formatDateTime(item.ends_at)}
             </ReadOnlyField>
           </Field>
           <Field orientation="responsive">
@@ -814,8 +808,7 @@ export function SensitiveTopicCard({
               )}
               {item.sensitive_review_by ? (
                 <p className="app-muted text-xs">
-                  Reviewed{" "}
-                  {dateFormatter.format(new Date(item.sensitive_review_at!))} by{" "}
+                  Reviewed {formatDateTime(item.sensitive_review_at)} by{" "}
                   {calendarActorName(owners, item.sensitive_review_by)}
                 </p>
               ) : (

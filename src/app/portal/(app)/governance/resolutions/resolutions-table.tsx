@@ -23,18 +23,10 @@ import { VoteOutcomeBadge } from "./resolution-badges";
 import type { Resolution } from "./resolutions-actions";
 import type { ResolutionMeetingOption } from "./resolutions-shared";
 import type { PersonListItem } from "../../people/actions";
+import { formatCalendarDate, formatInstantDate } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 const FILTER_ALL = "all";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
 
 function meetingDateFor(
   meetingId: string | null,
@@ -42,7 +34,7 @@ function meetingDateFor(
 ) {
   if (!meetingId) return "—";
   const meeting = meetings.find((m) => m.id === meetingId);
-  return meeting ? formatDate(meeting.meeting_date) : "—";
+  return meeting ? formatInstantDate(meeting.meeting_date) : "—";
 }
 
 export function ResolutionsTable({
@@ -126,9 +118,14 @@ export function ResolutionsTable({
       {resolutions.length === 0 ? (
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No resolutions recorded yet.
-            </p>
+            <EmptyState
+              title="No resolutions recorded yet"
+              description={
+                canManage
+                  ? "Add the first one with Add resolution above."
+                  : "Resolutions appear here once a governance manager adds them."
+              }
+            />
           </CardContent>
         </Card>
       ) : (
@@ -170,7 +167,7 @@ export function ResolutionsTable({
                         <VoteOutcomeBadge outcome={resolution.vote_outcome} />
                       </TableCell>
                       <TableCell className="app-muted">
-                        {formatDate(resolution.effective_date)}
+                        {formatCalendarDate(resolution.effective_date)}
                       </TableCell>
                       <TableCell className="app-muted">
                         {meetingDateFor(resolution.meeting_id, meetings)}

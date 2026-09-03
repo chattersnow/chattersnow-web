@@ -1,5 +1,6 @@
 "use client";
 
+import { EmptyState } from "@/components/portal/empty-state";
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Eye, Pencil } from "lucide-react";
@@ -57,12 +58,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+import { formatDateTime } from "@/lib/format";
 
 const STATUSES = [
   { value: "pilot", label: "Pilot" },
@@ -173,6 +171,7 @@ export function ProgramDetailsDialog({
         return;
       }
       setMode("view");
+      toast.success("Program saved.");
       router.refresh();
     });
   }
@@ -287,9 +286,11 @@ export function ProgramDetailsDialog({
                     ) : events === null ? (
                       <TabLoadingSkeleton />
                     ) : events.length === 0 ? (
-                      <p className="app-muted text-sm">
-                        No events tagged to this program yet.
-                      </p>
+                      <EmptyState
+                        className="py-4"
+                        title="No events tagged to this program yet"
+                        description="Assign an event to this program from the event's Overview tab and it will be listed here."
+                      />
                     ) : (
                       <Table>
                         <TableHeader>
@@ -310,9 +311,7 @@ export function ProgramDetailsDialog({
                                 {event.name}
                               </TableCell>
                               <TableCell>
-                                {dateFormatter.format(
-                                  new Date(event.starts_at),
-                                )}
+                                {formatDateTime(event.starts_at)}
                               </TableCell>
                               <TableCell>
                                 <StatusBadge status={event.status} />

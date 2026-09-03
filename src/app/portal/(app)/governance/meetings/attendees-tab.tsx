@@ -2,13 +2,13 @@
 
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
 import {
   createMeetingAttendeeAction,
   deleteMeetingAttendeeAction,
   listMeetingAttendeesAction,
   type MeetingAttendee,
 } from "./attendees-actions";
+import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { PersonPicker, type PickedPerson } from "../../people/person-picker";
 import { listPeopleAction, type PersonListItem } from "../../people/actions";
@@ -27,6 +27,7 @@ import {
 import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
 import { personDisplayName } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 function AddAttendeeForm({
   people,
@@ -179,7 +180,14 @@ export function AttendeesTab({
       {attendees === undefined ? (
         <TabLoadingSkeleton />
       ) : attendees.length === 0 && !showAdd ? (
-        <p className="app-muted text-sm">No attendees recorded yet.</p>
+        <EmptyState
+          title="No attendees recorded yet"
+          description={
+            mode === "edit"
+              ? "Record who was at this meeting with Add attendee below."
+              : "Attendees appear here once a governance manager records them for this meeting."
+          }
+        />
       ) : (
         <Table>
           <TableHeader>
@@ -203,16 +211,14 @@ export function AttendeesTab({
                 </TableCell>
                 <TableCell className="text-right">
                   {mode === "edit" && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Remove attendee"
-                      disabled={isDeleting}
-                      onClick={() => handleDelete(attendee.id)}
-                    >
-                      {isDeleting ? <Spinner /> : <Trash2 />}
-                    </Button>
+                    <ConfirmDeleteButton
+                      label="Remove attendee"
+                      title={`Remove ${personDisplayName(attendee.person)} from the attendance record?`}
+                      description="Attendance is what establishes quorum for this meeting's decisions. It can't be undone."
+                      confirmLabel="Remove"
+                      pending={isDeleting}
+                      onConfirm={() => handleDelete(attendee.id)}
+                    />
                   )}
                 </TableCell>
               </TableRow>

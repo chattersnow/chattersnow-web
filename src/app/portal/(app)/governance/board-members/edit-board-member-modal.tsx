@@ -40,16 +40,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
+import { toast } from "@/components/ui/toast";
+import { formatCalendarDate } from "@/lib/format";
 
 function formStateFor(boardMember: BoardMemberRow): BoardMemberFormState {
   return {
@@ -143,6 +135,7 @@ export function EditBoardMemberModal({
         return;
       }
       setMode("view");
+      toast.success("Board member saved.");
       router.refresh();
     });
   }
@@ -248,13 +241,13 @@ export function EditBoardMemberModal({
                   label="Term start"
                   htmlFor="edit-board-member-term-start"
                 >
-                  {formatDate(boardMember.term_start)}
+                  {formatCalendarDate(boardMember.term_start)}
                 </ReadOnlyField>
                 <ReadOnlyField
                   label="Term end"
                   htmlFor="edit-board-member-term-end"
                 >
-                  {formatDate(boardMember.term_end)}
+                  {formatCalendarDate(boardMember.term_end)}
                 </ReadOnlyField>
                 <ReadOnlyField
                   label="Active"

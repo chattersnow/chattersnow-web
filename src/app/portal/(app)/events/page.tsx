@@ -307,7 +307,10 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
               <TableHeader>
                 <TableRow>
                   {COLUMNS.map((column) => (
-                    <TableHead key={column.key}>
+                    <TableHead
+                      key={column.key}
+                      sortDirection={sort === column.key ? dir : null}
+                    >
                       <SortHeaderLink
                         href={sortHref(column.key)}
                         label={column.label}
@@ -369,7 +372,12 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
       </Card>
 
       {events && events.length > 0 && (
-        <Pagination page={page} totalPages={totalPages} hrefFor={pageHref} />
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          count={count}
+          hrefFor={pageHref}
+        />
       )}
     </>
   );

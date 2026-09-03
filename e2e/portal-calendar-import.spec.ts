@@ -12,6 +12,7 @@
 // covered by calendar/recurrence-actions.integration.test.ts.
 import { test, expect } from "@playwright/test";
 import { signIn } from "./helpers/auth";
+import { modal } from "./helpers/dialog";
 
 // Far enough out that these rows never collide with the seeded data the
 // annual review report and the coverage card read for nearby years.
@@ -168,7 +169,7 @@ test.describe("portal calendar import", () => {
 
     await page.getByRole("button", { name: "Help for this page" }).click();
 
-    const sheet = page.getByRole("dialog");
+    const sheet = modal(page);
     await expect(
       sheet.getByRole("heading", { name: "How calendar import works" }),
     ).toBeVisible();

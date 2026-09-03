@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { signIn } from "./helpers/auth";
+import { modal } from "./helpers/dialog";
 
 // Seeded by supabase/seed.sql: Priya Natarajan (volunteer), Jamie Rivera
 // (donor), and Summit Outdoor Co. (sponsor) are always present after a
@@ -51,10 +52,10 @@ test.describe("portal people directory", () => {
   test("searches the directory by name", async ({ page }) => {
     await page.goto("/portal/people");
 
-    await page.getByRole("button", { name: "Filters" }).click();
-    const filters = page.getByRole("dialog");
-    await filters.getByLabel("Search").fill("Priya");
-    await filters.getByRole("button", { name: "Filter" }).click();
+    // Search sits in the toolbar rather than inside the Filters sheet, so
+    // this is one field and one submit with the table still on screen.
+    await page.getByRole("searchbox", { name: "Search" }).fill("Priya");
+    await page.getByRole("button", { name: "Search", exact: true }).click();
 
     await expect(page).toHaveURL(/search=Priya/);
     await expect(
@@ -81,7 +82,7 @@ test.describe("portal people directory", () => {
     ).toHaveCount(0);
 
     await page.getByRole("button", { name: "Filters" }).click();
-    const filters = page.getByRole("dialog");
+    const filters = modal(page);
     await expect(
       filters.getByRole("heading", { name: "Filters" }),
     ).toBeVisible();
@@ -111,7 +112,7 @@ test.describe("portal people directory", () => {
     const personEmail = `e2e.person.${Date.now()}@example.test`;
 
     await page.getByRole("button", { name: "New Person" }).click();
-    const addDialog = page.getByRole("dialog");
+    const addDialog = modal(page);
     await expect(
       addDialog.getByRole("heading", { name: "Add person" }),
     ).toBeVisible();

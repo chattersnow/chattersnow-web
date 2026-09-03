@@ -1,34 +1,28 @@
+import type { Metadata } from "next";
+import { detailTitle } from "@/lib/portal/detail-title";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
   hasPermission,
 } from "@/lib/auth/permissions";
-import { Button } from "@/components/ui/button";
+import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
+import { EmptyState } from "@/components/portal/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { PersonListItem } from "../actions";
 import { type OrganizationMembership, type PersonRow } from "../people-shared";
 import { ProfileCard } from "./profile-card";
 import { OrganizationsCard } from "./organizations-card";
+import {
+  formatCalendarDate,
+  formatCurrency,
+  formatInstantDate,
+} from "@/lib/format";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
-
-function formatDate(value: string | null | undefined) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
-
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
-
-function formatValue(value: number | string | null) {
-  if (value === null || value === undefined) return null;
-  const numeric = typeof value === "string" ? Number(value) : value;
-  return Number.isFinite(numeric) ? currencyFormatter.format(numeric) : null;
+function contributionSuffix(value: number | string | null) {
+  const amount = formatCurrency(value, "");
+  return amount ? ` · ${amount}` : "";
 }
 
 type EventRef = { id: string; name: string; starts_at: string | null } | null;
@@ -79,6 +73,22 @@ type PartnershipAsOwner = {
   organization: { id: string; name: string | null } | null;
 };
 type ContactFor = { id: string; name: string | null; email: string | null };
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  return {
+    title: await detailTitle({
+      table: "people",
+      column: "name",
+      id: id,
+      fallback: "Person",
+    }),
+  };
+}
 
 export default async function PersonDetailPage({
   params,
@@ -205,15 +215,7 @@ export default async function PersonDetailPage({
 
   return (
     <>
-      <Button
-        variant="ghost"
-        size="sm"
-        nativeButton={false}
-        className="mb-2"
-        render={<Link href="/portal/people" />}
-      >
-        <ArrowLeft /> People
-      </Button>
+      <PortalBreadcrumbs current={personRow.name ?? "Person"} />
 
       <div className="w-fit">
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
@@ -261,7 +263,11 @@ export default async function PersonDetailPage({
           </CardHeader>
           <CardContent>
             {donationRows.length === 0 ? (
-              <p className="app-muted text-sm">No donations recorded.</p>
+              <EmptyState
+                className="py-4"
+                title="No donations recorded"
+                description="Gear donations appear here once one is recorded for this person from Inventory › Donations."
+              />
             ) : (
               <ul className="flex flex-col gap-3 text-sm">
                 {donationRows.map((donation) => (
@@ -270,7 +276,7 @@ export default async function PersonDetailPage({
                     className="border-b border-[var(--line)] pb-2 last:border-0 last:pb-0"
                   >
                     <p className="font-medium">
-                      {formatDate(donation.donated_at)}
+                      {formatInstantDate(donation.donated_at)}
                       {donation.event?.name ? ` · ${donation.event.name}` : ""}
                     </p>
                     {donation.notes && (
@@ -291,7 +297,11 @@ export default async function PersonDetailPage({
           </CardHeader>
           <CardContent>
             {sponsorshipRows.length === 0 ? (
-              <p className="app-muted text-sm">No sponsorships recorded.</p>
+              <EmptyState
+                className="py-4"
+                title="No sponsorships recorded"
+                description="Sponsorships appear here once this person is added on an event's Sponsors tab."
+              />
             ) : (
               <ul className="flex flex-col gap-3 text-sm">
                 {sponsorshipRows.map((sponsorship) => (
@@ -304,9 +314,7 @@ export default async function PersonDetailPage({
                     </p>
                     <p className="app-muted capitalize">
                       {sponsorship.support_type.replace("_", " ")}
-                      {formatValue(sponsorship.contribution_value)
-                        ? ` · ${formatValue(sponsorship.contribution_value)}`
-                        : ""}
+                      {contributionSuffix(sponsorship.contribution_value)}
                     </p>
                   </li>
                 ))}
@@ -324,7 +332,11 @@ export default async function PersonDetailPage({
           </CardHeader>
           <CardContent>
             {registrationRows.length === 0 ? (
-              <p className="app-muted text-sm">No event registrations.</p>
+              <EmptyState
+                className="py-4"
+                title="No event registrations"
+                description="Registrations appear here once this person signs up for an event on the public site."
+              />
             ) : (
               <ul className="flex flex-col gap-3 text-sm">
                 {registrationRows.map((registration) => (
@@ -343,7 +355,7 @@ export default async function PersonDetailPage({
                     </p>
                     <p className="app-muted">
                       Party of {registration.party_size} ·{" "}
-                      {formatDate(registration.created_at)}
+                      {formatInstantDate(registration.created_at)}
                     </p>
                   </li>
                 ))}
@@ -362,9 +374,11 @@ export default async function PersonDetailPage({
             {volunteerSignupRows.length === 0 &&
             volunteerHoursRows.length === 0 &&
             volunteerApplicationRows.length === 0 ? (
-              <p className="app-muted text-sm">
-                No volunteer activity recorded.
-              </p>
+              <EmptyState
+                className="py-4"
+                title="No volunteer activity recorded"
+                description="Applications, event sign-ups, and logged hours appear here once this person volunteers."
+              />
             ) : (
               <div className="flex flex-col gap-4 text-sm">
                 {volunteerApplicationRows.length > 0 && (
@@ -375,7 +389,7 @@ export default async function PersonDetailPage({
                     <ul className="flex flex-col gap-2">
                       {volunteerApplicationRows.map((application) => (
                         <li key={application.id}>
-                          {formatDate(application.created_at)} ·{" "}
+                          {formatInstantDate(application.created_at)} ·{" "}
                           <span className="capitalize">
                             {application.status}
                           </span>
@@ -410,7 +424,8 @@ export default async function PersonDetailPage({
                     <ul className="flex flex-col gap-2">
                       {volunteerHoursRows.map((entry) => (
                         <li key={entry.id}>
-                          {formatDate(entry.logged_date)} · {entry.hours}h
+                          {formatCalendarDate(entry.logged_date)} ·{" "}
+                          {entry.hours}h
                           {entry.event?.name ? ` · ${entry.event.name}` : ""}
                         </li>
                       ))}
@@ -431,7 +446,11 @@ export default async function PersonDetailPage({
           <CardContent>
             {partnershipAsOrgRows.length === 0 &&
             partnershipAsOwnerRows.length === 0 ? (
-              <p className="app-muted text-sm">No partnership involvement.</p>
+              <EmptyState
+                className="py-4"
+                title="No partnership involvement"
+                description="Opportunities appear here once this record is named as the partner or owner from Governance › Partnerships."
+              />
             ) : (
               <div className="flex flex-col gap-4 text-sm">
                 {partnershipAsOrgRows.length > 0 && (
@@ -444,7 +463,7 @@ export default async function PersonDetailPage({
                         <li key={opportunity.id} className="capitalize">
                           {opportunity.stage.replace("_", " ")}
                           {opportunity.next_step_date
-                            ? ` · next step ${formatDate(opportunity.next_step_date)}`
+                            ? ` · next step ${formatCalendarDate(opportunity.next_step_date)}`
                             : ""}
                         </li>
                       ))}

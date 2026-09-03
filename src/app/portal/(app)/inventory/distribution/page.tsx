@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Eye } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -18,12 +19,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { personDisplayName } from "@/lib/format";
+import { formatDateTime, personDisplayName } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+export const metadata: Metadata = {
+  title: "Distribution",
+};
 
 export default async function DistributionPage() {
   const supabase = await createSupabaseServerClient();
@@ -64,19 +65,24 @@ export default async function DistributionPage() {
           <Card>
             <CardContent className="px-0">
               {result.data.length === 0 ? (
-                <p className="app-muted px-4 py-6 text-sm">
-                  No distributions recorded yet.
-                </p>
+                <EmptyState
+                  title="No distributions recorded yet"
+                  description={
+                    canRecord
+                      ? "Record the first one with Record distribution above."
+                      : "Distributions appear here once gear is handed out."
+                  }
+                />
               ) : (
-                <Table>
+                <Table stickyFirstColumn>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Item</TableHead>
                       <TableHead>Qty</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Event</TableHead>
-                      <TableHead>Recipient</TableHead>
-                      <TableHead>Reason</TableHead>
+                      <TableHead hideBelow="sm">Date</TableHead>
+                      <TableHead hideBelow="md">Event</TableHead>
+                      <TableHead hideBelow="lg">Recipient</TableHead>
+                      <TableHead hideBelow="lg">Reason</TableHead>
                       <TableHead className="w-0">
                         <span className="sr-only">Actions</span>
                       </TableHead>
@@ -99,22 +105,24 @@ export default async function DistributionPage() {
                           </span>
                         </TableCell>
                         <TableCell>{movement.quantity}</TableCell>
-                        <TableCell className="app-muted">
-                          {dateFormatter.format(new Date(movement.occurred_at))}
+                        <TableCell hideBelow="sm" className="app-muted">
+                          {formatDateTime(movement.occurred_at)}
                         </TableCell>
                         <TableCell
+                          hideBelow="md"
                           className="max-w-xs truncate app-muted"
                           title={movement.event?.name ?? undefined}
                         >
                           {movement.event?.name ?? "—"}
                         </TableCell>
                         <TableCell
+                          hideBelow="lg"
                           className="max-w-xs truncate app-muted"
                           title={movement.recipient?.name ?? undefined}
                         >
                           {personDisplayName(movement.recipient)}
                         </TableCell>
-                        <TableCell className="app-muted">
+                        <TableCell hideBelow="lg" className="app-muted">
                           {movement.reason || "—"}
                         </TableCell>
                         <TableCell>

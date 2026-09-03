@@ -41,6 +41,7 @@ import {
   type ProgramSuggestionRule,
 } from "./program-suggestion-shared";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 function getInitialFormState() {
   return {
@@ -143,6 +144,7 @@ export function NewCalendarItemDialog({
         setWarning(result.warning);
       }
       handleOpenChange(false);
+      toast.success("Calendar item added.");
       router.refresh();
     });
   }

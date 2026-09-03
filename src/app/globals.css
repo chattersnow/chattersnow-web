@@ -44,6 +44,14 @@
   --accent: var(--purple-soft);
   --accent-foreground: var(--purple-deep);
   --destructive: #cc2936;
+  /* The status palette's missing halves. Without a success token, "approved"
+     and "paid" were adjacent purples -- the two states a finance reviewer
+     most needs to tell apart -- and nothing in the portal was ever green or
+     amber, so an overdue annual requirement and a scheduled one differed
+     only by label. Both are chosen to clear 4.5:1 on the page background at
+     the tint the status badges use. */
+  --success: #15803d;
+  --success-foreground: #ffffff;
   --warning: #b45309;
   --warning-foreground: #ffffff;
   --border: var(--line);
@@ -90,6 +98,8 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
   --color-brand-purple: var(--purple);
@@ -287,6 +297,10 @@ body {
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
+  /* Lightened the same way --destructive is, so the tinted badges stay
+     readable against the dark card. */
+  --success: oklch(0.75 0.16 150);
+  --warning: oklch(0.78 0.15 75);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);

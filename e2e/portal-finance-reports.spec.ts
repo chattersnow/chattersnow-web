@@ -70,7 +70,7 @@ test.describe("portal finance reports", () => {
     await expect(page).toHaveURL(/from=2000-01-01&to=2000-01-02/);
     await expect(summaryCard(page, "Income")).toContainText("$0.00");
     await expect(
-      page.getByText("No revenue recorded in this period."),
+      page.getByText("No revenue recorded in this period"),
     ).toBeVisible();
     await expect(
       page.getByText("Nothing recorded in this period."),
@@ -84,7 +84,7 @@ test.describe("portal finance reports", () => {
 
     await expect(page).toHaveURL(/\/portal\/finance\/reports$/);
     await expect(
-      page.getByText("No revenue recorded in this period."),
+      page.getByText("No revenue recorded in this period"),
     ).not.toBeVisible();
   });
 });

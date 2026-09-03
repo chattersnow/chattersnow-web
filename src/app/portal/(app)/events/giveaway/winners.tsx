@@ -22,10 +22,10 @@ import { Pencil } from "lucide-react";
 import {
   DISTRIBUTION_STATUS_LABELS,
   DISTRIBUTION_STATUSES,
-  formatDate,
   toDateInputValue,
 } from "./format";
 import { Spinner } from "@/components/ui/spinner";
+import { formatInstantDate } from "@/lib/format";
 
 export function WinnerForm({
   prize,
@@ -205,7 +205,7 @@ export function WinnerSummary({
             label="Distributed on"
             htmlFor={`winner-distributedAt-view-${winner.id}`}
           >
-            {formatDate(winner.distributed_at)}
+            {formatInstantDate(winner.distributed_at)}
           </ReadOnlyField>
         </Field>
       </FieldGroup>

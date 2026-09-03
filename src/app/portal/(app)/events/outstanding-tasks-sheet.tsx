@@ -15,10 +15,7 @@ import {
 } from "@/components/ui/sheet";
 import { LinkPendingPulse } from "@/components/link-pending";
 import type { EventTaskGroup } from "@/lib/portal/attention-items";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-});
+import { formatInstantDate } from "@/lib/format";
 
 function plural(count: number, noun: string) {
   return `${count} ${noun}${count === 1 ? "" : "s"}`;
@@ -71,7 +68,7 @@ export function OutstandingTasksSheet({
                   <LinkPendingPulse>{group.eventName}</LinkPendingPulse>
                 </Link>
                 <span className="app-muted shrink-0 text-xs">
-                  {dateFormatter.format(new Date(group.eventStartsAt))}
+                  {formatInstantDate(group.eventStartsAt)}
                 </span>
               </div>
               <ul className="mt-2 flex flex-col gap-1.5">

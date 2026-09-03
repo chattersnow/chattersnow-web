@@ -35,23 +35,26 @@ import {
   isChangesRequestedForMe,
   overdueStage,
 } from "./content-opportunity-shared";
+import { EmptyState } from "@/components/portal/empty-state";
 
 export function WorkQueueTable({
   items,
   owners,
   currentPersonId,
   emptyMessage,
+  emptyDescription,
 }: {
   items: CalendarItemRow[];
   owners: CalendarOwner[];
   currentPersonId: string | null;
   emptyMessage: string;
+  emptyDescription: string;
 }) {
   return (
     <Card className="mt-3">
       <CardContent className="px-0">
         {items.length === 0 ? (
-          <p className="app-muted px-4 py-6 text-sm">{emptyMessage}</p>
+          <EmptyState title={emptyMessage} description={emptyDescription} />
         ) : (
           <Table>
             <TableHeader>

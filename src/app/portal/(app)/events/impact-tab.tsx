@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { StatTile } from "../home/stat-tile";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
+import { formatCurrency } from "@/lib/format";
 
 type FormState = {
   totalParticipants: string;
@@ -106,17 +107,6 @@ function isDirty(form: FormState, note: EventImpactNote | null) {
   return (Object.keys(baseline) as (keyof FormState)[]).some(
     (key) => form[key] !== baseline[key],
   );
-}
-
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
-
-function formatCurrency(value: number | string | null | undefined) {
-  if (value === null || value === undefined || value === "") return "—";
-  const numeric = typeof value === "string" ? Number(value) : value;
-  return Number.isFinite(numeric) ? currencyFormatter.format(numeric) : "—";
 }
 
 function statValue(value: number | null | undefined) {

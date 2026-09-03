@@ -18,6 +18,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 export function NewServiceDialog() {
   const router = useRouter();
@@ -48,6 +49,7 @@ export function NewServiceDialog() {
         return;
       }
       handleOpenChange(false);
+      toast.success("Service added.");
       router.refresh();
     });
   }
