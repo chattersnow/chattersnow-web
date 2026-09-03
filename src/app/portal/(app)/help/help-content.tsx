@@ -314,7 +314,7 @@ export const helpContent: Record<string, HelpEntry> = {
                 href="/portal/calendar/work-queue"
                 className="underline hover:text-foreground"
               >
-                Work queue
+                Work Queue
               </Link>{" "}
               page.
             </li>
@@ -509,7 +509,7 @@ export const helpContent: Record<string, HelpEntry> = {
             <li>
               <strong className="text-foreground">Overdue content tasks</strong>{" "}
               — this year&apos;s opportunities currently past their stage&apos;s
-              due date, using the same overdue logic as the Work queue page.
+              due date, using the same overdue logic as the Work Queue page.
             </li>
             <li>
               <strong className="text-foreground">

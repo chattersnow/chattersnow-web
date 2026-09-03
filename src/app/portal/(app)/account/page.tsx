@@ -8,7 +8,7 @@ import { AccountForm } from "./account-form";
 import { ReplayTourButton } from "./replay-tour-button";
 
 export const metadata: Metadata = {
-  title: "My account",
+  title: "My Account",
 };
 
 /**
@@ -41,7 +41,7 @@ export default async function AccountPage() {
     <>
       <div className="w-fit">
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-          My account
+          My Account
         </h1>
         <div className="rainbow-accent mt-3 w-full" />
       </div>

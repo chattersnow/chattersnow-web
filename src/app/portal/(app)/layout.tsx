@@ -236,11 +236,11 @@ export default async function PortalAppLayout({
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton
-                    tooltip="My account"
+                    tooltip="My Account"
                     render={<Link href="/portal/account" />}
                   >
                     <UserRound />
-                    <span>My account</span>
+                    <span>My Account</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>

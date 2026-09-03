@@ -26,7 +26,7 @@ test.describe("portal calendar brief templates", () => {
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: "Brief templates",
+        name: "Brief Templates",
         exact: true,
       }),
     ).toBeVisible();
@@ -87,7 +87,7 @@ test.describe("portal calendar brief templates", () => {
     // primitive, so it's exposed as a button).
     await page
       .getByRole("main")
-      .getByRole("button", { name: "Brief templates", exact: true })
+      .getByRole("button", { name: "Brief Templates", exact: true })
       .click();
     await expect(page).toHaveURL(/\/portal\/calendar\/templates$/);
   });
@@ -171,7 +171,7 @@ test.describe("portal calendar brief templates", () => {
     // Back on the list, the row picked up the new version.
     await page
       .getByRole("main")
-      .getByRole("button", { name: "Brief templates", exact: true })
+      .getByRole("button", { name: "Brief Templates", exact: true })
       .click();
     await expect(page).toHaveURL(/\/portal\/calendar\/templates$/);
     await expect(

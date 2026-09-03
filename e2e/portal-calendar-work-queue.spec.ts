@@ -32,7 +32,7 @@ test.describe("portal calendar work queue", () => {
     await page.goto("/portal/calendar/work-queue");
 
     await expect(
-      page.getByRole("heading", { level: 1, name: "Work queue", exact: true }),
+      page.getByRole("heading", { level: 1, name: "Work Queue", exact: true }),
     ).toBeVisible();
 
     const row = page.getByRole("row").filter({ hasText: SEEDED_OPPORTUNITY });

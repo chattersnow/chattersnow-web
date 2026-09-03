@@ -84,7 +84,7 @@ test.describe("portal calendar program suggestions", () => {
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: "Program suggestions",
+        name: "Program Suggestions",
         exact: true,
       }),
     ).toBeVisible();

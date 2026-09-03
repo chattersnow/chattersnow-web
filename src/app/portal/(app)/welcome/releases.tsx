@@ -37,7 +37,7 @@ export const RELEASE_NOTES: DialogStep[] = [
           sign-in — the sidebar, the help button, and the notifications bell.
         </p>
         <p>
-          You can run it yourself any time from <strong>My account</strong>,
+          You can run it yourself any time from <strong>My Account</strong>,
           under &ldquo;Portal introduction&rdquo;.
         </p>
       </>

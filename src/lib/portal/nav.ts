@@ -58,19 +58,19 @@ export const NAV_ITEMS: readonly NavItem[] = [
       },
       {
         value: "work-queue",
-        label: "Work queue",
+        label: "Work Queue",
         href: "/portal/calendar/work-queue",
         access: [{ resource: "content_calendar", level: "view" }],
       },
       {
         value: "templates",
-        label: "Brief templates",
+        label: "Brief Templates",
         href: "/portal/calendar/templates",
         access: [{ resource: "content_calendar", level: "manage" }],
       },
       {
         value: "program-suggestions",
-        label: "Program suggestions",
+        label: "Program Suggestions",
         href: "/portal/calendar/program-suggestions",
         access: [{ resource: "content_calendar", level: "manage" }],
       },
