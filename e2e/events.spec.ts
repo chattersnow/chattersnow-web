@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { modal } from "./helpers/dialog";
 
 const EVENT_NAME = "Winter Gear Swap";
 
@@ -15,7 +16,7 @@ test.describe("public events", () => {
       .getByRole("button", { name: new RegExp(EVENT_NAME, "i") })
       .click();
 
-    const dialog = page.getByRole("dialog");
+    const dialog = modal(page);
     await expect(
       dialog.getByRole("heading", { name: EVENT_NAME }),
     ).toBeVisible();

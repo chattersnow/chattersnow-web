@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { signIn, submitLogin } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { seedPortalUser, seedRole } from "./helpers/rbac";
+import { modal } from "./helpers/dialog";
 
 // The Permissions page shows one role at a time: a Role select drives a
 // Resource/Permission table, rather than the old grid with a column per role.
@@ -113,7 +114,7 @@ test.describe("portal administration permissions", () => {
         await expect(page.getByText("1 unsaved change")).toBeVisible();
 
         await page.getByRole("button", { name: "Save changes" }).click();
-        const saveDialog = page.getByRole("dialog");
+        const saveDialog = modal(page);
         await expect(saveDialog).toContainText(role.label);
         await saveDialog
           .getByRole("button", { name: "Confirm & save" })
@@ -133,10 +134,17 @@ test.describe("portal administration permissions", () => {
 
         // View on Events and nothing else: Administration stays out of reach.
         await memberPage.goto("/portal/administration/users");
-        await expect(memberPage).toHaveURL(/\/portal\/home$/);
+        await expect(memberPage).toHaveURL(
+          /\/portal\/home\?denied=Administration$/,
+        );
 
         await page.goto("/portal/administration/users");
         await row.getByRole("button", { name: `Remove ${role.label}` }).click();
+        // Revoking a live role confirms first (see administration-users).
+        await page
+          .getByRole("alertdialog")
+          .getByRole("button", { name: "Remove role" })
+          .click();
         await expect(row).toContainText("No access");
 
         await memberPage.goto("/portal/events");

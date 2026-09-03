@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { signIn } from "./helpers/auth";
+import { modal } from "./helpers/dialog";
 
 // Seeded by supabase/seed.sql: the "Winter Access Program" (active) exists
 // with the "Winter Gear Swap" event tagged to it, so read-only tests lean
@@ -19,9 +20,7 @@ test.describe("portal programs", () => {
       .getByRole("row")
       .filter({ hasText: "Winter Access Program" });
     await expect(row).toBeVisible();
-    // The status badge renders the raw status value ("active") and only
-    // capitalizes it via CSS, so match the DOM text.
-    await expect(row).toContainText("active");
+    await expect(row).toContainText("Active");
   });
 
   test("opens a program's details including its tagged events", async ({
@@ -33,7 +32,7 @@ test.describe("portal programs", () => {
       .getByRole("button", { name: "View Winter Access Program" })
       .click();
 
-    const sheet = page.getByRole("dialog");
+    const sheet = modal(page);
     await expect(
       sheet.getByRole("heading", { name: "Winter Access Program" }),
     ).toBeVisible();
@@ -55,7 +54,7 @@ test.describe("portal programs", () => {
     const programName = `E2E Program ${Date.now()}`;
 
     await page.getByRole("button", { name: "New program" }).click();
-    const createDialog = page.getByRole("dialog");
+    const createDialog = modal(page);
     await expect(
       createDialog.getByRole("heading", { name: "Create program" }),
     ).toBeVisible();
@@ -76,10 +75,10 @@ test.describe("portal programs", () => {
     const row = page.getByRole("row").filter({ hasText: programName });
     await expect(row).toBeVisible();
     // Status badge text is lowercase in the DOM (capitalized via CSS).
-    await expect(row).toContainText("active");
+    await expect(row).toContainText("Active");
 
     await row.getByRole("button", { name: `View ${programName}` }).click();
-    const sheet = page.getByRole("dialog");
+    const sheet = modal(page);
     await expect(
       sheet.getByText("No events tagged to this program yet"),
     ).toBeVisible();

@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { deleteRoleByName, roleLabel } from "./helpers/rbac";
+import { modal } from "./helpers/dialog";
 
 test.describe("portal administration roles", () => {
   test.beforeEach(async ({ page }) => {
@@ -33,7 +34,7 @@ test.describe("portal administration roles", () => {
       await page.goto("/portal/administration/roles");
 
       await page.getByRole("button", { name: "New role" }).click();
-      const createDialog = page.getByRole("dialog");
+      const createDialog = modal(page);
       await createDialog.getByLabel("Name").fill(name);
       await createDialog
         .getByLabel("Description")
@@ -46,7 +47,7 @@ test.describe("portal administration roles", () => {
       await expect(row).toContainText("Created by an e2e test.");
 
       await row.getByRole("button", { name: `View ${name}` }).click();
-      const sheet = page.getByRole("dialog");
+      const sheet = modal(page);
       await expect(sheet.getByText(roleLabel(name))).toBeVisible();
 
       await sheet.getByRole("button", { name: "Edit role" }).click();
@@ -87,7 +88,7 @@ test.describe("portal administration roles", () => {
     await page.goto("/portal/administration/roles");
 
     await page.getByRole("button", { name: "View admin" }).click();
-    const sheet = page.getByRole("dialog");
+    const sheet = modal(page);
     await sheet.getByRole("button", { name: "Edit role" }).click();
 
     await expect(sheet.getByLabel("Role name")).toBeDisabled();

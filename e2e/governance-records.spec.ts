@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { signIn, reloadStayingSignedIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { seedPerson } from "./helpers/people";
+import { modal } from "./helpers/dialog";
 
 // The document-shaped governance routes (#442): bylaws, policies, conflict
 // of interest, and annual requirements. Board members, meetings, and
@@ -30,7 +31,7 @@ test.describe("portal governance records", () => {
       ).toBeVisible();
 
       await page.getByRole("button", { name: "Add bylaws version" }).click();
-      const addDialog = page.getByRole("dialog");
+      const addDialog = modal(page);
       await expect(
         addDialog.getByRole("heading", { name: "Add bylaws version" }),
       ).toBeVisible();
@@ -54,7 +55,7 @@ test.describe("portal governance records", () => {
       await expect(entry).toBeVisible({ timeout: 15_000 });
 
       await entry.getByRole("button", { name: "View bylaws version" }).click();
-      const sheet = page.getByRole("dialog");
+      const sheet = modal(page);
       await expect(sheet.getByText(version)).toBeVisible();
 
       await sheet.getByRole("button", { name: "Edit bylaws version" }).click();
@@ -85,7 +86,7 @@ test.describe("portal governance records", () => {
       ).toBeVisible();
 
       await page.getByRole("button", { name: "Add policy" }).click();
-      const addDialog = page.getByRole("dialog");
+      const addDialog = modal(page);
       await expect(
         addDialog.getByRole("heading", { name: "Add policy" }),
       ).toBeVisible();
@@ -103,7 +104,9 @@ test.describe("portal governance records", () => {
 
       // Filters are inline on the page now rather than inside a sheet, so the
       // table stays visible while the search box is edited.
-      const search = page.getByLabel("Search");
+      // Exact: the header's command palette trigger is labelled "Search the
+      // portal", which a substring match would also pick up.
+      const search = page.getByLabel("Search", { exact: true });
       await search.fill(`no-such-policy-${policyName}`);
       await expect(
         page.getByText("No policies match your filters."),
@@ -113,7 +116,7 @@ test.describe("portal governance records", () => {
       await expect(row).toBeVisible();
 
       await row.getByRole("button", { name: "View policy" }).click();
-      const sheet = page.getByRole("dialog");
+      const sheet = modal(page);
       await expect(sheet.getByText(policyName)).toBeVisible();
 
       await sheet.getByRole("button", { name: "Edit policy" }).click();
@@ -154,7 +157,7 @@ test.describe("portal governance records", () => {
       ).toBeVisible();
 
       await page.getByRole("button", { name: "Add disclosure" }).click();
-      const addDialog = page.getByRole("dialog");
+      const addDialog = modal(page);
       await expect(
         addDialog.getByRole("heading", { name: "Add disclosure" }),
       ).toBeVisible();
@@ -177,7 +180,7 @@ test.describe("portal governance records", () => {
       await expect(row).toContainText(notes);
 
       await row.getByRole("button", { name: "View disclosure" }).click();
-      const sheet = page.getByRole("dialog");
+      const sheet = modal(page);
       await expect(sheet.getByText(person.name)).toBeVisible();
       await expect(sheet.getByText(notes)).toBeVisible();
 
@@ -213,7 +216,7 @@ test.describe("portal governance records", () => {
       ).toBeVisible();
 
       await page.getByRole("button", { name: "Add requirement" }).click();
-      const addDialog = page.getByRole("dialog");
+      const addDialog = modal(page);
       await expect(
         addDialog.getByRole("heading", { name: "Add annual requirement" }),
       ).toBeVisible();
@@ -244,7 +247,7 @@ test.describe("portal governance records", () => {
       await expect(row).toContainText("Done", { timeout: 15_000 });
 
       await row.getByRole("button", { name: "View requirement" }).click();
-      const sheet = page.getByRole("dialog");
+      const sheet = modal(page);
       await expect(sheet.getByText(requirementName)).toBeVisible();
       await expect(sheet.getByText("Done", { exact: true })).toBeVisible();
     } finally {

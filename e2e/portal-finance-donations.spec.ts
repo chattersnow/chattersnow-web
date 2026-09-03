@@ -6,6 +6,7 @@
 // methods so the method-filter test stays stable across parallel projects.
 import { test, expect, type Page } from "@playwright/test";
 import { signIn } from "./helpers/auth";
+import { modal } from "./helpers/dialog";
 
 function uniqueAmount() {
   // Between $10.00 and $910.00 with non-round cents; below $1,000 so the
@@ -22,7 +23,7 @@ async function createDonation(
   options: { amount: number; method: string; donorQuery?: string },
 ) {
   await page.getByRole("button", { name: "New donation" }).click();
-  const dialog = page.getByRole("dialog");
+  const dialog = modal(page);
   await expect(
     dialog.getByRole("heading", { name: "Add donation" }),
   ).toBeVisible();
@@ -50,7 +51,7 @@ async function createDonation(
 async function deleteDonationRow(page: Page, rowText: string) {
   const row = page.getByRole("row").filter({ hasText: rowText });
   await row.getByRole("button", { name: "View donation" }).click();
-  const sheet = page.getByRole("dialog");
+  const sheet = modal(page);
   await sheet.getByRole("button", { name: "Delete" }).click();
   const confirm = page.getByRole("alertdialog");
   await expect(confirm.getByText("Delete this donation?")).toBeVisible();
@@ -101,7 +102,7 @@ test.describe("portal finance donations", () => {
     await expect(row).toContainText("Card");
 
     await row.getByRole("button", { name: "View donation" }).click();
-    const sheet = page.getByRole("dialog");
+    const sheet = modal(page);
     await expect(sheet.getByText(formatted(amount))).toBeVisible();
 
     await sheet.getByRole("button", { name: "Edit donation" }).click();

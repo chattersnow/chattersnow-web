@@ -7,6 +7,7 @@
 // would be safe to mutate.
 import { test, expect } from "@playwright/test";
 import { reloadStayingSignedIn, signIn } from "./helpers/auth";
+import { modal } from "./helpers/dialog";
 
 test.describe("portal inventory distribution", () => {
   test.beforeEach(async ({ page }) => {
@@ -34,7 +35,7 @@ test.describe("portal inventory distribution", () => {
     // Seed a fresh available inventory item via a donation.
     await page.goto("/portal/inventory/donations");
     await page.getByRole("button", { name: "Add donation" }).click();
-    const addSheet = page.getByRole("dialog");
+    const addSheet = modal(page);
     await addSheet.getByLabel("Donor name").fill(donorName);
     await addSheet.getByLabel("Donor source").click();
     await page
@@ -51,8 +52,12 @@ test.describe("portal inventory distribution", () => {
 
     // Record a distribution of that item.
     await page.goto("/portal/inventory/distribution");
-    await page.getByRole("button", { name: "Record distribution" }).click();
-    const recordDialog = page.getByRole("dialog");
+    // Scoped to the page: the sidebar's quick actions offer the same button.
+    await page
+      .getByRole("main")
+      .getByRole("button", { name: "Record distribution" })
+      .click();
+    const recordDialog = modal(page);
     await expect(
       recordDialog.getByRole("heading", { name: "Record a distribution" }),
     ).toBeVisible();
@@ -94,7 +99,7 @@ test.describe("portal inventory distribution", () => {
 
     // Editing happens on a sheet opened from the page.
     await page.getByRole("button", { name: "Edit", exact: true }).click();
-    const editSheet = page.getByRole("dialog");
+    const editSheet = modal(page);
     await expect(
       editSheet.getByRole("heading", { name: "Edit distribution" }),
     ).toBeVisible();
@@ -106,12 +111,11 @@ test.describe("portal inventory distribution", () => {
     await expect(page.getByText("E2E updated reason")).toBeVisible();
     await expect(page.locator("#distribution-quantity-view")).toHaveText("3");
 
-    // The back link returns to the list (a Link rendered through the Button
-    // primitive, so it's exposed as a button). Scoped to main: the sidebar
-    // has its own "Distribution" nav entry.
+    // The breadcrumb trail returns to the list. Scoped to the breadcrumb nav:
+    // the sidebar has its own "Distribution" nav entry.
     await page
-      .getByRole("main")
-      .getByRole("button", { name: "Distribution", exact: true })
+      .getByRole("navigation", { name: "Breadcrumb" })
+      .getByRole("link", { name: "Distribution", exact: true })
       .click();
     await expect(page).toHaveURL(/\/portal\/inventory\/distribution$/);
     await reloadStayingSignedIn(page);

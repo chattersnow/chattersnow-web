@@ -6,6 +6,7 @@
 import { test, expect } from "@playwright/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
+import { modal } from "./helpers/dialog";
 
 async function seedNewMessage(admin: ReturnType<typeof createAdminClient>) {
   const suffix = crypto.randomUUID().slice(0, 8);
@@ -47,12 +48,12 @@ test("a message opened from a ?status=new deep link stays visible after being ma
 
     const row = page.getByRole("row").filter({ hasText: fixture.name });
     await expect(row).toBeVisible();
-    await expect(row.getByText("new", { exact: true })).toBeVisible();
+    await expect(row.getByText("New", { exact: true })).toBeVisible();
 
     await row
       .getByRole("button", { name: `View message from ${fixture.name}` })
       .click();
-    const sheet = page.getByRole("dialog");
+    const sheet = modal(page);
     await expect(sheet.getByText("Contact message")).toBeVisible();
 
     // Opening the sheet auto-marks the message read via a Server Action.
@@ -69,7 +70,7 @@ test("a message opened from a ?status=new deep link stays visible after being ma
     // status badge more headroom while continuously checking the row
     // itself never disappears.
     await expect(row).toBeVisible();
-    await expect(row.getByText("read", { exact: true })).toBeVisible({
+    await expect(row.getByText("Read", { exact: true })).toBeVisible({
       timeout: 15_000,
     });
     await expect(row).toBeVisible();

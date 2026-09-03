@@ -1,6 +1,7 @@
 // Issue #440: E2E coverage for /portal/finance/revenue.
 import { test, expect } from "@playwright/test";
 import { signIn } from "./helpers/auth";
+import { modal } from "./helpers/dialog";
 
 test.describe("portal finance revenue", () => {
   test.beforeEach(async ({ page }) => {
@@ -18,7 +19,7 @@ test.describe("portal finance revenue", () => {
     await page.goto("/portal/finance/revenue");
 
     await page.getByRole("button", { name: "New Revenue" }).click();
-    const addDialog = page.getByRole("dialog");
+    const addDialog = modal(page);
     await expect(
       addDialog.getByRole("heading", { name: "Add revenue" }),
     ).toBeVisible();
@@ -53,7 +54,7 @@ test.describe("portal finance revenue", () => {
     await expect(row).toBeVisible();
 
     await row.getByRole("button", { name: "View revenue" }).click();
-    const viewSheet = page.getByRole("dialog");
+    const viewSheet = modal(page);
     await expect(
       viewSheet.getByRole("heading", { name: "Revenue", exact: true }),
     ).toBeVisible();

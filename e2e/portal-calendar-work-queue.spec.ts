@@ -17,6 +17,7 @@
 // makes both rows reliable negative probes for the Overdue only filter.
 import { test, expect } from "@playwright/test";
 import { signIn } from "./helpers/auth";
+import { modal } from "./helpers/dialog";
 
 const SEEDED_OPPORTUNITY = "Winter Gear Swap Promotion";
 const SEEDED_OBSERVANCE = "Sample Recurring Observance";
@@ -142,7 +143,7 @@ test.describe("portal calendar work queue", () => {
 
     await page.getByRole("button", { name: "Help for this page" }).click();
 
-    const sheet = page.getByRole("dialog");
+    const sheet = modal(page);
     await expect(
       sheet.getByRole("heading", { name: "How the work queue works" }),
     ).toBeVisible();

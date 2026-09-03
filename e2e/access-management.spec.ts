@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { reloadStayingSignedIn, signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
+import { modal } from "./helpers/dialog";
 
 // Pre-creates the person directly (rather than exercising PersonPicker's
 // inline "+ Create new person" flow, which isn't otherwise covered by any
@@ -54,7 +55,7 @@ test.describe("portal access management", () => {
       const serviceName = `E2E Service ${Date.now()}`;
 
       await page.getByRole("button", { name: "New asset" }).click();
-      const createDialog = page.getByRole("dialog");
+      const createDialog = modal(page);
       await expect(
         createDialog.getByRole("heading", { name: "Add asset" }),
       ).toBeVisible();
@@ -79,7 +80,7 @@ test.describe("portal access management", () => {
       ).toBeVisible();
 
       await page.getByRole("button", { name: "Add access grant" }).click();
-      const grantDialog = page.getByRole("dialog");
+      const grantDialog = modal(page);
       await grantDialog
         .getByPlaceholder("Search by name or email...")
         .fill(person.name);

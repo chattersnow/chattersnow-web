@@ -1,5 +1,6 @@
 import { createAdminClient } from "./admin-client";
 import { SEEDED_PASSWORD } from "./auth";
+import { markOnboarded } from "./onboarding";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -41,6 +42,7 @@ export async function seedPortalUser(admin: AdminClient) {
     throw new Error(`Could not create ${email}: ${error?.message}`);
   }
   const userId = data.user.id;
+  await markOnboarded(admin, userId);
 
   return {
     userId,

@@ -62,7 +62,12 @@ function ToastList() {
   const { toasts } = BaseToast.useToastManager();
 
   return toasts.map((item) => (
-    <BaseToast.Root key={item.id} toast={item} className={ROOT_CLASS}>
+    <BaseToast.Root
+      key={item.id}
+      toast={item}
+      data-slot="toast"
+      className={ROOT_CLASS}
+    >
       <BaseToast.Content className="flex items-start gap-2 overflow-hidden p-3 transition-opacity duration-[250ms] data-behind:opacity-0 data-expanded:opacity-100">
         {item.type === "error" ? (
           <TriangleAlert className="mt-0.5 size-4 shrink-0 text-destructive" />

@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { signIn } from "./helpers/auth";
+import { modal } from "./helpers/dialog";
 
 test.describe("portal governance nonprofit status milestones", () => {
   test.beforeEach(async ({ page }) => {
@@ -21,7 +22,7 @@ test.describe("portal governance nonprofit status milestones", () => {
     const description = `E2E Milestone ${Date.now()}`;
 
     await page.getByRole("button", { name: "Add milestone" }).click();
-    const addDialog = page.getByRole("dialog");
+    const addDialog = modal(page);
     await expect(
       addDialog.getByRole("heading", { name: "Add milestone" }),
     ).toBeVisible();
@@ -44,7 +45,7 @@ test.describe("portal governance nonprofit status milestones", () => {
     await expect(row.getByText("Cancelled", { exact: true })).toBeVisible();
 
     await row.getByRole("button", { name: "View milestone" }).click();
-    const editSheet = page.getByRole("dialog");
+    const editSheet = modal(page);
     await expect(editSheet.getByText(description)).toBeVisible();
     await expect(editSheet.getByText("Cancelled")).toBeVisible();
 

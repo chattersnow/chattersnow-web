@@ -4,6 +4,7 @@ import {
   createAdminClient,
   generateRecoveryLink,
 } from "./helpers/admin-client";
+import { markOnboarded } from "./helpers/onboarding";
 
 test("invalid credentials show an error and do not redirect", async ({
   page,
@@ -84,6 +85,7 @@ test("setting a password from a recovery link signs the user in", async ({
     throw userError ?? new Error("createUser returned no user");
   }
   const userId = userData.user.id;
+  await markOnboarded(admin, userId);
 
   // Any role will do -- the assertion is just that the recovery flow lands
   // the user inside the portal -- but without one the portal bounces them

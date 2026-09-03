@@ -8,6 +8,7 @@ import { test, expect } from "@playwright/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { seedUserWithRole } from "./helpers/rbac";
+import { modal } from "./helpers/dialog";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -66,7 +67,7 @@ test.describe("portal volunteer role types", () => {
       await page.goto("/portal/volunteers/roles");
 
       await page.getByRole("button", { name: "New role type" }).click();
-      const createDialog = page.getByRole("dialog");
+      const createDialog = modal(page);
       await createDialog.getByLabel("Role name").fill(name);
       await createDialog
         .getByLabel("Description")
@@ -84,7 +85,7 @@ test.describe("portal volunteer role types", () => {
       ).toBeVisible();
 
       await row.getByRole("button", { name: `View ${name}` }).click();
-      const sheet = page.getByRole("dialog");
+      const sheet = modal(page);
       await expect(sheet.getByText("Created by an e2e test.")).toBeVisible();
 
       await sheet.getByRole("button", { name: "Edit role type" }).click();
@@ -132,7 +133,7 @@ test.describe("portal volunteer role types", () => {
       // for the service role, so a seeded row would need an auth user this
       // test otherwise has no use for.
       await page.getByRole("button", { name: "New role type" }).click();
-      const createDialog = page.getByRole("dialog");
+      const createDialog = modal(page);
       await createDialog.getByLabel("Role name").fill(name);
       await createDialog
         .getByLabel("Description")
@@ -143,7 +144,7 @@ test.describe("portal volunteer role types", () => {
       await expect(createDialog).not.toBeVisible();
 
       await page.getByRole("button", { name: `View ${name}` }).click();
-      const sheet = page.getByRole("dialog");
+      const sheet = modal(page);
       await sheet.getByRole("button", { name: "Edit role type" }).click();
       await sheet.getByLabel("Role name").fill("Half-typed name");
 
@@ -191,7 +192,7 @@ test.describe("portal volunteer role types", () => {
       ).not.toBeAttached();
 
       await row.getByRole("button", { name: `View ${roleType.name}` }).click();
-      const sheet = page.getByRole("dialog");
+      const sheet = modal(page);
       await expect(sheet.getByText("Seeded by an e2e test.")).toBeVisible();
       await expect(
         sheet.getByRole("button", { name: "Edit role type" }),

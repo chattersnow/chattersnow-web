@@ -13,6 +13,7 @@
 // duplicates, or generates, so the suite can't corrupt later specs.
 import { test, expect } from "@playwright/test";
 import { signIn } from "./helpers/auth";
+import { modal } from "./helpers/dialog";
 
 const SEEDED_OPPORTUNITY = "Winter Gear Swap Promotion";
 const SEEDED_OBSERVANCE = "Sample Recurring Observance";
@@ -58,12 +59,11 @@ test.describe("portal calendar item detail page", () => {
     ).toBeVisible();
     await expect(page.getByText("Not flagged")).toBeVisible();
 
-    // The back link returns to the calendar list (a Link rendered through
-    // the Button primitive, so it's exposed as a button). Scoped to the main
-    // content area: the sidebar has its own "Calendar" nav entry.
+    // The breadcrumb trail returns to the calendar list. Scoped to the
+    // breadcrumb nav: the sidebar has its own "Calendar" nav entry.
     await page
-      .getByRole("main")
-      .getByRole("button", { name: "Calendar", exact: true })
+      .getByRole("navigation", { name: "Breadcrumb" })
+      .getByRole("link", { name: "Calendar", exact: true })
       .click();
     await expect(page).toHaveURL(/\/portal\/calendar(\?.*)?$/);
     await expect(
@@ -97,7 +97,7 @@ test.describe("portal calendar item detail page", () => {
 
     // Cancel without touching anything -- no dirty-state prompt expected.
     await page.getByRole("button", { name: "Cancel" }).click();
-    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(modal(page)).toHaveCount(0);
     await expect(editSchedule).toBeVisible();
   });
 

@@ -12,6 +12,7 @@ import { test, expect } from "@playwright/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { seedUserWithRole } from "./helpers/rbac";
+import { modal } from "./helpers/dialog";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -99,7 +100,7 @@ test.describe("portal volunteer participation", () => {
         .click();
       // Not matched by name: the sheet's title flips to "Edit hours" as
       // soon as edit mode is on.
-      const sheet = page.getByRole("dialog");
+      const sheet = modal(page);
       await expect(sheet.getByText("Logged by an e2e test.")).toBeVisible();
       await expect(sheet.getByText("Winter Gear Swap")).toBeVisible();
 
@@ -172,7 +173,7 @@ test.describe("portal volunteer participation", () => {
       await row
         .getByRole("button", { name: `View hours for ${volunteer.name}` })
         .click();
-      const sheet = page.getByRole("dialog");
+      const sheet = modal(page);
       await expect(sheet.getByText("Seeded by an e2e test.")).toBeVisible();
       await expect(
         sheet.getByRole("button", { name: "Edit hours entry" }),

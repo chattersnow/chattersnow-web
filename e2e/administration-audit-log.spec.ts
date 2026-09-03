@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { seedPortalUser } from "./helpers/rbac";
+import { modal } from "./helpers/dialog";
 
 test.describe("portal administration audit log", () => {
   test.beforeEach(async ({ page }) => {
@@ -60,7 +61,9 @@ test.describe("portal administration audit log", () => {
 
       await page.goto("/portal/administration/audit-log");
       await page.getByRole("button", { name: /^Filters/ }).click();
-      await page.getByLabel("Table").selectOption("user_roles");
+      await page
+        .getByLabel("Table", { exact: true })
+        .selectOption("user_roles");
       await page.getByLabel("Action").selectOption("insert");
       await page.getByRole("button", { name: "Filter", exact: true }).click();
 
@@ -75,7 +78,7 @@ test.describe("portal administration audit log", () => {
       // Submitting the filters is a full page load, so this click can land
       // before the page has hydrated -- the trigger has no handler yet and
       // the click is simply lost. Retry until the sheet actually opens.
-      const detailSheet = page.getByRole("dialog");
+      const detailSheet = modal(page);
       await expect(async () => {
         await entryRow
           .getByRole("button", { name: "View entry details" })
@@ -108,7 +111,7 @@ test.describe("portal administration audit log", () => {
     // open -- and while it is, it holds the rest of the page aria-hidden,
     // where no role-based locator can reach the Filters trigger.
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("dialog")).not.toBeVisible();
+    await expect(modal(page)).not.toBeVisible();
     await expect(
       page.getByRole("button", { name: /^Filters/ }),
     ).not.toContainText("2");

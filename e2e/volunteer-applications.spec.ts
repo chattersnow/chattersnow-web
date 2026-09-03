@@ -11,6 +11,7 @@ import { test, expect } from "@playwright/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { seedUserWithRole } from "./helpers/rbac";
+import { modal } from "./helpers/dialog";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -98,7 +99,7 @@ test.describe("portal volunteer applications", () => {
       await page.goto("/portal/volunteers/applications");
 
       await page.getByRole("button", { name: /^Filters/ }).click();
-      const filters = page.getByRole("dialog");
+      const filters = modal(page);
       await filters.getByLabel("Search").fill(application.name);
       await filters
         .getByRole("button", { name: "Filter", exact: true })
@@ -136,7 +137,7 @@ test.describe("portal volunteer applications", () => {
         })
         .click();
 
-      const sheet = page.getByRole("dialog");
+      const sheet = modal(page);
       await expect(
         sheet.getByRole("heading", { name: "Volunteer application" }),
       ).toBeVisible();
@@ -150,7 +151,7 @@ test.describe("portal volunteer applications", () => {
       await status.click();
       // Base UI renders the popup outside the sheet, so the options are
       // only reachable from the page root.
-      await page.getByRole("option", { name: "placed", exact: true }).click();
+      await page.getByRole("option", { name: "Placed", exact: true }).click();
       await expect(status).toContainText("Placed");
 
       // The sheet is modal, so the table behind it is aria-hidden until
@@ -187,9 +188,9 @@ test.describe("portal volunteer applications", () => {
         })
         .click();
 
-      const sheet = page.getByRole("dialog");
+      const sheet = modal(page);
       await expect(sheet.getByText("Weekend mornings")).toBeVisible();
-      await expect(sheet.getByText("new", { exact: true })).toBeVisible();
+      await expect(sheet.getByText("New", { exact: true })).toBeVisible();
       await expect(
         sheet.getByRole("combobox", { name: "Application status" }),
       ).not.toBeAttached();

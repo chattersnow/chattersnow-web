@@ -3,6 +3,7 @@
 // #234), so this exercises the actual create-then-view workflow.
 import { test, expect } from "@playwright/test";
 import { signIn } from "./helpers/auth";
+import { modal } from "./helpers/dialog";
 
 test.describe("portal finance expenses", () => {
   test.beforeEach(async ({ page }) => {
@@ -22,7 +23,7 @@ test.describe("portal finance expenses", () => {
     const description = `E2E Expense ${Date.now()}`;
 
     await page.getByRole("button", { name: "New Expense" }).click();
-    const addDialog = page.getByRole("dialog");
+    const addDialog = modal(page);
     await expect(
       addDialog.getByRole("heading", { name: "Add expense" }),
     ).toBeVisible();
@@ -39,7 +40,7 @@ test.describe("portal finance expenses", () => {
     await expect(row).toContainText("Submitted");
 
     await row.getByRole("button", { name: "View expense" }).click();
-    const viewSheet = page.getByRole("dialog");
+    const viewSheet = modal(page);
     await expect(
       viewSheet.getByRole("heading", { name: "Expense", exact: true }),
     ).toBeVisible();

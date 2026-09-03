@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { signIn, reloadStayingSignedIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { seedPerson } from "./helpers/people";
+import { modal } from "./helpers/dialog";
 
 // Governance routes that revolve around the board and its meeting record
 // (#442). The document-shaped routes -- bylaws, policies, conflict of
@@ -37,7 +38,7 @@ test.describe("portal governance board, meetings, and resolutions", () => {
       ).toBeVisible();
 
       await page.getByRole("button", { name: "Add board member" }).click();
-      const addDialog = page.getByRole("dialog");
+      const addDialog = modal(page);
       await expect(
         addDialog.getByRole("heading", { name: "Add board member" }),
       ).toBeVisible();
@@ -61,7 +62,7 @@ test.describe("portal governance board, meetings, and resolutions", () => {
       await expect(row).toContainText("Active");
 
       await row.getByRole("button", { name: "View board member" }).click();
-      const sheet = page.getByRole("dialog");
+      const sheet = modal(page);
       await expect(sheet.getByText(roleTitle)).toBeVisible();
       await expect(sheet.getByText(person.name)).toBeVisible();
 
@@ -105,7 +106,7 @@ test.describe("portal governance board, meetings, and resolutions", () => {
       ).toBeVisible();
 
       await page.getByRole("button", { name: "Schedule meeting" }).click();
-      const addDialog = page.getByRole("dialog");
+      const addDialog = modal(page);
       await expect(
         addDialog.getByRole("heading", { name: "Schedule meeting" }),
       ).toBeVisible();
@@ -117,7 +118,7 @@ test.describe("portal governance board, meetings, and resolutions", () => {
 
       const row = page.getByRole("row").filter({ hasText: location });
       await expect(row).toBeVisible({ timeout: 15_000 });
-      await expect(row).toContainText("scheduled");
+      await expect(row).toContainText("Scheduled");
 
       await row.getByRole("button", { name: "View meeting on" }).click();
       await expect(page).toHaveURL(/\/portal\/governance\/meetings\/[^/]+$/, {
@@ -184,7 +185,7 @@ test.describe("portal governance board, meetings, and resolutions", () => {
       // it) to prove the status update round-tripped to the database.
       await reloadStayingSignedIn(page);
       await expect(page.locator("#meeting-status-view")).toContainText(
-        "completed",
+        "Completed",
         { timeout: 15_000 },
       );
     } finally {
@@ -212,7 +213,7 @@ test.describe("portal governance board, meetings, and resolutions", () => {
       ).toBeVisible();
 
       await page.getByRole("button", { name: "Add resolution" }).click();
-      const addDialog = page.getByRole("dialog");
+      const addDialog = modal(page);
       await expect(
         addDialog.getByRole("heading", { name: "Add resolution" }),
       ).toBeVisible();
@@ -239,10 +240,10 @@ test.describe("portal governance board, meetings, and resolutions", () => {
       const row = page.getByRole("row").filter({ hasText: motionText });
       await expect(row).toBeVisible({ timeout: 15_000 });
       await expect(row).toContainText(mover.name);
-      await expect(row).toContainText("passed");
+      await expect(row).toContainText("Passed");
 
       await row.getByRole("button", { name: "View resolution" }).click();
-      const sheet = page.getByRole("dialog");
+      const sheet = modal(page);
       await expect(sheet.getByText(motionText)).toBeVisible();
 
       // The Save button only renders in edit mode, so it doubles as the
@@ -272,7 +273,7 @@ test.describe("portal governance board, meetings, and resolutions", () => {
       await reloadStayingSignedIn(page);
       await expect(
         page.getByRole("row").filter({ hasText: motionText }),
-      ).toContainText("tabled", { timeout: 15_000 });
+      ).toContainText("Tabled", { timeout: 15_000 });
     } finally {
       await admin.from("resolutions").delete().eq("mover_person_id", mover.id);
       await admin.from("people").delete().eq("id", mover.id);
