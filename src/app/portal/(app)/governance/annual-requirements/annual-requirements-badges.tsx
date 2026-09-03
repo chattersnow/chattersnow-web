@@ -1,11 +1,10 @@
-import type { ReactNode } from "react";
-import { cn } from "@/lib/utils";
+import { StatusBadge, type StatusTone } from "@/components/portal/status-badge";
 import type { RequirementStatus } from "./annual-requirement-form";
 
-const REQUIREMENT_STATUS_STYLES: Record<RequirementStatus, string> = {
-  not_started: "bg-muted text-muted-foreground",
-  in_progress: "bg-primary/10 text-primary",
-  done: "bg-secondary text-secondary-foreground",
+const REQUIREMENT_STATUS_STYLES: Record<RequirementStatus, StatusTone> = {
+  not_started: "neutral",
+  in_progress: "progress",
+  done: "success",
 };
 
 const REQUIREMENT_STATUS_LABELS: Record<RequirementStatus, string> = {
@@ -14,33 +13,14 @@ const REQUIREMENT_STATUS_LABELS: Record<RequirementStatus, string> = {
   done: "Done",
 };
 
-function Pill({
-  className,
-  children,
-}: {
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-        className,
-      )}
-    >
-      {children}
-    </span>
-  );
-}
-
 export function RequirementStatusBadge({
   status,
 }: {
   status: RequirementStatus;
 }) {
   return (
-    <Pill className={REQUIREMENT_STATUS_STYLES[status]}>
+    <StatusBadge tone={REQUIREMENT_STATUS_STYLES[status]}>
       {REQUIREMENT_STATUS_LABELS[status]}
-    </Pill>
+    </StatusBadge>
   );
 }

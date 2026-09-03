@@ -1,5 +1,7 @@
 "use client";
 
+import { StatusBadge } from "@/components/portal/status-badge";
+
 import { useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -153,9 +155,9 @@ export function NonprofitStatusChecklist({
             {completeCount} of {milestones.length} complete
           </p>
           {atRiskCount > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
+            <StatusBadge tone="warning" className="gap-1">
               {atRiskCount} due soon or overdue
-            </span>
+            </StatusBadge>
           )}
         </div>
         {canManage && (

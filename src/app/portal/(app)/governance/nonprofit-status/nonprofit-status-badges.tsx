@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { StatusBadge, type StatusTone } from "@/components/portal/status-badge";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -27,11 +27,11 @@ function daysUntilDue(dueDate: string, today: Date): number {
   return Math.round((dueUtc - todayUtc) / (24 * 60 * 60 * 1000));
 }
 
-const MILESTONE_STATUS_STYLES: Record<MilestoneStatus, string> = {
-  not_started: "bg-muted text-muted-foreground",
-  in_progress: "bg-primary/10 text-primary",
-  done: "bg-secondary text-secondary-foreground",
-  cancelled: "bg-destructive/10 text-destructive",
+const MILESTONE_STATUS_STYLES: Record<MilestoneStatus, StatusTone> = {
+  not_started: "neutral",
+  in_progress: "progress",
+  done: "success",
+  cancelled: "danger",
 };
 
 const MILESTONE_STATUS_LABELS: Record<MilestoneStatus, string> = {
@@ -51,7 +51,7 @@ const MILESTONE_STATUS_ICONS: Record<MilestoneStatus, LucideIcon> = {
 const MILESTONE_STATUS_ICON_STYLES: Record<MilestoneStatus, string> = {
   not_started: "text-muted-foreground",
   in_progress: "text-primary",
-  done: "text-secondary-foreground",
+  done: "text-success",
   cancelled: "text-destructive",
 };
 
@@ -75,31 +75,12 @@ export function MilestoneStatusIcon({
   );
 }
 
-function Pill({
-  className,
-  children,
-}: {
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-        className,
-      )}
-    >
-      {children}
-    </span>
-  );
-}
-
 export function MilestoneStatusBadge({ status }: { status: MilestoneStatus }) {
   return (
-    <Pill className={cn("gap-1", MILESTONE_STATUS_STYLES[status])}>
+    <StatusBadge tone={MILESTONE_STATUS_STYLES[status]} className="gap-1">
       <MilestoneStatusIcon status={status} />
       {MILESTONE_STATUS_LABELS[status]}
-    </Pill>
+    </StatusBadge>
   );
 }
 
@@ -125,24 +106,26 @@ export function MilestoneDueFlag({
   if (days < 0) {
     const overdueDays = Math.abs(days);
     return (
-      <span
+      <StatusBadge
+        tone="danger"
+        className="gap-1"
         title="This milestone's due date has passed"
-        className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
       >
         <AlertTriangle className="size-3" />
         {overdueDays} day{overdueDays === 1 ? "" : "s"} overdue
-      </span>
+      </StatusBadge>
     );
   }
 
   return (
-    <span
+    <StatusBadge
+      tone="warning"
+      className="gap-1"
       title="This milestone is due soon"
-      className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning"
     >
       <Clock className="size-3" />
       {days === 0 ? "Due today" : `Due in ${days} day${days === 1 ? "" : "s"}`}
-    </span>
+    </StatusBadge>
   );
 }
 
