@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { HowToSection } from "@/components/how-to-section";
 import { PageHelpContent } from "../../help/help-context";
+import { ActiveFilters, type ActiveFilter } from "@/components/active-filters";
 import { FiltersSheet } from "@/components/filters-sheet";
 import { SearchField } from "@/components/search-field";
 import { FilterSubmitButton } from "@/components/filter-submit-button";
@@ -170,6 +171,35 @@ export default async function FinanceDonationsPage({
     donorFilter !== "all",
     methodFilter !== "all",
   ].filter(Boolean).length;
+  // Named in the toolbar rather than hidden behind the Filters count, so a
+  // partially filtered table says why it's short.
+  const appliedFilters: ActiveFilter[] = [];
+  if (search) {
+    appliedFilters.push({ param: "search", label: "Search", value: search });
+  }
+  if (eventFilter !== "all") {
+    appliedFilters.push({
+      param: "event",
+      label: "Event",
+      value:
+        eventOptions.find((event) => event.id === eventFilter)?.name ??
+        eventFilter,
+    });
+  }
+  if (donorFilter !== "all") {
+    appliedFilters.push({
+      param: "donor",
+      label: "Donor",
+      value: "Anonymous",
+    });
+  }
+  if (methodFilter !== "all") {
+    appliedFilters.push({
+      param: "method",
+      label: "Method",
+      value: paymentMethodLabel(methodFilter),
+    });
+  }
 
   return (
     <>
@@ -343,6 +373,19 @@ export default async function FinanceDonationsPage({
 
           <NewDonationDialog events={eventOptions} people={peopleOptions} />
         </div>
+
+        <ActiveFilters
+          action="/portal/finance/donations"
+          filters={appliedFilters}
+          params={{
+            search,
+            event: eventFilter,
+            donor: donorFilter,
+            method: methodFilter,
+            sort,
+            dir,
+          }}
+        />
 
         <Card>
           <CardContent className="px-0">

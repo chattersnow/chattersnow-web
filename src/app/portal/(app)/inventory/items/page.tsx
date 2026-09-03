@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
+import { ActiveFilters, type ActiveFilter } from "@/components/active-filters";
 import { FiltersSheet } from "@/components/filters-sheet";
 import { SearchField } from "@/components/search-field";
 import { FilterSubmitButton } from "@/components/filter-submit-button";
@@ -146,6 +147,33 @@ export default async function InventoryPage({
     conditionFilter !== "all",
     statusFilter !== "all",
   ].filter(Boolean).length;
+  // Named in the toolbar rather than hidden behind the Filters count, so a
+  // partially filtered table says why it's short.
+  const appliedFilters: ActiveFilter[] = [];
+  if (search) {
+    appliedFilters.push({ param: "search", label: "Search", value: search });
+  }
+  if (typeFilter !== "all") {
+    appliedFilters.push({ param: "type", label: "Type", value: typeFilter });
+  }
+  if (conditionFilter !== "all") {
+    appliedFilters.push({
+      param: "condition",
+      label: "Condition",
+      value:
+        CONDITIONS.find((option) => option.value === conditionFilter)?.label ??
+        conditionFilter,
+    });
+  }
+  if (statusFilter !== "all") {
+    appliedFilters.push({
+      param: "status",
+      label: "Status",
+      value:
+        STATUSES.find((option) => option.value === statusFilter)?.label ??
+        statusFilter,
+    });
+  }
 
   return (
     <>
@@ -262,6 +290,19 @@ export default async function InventoryPage({
             </form>
           </FiltersSheet>
         </div>
+
+        <ActiveFilters
+          action="/portal/inventory/items"
+          filters={appliedFilters}
+          params={{
+            search,
+            type: typeFilter,
+            condition: conditionFilter,
+            status: statusFilter,
+            sort,
+            dir,
+          }}
+        />
 
         <div className="mt-6">
           <InventoryTable

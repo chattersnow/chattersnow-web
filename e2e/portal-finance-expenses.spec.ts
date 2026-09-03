@@ -36,7 +36,7 @@ test.describe("portal finance expenses", () => {
     const row = page.getByRole("row").filter({ hasText: description });
     await expect(row).toBeVisible();
     await expect(row).toContainText("$123.45");
-    await expect(row).toContainText("submitted");
+    await expect(row).toContainText("Submitted");
 
     await row.getByRole("button", { name: "View expense" }).click();
     const viewSheet = page.getByRole("dialog");

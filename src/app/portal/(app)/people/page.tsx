@@ -25,6 +25,7 @@ import {
   quoteOrValue,
   totalPagesFor,
 } from "@/lib/pagination";
+import { ActiveFilters, type ActiveFilter } from "@/components/active-filters";
 import { FiltersSheet } from "@/components/filters-sheet";
 import { SearchField } from "@/components/search-field";
 import { FilterSubmitButton } from "@/components/filter-submit-button";
@@ -111,6 +112,21 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
   const totalPages = totalPagesFor(count);
   const hasActiveFilters = !!search || roleFilter !== "all";
   const activeFilterCount = [roleFilter !== "all"].filter(Boolean).length;
+  // Named in the toolbar rather than hidden behind the Filters count, so a
+  // partially filtered table says why it's short.
+  const appliedFilters: ActiveFilter[] = [];
+  if (search) {
+    appliedFilters.push({ param: "search", label: "Search", value: search });
+  }
+  if (roleFilter !== "all") {
+    appliedFilters.push({
+      param: "role",
+      label: "Role",
+      value:
+        ROLE_OPTIONS.find((option) => option.key === roleFilter)?.label ??
+        roleFilter,
+    });
+  }
 
   return (
     <>
@@ -174,6 +190,12 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
 
           {canManage && <NewPersonDialog people={peopleOptions ?? []} />}
         </div>
+
+        <ActiveFilters
+          action="/portal/people"
+          filters={appliedFilters}
+          params={{ search, role: roleFilter }}
+        />
 
         <Card>
           <CardContent className="px-0">

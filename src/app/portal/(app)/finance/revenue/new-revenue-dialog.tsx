@@ -10,6 +10,10 @@ import {
   type RevenueFormState,
 } from "./revenue-form-fields";
 import type { EventOption } from "./revenue-shared";
+import {
+  DiscardChangesDialog,
+  useUnsavedChangesGuard,
+} from "@/components/portal/unsaved-changes-guard";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -53,12 +57,23 @@ export function NewRevenueDialog({
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  // Compared against a fresh empty form rather than tracked with a flag, so
+  // typing and then clearing a field doesn't count as unsaved work.
+  const baseline = emptyRevenueForm(defaultEventId);
+  const dirty = (Object.keys(baseline) as (keyof RevenueFormState)[]).some(
+    (key) => form[key] !== baseline[key],
+  );
+  const guard = useUnsavedChangesGuard(dirty);
+
+  function resetForm() {
+    setForm(emptyRevenueForm(defaultEventId));
+    setError(null);
+  }
+
   function handleOpenChange(nextOpen: boolean) {
+    if (!guard.allowOpenChange(nextOpen)) return;
     setOpen(nextOpen);
-    if (nextOpen) {
-      setForm(emptyRevenueForm(defaultEventId));
-      setError(null);
-    }
+    if (nextOpen) resetForm();
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -71,6 +86,7 @@ export function NewRevenueDialog({
         setError(result.error);
         return;
       }
+      resetForm();
       setOpen(false);
       toast.success("Revenue recorded.");
       router.refresh();
@@ -79,48 +95,60 @@ export function NewRevenueDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
-      >
-        {triggerLabel}
-      </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Add revenue</DialogTitle>
-          <DialogDescription>Record new event revenue.</DialogDescription>
-        </DialogHeader>
+    <>
+      <DiscardChangesDialog
+        guard={guard}
+        subject="this revenue entry"
+        onDiscard={() => {
+          resetForm();
+          setOpen(false);
+        }}
+      />
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogTrigger
+          render={
+            <Button type="button" className="shrink-0 whitespace-nowrap" />
+          }
+        >
+          {triggerLabel}
+        </DialogTrigger>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add revenue</DialogTitle>
+            <DialogDescription>Record new event revenue.</DialogDescription>
+          </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
-          <FieldGroup>
-            <RevenueFormFields
-              form={form}
-              update={update}
-              events={events}
-              lockEventSelection={lockEventSelection}
-              idPrefix="new-revenue"
-            />
+          <form onSubmit={handleSubmit}>
+            <FieldGroup>
+              <RevenueFormFields
+                form={form}
+                update={update}
+                events={events}
+                lockEventSelection={lockEventSelection}
+                idPrefix="new-revenue"
+              />
 
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-          </FieldGroup>
-
-          <DialogFooter>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? (
-                <>
-                  <Spinner /> Saving...
-                </>
-              ) : (
-                "Add revenue"
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
               )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+            </FieldGroup>
+
+            <DialogFooter>
+              <Button type="submit" disabled={isPending}>
+                {isPending ? (
+                  <>
+                    <Spinner /> Saving...
+                  </>
+                ) : (
+                  "Add revenue"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

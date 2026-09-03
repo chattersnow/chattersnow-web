@@ -1,3 +1,4 @@
+import { humanizeStatus } from "@/components/portal/status-badge";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/table";
 import { HowToSection } from "@/components/how-to-section";
 import { PageHelpContent } from "../../help/help-context";
+import { ActiveFilters, type ActiveFilter } from "@/components/active-filters";
 import { FiltersSheet } from "@/components/filters-sheet";
 import { SearchField } from "@/components/search-field";
 import { FilterSubmitButton } from "@/components/filter-submit-button";
@@ -172,6 +174,28 @@ export default async function ReimbursementsPage({
     eventFilter !== "all",
     statusFilter !== "all",
   ].filter(Boolean).length;
+  // Named in the toolbar rather than hidden behind the Filters count, so a
+  // partially filtered table says why it's short.
+  const appliedFilters: ActiveFilter[] = [];
+  if (search) {
+    appliedFilters.push({ param: "search", label: "Search", value: search });
+  }
+  if (eventFilter !== "all") {
+    appliedFilters.push({
+      param: "event",
+      label: "Event",
+      value:
+        eventOptions.find((event) => event.id === eventFilter)?.name ??
+        eventFilter,
+    });
+  }
+  if (statusFilter !== "all") {
+    appliedFilters.push({
+      param: "status",
+      label: "Status",
+      value: humanizeStatus(statusFilter),
+    });
+  }
 
   return (
     <>
@@ -351,6 +375,18 @@ export default async function ReimbursementsPage({
             events={eventOptions}
           />
         </div>
+
+        <ActiveFilters
+          action="/portal/finance/reimbursements"
+          filters={appliedFilters}
+          params={{
+            search,
+            event: eventFilter,
+            status: statusFilter,
+            sort,
+            dir,
+          }}
+        />
 
         <Card>
           <CardContent className="px-0">

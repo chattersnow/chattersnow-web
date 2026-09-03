@@ -124,7 +124,7 @@ test.describe("portal finance reimbursements", () => {
 
       const row = page.getByRole("row").filter({ hasText: description });
       await expect(row).toBeVisible();
-      await expect(row).toContainText("submitted");
+      await expect(row).toContainText("Submitted");
 
       await row.getByRole("button", { name: "View reimbursement" }).click();
       const viewSheet = page.getByRole("dialog");
