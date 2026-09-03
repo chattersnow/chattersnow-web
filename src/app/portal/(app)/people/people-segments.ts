@@ -1,5 +1,5 @@
 import type { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { RoleKey } from "./people-shared";
+import type { PersonType, RoleKey } from "./people-shared";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -27,13 +27,16 @@ export type PeopleSegment = {
    * Column to restrict the directory to. Omitted for the full directory,
    * which offers the role facet instead.
    */
-  filterColumn?: RoleKey | "is_organization";
+  /** Narrows the segment to one role. Roles are additive, so this stacks. */
+  filterColumn?: RoleKey;
+  /** Narrows the segment to one entity type, which roles cannot express. */
+  personType?: PersonType;
   /** The full directory offers a Role filter; a segment already is one. */
   showRoleFilter?: boolean;
   newPerson?: {
     triggerLabel: string;
     defaultRole?: RoleKey;
-    defaultIsOrganization?: boolean;
+    defaultPersonType?: PersonType;
   };
   /** Noun used in empty states and row action labels, e.g. "sponsor". */
   noun: string;
@@ -143,14 +146,14 @@ export const ATTENDEES_SEGMENT: PeopleSegment = {
 export const ORGANIZATIONS_SEGMENT: PeopleSegment = {
   basePath: "/portal/organizations",
   title: "Organizations",
-  filterColumn: "is_organization",
+  personType: "organization",
   newPerson: {
     triggerLabel: "New Organization",
     // Organizations are most often entered as sponsors, and the person form
     // requires at least one role, so the dialog opens with a workable default
     // rather than an entity type and no role.
     defaultRole: "is_sponsor",
-    defaultIsOrganization: true,
+    defaultPersonType: "organization",
   },
   noun: "organization",
   emptyTitle: "No organizations added yet",

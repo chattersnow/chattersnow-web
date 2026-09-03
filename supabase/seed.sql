@@ -163,16 +163,16 @@ begin
   values ('Alex Chen', false, 'individual', 'alex.chen@example.test', '555-0102', null, v_admin_id)
   returning id into v_person_donor2;
 
-  insert into public.people (name, is_anonymous, source_type, email, phone, notes, logo_url, website, created_by)
-  values ('Summit Outdoor Co.', false, 'brand', 'partnerships@summitoutdoor.example.test', '555-0103', 'Local gear retailer, annual sponsor.', 'https://example.test/logos/summit-outdoor.png', 'https://summitoutdoor.example.test', v_admin_id)
+  insert into public.people (name, is_anonymous, source_type, person_type, email, phone, notes, logo_url, website, created_by)
+  values ('Summit Outdoor Co.', false, 'brand', 'organization', 'partnerships@summitoutdoor.example.test', '555-0103', 'Local gear retailer, annual sponsor.', 'https://example.test/logos/summit-outdoor.png', 'https://summitoutdoor.example.test', v_admin_id)
   returning id into v_person_sponsor;
 
   insert into public.people (name, is_anonymous, source_type, email, phone, notes, created_by)
   values ('Priya Natarajan', false, 'individual', 'priya.n@example.test', '555-0104', null, v_admin_id)
   returning id into v_person_volunteer;
 
-  insert into public.people (name, is_anonymous, source_type, created_by)
-  values ('Local Roasters Coffee', false, 'brand', v_admin_id)
+  insert into public.people (name, is_anonymous, source_type, person_type, created_by)
+  values ('Local Roasters Coffee', false, 'brand', 'organization', v_admin_id)
   returning id into v_person_local_roasters;
 
   insert into public.person_role_tags (person_id, role) values
@@ -616,11 +616,11 @@ begin
     v_is_sponsor := random() < 0.7;
     v_is_donor := random() < 0.5;
     insert into public.people (
-      name, is_anonymous, source_type, email, phone,
+      name, is_anonymous, source_type, person_type, email, phone,
       logo_url, website, notes, created_by
     )
     values (
-      brand_names[i], false, 'brand',
+      brand_names[i], false, 'brand', 'organization',
       lower(replace(brand_names[i], ' ', '')) || '@example.test',
       '555-' || lpad((2000 + i)::text, 4, '0'),
       'https://example.test/logos/' || i || '.png',

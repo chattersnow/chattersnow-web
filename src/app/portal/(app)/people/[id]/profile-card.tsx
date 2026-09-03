@@ -10,7 +10,12 @@ import {
   type PersonFormState,
 } from "../person-form-fields";
 import { PersonPicker, type PickedPerson } from "../person-picker";
-import { PortalUserBadge, rolesFor, type PersonRow } from "../people-shared";
+import {
+  PortalUserBadge,
+  isOrganization,
+  rolesFor,
+  type PersonRow,
+} from "../people-shared";
 import {
   experienceLevelLabel,
   ridesSki,
@@ -47,7 +52,7 @@ function formStateFor(person: PersonRow): PersonFormState {
       is_volunteer: person.is_volunteer,
       is_attendee: person.is_attendee,
     },
-    isOrganization: person.is_organization,
+    personType: person.person_type,
     ridingDiscipline: person.riding_discipline ?? "",
     skiExperienceLevel: person.ski_experience_level ?? "",
     snowboardExperienceLevel: person.snowboard_experience_level ?? "",
@@ -139,7 +144,7 @@ export function ProfileCard({
                   {role}
                 </Badge>
               ))}
-              {person.is_organization && (
+              {isOrganization(person) && (
                 <Badge variant="outline">Organization</Badge>
               )}
               <PortalUserBadge person={person} />

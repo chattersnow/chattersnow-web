@@ -60,7 +60,7 @@ describe("parsePersonForm", () => {
         notes: "VIP",
         logo_url: "https://example.com/logo.png",
         website: "https://example.com",
-        is_organization: false,
+        person_type: "individual",
         riding_discipline: null,
         ski_experience_level: null,
         snowboard_experience_level: null,
@@ -69,11 +69,22 @@ describe("parsePersonForm", () => {
     });
   });
 
-  test("parses the organization checkbox", () => {
+  test("parses the person type", () => {
     const result = parsePersonForm(
-      formData({ name: "Acme Co", isDonor: "true", isOrganization: "true" }),
+      formData({
+        name: "Acme Co",
+        isDonor: "true",
+        personType: "organization",
+      }),
     );
-    expect("data" in result && result.data.is_organization).toBe(true);
+    expect("data" in result && result.data.person_type).toBe("organization");
+  });
+
+  test("rejects an unknown person type", () => {
+    const result = parsePersonForm(
+      formData({ name: "Acme Co", isDonor: "true", personType: "household" }),
+    );
+    expect("error" in result).toBe(true);
   });
 
   test("rejects an invalid Instagram handle", () => {

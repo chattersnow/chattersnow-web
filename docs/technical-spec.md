@@ -539,7 +539,7 @@ Impact rollups themselves (per-event, per-program, and season reports, including
 
 ### Inventory and donations
 
-- `people`: shared directory of donors, sponsors, volunteers, and staff (name, email, phone, notes, `is_organization`), so the same contact can be reused across roles instead of being duplicated per context. It carries **no role columns**: role membership is derived by `public.people_with_roles` (§5.9), the view every read site uses, from the records that create each role unioned with `person_role_tags`. A role is therefore never stale — it appears with the record behind it and goes away with the last one.
+- `people`: shared directory of donors, sponsors, volunteers, and staff (name, email, phone, notes), so the same contact can be reused across roles instead of being duplicated per context. It carries **no role columns**: role membership is derived by `public.people_with_roles` (§5.9), the view every read site uses, from the records that create each role unioned with `person_role_tags`. A role is therefore never stale — it appears with the record behind it and goes away with the last one. `person_type` (`individual` | `organization`, issue #625) is the separate, exclusive axis: it is staff-asserted rather than derived and decides the shape of the record — an organization has a logo, a website, a primary contact and org memberships, an individual has a rider profile — so the person form renders one branch or the other off it. A further type (`household`, for family registrations) is a check-constraint change rather than another boolean.
 - `donations`
 - `donation_items`
 - `inventory_items`: donation-managed inventory records with description, size, type, gender, condition, face value, photo, and status

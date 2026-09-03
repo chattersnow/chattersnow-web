@@ -49,7 +49,7 @@ import type { PeopleSegment } from "./people-segments";
  * ambiguous (see 20260903030000).
  */
 const PERSON_COLUMNS =
-  "id, name, email, phone, instagram_handle, notes, logo_url, website, auth_user_id, is_donor, is_sponsor, is_volunteer, is_organization, is_attendee, riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain, primary_contact_person_id, primary_contact(id, name, email, phone)";
+  "id, name, email, phone, instagram_handle, notes, logo_url, website, auth_user_id, is_donor, is_sponsor, is_volunteer, is_attendee, person_type, riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain, primary_contact_person_id, primary_contact(id, name, email, phone)";
 
 const selectClassName =
   "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
@@ -95,6 +95,7 @@ export async function PeopleDirectory({
     .order("id", { ascending: true });
 
   if (segment.filterColumn) query = query.eq(segment.filterColumn, true);
+  if (segment.personType) query = query.eq("person_type", segment.personType);
   if (roleFilter !== "all") query = query.eq(roleFilter, true);
   if (search) {
     const pattern = quoteOrValue(`%${escapeLikePattern(search)}%`);
@@ -110,7 +111,7 @@ export async function PeopleDirectory({
       supabase
         .from("people")
         .select(
-          "id, name, preferred_name, email, phone, is_organization, auth_user_id",
+          "id, name, preferred_name, email, phone, person_type, auth_user_id",
         )
         .order("name", { ascending: true }),
       segment.stats ? segment.stats(supabase) : Promise.resolve(null),
@@ -222,7 +223,7 @@ export async function PeopleDirectory({
             <NewPersonDialog
               people={peopleOptions ?? []}
               defaultRole={segment.newPerson.defaultRole}
-              defaultIsOrganization={segment.newPerson.defaultIsOrganization}
+              defaultPersonType={segment.newPerson.defaultPersonType}
               triggerLabel={segment.newPerson.triggerLabel}
             />
           )}

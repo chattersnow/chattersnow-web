@@ -9,7 +9,12 @@ import {
   type PersonFormState,
 } from "./person-form-fields";
 import type { PersonListItem } from "./actions";
-import { PortalUserBadge, type RoleKey } from "./people-shared";
+import {
+  PortalUserBadge,
+  isOrganization,
+  type PersonType,
+  type RoleKey,
+} from "./people-shared";
 import { filterPeople } from "./person-search";
 import { personDisplayName } from "@/lib/format";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -55,16 +60,19 @@ export function PersonPicker({
   /** Restrict search/create to organization people rows. */
   onlyOrganizations?: boolean;
 }) {
+  const pickerPersonType: PersonType = onlyOrganizations
+    ? "organization"
+    : "individual";
   const [query, setQuery] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState<PersonFormState>(() =>
-    emptyPersonForm(newPersonRole, onlyOrganizations),
+    emptyPersonForm(newPersonRole, pickerPersonType),
   );
   const [createError, setCreateError] = useState<string | null>(null);
   const [isCreating, startCreateTransition] = useTransition();
 
   const candidatePeople = onlyOrganizations
-    ? people.filter((person) => person.is_organization)
+    ? people.filter(isOrganization)
     : people;
 
   function updateCreateForm<K extends keyof PersonFormState>(
@@ -77,7 +85,7 @@ export function PersonPicker({
   function reset() {
     setQuery("");
     setShowCreate(false);
-    setCreateForm(emptyPersonForm(newPersonRole, onlyOrganizations));
+    setCreateForm(emptyPersonForm(newPersonRole, pickerPersonType));
     setCreateError(null);
   }
 

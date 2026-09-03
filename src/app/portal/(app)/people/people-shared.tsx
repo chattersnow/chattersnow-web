@@ -8,6 +8,31 @@ import { Badge } from "@/components/ui/badge";
  */
 export const PEOPLE_WITH_ROLES = "people_with_roles";
 
+/**
+ * What kind of record this is, as opposed to what roles it holds (#625).
+ * Exclusive and staff-asserted, where roles are additive and derived: it
+ * decides the shape of the record -- an organization has a logo, a website, a
+ * primary contact and org memberships; an individual has a rider profile.
+ */
+export const PERSON_TYPES = [
+  { value: "individual", label: "Individual" },
+  { value: "organization", label: "Organization" },
+] as const;
+
+export type PersonType = (typeof PERSON_TYPES)[number]["value"];
+
+export function isPersonType(value: string): value is PersonType {
+  return PERSON_TYPES.some((type) => type.value === value);
+}
+
+export function isOrganization(person: { person_type?: PersonType }) {
+  return person.person_type === "organization";
+}
+
+export function personTypeLabel(personType: PersonType) {
+  return PERSON_TYPES.find((type) => type.value === personType)?.label ?? "";
+}
+
 export type PersonSummary = {
   id: string;
   name: string | null;
@@ -31,8 +56,8 @@ export type PersonRow = {
   is_donor: boolean;
   is_sponsor: boolean;
   is_volunteer: boolean;
-  is_organization: boolean;
   is_attendee: boolean;
+  person_type: PersonType;
   primary_contact_person_id: string | null;
   primary_contact: PersonSummary | null;
   riding_discipline: string | null;

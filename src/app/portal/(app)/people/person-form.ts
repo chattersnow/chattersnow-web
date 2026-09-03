@@ -7,6 +7,8 @@ import {
   type RidingDiscipline,
 } from "@/lib/rider-profile";
 
+import { isPersonType, type PersonType } from "./people-shared";
+
 const INSTAGRAM_HANDLE_PATTERN = /^[A-Za-z0-9._]{1,30}$/;
 
 /** The manual role assertions behind the form's role checkboxes. */
@@ -33,7 +35,7 @@ export type PersonFormData = {
   notes: string | null;
   logo_url: string | null;
   website: string | null;
-  is_organization: boolean;
+  person_type: PersonType;
   riding_discipline: RidingDiscipline | null;
   ski_experience_level: ExperienceLevel | null;
   snowboard_experience_level: ExperienceLevel | null;
@@ -60,9 +62,7 @@ export function parsePersonForm(
   const is_volunteer =
     formData.get("isVolunteer") === "on" ||
     formData.get("isVolunteer") === "true";
-  const is_organization =
-    formData.get("isOrganization") === "on" ||
-    formData.get("isOrganization") === "true";
+  const personTypeRaw = String(formData.get("personType") ?? "individual");
   const is_attendee =
     formData.get("isAttendee") === "on" ||
     formData.get("isAttendee") === "true";
@@ -78,6 +78,11 @@ export function parsePersonForm(
   ).trim();
 
   if (!name) return { error: "Name is required." };
+  if (!isPersonType(personTypeRaw)) {
+    return {
+      error: "Select whether this is an individual or an organization.",
+    };
+  }
   if (!is_donor && !is_sponsor && !is_volunteer && !is_attendee) {
     return {
       error:
@@ -124,7 +129,7 @@ export function parsePersonForm(
       notes: notes || null,
       logo_url: logoUrl || null,
       website: website || null,
-      is_organization,
+      person_type: personTypeRaw,
       riding_discipline,
       ski_experience_level:
         ridesSki(riding_discipline) && isExperienceLevel(skiLevel)

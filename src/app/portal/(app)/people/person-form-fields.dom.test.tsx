@@ -68,15 +68,28 @@ describe("PersonFormFields", () => {
     ).not.toBeChecked();
   });
 
-  test("toggling the organization checkbox updates isOrganization", async () => {
+  test("choosing Organization updates personType", async () => {
     const user = userEvent.setup();
     let latest: PersonFormState | undefined;
     render(<ControlledForm onChange={(form) => (latest = form)} />);
 
-    await user.click(
-      screen.getByRole("checkbox", { name: "This is an organization" }),
-    );
+    await user.click(screen.getByRole("combobox", { name: "Type" }));
+    await user.click(screen.getByRole("option", { name: "Organization" }));
 
-    expect(latest?.isOrganization).toBe(true);
+    expect(latest?.personType).toBe("organization");
+  });
+
+  test("the rider profile is for individuals, the logo and website for organizations", async () => {
+    const user = userEvent.setup();
+    render(<ControlledForm />);
+
+    expect(screen.getByLabelText("Rides")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Logo URL")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("combobox", { name: "Type" }));
+    await user.click(screen.getByRole("option", { name: "Organization" }));
+
+    expect(screen.getByLabelText("Logo URL")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Rides")).not.toBeInTheDocument();
   });
 });

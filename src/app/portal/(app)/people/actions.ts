@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parsePersonForm } from "./person-form";
+import type { PersonType } from "./people-shared";
 import { checkPermission, checkAnyPermission } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
 
@@ -51,8 +52,8 @@ export type PersonListItem = {
   // People list, and PersonPicker's `onlyOrganizations` mode). The many other
   // callers across the app that select a narrower PersonListItem shape don't
   // carry this column and should treat it as unknown/false.
-  is_organization?: boolean;
-  // Optional for the same reason as is_organization: the many narrower
+  person_type?: PersonType;
+  // Optional for the same reason as person_type: the many narrower
   // PersonListItem selects across the app don't carry these columns.
   // personDisplayName() degrades to `name` when preferred_name is absent, and
   // a missing auth_user_id simply means no "Portal user" badge is shown.
@@ -120,9 +121,7 @@ export async function listPeopleAction(): Promise<
 
   const { data, error } = await supabase
     .from("people")
-    .select(
-      "id, name, preferred_name, email, phone, is_organization, auth_user_id",
-    )
+    .select("id, name, preferred_name, email, phone, person_type, auth_user_id")
     .order("name", { ascending: true });
 
   if (error) {
