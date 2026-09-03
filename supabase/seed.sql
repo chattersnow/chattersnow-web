@@ -331,6 +331,15 @@ begin
   insert into public.event_volunteers (event_id, person_id, role, notes, created_by)
   values (v_event_upcoming, v_person_volunteer, 'Intake lead', 'Welcomes donors and checks item condition.', v_admin_id);
 
+  -- Staff, distinct from the volunteer above: the same person works this one
+  -- in a scheduled capacity, which is exactly the both-at-once case #626
+  -- exists to model.
+  insert into public.event_staff (event_id, person_id, role, notes, created_by)
+  values (v_event_upcoming, v_person_donor2, 'Basecamp lead', 'Runs the floor for the day.', v_admin_id);
+
+  insert into public.event_staff (event_id, person_id, role, notes, created_by)
+  values (v_event_past, v_person_volunteer, 'Guide', 'Paid guide for the day trip.', v_admin_id);
+
   insert into public.event_shifts (event_id, label, starts_at, ends_at, target_headcount, notes, created_by)
   values (v_event_upcoming, 'Morning setup', now() + interval '20 days' + interval '8 hours', now() + interval '20 days' + interval '10 hours', 3, 'Set up racks and intake tables.', v_admin_id)
   returning id into v_shift_id;

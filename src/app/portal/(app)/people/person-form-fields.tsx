@@ -61,6 +61,7 @@ export function emptyPersonForm(
       is_sponsor: defaultRole === "is_sponsor",
       is_volunteer: defaultRole === "is_volunteer",
       is_attendee: defaultRole === "is_attendee",
+      is_staff: defaultRole === "is_staff",
     },
     personType: defaultPersonType,
     ridingDiscipline: "",
@@ -354,6 +355,7 @@ export function packPersonFormData(form: PersonFormState) {
   formData.set("isSponsor", String(form.roles.is_sponsor));
   formData.set("isVolunteer", String(form.roles.is_volunteer));
   formData.set("isAttendee", String(form.roles.is_attendee));
+  formData.set("isStaff", String(form.roles.is_staff));
   formData.set("personType", form.personType);
   formData.set("ridingDiscipline", form.ridingDiscipline);
   formData.set("skiExperienceLevel", form.skiExperienceLevel);

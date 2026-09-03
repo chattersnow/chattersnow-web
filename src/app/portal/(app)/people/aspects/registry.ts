@@ -2,6 +2,7 @@ import { ASPECT_ACTIONS } from "./aspect-actions";
 import { AttendeeCard } from "./attendee-card";
 import { DonorCard } from "./donor-card";
 import { SponsorCard } from "./sponsor-card";
+import { StaffCard } from "./staff-card";
 import { VolunteerCard } from "./volunteer-card";
 import type { PersonAspect } from "./types";
 
@@ -9,8 +10,8 @@ import type { PersonAspect } from "./types";
  * Every per-role behaviour on a person record, in ROLE_OPTIONS order so the
  * detail page and the Roles column agree.
  *
- * Adding a type -- Staff is specced in technical-spec section 5.9 -- is a card
- * file, an ASPECT_ACTIONS entry, and one line here. No shared file changes.
+ * Adding a type is a card file, an ASPECT_ACTIONS entry, and one line here.
+ * Staff (#626) was the first to go through the seam and needed nothing else.
  */
 export const PERSON_ASPECTS: readonly PersonAspect[] = [
   {
@@ -36,5 +37,11 @@ export const PERSON_ASPECTS: readonly PersonAspect[] = [
     label: "Attendee",
     HistoryCard: AttendeeCard,
     actions: ASPECT_ACTIONS.is_attendee,
+  },
+  {
+    key: "is_staff",
+    label: "Staff",
+    HistoryCard: StaffCard,
+    actions: ASPECT_ACTIONS.is_staff,
   },
 ];

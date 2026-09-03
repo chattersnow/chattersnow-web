@@ -51,6 +51,7 @@ function formStateFor(person: PersonRow): PersonFormState {
       is_sponsor: person.is_sponsor,
       is_volunteer: person.is_volunteer,
       is_attendee: person.is_attendee,
+      is_staff: person.is_staff,
     },
     personType: person.person_type,
     ridingDiscipline: person.riding_discipline ?? "",

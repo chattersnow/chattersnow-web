@@ -52,6 +52,7 @@ describe("PersonFormFields", () => {
       is_sponsor: true,
       is_volunteer: false,
       is_attendee: false,
+      is_staff: false,
     });
   });
 

@@ -12,7 +12,8 @@ import { isPersonType, type PersonType } from "./people-shared";
 const INSTAGRAM_HANDLE_PATTERN = /^[A-Za-z0-9._]{1,30}$/;
 
 /** The manual role assertions behind the form's role checkboxes. */
-export type PersonRoleTag = "donor" | "sponsor" | "volunteer" | "attendee";
+export type PersonRoleTag =
+  "donor" | "sponsor" | "volunteer" | "attendee" | "staff";
 
 /**
  * The role columns are no longer written directly: since
@@ -66,6 +67,8 @@ export function parsePersonForm(
   const is_attendee =
     formData.get("isAttendee") === "on" ||
     formData.get("isAttendee") === "true";
+  const is_staff =
+    formData.get("isStaff") === "on" || formData.get("isStaff") === "true";
   const ridingDiscipline = String(
     formData.get("ridingDiscipline") ?? "",
   ).trim();
@@ -83,10 +86,10 @@ export function parsePersonForm(
       error: "Select whether this is an individual or an organization.",
     };
   }
-  if (!is_donor && !is_sponsor && !is_volunteer && !is_attendee) {
+  if (!is_donor && !is_sponsor && !is_volunteer && !is_attendee && !is_staff) {
     return {
       error:
-        "Select at least one role for this person — Donor, Sponsor, Volunteer, or Attendee.",
+        "Select at least one role for this person — Donor, Sponsor, Volunteer, Attendee, or Staff.",
     };
   }
   if (instagramHandle && !INSTAGRAM_HANDLE_PATTERN.test(instagramHandle)) {
@@ -117,6 +120,7 @@ export function parsePersonForm(
   if (is_sponsor) roles.push("sponsor");
   if (is_volunteer) roles.push("volunteer");
   if (is_attendee) roles.push("attendee");
+  if (is_staff) roles.push("staff");
 
   return {
     roles,

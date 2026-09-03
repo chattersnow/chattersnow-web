@@ -10,6 +10,7 @@ describe("emptyPersonForm", () => {
       is_sponsor: false,
       is_volunteer: false,
       is_attendee: false,
+      is_staff: false,
     });
   });
 
@@ -20,6 +21,7 @@ describe("emptyPersonForm", () => {
       is_sponsor: true,
       is_volunteer: false,
       is_attendee: false,
+      is_staff: false,
     });
   });
 });
