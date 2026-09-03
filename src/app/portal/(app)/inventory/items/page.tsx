@@ -316,7 +316,12 @@ export default async function InventoryPage({
       </InventoryViewProvider>
 
       {itemsWithHolds.length > 0 && (
-        <Pagination page={page} totalPages={totalPages} hrefFor={pageHref} />
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          count={count}
+          hrefFor={pageHref}
+        />
       )}
     </>
   );

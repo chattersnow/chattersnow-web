@@ -89,6 +89,7 @@ export default async function AuditLogPage({
         actorEmailById={actorEmailById}
         page={filters.page}
         totalPages={totalPages}
+        count={count}
         pageHref={pageHref}
       />
     </>

@@ -37,6 +37,7 @@ export function AuditLogTable({
   actorEmailById,
   page,
   totalPages,
+  count,
   pageHref,
 }: {
   entries: AuditLogEntry[] | null;
@@ -47,6 +48,7 @@ export function AuditLogTable({
   actorEmailById: Map<string, string>;
   page: number;
   totalPages: number;
+  count: number | null;
   pageHref: (nextPage: number) => string;
 }) {
   return (
@@ -126,7 +128,12 @@ export function AuditLogTable({
       </Card>
 
       {entries && entries.length > 0 && (
-        <Pagination page={page} totalPages={totalPages} hrefFor={pageHref} />
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          count={count}
+          hrefFor={pageHref}
+        />
       )}
     </>
   );

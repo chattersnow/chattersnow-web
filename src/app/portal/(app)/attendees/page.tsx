@@ -222,7 +222,12 @@ export default async function AttendeesPage({
         </Card>
 
         {peopleRows.length > 0 && (
-          <Pagination page={page} totalPages={totalPages} hrefFor={pageHref} />
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            count={count}
+            hrefFor={pageHref}
+          />
         )}
       </div>
     </>
