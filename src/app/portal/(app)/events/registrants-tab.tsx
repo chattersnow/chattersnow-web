@@ -108,7 +108,10 @@ export function RegistrantsTab({
       {registrants === undefined ? (
         <TabLoadingSkeleton />
       ) : list.length === 0 ? (
-        <p className="app-muted text-sm">No one has registered yet.</p>
+        <EmptyState
+          title="No one has registered yet"
+          description="Registrations arrive from the public event page. Walk-ins can be added with + Add registrant or + Check in walk-in above."
+        />
       ) : (
         <Table stickyFirstColumn>
           <TableHeader>

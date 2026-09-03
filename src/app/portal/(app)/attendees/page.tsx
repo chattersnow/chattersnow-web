@@ -7,6 +7,7 @@ import {
   hasPermission,
 } from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/portal/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
 import { Pagination } from "@/components/ui/pagination";
 import {
@@ -159,11 +160,20 @@ export default async function AttendeesPage({
         <Card>
           <CardContent className="px-0">
             {peopleRows.length === 0 ? (
-              <p className="app-muted px-4 py-6 text-sm">
-                {hasActiveFilters
-                  ? "No attendees match your filters."
-                  : "No event attendees yet."}
-              </p>
+              <EmptyState
+                title={
+                  hasActiveFilters
+                    ? "No attendees match your filters"
+                    : "No event attendees yet"
+                }
+                description={
+                  hasActiveFilters
+                    ? "Clear the search to see everyone."
+                    : canManage
+                      ? "Attendees appear here once someone registers for an event, or add one with New Attendee above."
+                      : "Attendees appear here once someone registers for or is checked in at an event."
+                }
+              />
             ) : (
               <Table>
                 <TableHeader>

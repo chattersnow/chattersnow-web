@@ -159,9 +159,14 @@ export function NonprofitStatusChecklist({
       {phaseGroups.length === 0 ? (
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No milestones recorded yet.
-            </p>
+            <EmptyState
+              title="No milestones recorded yet"
+              description={
+                canManage
+                  ? "Add the first one with Add milestone above."
+                  : "Milestones appear here once a governance manager adds them."
+              }
+            />
           </CardContent>
         </Card>
       ) : (

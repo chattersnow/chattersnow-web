@@ -68,9 +68,10 @@ export function EventRevenueTab({
       {revenue === null ? (
         <TabLoadingSkeleton />
       ) : revenue.length === 0 ? (
-        <p className="app-muted text-sm">
-          No revenue recorded for this event yet.
-        </p>
+        <EmptyState
+          title="No revenue recorded for this event yet"
+          description="Add the first entry with New Revenue above."
+        />
       ) : (
         <Table>
           <TableHeader>

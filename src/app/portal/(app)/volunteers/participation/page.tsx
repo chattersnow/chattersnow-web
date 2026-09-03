@@ -5,6 +5,7 @@ import {
   hasPermission,
 } from "@/lib/auth/permissions";
 import { resolveCurrentPerson } from "@/lib/auth/current-person";
+import { EmptyState } from "@/components/portal/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
 import { listVolunteerHoursAction } from "./actions";
 import { LogHoursDialog } from "./log-hours-dialog";
@@ -57,7 +58,14 @@ export default async function ParticipationPage() {
           {"error" in result ? (
             <p className="app-muted px-4 py-6 text-sm">{result.error}</p>
           ) : entries.length === 0 ? (
-            <p className="app-muted px-4 py-6 text-sm">No hours logged yet.</p>
+            <EmptyState
+              title="No hours logged yet"
+              description={
+                canManage || canLogOwn
+                  ? "Log the first entry with Log hours above."
+                  : "Hours appear here once volunteers log them."
+              }
+            />
           ) : (
             <>
               <p className="app-muted px-4 pt-4 text-sm">

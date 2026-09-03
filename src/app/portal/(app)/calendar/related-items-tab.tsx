@@ -99,7 +99,15 @@ export function RelatedItemsTab({
       <div className="flex flex-col gap-2">
         <h3 className="text-sm font-semibold">Confirmed</h3>
         {confirmed.length === 0 ? (
-          <p className="app-muted text-sm">No related items linked yet.</p>
+          <EmptyState
+            className="py-4"
+            title="No related items linked yet"
+            description={
+              canManage
+                ? "Pick one from the Suggested list below and press Link."
+                : "Linked items appear here once a content manager connects them."
+            }
+          />
         ) : (
           <ul className="flex flex-col divide-y divide-border">
             {confirmed.map((related) => (
@@ -136,9 +144,11 @@ export function RelatedItemsTab({
         <div className="flex flex-col gap-2">
           <h3 className="text-sm font-semibold">Suggested</h3>
           {suggested.length === 0 ? (
-            <p className="app-muted text-sm">
-              No related-item suggestions right now.
-            </p>
+            <EmptyState
+              className="py-4"
+              title="No related-item suggestions right now"
+              description="Suggestions appear as other calendar items share this one's program, category, or dates."
+            />
           ) : (
             <ul className="flex flex-col divide-y divide-border">
               {suggested.map((candidate) => (

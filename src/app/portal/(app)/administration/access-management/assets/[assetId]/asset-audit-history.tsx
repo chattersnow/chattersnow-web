@@ -33,7 +33,10 @@ export async function AssetAuditHistory({
       </CardHeader>
       <CardContent>
         {entries.length === 0 ? (
-          <p className="app-muted text-sm">No recorded changes yet.</p>
+          <EmptyState
+            title="No recorded changes yet"
+            description="Edits to this asset are recorded here automatically."
+          />
         ) : (
           <ul className="divide-border divide-y">
             {entries.map((entry) => (

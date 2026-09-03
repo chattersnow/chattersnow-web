@@ -391,11 +391,17 @@ export default async function ReimbursementsPage({
         <Card>
           <CardContent className="px-0">
             {reimbursementRows.length === 0 ? (
-              <p className="app-muted px-4 py-6 text-sm">
-                {hasActiveFilters
-                  ? "No reimbursements match your filters."
-                  : "No reimbursements recorded yet."}
-              </p>
+              hasActiveFilters ? (
+                <EmptyState
+                  title="No reimbursements match your filters"
+                  description="Clear or loosen the filters to see more."
+                />
+              ) : (
+                <EmptyState
+                  title="No reimbursements recorded yet"
+                  description="Record the first one with New Reimbursement above."
+                />
+              )
             ) : (
               <Table stickyFirstColumn>
                 <TableHeader>

@@ -9,13 +9,17 @@ import {
 } from "@/components/ui/table";
 import { formatRoleLabel } from "@/lib/format";
 import { RoleDetailsDialog, type RoleRow } from "./role-details-dialog";
+import { EmptyState } from "@/components/portal/empty-state";
 
 export function RolesTable({ roles }: { roles: RoleRow[] }) {
   if (roles.length === 0) {
     return (
       <Card>
-        <CardContent className="app-muted px-4 py-6 text-sm">
-          No roles found.
+        <CardContent>
+          <EmptyState
+            title="No roles found"
+            description="Add the first one with New role above."
+          />
         </CardContent>
       </Card>
     );

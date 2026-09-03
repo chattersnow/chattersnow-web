@@ -343,7 +343,14 @@ export function ResolutionsTab({
       {resolutions === undefined ? (
         <TabLoadingSkeleton />
       ) : resolutions.length === 0 && !showAdd ? (
-        <p className="app-muted text-sm">No resolutions recorded yet.</p>
+        <EmptyState
+          title="No resolutions recorded yet"
+          description={
+            mode === "edit"
+              ? "Record the first one with Add resolution below."
+              : "Resolutions appear here once a governance manager records them for this meeting."
+          }
+        />
       ) : (
         <Table>
           <TableHeader>

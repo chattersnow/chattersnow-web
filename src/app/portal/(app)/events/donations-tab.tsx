@@ -61,9 +61,10 @@ export function DonationsTab({
       {donations === undefined ? (
         <TabLoadingSkeleton />
       ) : items.length === 0 ? (
-        <p className="app-muted text-sm">
-          No donations recorded for this event yet.
-        </p>
+        <EmptyState
+          title="No donations recorded for this event yet"
+          description="Add the first one with Record donation for this event above."
+        />
       ) : (
         <Table>
           <TableHeader>

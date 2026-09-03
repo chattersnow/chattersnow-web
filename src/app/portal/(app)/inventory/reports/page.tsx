@@ -22,6 +22,7 @@ import {
   sumMovementValue,
   type ValuationMovement,
 } from "./valuation";
+import { EmptyState } from "@/components/portal/empty-state";
 
 type InventoryReportsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -213,7 +214,11 @@ export default async function InventoryReportsPage({
           </CardHeader>
           <CardContent className="px-0">
             {byType.length === 0 ? (
-              <p className="app-muted px-4 text-sm">No available inventory.</p>
+              <EmptyState
+                className="py-4"
+                title="No available inventory"
+                description="On-hand value appears here once a donation is recorded under Inventory › Donations."
+              />
             ) : (
               <Table>
                 <TableHeader>

@@ -327,7 +327,14 @@ export function ActionItemsTab({
       {actionItems === undefined ? (
         <TabLoadingSkeleton />
       ) : actionItems.length === 0 && !showAdd ? (
-        <p className="app-muted text-sm">No action items recorded yet.</p>
+        <EmptyState
+          title="No action items recorded yet"
+          description={
+            mode === "edit"
+              ? "Add the first one with Add action item below."
+              : "Action items appear here once a governance manager records them for this meeting."
+          }
+        />
       ) : (
         <Table>
           <TableHeader>

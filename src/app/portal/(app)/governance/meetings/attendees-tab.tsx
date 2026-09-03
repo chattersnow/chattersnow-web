@@ -27,6 +27,7 @@ import {
 import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
 import { personDisplayName } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 function AddAttendeeForm({
   people,
@@ -179,7 +180,14 @@ export function AttendeesTab({
       {attendees === undefined ? (
         <TabLoadingSkeleton />
       ) : attendees.length === 0 && !showAdd ? (
-        <p className="app-muted text-sm">No attendees recorded yet.</p>
+        <EmptyState
+          title="No attendees recorded yet"
+          description={
+            mode === "edit"
+              ? "Record who was at this meeting with Add attendee below."
+              : "Attendees appear here once a governance manager records them for this meeting."
+          }
+        />
       ) : (
         <Table>
           <TableHeader>

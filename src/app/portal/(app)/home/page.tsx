@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { ShieldAlert } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
@@ -9,6 +10,8 @@ import {
 } from "@/lib/auth/permissions";
 import { resolveCurrentPersonId } from "@/lib/auth/current-person";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { EmptyState } from "@/components/portal/empty-state";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ActiveEventCard } from "./active-event-card";
 import {
@@ -208,11 +211,19 @@ export default async function PortalHomePage({
 
       {!anySectionVisible && (
         <Card className="mt-4">
-          <CardContent className="pt-6">
-            <p className="app-muted text-sm">
-              Your activity summary will appear here as volunteer participation
-              tracking is added.
-            </p>
+          <CardContent>
+            <EmptyState
+              title="Nothing to show yet"
+              description={
+                <>
+                  You&apos;re signed in, but none of your roles include a portal
+                  section, so there is nothing for this dashboard to summarize.
+                  An administrator can grant you a role from Administration
+                  &rsaquo; Users; the sections that role can see will appear
+                  here as soon as they do.
+                </>
+              }
+            />
           </CardContent>
         </Card>
       )}
@@ -342,7 +353,20 @@ export default async function PortalHomePage({
             </CardHeader>
             <CardContent>
               {recentDonations.length === 0 ? (
-                <p className="app-muted text-sm">No donations recorded yet.</p>
+                <EmptyState
+                  className="py-4"
+                  title="No donations recorded yet"
+                  description="Record the first gear donation from Inventory › Donations and it will show up here."
+                  action={
+                    <Button
+                      variant="secondary"
+                      nativeButton={false}
+                      render={<Link href="/portal/inventory/donations" />}
+                    >
+                      Go to donations
+                    </Button>
+                  }
+                />
               ) : (
                 <ul className="divide-border divide-y">
                   {recentDonations.map((donation) => (

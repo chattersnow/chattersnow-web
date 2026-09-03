@@ -107,9 +107,14 @@ export function MeetingsTable({
       {meetings.length === 0 ? (
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No meetings scheduled yet.
-            </p>
+            <EmptyState
+              title="No meetings scheduled yet"
+              description={
+                newAction
+                  ? "Schedule the first one with Schedule meeting above."
+                  : "Meetings appear here once a governance manager schedules one."
+              }
+            />
           </CardContent>
         </Card>
       ) : (

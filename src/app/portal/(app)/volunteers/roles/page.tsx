@@ -4,6 +4,7 @@ import {
   getCurrentUserPermissions,
   hasPermission,
 } from "@/lib/auth/permissions";
+import { EmptyState } from "@/components/portal/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -59,7 +60,14 @@ export default async function VolunteerRolesPage() {
               Could not load role types. Please try again.
             </p>
           ) : !roleTypes || roleTypes.length === 0 ? (
-            <p className="app-muted px-4 py-6 text-sm">No role types yet.</p>
+            <EmptyState
+              title="No role types yet"
+              description={
+                canManage
+                  ? "Add the first one with New role type above."
+                  : "Role types appear here once someone with volunteers access creates one."
+              }
+            />
           ) : (
             <Table>
               <TableHeader>

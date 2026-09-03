@@ -105,9 +105,14 @@ export function PoliciesTable({
       {policies.length === 0 ? (
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No policies recorded yet.
-            </p>
+            <EmptyState
+              title="No policies recorded yet"
+              description={
+                canManage
+                  ? "Add the first one with Add policy above."
+                  : "Policies appear here once a governance manager adds them."
+              }
+            />
           </CardContent>
         </Card>
       ) : (

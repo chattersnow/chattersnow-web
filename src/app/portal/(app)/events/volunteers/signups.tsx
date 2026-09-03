@@ -31,6 +31,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { personDisplayName } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 export function AddVolunteerForm({
   people,
@@ -207,7 +208,10 @@ export function SignupsSection({
       {loading ? (
         <TabLoadingSkeleton />
       ) : volunteers.length === 0 ? (
-        <p className="app-muted text-sm">No volunteers recorded yet.</p>
+        <EmptyState
+          title="No volunteers recorded yet"
+          description="Sign the first one up with + Add volunteer above."
+        />
       ) : (
         <Table>
           <TableHeader>

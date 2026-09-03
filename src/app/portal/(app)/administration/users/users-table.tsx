@@ -45,6 +45,7 @@ import {
 import { portalUserDisplayName } from "./users-shared";
 import { PreferredNameCell } from "./preferred-name-cell";
 import { Spinner } from "@/components/ui/spinner";
+import { EmptyState } from "@/components/portal/empty-state";
 
 function statusBadge(portalUser: PortalUser) {
   if (portalUser.deactivated_at) {
@@ -117,8 +118,11 @@ export function UsersTable({
   if (users.length === 0) {
     return (
       <Card>
-        <CardContent className="app-muted px-4 py-6 text-sm">
-          No users found.
+        <CardContent>
+          <EmptyState
+            title="No users found"
+            description="Users appear here after they sign in for the first time. Stage access for them under Pending access below."
+          />
         </CardContent>
       </Card>
     );

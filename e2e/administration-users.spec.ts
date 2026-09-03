@@ -227,7 +227,7 @@ test.describe("portal administration users", () => {
       }).toPass({ timeout: 60_000 });
 
       await reloadStayingSignedIn(page);
-      await expect(pendingCard).not.toContainText("No pending access staged.");
+      await expect(pendingCard).not.toContainText("No pending access staged");
       await expect(grantRow).toContainText("Revoked", { timeout: 30_000 });
     } finally {
       await invite.cleanup();

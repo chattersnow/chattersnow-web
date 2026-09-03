@@ -24,6 +24,7 @@ import {
   SuggestionRuleDetailsSheet,
   type SuggestionRuleListRow,
 } from "./suggestion-rule-details-sheet";
+import { EmptyState } from "@/components/portal/empty-state";
 
 const FILTER_ALL = "all";
 
@@ -111,7 +112,14 @@ export function SuggestionRulesTable({
       {rules.length === 0 ? (
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">No rules yet.</p>
+            <EmptyState
+              title="No rules yet"
+              description={
+                canManage
+                  ? "Add the first one with New rule above."
+                  : "Rules appear here once a calendar manager adds them."
+              }
+            />
           </CardContent>
         </Card>
       ) : (

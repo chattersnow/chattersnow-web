@@ -7,6 +7,7 @@ import {
   hasPermission,
 } from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/portal/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
 import { Pagination } from "@/components/ui/pagination";
 import {
@@ -200,11 +201,20 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
         <Card>
           <CardContent className="px-0">
             {peopleRows.length === 0 ? (
-              <p className="app-muted px-4 py-6 text-sm">
-                {hasActiveFilters
-                  ? "No people match your filters."
-                  : "No people added yet."}
-              </p>
+              <EmptyState
+                title={
+                  hasActiveFilters
+                    ? "No people match your filters"
+                    : "No people added yet"
+                }
+                description={
+                  hasActiveFilters
+                    ? "Clear or loosen the filters to see more."
+                    : canManage
+                      ? "Add the first one with New Person above."
+                      : "People appear here once someone is added to the directory or registers for an event."
+                }
+              />
             ) : (
               <Table stickyFirstColumn>
                 <TableHeader>

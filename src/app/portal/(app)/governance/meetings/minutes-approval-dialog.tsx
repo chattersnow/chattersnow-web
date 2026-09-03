@@ -95,7 +95,11 @@ export function MinutesApprovalDialog({
               Decisions & votes
             </p>
             {previousMeeting.decisions.length === 0 ? (
-              <p className="app-muted mt-1">No decisions recorded.</p>
+              <EmptyState
+                className="py-4"
+                title="No decisions recorded"
+                description="That meeting has nothing in its Decisions section."
+              />
             ) : (
               <ul className="mt-1 flex flex-col gap-1">
                 {previousMeeting.decisions.map((decision) => (
@@ -121,7 +125,11 @@ export function MinutesApprovalDialog({
               Action items
             </p>
             {previousMeeting.actionItems.length === 0 ? (
-              <p className="app-muted mt-1">No action items recorded.</p>
+              <EmptyState
+                className="py-4"
+                title="No action items recorded"
+                description="That meeting has nothing in its Action Items section."
+              />
             ) : (
               <ul className="mt-1 flex flex-col gap-1">
                 {previousMeeting.actionItems.map((item) => (

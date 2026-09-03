@@ -112,9 +112,14 @@ export function RevenueTable({
         )}
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No revenue recorded yet.
-            </p>
+            <EmptyState
+              title="No revenue recorded yet"
+              description={
+                action
+                  ? "Record the first one with New Revenue above."
+                  : "Revenue appears here once someone records it."
+              }
+            />
           </CardContent>
         </Card>
       </div>

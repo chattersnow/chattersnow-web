@@ -109,9 +109,14 @@ export function BoardMembersTable({
       {boardMembers.length === 0 ? (
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No board members added yet.
-            </p>
+            <EmptyState
+              title="No board members added yet"
+              description={
+                canManage
+                  ? "Add the first one with Add board member above."
+                  : "Board members appear here once a governance manager adds them."
+              }
+            />
           </CardContent>
         </Card>
       ) : (

@@ -49,6 +49,7 @@ import {
   type PortalRoleOption,
 } from "./actions";
 import { Spinner } from "@/components/ui/spinner";
+import { EmptyState } from "@/components/portal/empty-state";
 
 function statusBadge(grant: PendingGrant) {
   if (
@@ -196,7 +197,10 @@ export function PendingAccessSection({
           </form>
 
           {grants.length === 0 ? (
-            <p className="app-muted text-sm">No pending access staged.</p>
+            <EmptyState
+              title="No pending access staged"
+              description="Enter an email and role above and choose Stage access, then share the invite link it produces."
+            />
           ) : (
             <Table>
               <TableHeader>

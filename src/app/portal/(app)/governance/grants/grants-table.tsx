@@ -106,9 +106,14 @@ export function GrantsTable({
       {grants.length === 0 ? (
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No grants recorded yet.
-            </p>
+            <EmptyState
+              title="No grants recorded yet"
+              description={
+                canManage
+                  ? "Add the first one with Add grant above."
+                  : "Grants appear here once a governance manager adds them."
+              }
+            />
           </CardContent>
         </Card>
       ) : (

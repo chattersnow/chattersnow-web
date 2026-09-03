@@ -107,9 +107,14 @@ export function PartnershipsTable({
       {opportunities.length === 0 ? (
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No partnership opportunities recorded yet.
-            </p>
+            <EmptyState
+              title="No partnership opportunities recorded yet"
+              description={
+                canManage
+                  ? "Add the first one with Add opportunity above."
+                  : "Opportunities appear here once a governance manager adds them."
+              }
+            />
           </CardContent>
         </Card>
       ) : (

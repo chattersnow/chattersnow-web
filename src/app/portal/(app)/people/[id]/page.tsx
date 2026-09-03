@@ -263,7 +263,11 @@ export default async function PersonDetailPage({
           </CardHeader>
           <CardContent>
             {donationRows.length === 0 ? (
-              <p className="app-muted text-sm">No donations recorded.</p>
+              <EmptyState
+                className="py-4"
+                title="No donations recorded"
+                description="Gear donations appear here once one is recorded for this person from Inventory › Donations."
+              />
             ) : (
               <ul className="flex flex-col gap-3 text-sm">
                 {donationRows.map((donation) => (
@@ -293,7 +297,11 @@ export default async function PersonDetailPage({
           </CardHeader>
           <CardContent>
             {sponsorshipRows.length === 0 ? (
-              <p className="app-muted text-sm">No sponsorships recorded.</p>
+              <EmptyState
+                className="py-4"
+                title="No sponsorships recorded"
+                description="Sponsorships appear here once this person is added on an event's Sponsors tab."
+              />
             ) : (
               <ul className="flex flex-col gap-3 text-sm">
                 {sponsorshipRows.map((sponsorship) => (
@@ -324,7 +332,11 @@ export default async function PersonDetailPage({
           </CardHeader>
           <CardContent>
             {registrationRows.length === 0 ? (
-              <p className="app-muted text-sm">No event registrations.</p>
+              <EmptyState
+                className="py-4"
+                title="No event registrations"
+                description="Registrations appear here once this person signs up for an event on the public site."
+              />
             ) : (
               <ul className="flex flex-col gap-3 text-sm">
                 {registrationRows.map((registration) => (
@@ -362,9 +374,11 @@ export default async function PersonDetailPage({
             {volunteerSignupRows.length === 0 &&
             volunteerHoursRows.length === 0 &&
             volunteerApplicationRows.length === 0 ? (
-              <p className="app-muted text-sm">
-                No volunteer activity recorded.
-              </p>
+              <EmptyState
+                className="py-4"
+                title="No volunteer activity recorded"
+                description="Applications, event sign-ups, and logged hours appear here once this person volunteers."
+              />
             ) : (
               <div className="flex flex-col gap-4 text-sm">
                 {volunteerApplicationRows.length > 0 && (
@@ -432,7 +446,11 @@ export default async function PersonDetailPage({
           <CardContent>
             {partnershipAsOrgRows.length === 0 &&
             partnershipAsOwnerRows.length === 0 ? (
-              <p className="app-muted text-sm">No partnership involvement.</p>
+              <EmptyState
+                className="py-4"
+                title="No partnership involvement"
+                description="Opportunities appear here once this record is named as the partner or owner from Governance › Partnerships."
+              />
             ) : (
               <div className="flex flex-col gap-4 text-sm">
                 {partnershipAsOrgRows.length > 0 && (

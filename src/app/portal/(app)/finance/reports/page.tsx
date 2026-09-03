@@ -255,9 +255,11 @@ export default async function FinancialReportsPage({
               </CardHeader>
               <CardContent className="px-0">
                 {revenueBySource.length === 0 ? (
-                  <p className="app-muted px-4 text-sm">
-                    No revenue recorded in this period.
-                  </p>
+                  <EmptyState
+                    className="py-4"
+                    title="No revenue recorded in this period"
+                    description="Widen the date range above, or record income under Finance › Revenue."
+                  />
                 ) : (
                   <Table>
                     <TableHeader>

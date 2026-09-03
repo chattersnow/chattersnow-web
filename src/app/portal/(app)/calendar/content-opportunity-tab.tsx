@@ -297,14 +297,24 @@ export function ContentOpportunityTab({
 
   if (!opportunity && mode === "view") {
     return (
-      <div className="flex flex-col items-start gap-3 py-2">
+      <div className="flex flex-col gap-3 py-2">
         {toneGuidanceBanner}
-        <p className="app-muted text-sm">No content brief yet for this item.</p>
-        {canManage && (
-          <Button type="button" variant="secondary" onClick={startEditing}>
-            Start content brief
-          </Button>
-        )}
+        <EmptyState
+          className="py-4"
+          title="No content brief yet for this item"
+          description={
+            canManage
+              ? "Start one to capture the angle, owner, and consent for this piece."
+              : "A brief appears here once a content manager starts one."
+          }
+          action={
+            canManage ? (
+              <Button type="button" variant="secondary" onClick={startEditing}>
+                Start content brief
+              </Button>
+            ) : undefined
+          }
+        />
       </div>
     );
   }

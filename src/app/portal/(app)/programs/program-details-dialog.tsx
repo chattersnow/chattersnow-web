@@ -1,5 +1,6 @@
 "use client";
 
+import { EmptyState } from "@/components/portal/empty-state";
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Eye, Pencil } from "lucide-react";
@@ -285,9 +286,11 @@ export function ProgramDetailsDialog({
                     ) : events === null ? (
                       <TabLoadingSkeleton />
                     ) : events.length === 0 ? (
-                      <p className="app-muted text-sm">
-                        No events tagged to this program yet.
-                      </p>
+                      <EmptyState
+                        className="py-4"
+                        title="No events tagged to this program yet"
+                        description="Assign an event to this program from the event's Overview tab and it will be listed here."
+                      />
                     ) : (
                       <Table>
                         <TableHeader>

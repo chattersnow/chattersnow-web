@@ -77,9 +77,10 @@ export function EventExpensesTab({
       {expenses === undefined ? (
         <TabLoadingSkeleton />
       ) : expenses.length === 0 ? (
-        <p className="app-muted text-sm">
-          No expenses recorded for this event yet.
-        </p>
+        <EmptyState
+          title="No expenses recorded for this event yet"
+          description="Add the first one with New Expense above."
+        />
       ) : (
         <Table>
           <TableHeader>

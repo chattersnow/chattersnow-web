@@ -77,7 +77,10 @@ export function MessagesTable({
     return (
       <Card>
         <CardContent className="px-0">
-          <p className="app-muted px-4 py-6 text-sm">No messages yet.</p>
+          <EmptyState
+            title="No messages yet"
+            description="Messages appear here when someone submits the public contact form."
+          />
         </CardContent>
       </Card>
     );

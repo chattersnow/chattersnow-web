@@ -79,7 +79,10 @@ export function IncidentsTab({
       {incidents === null ? (
         <TabLoadingSkeleton />
       ) : incidents.length === 0 ? (
-        <p className="app-muted text-sm">No incidents recorded.</p>
+        <EmptyState
+          title="No incidents recorded"
+          description="If something happens during the event, log it with + Log incident above."
+        />
       ) : (
         <Table>
           <TableHeader>

@@ -65,9 +65,14 @@ export default async function DistributionPage() {
           <Card>
             <CardContent className="px-0">
               {result.data.length === 0 ? (
-                <p className="app-muted px-4 py-6 text-sm">
-                  No distributions recorded yet.
-                </p>
+                <EmptyState
+                  title="No distributions recorded yet"
+                  description={
+                    canRecord
+                      ? "Record the first one with Record distribution above."
+                      : "Distributions appear here once gear is handed out."
+                  }
+                />
               ) : (
                 <Table stickyFirstColumn>
                   <TableHeader>

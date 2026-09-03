@@ -65,9 +65,14 @@ export function DisclosuresTable({
       {disclosures.length === 0 ? (
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No disclosures recorded yet.
-            </p>
+            <EmptyState
+              title="No disclosures recorded yet"
+              description={
+                canManage
+                  ? "Add the first one with Add disclosure above."
+                  : "Disclosures appear here once a governance manager adds them."
+              }
+            />
           </CardContent>
         </Card>
       ) : (

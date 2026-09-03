@@ -206,7 +206,10 @@ export function HoursSection({
       {loading ? (
         <TabLoadingSkeleton />
       ) : hours.length === 0 ? (
-        <p className="app-muted text-sm">No hours logged yet.</p>
+        <EmptyState
+          title="No hours logged yet"
+          description="Log the first entry with + Log hours above."
+        />
       ) : (
         <Table>
           <TableHeader>

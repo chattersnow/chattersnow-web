@@ -146,7 +146,8 @@ export default async function WorkQueuePage({
           items={myWorkItems}
           owners={owners}
           currentPersonId={currentPersonId}
-          emptyMessage="Nothing is assigned to you as an owner or reviewer right now."
+          emptyMessage="Nothing is assigned to you as an owner or reviewer right now"
+          emptyDescription="Items land here when you are set as owner or reviewer on a calendar item."
         />
       ) : (
         <WorkQueueTable
@@ -155,8 +156,13 @@ export default async function WorkQueuePage({
           currentPersonId={currentPersonId}
           emptyMessage={
             overdueOnly
-              ? "Nothing is overdue right now."
-              : "No calendar items to show."
+              ? "Nothing is overdue right now"
+              : "No calendar items to show"
+          }
+          emptyDescription={
+            overdueOnly
+              ? "Turn off Overdue only above to see the whole queue."
+              : "Add items on the Calendar page with New calendar item, or import a batch from Calendar › Import."
           }
         />
       )}

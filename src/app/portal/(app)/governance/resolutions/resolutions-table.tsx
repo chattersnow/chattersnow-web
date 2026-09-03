@@ -118,9 +118,14 @@ export function ResolutionsTable({
       {resolutions.length === 0 ? (
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No resolutions recorded yet.
-            </p>
+            <EmptyState
+              title="No resolutions recorded yet"
+              description={
+                canManage
+                  ? "Add the first one with Add resolution above."
+                  : "Resolutions appear here once a governance manager adds them."
+              }
+            />
           </CardContent>
         </Card>
       ) : (

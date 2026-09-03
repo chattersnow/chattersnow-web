@@ -15,6 +15,7 @@ import { isReviewDue } from "@/lib/portal/access-management/review-cadence";
 import type { AssetListRow } from "@/lib/portal/access-management/types";
 import { DeleteAssetButton } from "./delete-asset-button";
 import { humanize } from "./labels";
+import { EmptyState } from "@/components/portal/empty-state";
 
 const SENSITIVITY_BADGE_VARIANT: Record<
   string,
@@ -36,8 +37,11 @@ export function AssetsTable({
   if (assets.length === 0) {
     return (
       <Card>
-        <CardContent className="app-muted px-4 py-6 text-sm">
-          No assets found. Add the first one to start tracking access.
+        <CardContent>
+          <EmptyState
+            title="No assets found"
+            description="Add the first one with New asset above to start tracking access."
+          />
         </CardContent>
       </Card>
     );

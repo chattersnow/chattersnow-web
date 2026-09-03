@@ -11,6 +11,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
+import { EmptyState } from "@/components/portal/empty-state";
 
 function AttendanceForm({
   event,
@@ -126,7 +127,12 @@ export function AttendanceTab({
   }
 
   if (!hasAttendance) {
-    return <p className="app-muted text-sm">No attendance recorded yet.</p>;
+    return (
+      <EmptyState
+        title="No attendance recorded yet"
+        description="Use Edit attendance (the pencil above) to record the headcount and notes after the event."
+      />
+    );
   }
 
   return (

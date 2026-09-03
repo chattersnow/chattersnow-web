@@ -51,9 +51,10 @@ export function DistributionsTab({
       {distributions === undefined ? (
         <TabLoadingSkeleton />
       ) : distributions.length === 0 ? (
-        <p className="app-muted text-sm">
-          No gear distributed at this event yet.
-        </p>
+        <EmptyState
+          title="No gear distributed at this event yet"
+          description="Record the first handout with + Record distribution above."
+        />
       ) : (
         <Table>
           <TableHeader>

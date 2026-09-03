@@ -28,11 +28,10 @@ export async function generateMetadata({
 }
 
 // Meetings have no name; the detail view heads the page with the date, so
-// the trail says the same thing. Pinned to UTC because meeting_date is a
-// plain `date` column.
+// the trail says the same thing. meeting_date is a timestamptz, so it is shown
+// in the viewer's zone: pinned to UTC, an evening meeting read as the next day.
 const meetingDateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "long",
-  timeZone: "UTC",
 });
 
 function meetingDateLabel(meetingDate: string) {

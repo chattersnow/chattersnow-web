@@ -10,13 +10,17 @@ import {
 } from "@/components/ui/table";
 import type { ServiceManageRow } from "@/lib/portal/access-management/types";
 import { ServiceDetailsSheet } from "./service-details-sheet";
+import { EmptyState } from "@/components/portal/empty-state";
 
 export function ServicesTable({ services }: { services: ServiceManageRow[] }) {
   if (services.length === 0) {
     return (
       <Card>
-        <CardContent className="app-muted px-4 py-6 text-sm">
-          No services yet. Add one before creating assets that belong to it.
+        <CardContent>
+          <EmptyState
+            title="No services yet"
+            description="Add one with New service above before creating assets that belong to it."
+          />
         </CardContent>
       </Card>
     );

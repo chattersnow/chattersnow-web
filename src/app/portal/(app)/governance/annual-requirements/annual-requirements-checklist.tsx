@@ -95,9 +95,14 @@ export function AnnualRequirementsChecklist({
       {requirements.length === 0 ? (
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No annual requirements recorded yet.
-            </p>
+            <EmptyState
+              title="No annual requirements recorded yet"
+              description={
+                canManage
+                  ? "Add the first one with Add requirement above."
+                  : "Requirements appear here once a governance manager adds them."
+              }
+            />
           </CardContent>
         </Card>
       ) : (

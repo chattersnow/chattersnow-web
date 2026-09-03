@@ -288,9 +288,11 @@ function AgendaForm({
           <p className="text-sm font-semibold">Ongoing board items</p>
           <div className="mt-2 flex flex-col gap-3">
             {sections.length === 0 ? (
-              <p className="app-muted text-sm">
-                No agenda template is configured.
-              </p>
+              <EmptyState
+                className="py-4"
+                title="No agenda template is configured"
+                description="Agenda templates are managed outside the portal; ask an administrator to activate one."
+              />
             ) : (
               sections.map((section) => (
                 <div
@@ -506,7 +508,14 @@ export function AgendaTab({
       )}
 
       {!agenda ? (
-        <p className="app-muted text-sm">No agenda added yet.</p>
+        <EmptyState
+          title="No agenda added yet"
+          description={
+            canManage
+              ? "Write it with the Edit agenda (pencil) button above; it starts from the active agenda template."
+              : "The agenda appears here once a governance manager writes it."
+          }
+        />
       ) : (
         <>
           <div className="flex justify-end">
@@ -586,9 +595,11 @@ export function AgendaTab({
             <p className="text-sm font-semibold">Ongoing board items</p>
             <div className="mt-2 flex flex-col gap-3">
               {sections.length === 0 ? (
-                <p className="app-muted text-sm">
-                  No agenda template is configured.
-                </p>
+                <EmptyState
+                  className="py-4"
+                  title="No agenda template is configured"
+                  description="Agenda templates are managed outside the portal; ask an administrator to activate one."
+                />
               ) : (
                 sections.map((section) => {
                   const value = agenda.ongoing_items[section.key];
@@ -629,7 +640,11 @@ export function AgendaTab({
             onViewAll={onViewDecisions}
           >
             {(decisions ?? []).length === 0 ? (
-              <p className="app-muted text-sm">No decisions recorded yet.</p>
+              <EmptyState
+                className="py-4"
+                title="No decisions recorded yet"
+                description="Record them in the Decisions section of the Overview tab and they will be listed here."
+              />
             ) : (
               <ul className="flex flex-col gap-1 text-sm">
                 {(decisions ?? []).map((decision) => (

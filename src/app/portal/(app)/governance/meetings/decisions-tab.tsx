@@ -188,7 +188,14 @@ export function DecisionsTab({
       {decisions === undefined ? (
         <TabLoadingSkeleton />
       ) : decisions.length === 0 && !showAdd ? (
-        <p className="app-muted text-sm">No decisions recorded yet.</p>
+        <EmptyState
+          title="No decisions recorded yet"
+          description={
+            mode === "edit"
+              ? "Record the first one with Add decision below."
+              : "Decisions appear here once a governance manager records them for this meeting."
+          }
+        />
       ) : (
         <Table>
           <TableHeader>

@@ -13,6 +13,7 @@ import type { OrganizationMembership } from "../people-shared";
 import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/portal/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -88,11 +89,21 @@ export function OrganizationsCard({
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {memberships.length === 0 ? (
-          <p className="app-muted text-sm">
-            {isOrganization
-              ? "No people linked yet."
-              : "Not linked to any organizations yet."}
-          </p>
+          <EmptyState
+            className="py-4"
+            title={
+              isOrganization
+                ? "No people linked yet"
+                : "Not linked to any organizations yet"
+            }
+            description={
+              canManage
+                ? `Link one with + Add ${isOrganization ? "person" : "organization"} below.`
+                : isOrganization
+                  ? "People appear here once they are linked to this organization."
+                  : "Organizations appear here once this person is linked to one."
+            }
+          />
         ) : (
           <Table>
             <TableHeader>

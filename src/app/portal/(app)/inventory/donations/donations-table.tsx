@@ -28,11 +28,17 @@ export function DonationsTable({
     return (
       <Card>
         <CardContent className="px-0">
-          <p className="app-muted px-4 py-6 text-sm">
-            {hasActiveFilters
-              ? "No donations match your filters."
-              : "No donations recorded yet."}
-          </p>
+          {hasActiveFilters ? (
+            <EmptyState
+              title="No donations match your filters"
+              description="Clear or loosen the filters to see more."
+            />
+          ) : (
+            <EmptyState
+              title="No donations recorded yet"
+              description="Record the first one with Add donation above."
+            />
+          )}
         </CardContent>
       </Card>
     );

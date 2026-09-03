@@ -377,11 +377,17 @@ export default async function ExpensesPage({
         <Card>
           <CardContent className="px-0">
             {expenseRows.length === 0 ? (
-              <p className="app-muted px-4 py-6 text-sm">
-                {hasActiveFilters
-                  ? "No expenses match your filters."
-                  : "No expenses recorded yet."}
-              </p>
+              hasActiveFilters ? (
+                <EmptyState
+                  title="No expenses match your filters"
+                  description="Clear or loosen the filters to see more."
+                />
+              ) : (
+                <EmptyState
+                  title="No expenses recorded yet"
+                  description="Record the first one with New Expense above."
+                />
+              )
             ) : (
               <Table stickyFirstColumn>
                 <TableHeader>

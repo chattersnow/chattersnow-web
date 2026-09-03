@@ -394,9 +394,10 @@ export function SponsorsTab({
       {sponsors === undefined ? (
         <TabLoadingSkeleton />
       ) : sortedSponsors.length === 0 ? (
-        <p className="app-muted text-sm">
-          No sponsors or partners recorded yet.
-        </p>
+        <EmptyState
+          title="No sponsors or partners recorded yet"
+          description="Add the first one with + Add sponsor above."
+        />
       ) : (
         <Table>
           <TableHeader>

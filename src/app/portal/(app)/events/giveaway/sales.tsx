@@ -230,5 +230,10 @@ export function SalesSection({
     return <GiveawaySummary giveaway={giveaway} />;
   }
 
-  return <p className="app-muted text-sm">No giveaway set up yet.</p>;
+  return (
+    <EmptyState
+      title="No giveaway set up yet"
+      description="Open the editor with Edit giveaway (the pencil above) and choose Set up giveaway to record ticket sales and prizes."
+    />
+  );
 }

@@ -81,7 +81,7 @@ test.describe("portal programs", () => {
     await row.getByRole("button", { name: `View ${programName}` }).click();
     const sheet = page.getByRole("dialog");
     await expect(
-      sheet.getByText("No events tagged to this program yet."),
+      sheet.getByText("No events tagged to this program yet"),
     ).toBeVisible();
 
     await sheet.getByRole("button", { name: "Edit program" }).click();

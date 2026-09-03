@@ -340,7 +340,14 @@ export function PrizesSection({
     <div className="flex flex-col gap-3">
       <h4 className="text-sm font-semibold">Prizes</h4>
       {giveaway.giveaway_prizes.length === 0 && (
-        <p className="app-muted text-sm">No prizes added yet.</p>
+        <EmptyState
+          title="No prizes added yet"
+          description={
+            canEdit
+              ? "Add the first one with + Add prize below."
+              : "Prizes appear here once they are added while editing the giveaway."
+          }
+        />
       )}
       {giveaway.giveaway_prizes.map((prize) =>
         editingPrizeId === prize.id ? (

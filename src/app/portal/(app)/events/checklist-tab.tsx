@@ -15,6 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
+import { EmptyState } from "@/components/portal/empty-state";
 
 export function ChecklistTab({
   eventId,
@@ -92,7 +93,10 @@ export function ChecklistTab({
       {items === null ? (
         <TabLoadingSkeleton />
       ) : items.length === 0 ? (
-        <p className="app-muted text-sm">No checklist items yet.</p>
+        <EmptyState
+          title="No checklist items yet"
+          description="Add the first one with + Add item above."
+        />
       ) : (
         <div className="flex flex-col gap-1">
           {items.length > 0 && (

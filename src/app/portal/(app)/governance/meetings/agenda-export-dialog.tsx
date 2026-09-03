@@ -90,7 +90,11 @@ function AgendaPrintView({ input }: { input: AgendaExportInput }) {
 
       <h2 className="mt-4 font-semibold">Ongoing board items</h2>
       {sections.length === 0 ? (
-        <p>No agenda template is configured.</p>
+        <EmptyState
+          className="py-4"
+          title="No agenda template is configured"
+          description="Agenda templates are managed outside the portal; ask an administrator to activate one."
+        />
       ) : (
         sections.map((section) => {
           const value = agenda.ongoing_items[section.key];
@@ -112,7 +116,11 @@ function AgendaPrintView({ input }: { input: AgendaExportInput }) {
 
       <h2 className="mt-4 font-semibold">Decisions &amp; votes</h2>
       {input.decisions.length === 0 ? (
-        <p>No decisions recorded yet.</p>
+        <EmptyState
+          className="py-4"
+          title="No decisions recorded yet"
+          description="Record them in the Decisions section of the Overview tab to include them here."
+        />
       ) : (
         <ul className="list-disc pl-5">
           {input.decisions.map((decision) => (

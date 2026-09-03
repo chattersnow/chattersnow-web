@@ -115,7 +115,7 @@ test.describe("portal volunteer applications", () => {
       // pattern as portal-people.spec.ts).
       await page.goto(`${application.url}&status=declined`);
       await expect(
-        page.getByText("No applications match your filters."),
+        page.getByText("No applications match your filters"),
       ).toBeVisible();
     } finally {
       await application.cleanup();

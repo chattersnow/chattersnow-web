@@ -130,9 +130,10 @@ export function DiscountCodesTab({
       {codes === undefined ? (
         <TabLoadingSkeleton />
       ) : list.length === 0 ? (
-        <p className="app-muted text-sm">
-          No discount codes recorded for this event yet.
-        </p>
+        <EmptyState
+          title="No discount codes recorded for this event yet"
+          description="Add the first ones with + Add codes above."
+        />
       ) : (
         <Table>
           <TableHeader>

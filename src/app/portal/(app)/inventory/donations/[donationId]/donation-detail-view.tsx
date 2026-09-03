@@ -71,9 +71,11 @@ export function DonationDetailView({ donation }: { donation: DonationRow }) {
           </CardHeader>
           <CardContent>
             {donation.inventory_items.length === 0 ? (
-              <p className="app-muted text-sm">
-                No items recorded for this donation.
-              </p>
+              <EmptyState
+                className="py-4"
+                title="No items recorded for this donation"
+                description="Open Edit donation to add the items that came with it."
+              />
             ) : (
               <div className="flex flex-col gap-4">
                 {donation.inventory_items.map((item, index) => (

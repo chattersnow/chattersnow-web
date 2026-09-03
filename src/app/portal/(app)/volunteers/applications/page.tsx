@@ -6,6 +6,7 @@ import {
   hasPermission,
 } from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/portal/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
 import { FiltersSheet } from "@/components/filters-sheet";
 import { FilterSubmitButton } from "@/components/filter-submit-button";
@@ -197,11 +198,18 @@ export default async function VolunteerApplicationsPage({
             <Card>
               <CardContent className="px-0">
                 {applicationRows.length === 0 ? (
-                  <p className="app-muted px-4 py-6 text-sm">
-                    {hasActiveFilters
-                      ? "No applications match your filters."
-                      : "No volunteer applications yet."}
-                  </p>
+                  <EmptyState
+                    title={
+                      hasActiveFilters
+                        ? "No applications match your filters"
+                        : "No volunteer applications yet"
+                    }
+                    description={
+                      hasActiveFilters
+                        ? "Clear or loosen the filters to see more."
+                        : "Applications appear here once someone submits the volunteer form on the public Get Involved page."
+                    }
+                  />
                 ) : (
                   <Table>
                     <TableHeader>
