@@ -39,6 +39,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -141,6 +142,7 @@ export function EditPolicyModal({ policy }: { policy: Policy }) {
         return;
       }
       setMode("view");
+      toast.success("Policy saved.");
       router.refresh();
     });
   }

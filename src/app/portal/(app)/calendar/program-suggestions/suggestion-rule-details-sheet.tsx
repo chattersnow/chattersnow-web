@@ -48,6 +48,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 export type SuggestionRuleListRow = {
   id: string;
@@ -157,6 +158,7 @@ export function SuggestionRuleDetailsSheet({
         return;
       }
       setMode("view");
+      toast.success("Suggestion rule deleted.");
       router.refresh();
     });
   }
@@ -171,6 +173,7 @@ export function SuggestionRuleDetailsSheet({
       }
       setConfirmDelete(false);
       setOpen(false);
+      toast.success("Suggestion rule deleted.");
       router.refresh();
     });
   }

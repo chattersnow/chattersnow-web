@@ -48,6 +48,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 type FormState = {
   access_level: string;
@@ -116,6 +117,7 @@ export function AccessGrantDetailsSheet({
         return;
       }
       setMode("view");
+      toast.success("Access grant revoked.");
       router.refresh();
     });
   }
@@ -131,6 +133,7 @@ export function AccessGrantDetailsSheet({
       }
       setRevokeConfirmOpen(false);
       setOpen(false);
+      toast.success("Access grant revoked.");
       router.refresh();
     });
   }

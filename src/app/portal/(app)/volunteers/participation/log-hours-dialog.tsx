@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 const NONE_VALUE = "none";
 
@@ -127,6 +128,7 @@ export function LogHoursDialog({
         return;
       }
       handleOpenChange(false);
+      toast.success("Volunteer hours logged.");
       router.refresh();
     });
   }

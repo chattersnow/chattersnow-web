@@ -65,6 +65,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 import { personDisplayName } from "@/lib/format";
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
@@ -219,6 +220,7 @@ export function EditReimbursementModal({
         return;
       }
       setMode("view");
+      toast.success("Reimbursement marked paid.");
       router.refresh();
     });
   }
@@ -231,6 +233,7 @@ export function EditReimbursementModal({
         setError(result.error);
         return;
       }
+      toast.success("Reimbursement approved.");
       router.refresh();
     });
   }
@@ -249,6 +252,7 @@ export function EditReimbursementModal({
       }
       setRejectDialogOpen(false);
       setRejectReason("");
+      toast.success("Reimbursement rejected.");
       router.refresh();
     });
   }
@@ -261,6 +265,7 @@ export function EditReimbursementModal({
         setError(result.error);
         return;
       }
+      toast.success("Reimbursement marked paid.");
       router.refresh();
     });
   }

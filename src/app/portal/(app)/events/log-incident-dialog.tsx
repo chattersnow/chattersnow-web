@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 const SEVERITIES = [
   { value: "minor", label: "Minor" },
@@ -89,6 +90,7 @@ export function LogIncidentDialog({
         return;
       }
       handleOpenChange(false);
+      toast.success("Incident logged.");
       router.refresh();
       onSaved?.();
     });

@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 const SOURCE_TYPES = [
   { value: "individual", label: "Individual" },
@@ -207,6 +208,7 @@ export function AddDonationModal({
         return;
       }
       handleOpenChange(false);
+      toast.success("Gear donation recorded.");
       router.refresh();
       onSaved?.();
     });

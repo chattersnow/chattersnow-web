@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { FieldGroup } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 export function NewRevenueDialog({
   events,
@@ -71,6 +72,7 @@ export function NewRevenueDialog({
         return;
       }
       setOpen(false);
+      toast.success("Revenue recorded.");
       router.refresh();
       onSaved?.();
     });

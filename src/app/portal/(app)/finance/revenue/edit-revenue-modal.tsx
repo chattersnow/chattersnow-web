@@ -46,6 +46,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 function formStateFor(revenue: RevenueRow): RevenueFormState {
   return {
@@ -142,6 +143,7 @@ export function EditRevenueModal({
         return;
       }
       setMode("view");
+      toast.success("Revenue deleted.");
       router.refresh();
       onSaved?.();
     });
@@ -157,6 +159,7 @@ export function EditRevenueModal({
       }
       setDeleteDialogOpen(false);
       setOpen(false);
+      toast.success("Revenue deleted.");
       router.refresh();
       onSaved?.();
     });

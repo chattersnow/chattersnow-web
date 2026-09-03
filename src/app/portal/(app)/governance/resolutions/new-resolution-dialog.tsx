@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 const NO_MEETING = "none";
 
@@ -109,6 +110,7 @@ export function NewResolutionDialog({
         return;
       }
       setOpen(false);
+      toast.success("Resolution added.");
       router.refresh();
     });
   }

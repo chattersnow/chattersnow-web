@@ -55,6 +55,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 function formStateFor(item: InventoryItem) {
   return {
@@ -153,6 +154,7 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
         return;
       }
       setMode("view");
+      toast.success("Inventory item saved.");
       router.refresh();
     });
   }

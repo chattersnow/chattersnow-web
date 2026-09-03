@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 export function NewBoardMemberDialog({ people }: { people: PersonListItem[] }) {
   const router = useRouter();
@@ -78,6 +79,7 @@ export function NewBoardMemberDialog({ people }: { people: PersonListItem[] }) {
         return;
       }
       setOpen(false);
+      toast.success("Board member added.");
       router.refresh();
     });
   }

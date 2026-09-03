@@ -77,6 +77,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 import { actorDisplayName, personDisplayName } from "@/lib/format";
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
@@ -282,6 +283,7 @@ export function EditExpenseModal({
         return;
       }
       setMode("view");
+      toast.success("Expense deleted.");
       router.refresh();
       onSaved?.();
     });
@@ -297,6 +299,7 @@ export function EditExpenseModal({
         return;
       }
       setCreateReimbursementOpen(false);
+      toast.success("Reimbursement request created.");
       router.refresh();
       onSaved?.();
     });
@@ -310,6 +313,7 @@ export function EditExpenseModal({
         setError(result.error);
         return;
       }
+      toast.success("Expense approved.");
       router.refresh();
       onSaved?.();
     });
@@ -326,6 +330,7 @@ export function EditExpenseModal({
       }
       setRejectDialogOpen(false);
       setRejectReason("");
+      toast.success("Expense rejected.");
       router.refresh();
       onSaved?.();
     });
@@ -339,6 +344,7 @@ export function EditExpenseModal({
         setError(result.error);
         return;
       }
+      toast.success("Expense marked paid.");
       router.refresh();
       onSaved?.();
     });
@@ -355,6 +361,7 @@ export function EditExpenseModal({
       }
       setDeleteDialogOpen(false);
       setOpen(false);
+      toast.success("Expense deleted.");
       router.refresh();
       onSaved?.();
     });

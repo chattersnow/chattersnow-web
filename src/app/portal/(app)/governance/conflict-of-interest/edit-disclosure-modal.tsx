@@ -41,6 +41,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -170,6 +171,7 @@ export function EditDisclosureModal({
         return;
       }
       setMode("view");
+      toast.success("Disclosure saved.");
       router.refresh();
     });
   }

@@ -46,6 +46,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 import { personDisplayName } from "@/lib/format";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -174,6 +175,7 @@ export function EditMilestoneModal({
         return;
       }
       setMode("view");
+      toast.success("Milestone deleted.");
       router.refresh();
     });
   }
@@ -188,6 +190,7 @@ export function EditMilestoneModal({
       }
       setDeleteDialogOpen(false);
       setOpen(false);
+      toast.success("Milestone deleted.");
       router.refresh();
     });
   }

@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { FieldGroup } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 export function NewDonationDialog({
   events,
@@ -98,6 +99,7 @@ export function NewDonationDialog({
         return;
       }
       setOpen(false);
+      toast.success("Donation logged.");
       router.refresh();
     });
   }

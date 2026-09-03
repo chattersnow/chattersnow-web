@@ -43,6 +43,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 import { personDisplayName } from "@/lib/format";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -192,6 +193,7 @@ export function EditResolutionModal({
         return;
       }
       setMode("view");
+      toast.success("Resolution saved.");
       router.refresh();
     });
   }

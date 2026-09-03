@@ -18,6 +18,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 export function NewRoleDialog() {
   const router = useRouter();
@@ -46,6 +47,7 @@ export function NewRoleDialog() {
         return;
       }
       handleOpenChange(false);
+      toast.success("Role created.");
       router.refresh();
     });
   }

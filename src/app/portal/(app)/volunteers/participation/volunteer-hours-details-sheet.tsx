@@ -51,6 +51,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 import { personDisplayName } from "@/lib/format";
 
 const NONE_VALUE = "none";
@@ -199,6 +200,7 @@ export function VolunteerHoursDetailsSheet({
         return;
       }
       setMode("view");
+      toast.success("Volunteer hours saved.");
       router.refresh();
     });
   }

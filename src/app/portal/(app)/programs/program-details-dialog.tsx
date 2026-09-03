@@ -57,6 +57,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -173,6 +174,7 @@ export function ProgramDetailsDialog({
         return;
       }
       setMode("view");
+      toast.success("Program saved.");
       router.refresh();
     });
   }

@@ -49,6 +49,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 function pickedDonorFor(
   donation: MonetaryDonationRow,
@@ -177,6 +178,7 @@ export function EditDonationModal({
         return;
       }
       setMode("view");
+      toast.success("Donation deleted.");
       router.refresh();
     });
   }
@@ -191,6 +193,7 @@ export function EditDonationModal({
       }
       setDeleteDialogOpen(false);
       setOpen(false);
+      toast.success("Donation deleted.");
       router.refresh();
     });
   }

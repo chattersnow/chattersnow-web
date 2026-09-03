@@ -36,6 +36,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -62,7 +63,12 @@ export function MessageDetailsSheet({
         if (refresh) setError(result.error);
         return;
       }
-      if (refresh) router.refresh();
+      // `refresh` is false only for the automatic mark-as-read on open, which
+      // isn't a user action and shouldn't be announced as one.
+      if (refresh) {
+        toast.success("Message status updated.");
+        router.refresh();
+      }
     });
   }
 
