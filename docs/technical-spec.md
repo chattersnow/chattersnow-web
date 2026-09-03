@@ -269,7 +269,7 @@ Event sponsors/partners are people or organizations that already live in the sha
 
 1. The event editor's Sponsors tab provides a type-ahead search (matching on name and email) over `people`. Staff pick an existing person/organization from the results to link them to the event.
 2. If no existing record matches, the same control lets staff create a new `people` record inline (name required; email, phone, and notes optional) and link it to the event in one step, without leaving the event editor.
-3. Linking a person who is not yet tagged `is_sponsor` sets that flag, so they appear correctly in the People directory (`/portal/people`) going forward. Existing donor/volunteer flags on that person are left unchanged.
+3. Linking a person who is not yet tagged `is_sponsor` sets that flag, so they appear correctly in the People directory (`/portal/people`) going forward. Existing donor/volunteer flags on that person are left unchanged. **Implemented** by the recompute described in §5.9, not by the sponsor-linking code itself: until that trigger existed, linking an _existing_ person set nothing and `/portal/sponsors` was missing sponsors (issue #620).
 4. Per-event sponsorship details — support type (cash, in-kind, both, other), in-kind description, contribution value, public visibility, and notes — are stored on the event-sponsor link, not on the person record, since the same sponsor can support different events differently.
 5. A person may be linked to a given event only once; re-selecting an already-linked person edits the existing link rather than creating a duplicate.
 
@@ -309,6 +309,8 @@ A person's record in the People directory (`/portal/people`) shall show that ind
 - Staff assignments across events, if `is_staff`
 
 This view should read from the existing donation, event-sponsor, event-volunteer, and event-staff records rather than duplicating that history onto the `people` row.
+
+The role flags themselves follow the same principle. They are recomputed by `sync_person_role_flags()` from those same records rather than written by whichever code path happened to create the relationship, unioned with `person_role_tags` for assertions that have no record behind them yet. Triggers on every source table keep them current, so linking an existing person as a sponsor now flags them, and removing their last sponsorship clears the flag again — neither of which happened while each caller was responsible for remembering (issue #620). `person_role_tags` is the manual half of the derived-roles model in the follow-up that replaces the columns with a view.
 
 A person may also be tagged `is_staff` — someone who works events in a paid or formally-scheduled capacity, as distinct from `is_volunteer`. Staff are drawn from the same `people` directory (a person can be both staff and a volunteer) and are assigned to individual events the same way sponsors and volunteers are: a Staff tab on the event editor links `people` rows to the event via `event_staff`, with an optional role/title and notes per assignment. Managing event staff requires the same permission as managing the rest of the event (§5.3).
 
@@ -535,7 +537,7 @@ Impact rollups themselves (per-event, per-program, and season reports, including
 
 ### Inventory and donations
 
-- `people`: shared directory of donors, sponsors, volunteers, and staff (name, email, phone, notes, `is_donor`/`is_sponsor`/`is_volunteer` flags), so the same contact can be reused across roles instead of being duplicated per context. `is_staff`: not yet implemented — see §5.9.
+- `people`: shared directory of donors, sponsors, volunteers, and staff (name, email, phone, notes, `is_donor`/`is_sponsor`/`is_volunteer`/`is_attendee` flags), so the same contact can be reused across roles instead of being duplicated per context. The role flags are **derived, not written by callers**: `sync_person_role_flags()` recomputes them from the records that create each role (donations, monetary donations, giveaway prizes, event sponsors, event registrations, event volunteers, volunteer hours, volunteer applications), unioned with `person_role_tags` — manual assertions such as a sponsor entered in the directory before any event link exists. Triggers on each of those tables keep the flags current in both directions, so a role is cleared when its last backing record goes away. `is_staff`: not yet implemented — see §5.9.
 - `donations`
 - `donation_items`
 - `inventory_items`: donation-managed inventory records with description, size, type, gender, condition, face value, photo, and status

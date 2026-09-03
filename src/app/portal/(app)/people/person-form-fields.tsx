@@ -10,7 +10,7 @@ import {
   ridingDisciplineLabel,
 } from "@/lib/rider-profile";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -152,6 +152,11 @@ export function PersonFormFields({
             </label>
           ))}
         </div>
+        <FieldDescription>
+          These mark someone manually. Roles are also set automatically from
+          donations, sponsorships, event registrations, and volunteer records,
+          so a role earned that way stays on even when unchecked here.
+        </FieldDescription>
       </Field>
 
       <Field orientation="horizontal">
