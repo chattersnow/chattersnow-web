@@ -51,10 +51,10 @@ test.describe("portal people directory", () => {
   test("searches the directory by name", async ({ page }) => {
     await page.goto("/portal/people");
 
-    await page.getByRole("button", { name: "Filters" }).click();
-    const filters = page.getByRole("dialog");
-    await filters.getByLabel("Search").fill("Priya");
-    await filters.getByRole("button", { name: "Filter" }).click();
+    // Search sits in the toolbar rather than inside the Filters sheet, so
+    // this is one field and one submit with the table still on screen.
+    await page.getByRole("searchbox", { name: "Search" }).fill("Priya");
+    await page.getByRole("button", { name: "Search", exact: true }).click();
 
     await expect(page).toHaveURL(/search=Priya/);
     await expect(

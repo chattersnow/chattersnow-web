@@ -121,6 +121,13 @@ test.describe("portal volunteer participation", () => {
       await expect(row).toContainText("4.5");
 
       await row.getByRole("button", { name: "Remove hours entry" }).click();
+      // Logged hours feed grant reporting and there's no undo, so the delete
+      // confirms first.
+      const confirmDelete = page.getByRole("alertdialog");
+      await expect(confirmDelete).toContainText("logged hours?");
+      await confirmDelete
+        .getByRole("button", { name: "Remove", exact: true })
+        .click();
       await expect(row).toHaveCount(0);
     } finally {
       await volunteer.cleanup();
