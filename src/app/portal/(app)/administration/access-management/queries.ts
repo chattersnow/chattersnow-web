@@ -90,10 +90,10 @@ export async function getAssetDetail(
        recovery_owner_person_id, credential_management_location,
        last_reviewed, next_review, notes,
        service:services(id, name),
-       owner:people!assets_owner_person_id_fkey(id, name),
-       primary_admin:people!assets_primary_admin_person_id_fkey(id, name),
-       backup_admin:people!assets_backup_admin_person_id_fkey(id, name),
-       recovery_owner:people!assets_recovery_owner_person_id_fkey(id, name)`,
+       owner:people!assets_owner_person_id_fkey(id, name, preferred_name),
+       primary_admin:people!assets_primary_admin_person_id_fkey(id, name, preferred_name),
+       backup_admin:people!assets_backup_admin_person_id_fkey(id, name, preferred_name),
+       recovery_owner:people!assets_recovery_owner_person_id_fkey(id, name, preferred_name)`,
     )
     .eq("id", assetId)
     .maybeSingle();
@@ -129,7 +129,7 @@ export async function listPeopleForAccessManagement(
 ): Promise<{ data: PersonListItem[] } | { error: string }> {
   const { data, error } = await supabase
     .from("people")
-    .select("id, name, email, phone, is_sponsor")
+    .select("id, name, preferred_name, email, phone, is_sponsor, auth_user_id")
     .order("name", { ascending: true });
   if (error) return { error: "Could not load people. Please try again." };
   return { data: (data ?? []) as PersonListItem[] };

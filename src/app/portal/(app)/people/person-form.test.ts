@@ -52,6 +52,7 @@ describe("parsePersonForm", () => {
     expect(result).toEqual({
       data: {
         name: "Jane",
+        preferred_name: null,
         email: "jane@example.com",
         phone: "555-1234",
         instagram_handle: "jane.doe",

@@ -93,7 +93,9 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
     query.range(offset, to),
     supabase
       .from("people")
-      .select("id, name, email, phone, is_sponsor")
+      .select(
+        "id, name, preferred_name, email, phone, is_sponsor, auth_user_id",
+      )
       .order("name", { ascending: true }),
   ]);
   const peopleRows = (people ?? []) as unknown as PersonRow[];

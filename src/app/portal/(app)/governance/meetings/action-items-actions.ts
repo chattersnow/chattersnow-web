@@ -38,7 +38,7 @@ export async function listActionItemsAction(
   const { data, error } = await supabase
     .from("governance_meeting_action_items")
     .select(
-      "id, meeting_id, description, due_date, status, owner:people!owner_person_id(id, name, email, phone)",
+      "id, meeting_id, description, due_date, status, owner:people!owner_person_id(id, name, preferred_name, email, phone)",
     )
     .eq("meeting_id", meetingId)
     .order("created_at", { ascending: true });
@@ -82,7 +82,7 @@ export async function listCarriedOverActionItemsAction(
   const { data, error } = await supabase
     .from("governance_meeting_action_items")
     .select(
-      "id, meeting_id, description, due_date, status, owner:people!owner_person_id(id, name, email, phone)",
+      "id, meeting_id, description, due_date, status, owner:people!owner_person_id(id, name, preferred_name, email, phone)",
     )
     .in("meeting_id", priorMeetingIds)
     .eq("status", "open")

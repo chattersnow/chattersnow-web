@@ -23,6 +23,7 @@ import { PartnershipStageBadge } from "./partnership-badges";
 import { PARTNERSHIP_STAGE_LABELS } from "./partnership-opportunity-form-fields";
 import type { PartnershipOpportunity } from "./partnerships-actions";
 import type { PersonListItem } from "../../people/actions";
+import { personDisplayName } from "@/lib/format";
 
 const FILTER_ALL = "all";
 
@@ -162,7 +163,7 @@ export function PartnershipsTable({
                         {formatDate(opportunity.next_step_date)}
                       </TableCell>
                       <TableCell className="app-muted">
-                        {opportunity.owner?.name ?? "—"}
+                        {personDisplayName(opportunity.owner)}
                       </TableCell>
                       <TableCell>
                         {canManage && (

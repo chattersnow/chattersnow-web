@@ -38,9 +38,12 @@ import {
   deactivateUserAction,
   reactivateUserAction,
   revokeRoleAction,
+  updateUserPreferredNameAction,
   type PortalUser,
   type PortalRoleOption,
 } from "./actions";
+import { portalUserDisplayName } from "./users-shared";
+import { PreferredNameCell } from "./preferred-name-cell";
 import { Spinner } from "@/components/ui/spinner";
 
 function statusBadge(portalUser: PortalUser) {
@@ -121,6 +124,7 @@ export function UsersTable({
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
+                <TableHead>Preferred name</TableHead>
                 <TableHead>Roles</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-0">
@@ -143,11 +147,24 @@ export function UsersTable({
                   <TableRow key={portalUser.user_id}>
                     <TableCell
                       className="max-w-xs truncate font-medium"
-                      title={
-                        portalUser.full_name ?? portalUser.email ?? undefined
-                      }
+                      title={portalUserDisplayName(portalUser)}
                     >
-                      {portalUser.full_name ?? portalUser.email ?? "—"}
+                      {portalUserDisplayName(portalUser)}
+                    </TableCell>
+                    <TableCell>
+                      <PreferredNameCell
+                        value={portalUser.preferred_name}
+                        label={portalUserDisplayName(portalUser)}
+                        disabled={isPending}
+                        onSave={(preferredName) =>
+                          runAction(
+                            updateUserPreferredNameAction(
+                              portalUser.user_id,
+                              preferredName,
+                            ),
+                          )
+                        }
+                      />
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1.5">
@@ -307,9 +324,9 @@ export function UsersTable({
             <AlertDialogDescription>
               {deactivateTarget && (
                 <>
-                  {deactivateTarget.full_name ?? deactivateTarget.email} will
-                  lose all portal access until reactivated. Their roles stay
-                  assigned and will apply again immediately on reactivation.
+                  {portalUserDisplayName(deactivateTarget)} will lose all portal
+                  access until reactivated. Their roles stay assigned and will
+                  apply again immediately on reactivation.
                 </>
               )}
             </AlertDialogDescription>

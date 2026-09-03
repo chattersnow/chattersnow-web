@@ -10,7 +10,7 @@ import type { ResolutionMeetingOption } from "./resolutions-shared";
 import type { PersonListItem } from "../../people/actions";
 
 const RESOLUTION_SELECT =
-  "id, meeting_id, motion_text, vote_outcome, effective_date, external_link, body_text, mover:people!mover_person_id(id, name, email, phone), seconder:people!seconder_person_id(id, name, email, phone)";
+  "id, meeting_id, motion_text, vote_outcome, effective_date, external_link, body_text, mover:people!mover_person_id(id, name, preferred_name, email, phone), seconder:people!seconder_person_id(id, name, preferred_name, email, phone)";
 
 export default async function ResolutionsPage() {
   const supabase = await createSupabaseServerClient();
@@ -25,7 +25,9 @@ export default async function ResolutionsPage() {
         .order("created_at", { ascending: false }),
       supabase
         .from("people")
-        .select("id, name, email, phone, is_sponsor")
+        .select(
+          "id, name, preferred_name, email, phone, is_sponsor, auth_user_id",
+        )
         .order("name", { ascending: true }),
       supabase
         .from("governance_meetings")

@@ -1,3 +1,5 @@
+import { personDisplayName } from "@/lib/format";
+import type { PersonSelectOption } from "../people/person-select";
 import type { ContentOpportunityRow } from "./content-opportunity-shared";
 
 export const ITEM_TYPES = [
@@ -104,7 +106,23 @@ export type CalendarItemRow = {
   content_opportunity: ContentOpportunityRow | null;
 };
 
-export type CalendarOwner = { user_id: string; email: string | null };
+/**
+ * A person eligible to own a calendar item: a People row linked to a portal
+ * account holding admin or event_coordinator (see list_calendar_owners()).
+ *
+ * Carries auth_user_id as well as person_id because the calendar's owner
+ * columns reference public.people while its audit stamps
+ * (calendar_items.sensitive_review_by, content_opportunities.
+ * status_changed_by) deliberately still reference auth.users -- one array
+ * resolves both, see ownerName vs. calendarActorName below.
+ */
+export type CalendarOwner = {
+  person_id: string;
+  auth_user_id: string | null;
+  name: string | null;
+  preferred_name: string | null;
+  email: string | null;
+};
 export type CalendarProgram = { id: string; name: string; status: string };
 
 export function needsDecision(
@@ -142,10 +160,44 @@ export function needsSensitiveReview(
   );
 }
 
-export function ownerEmail(
+/**
+ * Adapts the owner list to PersonSelect's structural option type, whose id
+ * field is `id` rather than `person_id`.
+ */
+export function ownerOptions(owners: CalendarOwner[]): PersonSelectOption[] {
+  return owners.map((owner) => ({
+    id: owner.person_id,
+    name: owner.name,
+    preferred_name: owner.preferred_name,
+    email: owner.email,
+  }));
+}
+
+/** Resolves a people id -- an owner or reviewer -- to a display name. */
+export function ownerName(
   owners: CalendarOwner[],
-  ownerId: string | null,
+  personId: string | null,
+  fallback = "—",
 ): string {
-  if (!ownerId) return "—";
-  return owners.find((owner) => owner.user_id === ownerId)?.email ?? "—";
+  if (!personId) return fallback;
+  return personDisplayName(
+    owners.find((owner) => owner.person_id === personId),
+    fallback,
+  );
+}
+
+/**
+ * Resolves an auth.users id -- an audit stamp such as sensitive_review_by or
+ * status_changed_by -- to a display name, using the same array.
+ */
+export function calendarActorName(
+  owners: CalendarOwner[],
+  authUserId: string | null,
+  fallback = "—",
+): string {
+  if (!authUserId) return fallback;
+  return personDisplayName(
+    owners.find((owner) => owner.auth_user_id === authUserId),
+    fallback,
+  );
 }

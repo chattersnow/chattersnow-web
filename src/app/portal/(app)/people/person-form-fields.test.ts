@@ -28,12 +28,14 @@ describe("packPersonFormData", () => {
   test("round-trips through parsePersonForm", () => {
     const form = emptyPersonForm("is_sponsor");
     form.name = "Jane Donor";
+    form.preferredName = "Janey";
     form.email = "jane@example.com";
 
     const result = parsePersonForm(packPersonFormData(form));
     expect(result).toEqual({
       data: {
         name: "Jane Donor",
+        preferred_name: "Janey",
         email: "jane@example.com",
         phone: null,
         instagram_handle: null,

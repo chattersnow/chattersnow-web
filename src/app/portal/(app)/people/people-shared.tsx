@@ -1,6 +1,7 @@
 export type PersonSummary = {
   id: string;
   name: string | null;
+  preferred_name: string | null;
   email: string | null;
   phone: string | null;
 };
@@ -8,6 +9,7 @@ export type PersonSummary = {
 export type PersonRow = {
   id: string;
   name: string | null;
+  preferred_name: string | null;
   email: string | null;
   phone: string | null;
   instagram_handle: string | null;

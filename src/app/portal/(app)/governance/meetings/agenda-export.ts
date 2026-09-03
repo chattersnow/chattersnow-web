@@ -2,6 +2,7 @@ import type { Agenda } from "./agenda-actions";
 import type { AgendaTemplateSection } from "./agenda-template-shared";
 import type { ActionItem } from "./action-items-actions";
 import type { Decision } from "./decisions-actions";
+import { personDisplayName } from "@/lib/format";
 
 export type AgendaExportInput = {
   meetingDate: string;
@@ -23,7 +24,7 @@ function formatDate(value: string): string {
 }
 
 function actionItemLine(item: ActionItem): string {
-  return `${item.description} — ${item.owner?.name ?? "—"}`;
+  return `${item.description} — ${personDisplayName(item.owner)}`;
 }
 
 function decisionLine(decision: Decision): string {

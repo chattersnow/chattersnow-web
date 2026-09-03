@@ -16,6 +16,7 @@ export async function resolveCurrentPersonId(
 export type CurrentPerson = {
   id: string;
   name: string | null;
+  preferred_name: string | null;
   email: string | null;
   phone: string | null;
 };
@@ -33,9 +34,34 @@ export async function resolveCurrentPerson(
 
   const { data, error } = await supabase
     .from("people")
-    .select("id, name, email, phone")
+    .select("id, name, preferred_name, email, phone")
     .eq("id", personId)
     .maybeSingle();
   if (error || !data) return null;
   return data as CurrentPerson;
+}
+
+export type EnsuredPerson = {
+  person_id: string;
+  name: string | null;
+  preferred_name: string | null;
+  email: string | null;
+};
+
+/**
+ * Resolves the signed-in user to a people row, creating one from their auth
+ * metadata if they don't have one yet (ensure_current_person RPC).
+ *
+ * Use this wherever a signed-in user needs to be assignable or nameable --
+ * every owner column in the portal references public.people, so a portal
+ * account with no people row can't be assigned anything. Returns null when
+ * signed out.
+ */
+export async function ensureCurrentPerson(
+  supabase: SupabaseClient,
+): Promise<EnsuredPerson | null> {
+  const { data, error } = await supabase.rpc("ensure_current_person");
+  if (error) return null;
+  const rows = (data ?? []) as EnsuredPerson[];
+  return rows[0] ?? null;
 }

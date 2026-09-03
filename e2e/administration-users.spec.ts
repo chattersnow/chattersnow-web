@@ -29,8 +29,10 @@ test.describe("portal administration users", () => {
     await expect(
       page.getByRole("heading", { level: 1, name: "Users", exact: true }),
     ).toBeVisible();
-    // The Name column shows the account's full_name, not its email.
-    const adminRow = page.getByRole("row").filter({ hasText: "Avery Morgan" });
+    // The Name column shows a display name, never an email. seed.sql gives
+    // the admin account the preferred name "Ave", which wins over the
+    // account's full_name ("Avery Morgan").
+    const adminRow = page.getByRole("row").filter({ hasText: "Ave" });
     await expect(adminRow).toContainText("Admin");
     await expect(adminRow).toContainText("Active");
     await expect(
@@ -225,5 +227,39 @@ test.describe("portal administration users", () => {
     } finally {
       await invite.cleanup();
     }
+  });
+  test("an admin can set and clear another account's preferred name", async ({
+    page,
+  }) => {
+    await page.goto("/portal/administration/users");
+
+    const row = page.getByRole("row").filter({ hasText: "Morgan Patel" });
+    await expect(row).toBeVisible();
+
+    await row
+      .getByRole("button", { name: /^Edit preferred name for / })
+      .click();
+    const input = row.getByLabel(/^Preferred name for /);
+    await input.fill("Mo");
+    await row
+      .getByRole("button", { name: /^Save preferred name for / })
+      .click();
+
+    // The Name column now resolves to the preferred name.
+    const renamed = page.getByRole("row").filter({ hasText: "Mo" });
+    await expect(renamed).toBeVisible();
+
+    // Clearing it puts the account name back.
+    await renamed
+      .getByRole("button", { name: /^Edit preferred name for / })
+      .click();
+    await renamed.getByLabel(/^Preferred name for /).fill("");
+    await renamed
+      .getByRole("button", { name: /^Save preferred name for / })
+      .click();
+
+    await expect(
+      page.getByRole("row").filter({ hasText: "Morgan Patel" }),
+    ).toBeVisible();
   });
 });

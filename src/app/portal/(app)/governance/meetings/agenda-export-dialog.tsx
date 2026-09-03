@@ -17,6 +17,7 @@ import {
   formatAgendaPlainText,
   type AgendaExportInput,
 } from "./agenda-export";
+import { personDisplayName } from "@/lib/format";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -85,7 +86,7 @@ function AgendaPrintView({ input }: { input: AgendaExportInput }) {
         <ul className="list-disc pl-5">
           {input.carriedOverItems.map((item) => (
             <li key={item.id}>
-              {item.description} — {item.owner?.name ?? "—"}
+              {item.description} — {personDisplayName(item.owner)}
             </li>
           ))}
         </ul>
@@ -162,7 +163,7 @@ function AgendaPrintView({ input }: { input: AgendaExportInput }) {
         <ul className="list-disc pl-5">
           {input.createdItems.map((item) => (
             <li key={item.id}>
-              {item.description} — {item.owner?.name ?? "—"}
+              {item.description} — {personDisplayName(item.owner)}
             </li>
           ))}
         </ul>

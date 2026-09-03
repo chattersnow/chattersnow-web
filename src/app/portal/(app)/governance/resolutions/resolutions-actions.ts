@@ -29,7 +29,7 @@ export type Resolution = {
 export type ResolutionActionResult = { error: string } | { success: true };
 
 const RESOLUTION_SELECT =
-  "id, meeting_id, motion_text, vote_outcome, effective_date, external_link, body_text, mover:people!mover_person_id(id, name, email, phone), seconder:people!seconder_person_id(id, name, email, phone)";
+  "id, meeting_id, motion_text, vote_outcome, effective_date, external_link, body_text, mover:people!mover_person_id(id, name, preferred_name, email, phone), seconder:people!seconder_person_id(id, name, preferred_name, email, phone)";
 
 export async function listResolutionsAction(
   meetingId?: string,

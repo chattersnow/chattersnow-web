@@ -117,7 +117,9 @@ export default async function FinanceDonationsPage({
         .order("name", { ascending: true }),
       supabase
         .from("people")
-        .select("id, name, email, phone, is_sponsor")
+        .select(
+          "id, name, preferred_name, email, phone, is_sponsor, auth_user_id",
+        )
         .order("name", { ascending: true }),
     ]);
 

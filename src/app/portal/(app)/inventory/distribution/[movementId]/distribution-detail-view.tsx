@@ -3,6 +3,7 @@ import { FieldGroup } from "@/components/ui/field";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { EditDistributionSheet } from "./edit-distribution-sheet";
 import { DeleteDistributionButton } from "./delete-distribution-button";
+import { personDisplayName } from "@/lib/format";
 
 export type DistributionDetailRow = {
   id: string;
@@ -114,7 +115,7 @@ export function DistributionDetailView({
                 label="Recipient"
                 htmlFor="distribution-recipient-view"
               >
-                {movement.recipient?.name || "—"}
+                {personDisplayName(movement.recipient)}
               </ReadOnlyField>
               <ReadOnlyField
                 label="Reason / notes"

@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 export type PersonFormState = {
   name: string;
+  preferredName: string;
   email: string;
   phone: string;
   instagramHandle: string;
@@ -43,6 +44,7 @@ export function emptyPersonForm(
 ): PersonFormState {
   return {
     name: "",
+    preferredName: "",
     email: "",
     phone: "",
     instagramHandle: "",
@@ -81,14 +83,27 @@ export function PersonFormFields({
 
   return (
     <>
-      <Field>
-        <FieldLabel htmlFor={`${idPrefix}-name`}>Name</FieldLabel>
-        <Input
-          id={`${idPrefix}-name`}
-          required
-          value={form.name}
-          onChange={(event) => update("name", event.target.value)}
-        />
+      <Field orientation="responsive">
+        <Field>
+          <FieldLabel htmlFor={`${idPrefix}-name`}>Name</FieldLabel>
+          <Input
+            id={`${idPrefix}-name`}
+            required
+            value={form.name}
+            onChange={(event) => update("name", event.target.value)}
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor={`${idPrefix}-preferredName`}>
+            Preferred name
+          </FieldLabel>
+          <Input
+            id={`${idPrefix}-preferredName`}
+            value={form.preferredName}
+            placeholder="Optional"
+            onChange={(event) => update("preferredName", event.target.value)}
+          />
+        </Field>
       </Field>
 
       <Field orientation="responsive">
@@ -296,6 +311,7 @@ export function PersonFormFields({
 export function packPersonFormData(form: PersonFormState) {
   const formData = new FormData();
   formData.set("name", form.name);
+  formData.set("preferredName", form.preferredName);
   formData.set("email", form.email);
   formData.set("phone", form.phone);
   formData.set("instagramHandle", form.instagramHandle);

@@ -19,6 +19,7 @@ import {
   approveMinutesAction,
   type PreviousMeetingMinutes,
 } from "./minutes-approval-actions";
+import { personDisplayName } from "@/lib/format";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -136,7 +137,7 @@ export function MinutesApprovalDialog({
                     {item.description}
                     <span className="app-muted">
                       {" "}
-                      — {item.owner?.name ?? "—"}
+                      — {personDisplayName(item.owner)}
                     </span>
                   </li>
                 ))}

@@ -77,6 +77,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
+import { actorDisplayName, personDisplayName } from "@/lib/format";
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -181,7 +182,9 @@ export function EditExpenseModal({
           new Map(
             result.data.map((actor) => [
               actor.user_id,
-              actor.full_name || actor.email || actor.user_id,
+              // Falls back to the id rather than "—": this is an audit
+              // display, where an unresolvable actor is worth chasing.
+              actorDisplayName(actor, actor.user_id),
             ]),
           ),
         );
@@ -772,11 +775,9 @@ export function EditExpenseModal({
             <AlertDialogTitle>Create a reimbursement?</AlertDialogTitle>
             <AlertDialogDescription>
               This creates a submitted reimbursement request for{" "}
-              {expense.paid_by_person?.name ??
-                expense.paid_by_person?.email ??
-                "this person"}{" "}
-              for {formatAmount(expense.amount, expense.currency)}, prefilled
-              from this expense. The expense itself stays as-is.
+              {personDisplayName(expense.paid_by_person, "this person")} for{" "}
+              {formatAmount(expense.amount, expense.currency)}, prefilled from
+              this expense. The expense itself stays as-is.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {error && (

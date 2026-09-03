@@ -15,7 +15,7 @@ export default async function MeetingsPage() {
   const { data: meetings } = await supabase
     .from("governance_meetings")
     .select(
-      "id, meeting_date, meeting_type, status, location, notes, facilitator:people!facilitator_person_id(id, name, email, phone), notetaker:people!notetaker_person_id(id, name, email, phone)",
+      "id, meeting_date, meeting_type, status, location, notes, facilitator:people!facilitator_person_id(id, name, preferred_name, email, phone), notetaker:people!notetaker_person_id(id, name, preferred_name, email, phone)",
     )
     .order("meeting_date", { ascending: false });
 

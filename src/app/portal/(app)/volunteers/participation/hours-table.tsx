@@ -18,6 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Spinner } from "@/components/ui/spinner";
+import { personDisplayName } from "@/lib/format";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
 
@@ -57,7 +58,7 @@ export function HoursTable({
               className="max-w-xs truncate font-medium"
               title={entry.person?.name ?? undefined}
             >
-              {entry.person?.name ?? "—"}
+              {personDisplayName(entry.person)}
             </TableCell>
             <TableCell
               className="max-w-xs truncate app-muted"

@@ -56,6 +56,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
 import { AgendaExportDialog } from "./agenda-export-dialog";
+import { personDisplayName } from "@/lib/format";
 
 const APPROVE_MINUTES_ITEM = "Approve previous meeting minutes";
 
@@ -581,7 +582,7 @@ export function AgendaTab({
                     {item.description}
                     <span className="app-muted">
                       {" "}
-                      — {item.owner?.name ?? "—"}
+                      — {personDisplayName(item.owner)}
                     </span>
                   </li>
                 ))}
@@ -705,7 +706,7 @@ export function AgendaTab({
                     {item.description}
                     <span className="app-muted">
                       {" "}
-                      — {item.owner?.name ?? "—"}
+                      — {personDisplayName(item.owner)}
                     </span>
                   </li>
                 ))}

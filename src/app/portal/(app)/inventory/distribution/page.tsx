@@ -18,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { personDisplayName } from "@/lib/format";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -111,7 +112,7 @@ export default async function DistributionPage() {
                           className="max-w-xs truncate app-muted"
                           title={movement.recipient?.name ?? undefined}
                         >
-                          {movement.recipient?.name ?? "—"}
+                          {personDisplayName(movement.recipient)}
                         </TableCell>
                         <TableCell className="app-muted">
                           {movement.reason || "—"}

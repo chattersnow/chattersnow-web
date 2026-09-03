@@ -25,7 +25,7 @@ import {
   isPastUndecided,
   labelFor,
   needsDecision,
-  ownerEmail,
+  ownerName,
   ITEM_TYPES,
   type CalendarItemRow,
   type CalendarOwner,
@@ -39,12 +39,12 @@ import {
 export function WorkQueueTable({
   items,
   owners,
-  currentUserId,
+  currentPersonId,
   emptyMessage,
 }: {
   items: CalendarItemRow[];
   owners: CalendarOwner[];
-  currentUserId: string | null;
+  currentPersonId: string | null;
   emptyMessage: string;
 }) {
   return (
@@ -83,8 +83,8 @@ export function WorkQueueTable({
                           {isPastUndecided(item) && <PastUndecidedFlag />}
                           {stage && <ContentOverdueFlag stage={stage} />}
                           {opp &&
-                            currentUserId &&
-                            isChangesRequestedForMe(opp, currentUserId) && (
+                            currentPersonId &&
+                            isChangesRequestedForMe(opp, currentPersonId) && (
                               <ChangesRequestedFlag />
                             )}
                         </div>
@@ -107,10 +107,10 @@ export function WorkQueueTable({
                       {dueDate ? formatDueRelative(dueDate) : "—"}
                     </TableCell>
                     <TableCell className="app-muted">
-                      {ownerEmail(owners, item.owner_id)}
+                      {ownerName(owners, item.owner_id)}
                     </TableCell>
                     <TableCell className="app-muted">
-                      {opp ? ownerEmail(owners, opp.reviewer_id) : "—"}
+                      {opp ? ownerName(owners, opp.reviewer_id) : "—"}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button

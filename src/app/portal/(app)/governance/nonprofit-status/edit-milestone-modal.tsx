@@ -46,6 +46,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
+import { personDisplayName } from "@/lib/format";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -288,7 +289,7 @@ export function EditMilestoneModal({
                   </span>
                 </ReadOnlyField>
                 <ReadOnlyField label="Owner" htmlFor="edit-milestone-owner">
-                  {milestone.owner?.name || "—"}
+                  {personDisplayName(milestone.owner)}
                 </ReadOnlyField>
                 <ReadOnlyField
                   label="Due date"

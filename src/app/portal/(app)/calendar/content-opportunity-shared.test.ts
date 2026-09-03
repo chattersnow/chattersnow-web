@@ -146,13 +146,13 @@ describe("effectiveDueDate", () => {
 });
 
 describe("isMyContentWork", () => {
-  const userId = "user-1";
+  const personId = "person-1";
 
   test("matches the owner", () => {
     expect(
       isMyContentWork(
-        { content_status: "draft", owner_id: userId, reviewer_id: null },
-        userId,
+        { content_status: "draft", owner_id: personId, reviewer_id: null },
+        personId,
       ),
     ).toBe(true);
   });
@@ -160,8 +160,8 @@ describe("isMyContentWork", () => {
   test("matches the reviewer", () => {
     expect(
       isMyContentWork(
-        { content_status: "in_review", owner_id: null, reviewer_id: userId },
-        userId,
+        { content_status: "in_review", owner_id: null, reviewer_id: personId },
+        personId,
       ),
     ).toBe(true);
   });
@@ -169,8 +169,8 @@ describe("isMyContentWork", () => {
   test("excludes a published item even if owned", () => {
     expect(
       isMyContentWork(
-        { content_status: "published", owner_id: userId, reviewer_id: null },
-        userId,
+        { content_status: "published", owner_id: personId, reviewer_id: null },
+        personId,
       ),
     ).toBe(false);
   });
@@ -180,23 +180,23 @@ describe("isMyContentWork", () => {
       isMyContentWork(
         {
           content_status: "draft",
-          owner_id: "someone-else",
+          owner_id: "another-person",
           reviewer_id: null,
         },
-        userId,
+        personId,
       ),
     ).toBe(false);
   });
 });
 
 describe("isChangesRequestedForMe", () => {
-  const userId = "user-1";
+  const personId = "person-1";
 
   test("matches the owner when changes are requested", () => {
     expect(
       isChangesRequestedForMe(
-        { content_status: "changes_requested", owner_id: userId },
-        userId,
+        { content_status: "changes_requested", owner_id: personId },
+        personId,
       ),
     ).toBe(true);
   });
@@ -204,8 +204,8 @@ describe("isChangesRequestedForMe", () => {
   test("does not match a different status", () => {
     expect(
       isChangesRequestedForMe(
-        { content_status: "draft", owner_id: userId },
-        userId,
+        { content_status: "draft", owner_id: personId },
+        personId,
       ),
     ).toBe(false);
   });
@@ -213,8 +213,8 @@ describe("isChangesRequestedForMe", () => {
   test("does not match a different owner", () => {
     expect(
       isChangesRequestedForMe(
-        { content_status: "changes_requested", owner_id: "someone-else" },
-        userId,
+        { content_status: "changes_requested", owner_id: "another-person" },
+        personId,
       ),
     ).toBe(false);
   });

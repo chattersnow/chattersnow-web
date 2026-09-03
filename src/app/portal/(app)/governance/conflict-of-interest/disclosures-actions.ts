@@ -28,7 +28,7 @@ export type Disclosure = {
 export type DisclosureActionResult = { error: string } | { success: true };
 
 const DISCLOSURE_SELECT =
-  "id, disclosure_year, on_file_date, notes, external_link, body_text, person:people!person_id(id, name, email, phone)";
+  "id, disclosure_year, on_file_date, notes, external_link, body_text, person:people!person_id(id, name, preferred_name, email, phone)";
 
 const DUPLICATE_MESSAGE =
   "This person already has a disclosure recorded for this year. Edit their existing entry instead.";

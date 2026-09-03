@@ -11,7 +11,9 @@ import {
 import type { PersonListItem } from "./actions";
 import type { RoleKey } from "./people-shared";
 import { filterPeople } from "./person-search";
+import { personDisplayName } from "@/lib/format";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -22,7 +24,28 @@ export type PickedPerson = {
   name: string | null;
   email: string | null;
   phone: string | null;
+  /** Optional for the same reason as on PersonListItem -- many callers build
+   * a PickedPerson from a narrower embedded `people(...)` relation. */
+  preferred_name?: string | null;
+  auth_user_id?: string | null;
 };
+
+/**
+ * Marks a person who holds a portal login account, so whoever is assigning
+ * can tell who can actually sign in and act on the item.
+ */
+function PortalUserBadge({
+  person,
+}: {
+  person: { auth_user_id?: string | null };
+}) {
+  if (!person.auth_user_id) return null;
+  return (
+    <Badge variant="secondary" className="shrink-0">
+      Portal user
+    </Badge>
+  );
+}
 
 export function PersonPicker({
   people,
@@ -80,7 +103,10 @@ export function PersonPicker({
     return (
       <div className="flex items-center justify-between gap-3 rounded-md border border-[var(--line)] px-3 py-2">
         <div>
-          <p className="text-sm font-medium">{selected.name ?? "—"}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium">{personDisplayName(selected)}</p>
+            <PortalUserBadge person={selected} />
+          </div>
           {selected.email && (
             <p className="app-muted text-xs">{selected.email}</p>
           )}
@@ -137,7 +163,10 @@ export function PersonPicker({
               className="flex flex-col items-start px-3 py-2 text-left text-sm hover:bg-[var(--purple-soft)]"
               onClick={() => onSelect(person)}
             >
-              <span className="font-medium">{person.name ?? "—"}</span>
+              <span className="flex items-center gap-2">
+                <span className="font-medium">{personDisplayName(person)}</span>
+                <PortalUserBadge person={person} />
+              </span>
               {person.email && (
                 <span className="app-muted text-xs">{person.email}</span>
               )}
