@@ -4,7 +4,6 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { SortHeaderLink } from "@/components/portal/sort-header-link";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import {
   Table,
@@ -17,6 +16,7 @@ import {
 import { HowToSection } from "@/components/how-to-section";
 import { PageHelpContent } from "../../help/help-context";
 import { FiltersSheet } from "@/components/filters-sheet";
+import { SearchField } from "@/components/search-field";
 import { FilterSubmitButton } from "@/components/filter-submit-button";
 import { LinkPendingPulse } from "@/components/link-pending";
 import {
@@ -150,7 +150,6 @@ export default async function ExpensesPage({
   const hasActiveFilters =
     !!search || eventFilter !== "all" || statusFilter !== "all";
   const activeFilterCount = [
-    !!search,
     eventFilter !== "all",
     statusFilter !== "all",
   ].filter(Boolean).length;
@@ -255,25 +254,20 @@ export default async function ExpensesPage({
 
       <div className="mt-6 space-y-4">
         <div className="rainbow-surface flex flex-wrap items-center justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+          <SearchField
+            action="/portal/finance/expenses"
+            defaultValue={search}
+            placeholder="Search vendor, notes..."
+            preserve={{ event: eventFilter, status: statusFilter, sort, dir }}
+          />
           <FiltersSheet activeCount={activeFilterCount}>
             <form method="get" className="flex flex-col gap-4">
               <input type="hidden" name="sort" value={sort} />
               <input type="hidden" name="dir" value={dir} />
 
-              <div className="flex flex-col gap-1">
-                <label
-                  htmlFor="search"
-                  className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-                >
-                  Search
-                </label>
-                <Input
-                  id="search"
-                  name="search"
-                  placeholder="Search description..."
-                  defaultValue={search}
-                />
-              </div>
+              {/* Search lives in the toolbar now; carry it through so
+                  applying a filter here doesn't drop the current query. */}
+              <input type="hidden" name="search" value={search} />
 
               <div className="flex flex-col gap-1">
                 <label

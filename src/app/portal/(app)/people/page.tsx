@@ -8,7 +8,6 @@ import {
 } from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import {
   Table,
@@ -27,6 +26,7 @@ import {
   totalPagesFor,
 } from "@/lib/pagination";
 import { FiltersSheet } from "@/components/filters-sheet";
+import { SearchField } from "@/components/search-field";
 import { FilterSubmitButton } from "@/components/filter-submit-button";
 import { LinkPendingPulse } from "@/components/link-pending";
 import { NewPersonDialog } from "./new-person-dialog";
@@ -110,9 +110,7 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
 
   const totalPages = totalPagesFor(count);
   const hasActiveFilters = !!search || roleFilter !== "all";
-  const activeFilterCount = [!!search, roleFilter !== "all"].filter(
-    Boolean,
-  ).length;
+  const activeFilterCount = [roleFilter !== "all"].filter(Boolean).length;
 
   return (
     <>
@@ -125,22 +123,17 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
 
       <div className="mt-6 space-y-4">
         <div className="rainbow-surface flex flex-wrap items-center justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+          <SearchField
+            action="/portal/people"
+            defaultValue={search}
+            placeholder="Search name, email, phone..."
+            preserve={{ role: roleFilter }}
+          />
           <FiltersSheet activeCount={activeFilterCount}>
             <form method="get" className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <label
-                  htmlFor="search"
-                  className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-                >
-                  Search
-                </label>
-                <Input
-                  id="search"
-                  name="search"
-                  placeholder="Search name, email, phone..."
-                  defaultValue={search}
-                />
-              </div>
+              {/* Search lives in the toolbar now; carry it through so
+                  applying a filter here doesn't drop the current query. */}
+              <input type="hidden" name="search" value={search} />
 
               <div className="flex flex-col gap-1">
                 <label
