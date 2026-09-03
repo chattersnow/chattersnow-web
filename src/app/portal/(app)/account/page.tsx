@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ensureCurrentPerson } from "@/lib/auth/current-person";
 import { personDisplayName } from "@/lib/format";
 import { AccountForm } from "./account-form";
+import { ReplayTourButton } from "./replay-tour-button";
 
 export const metadata: Metadata = {
   title: "My account",
@@ -56,6 +57,19 @@ export default async function AccountPage() {
               preferredName={person?.preferred_name ?? null}
               fallbackName={fallbackName}
             />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="app-eyebrow">Portal introduction</p>
+              <p className="app-muted mt-1 text-sm">
+                A short walkthrough of the portal basics — the sidebar, the help
+                button, and the notifications bell.
+              </p>
+            </div>
+            <ReplayTourButton />
           </CardContent>
         </Card>
       </div>
