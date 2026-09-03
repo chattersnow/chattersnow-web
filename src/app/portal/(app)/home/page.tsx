@@ -12,7 +12,6 @@ import {
   DashboardEventRow,
   DashboardSectionCard,
   DashboardStatRow,
-  DashboardTaskListRow,
 } from "./dashboard-section-card";
 import {
   getUpcomingSummary,
@@ -151,6 +150,7 @@ export default async function PortalHomePage() {
     resolveCurrentPersonId(supabase),
   ]);
 
+  const openTaskCount = eventTasks?.items.length ?? 0;
   const recentDonations =
     recentDonationsResult && "data" in recentDonationsResult
       ? recentDonationsResult.data
@@ -236,10 +236,15 @@ export default async function PortalHomePage() {
               value={upcoming.partnerCount}
               caption="Sponsoring upcoming events"
             />
-            <DashboardTaskListRow
+            <DashboardStatRow
               label="Outstanding tasks"
-              items={eventTasks?.items ?? []}
-              emptyCaption="No open tasks across upcoming events."
+              value={openTaskCount}
+              caption={
+                openTaskCount > 0
+                  ? "Across draft and published events"
+                  : "No open tasks."
+              }
+              href={openTaskCount > 0 ? "/portal/events?tasks=open" : undefined}
             />
           </DashboardSectionCard>
         )}
