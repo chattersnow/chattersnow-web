@@ -35,7 +35,6 @@ import { NewReimbursementDialog } from "./new-reimbursement-dialog";
 import {
   REIMBURSEMENT_COLUMNS,
   formatAmount,
-  formatReimbursementDate,
   getReimbursementApprovalContext,
   isReimbursementStatus,
   type EventOption,
@@ -43,7 +42,8 @@ import {
   type ReimbursementStatus,
 } from "./reimbursements-shared";
 import type { PersonListItem } from "../../people/actions";
-import { personDisplayName } from "@/lib/format";
+import { formatInstantDate, personDisplayName } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 type ReimbursementsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -428,7 +428,7 @@ export default async function ReimbursementsPage({
                         {reimbursement.description}
                       </TableCell>
                       <TableCell hideBelow="lg">
-                        {formatReimbursementDate(reimbursement.created_at)}
+                        {formatInstantDate(reimbursement.created_at)}
                       </TableCell>
                       <TableCell>
                         {formatAmount(

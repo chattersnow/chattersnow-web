@@ -17,10 +17,7 @@ import {
   resolveImageUrl,
 } from "@/lib/inventory";
 import type { GearItem } from "./gear-catalog";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-});
+import { formatInstantDate } from "@/lib/format";
 
 export function GearDetailSheet({
   item,
@@ -55,8 +52,7 @@ export function GearDetailSheet({
                   .filter(Boolean)
                   .join(" · ")}
                 {" · "}
-                Available since{" "}
-                {dateFormatter.format(new Date(item.created_at))}
+                Available since {formatInstantDate(item.created_at)}
               </SheetDescription>
             </SheetHeader>
 

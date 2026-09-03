@@ -25,15 +25,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string) {
-  return dateFormatter.format(new Date(value));
-}
+import { formatCalendarDate } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 function AddDecisionForm({
   defaultDate,
@@ -220,7 +213,7 @@ export function DecisionsTab({
                   {decision.vote_result || "—"}
                 </TableCell>
                 <TableCell className="app-muted">
-                  {formatDate(decision.decision_date)}
+                  {formatCalendarDate(decision.decision_date)}
                 </TableCell>
                 <TableCell className="text-right">
                   {mode === "edit" && (

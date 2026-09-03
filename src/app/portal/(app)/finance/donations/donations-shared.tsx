@@ -52,22 +52,3 @@ export function donorLabel(row: MonetaryDonationRow): string {
   if (!row.donor_id) return ANONYMOUS_DONOR_LABEL;
   return row.people?.name?.trim() || "—";
 }
-
-export function formatAmount(amount: number | string) {
-  const numeric = typeof amount === "string" ? Number(amount) : amount;
-  if (!Number.isFinite(numeric)) return "—";
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(numeric);
-  } catch {
-    return `$${numeric.toFixed(2)}`;
-  }
-}
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
-
-export function formatDonationDate(value: string) {
-  return dateFormatter.format(new Date(`${value}T00:00:00`));
-}

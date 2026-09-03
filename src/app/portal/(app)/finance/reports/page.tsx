@@ -11,11 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  formatAmount,
-  isRevenueSource,
-  revenueSourceLabel,
-} from "../revenue/revenue-shared";
+import { isRevenueSource, revenueSourceLabel } from "../revenue/revenue-shared";
 import {
   computeFinanceSummary,
   SPEND_STATUSES,
@@ -25,6 +21,8 @@ import {
   yearToDateRange,
   type FinanceReportData,
 } from "./summary";
+import { formatCurrency, formatNumber } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 type FinanceReportsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -40,8 +38,6 @@ function isDateInput(value: string | undefined): value is string {
 
 const selectClassName =
   "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
-
-const numberFormatter = new Intl.NumberFormat("en-US");
 
 // event_revenue has no currency column and CURRENCIES is USD-only across
 // Finance today, so every figure on this page is formatted as USD.
@@ -113,30 +109,30 @@ export default async function FinancialReportsPage({
     ? [
         {
           label: "Income",
-          value: formatAmount(summary.income),
+          value: formatCurrency(summary.income),
           caption: "Event revenue received",
         },
         {
           label: "Monetary donations",
-          value: formatAmount(summary.cashDonations),
-          caption: `${numberFormatter.format(summary.cashDonationCount)} gift${
+          value: formatCurrency(summary.cashDonations),
+          caption: `${formatNumber(summary.cashDonationCount)} gift${
             summary.cashDonationCount === 1 ? "" : "s"
           } received`,
         },
         {
           label: "Expenses paid",
-          value: formatAmount(summary.paidSpend),
+          value: formatCurrency(summary.paidSpend),
           caption: "Expenses and reimbursements marked paid",
         },
         {
           label: "Net",
-          value: formatAmount(summary.net),
+          value: formatCurrency(summary.net),
           caption: "Income and monetary donations, less expenses paid",
         },
         {
           label: "In-kind donations",
-          value: formatAmount(summary.inKindValue),
-          caption: `${numberFormatter.format(summary.inKindItemCount)} item${
+          value: formatCurrency(summary.inKindValue),
+          caption: `${formatNumber(summary.inKindItemCount)} item${
             summary.inKindItemCount === 1 ? "" : "s"
           } donated, at face value`,
         },
@@ -279,10 +275,8 @@ export default async function FinancialReportsPage({
                               ? revenueSourceLabel(row.source)
                               : row.source}
                           </TableCell>
-                          <TableCell>
-                            {numberFormatter.format(row.count)}
-                          </TableCell>
-                          <TableCell>{formatAmount(row.total)}</TableCell>
+                          <TableCell>{formatNumber(row.count)}</TableCell>
+                          <TableCell>{formatCurrency(row.total)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -309,14 +303,14 @@ export default async function FinancialReportsPage({
                       <TableRow key={status}>
                         <TableCell className="capitalize">{status}</TableCell>
                         <TableCell>
-                          {formatAmount(
+                          {formatCurrency(
                             expensesByStatus.find(
                               (row) => row.status === status,
                             )?.total ?? 0,
                           )}
                         </TableCell>
                         <TableCell>
-                          {formatAmount(
+                          {formatCurrency(
                             reimbursementsByStatus.find(
                               (row) => row.status === status,
                             )?.total ?? 0,
@@ -355,9 +349,9 @@ export default async function FinancialReportsPage({
                         <TableCell className="whitespace-normal">
                           {row.eventName}
                         </TableCell>
-                        <TableCell>{formatAmount(row.income)}</TableCell>
-                        <TableCell>{formatAmount(row.paidSpend)}</TableCell>
-                        <TableCell>{formatAmount(row.net)}</TableCell>
+                        <TableCell>{formatCurrency(row.income)}</TableCell>
+                        <TableCell>{formatCurrency(row.paidSpend)}</TableCell>
+                        <TableCell>{formatCurrency(row.net)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

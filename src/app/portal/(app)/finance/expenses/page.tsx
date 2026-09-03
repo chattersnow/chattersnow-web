@@ -35,13 +35,14 @@ import { NewExpenseDialog } from "./new-expense-dialog";
 import {
   EXPENSE_COLUMNS,
   formatAmount,
-  formatExpenseDate,
   getExpenseApprovalContext,
   isExpenseStatus,
   type EventOption,
   type ExpenseRow,
   type ExpenseStatus,
 } from "./expenses-shared";
+import { formatCalendarDate } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 type ExpensesPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -412,7 +413,7 @@ export default async function ExpensesPage({
                         {expense.description}
                       </TableCell>
                       <TableCell hideBelow="sm">
-                        {formatExpenseDate(expense.expense_date)}
+                        {formatCalendarDate(expense.expense_date)}
                       </TableCell>
                       <TableCell>
                         {formatAmount(expense.amount, expense.currency)}

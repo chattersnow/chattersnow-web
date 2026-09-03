@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { personDisplayName } from "@/lib/format";
+import { formatDateTime, personDisplayName } from "@/lib/format";
 
 const MEETING_TYPES = [
   { value: "board", label: "Board" },
@@ -52,16 +52,6 @@ const STATUSES = [
   { value: "completed", label: "Completed" },
   { value: "cancelled", label: "Cancelled" },
 ];
-
-const viewDateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-
-export function formatDatetimeLocal(value: string) {
-  if (!value) return "—";
-  return viewDateFormatter.format(new Date(value));
-}
 
 function toDatetimeLocalValue(iso: string) {
   const date = new Date(iso);
@@ -247,7 +237,7 @@ function MeetingDetailsCard({
       {card.mode === "view" ? (
         <FieldGroup>
           <ReadOnlyField label="Date & time" htmlFor="meeting-date-view">
-            {formatDatetimeLocal(meeting.meeting_date)}
+            {formatDateTime(meeting.meeting_date)}
           </ReadOnlyField>
           <ReadOnlyField label="Type" htmlFor="meeting-type-view">
             <MeetingTypeBadge type={meeting.meeting_type} />

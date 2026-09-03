@@ -14,16 +14,8 @@ import {
 import { EditDisclosureModal } from "./edit-disclosure-modal";
 import type { Disclosure } from "./disclosures-actions";
 import type { PersonListItem } from "../../people/actions";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
+import { formatCalendarDate } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 export function DisclosuresTable({
   disclosures,
@@ -110,7 +102,7 @@ export function DisclosuresTable({
                         {disclosure.disclosure_year}
                       </TableCell>
                       <TableCell className="app-muted">
-                        {formatDate(disclosure.on_file_date)}
+                        {formatCalendarDate(disclosure.on_file_date)}
                       </TableCell>
                       <TableCell
                         className="app-muted max-w-xs truncate"

@@ -23,19 +23,10 @@ import { PartnershipStageBadge } from "./partnership-badges";
 import { PARTNERSHIP_STAGE_LABELS } from "./partnership-opportunity-form-fields";
 import type { PartnershipOpportunity } from "./partnerships-actions";
 import type { PersonListItem } from "../../people/actions";
-import { personDisplayName } from "@/lib/format";
+import { formatCalendarDate, personDisplayName } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 const FILTER_ALL = "all";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
 
 export function PartnershipsTable({
   opportunities,
@@ -160,7 +151,7 @@ export function PartnershipsTable({
                         <PartnershipStageBadge stage={opportunity.stage} />
                       </TableCell>
                       <TableCell className="app-muted">
-                        {formatDate(opportunity.next_step_date)}
+                        {formatCalendarDate(opportunity.next_step_date)}
                       </TableCell>
                       <TableCell className="app-muted">
                         {personDisplayName(opportunity.owner)}

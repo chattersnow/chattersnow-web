@@ -25,9 +25,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
-import { personDisplayName } from "@/lib/format";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
+import { formatCalendarDate, personDisplayName } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 function shiftHoursAndDate(shift: EventShift) {
   const durationHours =
@@ -228,7 +227,7 @@ export function HoursSection({
                   {personDisplayName(entry.person)}
                 </TableCell>
                 <TableCell className="app-muted">
-                  {dateFormatter.format(new Date(entry.logged_date))}
+                  {formatCalendarDate(entry.logged_date)}
                 </TableCell>
                 <TableCell>{entry.hours}</TableCell>
                 <TableCell className="text-right">

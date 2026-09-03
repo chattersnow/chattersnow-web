@@ -36,13 +36,13 @@ import {
   DONATION_COLUMNS,
   PAYMENT_METHODS,
   donorLabel,
-  formatAmount,
-  formatDonationDate,
   isPaymentMethod,
   paymentMethodLabel,
   type EventOption,
   type MonetaryDonationRow,
 } from "./donations-shared";
+import { formatCalendarDate, formatCurrency } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 type DonationsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -426,9 +426,9 @@ export default async function FinanceDonationsPage({
                         {donorLabel(donation)}
                       </TableCell>
                       <TableCell hideBelow="sm">
-                        {formatDonationDate(donation.received_date)}
+                        {formatCalendarDate(donation.received_date)}
                       </TableCell>
-                      <TableCell>{formatAmount(donation.amount)}</TableCell>
+                      <TableCell>{formatCurrency(donation.amount)}</TableCell>
                       <TableCell hideBelow="lg">
                         <PaymentMethodBadge method={donation.method} />
                       </TableCell>

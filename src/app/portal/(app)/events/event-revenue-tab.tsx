@@ -4,8 +4,6 @@ import { useEffect, useState } from "react";
 import { listEventRevenueAction } from "../finance/revenue/actions";
 import { EditRevenueModal } from "../finance/revenue/edit-revenue-modal";
 import {
-  formatAmount,
-  formatRevenueDate,
   revenueSourceLabel,
   type EventOption,
   type RevenueRow,
@@ -22,6 +20,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
+import { formatCalendarDate, formatCurrency } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 export function EventRevenueTab({
   eventId,
@@ -86,9 +86,9 @@ export function EventRevenueTab({
               <TableRow key={row.id}>
                 <TableCell>{revenueSourceLabel(row.source)}</TableCell>
                 <TableCell className="app-muted">
-                  {formatRevenueDate(row.received_date)}
+                  {formatCalendarDate(row.received_date)}
                 </TableCell>
-                <TableCell>{formatAmount(row.amount)}</TableCell>
+                <TableCell>{formatCurrency(row.amount)}</TableCell>
                 <TableCell>
                   <EditRevenueModal
                     revenue={row}

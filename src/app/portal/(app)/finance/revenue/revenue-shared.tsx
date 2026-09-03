@@ -48,22 +48,3 @@ export type EventOption = { id: string; name: string };
 
 export const REVENUE_COLUMNS =
   "id, event_id, source, amount, received_date, notes, events(name)";
-
-export function formatAmount(amount: number | string) {
-  const numeric = typeof amount === "string" ? Number(amount) : amount;
-  if (!Number.isFinite(numeric)) return "—";
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(numeric);
-  } catch {
-    return `$${numeric.toFixed(2)}`;
-  }
-}
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
-
-export function formatRevenueDate(value: string) {
-  return dateFormatter.format(new Date(`${value}T00:00:00`));
-}

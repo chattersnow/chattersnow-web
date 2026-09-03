@@ -33,16 +33,12 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { formatInstantDate } from "@/lib/format";
 
 const NO_MEETING = "none";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
 function meetingLabel(meeting: ResolutionMeetingOption) {
-  return `${dateFormatter.format(new Date(meeting.meeting_date))} — ${meeting.meeting_type}`;
+  return `${formatInstantDate(meeting.meeting_date)} — ${meeting.meeting_type}`;
 }
 
 export function NewResolutionDialog({

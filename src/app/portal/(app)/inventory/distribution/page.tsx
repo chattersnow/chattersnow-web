@@ -19,12 +19,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { personDisplayName } from "@/lib/format";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+import { formatDateTime, personDisplayName } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 export const metadata: Metadata = {
   title: "Distribution",
@@ -105,7 +101,7 @@ export default async function DistributionPage() {
                         </TableCell>
                         <TableCell>{movement.quantity}</TableCell>
                         <TableCell hideBelow="sm" className="app-muted">
-                          {dateFormatter.format(new Date(movement.occurred_at))}
+                          {formatDateTime(movement.occurred_at)}
                         </TableCell>
                         <TableCell
                           hideBelow="md"

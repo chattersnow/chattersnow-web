@@ -21,11 +21,8 @@ import {
 } from "@/components/ui/table";
 import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+import { formatDateTime } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 export function IncidentsTab({
   eventId,
@@ -97,7 +94,7 @@ export function IncidentsTab({
             {incidents?.map((incident) => (
               <TableRow key={incident.id}>
                 <TableCell className="app-muted whitespace-nowrap">
-                  {dateFormatter.format(new Date(incident.occurred_at))}
+                  {formatDateTime(incident.occurred_at)}
                 </TableCell>
                 <TableCell>
                   <SeverityBadge severity={incident.severity} />

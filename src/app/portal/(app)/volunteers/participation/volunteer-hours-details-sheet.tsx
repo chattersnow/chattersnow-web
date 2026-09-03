@@ -52,11 +52,9 @@ import {
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
-import { personDisplayName } from "@/lib/format";
+import { formatCalendarDate, personDisplayName } from "@/lib/format";
 
 const NONE_VALUE = "none";
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
-
 type FormState = {
   eventId: string;
   volunteerRoleTypeId: string;
@@ -304,7 +302,7 @@ export function VolunteerHoursDetailsSheet({
                   {entry.hours}
                 </ReadOnlyField>
                 <ReadOnlyField label="Date" htmlFor="hours-view-date">
-                  {dateFormatter.format(new Date(entry.logged_date))}
+                  {formatCalendarDate(entry.logged_date)}
                 </ReadOnlyField>
                 <ReadOnlyField label="Notes" htmlFor="hours-view-notes">
                   {entry.notes || "—"}

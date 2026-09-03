@@ -24,13 +24,13 @@ import { EditRevenueModal } from "./edit-revenue-modal";
 import { RevenueSourceBadge } from "./revenue-badges";
 import {
   REVENUE_SOURCES,
-  formatAmount,
-  formatRevenueDate,
   revenueSourceLabel,
   type EventOption,
   type RevenueRow,
   type RevenueSource,
 } from "./revenue-shared";
+import { formatCalendarDate, formatCurrency } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 type SortKey = "received_date" | "source" | "amount";
 
@@ -252,9 +252,9 @@ export function RevenueTable({
                       <RevenueSourceBadge source={row.source} />
                     </TableCell>
                     <TableCell>
-                      {formatRevenueDate(row.received_date)}
+                      {formatCalendarDate(row.received_date)}
                     </TableCell>
-                    <TableCell>{formatAmount(row.amount)}</TableCell>
+                    <TableCell>{formatCurrency(row.amount)}</TableCell>
                     <TableCell className="app-muted">
                       {row.events?.name ?? "—"}
                     </TableCell>

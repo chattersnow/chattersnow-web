@@ -17,7 +17,6 @@ import {
 } from "./reimbursement-form-fields";
 import {
   formatAmount,
-  formatReimbursementDate,
   getReimbursementNextStepMessage,
   isSelfApprovalEligible,
   type EventOption,
@@ -66,12 +65,11 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
-import { personDisplayName } from "@/lib/format";
-
-const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+import {
+  formatDateTime,
+  formatInstantDate,
+  personDisplayName,
+} from "@/lib/format";
 
 function formStateFor(reimbursement: ReimbursementRow): ReimbursementFormState {
   return {
@@ -390,7 +388,7 @@ export function EditReimbursementModal({
                     label="Submitted"
                     htmlFor="edit-reimbursement-created"
                   >
-                    {formatReimbursementDate(reimbursement.created_at)}
+                    {formatInstantDate(reimbursement.created_at)}
                   </ReadOnlyField>
                   <ReadOnlyField
                     label="Amount"
@@ -424,9 +422,7 @@ export function EditReimbursementModal({
                       label="Approved"
                       htmlFor="edit-reimbursement-approved"
                     >
-                      {dateTimeFormatter.format(
-                        new Date(reimbursement.approved_at),
-                      )}
+                      {formatDateTime(reimbursement.approved_at)}
                     </ReadOnlyField>
                   )}
                 {reimbursement.status === "rejected" && (
@@ -436,9 +432,7 @@ export function EditReimbursementModal({
                         label="Rejected"
                         htmlFor="edit-reimbursement-rejected"
                       >
-                        {dateTimeFormatter.format(
-                          new Date(reimbursement.rejected_at),
-                        )}
+                        {formatDateTime(reimbursement.rejected_at)}
                       </ReadOnlyField>
                     )}
                     <ReadOnlyField
@@ -451,7 +445,7 @@ export function EditReimbursementModal({
                 )}
                 {reimbursement.status === "paid" && reimbursement.paid_at && (
                   <ReadOnlyField label="Paid" htmlFor="edit-reimbursement-paid">
-                    {dateTimeFormatter.format(new Date(reimbursement.paid_at))}
+                    {formatDateTime(reimbursement.paid_at)}
                   </ReadOnlyField>
                 )}
 

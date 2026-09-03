@@ -30,12 +30,10 @@ import {
   type ContactMessage,
   type ContactMessageStatus,
 } from "./message-types";
+import { formatInstantDate } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 const FILTER_ALL = "all";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-});
 
 export function MessagesTable({
   messages,
@@ -173,7 +171,7 @@ export function MessagesTable({
                       {CONTACT_TOPIC_LABELS[message.topic] ?? message.topic}
                     </TableCell>
                     <TableCell className="app-muted">
-                      {dateFormatter.format(new Date(message.created_at))}
+                      {formatInstantDate(message.created_at)}
                     </TableCell>
                     <TableCell>
                       <ContactMessageStatusBadge status={message.status} />

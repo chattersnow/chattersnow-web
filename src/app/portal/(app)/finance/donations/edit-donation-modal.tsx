@@ -11,8 +11,6 @@ import {
 } from "./donation-form-fields";
 import {
   donorLabel,
-  formatAmount,
-  formatDonationDate,
   paymentMethodLabel,
   type EventOption,
   type MonetaryDonationRow,
@@ -50,6 +48,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { formatCalendarDate, formatCurrency } from "@/lib/format";
 
 function pickedDonorFor(
   donation: MonetaryDonationRow,
@@ -300,10 +299,10 @@ export function EditDonationModal({
                     label="Date"
                     htmlFor="edit-donation-receivedDate"
                   >
-                    {formatDonationDate(donation.received_date)}
+                    {formatCalendarDate(donation.received_date)}
                   </ReadOnlyField>
                   <ReadOnlyField label="Amount" htmlFor="edit-donation-amount">
-                    {formatAmount(donation.amount)}
+                    {formatCurrency(donation.amount)}
                   </ReadOnlyField>
                 </Field>
                 <ReadOnlyField label="Notes" htmlFor="edit-donation-notes">

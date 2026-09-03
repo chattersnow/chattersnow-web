@@ -8,28 +8,21 @@ import {
   hasPermission,
 } from "@/lib/auth/permissions";
 import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
+import { EmptyState } from "@/components/portal/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { PersonListItem } from "../actions";
 import { type OrganizationMembership, type PersonRow } from "../people-shared";
 import { ProfileCard } from "./profile-card";
 import { OrganizationsCard } from "./organizations-card";
+import {
+  formatCalendarDate,
+  formatCurrency,
+  formatInstantDate,
+} from "@/lib/format";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
-
-function formatDate(value: string | null | undefined) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
-
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
-
-function formatValue(value: number | string | null) {
-  if (value === null || value === undefined) return null;
-  const numeric = typeof value === "string" ? Number(value) : value;
-  return Number.isFinite(numeric) ? currencyFormatter.format(numeric) : null;
+function contributionSuffix(value: number | string | null) {
+  const amount = formatCurrency(value, "");
+  return amount ? ` · ${amount}` : "";
 }
 
 type EventRef = { id: string; name: string; starts_at: string | null } | null;
@@ -279,7 +272,7 @@ export default async function PersonDetailPage({
                     className="border-b border-[var(--line)] pb-2 last:border-0 last:pb-0"
                   >
                     <p className="font-medium">
-                      {formatDate(donation.donated_at)}
+                      {formatInstantDate(donation.donated_at)}
                       {donation.event?.name ? ` · ${donation.event.name}` : ""}
                     </p>
                     {donation.notes && (
@@ -313,9 +306,7 @@ export default async function PersonDetailPage({
                     </p>
                     <p className="app-muted capitalize">
                       {sponsorship.support_type.replace("_", " ")}
-                      {formatValue(sponsorship.contribution_value)
-                        ? ` · ${formatValue(sponsorship.contribution_value)}`
-                        : ""}
+                      {contributionSuffix(sponsorship.contribution_value)}
                     </p>
                   </li>
                 ))}
@@ -352,7 +343,7 @@ export default async function PersonDetailPage({
                     </p>
                     <p className="app-muted">
                       Party of {registration.party_size} ·{" "}
-                      {formatDate(registration.created_at)}
+                      {formatInstantDate(registration.created_at)}
                     </p>
                   </li>
                 ))}
@@ -384,7 +375,7 @@ export default async function PersonDetailPage({
                     <ul className="flex flex-col gap-2">
                       {volunteerApplicationRows.map((application) => (
                         <li key={application.id}>
-                          {formatDate(application.created_at)} ·{" "}
+                          {formatInstantDate(application.created_at)} ·{" "}
                           <span className="capitalize">
                             {application.status}
                           </span>
@@ -419,7 +410,8 @@ export default async function PersonDetailPage({
                     <ul className="flex flex-col gap-2">
                       {volunteerHoursRows.map((entry) => (
                         <li key={entry.id}>
-                          {formatDate(entry.logged_date)} · {entry.hours}h
+                          {formatCalendarDate(entry.logged_date)} ·{" "}
+                          {entry.hours}h
                           {entry.event?.name ? ` · ${entry.event.name}` : ""}
                         </li>
                       ))}
@@ -453,7 +445,7 @@ export default async function PersonDetailPage({
                         <li key={opportunity.id} className="capitalize">
                           {opportunity.stage.replace("_", " ")}
                           {opportunity.next_step_date
-                            ? ` · next step ${formatDate(opportunity.next_step_date)}`
+                            ? ` · next step ${formatCalendarDate(opportunity.next_step_date)}`
                             : ""}
                         </li>
                       ))}

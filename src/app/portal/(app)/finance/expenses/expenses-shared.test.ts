@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
   formatAmount,
-  formatExpenseDate,
   getExpenseNextStepMessage,
   isSelfApprovalEligible,
   type ExpenseApprovalContext,
@@ -22,12 +21,6 @@ describe("formatAmount", () => {
 
   test("falls back to a plain string for an unknown currency code", () => {
     expect(formatAmount(10, "NOTACODE")).toBe("NOTACODE 10.00");
-  });
-});
-
-describe("formatExpenseDate", () => {
-  test("formats a date-only string without a timezone shift", () => {
-    expect(formatExpenseDate("2026-03-15")).toBe("Mar 15, 2026");
   });
 });
 

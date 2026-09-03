@@ -44,17 +44,11 @@ import {
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
-import { personDisplayName } from "@/lib/format";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
+import {
+  formatCalendarDate,
+  formatInstantDate,
+  personDisplayName,
+} from "@/lib/format";
 
 function meetingLabel(
   meetingId: string | null,
@@ -63,7 +57,7 @@ function meetingLabel(
   if (!meetingId) return "—";
   const meeting = meetings.find((m) => m.id === meetingId);
   if (!meeting) return "—";
-  return `${dateFormatter.format(new Date(meeting.meeting_date))} — ${meeting.meeting_type}`;
+  return `${formatInstantDate(meeting.meeting_date)} — ${meeting.meeting_type}`;
 }
 
 function formStateFor(resolution: Resolution): ResolutionFormState {
@@ -316,7 +310,7 @@ export function EditResolutionModal({
                   label="Effective date"
                   htmlFor="edit-resolution-effective-date"
                 >
-                  {formatDate(resolution.effective_date)}
+                  {formatCalendarDate(resolution.effective_date)}
                 </ReadOnlyField>
                 <ReadOnlyField
                   label="External link"

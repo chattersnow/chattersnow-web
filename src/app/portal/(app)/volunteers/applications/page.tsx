@@ -35,6 +35,7 @@ import {
   type VolunteerApplication,
   type VolunteerApplicationStatus,
 } from "./application-types";
+import { formatInstantDate } from "@/lib/format";
 
 type ApplicationsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -48,10 +49,6 @@ function isVolunteerApplicationStatus(
     (VOLUNTEER_APPLICATION_STATUSES as readonly string[]).includes(value)
   );
 }
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-});
 
 const selectClassName =
   "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
@@ -232,9 +229,7 @@ export default async function VolunteerApplicationsPage({
                             {application.role_interest || "—"}
                           </TableCell>
                           <TableCell className="app-muted">
-                            {dateFormatter.format(
-                              new Date(application.created_at),
-                            )}
+                            {formatInstantDate(application.created_at)}
                           </TableCell>
                           <TableCell>
                             <VolunteerApplicationStatusBadge

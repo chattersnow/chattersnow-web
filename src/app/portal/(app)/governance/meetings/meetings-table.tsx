@@ -26,13 +26,10 @@ import {
   MeetingTypeBadge,
   type MeetingRow,
 } from "./meeting-badges";
+import { formatDateTime } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 const FILTER_ALL = "all";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
 
 type SortKey = "meeting_date" | "meeting_type" | "status" | "location";
 
@@ -154,7 +151,7 @@ export function MeetingsTable({
                   visibleMeetings.map((meeting) => (
                     <TableRow key={meeting.id}>
                       <TableCell className="font-medium">
-                        {dateFormatter.format(new Date(meeting.meeting_date))}
+                        {formatDateTime(meeting.meeting_date)}
                       </TableCell>
                       <TableCell>
                         <MeetingTypeBadge type={meeting.meeting_type} />
@@ -170,9 +167,7 @@ export function MeetingsTable({
                           variant="ghost"
                           size="icon-sm"
                           nativeButton={false}
-                          aria-label={`View meeting on ${dateFormatter.format(
-                            new Date(meeting.meeting_date),
-                          )}`}
+                          aria-label={`View meeting on ${formatDateTime(meeting.meeting_date)}`}
                           render={
                             <Link
                               href={`/portal/governance/meetings/${meeting.id}`}

@@ -14,10 +14,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { Spinner } from "@/components/ui/spinner";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-});
+import { formatInstantDate } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 export function RelatedItemsTab({
   itemId,
@@ -113,7 +111,7 @@ export function RelatedItemsTab({
                   <span className="text-sm font-medium">{related.title}</span>
                   <span className="app-muted text-xs">
                     {labelFor(ITEM_TYPES, related.item_type)} ·{" "}
-                    {dateFormatter.format(new Date(related.starts_at))}
+                    {formatInstantDate(related.starts_at)}
                   </span>
                 </div>
                 {canManage && (
@@ -154,7 +152,7 @@ export function RelatedItemsTab({
                     </span>
                     <span className="app-muted text-xs">
                       {labelFor(ITEM_TYPES, candidate.item_type)} ·{" "}
-                      {dateFormatter.format(new Date(candidate.starts_at))}
+                      {formatInstantDate(candidate.starts_at)}
                     </span>
                     {(candidate.shared_categories.length > 0 ||
                       candidate.shared_programs.length > 0) && (

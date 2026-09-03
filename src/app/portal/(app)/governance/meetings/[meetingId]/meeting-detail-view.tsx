@@ -30,11 +30,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+import { formatDateTime } from "@/lib/format";
 
 type TabValue = "overview" | "agenda";
 
@@ -187,7 +183,7 @@ export function MeetingDetailView({
       <div>
         <div className="w-fit">
           <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-            {dateFormatter.format(new Date(meeting.meeting_date))}
+            {formatDateTime(meeting.meeting_date)}
           </h1>
           <div className="rainbow-accent mt-3 w-full" />
         </div>

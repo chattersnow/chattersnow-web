@@ -43,27 +43,11 @@ import {
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
-import { personDisplayName } from "@/lib/format";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
-
-function formatAmount(value: number | null) {
-  if (value === null) return "—";
-  return currencyFormatter.format(value);
-}
+import {
+  formatCalendarDate,
+  formatCurrency,
+  personDisplayName,
+} from "@/lib/format";
 
 function formStateFor(grant: Grant): GrantFormState {
   return {
@@ -268,13 +252,13 @@ export function EditGrantModal({
                   {grant.funder_name}
                 </ReadOnlyField>
                 <ReadOnlyField label="Amount" htmlFor="edit-grant-amount">
-                  {formatAmount(grant.amount)}
+                  {formatCurrency(grant.amount)}
                 </ReadOnlyField>
                 <ReadOnlyField
                   label="Application deadline"
                   htmlFor="edit-grant-application-deadline"
                 >
-                  {formatDate(grant.application_deadline)}
+                  {formatCalendarDate(grant.application_deadline)}
                 </ReadOnlyField>
                 <ReadOnlyField label="Status" htmlFor="edit-grant-status">
                   {GRANT_STATUS_LABELS[grant.status]}

@@ -16,9 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { personDisplayName } from "@/lib/format";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
+import { formatCalendarDate, personDisplayName } from "@/lib/format";
 
 export function HoursTable({
   entries,
@@ -69,7 +67,7 @@ export function HoursTable({
               {entry.volunteer_role_type?.name ?? "—"}
             </TableCell>
             <TableCell hideBelow="sm" className="app-muted">
-              {dateFormatter.format(new Date(entry.logged_date))}
+              {formatCalendarDate(entry.logged_date)}
             </TableCell>
             <TableCell>{entry.hours}</TableCell>
             <TableCell className="text-right">

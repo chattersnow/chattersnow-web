@@ -43,17 +43,8 @@ import {
 } from "@/components/ui/table";
 import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
-import { personDisplayName } from "@/lib/format";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
+import { formatCalendarDate, personDisplayName } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 function ownerFrom(actionItem: ActionItem): PickedPerson {
   return actionItem.owner;
@@ -358,7 +349,7 @@ export function ActionItemsTab({
                   {personDisplayName(actionItem.owner)}
                 </TableCell>
                 <TableCell className="app-muted">
-                  {formatDate(actionItem.due_date)}
+                  {formatCalendarDate(actionItem.due_date)}
                 </TableCell>
                 <TableCell>
                   <Checkbox

@@ -59,11 +59,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+import { formatDateTime } from "@/lib/format";
 
 const STATUSES = [
   { value: "pilot", label: "Pilot" },
@@ -312,9 +308,7 @@ export function ProgramDetailsDialog({
                                 {event.name}
                               </TableCell>
                               <TableCell>
-                                {dateFormatter.format(
-                                  new Date(event.starts_at),
-                                )}
+                                {formatDateTime(event.starts_at)}
                               </TableCell>
                               <TableCell>
                                 <StatusBadge status={event.status} />

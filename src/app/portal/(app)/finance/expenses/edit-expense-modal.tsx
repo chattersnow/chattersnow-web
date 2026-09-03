@@ -29,7 +29,6 @@ import {
 } from "./expense-form-fields";
 import {
   formatAmount,
-  formatExpenseDate,
   getExpenseNextStepMessage,
   isSelfApprovalEligible,
   type EventOption,
@@ -78,12 +77,12 @@ import {
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
-import { actorDisplayName, personDisplayName } from "@/lib/format";
-
-const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+import {
+  actorDisplayName,
+  formatCalendarDate,
+  formatDateTime,
+  personDisplayName,
+} from "@/lib/format";
 
 function formStateFor(expense: ExpenseRow): ExpenseFormState {
   return {
@@ -503,7 +502,7 @@ export function EditExpenseModal({
                     label="Date"
                     htmlFor="edit-expense-expenseDate"
                   >
-                    {formatExpenseDate(expense.expense_date)}
+                    {formatCalendarDate(expense.expense_date)}
                   </ReadOnlyField>
                   <ReadOnlyField label="Amount" htmlFor="edit-expense-amount">
                     {formatAmount(expense.amount, expense.currency)}
@@ -543,7 +542,7 @@ export function EditExpenseModal({
                       label="Approved"
                       htmlFor="edit-expense-approved"
                     >
-                      {dateTimeFormatter.format(new Date(expense.approved_at))}
+                      {formatDateTime(expense.approved_at)}
                     </ReadOnlyField>
                     {expense.approved_by && (
                       <ReadOnlyField
@@ -562,9 +561,7 @@ export function EditExpenseModal({
                         label="Rejected"
                         htmlFor="edit-expense-rejected"
                       >
-                        {dateTimeFormatter.format(
-                          new Date(expense.rejected_at),
-                        )}
+                        {formatDateTime(expense.rejected_at)}
                       </ReadOnlyField>
                     )}
                     {expense.rejected_by && (
@@ -585,7 +582,7 @@ export function EditExpenseModal({
                 )}
                 {expense.status === "paid" && expense.paid_at && (
                   <ReadOnlyField label="Paid" htmlFor="edit-expense-paid">
-                    {dateTimeFormatter.format(new Date(expense.paid_at))}
+                    {formatDateTime(expense.paid_at)}
                   </ReadOnlyField>
                 )}
 

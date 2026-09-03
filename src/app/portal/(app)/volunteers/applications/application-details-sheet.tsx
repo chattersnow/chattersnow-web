@@ -36,11 +36,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+import { formatDateTime } from "@/lib/format";
 
 export function VolunteerApplicationDetailsSheet({
   application,
@@ -116,7 +112,7 @@ export function VolunteerApplicationDetailsSheet({
           <div className="flex flex-1 flex-col gap-0.5">
             <SheetTitle>Volunteer application</SheetTitle>
             <SheetDescription>
-              Submitted {dateFormatter.format(new Date(application.created_at))}
+              Submitted {formatDateTime(application.created_at)}
             </SheetDescription>
           </div>
         </SheetHeader>

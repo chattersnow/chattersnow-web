@@ -92,9 +92,3 @@ export function getReimbursementNextStepMessage(
     "reimbursement",
   );
 }
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
-
-export function formatReimbursementDate(value: string) {
-  return dateFormatter.format(new Date(value));
-}

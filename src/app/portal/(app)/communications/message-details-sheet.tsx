@@ -37,11 +37,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+import { formatDateTime } from "@/lib/format";
 
 export function MessageDetailsSheet({
   message,
@@ -126,7 +122,7 @@ export function MessageDetailsSheet({
           <div className="flex flex-1 flex-col gap-0.5">
             <SheetTitle>Contact message</SheetTitle>
             <SheetDescription>
-              Submitted {dateFormatter.format(new Date(message.created_at))}
+              Submitted {formatDateTime(message.created_at)}
             </SheetDescription>
           </div>
         </SheetHeader>

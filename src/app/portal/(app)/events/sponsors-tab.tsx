@@ -40,7 +40,8 @@ import type { TabValue } from "./event-tabs-config";
 import { Spinner } from "@/components/ui/spinner";
 import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
-import { personDisplayName } from "@/lib/format";
+import { formatCurrency, personDisplayName } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 const SUPPORT_TYPES = [
   { value: "cash", label: "Cash" },
@@ -54,17 +55,6 @@ const FOLLOW_UP_STATUSES = [
   { value: "in_progress", label: "In progress" },
   { value: "done", label: "Done" },
 ];
-
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
-
-function formatValue(value: number | string | null) {
-  if (value === null || value === undefined) return "—";
-  const numeric = typeof value === "string" ? Number(value) : value;
-  return Number.isFinite(numeric) ? currencyFormatter.format(numeric) : "—";
-}
 
 export type SponsorFormState = {
   supportType: string;
@@ -451,7 +441,7 @@ export function SponsorsTab({
                     {sponsor.support_type.replace("_", " ")}
                   </TableCell>
                   <TableCell>
-                    {formatValue(sponsor.contribution_value)}
+                    {formatCurrency(sponsor.contribution_value)}
                   </TableCell>
                   <TableCell className="app-muted">
                     {sponsor.is_public ? "Yes" : "No"}

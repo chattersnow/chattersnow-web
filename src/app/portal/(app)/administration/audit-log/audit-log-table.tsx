@@ -16,11 +16,7 @@ import {
 } from "./audit-log-detail-sheet";
 import type { AuditLogEntry } from "./audit-log-query";
 import type { SortColumn } from "./audit-log-params";
-
-const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+import { formatDateTime } from "@/lib/format";
 
 const COLUMNS: { key: SortColumn; label: string }[] = [
   { key: "occurred_at", label: "Occurred at" },
@@ -100,9 +96,7 @@ export function AuditLogTable({
                   };
                   return (
                     <TableRow key={entry.id}>
-                      <TableCell>
-                        {dateTimeFormatter.format(new Date(entry.occurred_at))}
-                      </TableCell>
+                      <TableCell>{formatDateTime(entry.occurred_at)}</TableCell>
                       <TableCell>
                         {TABLE_LABELS[entry.table_name] ?? entry.table_name}
                       </TableCell>

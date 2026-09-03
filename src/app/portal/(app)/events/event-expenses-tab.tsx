@@ -9,7 +9,6 @@ import { EditExpenseModal } from "../finance/expenses/edit-expense-modal";
 import { ExpenseStatusBadge } from "../finance/expenses/expense-badges";
 import {
   formatAmount,
-  formatExpenseDate,
   type EventOption,
   type ExpenseApprovalContext,
   type ExpenseRow,
@@ -27,6 +26,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
+import { formatCalendarDate } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 const EMPTY_APPROVAL_CONTEXT: ExpenseApprovalContext = {
   userId: null,
@@ -97,7 +98,7 @@ export function EventExpensesTab({
                   {expense.description}
                 </TableCell>
                 <TableCell className="app-muted">
-                  {formatExpenseDate(expense.expense_date)}
+                  {formatCalendarDate(expense.expense_date)}
                 </TableCell>
                 <TableCell>
                   {formatAmount(expense.amount, expense.currency)}

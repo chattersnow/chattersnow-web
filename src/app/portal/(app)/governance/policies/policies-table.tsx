@@ -20,18 +20,10 @@ import {
 } from "@/components/ui/table";
 import { EditPolicyModal } from "./edit-policy-modal";
 import type { Policy } from "./policies-actions";
+import { formatCalendarDate } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 const FILTER_ALL = "all";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
 
 export function PoliciesTable({
   policies,
@@ -153,7 +145,7 @@ export function PoliciesTable({
                         {policy.version}
                       </TableCell>
                       <TableCell className="app-muted">
-                        {formatDate(policy.effective_date)}
+                        {formatCalendarDate(policy.effective_date)}
                       </TableCell>
                       <TableCell>
                         {canManage && <EditPolicyModal policy={policy} />}

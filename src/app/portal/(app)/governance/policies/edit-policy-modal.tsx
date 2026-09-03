@@ -40,16 +40,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
+import { formatCalendarDate } from "@/lib/format";
 
 function formStateFor(policy: Policy): PolicyFormState {
   return {
@@ -245,7 +236,7 @@ export function EditPolicyModal({ policy }: { policy: Policy }) {
                   label="Effective date"
                   htmlFor="edit-policy-effective-date"
                 >
-                  {formatDate(policy.effective_date)}
+                  {formatCalendarDate(policy.effective_date)}
                 </ReadOnlyField>
                 <ReadOnlyField
                   label="External link"

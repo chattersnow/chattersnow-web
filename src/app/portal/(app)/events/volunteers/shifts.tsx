@@ -30,16 +30,12 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
+import { formatDateTime } from "@/lib/format";
 
 export const NONE_VALUE = "none";
 
-const shiftTimeFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-
 export function formatShiftRange(shift: EventShift) {
-  return `${shiftTimeFormatter.format(new Date(shift.starts_at))} – ${shiftTimeFormatter.format(new Date(shift.ends_at))}`;
+  return `${formatDateTime(shift.starts_at)} – ${formatDateTime(shift.ends_at)}`;
 }
 
 function toDatetimeLocal(iso: string) {

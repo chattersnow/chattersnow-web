@@ -2,7 +2,11 @@ import type { Agenda } from "./agenda-actions";
 import type { AgendaTemplateSection } from "./agenda-template-shared";
 import type { ActionItem } from "./action-items-actions";
 import type { Decision } from "./decisions-actions";
-import { personDisplayName } from "@/lib/format";
+import {
+  formatCalendarDate,
+  formatInstantDate,
+  personDisplayName,
+} from "@/lib/format";
 
 export type AgendaExportInput = {
   meetingDate: string;
@@ -13,15 +17,6 @@ export type AgendaExportInput = {
   createdItems: ActionItem[];
   decisions: Decision[];
 };
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string): string {
-  return dateFormatter.format(new Date(value));
-}
 
 function actionItemLine(item: ActionItem): string {
   return `${item.description} — ${personDisplayName(item.owner)}`;
@@ -37,7 +32,7 @@ export function formatAgendaMarkdown(input: AgendaExportInput): string {
   const { agenda, sections, openingChecklist } = input;
   const lines: string[] = [];
 
-  lines.push(`# Agenda — ${formatDate(input.meetingDate)}`);
+  lines.push(`# Agenda — ${formatInstantDate(input.meetingDate)}`);
   lines.push("");
 
   if (agenda.external_link) {
@@ -93,7 +88,7 @@ export function formatAgendaMarkdown(input: AgendaExportInput): string {
     lines.push("None scheduled.");
   } else {
     for (const item of agenda.upcoming_dates) {
-      const date = item.date ? formatDate(item.date) : "—";
+      const date = formatCalendarDate(item.date);
       lines.push(
         `- ${date} — ${item.description || "—"} (${item.owner || "—"})`,
       );
@@ -119,9 +114,7 @@ export function formatAgendaMarkdown(input: AgendaExportInput): string {
   lines.push("");
 
   lines.push("## Next meeting");
-  const nextMeeting = agenda.next_meeting_date
-    ? formatDate(agenda.next_meeting_date)
-    : "—";
+  const nextMeeting = formatCalendarDate(agenda.next_meeting_date);
   lines.push(
     agenda.next_meeting_topics
       ? `${nextMeeting} — ${agenda.next_meeting_topics}`
@@ -139,7 +132,7 @@ export function formatAgendaPlainText(input: AgendaExportInput): string {
   const { agenda, sections, openingChecklist } = input;
   const lines: string[] = [];
 
-  lines.push(`AGENDA — ${formatDate(input.meetingDate)}`);
+  lines.push(`AGENDA — ${formatInstantDate(input.meetingDate)}`);
   lines.push("");
 
   if (agenda.external_link) {
@@ -195,7 +188,7 @@ export function formatAgendaPlainText(input: AgendaExportInput): string {
     lines.push("  None scheduled.");
   } else {
     for (const item of agenda.upcoming_dates) {
-      const date = item.date ? formatDate(item.date) : "—";
+      const date = formatCalendarDate(item.date);
       lines.push(
         `  - ${date} — ${item.description || "—"} (${item.owner || "—"})`,
       );
@@ -221,9 +214,7 @@ export function formatAgendaPlainText(input: AgendaExportInput): string {
   lines.push("");
 
   lines.push("NEXT MEETING");
-  const nextMeeting = agenda.next_meeting_date
-    ? formatDate(agenda.next_meeting_date)
-    : "—";
+  const nextMeeting = formatCalendarDate(agenda.next_meeting_date);
   lines.push(
     `  ${
       agenda.next_meeting_topics

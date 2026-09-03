@@ -17,11 +17,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+import { formatDateTime } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 export function DistributionsTab({
   eventId,
@@ -83,7 +80,7 @@ export function DistributionsTab({
                 </TableCell>
                 <TableCell>{movement.quantity}</TableCell>
                 <TableCell className="app-muted">
-                  {dateFormatter.format(new Date(movement.occurred_at))}
+                  {formatDateTime(movement.occurred_at)}
                 </TableCell>
                 <TableCell className="app-muted">
                   {movement.reason || "—"}

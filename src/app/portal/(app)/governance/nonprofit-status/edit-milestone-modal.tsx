@@ -47,17 +47,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
-import { personDisplayName } from "@/lib/format";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
+import { formatCalendarDate, personDisplayName } from "@/lib/format";
 
 function formStateFor(milestone: Milestone): MilestoneFormState {
   return {
@@ -298,7 +288,7 @@ export function EditMilestoneModal({
                   label="Due date"
                   htmlFor="edit-milestone-due-date"
                 >
-                  {formatDate(milestone.due_date)}
+                  {formatCalendarDate(milestone.due_date)}
                 </ReadOnlyField>
                 <ReadOnlyField label="Status" htmlFor="edit-milestone-status">
                   <MilestoneStatusBadge status={milestone.status} />

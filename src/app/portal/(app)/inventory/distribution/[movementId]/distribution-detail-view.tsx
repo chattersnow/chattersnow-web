@@ -3,7 +3,7 @@ import { FieldGroup } from "@/components/ui/field";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { EditDistributionSheet } from "./edit-distribution-sheet";
 import { DeleteDistributionButton } from "./delete-distribution-button";
-import { personDisplayName } from "@/lib/format";
+import { formatDateTime, personDisplayName } from "@/lib/format";
 
 export type DistributionDetailRow = {
   id: string;
@@ -25,11 +25,6 @@ export type DistributionDetailRow = {
   } | null;
 };
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-
 export function DistributionDetailView({
   movement,
   canManage,
@@ -47,7 +42,7 @@ export function DistributionDetailView({
           <div className="rainbow-accent mt-3 w-full" />
         </div>
         <p className="app-muted mt-2 text-sm">
-          Distributed {dateFormatter.format(new Date(movement.occurred_at))}
+          Distributed {formatDateTime(movement.occurred_at)}
         </p>
       </div>
 
@@ -94,7 +89,7 @@ export function DistributionDetailView({
                 label="Date & time"
                 htmlFor="distribution-occurred-at-view"
               >
-                {dateFormatter.format(new Date(movement.occurred_at))}
+                {formatDateTime(movement.occurred_at)}
               </ReadOnlyField>
             </FieldGroup>
           </CardContent>

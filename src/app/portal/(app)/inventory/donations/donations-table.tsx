@@ -13,7 +13,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { dateFormatter, donorLabel, type DonationRow } from "./donation-shared";
+import { donorLabel, type DonationRow } from "./donation-shared";
+import { formatInstantDate } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 export function DonationsTable({
   donations,
@@ -69,7 +71,7 @@ export function DonationsTable({
                   </TableCell>
                   <TableCell>{donation.event?.name ?? "—"}</TableCell>
                   <TableCell>
-                    {dateFormatter.format(new Date(donation.donated_at))}
+                    {formatInstantDate(donation.donated_at)}
                   </TableCell>
                   <TableCell>
                     <Button

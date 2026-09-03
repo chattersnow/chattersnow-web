@@ -26,9 +26,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { formatMoney } from "./format";
 import { PrizeWinnerSection } from "./winners";
 import { Spinner } from "@/components/ui/spinner";
+import { formatCurrency } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 const NO_SOURCE = "none";
 
@@ -214,7 +215,7 @@ export function PrizeForm({
                         key={donation.id}
                         value={sourceKeyFor("donation", donation.id)}
                       >
-                        {formatMoney(donation.amount)}
+                        {formatCurrency(donation.amount)}
                         {donation.donor?.name
                           ? ` — ${donation.donor.name}`
                           : ""}
@@ -363,13 +364,13 @@ export function PrizesSection({
                 <p className="font-medium">{prize.prize_name}</p>
                 <p className="app-muted text-xs">
                   {prize.donor?.name ? `Donated by ${prize.donor.name} · ` : ""}
-                  {formatMoney(prize.estimated_value)}
+                  {formatCurrency(prize.estimated_value)}
                 </p>
                 {(prize.source_item || prize.source_donation) && (
                   <p className="app-muted text-xs">
                     Sourced from:{" "}
                     {prize.source_item?.description ??
-                      formatMoney(prize.source_donation?.amount ?? null)}
+                      formatCurrency(prize.source_donation?.amount ?? null)}
                   </p>
                 )}
               </div>

@@ -26,25 +26,15 @@ import {
 import { getAccessManagementStatsSummary } from "@/lib/portal/access-management/queries";
 import { getEventTaskSummary } from "@/lib/portal/attention-items";
 import { listRecentDonationsAction } from "./actions";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+import {
+  formatCalendarDate,
+  formatCurrency,
+  formatDateTime,
+} from "@/lib/format";
 
 // For plain `date` columns (e.g. grants.application_deadline) rather than
 // timestamptz -- pinned to UTC so `new Date("2026-09-10")` (parsed as UTC
 // midnight) doesn't roll back a day in timezones behind UTC.
-const dateOnlyFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
-
 const meetingTypeLabels: Record<string, string> = {
   board: "Board meeting",
   committee: "Committee meeting",
@@ -252,7 +242,7 @@ export default async function PortalHomePage({
               eventName={upcoming.nextEvent ? upcoming.nextEvent.name : "—"}
               caption={
                 upcoming.nextEvent
-                  ? `${dateFormatter.format(new Date(upcoming.nextEvent.starts_at))}${
+                  ? `${formatDateTime(upcoming.nextEvent.starts_at)}${
                       upcoming.nextEvent.location
                         ? ` · ${upcoming.nextEvent.location}`
                         : ""
@@ -295,38 +285,36 @@ export default async function PortalHomePage({
           <DashboardSectionCard className="lg:mt-6" title="Financial">
             <DashboardStatRow
               label="Cash position"
-              value={currencyFormatter.format(financial.cashPositionTotal)}
+              value={formatCurrency(financial.cashPositionTotal)}
               caption="Income minus paid expenses, all time"
               href="/portal/finance/reports"
             />
             <DashboardStatRow
               label="Monthly income"
               href="/portal/finance/donations"
-              value={currencyFormatter.format(financial.incomeThisMonth)}
-              caption={`This month · ${currencyFormatter.format(financial.incomeThisYear)} this year`}
+              value={formatCurrency(financial.incomeThisMonth)}
+              caption={`This month · ${formatCurrency(financial.incomeThisYear)} this year`}
             />
             {canSeeExpenses && (
               <DashboardStatRow
                 label="Expenses"
                 href="/portal/finance/expenses"
-                value={currencyFormatter.format(financial.expensesThisMonth)}
-                caption={`This month · ${currencyFormatter.format(financial.expensesThisYear)} this year`}
+                value={formatCurrency(financial.expensesThisMonth)}
+                caption={`This month · ${formatCurrency(financial.expensesThisYear)} this year`}
               />
             )}
             {canSeeRevenue && (
               <DashboardStatRow
                 label="Revenue"
                 href="/portal/finance/revenue"
-                value={currencyFormatter.format(financial.revenueThisMonth)}
-                caption={`This month · ${currencyFormatter.format(financial.revenueThisYear)} this year`}
+                value={formatCurrency(financial.revenueThisMonth)}
+                caption={`This month · ${formatCurrency(financial.revenueThisYear)} this year`}
               />
             )}
             {canSeeReimbursements && (
               <DashboardStatRow
                 label="Outstanding reimbursements"
-                value={currencyFormatter.format(
-                  financial.outstandingReimbursementTotal,
-                )}
+                value={formatCurrency(financial.outstandingReimbursementTotal)}
                 caption="Submitted or approved, not yet paid"
                 // Deliberately unfiltered: this figure spans two statuses and
                 // the list filters to one, so any single filter would show a
@@ -338,7 +326,7 @@ export default async function PortalHomePage({
               <DashboardStatRow
                 label="Event budgets"
                 href="/portal/events"
-                value={currencyFormatter.format(financial.eventBudgetTotal)}
+                value={formatCurrency(financial.eventBudgetTotal)}
                 caption="Published, upcoming events"
               />
             )}
@@ -368,7 +356,7 @@ export default async function PortalHomePage({
                           : donation.donor.name}
                       </span>
                       <span className="app-muted">
-                        {dateFormatter.format(new Date(donation.donated_at))} ·{" "}
+                        {formatDateTime(donation.donated_at)} ·{" "}
                         {donation.inventory_items.length} item
                         {donation.inventory_items.length === 1 ? "" : "s"}
                       </span>
@@ -432,7 +420,7 @@ export default async function PortalHomePage({
               }
               caption={
                 organization.nextMeeting
-                  ? `${dateFormatter.format(new Date(organization.nextMeeting.meeting_date))}${
+                  ? `${formatDateTime(organization.nextMeeting.meeting_date)}${
                       organization.nextMeeting.location
                         ? ` · ${organization.nextMeeting.location}`
                         : ""
@@ -490,7 +478,7 @@ export default async function PortalHomePage({
               }
               caption={
                 organization.nextGrantDeadline
-                  ? `${dateOnlyFormatter.format(new Date(organization.nextGrantDeadline.application_deadline))}${
+                  ? `${formatCalendarDate(organization.nextGrantDeadline.application_deadline)}${
                       organization.overdueGrantCount > 0
                         ? ` · ${organization.overdueGrantCount} overdue`
                         : ""

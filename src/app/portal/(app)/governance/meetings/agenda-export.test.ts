@@ -23,7 +23,7 @@ const baseAgenda: Agenda = {
 };
 
 const emptyInput: AgendaExportInput = {
-  meetingDate: "2026-08-31",
+  meetingDate: "2026-08-31T12:00:00.000Z",
   agenda: baseAgenda,
   sections: [],
   openingChecklist: ["Welcome and call to order"],

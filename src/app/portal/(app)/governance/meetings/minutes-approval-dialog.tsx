@@ -19,21 +19,12 @@ import {
   approveMinutesAction,
   type PreviousMeetingMinutes,
 } from "./minutes-approval-actions";
-import { personDisplayName } from "@/lib/format";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-
-function formatDate(value: string) {
-  return dateFormatter.format(new Date(value));
-}
+import {
+  formatDateTime,
+  formatInstantDate,
+  personDisplayName,
+} from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 export function MinutesApprovalDialog({
   meetingId,
@@ -84,7 +75,8 @@ export function MinutesApprovalDialog({
         <DialogHeader>
           <DialogTitle>Previous meeting minutes</DialogTitle>
           <DialogDescription>
-            {formatDate(previousMeeting.meetingDate)} — review before approving.
+            {formatInstantDate(previousMeeting.meetingDate)} — review before
+            approving.
           </DialogDescription>
         </DialogHeader>
 
@@ -147,7 +139,7 @@ export function MinutesApprovalDialog({
 
           {approvedAt && (
             <p className="app-muted text-xs">
-              Approved {dateTimeFormatter.format(new Date(approvedAt))}
+              Approved {formatDateTime(approvedAt)}
             </p>
           )}
 

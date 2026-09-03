@@ -25,11 +25,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+import { formatDateTime } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 export function RegistrantsTab({
   eventId,
@@ -144,12 +141,10 @@ export function RegistrantsTab({
                   hideBelow="lg"
                   className="app-muted whitespace-nowrap"
                 >
-                  {dateFormatter.format(new Date(registrant.created_at))}
+                  {formatDateTime(registrant.created_at)}
                 </TableCell>
                 <TableCell className="app-muted whitespace-nowrap">
-                  {registrant.checked_in_at
-                    ? dateFormatter.format(new Date(registrant.checked_in_at))
-                    : "—"}
+                  {formatDateTime(registrant.checked_in_at)}
                 </TableCell>
                 {mode === "edit" && (
                   <TableCell className="text-right whitespace-nowrap">

@@ -17,19 +17,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
-
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
-
-function formatValue(value: number | string | null) {
-  if (value === null || value === undefined) return "—";
-  const numeric = typeof value === "string" ? Number(value) : value;
-  return Number.isFinite(numeric) ? currencyFormatter.format(numeric) : "—";
-}
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
+import { formatCurrency, formatInstantDate } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 export function DonationsTab({
   eventId,
@@ -99,9 +88,9 @@ export function DonationsTab({
                 <TableCell className="app-muted capitalize">
                   {item.condition.replace("_", " ")}
                 </TableCell>
-                <TableCell>{formatValue(item.face_value)}</TableCell>
+                <TableCell>{formatCurrency(item.face_value)}</TableCell>
                 <TableCell className="app-muted">
-                  {dateFormatter.format(new Date(item.donatedAt))}
+                  {formatInstantDate(item.donatedAt)}
                 </TableCell>
               </TableRow>
             ))}

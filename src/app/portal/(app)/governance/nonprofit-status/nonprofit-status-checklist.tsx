@@ -35,7 +35,8 @@ import {
 import type { MilestoneStatus } from "./nonprofit-status-form";
 import type { PersonListItem } from "../../people/actions";
 import { Spinner } from "@/components/ui/spinner";
-import { personDisplayName } from "@/lib/format";
+import { formatCalendarDate, personDisplayName } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 // The Phase 1-5 checklist from supabase/migrations/20260824210000_create_nonprofit_status_milestones.sql,
 // in migration order. `milestones` already arrives sorted by `sort_order`
@@ -50,16 +51,6 @@ const PHASE_ORDER = [
   "Phase 4 — State fundraising registration (NY)",
   "Phase 5 — Fundraising infrastructure",
 ];
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
 
 function groupByPhase(milestones: Milestone[]) {
   const groups = new Map<string, Milestone[]>();
@@ -217,7 +208,9 @@ export function NonprofitStatusChecklist({
                         </TableCell>
                         <TableCell className="app-muted">
                           <div className="flex flex-wrap items-center gap-1.5">
-                            <span>{formatDate(milestone.due_date)}</span>
+                            <span>
+                              {formatCalendarDate(milestone.due_date)}
+                            </span>
                             <MilestoneDueFlag
                               dueDate={milestone.due_date}
                               status={milestone.status}

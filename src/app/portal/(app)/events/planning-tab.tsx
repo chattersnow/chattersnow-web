@@ -20,30 +20,11 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { useTabData } from "@/hooks/use-tab-data";
 import { datetimeLocalToUtcIso, utcIsoToDatetimeLocalInZone } from "@/lib/time";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
-
-function formatDatetimeLocal(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
+import { formatCurrency, formatDateTime } from "@/lib/format";
 
 function toDatetimeLocalValue(iso: string | null, timezone: string) {
   if (!iso) return "";
   return utcIsoToDatetimeLocalInZone(iso, timezone);
-}
-
-function formatCurrency(value: number | string | null) {
-  if (value === null || value === undefined) return "—";
-  const numeric = typeof value === "string" ? Number(value) : value;
-  return Number.isFinite(numeric) ? currencyFormatter.format(numeric) : "—";
 }
 
 function formStateFor(event: EventRow) {
@@ -190,7 +171,7 @@ export function PlanningTab({
             label="Registration deadline"
             htmlFor="planning-registrationDeadline"
           >
-            {formatDatetimeLocal(event.registration_deadline)}
+            {formatDateTime(event.registration_deadline)}
           </ReadOnlyField>
         </Field>
         <ReadOnlyField

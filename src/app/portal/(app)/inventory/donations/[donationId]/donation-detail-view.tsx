@@ -5,13 +5,14 @@ import {
   CONDITIONS,
   GENDERS,
   SOURCE_TYPES,
-  dateFormatter,
   donorLabel,
   formatFaceValue,
   labelFor,
   type DonationRow,
 } from "../donation-shared";
 import { EditDonationSheet } from "./edit-donation-sheet";
+import { formatInstantDate } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 export function DonationDetailView({ donation }: { donation: DonationRow }) {
   return (
@@ -24,8 +25,7 @@ export function DonationDetailView({ donation }: { donation: DonationRow }) {
           <div className="rainbow-accent mt-3 w-full" />
         </div>
         <p className="app-muted mt-2 text-sm">
-          Donation received{" "}
-          {dateFormatter.format(new Date(donation.donated_at))}
+          Donation received {formatInstantDate(donation.donated_at)}
         </p>
       </div>
 
@@ -54,9 +54,7 @@ export function DonationDetailView({ donation }: { donation: DonationRow }) {
                 </ReadOnlyField>
               </Field>
               <ReadOnlyField label="Date received" htmlFor="donation-donatedAt">
-                {donation.donated_at
-                  ? dateFormatter.format(new Date(donation.donated_at))
-                  : "—"}
+                {formatInstantDate(donation.donated_at)}
               </ReadOnlyField>
               <ReadOnlyField label="Donation notes" htmlFor="donation-notes">
                 {donation.notes || "—"}

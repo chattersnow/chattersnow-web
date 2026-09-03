@@ -42,17 +42,8 @@ import {
 } from "@/components/ui/table";
 import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
-import { personDisplayName } from "@/lib/format";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
+import { formatCalendarDate, personDisplayName } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 function AddResolutionForm({
   people,
@@ -377,7 +368,7 @@ export function ResolutionsTab({
                   <VoteOutcomeBadge outcome={resolution.vote_outcome} />
                 </TableCell>
                 <TableCell className="app-muted">
-                  {formatDate(resolution.effective_date)}
+                  {formatCalendarDate(resolution.effective_date)}
                 </TableCell>
                 <TableCell className="text-right whitespace-nowrap">
                   {mode === "edit" && (

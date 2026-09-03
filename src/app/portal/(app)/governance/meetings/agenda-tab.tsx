@@ -56,7 +56,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
 import { AgendaExportDialog } from "./agenda-export-dialog";
-import { personDisplayName } from "@/lib/format";
+import { formatCalendarDate, personDisplayName } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 const APPROVE_MINUTES_ITEM = "Approve previous meeting minutes";
 
@@ -90,15 +91,6 @@ function OngoingTopicsTooltip({ topics }: { topics: string[] }) {
       </TooltipContent>
     </Tooltip>
   );
-}
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string) {
-  return dateFormatter.format(new Date(value));
 }
 
 function ReadOnlySection({
@@ -680,7 +672,7 @@ export function AgendaTab({
                   {agenda.upcoming_dates.map((item, index) => (
                     <TableRow key={index}>
                       <TableCell className="app-muted">
-                        {item.date ? formatDate(item.date) : "—"}
+                        {formatCalendarDate(item.date)}
                       </TableCell>
                       <TableCell>{item.description || "—"}</TableCell>
                       <TableCell className="app-muted">
@@ -719,9 +711,7 @@ export function AgendaTab({
           <div>
             <p className="text-sm font-semibold">Next meeting</p>
             <p className="app-muted text-sm">
-              {agenda.next_meeting_date
-                ? formatDate(agenda.next_meeting_date)
-                : "—"}
+              {formatCalendarDate(agenda.next_meeting_date)}
               {agenda.next_meeting_topics
                 ? ` — ${agenda.next_meeting_topics}`
                 : ""}
