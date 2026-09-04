@@ -10,6 +10,7 @@ import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Card, CardContent } from "@/components/ui/card";
 import type { EventRow } from "../event-badges";
 import { isTabValue } from "../event-tabs-config";
+import { eventPhaseTaskLabels } from "../phase-status";
 import { listProgramsAction } from "../../programs/actions";
 import { EventDetailView } from "./event-detail-view";
 
@@ -64,15 +65,39 @@ export default async function EventDetailPage({
   }
   if (!event) notFound();
 
-  const programsResult = await listProgramsAction();
-  const programs = "data" in programsResult ? programsResult.data : [];
+  const [
+    programsResult,
+    { data: deleteBlockers },
+    { data: openChecklistItems },
+    { data: impactNote },
+  ] = await Promise.all([
+    listProgramsAction(),
+    // What, if anything, stops this event from being deleted -- so the delete
+    // dialog can name it instead of only failing on submit. Only managers see
+    // the affordance, so only they need the check.
+    canManage
+      ? supabase.rpc("event_delete_blockers", { p_id: eventId })
+      : Promise.resolve({ data: null }),
+    // The two phase-strip signals that don't live on the event row. Both are
+    // small indexed lookups, and they let the strip count outstanding work
+    // across a whole phase instead of checking three columns.
+    supabase
+      .from("event_checklist_items")
+      .select("title")
+      .eq("event_id", eventId)
+      .eq("is_done", false),
+    supabase
+      .from("event_impact_notes")
+      .select("event_id")
+      .eq("event_id", eventId)
+      .maybeSingle(),
+  ]);
 
-  // What, if anything, stops this event from being deleted -- so the delete
-  // dialog can name it instead of only failing on submit. Only managers see the
-  // affordance, so only they need the check.
-  const { data: deleteBlockers } = canManage
-    ? await supabase.rpc("event_delete_blockers", { p_id: eventId })
-    : { data: null };
+  const programs = "data" in programsResult ? programsResult.data : [];
+  const phaseTasks = eventPhaseTaskLabels(event, {
+    hasImpactNote: Boolean(impactNote),
+    openChecklistTitles: (openChecklistItems ?? []).map((row) => row.title),
+  });
 
   return (
     <>
@@ -84,6 +109,7 @@ export default async function EventDetailPage({
         canManage={canManage}
         deleteBlockers={deleteBlockers ?? []}
         initialTab={initialTab}
+        phaseTasks={phaseTasks}
       />
     </>
   );

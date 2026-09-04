@@ -1,11 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isEventActiveToday, type EventWindow } from "@/lib/time";
 import { getMissingCoverageSeriesForYear } from "@/app/portal/(app)/calendar/queries";
-import {
-  planningStatus,
-  duringStatus,
-  afterStatus,
-} from "@/app/portal/(app)/events/phase-status";
+import { deriveEventPhaseTasks } from "@/app/portal/(app)/events/phase-status";
+import type { EventTaskKind } from "@/app/portal/(app)/events/phase-status";
 import type { EventRow } from "@/app/portal/(app)/events/event-badges";
 
 /**
@@ -334,7 +331,9 @@ type OpenChecklistItemRow = {
   events: { name: string; starts_at: string };
 };
 
-export type EventTaskKind = "planning" | "attendance" | "report" | "checklist";
+// Defined alongside the rules that produce them, in events/phase-status.ts, so
+// the dashboard and the event page's phase strip share one task vocabulary.
+export type { EventTaskKind };
 
 /**
  * One open piece of event work. Unlike `PendingApprovalItem` (a flat,
@@ -365,7 +364,8 @@ const TASK_KIND_ORDER: Record<EventTaskKind, number> = {
   planning: 0,
   attendance: 1,
   report: 2,
-  checklist: 3,
+  impact: 3,
+  checklist: 4,
 };
 
 /**
@@ -441,40 +441,26 @@ export async function getEventTaskSummary(
     // planning/during/after only read the fields selected above, so this
     // narrower row can stand in for the full EventRow they're typed against.
     const event = row as unknown as EventRow;
-    const hasStarted = new Date(row.starts_at) <= now;
     const base = {
       eventId: row.id,
       eventName: row.name,
       eventStartsAt: row.starts_at,
     };
 
-    if (!hasStarted && planningStatus(event) !== "done") {
+    // includeImpact is left off here: the "Impact not recorded" rule belongs on
+    // the event page's phase strip, but switching it on for the dashboard would
+    // add an outstanding task to every past event the day it ships.
+    for (const task of deriveEventPhaseTasks(
+      event,
+      { hasImpactNote: false },
+      now,
+    )) {
       items.push({
         ...base,
-        key: `event_planning_${row.id}`,
-        kind: "planning",
-        taskLabel: "Planning incomplete",
-        href: `/portal/events/${row.id}?tab=planning`,
-      });
-    }
-
-    if (duringStatus(event, now) === "in_progress") {
-      items.push({
-        ...base,
-        key: `event_attendance_${row.id}`,
-        kind: "attendance",
-        taskLabel: "Attendance not logged",
-        href: `/portal/events/${row.id}?tab=attendance`,
-      });
-    }
-
-    if (hasStarted && afterStatus(event) !== "done") {
-      items.push({
-        ...base,
-        key: `event_report_${row.id}`,
-        kind: "report",
-        taskLabel: "After-report not started",
-        href: `/portal/events/${row.id}?tab=report`,
+        key: `event_${task.kind}_${row.id}`,
+        kind: task.kind,
+        taskLabel: task.taskLabel,
+        href: `/portal/events/${row.id}?tab=${task.tab}`,
       });
     }
   }

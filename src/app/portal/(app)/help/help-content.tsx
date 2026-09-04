@@ -1844,25 +1844,29 @@ export const helpContent: Record<string, HelpEntry> = {
             </li>
             <li>Both are set independently from the event editor.</li>
             <li>
-              <strong className="text-foreground">Phase tabs</strong> — Basic,
-              Planning, During, After — each carry their own Not started / In
-              progress / Done badge, computed from the event&apos;s data rather
-              than set by hand:
+              <strong className="text-foreground">Phase tabs</strong> —
+              Overview, Planning, During, After — carry a count of what is still
+              outstanding in that phase, worked out from the event&apos;s own
+              data rather than set by hand. Hover the count to see what&apos;s
+              missing. No badge means nothing is outstanding.
               <ul className="mt-1 list-disc space-y-1 pl-4">
                 <li>
-                  <strong className="text-foreground">Planning</strong> is Done
-                  once a lead, capacity, and budget are all filled in; any
-                  subset shows In progress.
+                  <strong className="text-foreground">Overview</strong> counts
+                  unfinished checklist items.
                 </li>
                 <li>
-                  <strong className="text-foreground">During</strong> flips to
-                  In progress once the start time passes, then to Done once an
-                  attendance count is recorded.
+                  <strong className="text-foreground">Planning</strong> counts
+                  planning as incomplete until a lead, capacity and budget are
+                  all filled in — and stops asking once the event has started.
                 </li>
                 <li>
-                  <strong className="text-foreground">After</strong> mirrors the
-                  after-report&apos;s own submission status: Not started, In
-                  progress, or Done once submitted.
+                  <strong className="text-foreground">During</strong> asks for
+                  an attendance headcount once the start time has passed.
+                </li>
+                <li>
+                  <strong className="text-foreground">After</strong> asks for
+                  the after-report and for impact figures, until the report is
+                  submitted and an impact record exists.
                 </li>
               </ul>
             </li>
@@ -1901,9 +1905,16 @@ export const helpContent: Record<string, HelpEntry> = {
               upcoming in reports that key off status.
             </li>
             <li>
-              Expecting phase badges to follow the event Status field — they
+              Expecting phase counts to follow the event Status field — they
               don&apos;t. A cancelled or archived event&apos;s phase tabs keep
               computing from its own data.
+            </li>
+            <li>
+              Retyping figures on the Impact tab that the system already has.
+              Participants, first-time participants, beginners, volunteers on
+              site and assigned discount codes are computed from attendance,
+              check-ins, volunteer records and rider profiles — only the figures
+              under &ldquo;Staff-entered&rdquo; need typing.
             </li>
           </ul>
         </HowToSection>

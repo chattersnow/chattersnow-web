@@ -268,26 +268,8 @@ describe("computeProgramImpactRollup", () => {
       { event_id: "e2", attendance_count: null },
     ];
     const notes = [
-      {
-        event_id: "e1",
-        total_participants: 20,
-        first_time_participants: 5,
-        beginner_participants: 8,
-        subsidized_tickets_count: 3,
-        rental_subsidies_count: 2,
-        equipment_loans_count: 4,
-        assistance_total: "150.00",
-      },
-      {
-        event_id: "e2",
-        total_participants: 15,
-        first_time_participants: 2,
-        beginner_participants: 3,
-        subsidized_tickets_count: 1,
-        rental_subsidies_count: 0,
-        equipment_loans_count: 1,
-        assistance_total: 50,
-      },
+      { event_id: "e1", rental_subsidies_count: 2, assistance_total: "150.00" },
+      { event_id: "e2", rental_subsidies_count: 0, assistance_total: 50 },
     ];
     const distributedMovements = [
       { quantity: 6, event_id: "e1" },
@@ -311,6 +293,20 @@ describe("computeProgramImpactRollup", () => {
       { event_id: "e1", registration_id: "r1" },
       { event_id: "e2", registration_id: null },
     ];
+    // p3 both signed up and logged hours on e1, so he counts once there.
+    const eventVolunteers = [
+      { event_id: "e1", person_id: "p3" },
+      { event_id: "e2", person_id: "p4" },
+    ];
+    const volunteerHourPeople = [
+      { event_id: "e1", person_id: "p3" },
+      { event_id: "e1", person_id: "p5" },
+    ];
+    const beginnerAttendees = [{ event_id: "e2", person_id: "p1" }];
+    const profiledAttendees = [
+      { event_id: "e2", person_id: "p1" },
+      { event_id: "e1", person_id: "p2" },
+    ];
 
     expect(
       computeProgramImpactRollup({
@@ -322,14 +318,19 @@ describe("computeProgramImpactRollup", () => {
         registrations,
         checkinCounts,
         discountCodes,
+        eventVolunteers,
+        volunteerHourPeople,
+        beginnerAttendees,
+        profiledAttendees,
       }),
     ).toEqual({
       eventCount: 2,
       participants: 13, // e1: 12 (manual) + e2: 1 (checked-in) = 13
       firstTimeParticipants: 1, // p1's only checked-in event ever
-      beginnerParticipants: 11,
+      beginnerParticipants: 1,
+      profiledAttendees: 2,
+      volunteerParticipants: 3, // e1: p3 + p5 (p3 deduped across both sources), e2: p4
       assistedParticipants: 3, // 1 assigned discount code + 2 rental_subsidies_count
-      equipmentLoans: 5,
       equipmentDistributed: 10,
       volunteerHours: 15.5,
       participantAssistanceTotal: 200,
@@ -342,12 +343,7 @@ describe("computeProgramImpactRollup", () => {
     const notes = [
       {
         event_id: "e1",
-        total_participants: null,
-        first_time_participants: null,
-        beginner_participants: null,
-        subsidized_tickets_count: null,
         rental_subsidies_count: null,
-        equipment_loans_count: null,
         assistance_total: null,
       },
     ];
@@ -360,6 +356,10 @@ describe("computeProgramImpactRollup", () => {
       registrations: [],
       checkinCounts: [],
       discountCodes: [],
+      eventVolunteers: [],
+      volunteerHourPeople: [],
+      beginnerAttendees: [],
+      profiledAttendees: [],
     });
     expect(result.participants).toBe(0);
     expect(result.participantAssistanceTotal).toBe(0);
@@ -377,6 +377,10 @@ describe("computeProgramImpactRollup", () => {
       registrations: [],
       checkinCounts: [],
       discountCodes: [],
+      eventVolunteers: [],
+      volunteerHourPeople: [],
+      beginnerAttendees: [],
+      profiledAttendees: [],
     });
     expect(result.eventCount).toBe(1);
     expect(result.participants).toBe(0);

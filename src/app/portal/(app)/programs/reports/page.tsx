@@ -18,6 +18,7 @@ import {
   type DistributedMovementRow,
   type EventRow,
   type ImpactNoteRow,
+  type PersonEventRow,
   type ProgramImpactRollup,
   type RegistrationRow,
   type VolunteerHoursRow,
@@ -33,6 +34,10 @@ type RollupData = {
   registrations: RegistrationRow[];
   checkin_counts: CheckinCountRow[];
   discount_codes: DiscountCodeRow[];
+  event_volunteers: PersonEventRow[];
+  volunteer_hour_people: PersonEventRow[];
+  beginner_attendees: PersonEventRow[];
+  profiled_attendees: PersonEventRow[];
 };
 
 type ProgramImpactReportPageProps = {
@@ -87,6 +92,10 @@ export default async function ProgramImpactReportPage({
         registrations: result.registrations ?? [],
         checkinCounts: result.checkin_counts ?? [],
         discountCodes: result.discount_codes ?? [],
+        eventVolunteers: result.event_volunteers ?? [],
+        volunteerHourPeople: result.volunteer_hour_people ?? [],
+        beginnerAttendees: result.beginner_attendees ?? [],
+        profiledAttendees: result.profiled_attendees ?? [],
       });
     }
   }
@@ -107,19 +116,21 @@ export default async function ProgramImpactReportPage({
         },
         {
           label: "Beginner participants",
-          value: formatNumber(rollup.beginnerParticipants),
+          value: `${formatNumber(rollup.beginnerParticipants)} of ${formatNumber(
+            rollup.profiledAttendees,
+          )} with a rider profile`,
         },
         {
-          label: "Participants receiving financial assistance",
+          label: "Participants with a discount code or rental subsidy",
           value: formatNumber(rollup.assistedParticipants),
-        },
-        {
-          label: "Equipment loans",
-          value: formatNumber(rollup.equipmentLoans),
         },
         {
           label: "Equipment distributed",
           value: formatNumber(rollup.equipmentDistributed),
+        },
+        {
+          label: "Volunteers on site",
+          value: formatNumber(rollup.volunteerParticipants),
         },
         {
           label: "Volunteer hours",
@@ -145,13 +156,15 @@ export default async function ProgramImpactReportPage({
         <div className="rainbow-accent mt-3 w-full" />
       </div>
       <p className="app-muted mt-2 max-w-2xl text-sm">
-        Season/program rollup. Participants, first-time participants, and
-        subsidized tickets are computed live from attendance/check-ins and
-        discount codes; equipment distributed, volunteer hours, and repeat
-        participants are computed live from inventory and volunteer records.
-        Beginner participants, rental subsidies, equipment loans, and total
-        assistance dollars are still staff-entered per event, across every event
-        tagged to the selected program.
+        Season/program rollup across every event tagged to the selected program.
+        Every figure here is computed live from attendance, check-ins, discount
+        codes, rider profiles, inventory and volunteer records — only rental
+        subsidies and assistance dollars are still staff-entered per event,
+        because nothing in the system records them. Two caveats worth knowing
+        when quoting these numbers: internally-granted scholarships and fee
+        waivers aren&apos;t modelled anywhere, so assistance undercounts; and
+        &ldquo;Volunteers on site&rdquo; counts each person once per event, so
+        someone who volunteered three times counts three times.
       </p>
 
       <div className="rainbow-surface mt-6 flex flex-wrap items-end justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">

@@ -92,22 +92,24 @@ export function ReportStatusBadge({ status }: { status: string }) {
 
 export type PhaseStatus = "not_started" | "in_progress" | "done";
 
-const PHASE_STATUS_STYLES: Record<PhaseStatus, StatusTone> = {
-  not_started: "neutral",
-  in_progress: "progress",
-  done: "success",
-};
+/**
+ * How much work is still open in a phase.
+ *
+ * Replaces the old Not started / In progress / Done pill, which read as a
+ * completion meter but only ever checked three columns on the event row --
+ * "Planning: Done" meant a lead, capacity and budget were set, and said nothing
+ * about logistics, volunteers, staff or sponsors. A count of named outstanding
+ * items is both honest about what it measures and actionable; the names ride
+ * along in the tooltip so the badge says what's missing, not just how much.
+ */
+export function PhaseOutstandingBadge({ tasks }: { tasks: string[] }) {
+  if (tasks.length === 0) return null;
 
-const PHASE_STATUS_LABELS: Record<PhaseStatus, string> = {
-  not_started: "Not started",
-  in_progress: "In progress",
-  done: "Done",
-};
-
-export function PhaseStatusBadge({ status }: { status: PhaseStatus }) {
   return (
-    <StatusPill tone={PHASE_STATUS_STYLES[status]}>
-      {PHASE_STATUS_LABELS[status]}
+    <StatusPill tone="progress">
+      <span title={tasks.join(", ")} aria-label={`${tasks.length} outstanding`}>
+        {tasks.length}
+      </span>
     </StatusPill>
   );
 }

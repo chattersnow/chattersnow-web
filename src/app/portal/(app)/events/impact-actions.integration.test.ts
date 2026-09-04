@@ -31,14 +31,12 @@ afterEach(() => {
   revalidatePathMock.mockClear();
 });
 
-function impactForm(overrides: { totalParticipants?: string } = {}) {
+function impactForm(overrides: { firstTimeRiders?: string } = {}) {
   const fd = new FormData();
-  fd.set("totalParticipants", overrides.totalParticipants ?? "48");
-  fd.set("firstTimeParticipants", "12");
-  fd.set("subsidizedTicketsCount", "20");
+  fd.set("firstTimeRiders", overrides.firstTimeRiders ?? "48");
+  fd.set("rentalSubsidiesCount", "12");
   fd.set("assistanceTotal", "1500.50");
-  fd.set("surveyRespondentsCount", "30");
-  fd.set("surveyFeltWelcomedYesCount", "29");
+  fd.set("beginnerPairingsCount", "9");
   fd.set("notes", "Strong beginner turnout");
   return fd;
 }
@@ -73,20 +71,20 @@ describe("event impact actions (integration)", () => {
 
     const loaded = await getEventImpactAction(event.id);
     if (!("data" in loaded) || !loaded.data) throw new Error("expected data");
-    expect(loaded.data.total_participants).toBe(48);
+    expect(loaded.data.first_time_riders).toBe(48);
 
     // Second call takes the on-conflict update path, a separate RLS policy
     // from the insert one.
     expect(
       await upsertEventImpactAction(
         event.id,
-        impactForm({ totalParticipants: "51" }),
+        impactForm({ firstTimeRiders: "51" }),
       ),
     ).toEqual({ success: true });
 
     const updated = await getEventImpactAction(event.id);
     if (!("data" in updated) || !updated.data) throw new Error("expected data");
-    expect(updated.data.total_participants).toBe(51);
+    expect(updated.data.first_time_riders).toBe(51);
 
     await event.cleanup();
   });
@@ -118,7 +116,7 @@ describe("event impact actions (integration)", () => {
 
     const loaded = await getEventImpactAction(event.id);
     if (!("data" in loaded) || !loaded.data) throw new Error("expected data");
-    expect(loaded.data.total_participants).toBe(48);
+    expect(loaded.data.first_time_riders).toBe(48);
 
     expect(await upsertEventImpactAction(event.id, impactForm())).toEqual(
       DENIED,
@@ -134,7 +132,7 @@ describe("event impact actions (integration)", () => {
 
     const loaded = await getEventImpactAction(event.id);
     if (!("data" in loaded) || !loaded.data) throw new Error("expected data");
-    expect(loaded.data.total_participants).toBe(48);
+    expect(loaded.data.first_time_riders).toBe(48);
 
     expect(await upsertEventImpactAction(event.id, impactForm())).toEqual(
       DENIED,
