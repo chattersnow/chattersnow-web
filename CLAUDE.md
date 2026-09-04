@@ -49,7 +49,7 @@ Issues are tracked on the `ChatterWeb` GitHub Project (owner `chattersnow`, proj
 
 ## Architecture
 
-- **Stack**: Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4 (via `@tailwindcss/postcss`), Supabase (Postgres + Auth + Storage). The React Compiler is enabled (`next.config.ts` → `reactCompiler: true`).
+- **Stack**: Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4 (via `@tailwindcss/postcss`), Supabase (Postgres + Auth + Storage). The React Compiler is **disabled** (`next.config.ts` → `reactCompiler: false`); it was on at the initial commit and switched off in `faf98de` without a stated reason, and `babel-plugin-react-compiler` is still a dependency. Its lint rules apply either way — they ship with `eslint-config-next/core-web-vitals`, so `bun run lint` still fails on things like setting state directly in an effect body or reading a ref during render. Write compiler-clean components regardless.
 - **Two audiences, one codebase**: per the spec, public routes must work without auth and must never expose donor/financial/inventory/audit data; the portal requires authentication and role checks. The route tree already follows the spec's recommended split: public pages live under `src/app/(public)/*` (home, about, contact, events, gears) and portal pages under `src/app/portal/(app)/*` (home, entry, administration, calendar, communications, events, finance, governance, inventory, people, programs, volunteers) — keep new routes in the matching group.
 - **Auth flow (Supabase)**:
   - `src/lib/supabase/client.ts` — browser client (`createBrowserClient`), used in client components (e.g. login page) for `signInWithPassword` / `signInWithOAuth`.
