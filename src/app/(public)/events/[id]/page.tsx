@@ -5,10 +5,13 @@ import { PageShell } from "@/components/page-shell";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { formatDateTimeInZone } from "@/lib/time";
 import { resolveImageUrl } from "@/lib/inventory";
-import { eventTypeLabel } from "@/lib/event-types";
 import { EventRegistrationForm } from "../event-registration-form-fields";
 import { checkRegistrationWindow } from "../event-registration-form";
-import type { PublicEvent } from "../event-card";
+import {
+  eventProgramsLabel,
+  type PublicEvent,
+  type PublicEventProgram,
+} from "../event-card";
 import { EventSponsors, type PublicEventSponsor } from "../event-sponsors";
 
 const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
@@ -45,21 +48,28 @@ export default async function EventDetailPage({
   const { data: event } = await supabase
     .from("public_events")
     .select(
-      "id, name, location, starts_at, ends_at, timezone, description, event_type, venue, capacity, registration_enabled, registration_deadline, flier_url",
+      "id, name, location, starts_at, ends_at, timezone, description, capacity, registration_enabled, registration_deadline, flier_url",
     )
     .eq("id", id)
-    .maybeSingle<Omit<PublicEvent, "sponsors">>();
+    .maybeSingle<Omit<PublicEvent, "sponsors" | "programs">>();
 
   if (!event) notFound();
 
   const registrationWindow = checkRegistrationWindow(event);
   const imageUrl = resolveImageUrl(event.flier_url);
 
-  const { data: sponsors } = await supabase
-    .from("public_event_sponsors")
-    .select("sponsor_id, name, logo_url, website")
-    .eq("event_id", event.id)
-    .returns<PublicEventSponsor[]>();
+  const [{ data: sponsors }, { data: programs }] = await Promise.all([
+    supabase
+      .from("public_event_sponsors")
+      .select("sponsor_id, name, logo_url, website")
+      .eq("event_id", event.id)
+      .returns<PublicEventSponsor[]>(),
+    supabase
+      .from("public_event_programs")
+      .select("program_id, name")
+      .eq("event_id", event.id)
+      .returns<PublicEventProgram[]>(),
+  ]);
 
   return (
     <PageShell maxWidth="max-w-3xl">
@@ -76,9 +86,7 @@ export default async function EventDetailPage({
         </div>
       )}
       <section>
-        <p className="app-eyebrow">
-          {eventTypeLabel(event.event_type) ?? "Event"}
-        </p>
+        <p className="app-eyebrow">{eventProgramsLabel(programs ?? [])}</p>
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
           {event.name}
         </h1>
@@ -92,10 +100,8 @@ export default async function EventDetailPage({
           {event.ends_at &&
             ` – ${formatDateTimeInZone(event.ends_at, event.timezone, DATE_FORMAT_OPTIONS, "en-US")}`}
         </p>
-        {(event.venue || event.location) && (
-          <p className="app-muted text-sm sm:text-base">
-            {event.venue ?? event.location}
-          </p>
+        {event.location && (
+          <p className="app-muted text-sm sm:text-base">{event.location}</p>
         )}
         {event.description && (
           <p className="mt-6 max-w-2xl text-sm leading-relaxed sm:text-base">

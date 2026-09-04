@@ -21,8 +21,6 @@ const baseEvent: EventRow = {
   attendance_count: null,
   attendance_notes: null,
   description: null,
-  event_type: null,
-  venue: null,
   capacity: null,
   registration_enabled: false,
   auto_assign_discount_codes: false,
@@ -37,7 +35,7 @@ const baseEvent: EventRow = {
   content_notes: null,
   report_submitted_at: null,
   report_submitted_by: null,
-  program_id: null,
+  program_ids: [],
   flier_url: null,
 };
 

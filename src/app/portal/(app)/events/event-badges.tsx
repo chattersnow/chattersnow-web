@@ -23,8 +23,6 @@ export type EventRow = {
   attendance_count: number | null;
   attendance_notes: string | null;
   description: string | null;
-  event_type: string | null;
-  venue: string | null;
   capacity: number | null;
   registration_enabled: boolean;
   registration_deadline: string | null;
@@ -39,7 +37,9 @@ export type EventRow = {
   content_notes: string | null;
   report_submitted_at: string | null;
   report_submitted_by: string | null;
-  program_id: string | null;
+  // Normalised from the `event_programs(program_id)` embed by the pages that
+  // load events; an event may count toward any number of programs.
+  program_ids: string[];
   flier_url: string | null;
 };
 
