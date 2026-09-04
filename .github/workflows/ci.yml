@@ -150,10 +150,13 @@ jobs:
         run: supabase stop
 
   a11y:
-    name: Accessibility scan (axe-core, report only)
+    name: Accessibility scan (axe-core)
     runs-on: ubuntu-latest
-    # Findings-only: never blocks the build. See e2e/a11y-scan.ts and issue #240.
-    continue-on-error: true
+    # Gated on a checked-in baseline (e2e/a11y-baseline.json): known violations
+    # are tolerated, new ones fail the job. Previously continue-on-error, which
+    # is how #436's regression re-landed and sat unnoticed for months -- the
+    # only thing that caught it was someone re-reading the console summary by
+    # hand. See e2e/a11y-scan.ts and issues #240/#477.
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -194,7 +197,7 @@ jobs:
           NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
 
       - name: Accessibility scan
-        run: bun run test:a11y
+        run: bun run test:a11y:check
         env:
           NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
 

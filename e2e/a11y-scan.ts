@@ -1,184 +1,608 @@
-// Automated a11y scan for issue #240: runs axe-core against every public
-// and portal route and writes a JSON report. Findings-only tool -- does not
-// fix anything. Requires the dev server running and, for portal routes, the
-// local Supabase stack seeded with the admin@example.test account.
-// Usage: bun run e2e/a11y-scan.ts
-import { chromium, type Page } from "@playwright/test";
+// Automated a11y scan (issues #240, #477): runs axe-core across every route in
+// the app tree and writes a JSON report.
+//
+// What #477 established is that a passing scan meant less than it looked. The
+// old scan took exactly one snapshot per route -- desktop, light theme, signed
+// in as admin, initial render, nothing opened -- and reported "0/68 routes have
+// violations". That number was a floor, not a clean bill of health. This scan
+// widens it along the dimensions that were invisible:
+//
+//   routes    derived from src/app instead of a hand-written list (22 routes,
+//             including /portal/login, had never been scanned)
+//   surfaces  sheets, dialogs, selects, form error states, inactive tab panels
+//   viewport  mobile as well as desktop
+//   theme     dark as well as light -- the theme toggle is live now
+//   roles     the other seeded accounts, not just admin
+//   tags      wcag22aa added (2.5.8 Target Size, 2.4.11 Focus Not Obscured)
+//
+// Still a findings tool: it fixes nothing. It can now fail on regressions
+// against e2e/a11y-baseline.json (--check), so a fixed violation cannot quietly
+// come back the way #436 did.
+//
+// One caveat when reading the report: seed.sql populates bulk data with
+// random(), so the number of rows on a list page -- and therefore the node
+// count for a rule like color-contrast -- changes with every db reset. Node
+// counts are useful for ranking, not as a figure to quote. The baseline records
+// which RULES fire per route/role/viewport/theme, never how many nodes, so it
+// is stable across reseeds.
+//
+// Usage: bun run e2e/a11y-scan.ts [--check] [--update-baseline] [--quick]
+// Requires the dev server running and the local Supabase stack seeded.
+import { chromium, type Browser, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import {
+  DYNAMIC_ROUTE_SOURCES,
+  SKIPPED_ROUTES,
+  discoverRoutes,
+  type DiscoveredRoute,
+} from "./a11y-routes";
+import { surfacesFor } from "./a11y-surfaces";
 
 const baseURL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://127.0.0.1:3000";
+const args = new Set(process.argv.slice(2));
+const CHECK = args.has("--check");
+const UPDATE_BASELINE = args.has("--update-baseline");
+// --quick drops the extra viewport/theme passes; the full matrix is what CI runs.
+const QUICK = args.has("--quick");
 
-const PUBLIC_ROUTES = [
-  "/",
-  "/home",
-  "/contact",
-  "/privacy",
-  "/learn",
-  "/learn/getting-started",
-  "/get-involved",
-  "/get-involved/attend",
-  "/get-involved/partner",
-  "/get-involved/volunteer",
-  "/get-involved/volunteer/status",
-  "/about",
-  "/about/mission",
-  "/about/team",
-  "/about/story",
-  "/programs",
-  "/support",
-  "/support/donations",
-  "/support/sponsorship",
-  "/events",
-  "/events/community",
-  "/events/455e6317-5855-4e02-9d2a-5e71cb787144",
-  "/gears",
-  "/gears/donate",
-  "/gears/library",
-  "/gears/sizing",
+const AXE_TAGS = [
+  "wcag2a",
+  "wcag2aa",
+  "wcag21a",
+  "wcag21aa",
+  // Adds 2.5.8 Target Size (Minimum) and 2.4.11 Focus Not Obscured, both
+  // relevant to the portal's size="sm" icon buttons. "best-practice" stays off
+  // deliberately: it is advisory, not a conformance target.
+  "wcag22aa",
 ];
 
-const PORTAL_ROUTES = [
-  "/portal/home",
-  "/portal/calendar",
-  "/portal/calendar/program-suggestions",
-  "/portal/calendar/work-queue",
-  "/portal/calendar/templates",
-  "/portal/calendar/import",
-  "/portal/calendar/reports",
-  "/portal/programs",
-  "/portal/programs/reports",
-  "/portal/inventory",
-  "/portal/inventory/donations",
-  "/portal/inventory/distribution",
-  "/portal/inventory/items",
-  "/portal/inventory/reports",
-  "/portal/people",
-  "/portal/governance",
-  "/portal/governance/bylaws",
-  "/portal/governance/conflict-of-interest",
-  "/portal/governance/policies",
-  "/portal/governance/nonprofit-status",
-  "/portal/governance/meetings",
-  "/portal/governance/board-members",
-  "/portal/governance/resolutions",
-  "/portal/governance/annual-requirements",
-  "/portal/finance",
-  "/portal/finance/donations",
-  "/portal/finance/expenses",
-  "/portal/finance/reimbursements",
-  "/portal/finance/revenue",
-  "/portal/finance/reports",
-  "/portal/volunteers",
-  "/portal/volunteers/roles",
-  "/portal/volunteers/applications",
-  "/portal/volunteers/participation",
-  "/portal/account",
-  "/portal/administration",
-  "/portal/administration/access-management",
-  "/portal/administration/roles",
-  "/portal/administration/audit-log",
-  "/portal/administration/permissions",
-  "/portal/administration/system-settings",
-  "/portal/administration/users",
-  "/portal/events",
-  "/portal/communications",
+const VIEWPORTS = {
+  desktop: { width: 1280, height: 720 },
+  mobile: { width: 390, height: 844 },
+} as const;
+
+type ViewportName = keyof typeof VIEWPORTS;
+type ThemeName = "light" | "dark";
+
+/**
+ * The passes each route gets.
+ *
+ * Theme is switched by toggling the `dark` class rather than reloading, and the
+ * viewport by resizing, so all three passes reuse one navigation. That keeps a
+ * 3x wider scan from costing 3x the wall clock.
+ */
+const MATRIX: { viewport: ViewportName; theme: ThemeName }[] = QUICK
+  ? [{ viewport: "desktop", theme: "light" }]
+  : [
+      { viewport: "desktop", theme: "light" },
+      { viewport: "desktop", theme: "dark" },
+      { viewport: "mobile", theme: "light" },
+    ];
+
+const SEEDED_PASSWORD = "password123";
+
+/**
+ * Which account scans which routes.
+ *
+ * admin sees everything, so it carries the full sweep. The other roles exist to
+ * catch what only they can render -- gated empty states, partial nav,
+ * view-only variants of a page -- so they scan a representative slice rather
+ * than all 90 routes, which would multiply runtime for little signal.
+ */
+const ROLE_SWEEPS: { email: string; label: string; routes: string[] }[] = [
+  {
+    email: "coordinator@example.test",
+    label: "coordinator",
+    routes: ["/portal/home", "/portal/events", "/portal/volunteers"],
+  },
+  {
+    email: "finance@example.test",
+    label: "finance",
+    routes: ["/portal/home", "/portal/finance", "/portal/finance/expenses"],
+  },
+  {
+    email: "board@example.test",
+    label: "board",
+    routes: ["/portal/home", "/portal/governance", "/portal/programs/reports"],
+  },
+  {
+    email: "volunteer@example.test",
+    label: "volunteer",
+    routes: ["/portal/home", "/portal/events", "/portal/account"],
+  },
+  {
+    email: "multi@example.test",
+    label: "multi",
+    routes: ["/portal/home", "/portal/events"],
+  },
 ];
 
-type RouteResult = {
-  route: string;
-  error?: string;
-  violations: {
-    id: string;
-    impact: string | null | undefined;
-    description: string;
-    help: string;
-    helpUrl: string;
-    tags: string[];
-    nodes: { target: string[]; html: string; failureSummary?: string }[];
-  }[];
+// noaccess@ and former@ are deliberately absent. Both are bounced straight back
+// to /portal/login by the per-page auth guard, so a sweep for them scans the
+// sign-in form under a portal route's name and reports nine phantom errors. The
+// page they actually land on is /portal/login, which the signed-out auth pass
+// already covers.
+
+type Violation = {
+  id: string;
+  impact: string | null | undefined;
+  description: string;
+  help: string;
+  helpUrl: string;
+  tags: string[];
+  nodes: { target: string[]; html: string; failureSummary?: string }[];
 };
 
-async function scanRoute(page: Page, route: string): Promise<RouteResult> {
+type ScanResult = {
+  /** Stable identity for baseline comparison. */
+  key: string;
+  route: string;
+  pattern: string;
+  role: string;
+  viewport: ViewportName;
+  theme: ThemeName;
+  surface: string;
+  error?: string;
+  violations: Violation[];
+};
+
+const results: ScanResult[] = [];
+const skipped: { pattern: string; reason: string }[] = [];
+
+function keyFor(parts: {
+  pattern: string;
+  role: string;
+  viewport: string;
+  theme: string;
+  surface: string;
+}) {
+  return `${parts.role}|${parts.viewport}|${parts.theme}|${parts.pattern}|${parts.surface}`;
+}
+
+/**
+ * The identity the baseline is keyed on -- deliberately coarser than the scan
+ * key: it drops `surface`.
+ *
+ * Which overlay opens on a given page is not fully deterministic. "The first
+ * New/Add/Record button" can differ between runs, a dialog can be slow enough
+ * that the open times out, and a help sheet only overflows on some viewports.
+ * Keying the baseline on the exact surface therefore produced false failures --
+ * the same rule, on the same route, attributed to a different overlay -- and a
+ * gate that reddens CI on flake would just get switched back off, which is how
+ * this job ended up `continue-on-error` in the first place.
+ *
+ * Dropping `surface` keeps every dimension that carries real signal (role,
+ * viewport, theme, route) while tolerating that variation. The full surface
+ * attribution is still in the report for triage.
+ */
+function baselineKeyFor(result: {
+  pattern: string;
+  role: string;
+  viewport: string;
+  theme: string;
+}) {
+  return `${result.role}|${result.viewport}|${result.theme}|${result.pattern}`;
+}
+
+async function applyTheme(page: Page, theme: ThemeName): Promise<void> {
+  await page.evaluate((next) => {
+    document.documentElement.classList.toggle("dark", next === "dark");
+  }, theme);
+}
+
+/**
+ * Runs axe, returning null instead of throwing.
+ *
+ * Opening a surface can navigate -- a "New …" control that routes to a page
+ * rather than opening a dialog, a form that submits -- and axe evaluates in the
+ * page context, so the navigation destroys it mid-analysis. That used to abort
+ * the entire run at whichever route happened to trip it. One unscannable state
+ * should cost that one state, not the other 560.
+ */
+async function safeAnalyze(page: Page): Promise<Violation[] | string> {
   try {
-    await page.goto(new URL(route, baseURL).toString(), {
+    return await analyze(page);
+  } catch (err) {
+    return (err as Error).message;
+  }
+}
+
+async function analyze(page: Page): Promise<Violation[]> {
+  const results = await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze();
+  return results.violations.map((v) => ({
+    id: v.id,
+    impact: v.impact,
+    description: v.description,
+    help: v.help,
+    helpUrl: v.helpUrl,
+    tags: v.tags,
+    nodes: v.nodes.map((n) => ({
+      target: n.target as string[],
+      html: n.html,
+      failureSummary: n.failureSummary,
+    })),
+  }));
+}
+
+/** Follows a list page to a real id, so dynamic routes track the seed. */
+async function resolveDynamicRoute(
+  page: Page,
+  pattern: string,
+): Promise<string | null> {
+  const source = DYNAMIC_ROUTE_SOURCES[pattern];
+  if (!source) return null;
+
+  try {
+    await page.goto(new URL(source.listPath, baseURL).toString(), {
       waitUntil: "networkidle",
       timeout: 30_000,
     });
-    const results = await new AxeBuilder({ page })
-      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
-      .analyze();
-    return {
-      route,
-      violations: results.violations.map((v) => ({
-        id: v.id,
-        impact: v.impact,
-        description: v.description,
-        help: v.help,
-        helpUrl: v.helpUrl,
-        tags: v.tags,
-        nodes: v.nodes.map((n) => ({
-          target: n.target as string[],
-          html: n.html,
-          failureSummary: n.failureSummary,
-        })),
-      })),
-    };
-  } catch (err) {
-    return { route, error: (err as Error).message, violations: [] };
+    const hrefs = await page
+      .locator("a[href]")
+      .evaluateAll((anchors) =>
+        anchors.map((a) => (a as HTMLAnchorElement).getAttribute("href") ?? ""),
+      );
+    const match = hrefs
+      .map((href) => href.split("?")[0])
+      .find((href) => source.linkPattern.test(href));
+    return match ?? null;
+  } catch {
+    return null;
   }
+}
+
+async function scanRoute(
+  page: Page,
+  route: string,
+  pattern: string,
+  role: string,
+): Promise<void> {
+  for (const pass of MATRIX) {
+    // Navigate afresh for every pass rather than reusing the loaded page. An
+    // earlier pass opens sheets, dialogs and selects, and a surface that fails
+    // to close leaks that state into the next pass's "initial" scan -- which
+    // showed up as phantom listbox and focus-guard violations attributed to
+    // routes on initial render. A reload is the only way to be sure "initial"
+    // means initial.
+    try {
+      await page.setViewportSize(VIEWPORTS[pass.viewport]);
+      await page.goto(new URL(route, baseURL).toString(), {
+        waitUntil: "networkidle",
+        timeout: 30_000,
+      });
+    } catch (err) {
+      results.push({
+        key: keyFor({ pattern, role, ...pass, surface: "initial" }),
+        route,
+        pattern,
+        role,
+        viewport: pass.viewport,
+        theme: pass.theme,
+        surface: "initial",
+        error: (err as Error).message,
+        violations: [],
+      });
+      continue;
+    }
+    // A portal route that lands on the sign-in form means the session went away.
+    // Scanning that page and filing it under the requested route would quietly
+    // corrupt the baseline, so it is recorded as an error instead.
+    if (
+      pattern.startsWith("/portal") &&
+      !pattern.startsWith("/portal/login") &&
+      !pattern.startsWith("/portal/set-password") &&
+      new URL(page.url()).pathname.startsWith("/portal/login")
+    ) {
+      results.push({
+        key: keyFor({ pattern, role, ...pass, surface: "initial" }),
+        route,
+        pattern,
+        role,
+        viewport: pass.viewport,
+        theme: pass.theme,
+        surface: "initial",
+        error: `redirected to /portal/login — session lost for role ${role}`,
+        violations: [],
+      });
+      continue;
+    }
+
+    await applyTheme(page, pass.theme);
+
+    const initial = await safeAnalyze(page);
+    results.push({
+      key: keyFor({ pattern, role, ...pass, surface: "initial" }),
+      route,
+      pattern,
+      role,
+      viewport: pass.viewport,
+      theme: pass.theme,
+      surface: "initial",
+      ...(typeof initial === "string"
+        ? { error: initial, violations: [] }
+        : { violations: initial }),
+    });
+
+    // Transient UI, on the light desktop pass plus mobile (where the nav
+    // becomes a sheet). Opening every surface in every theme would triple the
+    // slowest part of the run for very little extra signal.
+    const scanSurfaces =
+      pass.theme === "light" &&
+      (pass.viewport === "desktop" || pass.viewport === "mobile");
+    if (!scanSurfaces) continue;
+
+    for (const surface of surfacesFor(route)) {
+      if (pass.viewport === "mobile" && surface.name !== "mobile-nav") continue;
+      if (pass.viewport === "desktop" && surface.name === "mobile-nav")
+        continue;
+
+      let opened = false;
+      try {
+        opened = await surface.open(page);
+      } catch {
+        opened = false;
+      }
+      if (!opened) continue;
+
+      // If opening it navigated, there is nothing meaningful to attribute to
+      // this surface -- go back and move on.
+      if (new URL(page.url()).pathname !== new URL(route, baseURL).pathname) {
+        await page
+          .goto(new URL(route, baseURL).toString(), {
+            waitUntil: "networkidle",
+            timeout: 30_000,
+          })
+          .catch(() => {});
+        continue;
+      }
+
+      const opened_result = await safeAnalyze(page);
+      results.push({
+        key: keyFor({ pattern, role, ...pass, surface: surface.name }),
+        route,
+        pattern,
+        role,
+        viewport: pass.viewport,
+        theme: pass.theme,
+        surface: surface.name,
+        ...(typeof opened_result === "string"
+          ? { error: opened_result, violations: [] }
+          : { violations: opened_result }),
+      });
+
+      await surface.close(page).catch(() => {});
+      // The form-error surface navigates/mutates state; reload to be safe.
+      if (surface.name === "form-error") {
+        await page
+          .goto(new URL(route, baseURL).toString(), {
+            waitUntil: "networkidle",
+            timeout: 30_000,
+          })
+          .catch(() => {});
+      }
+    }
+  }
+}
+
+async function signIn(page: Page, email: string): Promise<boolean> {
+  try {
+    await page.goto(new URL("/portal/login", baseURL).toString(), {
+      waitUntil: "networkidle",
+      timeout: 30_000,
+    });
+    await page.getByLabel("Email").fill(email);
+    await page.getByLabel("Password").fill(SEEDED_PASSWORD);
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    // noaccess/former land somewhere other than /portal/home by design, so this
+    // waits for "any portal page that isn't an auth page" rather than
+    // /portal/home. Matching a bare /portal/ would be satisfied by
+    // /portal/login itself, which let sign-in report success while the form was
+    // still on screen -- every route scanned before the session landed was then
+    // silently a scan of the login page.
+    await page.waitForURL(
+      (url) =>
+        url.pathname.startsWith("/portal") &&
+        !url.pathname.startsWith("/portal/login") &&
+        !url.pathname.startsWith("/portal/set-password"),
+      { timeout: 30_000 },
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function freshPage(browser: Browser): Promise<Page> {
+  const context = await browser.newContext({ viewport: VIEWPORTS.desktop });
+  return context.newPage();
+}
+
+const routes = discoverRoutes();
+for (const [pattern, reason] of Object.entries(SKIPPED_ROUTES)) {
+  skipped.push({ pattern, reason });
 }
 
 const browser = await chromium.launch({ headless: true });
 try {
-  const context = await browser.newContext();
-  const page = await context.newPage();
-
-  console.log(`Scanning ${PUBLIC_ROUTES.length} public routes...`);
-  const publicResults: RouteResult[] = [];
-  for (const route of PUBLIC_ROUTES) {
-    publicResults.push(await scanRoute(page, route));
+  // ---- Public + auth routes, signed out -------------------------------------
+  const anonPage = await freshPage(browser);
+  const anonRoutes = routes.filter(
+    (r: DiscoveredRoute) => r.kind === "public" || r.kind === "auth",
+  );
+  console.log(`Scanning ${anonRoutes.length} public/auth routes (signed out)…`);
+  for (const route of anonRoutes) {
+    const concrete = route.isDynamic
+      ? await resolveDynamicRoute(anonPage, route.pattern)
+      : route.pattern;
+    if (!concrete) {
+      skipped.push({
+        pattern: route.pattern,
+        reason: "no seeded record to resolve this dynamic route",
+      });
+      process.stdout.write("s");
+      continue;
+    }
+    await scanRoute(anonPage, concrete, route.pattern, "anon");
     process.stdout.write(".");
   }
   console.log();
+  await anonPage.context().close();
 
-  console.log("Signing in as admin@example.test for portal scan...");
-  await page.goto(new URL("/portal/login", baseURL).toString());
-  await page.getByLabel("Email").fill("admin@example.test");
-  await page.getByLabel("Password").fill("password123");
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await page.waitForURL(/\/portal\/home$/, { timeout: 30_000 });
-
-  console.log(`Scanning ${PORTAL_ROUTES.length} portal routes...`);
-  const portalResults: RouteResult[] = [];
-  for (const route of PORTAL_ROUTES) {
-    portalResults.push(await scanRoute(page, route));
+  // ---- Portal routes as admin ----------------------------------------------
+  const adminPage = await freshPage(browser);
+  const portalRoutes = routes.filter(
+    (r: DiscoveredRoute) => r.kind === "portal",
+  );
+  if (!(await signIn(adminPage, "admin@example.test"))) {
+    throw new Error("Could not sign in as admin@example.test");
+  }
+  console.log(`Scanning ${portalRoutes.length} portal routes as admin…`);
+  for (const route of portalRoutes) {
+    const concrete = route.isDynamic
+      ? await resolveDynamicRoute(adminPage, route.pattern)
+      : route.pattern;
+    if (!concrete) {
+      skipped.push({
+        pattern: route.pattern,
+        reason: "no seeded record to resolve this dynamic route",
+      });
+      process.stdout.write("s");
+      continue;
+    }
+    await scanRoute(adminPage, concrete, route.pattern, "admin");
     process.stdout.write(".");
   }
   console.log();
+  await adminPage.context().close();
 
-  const report = {
-    generatedAt: new Date().toISOString(),
-    publicResults,
-    portalResults,
-  };
+  // ---- Role sweeps ---------------------------------------------------------
+  if (!QUICK) {
+    for (const sweep of ROLE_SWEEPS) {
+      const rolePage = await freshPage(browser);
+      if (!(await signIn(rolePage, sweep.email))) {
+        skipped.push({
+          pattern: `role:${sweep.label}`,
+          reason: `could not sign in as ${sweep.email}`,
+        });
+        await rolePage.context().close();
+        continue;
+      }
+      console.log(`Scanning ${sweep.routes.length} routes as ${sweep.label}…`);
+      for (const route of sweep.routes) {
+        await scanRoute(rolePage, route, route, sweep.label);
+        process.stdout.write(".");
+      }
+      console.log();
+      await rolePage.context().close();
+    }
+  }
+
+  // ---- Report --------------------------------------------------------------
   const outPath = join(import.meta.dirname, "a11y-report.json");
-  writeFileSync(outPath, JSON.stringify(report, null, 2));
+  writeFileSync(
+    outPath,
+    JSON.stringify(
+      { generatedAt: new Date().toISOString(), skipped, results },
+      null,
+      2,
+    ),
+  );
 
-  const total = [...publicResults, ...portalResults];
-  const withViolations = total.filter((r) => r.violations.length > 0);
-  const withErrors = total.filter((r) => r.error);
+  const withViolations = results.filter((r) => r.violations.length > 0);
+  const withErrors = results.filter((r) => r.error);
+
   console.log(`\nDone. Report written to ${outPath}`);
   console.log(
-    `${withViolations.length}/${total.length} routes have violations, ${withErrors.length} routes errored.`,
+    `${results.length} scans across ${routes.length} routes; ` +
+      `${withViolations.length} with violations, ${withErrors.length} errored, ` +
+      `${skipped.length} skipped.`,
   );
-  for (const r of withViolations) {
-    console.log(`\n${r.route}:`);
-    for (const v of r.violations) {
+
+  // Grouped by rule, because a violation in a shared primitive shows up on
+  // dozens of routes and a per-route list buries that.
+  const byRule = new Map<string, { nodes: number; keys: Set<string> }>();
+  for (const result of withViolations) {
+    for (const violation of result.violations) {
+      const entry = byRule.get(violation.id) ?? { nodes: 0, keys: new Set() };
+      entry.nodes += violation.nodes.length;
+      entry.keys.add(result.key);
+      byRule.set(violation.id, entry);
+    }
+  }
+  if (byRule.size > 0) {
+    console.log("\nViolations by rule:");
+    for (const [rule, entry] of [...byRule].sort(
+      (a, b) => b[1].nodes - a[1].nodes,
+    )) {
       console.log(
-        `  [${v.impact}] ${v.id} (${v.nodes.length} nodes) -- ${v.help}`,
+        `  ${rule}: ${entry.nodes} nodes across ${entry.keys.size} scans`,
       );
+    }
+  }
+  if (skipped.length > 0) {
+    console.log("\nSkipped:");
+    for (const s of skipped) console.log(`  ${s.pattern} — ${s.reason}`);
+  }
+
+  // ---- Baseline ------------------------------------------------------------
+  const baselinePath = join(import.meta.dirname, "a11y-baseline.json");
+  const currentBaseline: Record<string, string[]> = {};
+  // Every key this run actually looked at, so a pass that wasn't run (--quick,
+  // a role that couldn't sign in) is not mistaken for a fixed violation.
+  const scannedKeys = new Set(results.map(baselineKeyFor));
+  for (const result of withViolations) {
+    const key = baselineKeyFor(result);
+    const rules = new Set(currentBaseline[key] ?? []);
+    for (const violation of result.violations) rules.add(violation.id);
+    currentBaseline[key] = [...rules].sort();
+  }
+
+  if (UPDATE_BASELINE) {
+    writeFileSync(
+      baselinePath,
+      JSON.stringify(currentBaseline, null, 2) + "\n",
+    );
+    console.log(
+      `\nBaseline updated: ${Object.keys(currentBaseline).length} scans with known violations.`,
+    );
+  } else if (CHECK) {
+    const baseline: Record<string, string[]> = existsSync(baselinePath)
+      ? JSON.parse(readFileSync(baselinePath, "utf8"))
+      : {};
+
+    const regressions: string[] = [];
+    for (const [key, rules] of Object.entries(currentBaseline)) {
+      const known = new Set(baseline[key] ?? []);
+      for (const rule of rules) {
+        if (!known.has(rule)) regressions.push(`${key} :: ${rule}`);
+      }
+    }
+
+    const fixed: string[] = [];
+    for (const [key, rules] of Object.entries(baseline)) {
+      if (!scannedKeys.has(key)) continue;
+      const now = new Set(currentBaseline[key] ?? []);
+      for (const rule of rules) {
+        if (!now.has(rule)) fixed.push(`${key} :: ${rule}`);
+      }
+    }
+
+    if (fixed.length > 0) {
+      console.log(`\n${fixed.length} baselined violations no longer fire:`);
+      for (const f of fixed) console.log(`  ✓ ${f}`);
+      console.log(
+        "  Run `bun run a11y:baseline` to lock these in so they can't come back.",
+      );
+    }
+
+    if (regressions.length > 0) {
+      console.error(`\n${regressions.length} NEW violations, not in baseline:`);
+      for (const r of regressions) console.error(`  ✗ ${r}`);
+      process.exitCode = 1;
+    } else {
+      console.log("\nNo new violations against the baseline.");
     }
   }
 } finally {
