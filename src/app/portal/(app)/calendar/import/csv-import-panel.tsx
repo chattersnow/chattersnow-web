@@ -21,6 +21,7 @@ import {
 } from "./calendar-import-row";
 import { bulkImportCalendarItemsAction } from "./actions";
 import { Spinner } from "@/components/ui/spinner";
+import { runAction } from "@/components/portal/action-toast";
 
 export function CsvImportPanel() {
   const router = useRouter();
@@ -31,7 +32,6 @@ export function CsvImportPanel() {
     ({ data: CalendarImportRow } | { error: string })[]
   >([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const validRows = rows.filter(
     (row): row is { data: CalendarImportRow } => "data" in row,
@@ -42,7 +42,6 @@ export function CsvImportPanel() {
 
   function handleParse() {
     setSubmitError(null);
-    setSuccessMessage(null);
     const { rows: parsedRows } = parseCalendarImportCsv(csvText);
     setRows(parsedRows);
   }
@@ -53,28 +52,35 @@ export function CsvImportPanel() {
     const text = await file.text();
     setCsvText(text);
     setSubmitError(null);
-    setSuccessMessage(null);
     const { rows: parsedRows } = parseCalendarImportCsv(text);
     setRows(parsedRows);
   }
 
   function handleSubmit() {
     setSubmitError(null);
+    const skipped = rows.length - validRows.length;
     startTransition(async () => {
-      const result = await bulkImportCalendarItemsAction(
-        source,
-        validRows.map((row) => row.data),
+      await runAction(
+        () =>
+          bulkImportCalendarItemsAction(
+            source,
+            validRows.map((row) => row.data),
+          ),
+        {
+          success: (result) =>
+            `Imported ${result.insertedCount} item${result.insertedCount === 1 ? "" : "s"} as drafts.`,
+          description:
+            skipped > 0
+              ? `${skipped} row${skipped === 1 ? "" : "s"} skipped for errors.`
+              : undefined,
+          onError: setSubmitError,
+          onSuccess: () => {
+            setRows([]);
+            setCsvText("");
+            router.refresh();
+          },
+        },
       );
-      if ("error" in result) {
-        setSubmitError(result.error);
-        return;
-      }
-      setSuccessMessage(
-        `Imported ${result.insertedCount} item${result.insertedCount === 1 ? "" : "s"} as drafts.`,
-      );
-      setRows([]);
-      setCsvText("");
-      router.refresh();
     });
   }
 
@@ -176,11 +182,6 @@ export function CsvImportPanel() {
       {submitError && (
         <Alert variant="destructive">
           <AlertDescription>{submitError}</AlertDescription>
-        </Alert>
-      )}
-      {successMessage && (
-        <Alert>
-          <AlertDescription>{successMessage}</AlertDescription>
         </Alert>
       )}
 

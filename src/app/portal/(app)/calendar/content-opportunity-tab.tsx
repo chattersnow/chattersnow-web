@@ -43,6 +43,7 @@ import type {
 import { Spinner } from "@/components/ui/spinner";
 import { formatDateTime } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
+import { runAction } from "@/components/portal/action-toast";
 
 function toDatetimeLocalValue(iso: string | null) {
   if (!iso) return "";
@@ -159,16 +160,17 @@ export function ContentOpportunityTab({
     formData.set("consentOnFileAt", consentForm.consentOnFileAt);
 
     startConsentTransition(async () => {
-      const result = await upsertContentPermissionAction(
-        opportunity.id,
-        formData,
+      await runAction(
+        () => upsertContentPermissionAction(opportunity.id, formData),
+        {
+          success: "Consent details saved.",
+          onError: setConsentError,
+          onSuccess: () => {
+            setConsentMode("view");
+            router.refresh();
+          },
+        },
       );
-      if ("error" in result) {
-        setConsentError(result.error);
-        return;
-      }
-      setConsentMode("view");
-      router.refresh();
     });
   }
 
@@ -273,15 +275,22 @@ export function ContentOpportunityTab({
     );
 
     startTransition(async () => {
-      const result = opportunity
-        ? await updateContentOpportunityAction(opportunity.id, formData)
-        : await createContentOpportunityAction(calendarItemId, formData);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      setMode("view");
-      router.refresh();
+      await runAction(
+        () =>
+          opportunity
+            ? updateContentOpportunityAction(opportunity.id, formData)
+            : createContentOpportunityAction(calendarItemId, formData),
+        {
+          success: opportunity
+            ? "Content brief saved."
+            : "Content brief created.",
+          onError: setError,
+          onSuccess: () => {
+            setMode("view");
+            router.refresh();
+          },
+        },
+      );
     });
   }
 

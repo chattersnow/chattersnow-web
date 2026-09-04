@@ -61,6 +61,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDateTime } from "@/lib/format";
+import { runAction } from "@/components/portal/action-toast";
 
 function toDatetimeLocalValue(iso: string | null, timeZone: string) {
   if (!iso) return "";
@@ -120,7 +121,9 @@ function buildFormData(form: FormState) {
   return formData;
 }
 
-function useCalendarItemCardForm(item: CalendarItemRow) {
+// `subject` names the card in its own receipt, so the toast says which of
+// the three cards on this page actually saved.
+function useCalendarItemCardForm(item: CalendarItemRow, subject: string) {
   const router = useRouter();
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [form, setForm] = useState<FormState>(() => formStateFor(item));
@@ -162,17 +165,18 @@ function useCalendarItemCardForm(item: CalendarItemRow) {
     setWarning(null);
 
     startTransition(async () => {
-      const result = await updateCalendarItemAction(
-        item.id,
-        buildFormData(form),
+      await runAction(
+        () => updateCalendarItemAction(item.id, buildFormData(form)),
+        {
+          success: `${subject} saved.`,
+          onError: setError,
+          onSuccess: (result) => {
+            if (result.warning) setWarning(result.warning);
+            setMode("view");
+            router.refresh();
+          },
+        },
       );
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      if (result.warning) setWarning(result.warning);
-      setMode("view");
-      router.refresh();
     });
   }
 
@@ -280,7 +284,7 @@ export function ScheduleDetailsCard({
   item: CalendarItemRow;
   canManage: boolean;
 }) {
-  const card = useCalendarItemCardForm(item);
+  const card = useCalendarItemCardForm(item, "Schedule & details");
   const { form, update } = card;
 
   return (
@@ -454,7 +458,7 @@ export function PlanningDecisionCard({
   programSuggestionRules: ProgramSuggestionRule[];
   canManage: boolean;
 }) {
-  const card = useCalendarItemCardForm(item);
+  const card = useCalendarItemCardForm(item, "Planning & decision");
   const { form, update, toggleListValue } = card;
 
   const relatedProgramNames = item.program_ids
@@ -766,7 +770,7 @@ export function SensitiveTopicCard({
   canManage: boolean;
 }) {
   const router = useRouter();
-  const card = useCalendarItemCardForm(item);
+  const card = useCalendarItemCardForm(item, "Sensitive topic");
   const { form, update } = card;
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [isReviewPending, startReviewTransition] = useTransition();
@@ -774,12 +778,11 @@ export function SensitiveTopicCard({
   function handleRecordSensitiveReview() {
     setReviewError(null);
     startReviewTransition(async () => {
-      const result = await recordSensitiveTopicReviewAction(item.id);
-      if ("error" in result) {
-        setReviewError(result.error);
-        return;
-      }
-      router.refresh();
+      await runAction(() => recordSensitiveTopicReviewAction(item.id), {
+        success: "Sensitive topic review recorded.",
+        onError: setReviewError,
+        onSuccess: () => router.refresh(),
+      });
     });
   }
 

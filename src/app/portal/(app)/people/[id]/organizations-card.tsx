@@ -24,6 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Spinner } from "@/components/ui/spinner";
+import { runAction } from "@/components/portal/action-toast";
 
 export function OrganizationsCard({
   personId,
@@ -58,25 +59,34 @@ export function OrganizationsCard({
       return;
     }
     setError(null);
+    const link = selected;
     startSaveTransition(async () => {
-      const result = isOrganization
-        ? await addOrganizationMembershipAction(personId, selected.id)
-        : await addOrganizationMembershipAction(selected.id, personId);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      setShowAdd(false);
-      setSelected(null);
-      router.refresh();
+      await runAction(
+        () =>
+          isOrganization
+            ? addOrganizationMembershipAction(personId, link.id)
+            : addOrganizationMembershipAction(link.id, personId),
+        {
+          success: `${link.name ?? link.email ?? "Person"} linked.`,
+          onError: setError,
+          onSuccess: () => {
+            setShowAdd(false);
+            setSelected(null);
+            router.refresh();
+          },
+        },
+      );
     });
   }
 
   function handleRemove(membershipId: string) {
     setRemovingId(membershipId);
     startRemoveTransition(async () => {
-      await removeOrganizationMembershipAction(membershipId);
-      router.refresh();
+      await runAction(() => removeOrganizationMembershipAction(membershipId), {
+        success: "Link removed.",
+        error: "Could not remove the link. Please try again.",
+        onSuccess: () => router.refresh(),
+      });
     });
   }
 

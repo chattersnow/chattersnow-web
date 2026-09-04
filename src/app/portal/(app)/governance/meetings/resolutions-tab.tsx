@@ -44,6 +44,7 @@ import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
 import { formatCalendarDate, personDisplayName } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
+import { runAction } from "@/components/portal/action-toast";
 
 function AddResolutionForm({
   people,
@@ -86,18 +87,24 @@ function AddResolutionForm({
       return;
     }
 
+    const mover = selectedMover;
     startTransition(async () => {
-      const result = await onSubmit(
-        selectedMover.id,
-        selectedSeconder?.id ?? null,
-        packResolutionFormData(form),
+      await runAction(
+        () =>
+          onSubmit(
+            mover.id,
+            selectedSeconder?.id ?? null,
+            packResolutionFormData(form),
+          ),
+        {
+          success: "Resolution added.",
+          onError: setError,
+          onSuccess: () => {
+            router.refresh();
+            onCancel();
+          },
+        },
       );
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
-      onCancel();
     });
   }
 
@@ -202,18 +209,22 @@ function EditResolutionDialog({
       return;
     }
 
+    const mover = selectedMover;
     startTransition(async () => {
-      const result = await updateResolutionAction(
-        resolution.id,
-        selectedMover.id,
-        selectedSeconder?.id ?? null,
-        packResolutionFormData(form),
+      await runAction(
+        () =>
+          updateResolutionAction(
+            resolution.id,
+            mover.id,
+            selectedSeconder?.id ?? null,
+            packResolutionFormData(form),
+          ),
+        {
+          success: "Resolution saved.",
+          onError: setError,
+          onSuccess: onSaved,
+        },
       );
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      onSaved();
     });
   }
 
@@ -324,8 +335,11 @@ export function ResolutionsTab({
 
   function handleDelete(id: string) {
     startMutation(async () => {
-      await deleteResolutionAction(id);
-      refresh();
+      await runAction(() => deleteResolutionAction(id), {
+        success: "Resolution deleted.",
+        error: "Could not delete the resolution. Please try again.",
+        onSuccess: refresh,
+      });
     });
   }
 

@@ -28,6 +28,7 @@ import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
 import { personDisplayName } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
+import { runAction } from "@/components/portal/action-toast";
 
 function AddAttendeeForm({
   people,
@@ -59,14 +60,16 @@ function AddAttendeeForm({
       return;
     }
 
+    const person = selectedPerson;
     startTransition(async () => {
-      const result = await onSubmit(selectedPerson.id, attended);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
-      onCancel();
+      await runAction(() => onSubmit(person.id, attended), {
+        success: `${personDisplayName(person)} added to the attendee list.`,
+        onError: setError,
+        onSuccess: () => {
+          router.refresh();
+          onCancel();
+        },
+      });
     });
   }
 
@@ -164,8 +167,11 @@ export function AttendeesTab({
 
   function handleDelete(id: string) {
     startDeleteTransition(async () => {
-      await deleteMeetingAttendeeAction(id);
-      refresh();
+      await runAction(() => deleteMeetingAttendeeAction(id), {
+        success: "Attendee removed.",
+        error: "Could not remove the attendee. Please try again.",
+        onSuccess: refresh,
+      });
     });
   }
 

@@ -13,6 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { updateMyPreferredNameAction } from "./actions";
+import { runAction } from "@/components/portal/action-toast";
 
 export function AccountForm({
   preferredName,
@@ -28,7 +29,6 @@ export function AccountForm({
   // off the prop so a successful save settles the form immediately, instead of
   // waiting for router.refresh() to feed a new prop back down.
   const [baseline, setBaseline] = useState(preferredName ?? "");
-  const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -37,16 +37,15 @@ export function AccountForm({
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
-    setSaved(false);
     startTransition(async () => {
-      const result = await updateMyPreferredNameAction(value);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      setBaseline(value);
-      setSaved(true);
-      router.refresh();
+      await runAction(() => updateMyPreferredNameAction(value), {
+        success: "Preferred name saved.",
+        onError: setError,
+        onSuccess: () => {
+          setBaseline(value);
+          router.refresh();
+        },
+      });
     });
   }
 
@@ -61,10 +60,7 @@ export function AccountForm({
             value={value}
             placeholder={fallbackName}
             disabled={isPending}
-            onChange={(event) => {
-              setValue(event.target.value);
-              setSaved(false);
-            }}
+            onChange={(event) => setValue(event.target.value)}
           />
           <FieldDescription>
             How your name appears across the portal — in owner lists, on items
@@ -76,12 +72,6 @@ export function AccountForm({
         {error && (
           <Alert variant="destructive">
             <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {saved && !isDirty && (
-          <Alert>
-            <AlertDescription>Preferred name saved.</AlertDescription>
           </Alert>
         )}
 

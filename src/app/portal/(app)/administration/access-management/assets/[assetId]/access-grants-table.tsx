@@ -40,6 +40,7 @@ import {
 import { AccessGrantDetailsSheet } from "./access-grant-details-sheet";
 import { Spinner } from "@/components/ui/spinner";
 import { personDisplayName } from "@/lib/format";
+import { runAction } from "@/components/portal/action-toast";
 
 const STATUS_BADGE_VARIANT: Record<
   string,
@@ -68,8 +69,11 @@ function VerifyButton({
       disabled={isPending}
       onClick={() =>
         startTransition(async () => {
-          await verifyAccessGrantAction(grantId, assetId);
-          router.refresh();
+          await runAction(() => verifyAccessGrantAction(grantId, assetId), {
+            success: "Access grant verified.",
+            error: "Could not verify the access grant. Please try again.",
+            onSuccess: () => router.refresh(),
+          });
         })
       }
     >
@@ -101,13 +105,14 @@ function DeleteGrantButton({
   function handleDelete() {
     setError(null);
     startTransition(async () => {
-      const result = await deleteAccessGrantAction(grantId, assetId);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      setOpen(false);
-      router.refresh();
+      await runAction(() => deleteAccessGrantAction(grantId, assetId), {
+        success: `Access for ${personName} revoked.`,
+        onError: setError,
+        onSuccess: () => {
+          setOpen(false);
+          router.refresh();
+        },
+      });
     });
   }
 

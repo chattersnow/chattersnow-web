@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { render, screen } from "@testing-library/react";
+import {
+  expectToast,
+  hasToast,
+  renderWithToaster,
+} from "../../../../../../test/toast-testing";
 import userEvent from "@testing-library/user-event";
 import type { PersonActionResult } from "../actions";
 import type { PersonRow } from "../people-shared";
@@ -92,5 +97,37 @@ describe("ProfileCard", () => {
     expect(
       await screen.findByRole("button", { name: "Edit profile" }),
     ).toBeInTheDocument();
+  });
+
+  // The card returns to view mode looking exactly as it did before the edit,
+  // so the toast is the only evidence the save reached the server.
+  test("confirms the save with a toast", async () => {
+    const user = userEvent.setup();
+    renderWithToaster(
+      <ProfileCard person={person} people={[]} canManage={true} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Edit profile" }));
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await expectToast("Profile saved.");
+  });
+
+  test("announces a failed save instead of claiming success", async () => {
+    const user = userEvent.setup();
+    updatePersonActionMock.mockImplementation(async () => ({
+      error: "You do not have permission to edit people.",
+    }));
+    renderWithToaster(
+      <ProfileCard person={person} people={[]} canManage={true} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Edit profile" }));
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    expect(
+      await screen.findByText("You do not have permission to edit people."),
+    ).toBeInTheDocument();
+    expect(hasToast("Profile saved.")).toBe(false);
   });
 });

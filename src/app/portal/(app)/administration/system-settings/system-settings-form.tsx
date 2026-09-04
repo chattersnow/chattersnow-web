@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { runAction } from "@/components/portal/action-toast";
 
 function ThresholdCard({
   title,
@@ -35,23 +36,19 @@ function ThresholdCard({
   const router = useRouter();
   const [value, setValue] = useState(initialValue?.toString() ?? "");
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    setSuccess(false);
 
     const formData = new FormData(event.currentTarget);
     startTransition(async () => {
-      const result = await action(formData);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      setSuccess(true);
-      router.refresh();
+      await runAction(() => action(formData), {
+        success: `${title} threshold updated.`,
+        onError: setError,
+        onSuccess: () => router.refresh(),
+      });
     });
   }
 
@@ -83,11 +80,6 @@ function ThresholdCard({
             {error && (
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            {success && (
-              <Alert>
-                <AlertDescription>Threshold updated.</AlertDescription>
               </Alert>
             )}
 

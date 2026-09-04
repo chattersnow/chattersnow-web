@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { useTabData } from "@/hooks/use-tab-data";
 import { datetimeLocalToUtcIso, utcIsoToDatetimeLocalInZone } from "@/lib/time";
 import { formatCurrency, formatDateTime } from "@/lib/format";
+import { runAction } from "@/components/portal/action-toast";
 
 function toDatetimeLocalValue(iso: string | null, timezone: string) {
   if (!iso) return "";
@@ -134,13 +135,14 @@ export function PlanningTab({
     formData.set("budgetAmount", form.budgetAmount);
 
     startTransition(async () => {
-      const result = await updateEventPlanningAction(event.id, formData);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
-      onSaved();
+      await runAction(() => updateEventPlanningAction(event.id, formData), {
+        success: "Planning details saved.",
+        onError: setError,
+        onSuccess: () => {
+          router.refresh();
+          onSaved();
+        },
+      });
     });
   }
 

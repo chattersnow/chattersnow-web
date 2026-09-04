@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
+import { runAction } from "@/components/portal/action-toast";
 
 function formStateFor(person: PersonRow): PersonFormState {
   return {
@@ -102,17 +103,22 @@ export function ProfileCard({
     setError(null);
 
     startTransition(async () => {
-      const result = await updatePersonAction(
-        person.id,
-        packPersonFormData(form),
-        contact?.id ?? null,
+      await runAction(
+        () =>
+          updatePersonAction(
+            person.id,
+            packPersonFormData(form),
+            contact?.id ?? null,
+          ),
+        {
+          success: "Profile saved.",
+          onError: setError,
+          onSuccess: () => {
+            setMode("view");
+            router.refresh();
+          },
+        },
       );
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      setMode("view");
-      router.refresh();
     });
   }
 

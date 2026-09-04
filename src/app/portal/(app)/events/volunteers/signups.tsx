@@ -32,6 +32,7 @@ import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { personDisplayName } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
+import { runAction } from "@/components/portal/action-toast";
 
 export function AddVolunteerForm({
   people,
@@ -72,14 +73,16 @@ export function AddVolunteerForm({
     formData.set("notes", notes);
     formData.set("shiftId", shiftId ?? "");
 
+    const person = selectedPerson;
     startTransition(async () => {
-      const result = await onSubmit(selectedPerson.id, formData);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
-      onCancel();
+      await runAction(() => onSubmit(person.id, formData), {
+        success: `${personDisplayName(person)} signed up.`,
+        onError: setError,
+        onSuccess: () => {
+          router.refresh();
+          onCancel();
+        },
+      });
     });
   }
 

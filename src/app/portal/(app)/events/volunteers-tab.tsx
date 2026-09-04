@@ -24,6 +24,7 @@ import type { TabValue } from "./event-tabs-config";
 import { ShiftsSection } from "./volunteers/shifts";
 import { SignupsSection } from "./volunteers/signups";
 import { HoursSection } from "./volunteers/hours";
+import { runAction } from "@/components/portal/action-toast";
 
 type VolunteersTabData = {
   volunteers: EventVolunteer[];
@@ -86,29 +87,47 @@ export function VolunteersTab({
 
   function handleDeleteVolunteer(id: string) {
     startDeleteTransition(async () => {
-      await deleteEventVolunteerAction(id);
-      refresh();
+      await runAction(() => deleteEventVolunteerAction(id), {
+        success: "Volunteer removed.",
+        error: "Could not remove the volunteer. Please try again.",
+        onSuccess: refresh,
+      });
     });
   }
 
   function handleDeleteHours(id: string) {
     startDeleteTransition(async () => {
-      await deleteEventVolunteerHoursAction(id);
-      refresh();
+      await runAction(() => deleteEventVolunteerHoursAction(id), {
+        success: "Hours entry deleted.",
+        error: "Could not delete the hours entry. Please try again.",
+        onSuccess: refresh,
+      });
     });
   }
 
   function handleDeleteShift(id: string) {
     startDeleteTransition(async () => {
-      await deleteEventShiftAction(id);
-      refresh();
+      await runAction(() => deleteEventShiftAction(id), {
+        success: "Shift deleted.",
+        error: "Could not delete the shift. Please try again.",
+        onSuccess: refresh,
+      });
     });
   }
 
   function handleShiftReassign(volunteerId: string, shiftId: string | null) {
+    const shiftLabel = shifts.find((shift) => shift.id === shiftId)?.label;
     startDeleteTransition(async () => {
-      await updateEventVolunteerShiftAction(volunteerId, shiftId);
-      refresh();
+      await runAction(
+        () => updateEventVolunteerShiftAction(volunteerId, shiftId),
+        {
+          success: shiftLabel
+            ? `Volunteer moved to "${shiftLabel}".`
+            : "Volunteer removed from their shift.",
+          error: "Could not reassign the volunteer. Please try again.",
+          onSuccess: refresh,
+        },
+      );
     });
   }
 

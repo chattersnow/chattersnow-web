@@ -50,6 +50,7 @@ import {
 } from "./actions";
 import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/portal/empty-state";
+import { runAction } from "@/components/portal/action-toast";
 
 function statusBadge(grant: PendingGrant) {
   if (
@@ -91,31 +92,37 @@ export function PendingAccessSection({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    const stagedEmail = email;
     startTransition(async () => {
-      const result = await createPendingGrantAction(email, role, name);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      setEmail("");
-      setName("");
-      setRole("");
-      router.refresh();
+      await runAction(() => createPendingGrantAction(email, role, name), {
+        success: `Access staged for ${stagedEmail}.`,
+        onError: setError,
+        onSuccess: () => {
+          setEmail("");
+          setName("");
+          setRole("");
+          router.refresh();
+        },
+      });
     });
   }
 
   function handleRevoke() {
     if (!revokeTarget) return;
     setError(null);
+    const target = revokeTarget;
     startTransition(async () => {
-      const result = await revokePendingGrantAction(revokeTarget.id);
-      if ("error" in result) {
-        setRevokeTarget(null);
-        setError(result.error);
-        return;
-      }
-      setRevokeTarget(null);
-      router.refresh();
+      await runAction(() => revokePendingGrantAction(target.id), {
+        success: `Pending access for ${target.email} revoked.`,
+        onError: (message) => {
+          setRevokeTarget(null);
+          setError(message);
+        },
+        onSuccess: () => {
+          setRevokeTarget(null);
+          router.refresh();
+        },
+      });
     });
   }
 

@@ -46,6 +46,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { personDisplayName } from "@/lib/format";
+import { runAction } from "@/components/portal/action-toast";
 
 function formStateFor(asset: AssetDetail): AssetFormState {
   return {
@@ -69,7 +70,9 @@ function formStateFor(asset: AssetDetail): AssetFormState {
   };
 }
 
-function useAssetCardForm(asset: AssetDetail) {
+// `subject` names the card in its own receipt, so the toast says which of
+// the cards on this page saved.
+function useAssetCardForm(asset: AssetDetail, subject: string) {
   const router = useRouter();
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [form, setForm] = useState<AssetFormState>(() => formStateFor(asset));
@@ -100,13 +103,17 @@ function useAssetCardForm(asset: AssetDetail) {
     event.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result = await updateAssetAction(asset.id, packAssetFormData(form));
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      setMode("view");
-      router.refresh();
+      await runAction(
+        () => updateAssetAction(asset.id, packAssetFormData(form)),
+        {
+          success: `${subject} saved.`,
+          onError: setError,
+          onSuccess: () => {
+            setMode("view");
+            router.refresh();
+          },
+        },
+      );
     });
   }
 
@@ -239,7 +246,7 @@ export function AssetDetailsCard({
   services: ServiceRow[];
   people: PersonListItem[];
 }) {
-  const card = useAssetCardForm(asset);
+  const card = useAssetCardForm(asset, "Details");
   const { form, update } = card;
   const [services, setServices] = useState(initialServices);
   const editing = card.mode === "edit";
@@ -421,7 +428,7 @@ export function AssetSecurityCard({
   asset: AssetDetail;
   people: PersonListItem[];
 }) {
-  const card = useAssetCardForm(asset);
+  const card = useAssetCardForm(asset, "MFA, recovery & review");
   const { form, update } = card;
   const editing = card.mode === "edit";
 

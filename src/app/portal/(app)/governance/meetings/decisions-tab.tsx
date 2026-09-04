@@ -27,6 +27,7 @@ import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
 import { formatCalendarDate } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
+import { runAction } from "@/components/portal/action-toast";
 
 function AddDecisionForm({
   defaultDate,
@@ -60,13 +61,14 @@ function AddDecisionForm({
     formData.set("decisionDate", decisionDate);
 
     startTransition(async () => {
-      const result = await onSubmit(formData);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
-      onSaved();
+      await runAction(() => onSubmit(formData), {
+        success: "Decision recorded.",
+        onError: setError,
+        onSuccess: () => {
+          router.refresh();
+          onSaved();
+        },
+      });
     });
   }
 
@@ -172,8 +174,11 @@ export function DecisionsTab({
 
   function handleDelete(id: string) {
     startDeleteTransition(async () => {
-      await deleteDecisionAction(id);
-      refresh();
+      await runAction(() => deleteDecisionAction(id), {
+        success: "Decision deleted.",
+        error: "Could not delete the decision. Please try again.",
+        onSuccess: refresh,
+      });
     });
   }
 

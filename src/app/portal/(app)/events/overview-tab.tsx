@@ -30,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { runAction } from "@/components/portal/action-toast";
 
 const VISIBILITIES = [
   { value: "private", label: "Private" },
@@ -146,13 +147,14 @@ export function OverviewTab({
     formData.set("flierUrl", form.flierUrl);
 
     startTransition(async () => {
-      const result = await updateEventAction(event.id, formData);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
-      onSaved();
+      await runAction(() => updateEventAction(event.id, formData), {
+        success: "Event details saved.",
+        onError: setError,
+        onSuccess: () => {
+          router.refresh();
+          onSaved();
+        },
+      });
     });
   }
 
