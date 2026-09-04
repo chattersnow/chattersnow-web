@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { signOutAndRedirect } from "@/lib/auth/sign-out";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,10 +28,7 @@ export function LogoutButton() {
 
   async function handleLogout() {
     setIsSigningOut(true);
-    const supabase = createSupabaseBrowserClient();
-    await supabase.auth.signOut();
-    router.replace("/portal/login");
-    router.refresh();
+    await signOutAndRedirect(router);
   }
 
   return (

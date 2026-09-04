@@ -43,6 +43,29 @@ test("logging out returns to a signed-out state", async ({ page }) => {
   await expect(page).toHaveURL(/\/portal\/login$/);
 });
 
+test("an idle session is signed out and told why", async ({ page }) => {
+  await signIn(page);
+
+  // Seeds a stamp older than the timeout rather than shortening the timeout
+  // itself, so this exercises the real 30-minute configuration. addInitScript
+  // runs before the page's own scripts, so the shell reads it on first mount.
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "chattersnow:portal-last-activity",
+      String(Date.now() - 31 * 60 * 1000),
+    );
+  });
+
+  await page.goto("/portal/finance/donations");
+
+  await expect(page).toHaveURL(/\/portal\/login\?.*reason=idle/);
+  await expect(
+    page.getByRole("alert").filter({ hasText: "period of inactivity" }),
+  ).toBeVisible();
+  // The way back is kept, so signing in again resumes where they were.
+  await expect(page).toHaveURL(/next=%2Fportal%2Ffinance%2Fdonations/);
+});
+
 test("visiting a protected route while signed out redirects to login", async ({
   page,
 }) => {

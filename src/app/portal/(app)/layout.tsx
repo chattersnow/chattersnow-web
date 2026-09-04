@@ -42,6 +42,7 @@ import { getContentWorkSummary } from "./home/queries";
 import { ensureCurrentPerson } from "@/lib/auth/current-person";
 import { ensureMyOnboarding } from "@/lib/portal/onboarding";
 import { personDisplayName } from "@/lib/format";
+import { IdleTimeout } from "./idle-timeout";
 import { LogoutButton } from "./logout-button";
 import { NotificationsMenu } from "./notifications-menu";
 import { PortalNav } from "./portal-nav";
@@ -302,6 +303,12 @@ export default async function PortalAppLayout({
             {whatsNewOwed && (
               <WhatsNewDialog key={CURRENT_RELEASE} initialOpen />
             )}
+            {/* Mounted here because this shell is the one thing that doesn't
+                remount on navigation, so the idle clock survives moving around
+                the portal -- and because everything inside `(app)` is already
+                past the signed-in guard above, which is what keeps the timeout
+                off the login page and off every public route. */}
+            <IdleTimeout />
             {/* One viewport for the whole portal: the sidebar quick actions
                 save from every route, so the confirmation has to live above
                 the page rather than inside it. */}

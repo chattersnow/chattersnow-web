@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { safePortalDestination } from "@/lib/auth/next-destination";
+import { IDLE_SIGNOUT_REASON } from "@/lib/auth/idle-timeout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -27,6 +28,10 @@ export function LoginForm() {
   // -- and the likeliest cause is being signed into a personal Google account
   // rather than an org one, which is exactly the case that needs to switch.
   const isNoAccess = searchParams.get("error") === "no_access";
+  // Separate from `error`: being signed out for inactivity is the portal
+  // working as intended, not something that went wrong, so it gets a neutral
+  // notice rather than the destructive one.
+  const wasIdle = searchParams.get("reason") === IDLE_SIGNOUT_REASON;
   // Where the portal layout wanted this person to be before it bounced them
   // here. Sanitized, since it decides a redirect target.
   const destination = safePortalDestination(searchParams.get("next"));
@@ -128,6 +133,16 @@ export function LoginForm() {
 
   return (
     <>
+      {wasIdle && (
+        <Alert>
+          <AlertTitle>Signed out for inactivity</AlertTitle>
+          <AlertDescription>
+            You were signed out after a period of inactivity. Sign in again to
+            pick up where you left off.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {isNoAccess && (
         <Alert variant="destructive">
           <AlertTitle>Portal access not granted yet</AlertTitle>
