@@ -86,6 +86,11 @@ export type TabConfigEntry = {
   /** Reads this card takes from the phase provider rather than fetching. */
   sharedData?: readonly SharedEventResource[];
   render: (ctx: TabRenderContext) => ReactNode;
+  /**
+   * Create actions for this card, rendered in its own `CardHeader`. Only
+   * `kind: "plain"` tabs may define these: an editable card spends its one
+   * `CardAction` slot on the edit pencil.
+   */
   toolbarActions?: (ctx: ToolbarActionContext) => ReactNode;
 };
 

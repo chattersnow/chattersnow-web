@@ -2,9 +2,8 @@ import { describe, expect, mock, test } from "bun:test";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { EventShift } from "../shifts-actions";
-import type { EventVolunteer } from "../volunteers-actions";
 import type { PersonListItem } from "../../people/actions";
-import { AddVolunteerForm, SignupsSection } from "./signups";
+import { AddVolunteerForm } from "./signups";
 
 function noop() {}
 
@@ -28,14 +27,6 @@ const shiftWithRole: EventShift = {
   role_type: { id: "role-1", name: "Ride Buddy" },
 };
 
-const shiftWithoutRole: EventShift = {
-  ...shiftWithRole,
-  id: "shift-2",
-  label: "Basecamp PM",
-  volunteer_role_type_id: null,
-  role_type: null,
-};
-
 const people: PersonListItem[] = [
   {
     id: "person-1",
@@ -44,21 +35,6 @@ const people: PersonListItem[] = [
     phone: null,
   },
 ];
-
-function makeVolunteer(
-  overrides: Partial<EventVolunteer> = {},
-): EventVolunteer {
-  return {
-    id: "volunteer-1",
-    event_id: "event-1",
-    person_id: "person-1",
-    shift_id: null,
-    role: null,
-    notes: null,
-    person: { id: "person-1", name: "Jane Doe", email: null, phone: null },
-    ...overrides,
-  };
-}
 
 describe("AddVolunteerForm", () => {
   test("shows the shift's role read-only and submits an empty role", async () => {
@@ -170,96 +146,5 @@ describe("AddVolunteerForm", () => {
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     const formData = onSubmit.mock.calls[0][1] as FormData;
     expect(formData.get("shiftId")).toBe("");
-  });
-});
-
-describe("SignupsSection role label", () => {
-  const shifts = [shiftWithRole, shiftWithoutRole];
-
-  test("shows the assigned shift's role", () => {
-    render(
-      <SignupsSection
-        volunteers={[makeVolunteer({ shift_id: "shift-1", role: "Ignored" })]}
-        shifts={shifts}
-        mode="view"
-        isDeleting={false}
-        loading={false}
-        onDeleteVolunteer={noop}
-        onShiftReassign={noop}
-      />,
-    );
-    expect(screen.getByText("Ride Buddy")).toBeInTheDocument();
-  });
-
-  test("shows 'No role' for a shift with no role type", () => {
-    render(
-      <SignupsSection
-        volunteers={[makeVolunteer({ shift_id: "shift-2" })]}
-        shifts={shifts}
-        mode="view"
-        isDeleting={false}
-        loading={false}
-        onDeleteVolunteer={noop}
-        onShiftReassign={noop}
-      />,
-    );
-    expect(screen.getByText("No role")).toBeInTheDocument();
-  });
-
-  test("shows the free-text role for a shift-less signup", () => {
-    render(
-      <SignupsSection
-        volunteers={[makeVolunteer({ shift_id: null, role: "Setup Crew" })]}
-        shifts={shifts}
-        mode="view"
-        isDeleting={false}
-        loading={false}
-        onDeleteVolunteer={noop}
-        onShiftReassign={noop}
-      />,
-    );
-    expect(screen.getByText("Setup Crew")).toBeInTheDocument();
-  });
-
-  test("shows a dash for a shift-less signup with no role", () => {
-    render(
-      <SignupsSection
-        volunteers={[makeVolunteer({ shift_id: null, role: null })]}
-        shifts={shifts}
-        mode="view"
-        isDeleting={false}
-        loading={false}
-        onDeleteVolunteer={noop}
-        onShiftReassign={noop}
-      />,
-    );
-    const row = screen.getByText("Jane Doe").closest("tr");
-    expect(row).not.toBeNull();
-    const cells = row!.querySelectorAll("td");
-    expect(cells[1]).toHaveTextContent("—");
-    expect(cells[2]).toHaveTextContent("—");
-  });
-
-  test("reassigning to 'No shift' calls onShiftReassign with null", async () => {
-    const onShiftReassign = mock(() => {});
-    const user = userEvent.setup();
-    render(
-      <SignupsSection
-        volunteers={[makeVolunteer({ shift_id: "shift-1" })]}
-        shifts={shifts}
-        mode="edit"
-        isDeleting={false}
-        loading={false}
-        onDeleteVolunteer={noop}
-        onShiftReassign={onShiftReassign}
-      />,
-    );
-
-    await user.click(
-      screen.getByRole("combobox", { name: "Shift for Jane Doe" }),
-    );
-    await user.click(await screen.findByRole("option", { name: "No shift" }));
-
-    expect(onShiftReassign).toHaveBeenCalledWith("volunteer-1", null);
   });
 });

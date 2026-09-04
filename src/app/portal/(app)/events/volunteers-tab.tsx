@@ -22,8 +22,7 @@ import { useTabData } from "@/hooks/use-tab-data";
 import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
 import type { TabValue } from "./event-tabs-config";
 import { ShiftsSection } from "./volunteers/shifts";
-import { SignupsSection } from "./volunteers/signups";
-import { HoursSection } from "./volunteers/hours";
+import { buildRoster, RosterSection } from "./volunteers/roster";
 import { runAction } from "@/components/portal/action-toast";
 
 type VolunteersTabData = {
@@ -128,10 +127,6 @@ export function VolunteersTab({
     });
   }
 
-  const totalHours = (hours ?? []).reduce(
-    (sum, entry) => sum + Number(entry.hours),
-    0,
-  );
   const shiftHeadcounts = new Map<string, number>();
   for (const volunteer of volunteers ?? []) {
     if (!volunteer.shift_id) continue;
@@ -162,23 +157,17 @@ export function VolunteersTab({
         onDeleteShift={handleDeleteShift}
       />
 
-      <SignupsSection
-        volunteers={volunteers}
+      <RosterSection
+        eventId={eventId}
+        rows={buildRoster(volunteers, hours)}
         shifts={shifts}
         mode={mode}
         isDeleting={isDeleting}
         loading={tabData === undefined}
         onDeleteVolunteer={handleDeleteVolunteer}
-        onShiftReassign={handleShiftReassign}
-      />
-
-      <HoursSection
-        hours={hours}
-        mode={mode}
-        isDeleting={isDeleting}
-        loading={tabData === undefined}
-        totalHours={totalHours}
         onDeleteHours={handleDeleteHours}
+        onShiftReassign={handleShiftReassign}
+        onSaved={refresh}
       />
     </div>
   );
