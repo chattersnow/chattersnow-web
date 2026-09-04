@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { EventRow } from "./event-badges";
+import type { Program } from "../programs/actions";
 import * as EventsActions from "./actions";
 
 type ActionResult = { error: string } | { success: true };
@@ -30,8 +31,6 @@ function makeEvent(overrides: Partial<EventRow> = {}): EventRow {
     attendance_count: null,
     attendance_notes: null,
     description: null,
-    event_type: null,
-    venue: null,
     capacity: null,
     registration_enabled: false,
     registration_deadline: null,
@@ -46,20 +45,29 @@ function makeEvent(overrides: Partial<EventRow> = {}): EventRow {
     content_notes: null,
     report_submitted_at: null,
     report_submitted_by: null,
-    program_id: null,
+    program_ids: [],
     flier_url: null,
     ...overrides,
   };
 }
 
+const PROGRAMS: Program[] = [
+  { id: "program-1", name: "Winter Access", status: "active" },
+  { id: "program-2", name: "Gear Library", status: "active" },
+];
+
 // The Save button lives on the event detail view's toolbar, wired to the tab's
 // form by id -- stand in for it here.
-function renderTab(event: EventRow, mode: "view" | "edit" = "edit") {
+function renderTab(
+  event: EventRow,
+  mode: "view" | "edit" = "edit",
+  programs: Program[] = PROGRAMS,
+) {
   return render(
     <>
       <OverviewTab
         event={event}
-        programs={[]}
+        programs={programs}
         formId="overview-form"
         mode={mode}
         onSaved={() => {}}
@@ -71,67 +79,87 @@ function renderTab(event: EventRow, mode: "view" | "edit" = "edit") {
   );
 }
 
-// Issue #655: both columns were held in form state and submitted with no
-// control rendered, so neither could be seen or corrected after creation --
-// while the public event pages were displaying them the whole time.
-describe("OverviewTab event type and venue", () => {
+// An event can count toward more than one program's impact report -- a single
+// access day serving both the mountain-access and the gear program has to show
+// up in both. The single program_id this replaced could only ever pick one.
+describe("OverviewTab programs", () => {
   beforeEach(() => {
     updateEventActionMock.mockClear();
     updateEventActionMock.mockImplementation(async () => ({ success: true }));
   });
 
-  test("shows the stored values read-only in view mode", () => {
-    renderTab(
-      makeEvent({ event_type: "gear_swap", venue: "Community Center" }),
-      "view",
-    );
+  test("lists every linked program in view mode", () => {
+    renderTab(makeEvent({ program_ids: ["program-1", "program-2"] }), "view");
 
-    expect(screen.getByText("Gear swap")).toBeInTheDocument();
-    expect(screen.getByText("Community Center")).toBeInTheDocument();
+    expect(screen.getByText("Winter Access, Gear Library")).toBeInTheDocument();
   });
 
-  test("submits an edited type and venue", async () => {
+  test("shows a dash when the event belongs to no program", () => {
+    renderTab(makeEvent(), "view");
+
+    expect(screen.getByText("Programs")).toBeInTheDocument();
+    expect(screen.getAllByText("—").length).toBeGreaterThan(0);
+  });
+
+  test("submits every checked program", async () => {
     const user = userEvent.setup();
-    renderTab(
-      makeEvent({ event_type: "gear_swap", venue: "Community Center" }),
-    );
+    renderTab(makeEvent({ program_ids: ["program-1"] }));
 
-    await user.clear(screen.getByLabelText("Venue / mountain"));
-    await user.type(screen.getByLabelText("Venue / mountain"), "Bear Mountain");
-
-    const trigger = screen.getByRole("combobox", { name: "Event type" });
-    await user.click(trigger);
-    await user.click(await screen.findByRole("option", { name: "Fundraiser" }));
-    await waitFor(() => expect(trigger).toHaveTextContent("Fundraiser"));
-
+    await user.click(screen.getByRole("checkbox", { name: "Gear Library" }));
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(updateEventActionMock).toHaveBeenCalledTimes(1));
     const submitted = updateEventActionMock.mock.calls[0][1];
-    expect(submitted.get("eventType")).toBe("fundraiser");
-    expect(submitted.get("venue")).toBe("Bear Mountain");
+    expect(submitted.getAll("programIds")).toEqual(["program-1", "program-2"]);
   });
 
-  test("keeps a type outside the curated list selectable", async () => {
+  test("submits an empty list when the last program is unchecked", async () => {
     const user = userEvent.setup();
-    renderTab(makeEvent({ event_type: "Access Day" }));
+    renderTab(makeEvent({ program_ids: ["program-1"] }));
 
-    const trigger = screen.getByRole("combobox", { name: "Event type" });
-    expect(trigger).toHaveTextContent("Access Day");
+    await user.click(screen.getByRole("checkbox", { name: "Winter Access" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
 
-    await user.click(trigger);
-    expect(
-      await screen.findByRole("option", { name: "Access Day" }),
-    ).toBeInTheDocument();
+    await waitFor(() => expect(updateEventActionMock).toHaveBeenCalledTimes(1));
+    expect(updateEventActionMock.mock.calls[0][1].getAll("programIds")).toEqual(
+      [],
+    );
+  });
+
+  test("reports the form dirty only once the selection actually changes", async () => {
+    const user = userEvent.setup();
+    const onDirtyChange = mock((_dirty: boolean) => {});
+    render(
+      <OverviewTab
+        event={makeEvent({ program_ids: ["program-1"] })}
+        programs={PROGRAMS}
+        formId="overview-form"
+        mode="edit"
+        onSaved={() => {}}
+        onDirtyChange={onDirtyChange}
+      />,
+    );
+
+    // program_ids is an array, so a reference comparison would report the form
+    // dirty on the very first render, before anything was touched.
+    await waitFor(() => expect(onDirtyChange).toHaveBeenCalled());
+    expect(onDirtyChange.mock.calls.at(-1)?.[0]).toBe(false);
+
+    await user.click(screen.getByRole("checkbox", { name: "Gear Library" }));
+    await waitFor(() =>
+      expect(onDirtyChange.mock.calls.at(-1)?.[0]).toBe(true),
+    );
   });
 
   test("stays read-only once the report is submitted", () => {
     renderTab(
-      makeEvent({ report_status: "submitted", venue: "Community Center" }),
+      makeEvent({ report_status: "submitted", program_ids: ["program-1"] }),
       "edit",
     );
 
-    expect(screen.getByText("Community Center")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Venue / mountain")).toBeNull();
+    expect(screen.getByText("Winter Access")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("checkbox", { name: "Winter Access" }),
+    ).toBeNull();
   });
 });

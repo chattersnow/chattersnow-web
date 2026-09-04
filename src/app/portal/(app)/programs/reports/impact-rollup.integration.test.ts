@@ -49,9 +49,8 @@ describe("get_program_impact_rollup_data (integration)", () => {
     const person = await createPerson();
 
     const linked = await adminClient
-      .from("events")
-      .update({ program_id: program.id })
-      .eq("id", event.id);
+      .from("event_programs")
+      .insert({ event_id: event.id, program_id: program.id });
     if (linked.error) throw linked.error;
 
     const signup = await adminClient
@@ -112,5 +111,82 @@ describe("get_program_impact_rollup_data (integration)", () => {
     await event.cleanup();
     await person.cleanup();
     await program.cleanup();
+  });
+});
+
+// The reason event_programs replaced events.program_id: an access day that
+// serves two programs has to appear in both grant reports, and a single FK
+// could only ever attribute it to one.
+describe("get_program_impact_rollup_data with shared events (integration)", () => {
+  test("counts one event toward every program it is linked to", async () => {
+    const programA = await createProgram();
+    const programB = await createProgram();
+    const shared = await createPublishedEvent();
+    const person = await createPerson();
+
+    const linked = await adminClient.from("event_programs").insert([
+      { event_id: shared.id, program_id: programA.id },
+      { event_id: shared.id, program_id: programB.id },
+    ]);
+    if (linked.error) throw linked.error;
+
+    const headcount = await adminClient
+      .from("events")
+      .update({ attendance_count: 12 })
+      .eq("id", shared.id);
+    if (headcount.error) throw headcount.error;
+
+    const signup = await adminClient
+      .from("event_volunteers")
+      .insert({ event_id: shared.id, person_id: person.id });
+    if (signup.error) throw signup.error;
+
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+    expect(
+      await createEventVolunteerHoursAction(
+        shared.id,
+        person.id,
+        hoursForm("3"),
+      ),
+    ).toEqual({ success: true });
+
+    for (const program of [programA, programB]) {
+      const result = await adminClient.rpc("get_program_impact_rollup_data", {
+        p_program_id: program.id,
+      });
+      if (result.error) throw result.error;
+      expect(result.data.event_ids).toEqual([shared.id]);
+
+      const rollup = computeProgramImpactRollup({
+        eventCount: result.data.event_ids.length,
+        events: result.data.events,
+        notes: result.data.impact_notes,
+        distributedMovements: result.data.distributed_movements,
+        volunteerHours: result.data.volunteer_hours,
+        registrations: result.data.registrations,
+        checkinCounts: result.data.checkin_counts,
+        discountCodes: result.data.discount_codes,
+        eventVolunteers: result.data.event_volunteers,
+        volunteerHourPeople: result.data.volunteer_hour_people,
+        beginnerAttendees: result.data.beginner_attendees,
+        profiledAttendees: result.data.profiled_attendees,
+      });
+      // The full figure for each program, not a split: both genuinely ran it.
+      expect(rollup.volunteerHours).toBe(3);
+      expect(rollup.participants).toBe(12);
+    }
+
+    await adminClient
+      .from("volunteer_hours")
+      .delete()
+      .eq("event_id", shared.id);
+    await adminClient
+      .from("event_volunteers")
+      .delete()
+      .eq("event_id", shared.id);
+    await shared.cleanup();
+    await person.cleanup();
+    await programA.cleanup();
+    await programB.cleanup();
   });
 });

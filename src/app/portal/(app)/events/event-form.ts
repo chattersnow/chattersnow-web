@@ -13,30 +13,28 @@ const STATUSES = [
 export type EventFormData = {
   name: string;
   description: string | null;
-  eventType: string | null;
   location: string | null;
-  venue: string | null;
   startsAt: string;
   endsAt: string | null;
   timezone: string;
   visibility: (typeof VISIBILITIES)[number];
   status: (typeof STATUSES)[number];
-  programId: string | null;
+  programIds: string[];
   flierUrl: string | null;
 };
 
 export function parseEventForm(formData: FormData): ParseResult<EventFormData> {
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
-  const eventType = String(formData.get("eventType") ?? "").trim();
   const location = String(formData.get("location") ?? "").trim();
-  const venue = String(formData.get("venue") ?? "").trim();
   const startsAt = String(formData.get("startsAt") ?? "");
   const endsAt = String(formData.get("endsAt") ?? "");
   const timezone = String(formData.get("timezone") ?? "").trim();
   const visibility = String(formData.get("visibility") ?? "");
   const status = String(formData.get("status") ?? "");
-  const programId = String(formData.get("programId") ?? "").trim();
+  // An event may count toward any number of programs, including none, so the
+  // empty list is valid and there is nothing to validate here.
+  const programIds = formData.getAll("programIds").map(String);
   const flierUrl = String(formData.get("flierUrl") ?? "").trim();
 
   if (!name) return { error: "Event name is required." };
@@ -64,15 +62,13 @@ export function parseEventForm(formData: FormData): ParseResult<EventFormData> {
     data: {
       name,
       description: description || null,
-      eventType: eventType || null,
       location: location || null,
-      venue: venue || null,
       startsAt: startsAtIso,
       endsAt: endsAtIso,
       timezone,
       visibility: visibility as (typeof VISIBILITIES)[number],
       status: status as (typeof STATUSES)[number],
-      programId: programId || null,
+      programIds,
       flierUrl: flierUrl || null,
     },
   };
