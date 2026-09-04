@@ -46,7 +46,7 @@ export default async function DistributionDetailPage({
   const { data: movement, error } = await supabase
     .from("inventory_movements")
     .select(
-      "id, quantity, occurred_at, reason, inventory_item:inventory_items(id, description, type, size), event:events(id, name), recipient:people(id, name, email, phone)",
+      "id, quantity, occurred_at, reason, inventory_item:inventory_items(id, description, type, size, inventory_categories(key, label)), event:events(id, name), recipient:people(id, name, email, phone)",
     )
     .eq("id", movementId)
     .eq("movement_type", "distributed")

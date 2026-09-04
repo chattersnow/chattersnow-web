@@ -1,5 +1,6 @@
 "use client";
 
+import { categoryLabelFor } from "@/lib/inventory";
 import Image from "next/image";
 import { X } from "lucide-react";
 import { BrandImageFallback } from "@/components/brand-image-fallback";
@@ -85,7 +86,9 @@ export function GearCartSheet({
                         <p className="truncate text-sm font-medium">
                           {item.description}
                         </p>
-                        <p className="app-muted text-xs">{item.type}</p>
+                        <p className="app-muted text-xs">
+                          {categoryLabelFor(item)}
+                        </p>
                       </div>
                       <Button
                         type="button"

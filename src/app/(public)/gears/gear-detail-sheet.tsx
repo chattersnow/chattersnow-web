@@ -1,5 +1,6 @@
 "use client";
 
+import { categoryLabelFor } from "@/lib/inventory";
 import Image from "next/image";
 import { BrandImageFallback } from "@/components/brand-image-fallback";
 import {
@@ -45,7 +46,7 @@ export function GearDetailSheet({
         {item && (
           <>
             <SheetHeader>
-              <p className="app-eyebrow">{item.type}</p>
+              <p className="app-eyebrow">{categoryLabelFor(item)}</p>
               <SheetTitle className="text-xl">{item.description}</SheetTitle>
               <SheetDescription>
                 {[item.size, genderLabel, labelFor(CONDITIONS, item.condition)]

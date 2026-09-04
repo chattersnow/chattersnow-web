@@ -147,6 +147,60 @@ export const helpContent: Record<string, HelpEntry> = {
       </>
     ),
   },
+  "/portal/inventory/categories": {
+    title: "How item categories work",
+    description:
+      "The two-level vocabulary staff tag donated gear with, and why names matter.",
+    body: (
+      <>
+        <HowToSection heading="Two levels">
+          <p>
+            A <strong className="text-foreground">group</strong> (Outerwear)
+            holds <strong className="text-foreground">categories</strong>{" "}
+            (Jacket, Pants). Items are always tagged with a category, never a
+            group; groups exist so pickers stay readable and so reports can roll
+            up. There is no third level.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Retire, don't delete">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              Deleting only works while no item uses the category. Anything
+              already tagged with it blocks the delete on purpose, so history
+              can&apos;t lose its classification.
+            </li>
+            <li>
+              Turning <strong className="text-foreground">Active</strong> off is
+              the usual move: the category stays on the items that carry it and
+              disappears from the pickers.
+            </li>
+            <li>
+              Renaming a category is safe — the underlying key never changes, so
+              saved filter links and existing items keep working.
+            </li>
+          </ol>
+        </HowToSection>
+        <HowToSection heading="Names feed the giveaway tiers">
+          <p>
+            A giveaway&apos;s tier hints match on the item&apos;s group and
+            category names, so a name that happens to contain a keyword will
+            suggest the wrong ticket colour — &ldquo;Snowboard boots&rdquo;
+            would match the <em>snowboard</em> hint and suggest gold for a pair
+            of boots. That is why footwear is a single &ldquo;Boots&rdquo;
+            category and the boards group is called &ldquo;Hardgoods&rdquo;.
+            Staff can always override a suggested tier at intake.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            Anyone signed in can see the list, because donation intake has to
+            show it. Adding, renaming and retiring categories needs manage
+            access to inventory.
+          </p>
+        </HowToSection>
+      </>
+    ),
+  },
   "/portal/inventory": {
     title: "How gear moves through inventory",
     description: "Item statuses, and what a distribution actually records.",

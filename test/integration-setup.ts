@@ -172,11 +172,15 @@ export async function cleanupDonation(donationId: string) {
 // for tests exercising the public gear request/cart flows.
 export async function createAvailableGearItems(
   count: number,
-  overrides: { type?: string; condition?: string; intendedUse?: string } = {},
+  overrides: {
+    categoryKey?: string;
+    condition?: string;
+    intendedUse?: string;
+  } = {},
 ) {
   const items = Array.from({ length: count }, () => ({
     description: `Integration test item ${crypto.randomUUID()}`,
-    type: overrides.type ?? "snowboard",
+    category_key: overrides.categoryKey ?? "snowboard",
     condition: overrides.condition ?? "good",
     intended_use: overrides.intendedUse ?? "gear_library",
   }));
@@ -216,7 +220,7 @@ export async function createDonation() {
     p_items: [
       {
         description: `Integration test item ${crypto.randomUUID()}`,
-        type: "coat",
+        category_key: "jacket",
         condition: "good",
       },
     ],

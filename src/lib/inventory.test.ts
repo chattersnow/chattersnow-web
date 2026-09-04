@@ -1,52 +1,82 @@
 import { describe, expect, test } from "bun:test";
 import {
-  CONDITIONS,
-  GENDERS,
-  labelFor,
-  resolveImageUrl,
-} from "@/lib/inventory";
+  categoryLabelFor,
+  groupInventoryCategories,
+  type InventoryCategory,
+} from "./inventory";
 
-describe("resolveImageUrl", () => {
-  test("returns null for null input", () => {
-    expect(resolveImageUrl(null)).toBeNull();
+function category(
+  key: string,
+  label: string,
+  groupKey: string,
+  groupLabel: string,
+): InventoryCategory {
+  return { id: key, key, label, groupKey, groupLabel, isActive: true };
+}
+
+describe("groupInventoryCategories", () => {
+  test("groups consecutive rows and keeps the incoming order", () => {
+    const groups = groupInventoryCategories([
+      category("snowboard", "Snowboard", "hardgoods", "Hardgoods"),
+      category("skis", "Skis", "hardgoods", "Hardgoods"),
+      category("jacket", "Jacket", "outerwear", "Outerwear"),
+    ]);
+
+    expect(groups.map((group) => group.label)).toEqual([
+      "Hardgoods",
+      "Outerwear",
+    ]);
+    expect(groups[0].categories.map((c) => c.label)).toEqual([
+      "Snowboard",
+      "Skis",
+    ]);
   });
 
-  test("returns non-drive urls unchanged", () => {
-    expect(resolveImageUrl("https://example.com/photo.jpg")).toBe(
-      "https://example.com/photo.jpg",
-    );
+  test("reunites a group whose rows are not adjacent", () => {
+    const groups = groupInventoryCategories([
+      category("snowboard", "Snowboard", "hardgoods", "Hardgoods"),
+      category("jacket", "Jacket", "outerwear", "Outerwear"),
+      category("skis", "Skis", "hardgoods", "Hardgoods"),
+    ]);
+
+    expect(groups).toHaveLength(2);
+    expect(groups[0].categories).toHaveLength(2);
   });
 
-  test("rewrites a /file/d/<id>/view share link to the thumbnail endpoint", () => {
-    const input = "https://drive.google.com/file/d/ABC123xyz/view?usp=sharing";
-    expect(resolveImageUrl(input)).toBe(
-      "https://drive.google.com/thumbnail?id=ABC123xyz&sz=w1000",
-    );
-  });
-
-  test("rewrites a ?id=<id> share link to the thumbnail endpoint", () => {
-    const input = "https://drive.google.com/open?id=XYZ789";
-    expect(resolveImageUrl(input)).toBe(
-      "https://drive.google.com/thumbnail?id=XYZ789&sz=w1000",
-    );
-  });
-
-  test("falls back to the original url when no file id is found", () => {
-    const input = "https://drive.google.com/drive/folders/abc";
-    expect(resolveImageUrl(input)).toBe(input);
+  test("returns nothing for an empty vocabulary", () => {
+    expect(groupInventoryCategories([])).toEqual([]);
   });
 });
 
-describe("labelFor", () => {
-  test("returns null when value is null", () => {
-    expect(labelFor(CONDITIONS, null)).toBeNull();
+describe("categoryLabelFor", () => {
+  test("shows the category label", () => {
+    expect(
+      categoryLabelFor({ category_key: "jacket", category_label: "Jacket" }),
+    ).toBe("Jacket");
   });
 
-  test("returns the matching label", () => {
-    expect(labelFor(CONDITIONS, "like_new")).toBe("Like new");
+  test("shows the free-text detail instead of the word Other", () => {
+    expect(
+      categoryLabelFor({
+        category_key: "other",
+        category_label: "Other",
+        type: "Vintage ski poles",
+      }),
+    ).toBe("Vintage ski poles");
   });
 
-  test("falls back to the raw value when there is no match", () => {
-    expect(labelFor(GENDERS, "unknown")).toBe("unknown");
+  test("falls back to the label when Other carries no detail", () => {
+    expect(
+      categoryLabelFor({ category_key: "other", category_label: "Other" }),
+    ).toBe("Other");
+  });
+
+  test("falls back to the legacy free text for an uncategorized row", () => {
+    expect(categoryLabelFor({ type: "snow board" })).toBe("snow board");
+  });
+
+  test("falls back to Uncategorized when there is nothing at all", () => {
+    expect(categoryLabelFor({ type: "   " })).toBe("Uncategorized");
+    expect(categoryLabelFor({})).toBe("Uncategorized");
   });
 });

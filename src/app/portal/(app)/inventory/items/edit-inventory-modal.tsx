@@ -5,6 +5,12 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { ArrowLeft, Eye, Pencil } from "lucide-react";
 import { BrandImageFallback } from "@/components/brand-image-fallback";
+import { CategorySelect } from "@/components/portal/category-select";
+import {
+  categoryLabelFor,
+  OTHER_CATEGORY_KEY,
+  type InventoryCategory,
+} from "@/lib/inventory";
 import { updateInventoryItemAction } from "./actions";
 import {
   CONDITIONS,
@@ -67,7 +73,8 @@ import { toast } from "@/components/ui/toast";
 function formStateFor(item: InventoryItem) {
   return {
     description: item.description,
-    type: item.type,
+    categoryId: item.category_id ?? "",
+    categoryDetail: item.type ?? "",
     size: item.size ?? "",
     gender: item.gender ?? "",
     condition: item.condition,
@@ -88,7 +95,13 @@ function isDirty(form: InventoryFormState, item: InventoryItem) {
   );
 }
 
-export function EditInventoryModal({ item }: { item: InventoryItem }) {
+export function EditInventoryModal({
+  item,
+  categories,
+}: {
+  item: InventoryItem;
+  categories: InventoryCategory[];
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"view" | "edit">("view");
@@ -146,7 +159,15 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
 
     const formData = new FormData();
     formData.set("description", form.description);
-    formData.set("type", form.type);
+    formData.set("categoryId", form.categoryId);
+    formData.set("categoryDetail", form.categoryDetail);
+    formData.set(
+      "categoryIsOther",
+      String(
+        categories.find((category) => category.id === form.categoryId)?.key ===
+          OTHER_CATEGORY_KEY,
+      ),
+    );
     formData.set("size", form.size);
     formData.set("gender", form.gender);
     formData.set("condition", form.condition);
@@ -271,8 +292,8 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
                   {item.description}
                 </ReadOnlyField>
                 <Field orientation="responsive">
-                  <ReadOnlyField label="Item type" htmlFor="edit-type">
-                    {item.type}
+                  <ReadOnlyField label="Item category" htmlFor="edit-category">
+                    {categoryLabelFor(item)}
                   </ReadOnlyField>
                   <ReadOnlyField label="Size" htmlFor="edit-size">
                     {item.size || "—"}
@@ -350,15 +371,16 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
                   </Field>
 
                   <Field orientation="responsive">
-                    <Field>
-                      <FieldLabel htmlFor="edit-type">Item type</FieldLabel>
-                      <Input
-                        id="edit-type"
-                        required
-                        value={form.type}
-                        onChange={(event) => update("type", event.target.value)}
-                      />
-                    </Field>
+                    <CategorySelect
+                      categories={categories}
+                      categoryId={form.categoryId}
+                      detail={form.categoryDetail}
+                      idPrefix="edit"
+                      onCategoryChange={(value) => update("categoryId", value)}
+                      onDetailChange={(value) =>
+                        update("categoryDetail", value)
+                      }
+                    />
                     <Field>
                       <FieldLabel htmlFor="edit-size">Size</FieldLabel>
                       <Input

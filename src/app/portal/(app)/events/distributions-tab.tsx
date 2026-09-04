@@ -1,5 +1,6 @@
 "use client";
 
+import { categoryLabelFor, flattenCategory } from "@/lib/inventory";
 import {
   listEventDistributionsAction,
   type EventDistributionRow,
@@ -73,7 +74,11 @@ export function DistributionsTab({
                     {movement.inventory_item?.description ?? "—"}
                   </span>
                   <span className="app-muted block text-xs">
-                    {movement.inventory_item?.type}
+                    {movement.inventory_item
+                      ? categoryLabelFor(
+                          flattenCategory(movement.inventory_item),
+                        )
+                      : null}
                   </span>
                 </TableCell>
                 <TableCell>{movement.quantity}</TableCell>

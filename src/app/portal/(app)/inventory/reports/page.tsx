@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Fragment } from "react";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,8 @@ import {
 } from "../items/inventory-shared";
 import {
   summarizeByStatus,
-  summarizeByType,
+  summarizeByCategory,
+  summarizeByCategoryGroup,
   summarizeReceivedByDonorBucket,
   sumMovementValue,
   type ValuationMovement,
@@ -59,7 +61,11 @@ export default async function InventoryReportsPage({
   const toDate = raw("to") || defaultTo;
 
   const [{ data: items }, { data: movements }] = await Promise.all([
-    supabase.from("inventory_items").select("type, status, face_value"),
+    supabase
+      .from("inventory_items_with_category")
+      .select(
+        "type, category_key, category_label, category_group_label, status, face_value",
+      ),
     supabase
       .from("inventory_movements")
       .select(
@@ -70,7 +76,8 @@ export default async function InventoryReportsPage({
       .lte("occurred_at", `${toDate}T23:59:59.999Z`),
   ]);
 
-  const byType = summarizeByType(items ?? []);
+  const byCategory = summarizeByCategory(items ?? []);
+  const byCategoryGroup = summarizeByCategoryGroup(items ?? []);
   const byStatus = summarizeByStatus(
     items ?? [],
     STATUSES.map((status) => status.value),
@@ -231,10 +238,10 @@ export default async function InventoryReportsPage({
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
         <Card>
           <CardHeader>
-            <CardTitle>On-hand value by type</CardTitle>
+            <CardTitle>On-hand value by category</CardTitle>
           </CardHeader>
           <CardContent className="px-0">
-            {byType.length === 0 ? (
+            {byCategory.length === 0 ? (
               <EmptyState
                 className="py-4"
                 title="No available inventory"
@@ -244,18 +251,35 @@ export default async function InventoryReportsPage({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Type</TableHead>
+                    <TableHead>Group</TableHead>
+                    <TableHead>Category</TableHead>
                     <TableHead>Items</TableHead>
                     <TableHead>Total value</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {byType.map((row) => (
-                    <TableRow key={row.type}>
-                      <TableCell>{row.type}</TableCell>
-                      <TableCell>{row.count}</TableCell>
-                      <TableCell>{formatFaceValue(row.totalValue)}</TableCell>
-                    </TableRow>
+                  {byCategoryGroup.map((group) => (
+                    <Fragment key={group.group}>
+                      <TableRow className="bg-muted/40 font-medium">
+                        <TableCell colSpan={2}>{group.group}</TableCell>
+                        <TableCell>{group.count}</TableCell>
+                        <TableCell>
+                          {formatFaceValue(group.totalValue)}
+                        </TableCell>
+                      </TableRow>
+                      {byCategory
+                        .filter((row) => row.group === group.group)
+                        .map((row) => (
+                          <TableRow key={`${row.group}-${row.category}`}>
+                            <TableCell />
+                            <TableCell>{row.category}</TableCell>
+                            <TableCell>{row.count}</TableCell>
+                            <TableCell>
+                              {formatFaceValue(row.totalValue)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </Fragment>
                   ))}
                 </TableBody>
               </Table>

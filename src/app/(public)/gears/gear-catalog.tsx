@@ -7,7 +7,9 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -23,7 +25,14 @@ export type GearItem = {
   id: string;
   description: string;
   size: string | null;
-  type: string;
+  /** Legacy free text / the "Other" category's detail -- see categoryLabelFor. */
+  type: string | null;
+  category_key: string | null;
+  category_label: string | null;
+  category_group_key: string | null;
+  category_group_label: string | null;
+  category_sort_order: number | null;
+  category_group_sort_order: number | null;
   gender: string | null;
   condition: string;
   photo_url: string | null;
@@ -69,16 +78,57 @@ export function GearCatalog({
 
   const cartItems = items.filter((item) => cartIds.has(item.id));
 
-  const typeOptions = useMemo(
-    () => Array.from(new Set(items.map((item) => item.type))).sort(),
-    [items],
-  );
+  // Built from the categories actually present in the catalog, grouped and in
+  // the admin's own sort order -- not from de-duped free text, and not from the
+  // whole vocabulary, so a category with nothing available isn't offered
+  // (issue #667).
+  const typeGroups = useMemo(() => {
+    const groups = new Map<
+      string,
+      {
+        label: string;
+        sort: number;
+        options: Map<string, { label: string; sort: number }>;
+      }
+    >();
+    for (const item of items) {
+      if (!item.category_key || !item.category_group_key) continue;
+      const groupKey = item.category_group_key;
+      let group = groups.get(groupKey);
+      if (!group) {
+        group = {
+          label: item.category_group_label ?? groupKey,
+          sort: item.category_group_sort_order ?? 0,
+          options: new Map(),
+        };
+        groups.set(groupKey, group);
+      }
+      if (!group.options.has(item.category_key)) {
+        group.options.set(item.category_key, {
+          label: item.category_label ?? item.category_key,
+          sort: item.category_sort_order ?? 0,
+        });
+      }
+    }
+    return [...groups.entries()]
+      .sort((a, b) => a[1].sort - b[1].sort)
+      .map(([key, group]) => ({
+        key,
+        label: group.label,
+        options: [...group.options.entries()]
+          .sort((a, b) => a[1].sort - b[1].sort)
+          .map(([optionKey, option]) => ({
+            key: optionKey,
+            label: option.label,
+          })),
+      }));
+  }, [items]);
 
   const visibleItems = useMemo(() => {
     const query = search.trim().toLowerCase();
 
     return items.filter((item) => {
-      if (typeFilter && item.type !== typeFilter) return false;
+      if (typeFilter && item.category_key !== typeFilter) return false;
       if (conditionFilter && item.condition !== conditionFilter) return false;
       if (genderFilter && item.gender !== genderFilter) return false;
       if (query && !item.description.toLowerCase().includes(query))
@@ -164,10 +214,15 @@ export function GearCatalog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={FILTER_ALL}>All types</SelectItem>
-                {typeOptions.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {type}
-                  </SelectItem>
+                {typeGroups.map((group) => (
+                  <SelectGroup key={group.key}>
+                    <SelectLabel>{group.label}</SelectLabel>
+                    {group.options.map((option) => (
+                      <SelectItem key={option.key} value={option.key}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 ))}
               </SelectContent>
             </Select>

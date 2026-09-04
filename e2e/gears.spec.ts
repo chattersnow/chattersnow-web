@@ -39,6 +39,8 @@ async function seedAvailableGearItems(admin: AdminClient, count: number) {
         donation_id: donation.id,
         created_by: donation.created_by,
         description,
+        // The before-insert trigger resolves this free text to the "Jacket"
+        // category, the same path sync_event_sponsor_donations takes.
         type: "jacket",
         condition: "good",
         status: "available",

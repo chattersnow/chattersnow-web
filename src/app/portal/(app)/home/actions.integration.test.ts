@@ -37,7 +37,9 @@ function donationInput(overrides?: Partial<CreateDonationInput>) {
     isAnonymous: false,
     donorName: "Integration Test Donor",
     sourceType: "individual",
-    items: [{ description: "Winter coat", type: "coat", condition: "good" }],
+    items: [
+      { description: "Winter coat", categoryKey: "jacket", condition: "good" },
+    ],
     ...overrides,
   } satisfies CreateDonationInput;
 }

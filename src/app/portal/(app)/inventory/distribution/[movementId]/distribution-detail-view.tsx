@@ -1,3 +1,4 @@
+import { categoryLabelFor, flattenCategory } from "@/lib/inventory";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FieldGroup } from "@/components/ui/field";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
@@ -13,8 +14,9 @@ export type DistributionDetailRow = {
   inventory_item: {
     id: string;
     description: string;
-    type: string;
+    type: string | null;
     size: string | null;
+    inventory_categories?: { key: string; label: string } | null;
   } | null;
   event: { id: string; name: string } | null;
   recipient: {
@@ -71,10 +73,12 @@ export function DistributionDetailView({
                 {movement.inventory_item?.description ?? "—"}
               </ReadOnlyField>
               <ReadOnlyField
-                label="Item type"
-                htmlFor="distribution-item-type-view"
+                label="Item category"
+                htmlFor="distribution-item-category-view"
               >
-                {movement.inventory_item?.type ?? "—"}
+                {movement.inventory_item
+                  ? categoryLabelFor(flattenCategory(movement.inventory_item))
+                  : "—"}
               </ReadOnlyField>
               <ReadOnlyField label="Size" htmlFor="distribution-size-view">
                 {movement.inventory_item?.size || "—"}

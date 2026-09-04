@@ -210,7 +210,7 @@ Authorized users shall be able to:
 
 1. Record the donation and donor information when required.
 2. Record one or more donated inventory items.
-3. Record each item's description, size, type, gender, condition, face value, photo, and status.
+3. Record each item's description, category, size, gender, condition, face value, photo, and status. The category comes from a controlled, admin-managed two-level vocabulary (`inventory_category_groups` -> `inventory_categories`, issue #667), picked from a grouped select rather than typed; choosing "Other" reveals a free-text detail field.
 4. Create an inventory receipt transaction.
 
 Source types should distinguish individual, brand, organization, event, and other sources.
@@ -239,7 +239,7 @@ Available quantity should be derived from valid inventory transactions, subject 
 
 #### Public gear availability
 
-The public site shall let visitors browse a gallery of gear currently available (`status = available` and `intended_use = gear_library`), with filtering by type, condition, and gender, and free-text search by description. The public read path must go through a dedicated, curated database view rather than a relaxed policy on the internal `inventory_items` table, so donor linkage, face value, notes, status, and movement history stay behind authenticated-only access regardless of how the public view's field list evolves.
+The public site shall let visitors browse a gallery of gear currently available (`status = available` and `intended_use = gear_library`), with filtering by category (grouped by category group), condition, and gender, and free-text search by description. The public read path must go through a dedicated, curated database view rather than a relaxed policy on the internal `inventory_items` table, so donor linkage, face value, notes, status, and movement history stay behind authenticated-only access regardless of how the public view's field list evolves.
 
 #### Public gear requests
 
@@ -300,7 +300,7 @@ Giveaway recording is implemented for the initial release: authorized users can 
 
 Participants earn tickets two ways, and a giveaway may run both at once:
 
-- **Donated gear.** The donated item's category sets its tier, and **every item earns its own bundle, uncapped** — a snowboard plus two beanies earns 3 gold, 3 silver, 7 bronze. Because `inventory_items.type` is free text with no controlled vocabulary (issue #667), the tier is _suggested_ from per-giveaway keyword hints (`giveaway_tier_rules`, longest match wins) and stored explicitly on the grant; intake staff can always override it, and an item matching nothing is reported back so it can be classified rather than silently earning nothing. Recording a donation against an event with a configured giveaway shows the bundle to hand over as part of completing the donation (`create_donation_with_items`).
+- **Donated gear.** The donated item's category sets its tier, and **every item earns its own bundle, uncapped** — a snowboard plus two beanies earns 3 gold, 3 silver, 7 bronze. Item categories are now a controlled vocabulary (issue #667), but the tier is still _suggested_ rather than derived: `create_donation_with_items` feeds `suggest_giveaway_tier` the item's `"<group label> <category label> <detail>"` instead of raw free text, so the per-giveaway keyword hints (`giveaway_tier_rules`, longest match wins) keep working and a group-level keyword such as `outerwear` now matches every category inside it. The resolved tier is stored explicitly on the grant; intake staff can always override it, and an item matching nothing is reported back so it can be classified rather than silently earning nothing. Because matching is still a substring test, category names are coupled to the keyword lists -- the vocabulary deliberately names the boards/skis group "Hardgoods" and files all footwear under one "Boots" category so that `ski`/`snowboard` cannot suggest a gold ticket for poles, bindings or boots. Replacing the keyword hints with a direct category -> tier mapping is a follow-up ticket. Recording a donation against an event with a configured giveaway shows the bundle to hand over as part of completing the donation (`create_donation_with_items`).
 - **Bought ticket packages.** A giveaway defines price points, each matching a tier and granting one or more of its bundles (`giveaway_ticket_packages`). Recording a sale captures package, quantity, unit price, amount, optional purchaser and date (`giveaway_ticket_sales`, via `record_giveaway_ticket_sale`); unit price is copied at sale time so repricing cannot rewrite history. **Payment is taken outside the system** — these rows record that it happened.
 
 Both paths write into one pool, `giveaway_ticket_grants`, whose source is exactly one of a donation (with its inventory item) or a sale. Per-colour totals and per-bucket odds are therefore a single aggregate over that table regardless of how a ticket was obtained (`giveaway_ticket_totals`). `grant_giveaway_tickets` expands the matrix for both paths and is an internal helper only — it is `security definer` with no permission check of its own, so execute is deliberately _not_ granted to `authenticated`; its callers authorize.
@@ -468,12 +468,12 @@ Reimbursements go through the same approval workflow as §5.16 (submitted → ap
 
 Authorized users (`admin`, and `finance`/`board` for view-only oversight per §5.3) shall be able to view a valuation report over existing inventory data:
 
-- Total face value of on-hand inventory, by type and status.
+- Total face value of on-hand inventory, by category and status.
 - Value donated and value distributed over a selected period, derived from `inventory_movements`.
 
 This is a reporting view over `inventory_items` and `inventory_movements` — no new tables are required.
 
-**Implemented.** `/portal/inventory/reports` computes on-hand face value by type/status and value donated/distributed over a selected period directly from `inventory_items.face_value` and `inventory_movements` (received/distributed movement types) — no new tables.
+**Implemented.** `/portal/inventory/reports` computes on-hand face value by category/status and value donated/distributed over a selected period directly from `inventory_items.face_value` and `inventory_movements` (received/distributed movement types) — no new tables. Since issue #667 the category breakdown groups on the vocabulary rather than on the raw free-text string, and leads with a category-group roll-up, so one real category can no longer appear as several rows.
 
 ### 5.20 Content and community calendar
 
@@ -558,11 +558,13 @@ Impact rollups themselves (per-event, per-program, and season reports, including
 - `people`: shared directory of donors, sponsors, volunteers, and staff (name, email, phone, notes), so the same contact can be reused across roles instead of being duplicated per context. It carries **no role columns**: role membership is derived by `public.people_with_roles` (§5.9), the view every read site uses, from the records that create each role unioned with `person_role_tags`. A role is therefore never stale — it appears with the record behind it and goes away with the last one. `person_type` (`individual` | `organization`, issue #625) is the separate, exclusive axis: it is staff-asserted rather than derived and decides the shape of the record — an organization has a logo, a website, a primary contact and org memberships, an individual has a rider profile — so the person form renders one branch or the other off it. A further type (`household`, for family registrations) is a check-constraint change rather than another boolean.
 - `donations`
 - `donation_items`
-- `inventory_items`: donation-managed inventory records with description, size, type, gender, condition, face value, photo, status, and `intended_use` — what the item is _for_ (`gear_library`, `giveaway`, `internal`), as distinct from where it is in its lifecycle (`status`)
+- `inventory_items`: donation-managed inventory records with description, `category_id` (FK to `inventory_categories`, `on delete restrict`; nullable, where null means a legacy row nothing matched), size, gender, condition, face value, photo, status, and `intended_use` — what the item is _for_ (`gear_library`, `giveaway`, `internal`), as distinct from where it is in its lifecycle (`status`)
 - `inventory_movements`: receipt, distribution, adjustment, and retirement transactions
 - `person_role_tags`: manual role assertions (`person_id`, `role`, `granted_at`, `granted_by`, `notes`) — the half of the derived role model no source record backs, such as a sponsor entered in the directory before any event link exists. Unlike a boolean it carries when the role was asserted and by whom
 - `people_with_roles`: `security_invoker` view over `people` adding the four derived role flags via the `security definer` helper `person_role_flags()` (§5.9); granted to `authenticated` only, and read-only — writes go to `people`
-- `public_gear_catalog`: read-only view over `inventory_items` limited to `status = available` **and** `intended_use = gear_library` rows and a curated column set (description, size, type, gender, condition, photo); granted to the `anon` role so it can back the public gear gallery without relaxing RLS on the base table
+- `public_gear_catalog`: read-only view over `inventory_items` limited to `status = available` **and** `intended_use = gear_library` rows and a curated column set (description, size, type, gender, condition, photo, plus the item's category/group keys, labels and sort orders); granted to the `anon` role so it can back the public gear gallery without relaxing RLS on the base table. The category labels are denormalized into the view on purpose, so `anon` needs no access to the vocabulary tables themselves
+- `inventory_category_groups` / `inventory_categories`: the two-level controlled item-category vocabulary (issue #667) — `key` (stable machine token, never changed by a rename), `label`, `sort_order`, `is_active`. Readable by any signed-in user (an intake volunteer holds `inventory_intake:manage` but `inventory:none`, and still has to render the picker); editable with `inventory:manage` at `/portal/inventory/categories`; both registered in `audited_tables`. `resolve_inventory_category(text)` maps free text to a category by key, label or a known alias, and backs both the one-time backfill and a `before insert` trigger on `inventory_items` that classifies rows written by callers that still supply only `type`
+- `inventory_items_with_category`: `security_invoker` view over `inventory_items` left-joined to the vocabulary, adding `category_key`/`category_label`/`category_group_key`/`category_group_label` and a `category_sort_key`. It exists because the items list is server-sorted by category and PostgREST cannot order a row by an embedded resource's column
 - `inventory_photos`
 - `distribution_recipients`: protected recipient records, if needed
 

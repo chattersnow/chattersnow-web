@@ -16,7 +16,7 @@ export default async function GearLibraryPage() {
     supabase
       .from("public_gear_catalog")
       .select(
-        "id, description, size, type, gender, condition, photo_url, created_at",
+        "id, description, size, type, gender, condition, photo_url, created_at, category_key, category_label, category_group_key, category_group_label, category_sort_order, category_group_sort_order",
       )
       .order("created_at", { ascending: false }),
     getSiteImageUrls(supabase),

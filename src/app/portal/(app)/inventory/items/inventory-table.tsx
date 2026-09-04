@@ -16,6 +16,7 @@ import { InventoryCard } from "./inventory-card";
 import { useInventoryView } from "./inventory-view-context";
 import {
   CONDITIONS,
+  categoryLabelFor,
   GENDERS,
   IntendedUseBadge,
   SORT_COLUMNS,
@@ -26,15 +27,18 @@ import {
   type SortColumn,
 } from "./inventory-shared";
 import { EmptyState } from "@/components/portal/empty-state";
+import type { InventoryCategory } from "@/lib/inventory";
 
 export function InventoryTable({
   items,
+  categories,
   sort,
   dir,
   filterQueryString,
   hasActiveFilters,
 }: {
   items: InventoryItem[];
+  categories: InventoryCategory[];
   sort: SortColumn;
   dir: "asc" | "desc";
   filterQueryString: string;
@@ -78,7 +82,7 @@ export function InventoryTable({
       {view === "gallery" ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {items.map((item) => (
-            <InventoryCard key={item.id} item={item} />
+            <InventoryCard key={item.id} item={item} categories={categories} />
           ))}
         </div>
       ) : (
@@ -113,7 +117,7 @@ export function InventoryTable({
                     >
                       {item.description}
                     </TableCell>
-                    <TableCell>{item.type}</TableCell>
+                    <TableCell>{categoryLabelFor(item)}</TableCell>
                     <TableCell>{item.size ?? "—"}</TableCell>
                     <TableCell>
                       {labelFor(GENDERS, item.gender) ?? "—"}
@@ -129,7 +133,7 @@ export function InventoryTable({
                       <IntendedUseBadge intendedUse={item.intended_use} />
                     </TableCell>
                     <TableCell>
-                      <EditInventoryModal item={item} />
+                      <EditInventoryModal item={item} categories={categories} />
                     </TableCell>
                   </TableRow>
                 ))}

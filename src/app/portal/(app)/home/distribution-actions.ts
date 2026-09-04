@@ -19,14 +19,22 @@ export type EventDistributionRow = {
   inventory_item: {
     id: string;
     description: string;
-    type: string;
+    type: string | null;
     size: string | null;
+    inventory_categories?: { key: string; label: string } | null;
   } | null;
 };
 
 export type DistributionRow = EventDistributionRow & {
   event: { id: string; name: string } | null;
   recipient: { id: string; name: string | null } | null;
+};
+
+export type AvailableInventoryItem = {
+  id: string;
+  description: string;
+  type: string | null;
+  inventory_categories?: { key: string; label: string } | null;
 };
 
 export type DistributionActionResult = { error: string } | { success: true };
@@ -44,7 +52,7 @@ export async function listEventDistributionsAction(
   const { data, error } = await supabase
     .from("inventory_movements")
     .select(
-      "id, quantity, occurred_at, reason, inventory_item:inventory_items(id, description, type, size)",
+      "id, quantity, occurred_at, reason, inventory_item:inventory_items(id, description, type, size, inventory_categories(key, label))",
     )
     .eq("event_id", eventId)
     .eq("movement_type", "distributed")
@@ -71,7 +79,7 @@ export async function listDistributionsAction(
   const { data, error } = await supabase
     .from("inventory_movements")
     .select(
-      "id, quantity, occurred_at, reason, inventory_item:inventory_items(id, description, type, size), event:events(id, name), recipient:people(id, name)",
+      "id, quantity, occurred_at, reason, inventory_item:inventory_items(id, description, type, size, inventory_categories(key, label)), event:events(id, name), recipient:people(id, name)",
     )
     .eq("movement_type", "distributed")
     .order("occurred_at", { ascending: false })
@@ -84,8 +92,7 @@ export async function listDistributionsAction(
 }
 
 export async function listAvailableInventoryItemsAction(): Promise<
-  | { data: { id: string; description: string; type: string }[] }
-  | { error: string }
+  { data: AvailableInventoryItem[] } | { error: string }
 > {
   const supabase = await createSupabaseServerClient();
   const permissionError = await checkAnyPermission(supabase, [
@@ -96,7 +103,7 @@ export async function listAvailableInventoryItemsAction(): Promise<
 
   const { data, error } = await supabase
     .from("inventory_items")
-    .select("id, description, type")
+    .select("id, description, type, inventory_categories(key, label)")
     .eq("status", "available")
     // Giveaway prizes and internal-use items are not gear-library stock, so
     // they must not be offered as something to distribute to a rider.
@@ -106,7 +113,7 @@ export async function listAvailableInventoryItemsAction(): Promise<
   if (error) {
     return { error: "Could not load available inventory. Please try again." };
   }
-  return { data: data ?? [] };
+  return { data: (data ?? []) as unknown as AvailableInventoryItem[] };
 }
 
 export async function recordEventDistributionAction(

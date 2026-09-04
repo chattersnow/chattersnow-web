@@ -1,3 +1,4 @@
+import { categoryLabelFor } from "@/lib/inventory";
 import Image from "next/image";
 import { BrandImageFallback } from "@/components/brand-image-fallback";
 import { Card, CardContent } from "@/components/ui/card";
@@ -50,7 +51,9 @@ export function GearCard({
         <CardContent className="space-y-1.5 px-4 py-3">
           <p className="line-clamp-2 text-sm font-medium">{item.description}</p>
           <p className="app-muted text-xs">
-            {[item.type, item.size, genderLabel].filter(Boolean).join(" · ")}
+            {[categoryLabelFor(item), item.size, genderLabel]
+              .filter(Boolean)
+              .join(" · ")}
           </p>
           <p className="text-xs text-muted-foreground">
             {labelFor(CONDITIONS, item.condition)}

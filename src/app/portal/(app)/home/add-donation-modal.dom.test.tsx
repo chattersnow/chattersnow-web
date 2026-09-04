@@ -30,11 +30,44 @@ mock.module("../events/actions", () => ({
   listEventOptionsAction: async () => ({ data: [] }),
 }));
 
+// The item category vocabulary (issue #667), also loaded on open.
+mock.module("../inventory/categories/actions", () => ({
+  listInventoryCategoriesAction: async () => ({
+    data: [
+      {
+        id: "category-jacket",
+        key: "jacket",
+        label: "Jacket",
+        groupKey: "outerwear",
+        groupLabel: "Outerwear",
+        isActive: true,
+      },
+      {
+        id: "category-other",
+        key: "other",
+        label: "Other",
+        groupKey: "other",
+        groupLabel: "Other",
+        isActive: true,
+      },
+    ],
+  }),
+}));
+
 const { AddDonationModal } = await import("./add-donation-modal");
 
 async function openModal(user: ReturnType<typeof userEvent.setup>) {
   render(<AddDonationModal />);
   await user.click(screen.getByRole("button", { name: "Record donation" }));
+}
+
+async function selectItemCategory(
+  user: ReturnType<typeof userEvent.setup>,
+  label: string,
+) {
+  await user.click(screen.getByLabelText("Item category"));
+  const listbox = await screen.findByRole("listbox");
+  await user.click(within(listbox).getByRole("option", { name: label }));
 }
 
 async function selectSourceType(
@@ -142,7 +175,7 @@ describe("AddDonationModal", () => {
     await fillDonorAndContinue(user, "Jane Donor");
 
     await user.type(screen.getByLabelText("Item description"), "Winter jacket");
-    await user.type(screen.getByLabelText("Item type"), "Jacket");
+    await selectItemCategory(user, "Jacket");
     await user.click(screen.getByRole("button", { name: "Save donation" }));
 
     await screen.findByRole("button", { name: "Record donation" });
@@ -155,7 +188,8 @@ describe("AddDonationModal", () => {
       {
         description: "Winter jacket",
         size: undefined,
-        type: "Jacket",
+        categoryKey: "jacket",
+        categoryDetail: undefined,
         gender: undefined,
         condition: "",
         faceValue: null,
@@ -174,7 +208,7 @@ describe("AddDonationModal", () => {
     await fillDonorAndContinue(user, "Jane Donor");
 
     await user.type(screen.getByLabelText("Item description"), "Winter jacket");
-    await user.type(screen.getByLabelText("Item type"), "Jacket");
+    await selectItemCategory(user, "Jacket");
     await user.click(screen.getByRole("button", { name: "Save donation" }));
 
     expect(
@@ -223,7 +257,7 @@ describe("AddDonationModal", () => {
     await user.click(screen.getByRole("button", { name: "Continue" }));
 
     await user.type(screen.getByLabelText("Item description"), "Winter jacket");
-    await user.type(screen.getByLabelText("Item type"), "Jacket");
+    await selectItemCategory(user, "Jacket");
     await user.click(screen.getByRole("button", { name: "Save donation" }));
 
     await screen.findByRole("button", { name: "Record donation" });
