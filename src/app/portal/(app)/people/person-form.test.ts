@@ -17,7 +17,7 @@ describe("parsePersonForm", () => {
   test("requires at least one role, and names the field in the error", () => {
     expect(parsePersonForm(formData({ name: "Jane" }))).toEqual({
       error:
-        "Select at least one role for this person — Donor, Sponsor, Volunteer, Attendee, or Staff.",
+        "Select at least one role for this person — Donor, Sponsor, Volunteer, Attendee, Staff, or Partner.",
     });
   });
 
@@ -26,6 +26,15 @@ describe("parsePersonForm", () => {
       formData({ name: "Jane", isVolunteer: "true" }),
     );
     expect("roles" in result && result.roles).toEqual(["volunteer"]);
+  });
+
+  test("partner alone satisfies the role requirement", () => {
+    // A partner organization often holds no other role: it has never donated,
+    // sponsored an event, or turned up to one.
+    const result = parsePersonForm(
+      formData({ name: "Summit Outdoor Co.", isPartner: "true" }),
+    );
+    expect("roles" in result && result.roles).toEqual(["partner"]);
   });
 
   test('accepts a native checkbox value of "on"', () => {

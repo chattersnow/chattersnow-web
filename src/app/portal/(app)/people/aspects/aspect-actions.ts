@@ -74,4 +74,14 @@ export const ASPECT_ACTIONS: Record<RoleKey, readonly PersonAspectAction[]> = {
       access: [{ resource: "events", level: "view" }],
     },
   ],
+  // The pipeline that makes someone a partner lives in Governance, and there
+  // is no `partners` resource -- governance owns this relationship.
+  is_partner: [
+    {
+      key: "partnerships",
+      label: "Partnerships",
+      href: "/portal/governance/partnerships",
+      access: [{ resource: "governance", level: "manage" }],
+    },
+  ],
 };

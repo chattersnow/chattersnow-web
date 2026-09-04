@@ -11,6 +11,7 @@ describe("emptyPersonForm", () => {
       is_volunteer: false,
       is_attendee: false,
       is_staff: false,
+      is_partner: false,
     });
   });
 
@@ -22,6 +23,7 @@ describe("emptyPersonForm", () => {
       is_volunteer: false,
       is_attendee: false,
       is_staff: false,
+      is_partner: false,
     });
   });
 });

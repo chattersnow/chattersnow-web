@@ -1,5 +1,6 @@
 import { ASPECT_ACTIONS } from "./aspect-actions";
 import { AttendeeCard } from "./attendee-card";
+import { PartnerCard } from "./partner-card";
 import { DonorCard } from "./donor-card";
 import { SponsorCard } from "./sponsor-card";
 import { StaffCard } from "./staff-card";
@@ -11,7 +12,9 @@ import type { PersonAspect } from "./types";
  * detail page and the Roles column agree.
  *
  * Adding a type is a card file, an ASPECT_ACTIONS entry, and one line here.
- * Staff (#626) was the first to go through the seam and needed nothing else.
+ * Staff (#626) was the first to go through the seam and needed nothing else;
+ * Partner was the second, and the first to arrive by moving an existing
+ * standalone card ([id]/partnerships-card.tsx) into the registry.
  */
 export const PERSON_ASPECTS: readonly PersonAspect[] = [
   {
@@ -43,5 +46,11 @@ export const PERSON_ASPECTS: readonly PersonAspect[] = [
     label: "Staff",
     HistoryCard: StaffCard,
     actions: ASPECT_ACTIONS.is_staff,
+  },
+  {
+    key: "is_partner",
+    label: "Partner",
+    HistoryCard: PartnerCard,
+    actions: ASPECT_ACTIONS.is_partner,
   },
 ];

@@ -1,8 +1,8 @@
 import { Badge } from "@/components/ui/badge";
 
 /**
- * The read model for a person *with* their roles (20260903030000). The four
- * role flags are derived at query time from the records that create each role,
+ * The read model for a person *with* their roles (20260903030000). The role
+ * flags are derived at query time from the records that create each role,
  * unioned with person_role_tags, so they exist on this view rather than on
  * `people` -- which is still where every write goes.
  */
@@ -58,6 +58,7 @@ export type PersonRow = {
   is_volunteer: boolean;
   is_attendee: boolean;
   is_staff: boolean;
+  is_partner: boolean;
   person_type: PersonType;
   primary_contact_person_id: string | null;
   primary_contact: PersonSummary | null;
@@ -81,6 +82,7 @@ export const ROLE_OPTIONS = [
   { key: "is_volunteer", label: "Volunteer" },
   { key: "is_attendee", label: "Attendee" },
   { key: "is_staff", label: "Staff" },
+  { key: "is_partner", label: "Partner" },
 ] as const;
 
 export type RoleKey = (typeof ROLE_OPTIONS)[number]["key"];
@@ -88,7 +90,12 @@ export type RoleKey = (typeof ROLE_OPTIONS)[number]["key"];
 export function rolesFor(
   person: Pick<
     PersonRow,
-    "is_donor" | "is_sponsor" | "is_volunteer" | "is_attendee" | "is_staff"
+    | "is_donor"
+    | "is_sponsor"
+    | "is_volunteer"
+    | "is_attendee"
+    | "is_staff"
+    | "is_partner"
   >,
 ) {
   return ROLE_OPTIONS.filter((option) => person[option.key]).map(

@@ -12,8 +12,8 @@ import {
  * page repeated this Card/CardHeader/EmptyState markup inline five times.
  *
  * `count` is optional rather than assumed: two of the cards ("Volunteer
- * activity", "Partnerships") aggregate several result sets and have never
- * shown a count, and their titles are the locator e2e uses to find them.
+ * activity", "Partnership involvement") aggregate several result sets and have
+ * never shown a count, and their titles are the locator e2e uses to find them.
  */
 export function HistoryCard({
   title,

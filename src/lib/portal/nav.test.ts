@@ -65,6 +65,28 @@ describe("activeSectionFor", () => {
   });
 });
 
+describe("Volunteers section", () => {
+  test("still lands on Roles, not the cross-linked directory", () => {
+    // Directory is listed last on purpose: volunteers/page.tsx redirects via
+    // firstAccessibleHref, so a first-placed entry would move the section's
+    // landing page.
+    expect(firstAccessibleHref({ volunteers: "view" }, "volunteers")).toBe(
+      "/portal/volunteers/roles",
+    );
+  });
+
+  test("hides the directory from someone who cannot read People", () => {
+    // The page is gated by people/layout.tsx, so the cross-link is gated the
+    // same way rather than on volunteers:view.
+    const volunteersOnly: PermissionMap = { volunteers: "view" };
+    expect(
+      visibleNavItems(volunteersOnly)
+        .find((item) => item.value === "volunteers")
+        ?.subItems?.map((sub) => sub.value),
+    ).toEqual(["roles", "participation", "applications"]);
+  });
+});
+
 describe("People section", () => {
   test("owns its segments even though they sit outside /portal/people", () => {
     // Donors, Sponsors, Attendees, and Organizations are top-level routes, so
@@ -83,6 +105,21 @@ describe("People section", () => {
   test("still owns the directory and its detail routes", () => {
     expect(activeSectionFor("/portal/people")).toBe("people");
     expect(activeSectionFor("/portal/people/abc-123")).toBe("people");
+  });
+
+  test("owns the volunteer directory, which Volunteers only cross-links", () => {
+    // One page, two entry points. activeSectionFor's first pass matches
+    // basePath, so the section the URL actually lives under wins over the
+    // Volunteers section that merely lists the same href.
+    expect(activeSectionFor("/portal/people/volunteers")).toBe("people");
+    const people = NAV_ITEMS.find((item) => item.value === "people")!;
+    expect(activeSubItemFor("/portal/people/volunteers", people)).toBe(
+      "volunteers",
+    );
+  });
+
+  test("owns the partners segment", () => {
+    expect(activeSectionFor("/portal/partners")).toBe("people");
   });
 
   test("picks the segment the user is actually on", () => {

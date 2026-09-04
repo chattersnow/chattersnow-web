@@ -48,7 +48,7 @@ export default async function PersonDetailPage({
     .select(
       // primary_contact is a computed relationship on the view; see
       // PERSON_COLUMNS in people-directory.tsx for why.
-      "id, name, email, phone, instagram_handle, notes, logo_url, website, auth_user_id, is_donor, is_sponsor, is_volunteer, is_attendee, is_staff, person_type, riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain, primary_contact_person_id, primary_contact(id, name, email, phone)",
+      "id, name, email, phone, instagram_handle, notes, logo_url, website, auth_user_id, is_donor, is_sponsor, is_volunteer, is_attendee, is_staff, is_partner, person_type, riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain, primary_contact_person_id, primary_contact(id, name, email, phone)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -92,7 +92,10 @@ export default async function PersonDetailPage({
         ))}
 
         <Suspense fallback={<FieldCardSkeleton rows={3} />}>
-          <PartnershipsCard personId={personRow.id} />
+          <PartnershipsCard
+            personId={personRow.id}
+            showPipeline={!personRow.is_partner}
+          />
         </Suspense>
       </div>
     </>

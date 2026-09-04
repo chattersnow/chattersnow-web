@@ -58,6 +58,16 @@ describe("per-module gating", () => {
     ).toEqual([]);
   });
 
+  test("partnerships answer to governance, which owns the pipeline", () => {
+    expect(labels("is_partner", { governance: "manage" })).toEqual([
+      "Partnerships",
+    ]);
+    // The Partnerships page is manage-gated, so view is not enough.
+    expect(labels("is_partner", { governance: "view" })).toEqual([]);
+    // Being a partner is a People fact, but acting on one is not.
+    expect(labels("is_partner", { people: "manage" })).toEqual([]);
+  });
+
   test("view does not satisfy an action that wants manage", () => {
     expect(labels("is_donor", { finance: "view" })).toEqual([]);
   });

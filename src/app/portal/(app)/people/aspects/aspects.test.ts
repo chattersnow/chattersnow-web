@@ -5,7 +5,14 @@ import { aspectsFor, type PersonAspect } from "./types";
 // A stand-in registry: keeps this test off the real one, which imports async
 // server components (and so next/headers) through its card fields.
 const ASPECTS = (
-  ["is_donor", "is_sponsor", "is_volunteer", "is_attendee"] as const
+  [
+    "is_donor",
+    "is_sponsor",
+    "is_volunteer",
+    "is_attendee",
+    "is_staff",
+    "is_partner",
+  ] as const
 ).map(
   (key) =>
     ({
@@ -22,6 +29,8 @@ function person(flags: Partial<Record<RoleKey, boolean>>) {
     is_sponsor: false,
     is_volunteer: false,
     is_attendee: false,
+    is_staff: false,
+    is_partner: false,
     ...flags,
   } as Pick<PersonRow, RoleKey>;
 }

@@ -46,6 +46,13 @@ export type PersonAspect = {
  * the records that create each role -- read straight off people_with_roles
  * (20260903030000): a person without is_donor provably has no donations, so
  * this hides only cards that would have rendered empty.
+ *
+ * Partner is the one flag narrower than its card's query: is_partner means a
+ * *won* opportunity (20260905020000), so an organization still in the pipeline
+ * holds no flag while PartnerCard would have had rows to show. That history is
+ * not lost -- [id]/partnerships-card.tsx picks it up for exactly the people
+ * this filter drops. Narrow a derivation again and the same care is owed, or
+ * the registry starts hiding cards that would not have been empty.
  */
 export function aspectsFor(
   aspects: readonly PersonAspect[],

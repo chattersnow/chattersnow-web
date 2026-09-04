@@ -302,7 +302,7 @@ export function EditPartnershipModal({
                       selected={organization}
                       onSelect={setOrganization}
                       onPersonCreated={handlePersonCreated}
-                      newPersonRole="is_sponsor"
+                      newPersonRole="is_partner"
                     />
                   </Field>
 

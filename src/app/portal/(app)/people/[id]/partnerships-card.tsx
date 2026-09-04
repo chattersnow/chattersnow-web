@@ -14,17 +14,36 @@ type AsOwner = {
 };
 
 /**
- * Not an aspect: a partnership is a relationship between an organization and
- * an internal owner, not one of the person's roles. It shares the history
- * shell without joining the registry.
+ * Partnership involvement that is *not* the partner role, so it stays off the
+ * aspect registry and renders alongside it.
+ *
+ * Two halves, neither of which makes someone a partner. Being the internal
+ * owner is a work assignment on a staff or board member -- the opposite of
+ * being the counterparty. And an organization still in the pipeline is a
+ * prospect: is_partner is derived from a *won* opportunity (20260905020000),
+ * so aspects/partner-card.tsx would never be shown for them and the history
+ * would vanish. `showPipeline` is the detail page passing `!person.is_partner`
+ * so exactly one of the two cards lists the org half, never both.
+ *
+ * Returns null when there is nothing to say. Unlike an aspect card there is no
+ * role flag upstream to gate it, so without this every person in the directory
+ * would carry an empty card.
  */
-export async function PartnershipsCard({ personId }: { personId: string }) {
+export async function PartnershipsCard({
+  personId,
+  showPipeline = false,
+}: {
+  personId: string;
+  showPipeline?: boolean;
+}) {
   const supabase = await createSupabaseServerClient();
   const [{ data: orgData }, { data: ownerData }] = await Promise.all([
-    supabase
-      .from("partnership_opportunities")
-      .select("id, stage, next_step_date")
-      .eq("organization_person_id", personId),
+    showPipeline
+      ? supabase
+          .from("partnership_opportunities")
+          .select("id, stage, next_step_date")
+          .eq("organization_person_id", personId)
+      : Promise.resolve({ data: [] }),
     supabase
       .from("partnership_opportunities")
       .select("id, stage, organization:people!organization_person_id(name)")
@@ -34,16 +53,18 @@ export async function PartnershipsCard({ personId }: { personId: string }) {
   const asOrg = (orgData ?? []) as unknown as AsOrg[];
   const asOwner = (ownerData ?? []) as unknown as AsOwner[];
 
+  if (asOrg.length === 0 && asOwner.length === 0) return null;
+
   return (
     <HistoryCard
-      title="Partnerships"
-      isEmpty={asOrg.length === 0 && asOwner.length === 0}
+      title="Partnership involvement"
+      isEmpty={false}
       emptyTitle="No partnership involvement"
       emptyDescription="Opportunities appear here once this record is named as the partner or owner from Governance › Partnerships."
     >
       <HistoryGroups>
         <HistorySection
-          title="As the partner organization"
+          title="In the partnership pipeline"
           isEmpty={asOrg.length === 0}
         >
           {asOrg.map((opportunity) => (
