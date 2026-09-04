@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useId, useState } from "react";
+import { Fragment, useId, useMemo, useState } from "react";
 import { ChevronDown, Clock } from "lucide-react";
 import {
   type EventVolunteer,
@@ -31,11 +31,12 @@ import { LogHoursDialog } from "./log-hours-dialog";
 import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { EmptyState } from "@/components/portal/empty-state";
+import {
+  LIST_PREVIEW_ROWS,
+  ListPreviewSheet,
+} from "@/components/portal/list-preview-sheet";
 import { formatCalendarDate, personDisplayName } from "@/lib/format";
 import { cn } from "@/lib/utils";
-
-/** Rows past this are held back behind a toggle. */
-export const ROSTER_PREVIEW_ROWS = 10;
 
 export type RosterRow = {
   personId: string;
@@ -124,7 +125,7 @@ export function RosterSection({
   mode,
   isDeleting,
   loading,
-  previewRows = ROSTER_PREVIEW_ROWS,
+  previewRows = LIST_PREVIEW_ROWS,
   onDeleteVolunteer,
   onDeleteHours,
   onShiftReassign,
@@ -136,26 +137,224 @@ export function RosterSection({
   mode: "view" | "edit";
   isDeleting: boolean;
   loading: boolean;
-  /** Overridable so tests don't have to build eleven rows. */
-  previewRows?: number;
+  /** Overridable so tests don't have to build six rows. `null` disables the cap. */
+  previewRows?: number | null;
   onDeleteVolunteer: (id: string) => void;
   onDeleteHours: (id: string) => void;
   onShiftReassign: (volunteerId: string, shiftId: string | null) => void;
   onSaved: () => void;
 }) {
-  const tableId = useId();
+  const baseId = useId();
   const [expandedPersonId, setExpandedPersonId] = useState<string | null>(null);
-  const [showAll, setShowAll] = useState(false);
+  const [query, setQuery] = useState("");
 
   const totalHours = sumHours(rows.flatMap((row) => row.entries));
   const unsignedCount = rows.filter((row) => !row.signup).length;
-  const visibleRows = showAll ? rows : rows.slice(0, previewRows);
 
-  function toggleShowAll() {
-    // Collapsing could otherwise leave an open detail row -- and the
-    // aria-controls pointing at it -- outside the rendered slice.
-    if (showAll) setExpandedPersonId(null);
-    setShowAll(!showAll);
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return rows;
+    return rows.filter((row) =>
+      personDisplayName(row.person).toLowerCase().includes(needle),
+    );
+  }, [rows, query]);
+
+  const capped = previewRows === null ? rows : rows.slice(0, previewRows);
+  const hasOverflow = previewRows !== null && rows.length > previewRows;
+
+  /**
+   * Rendered twice -- capped in the card, in full in the sheet -- so each copy
+   * needs its own `tableId`; the detail-row ids hang off it and would otherwise
+   * collide while both are mounted.
+   */
+  function rosterTable(
+    tableRows: RosterRow[],
+    tableId: string,
+    stickyHeader = false,
+  ) {
+    return (
+      <Table id={tableId} stickyFirstColumn>
+        <TableHeader
+          className={stickyHeader ? "sticky top-0 z-10 bg-popover" : undefined}
+        >
+          <TableRow>
+            <TableHead>Volunteer</TableHead>
+            <TableHead>Shift</TableHead>
+            <TableHead hideBelow="md">Role</TableHead>
+            <TableHead>Hours</TableHead>
+            <TableHead className="w-px">
+              <span className="sr-only">Actions</span>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {tableRows.map((row) => {
+            const name = personDisplayName(row.person);
+            const isOpen = expandedPersonId === row.personId;
+            const detailId = `${tableId}-hours-${row.personId}`;
+
+            return (
+              <Fragment key={row.personId}>
+                <TableRow>
+                  <TableCell
+                    className="max-w-xs truncate font-medium"
+                    title={row.person?.name ?? undefined}
+                  >
+                    {name}
+                    {!row.signup && (
+                      <Badge
+                        variant="outline"
+                        className="ml-2"
+                        title="Hours logged from Volunteers > Participation. This person has no signup for this event."
+                      >
+                        Not signed up
+                      </Badge>
+                    )}
+                  </TableCell>
+
+                  <TableCell className="app-muted">
+                    {row.signup && mode === "edit" && shifts.length > 0 ? (
+                      <Select
+                        value={row.signup.shift_id ?? NONE_VALUE}
+                        onValueChange={(value) =>
+                          onShiftReassign(
+                            row.signup!.id,
+                            value === NONE_VALUE ? null : value,
+                          )
+                        }
+                      >
+                        <SelectTrigger
+                          className="w-full"
+                          size="sm"
+                          aria-label={`Shift for ${row.person?.name ?? "volunteer"}`}
+                        >
+                          <SelectValue placeholder="No shift">
+                            {(value: string) =>
+                              shifts.find((s) => s.id === value)?.label ??
+                              "No shift"
+                            }
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={NONE_VALUE}>No shift</SelectItem>
+                          {shifts.map((shift) => (
+                            <SelectItem key={shift.id} value={shift.id}>
+                              {shift.label} ({formatShiftRange(shift)})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      (shifts.find((s) => s.id === row.signup?.shift_id)
+                        ?.label ?? "—")
+                    )}
+                  </TableCell>
+
+                  <TableCell className="app-muted" hideBelow="md">
+                    {roleLabelFor(row, shifts)}
+                  </TableCell>
+
+                  <TableCell>
+                    {row.entries.length === 0 ? (
+                      "—"
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        aria-expanded={isOpen}
+                        aria-controls={isOpen ? detailId : undefined}
+                        onClick={() =>
+                          setExpandedPersonId(isOpen ? null : row.personId)
+                        }
+                      >
+                        {row.totalHours}
+                        <span className="sr-only">
+                          {` hours logged by ${name}, ${row.entries.length} ${
+                            row.entries.length === 1 ? "entry" : "entries"
+                          }`}
+                        </span>
+                        <ChevronDown
+                          aria-hidden
+                          className={cn(
+                            "transition-transform",
+                            isOpen && "rotate-180",
+                          )}
+                        />
+                      </Button>
+                    )}
+                  </TableCell>
+
+                  <TableCell className="text-right whitespace-nowrap">
+                    {mode === "edit" && row.signup && (
+                      <>
+                        {/* Hours can only be logged against a signup --
+                                createEventVolunteerHoursAction rejects anyone
+                                without one -- so hours-only rows get no
+                                trigger that could only ever fail. */}
+                        <LogHoursDialog
+                          eventId={eventId}
+                          personId={row.personId}
+                          onSaved={onSaved}
+                          triggerLabel={<Clock />}
+                          triggerRender={
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={`Log hours for ${name}`}
+                            />
+                          }
+                        />
+                        <ConfirmDeleteButton
+                          label="Remove volunteer"
+                          title={`Remove ${name} from this event?`}
+                          description="This deletes their signup and any shift assigned to it. It can't be undone."
+                          confirmLabel="Remove"
+                          pending={isDeleting}
+                          onConfirm={() => onDeleteVolunteer(row.signup!.id)}
+                        />
+                      </>
+                    )}
+                  </TableCell>
+                </TableRow>
+
+                {isOpen && (
+                  <TableRow id={detailId}>
+                    <TableCell colSpan={5} className="p-0">
+                      <ul className="flex flex-col gap-1 px-3 py-2">
+                        {row.entries.map((entry) => (
+                          <li
+                            key={entry.id}
+                            className="flex items-center justify-between gap-3 text-sm"
+                          >
+                            <span className="app-muted">
+                              {formatCalendarDate(entry.logged_date)} ·{" "}
+                              {entry.hours} h
+                              {entry.notes ? ` · ${entry.notes}` : ""}
+                            </span>
+                            {mode === "edit" && (
+                              <ConfirmDeleteButton
+                                label={`Remove hours entry for ${name}`}
+                                title={`Remove ${name}'s logged hours?`}
+                                description="Volunteer hours feed grant reporting, so removing this changes reported totals. It can't be undone."
+                                confirmLabel="Remove"
+                                pending={isDeleting}
+                                onConfirm={() => onDeleteHours(entry.id)}
+                              />
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </Fragment>
+            );
+          })}
+        </TableBody>
+      </Table>
+    );
   }
 
   return (
@@ -184,205 +383,29 @@ export function RosterSection({
         />
       ) : (
         <>
-          <Table id={tableId} stickyFirstColumn>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Volunteer</TableHead>
-                <TableHead>Shift</TableHead>
-                <TableHead hideBelow="md">Role</TableHead>
-                <TableHead>Hours</TableHead>
-                <TableHead className="w-px">
-                  <span className="sr-only">Actions</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {visibleRows.map((row) => {
-                const name = personDisplayName(row.person);
-                const isOpen = expandedPersonId === row.personId;
-                const detailId = `${tableId}-hours-${row.personId}`;
+          {rosterTable(capped, `${baseId}-preview`)}
 
-                return (
-                  <Fragment key={row.personId}>
-                    <TableRow>
-                      <TableCell
-                        className="max-w-xs truncate font-medium"
-                        title={row.person?.name ?? undefined}
-                      >
-                        {name}
-                        {!row.signup && (
-                          <Badge
-                            variant="outline"
-                            className="ml-2"
-                            title="Hours logged from Volunteers > Participation. This person has no signup for this event."
-                          >
-                            Not signed up
-                          </Badge>
-                        )}
-                      </TableCell>
-
-                      <TableCell className="app-muted">
-                        {row.signup && mode === "edit" && shifts.length > 0 ? (
-                          <Select
-                            value={row.signup.shift_id ?? NONE_VALUE}
-                            onValueChange={(value) =>
-                              onShiftReassign(
-                                row.signup!.id,
-                                value === NONE_VALUE ? null : value,
-                              )
-                            }
-                          >
-                            <SelectTrigger
-                              className="w-full"
-                              size="sm"
-                              aria-label={`Shift for ${row.person?.name ?? "volunteer"}`}
-                            >
-                              <SelectValue placeholder="No shift">
-                                {(value: string) =>
-                                  shifts.find((s) => s.id === value)?.label ??
-                                  "No shift"
-                                }
-                              </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value={NONE_VALUE}>
-                                No shift
-                              </SelectItem>
-                              {shifts.map((shift) => (
-                                <SelectItem key={shift.id} value={shift.id}>
-                                  {shift.label} ({formatShiftRange(shift)})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          (shifts.find((s) => s.id === row.signup?.shift_id)
-                            ?.label ?? "—")
-                        )}
-                      </TableCell>
-
-                      <TableCell className="app-muted" hideBelow="md">
-                        {roleLabelFor(row, shifts)}
-                      </TableCell>
-
-                      <TableCell>
-                        {row.entries.length === 0 ? (
-                          "—"
-                        ) : (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            aria-expanded={isOpen}
-                            aria-controls={isOpen ? detailId : undefined}
-                            onClick={() =>
-                              setExpandedPersonId(isOpen ? null : row.personId)
-                            }
-                          >
-                            {row.totalHours}
-                            <span className="sr-only">
-                              {` hours logged by ${name}, ${row.entries.length} ${
-                                row.entries.length === 1 ? "entry" : "entries"
-                              }`}
-                            </span>
-                            <ChevronDown
-                              aria-hidden
-                              className={cn(
-                                "transition-transform",
-                                isOpen && "rotate-180",
-                              )}
-                            />
-                          </Button>
-                        )}
-                      </TableCell>
-
-                      <TableCell className="text-right whitespace-nowrap">
-                        {mode === "edit" && row.signup && (
-                          <>
-                            {/* Hours can only be logged against a signup --
-                                createEventVolunteerHoursAction rejects anyone
-                                without one -- so hours-only rows get no
-                                trigger that could only ever fail. */}
-                            <LogHoursDialog
-                              eventId={eventId}
-                              personId={row.personId}
-                              onSaved={onSaved}
-                              triggerLabel={<Clock />}
-                              triggerRender={
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  aria-label={`Log hours for ${name}`}
-                                />
-                              }
-                            />
-                            <ConfirmDeleteButton
-                              label="Remove volunteer"
-                              title={`Remove ${name} from this event?`}
-                              description="This deletes their signup and any shift assigned to it. It can't be undone."
-                              confirmLabel="Remove"
-                              pending={isDeleting}
-                              onConfirm={() =>
-                                onDeleteVolunteer(row.signup!.id)
-                              }
-                            />
-                          </>
-                        )}
-                      </TableCell>
-                    </TableRow>
-
-                    {isOpen && (
-                      <TableRow id={detailId}>
-                        <TableCell colSpan={5} className="p-0">
-                          <ul className="flex flex-col gap-1 px-3 py-2">
-                            {row.entries.map((entry) => (
-                              <li
-                                key={entry.id}
-                                className="flex items-center justify-between gap-3 text-sm"
-                              >
-                                <span className="app-muted">
-                                  {formatCalendarDate(entry.logged_date)} ·{" "}
-                                  {entry.hours} h
-                                  {entry.notes ? ` · ${entry.notes}` : ""}
-                                </span>
-                                {mode === "edit" && (
-                                  <ConfirmDeleteButton
-                                    label={`Remove hours entry for ${name}`}
-                                    title={`Remove ${name}'s logged hours?`}
-                                    description="Volunteer hours feed grant reporting, so removing this changes reported totals. It can't be undone."
-                                    confirmLabel="Remove"
-                                    pending={isDeleting}
-                                    onConfirm={() => onDeleteHours(entry.id)}
-                                  />
-                                )}
-                              </li>
-                            ))}
-                          </ul>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </Fragment>
-                );
-              })}
-            </TableBody>
-          </Table>
-
-          {rows.length > previewRows && (
-            <div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                aria-expanded={showAll}
-                aria-controls={tableId}
-                onClick={toggleShowAll}
-              >
-                {showAll
-                  ? "Show fewer volunteers"
-                  : `Show all ${rows.length} volunteers`}
-              </Button>
-            </div>
+          {hasOverflow && (
+            <ListPreviewSheet
+              title="Roster"
+              description={`${rows.length} ${rows.length === 1 ? "volunteer" : "volunteers"}${totalHours > 0 ? ` · ${totalHours} hours logged` : ""}`}
+              triggerLabel={`View all ${rows.length} volunteers`}
+              searchPlaceholder="Search volunteers"
+              searchLabel="Search volunteers"
+              query={query}
+              onQueryChange={setQuery}
+              totalCount={rows.length}
+              filteredCount={filtered.length}
+            >
+              {filtered.length === 0 ? (
+                <EmptyState
+                  title="No matching volunteers"
+                  description="Clear or loosen the search to see more."
+                />
+              ) : (
+                rosterTable(filtered, `${baseId}-all`, true)
+              )}
+            </ListPreviewSheet>
           )}
 
           {unsignedCount > 0 && (

@@ -1,5 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { EventShift } from "../shifts-actions";
 import type {
@@ -301,7 +301,7 @@ describe("RosterSection truncation", () => {
     [],
   );
 
-  test("holds rows past the preview behind a toggle", async () => {
+  test("holds rows past the preview behind the View all sheet", async () => {
     const user = userEvent.setup();
     renderRoster({ rows: manyRows, previewRows: 2 });
 
@@ -310,19 +310,38 @@ describe("RosterSection truncation", () => {
     expect(screen.queryByText("Cara")).not.toBeInTheDocument();
 
     await user.click(
-      screen.getByRole("button", { name: "Show all 3 volunteers" }),
+      screen.getByRole("button", { name: "View all 3 volunteers" }),
     );
 
-    expect(screen.getByText("Cara")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Show fewer volunteers" }),
-    ).toBeInTheDocument();
+    const sheet = within(await screen.findByRole("dialog"));
+    expect(sheet.getByText("Ana")).toBeInTheDocument();
+    expect(sheet.getByText("Cara")).toBeInTheDocument();
   });
 
-  test("shows no toggle when every row already fits", () => {
+  test("the sheet filters volunteers by name", async () => {
+    const user = userEvent.setup();
+    renderRoster({ rows: manyRows, previewRows: 2 });
+
+    await user.click(
+      screen.getByRole("button", { name: "View all 3 volunteers" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await user.type(
+      within(dialog).getByRole("searchbox", { name: "Search volunteers" }),
+      "cara",
+    );
+
+    expect(within(dialog).getByText("Cara")).toBeInTheDocument();
+    expect(within(dialog).queryByText("Ana")).not.toBeInTheDocument();
+    expect(within(dialog).getByRole("status")).toHaveTextContent(
+      "Showing 1 of 3",
+    );
+  });
+
+  test("shows no trigger when every row already fits", () => {
     renderRoster({ rows: manyRows, previewRows: 10 });
     expect(
-      screen.queryByRole("button", { name: /Show all/ }),
+      screen.queryByRole("button", { name: /View all/ }),
     ).not.toBeInTheDocument();
   });
 });
