@@ -172,12 +172,13 @@ export async function cleanupDonation(donationId: string) {
 // for tests exercising the public gear request/cart flows.
 export async function createAvailableGearItems(
   count: number,
-  overrides: { type?: string; condition?: string } = {},
+  overrides: { type?: string; condition?: string; intendedUse?: string } = {},
 ) {
   const items = Array.from({ length: count }, () => ({
     description: `Integration test item ${crypto.randomUUID()}`,
     type: overrides.type ?? "snowboard",
     condition: overrides.condition ?? "good",
+    intended_use: overrides.intendedUse ?? "gear_library",
   }));
 
   const { data, error } = await adminClient.rpc("create_donation_with_items", {

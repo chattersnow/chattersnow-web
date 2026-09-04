@@ -36,7 +36,7 @@ export default async function DonationDetailPage({
   const { data: donation, error } = await supabase
     .from("donations")
     .select(
-      "id, donated_at, notes, event_id, donor:people!inner(id, name, is_anonymous, source_type), event:events(id, name), inventory_items(id, description, type, size, gender, condition, face_value, status, photo_url, notes)",
+      "id, donated_at, notes, event_id, donor:people!inner(id, name, is_anonymous, source_type), event:events(id, name), inventory_items(id, description, type, size, gender, condition, face_value, status, intended_use, photo_url, notes)",
     )
     .eq("id", donationId)
     .maybeSingle();

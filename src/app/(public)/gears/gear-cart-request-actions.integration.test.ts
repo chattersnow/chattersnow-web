@@ -46,6 +46,14 @@ async function gearItems(count: number) {
   return fixture.itemIds;
 }
 
+async function giveawayItems(count: number) {
+  const fixture = await createAvailableGearItems(count, {
+    intendedUse: "giveaway",
+  });
+  cleanups.push(fixture.cleanup);
+  return fixture.itemIds;
+}
+
 describe("requestGearItemsAction (integration)", () => {
   test("reserves every item in the cart for one requester", async () => {
     currentIp = uniqueIp();
@@ -63,6 +71,38 @@ describe("requestGearItemsAction (integration)", () => {
     expect(await getInventoryItemStatus(third)).toBe("reserved");
     expect(revalidatePathMock).toHaveBeenCalledWith("/gears/library");
     expect(revalidatePathMock).toHaveBeenCalledWith("/portal/inventory/items");
+  });
+
+  // Giveaway prize stock (sponsor vouchers and the like) is never listed in
+  // the public catalog, so reaching the RPC with one means a hand-crafted
+  // request -- it must be refused rather than reserved.
+  test("refuses an item that is not gear-library stock", async () => {
+    currentIp = uniqueIp();
+    const [gearItem] = await gearItems(1);
+    const [giveawayItem] = await giveawayItems(1);
+
+    const result = await requestGearItemsAction(
+      [gearItem, giveawayItem],
+      formData({ name: "Jamie Rivera", email: uniqueEmail("giveaway") }),
+    );
+
+    expect(result).toEqual({
+      error: "One of the items in your cart could not be found.",
+    });
+    expect(await getInventoryItemStatus(gearItem)).toBe("available");
+    expect(await getInventoryItemStatus(giveawayItem)).toBe("available");
+  });
+
+  test("keeps items that are not gear-library stock out of the public catalog", async () => {
+    const [giveawayItem] = await giveawayItems(1);
+
+    const { data } = await anonClient()
+      .from("public_gear_catalog")
+      .select("id")
+      .eq("id", giveawayItem)
+      .maybeSingle();
+
+    expect(data).toBeNull();
   });
 
   test("fails the whole request, leaving other items untouched, when one item is already taken", async () => {

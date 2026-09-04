@@ -10,6 +10,7 @@ const STATUSES = [
   "retired",
   "other",
 ] as const;
+const INTENDED_USES = ["gear_library", "giveaway", "internal"] as const;
 
 export type InventoryItemFormData = {
   description: string;
@@ -19,6 +20,7 @@ export type InventoryItemFormData = {
   condition: string;
   face_value: number | null;
   status: string;
+  intended_use: string;
   photo_url: string | null;
   notes: string | null;
 };
@@ -30,6 +32,7 @@ export function parseInventoryItemForm(
   const type = String(formData.get("type") ?? "").trim();
   const condition = String(formData.get("condition") ?? "");
   const status = String(formData.get("status") ?? "");
+  const intendedUse = String(formData.get("intendedUse") ?? "");
 
   if (!description) {
     return { error: "Item description is required." };
@@ -42,6 +45,9 @@ export function parseInventoryItemForm(
   }
   if (!STATUSES.includes(status as (typeof STATUSES)[number])) {
     return { error: "Select a valid item status." };
+  }
+  if (!INTENDED_USES.includes(intendedUse as (typeof INTENDED_USES)[number])) {
+    return { error: "Select a valid intended use." };
   }
 
   const faceValueRaw = formData.get("faceValue");
@@ -59,6 +65,7 @@ export function parseInventoryItemForm(
       condition,
       face_value: faceValue,
       status,
+      intended_use: intendedUse,
       photo_url: String(formData.get("photoUrl") ?? "").trim() || null,
       notes: String(formData.get("notes") ?? "").trim() || null,
     },

@@ -20,6 +20,7 @@ import { InventoryViewProvider } from "./inventory-view-context";
 import { InventoryViewToggle } from "./inventory-view-toggle";
 import {
   CONDITIONS,
+  INTENDED_USES,
   STATUSES,
   isSortColumn,
   type InventoryItem,
@@ -52,6 +53,7 @@ export default async function InventoryPage({
   const typeFilter = raw("type") || "all";
   const conditionFilter = raw("condition") || "all";
   const statusFilter = raw("status") || "all";
+  const intendedUseFilter = raw("intendedUse") || "all";
 
   const sortParam = raw("sort");
   const sort: SortColumn = isSortColumn(sortParam) ? sortParam : "description";
@@ -70,7 +72,7 @@ export default async function InventoryPage({
   let query = supabase
     .from("inventory_items")
     .select(
-      "id, description, type, size, gender, condition, face_value, status, photo_url, notes",
+      "id, description, type, size, gender, condition, face_value, status, intended_use, photo_url, notes",
       { count: "exact" },
     )
     .order(sort, { ascending: dir === "asc" })
@@ -82,6 +84,8 @@ export default async function InventoryPage({
   if (typeFilter !== "all") query = query.eq("type", typeFilter);
   if (conditionFilter !== "all") query = query.eq("condition", conditionFilter);
   if (statusFilter !== "all") query = query.eq("status", statusFilter);
+  if (intendedUseFilter !== "all")
+    query = query.eq("intended_use", intendedUseFilter);
 
   const { offset, to } = pageRange(page);
   const { data: items, count } = await query.range(offset, to);
@@ -127,6 +131,8 @@ export default async function InventoryPage({
   if (typeFilter !== "all") filterParams.set("type", typeFilter);
   if (conditionFilter !== "all") filterParams.set("condition", conditionFilter);
   if (statusFilter !== "all") filterParams.set("status", statusFilter);
+  if (intendedUseFilter !== "all")
+    filterParams.set("intendedUse", intendedUseFilter);
 
   function pageHref(nextPage: number) {
     return buildHref("/portal/inventory/items", filterParams, {
@@ -141,11 +147,13 @@ export default async function InventoryPage({
     !!search ||
     typeFilter !== "all" ||
     conditionFilter !== "all" ||
-    statusFilter !== "all";
+    statusFilter !== "all" ||
+    intendedUseFilter !== "all";
   const activeFilterCount = [
     typeFilter !== "all",
     conditionFilter !== "all",
     statusFilter !== "all",
+    intendedUseFilter !== "all",
   ].filter(Boolean).length;
   // Named in the toolbar rather than hidden behind the Filters count, so a
   // partially filtered table says why it's short.
@@ -174,6 +182,15 @@ export default async function InventoryPage({
         statusFilter,
     });
   }
+  if (intendedUseFilter !== "all") {
+    appliedFilters.push({
+      param: "intendedUse",
+      label: "Intended use",
+      value:
+        INTENDED_USES.find((option) => option.value === intendedUseFilter)
+          ?.label ?? intendedUseFilter,
+    });
+  }
 
   return (
     <>
@@ -196,6 +213,7 @@ export default async function InventoryPage({
               type: typeFilter,
               condition: conditionFilter,
               status: statusFilter,
+              intendedUse: intendedUseFilter,
               sort,
               dir,
             }}
@@ -275,6 +293,28 @@ export default async function InventoryPage({
                 </select>
               </div>
 
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor="intendedUse"
+                  className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+                >
+                  Intended use
+                </label>
+                <select
+                  id="intendedUse"
+                  name="intendedUse"
+                  defaultValue={intendedUseFilter}
+                  className={selectClassName}
+                >
+                  <option value="all">All intended uses</option>
+                  {INTENDED_USES.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="flex flex-wrap items-center gap-2">
                 <FilterSubmitButton />
                 {hasActiveFilters && (
@@ -299,6 +339,7 @@ export default async function InventoryPage({
             type: typeFilter,
             condition: conditionFilter,
             status: statusFilter,
+            intendedUse: intendedUseFilter,
             sort,
             dir,
           }}

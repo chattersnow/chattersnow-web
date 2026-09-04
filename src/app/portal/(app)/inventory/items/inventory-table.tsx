@@ -17,6 +17,7 @@ import { useInventoryView } from "./inventory-view-context";
 import {
   CONDITIONS,
   GENDERS,
+  IntendedUseBadge,
   SORT_COLUMNS,
   StatusBadge,
   formatFaceValue,
@@ -123,6 +124,9 @@ export function InventoryTable({
                     <TableCell>{formatFaceValue(item.face_value)}</TableCell>
                     <TableCell>
                       <StatusBadge status={item.status} />
+                    </TableCell>
+                    <TableCell>
+                      <IntendedUseBadge intendedUse={item.intended_use} />
                     </TableCell>
                     <TableCell>
                       <EditInventoryModal item={item} />

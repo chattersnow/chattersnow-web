@@ -76,6 +76,22 @@ describe("parseDonationInput", () => {
     ).toEqual({ error: "Item 1: face value must be a positive number." });
   });
 
+  test("rejects an invalid item intended use", () => {
+    expect(
+      parseDonationInput({
+        ...validInput,
+        items: [{ ...validItem, intendedUse: "sale" }],
+      }),
+    ).toEqual({ error: "Item 1: select a valid intended use." });
+  });
+
+  test("defaults an omitted intended use to the gear library", () => {
+    const result = parseDonationInput(validInput);
+    expect("data" in result && result.data.p_items[0].intended_use).toBe(
+      "gear_library",
+    );
+  });
+
   test("labels the failing item by position for multi-item donations", () => {
     expect(
       parseDonationInput({
@@ -108,6 +124,7 @@ describe("parseDonationInput", () => {
             gender: null,
             condition: "good",
             face_value: 40,
+            intended_use: "gear_library",
             notes: null,
           },
         ],

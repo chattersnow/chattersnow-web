@@ -146,6 +146,7 @@ describe("AddDonationModal", () => {
         condition: "",
         faceValue: null,
         notes: undefined,
+        intendedUse: "gear_library",
       },
     ]);
   });

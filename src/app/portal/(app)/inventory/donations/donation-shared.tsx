@@ -1,11 +1,12 @@
 import {
   CONDITIONS,
   GENDERS,
+  INTENDED_USES,
   formatFaceValue,
   labelFor,
 } from "../items/inventory-shared";
 
-export { CONDITIONS, GENDERS, formatFaceValue, labelFor };
+export { CONDITIONS, GENDERS, INTENDED_USES, formatFaceValue, labelFor };
 
 export const SOURCE_TYPES = [
   { value: "individual", label: "Individual" },
@@ -24,6 +25,7 @@ export type DonationItemRow = {
   condition: string;
   face_value: number | string | null;
   status: string;
+  intended_use: string;
   photo_url: string | null;
   notes: string | null;
 };

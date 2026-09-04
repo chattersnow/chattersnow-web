@@ -6,6 +6,18 @@ export const CONDITIONS = [
   { value: "poor", label: "Poor" },
 ];
 
+/**
+ * What an item is for, not where it is in its lifecycle (that's `status`).
+ * Only `gear_library` items reach the public catalog, the public request flow
+ * and the gear-distribution picker; sponsor vouchers and similar prize stock
+ * are `giveaway` so they stop reading as gear the community can take home.
+ */
+export const INTENDED_USES = [
+  { value: "gear_library", label: "Gear library" },
+  { value: "giveaway", label: "Giveaway prize" },
+  { value: "internal", label: "Internal use" },
+];
+
 export const GENDERS = [
   { value: "unisex", label: "Unisex" },
   { value: "men", label: "Men" },

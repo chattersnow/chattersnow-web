@@ -4,6 +4,7 @@ import { ReadOnlyField } from "@/components/ui/read-only-field";
 import {
   CONDITIONS,
   GENDERS,
+  INTENDED_USES,
   SOURCE_TYPES,
   donorLabel,
   formatFaceValue,
@@ -118,12 +119,20 @@ export function DonationDetailView({ donation }: { donation: DonationRow }) {
                         {labelFor(CONDITIONS, item.condition) || "—"}
                       </ReadOnlyField>
                     </Field>
-                    <ReadOnlyField
-                      label="Face value"
-                      htmlFor={`item-faceValue-${item.id}`}
-                    >
-                      {formatFaceValue(item.face_value)}
-                    </ReadOnlyField>
+                    <Field orientation="responsive">
+                      <ReadOnlyField
+                        label="Face value"
+                        htmlFor={`item-faceValue-${item.id}`}
+                      >
+                        {formatFaceValue(item.face_value)}
+                      </ReadOnlyField>
+                      <ReadOnlyField
+                        label="Intended use"
+                        htmlFor={`item-intendedUse-${item.id}`}
+                      >
+                        {labelFor(INTENDED_USES, item.intended_use) || "—"}
+                      </ReadOnlyField>
+                    </Field>
                     <ReadOnlyField
                       label="Item notes"
                       htmlFor={`item-notes-${item.id}`}

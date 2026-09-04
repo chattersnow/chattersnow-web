@@ -9,6 +9,8 @@ import { updateInventoryItemAction } from "./actions";
 import {
   CONDITIONS,
   GENDERS,
+  INTENDED_USES,
+  IntendedUseBadge,
   STATUSES,
   StatusBadge,
   formatFaceValue,
@@ -28,7 +30,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import {
@@ -65,6 +72,7 @@ function formStateFor(item: InventoryItem) {
     gender: item.gender ?? "",
     condition: item.condition,
     status: item.status,
+    intendedUse: item.intended_use,
     faceValue: item.face_value === null ? "" : String(item.face_value),
     photoUrl: item.photo_url ?? "",
     notes: item.notes ?? "",
@@ -143,6 +151,7 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
     formData.set("gender", form.gender);
     formData.set("condition", form.condition);
     formData.set("status", form.status);
+    formData.set("intendedUse", form.intendedUse);
     formData.set("faceValue", form.faceValue);
     formData.set("photoUrl", form.photoUrl);
     formData.set("notes", form.notes);
@@ -298,10 +307,18 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
                       <StatusBadge status={item.status} />
                     </div>
                   </Field>
-                  <ReadOnlyField label="Face value" htmlFor="edit-faceValue">
-                    {formatFaceValue(item.face_value)}
-                  </ReadOnlyField>
+                  <Field>
+                    <FieldLabel htmlFor="edit-intendedUse">
+                      Intended use
+                    </FieldLabel>
+                    <div id="edit-intendedUse">
+                      <IntendedUseBadge intendedUse={item.intended_use} />
+                    </div>
+                  </Field>
                 </Field>
+                <ReadOnlyField label="Face value" htmlFor="edit-faceValue">
+                  {formatFaceValue(item.face_value)}
+                </ReadOnlyField>
                 <ReadOnlyField label="Photo URL" htmlFor="edit-photoUrl">
                   {item.photo_url || "—"}
                 </ReadOnlyField>
@@ -442,6 +459,38 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
                         }
                       />
                     </Field>
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor="edit-intendedUse">
+                      Intended use
+                    </FieldLabel>
+                    <Select
+                      value={form.intendedUse || null}
+                      onValueChange={(value) =>
+                        update("intendedUse", value ?? "")
+                      }
+                    >
+                      <SelectTrigger id="edit-intendedUse" className="w-full">
+                        <SelectValue placeholder="Select an intended use">
+                          {(value: string) =>
+                            labelFor(INTENDED_USES, value) ??
+                            "Select an intended use"
+                          }
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {INTENDED_USES.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FieldDescription>
+                      Only gear library items appear on the public gear library
+                      and can be requested or distributed to riders.
+                    </FieldDescription>
                   </Field>
 
                   <Field>
