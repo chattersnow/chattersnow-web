@@ -2,7 +2,7 @@
 
 import { StatusBadge } from "@/components/portal/status-badge";
 
-import { useMemo, useTransition } from "react";
+import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -37,6 +37,7 @@ import type { PersonListItem } from "../../people/actions";
 import { Spinner } from "@/components/ui/spinner";
 import { formatCalendarDate, personDisplayName } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
+import { useActionToast } from "@/components/portal/action-toast";
 
 // The Phase 1-5 checklist from supabase/migrations/20260824210000_create_nonprofit_status_milestones.sql,
 // in migration order. `milestones` already arrives sorted by `sort_order`
@@ -72,15 +73,23 @@ function groupByPhase(milestones: Milestone[]) {
   });
 }
 
+const STATUS_LABELS: Record<MilestoneStatus, string> = {
+  not_started: "Not started",
+  in_progress: "In progress",
+  done: "Done",
+  cancelled: "Cancelled",
+};
+
 function MilestoneStatusSelect({ milestone }: { milestone: Milestone }) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const { isPending, run } = useActionToast();
 
   function handleChange(value: MilestoneStatus | null) {
     if (!value) return;
-    startTransition(async () => {
-      await updateMilestoneStatusAction(milestone.id, value);
-      router.refresh();
+    run(() => updateMilestoneStatusAction(milestone.id, value), {
+      success: `${milestone.description} — ${STATUS_LABELS[value]}.`,
+      error: "Could not update the milestone. Please try again.",
+      onSuccess: () => router.refresh(),
     });
   }
 

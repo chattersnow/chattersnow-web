@@ -14,6 +14,7 @@ import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { SalesSection } from "./giveaway/sales";
 import { PrizesSection } from "./giveaway/prizes";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
+import { runAction } from "@/components/portal/action-toast";
 
 export function GiveawayTab({
   eventId,
@@ -65,8 +66,11 @@ export function GiveawayTab({
 
   function handleDeletePrize(id: string) {
     startDeleteTransition(async () => {
-      await deleteGiveawayPrizeAction(id);
-      refresh();
+      await runAction(() => deleteGiveawayPrizeAction(id), {
+        success: "Prize deleted.",
+        error: "Could not delete the prize. Please try again.",
+        onSuccess: refresh,
+      });
     });
   }
 

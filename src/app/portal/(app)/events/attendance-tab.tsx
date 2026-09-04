@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/portal/empty-state";
+import { runAction } from "@/components/portal/action-toast";
 
 function AttendanceForm({
   event,
@@ -37,13 +38,14 @@ function AttendanceForm({
     formData.set("attendanceNotes", notes);
 
     startTransition(async () => {
-      const result = await updateEventAttendanceAction(event.id, formData);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
-      onSaved();
+      await runAction(() => updateEventAttendanceAction(event.id, formData), {
+        success: "Attendance saved.",
+        onError: setError,
+        onSuccess: () => {
+          router.refresh();
+          onSaved();
+        },
+      });
     });
   }
 

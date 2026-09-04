@@ -31,6 +31,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import { formatDateTime } from "@/lib/format";
+import { runAction } from "@/components/portal/action-toast";
 
 export const NONE_VALUE = "none";
 
@@ -95,13 +96,17 @@ export function ShiftForm({
     );
 
     startTransition(async () => {
-      const result = await onSubmit(formData);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
-      onCancel();
+      await runAction(() => onSubmit(formData), {
+        // The same form creates and edits; `initialShift` says which.
+        success: initialShift
+          ? `Shift "${label}" updated.`
+          : `Shift "${label}" added.`,
+        onError: setError,
+        onSuccess: () => {
+          router.refresh();
+          onCancel();
+        },
+      });
     });
   }
 

@@ -18,6 +18,7 @@ import {
   updateCalendarItemsVisibilityAction,
 } from "./actions";
 import { Spinner } from "@/components/ui/spinner";
+import { runAction } from "@/components/portal/action-toast";
 
 const FIELDS = [
   {
@@ -55,20 +56,28 @@ export function BulkActionsToolbar({
   function handleApply() {
     if (!value) return;
     setError(null);
+    const count = selectedIds.length;
+    const valueLabel =
+      activeField.options.find((option) => option.value === value)?.label ??
+      value;
     startTransition(async () => {
-      const result =
-        field === "visibility"
-          ? await updateCalendarItemsVisibilityAction(selectedIds, value)
-          : field === "decision"
-            ? await updateCalendarItemsDecisionAction(selectedIds, value)
-            : await updateCalendarItemsStatusAction(selectedIds, value);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      setValue("");
-      onDone();
-      router.refresh();
+      await runAction(
+        () =>
+          field === "visibility"
+            ? updateCalendarItemsVisibilityAction(selectedIds, value)
+            : field === "decision"
+              ? updateCalendarItemsDecisionAction(selectedIds, value)
+              : updateCalendarItemsStatusAction(selectedIds, value),
+        {
+          success: `${count} item${count === 1 ? "" : "s"} set to ${valueLabel}.`,
+          onError: setError,
+          onSuccess: () => {
+            setValue("");
+            onDone();
+            router.refresh();
+          },
+        },
+      );
     });
   }
 

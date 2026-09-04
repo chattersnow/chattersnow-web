@@ -47,6 +47,7 @@ import { portalUserDisplayName } from "./users-shared";
 import { PreferredNameCell } from "./preferred-name-cell";
 import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/portal/empty-state";
+import { runAction } from "@/components/portal/action-toast";
 
 function statusBadge(portalUser: PortalUser) {
   if (portalUser.deactivated_at) {
@@ -80,17 +81,23 @@ export function UsersTable({
     role: string;
   } | null>(null);
 
-  function runAction(promise: Promise<{ error: string } | { success: true }>) {
+  // Every mutation in this table routes through here, so the receipt and the
+  // inline error branch are written once rather than per button.
+  function submit(
+    action: () => Promise<{ error: string } | { success: true }>,
+    success: string,
+  ) {
     setError(null);
     startTransition(async () => {
-      const result = await promise;
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      setAddingFor(null);
-      setPendingRole("");
-      router.refresh();
+      await runAction(action, {
+        success,
+        onError: setError,
+        onSuccess: () => {
+          setAddingFor(null);
+          setPendingRole("");
+          router.refresh();
+        },
+      });
     });
   }
 
@@ -98,21 +105,28 @@ export function UsersTable({
     if (!revokeTarget) return;
     const target = revokeTarget;
     setRevokeTarget(null);
-    runAction(revokeRoleAction(target.user.user_id, target.role));
+    submit(
+      () => revokeRoleAction(target.user.user_id, target.role),
+      `${formatRoleLabel(target.role)} removed from ${portalUserDisplayName(target.user)}.`,
+    );
   }
 
   function handleDeactivate() {
     if (!deactivateTarget) return;
     setError(null);
+    const target = deactivateTarget;
     startTransition(async () => {
-      const result = await deactivateUserAction(deactivateTarget.user_id);
-      if ("error" in result) {
-        setDeactivateTarget(null);
-        setError(result.error);
-        return;
-      }
-      setDeactivateTarget(null);
-      router.refresh();
+      await runAction(() => deactivateUserAction(target.user_id), {
+        success: `${portalUserDisplayName(target)} deactivated.`,
+        onError: (message) => {
+          setDeactivateTarget(null);
+          setError(message);
+        },
+        onSuccess: () => {
+          setDeactivateTarget(null);
+          router.refresh();
+        },
+      });
     });
   }
 
@@ -188,11 +202,13 @@ export function UsersTable({
                         label={portalUserDisplayName(portalUser)}
                         disabled={isPending}
                         onSave={(preferredName) =>
-                          runAction(
-                            updateUserPreferredNameAction(
-                              portalUser.user_id,
-                              preferredName,
-                            ),
+                          submit(
+                            () =>
+                              updateUserPreferredNameAction(
+                                portalUser.user_id,
+                                preferredName,
+                              ),
+                            `Preferred name updated for ${portalUserDisplayName(portalUser)}.`,
                           )
                         }
                       />
@@ -269,11 +285,13 @@ export function UsersTable({
                             size="sm"
                             disabled={!pendingRole || isPending}
                             onClick={() =>
-                              runAction(
-                                assignRoleAction(
-                                  portalUser.user_id,
-                                  pendingRole,
-                                ),
+                              submit(
+                                () =>
+                                  assignRoleAction(
+                                    portalUser.user_id,
+                                    pendingRole,
+                                  ),
+                                `${formatRoleLabel(pendingRole)} granted to ${portalUserDisplayName(portalUser)}.`,
                               )
                             }
                           >
@@ -315,7 +333,10 @@ export function UsersTable({
                           variant="secondary"
                           disabled={isPending}
                           onClick={() =>
-                            runAction(reactivateUserAction(portalUser.user_id))
+                            submit(
+                              () => reactivateUserAction(portalUser.user_id),
+                              `${portalUserDisplayName(portalUser)} reactivated.`,
+                            )
                           }
                         >
                           Reactivate

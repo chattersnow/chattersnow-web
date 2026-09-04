@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { render, screen, waitFor } from "@testing-library/react";
+import {
+  expectToast,
+  hasToast,
+  renderWithToaster,
+} from "../../../../../../test/toast-testing";
 import userEvent from "@testing-library/user-event";
 import type { PortalUser } from "./users-shared";
 
@@ -184,6 +189,7 @@ describe("UsersTable preferred name", () => {
 describe("UsersTable role revoke", () => {
   beforeEach(() => {
     revokeRoleMock.mockClear();
+    revokeRoleMock.mockImplementation(async () => ({ success: true }));
   });
 
   test("asks before revoking, and names what the user loses", async () => {
@@ -204,6 +210,46 @@ describe("UsersTable role revoke", () => {
     await waitFor(() =>
       expect(revokeRoleMock).toHaveBeenCalledWith("auth-1", "treasurer"),
     );
+  });
+
+  // The row just loses a badge, which is easy to miss in a dense table, so
+  // the toast names the role and the person it came off.
+  test("confirms the revoke with a toast naming the role and the person", async () => {
+    const user = userEvent.setup();
+    renderWithToaster(
+      <UsersTable
+        users={[portalUser({ roles: ["admin", "treasurer"] })]}
+        currentUserId="someone-else"
+        availableRoles={[]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Remove Treasurer" }));
+    await user.click(screen.getByRole("button", { name: "Remove role" }));
+
+    await expectToast("Treasurer removed from Avery Morgan.");
+  });
+
+  test("a failed revoke is announced and claims nothing", async () => {
+    const user = userEvent.setup();
+    revokeRoleMock.mockImplementation(async () => ({
+      error: "You cannot revoke your own last admin role.",
+    }));
+    renderWithToaster(
+      <UsersTable
+        users={[portalUser({ roles: ["admin", "treasurer"] })]}
+        currentUserId="someone-else"
+        availableRoles={[]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Remove Treasurer" }));
+    await user.click(screen.getByRole("button", { name: "Remove role" }));
+
+    expect(
+      await screen.findByText("You cannot revoke your own last admin role."),
+    ).toBeInTheDocument();
+    expect(hasToast("Treasurer removed from Avery Morgan.")).toBe(false);
   });
 
   test("cancelling leaves the role in place", async () => {

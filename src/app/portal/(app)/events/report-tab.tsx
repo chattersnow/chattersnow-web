@@ -31,6 +31,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import { useTabData } from "@/hooks/use-tab-data";
+import { runAction } from "@/components/portal/action-toast";
 
 function formStateFor(event: EventRow) {
   return {
@@ -116,25 +117,25 @@ export function ReportTab({
     formData.set("reportSummary", form.reportSummary);
 
     startTransition(async () => {
-      const result = await updateEventReportAction(event.id, formData);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
-      onSaved();
+      await runAction(() => updateEventReportAction(event.id, formData), {
+        success: "Event report saved.",
+        onError: setError,
+        onSuccess: () => {
+          router.refresh();
+          onSaved();
+        },
+      });
     });
   }
 
   function handleSubmitReport() {
     setError(null);
     startSubmitTransition(async () => {
-      const result = await submitEventReportAction(event.id);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
+      await runAction(() => submitEventReportAction(event.id), {
+        success: "Event report submitted.",
+        onError: setError,
+        onSuccess: () => router.refresh(),
+      });
     });
   }
 
@@ -142,14 +143,15 @@ export function ReportTab({
     formEvent.preventDefault();
     setError(null);
     startReopenTransition(async () => {
-      const result = await reopenEventReportAction(event.id, reopenReason);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      setReopenDialogOpen(false);
-      setReopenReason("");
-      router.refresh();
+      await runAction(() => reopenEventReportAction(event.id, reopenReason), {
+        success: "Event report reopened.",
+        onError: setError,
+        onSuccess: () => {
+          setReopenDialogOpen(false);
+          setReopenReason("");
+          router.refresh();
+        },
+      });
     });
   }
 

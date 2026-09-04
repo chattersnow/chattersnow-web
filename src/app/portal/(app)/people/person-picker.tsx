@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { runAction } from "@/components/portal/action-toast";
 
 export type PickedPerson = {
   id: string;
@@ -123,16 +124,20 @@ export function PersonPicker({
     setCreateError(null);
 
     startCreateTransition(async () => {
-      const result = await createPersonAction(packPersonFormData(createForm));
-      if ("error" in result) {
-        setCreateError(result.error);
-        return;
-      }
-      if (result.person) {
-        onPersonCreated(result.person);
-        onSelect(result.person);
-        reset();
-      }
+      await runAction(
+        () => createPersonAction(packPersonFormData(createForm)),
+        {
+          success: (result) =>
+            `${personDisplayName(result.person)} added to people.`,
+          onError: setCreateError,
+          onSuccess: (result) => {
+            if (!result.person) return;
+            onPersonCreated(result.person);
+            onSelect(result.person);
+            reset();
+          },
+        },
+      );
     });
   }
 

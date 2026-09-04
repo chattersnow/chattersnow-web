@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useTransition } from "react";
+import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -30,6 +30,13 @@ import type { PersonListItem } from "../../people/actions";
 import { Spinner } from "@/components/ui/spinner";
 import { formatCalendarDate, personDisplayName } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
+import { useActionToast } from "@/components/portal/action-toast";
+
+const STATUS_LABELS: Record<RequirementStatus, string> = {
+  not_started: "Not started",
+  in_progress: "In progress",
+  done: "Done",
+};
 
 function RequirementStatusSelect({
   requirement,
@@ -37,13 +44,14 @@ function RequirementStatusSelect({
   requirement: AnnualRequirement;
 }) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const { isPending, run } = useActionToast();
 
   function handleChange(value: RequirementStatus | null) {
     if (!value) return;
-    startTransition(async () => {
-      await updateAnnualRequirementStatusAction(requirement.id, value);
-      router.refresh();
+    run(() => updateAnnualRequirementStatusAction(requirement.id, value), {
+      success: `${requirement.name} — ${STATUS_LABELS[value]}.`,
+      error: "Could not update the requirement. Please try again.",
+      onSuccess: () => router.refresh(),
     });
   }
 

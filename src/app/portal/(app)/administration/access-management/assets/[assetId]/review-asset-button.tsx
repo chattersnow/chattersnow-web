@@ -21,6 +21,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { runAction } from "@/components/portal/action-toast";
 
 export function ReviewAssetButton({
   assetId,
@@ -38,13 +39,14 @@ export function ReviewAssetButton({
   function handleConfirm() {
     setError(null);
     startTransition(async () => {
-      const result = await reviewAssetAction(assetId, sensitivity);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      setOpen(false);
-      router.refresh();
+      await runAction(() => reviewAssetAction(assetId, sensitivity), {
+        success: "Review recorded.",
+        onError: setError,
+        onSuccess: () => {
+          setOpen(false);
+          router.refresh();
+        },
+      });
     });
   }
 

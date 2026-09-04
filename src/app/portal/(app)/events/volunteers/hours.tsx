@@ -27,6 +27,7 @@ import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { formatCalendarDate, personDisplayName } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
+import { runAction } from "@/components/portal/action-toast";
 
 function shiftHoursAndDate(shift: EventShift) {
   const durationHours =
@@ -95,14 +96,16 @@ export function AddHoursForm({
     formData.set("loggedDate", loggedDate);
     formData.set("notes", notes);
 
+    const person = selectedPerson;
     startTransition(async () => {
-      const result = await onSubmit(selectedPerson.id, formData);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
-      onCancel();
+      await runAction(() => onSubmit(person.id, formData), {
+        success: `${hours} hours logged for ${personDisplayName(person)}.`,
+        onError: setError,
+        onSuccess: () => {
+          router.refresh();
+          onCancel();
+        },
+      });
     });
   }
 

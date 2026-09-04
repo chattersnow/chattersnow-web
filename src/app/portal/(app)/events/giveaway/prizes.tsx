@@ -30,6 +30,7 @@ import { PrizeWinnerSection } from "./winners";
 import { Spinner } from "@/components/ui/spinner";
 import { formatCurrency } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
+import { runAction } from "@/components/portal/action-toast";
 
 const NO_SOURCE = "none";
 
@@ -143,26 +144,31 @@ export function PrizeForm({
         : selectedSourceKey.split(":");
 
     startTransition(async () => {
-      const result = isEdit
-        ? await updateGiveawayPrizeAction(
-            prize.id,
-            selectedDonor?.id ?? null,
-            formData,
-            kind === "item" ? id : null,
-            kind === "donation" ? id : null,
-          )
-        : await createGiveawayPrizeAction(
-            giveawayId,
-            selectedDonor?.id ?? null,
-            formData,
-            kind === "item" ? id : null,
-            kind === "donation" ? id : null,
-          );
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      onSaved();
+      await runAction(
+        () =>
+          isEdit
+            ? updateGiveawayPrizeAction(
+                prize.id,
+                selectedDonor?.id ?? null,
+                formData,
+                kind === "item" ? id : null,
+                kind === "donation" ? id : null,
+              )
+            : createGiveawayPrizeAction(
+                giveawayId,
+                selectedDonor?.id ?? null,
+                formData,
+                kind === "item" ? id : null,
+                kind === "donation" ? id : null,
+              ),
+        {
+          success: isEdit
+            ? `Prize "${prizeName}" updated.`
+            : `Prize "${prizeName}" added.`,
+          onError: setError,
+          onSuccess: onSaved,
+        },
+      );
     });
   }
 

@@ -48,7 +48,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
-import { toast } from "@/components/ui/toast";
+import { runAction } from "@/components/portal/action-toast";
 
 export type SuggestionRuleListRow = {
   id: string;
@@ -152,29 +152,33 @@ export function SuggestionRuleDetailsSheet({
     formData.set("isActive", String(form.isActive));
 
     startTransition(async () => {
-      const result = await updateSuggestionRuleAction(rule.id, formData);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      setMode("view");
-      toast.success("Suggestion rule deleted.");
-      router.refresh();
+      await runAction(() => updateSuggestionRuleAction(rule.id, formData), {
+        success: form.isActive
+          ? "Suggestion rule saved and active."
+          : "Suggestion rule saved and paused.",
+        onError: setError,
+        onSuccess: () => {
+          setMode("view");
+          router.refresh();
+        },
+      });
     });
   }
 
   function handleDelete() {
     startTransition(async () => {
-      const result = await deleteSuggestionRuleAction(rule.id);
-      if ("error" in result) {
-        setError(result.error);
-        setConfirmDelete(false);
-        return;
-      }
-      setConfirmDelete(false);
-      setOpen(false);
-      toast.success("Suggestion rule deleted.");
-      router.refresh();
+      await runAction(() => deleteSuggestionRuleAction(rule.id), {
+        success: "Suggestion rule deleted.",
+        onError: (message) => {
+          setError(message);
+          setConfirmDelete(false);
+        },
+        onSuccess: () => {
+          setConfirmDelete(false);
+          setOpen(false);
+          router.refresh();
+        },
+      });
     });
   }
 

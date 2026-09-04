@@ -42,6 +42,7 @@ import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { formatCurrency, personDisplayName } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
+import { runAction } from "@/components/portal/action-toast";
 
 const SUPPORT_TYPES = [
   { value: "cash", label: "Cash" },
@@ -146,14 +147,19 @@ export function SponsorForm({
     formData.set("followUpStatus", form.followUpStatus);
     formData.set("followUpNotes", form.followUpNotes);
 
+    const sponsorName = personDisplayName(personDisplay ?? selectedPerson);
     startTransition(async () => {
-      const result = await onSubmit(formData, selectedPerson?.id ?? null);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
-      onCancel?.();
+      await runAction(() => onSubmit(formData, selectedPerson?.id ?? null), {
+        // The same form adds and edits; `personDisplay` says which.
+        success: personDisplay
+          ? `${sponsorName} updated.`
+          : `${sponsorName} added as a sponsor.`,
+        onError: setError,
+        onSuccess: () => {
+          router.refresh();
+          onCancel?.();
+        },
+      });
     });
   }
 
@@ -374,8 +380,11 @@ export function SponsorsTab({
 
   function handleDelete(id: string) {
     startDeleteTransition(async () => {
-      await deleteEventSponsorAction(id);
-      refresh();
+      await runAction(() => deleteEventSponsorAction(id), {
+        success: "Sponsor removed.",
+        error: "Could not remove the sponsor. Please try again.",
+        onSuccess: refresh,
+      });
     });
   }
 

@@ -39,6 +39,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDateTime, personDisplayName } from "@/lib/format";
+import { runAction } from "@/components/portal/action-toast";
 
 const MEETING_TYPES = [
   { value: "board", label: "Board" },
@@ -90,7 +91,9 @@ function buildFormData(form: FormState) {
   return formData;
 }
 
-function useMeetingCardForm(meeting: MeetingRow) {
+// `subject` names the card in its own receipt -- "Meeting details saved."
+// reads as a confirmation where a bare "Saved." reads as noise.
+function useMeetingCardForm(meeting: MeetingRow, subject: string) {
   const router = useRouter();
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [form, setForm] = useState<FormState>(() => formStateFor(meeting));
@@ -119,13 +122,17 @@ function useMeetingCardForm(meeting: MeetingRow) {
     setError(null);
 
     startTransition(async () => {
-      const result = await updateMeetingAction(meeting.id, buildFormData(form));
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      setMode("view");
-      router.refresh();
+      await runAction(
+        () => updateMeetingAction(meeting.id, buildFormData(form)),
+        {
+          success: `${subject} saved.`,
+          onError: setError,
+          onSuccess: () => {
+            setMode("view");
+            router.refresh();
+          },
+        },
+      );
     });
   }
 
@@ -222,7 +229,7 @@ function MeetingDetailsCard({
   meeting: MeetingRow;
   canManage: boolean;
 }) {
-  const card = useMeetingCardForm(meeting);
+  const card = useMeetingCardForm(meeting, "Meeting details");
   const { form, update } = card;
 
   return (
@@ -330,7 +337,7 @@ function PeopleNotesCard({
   meeting: MeetingRow;
   canManage: boolean;
 }) {
-  const card = useMeetingCardForm(meeting);
+  const card = useMeetingCardForm(meeting, "People & notes");
   const { form, update } = card;
   const [people, setPeople] = useState<PersonListItem[]>([]);
   const editing = card.mode === "edit";

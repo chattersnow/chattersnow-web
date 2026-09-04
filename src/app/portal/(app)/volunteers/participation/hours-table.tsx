@@ -1,6 +1,5 @@
 "use client";
 
-import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   deleteVolunteerHoursAction,
@@ -17,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCalendarDate, personDisplayName } from "@/lib/format";
+import { useActionToast } from "@/components/portal/action-toast";
 
 export function HoursTable({
   entries,
@@ -26,12 +26,13 @@ export function HoursTable({
   canManage: boolean;
 }) {
   const router = useRouter();
-  const [isDeleting, startTransition] = useTransition();
+  const { isPending: isDeleting, run } = useActionToast();
 
   function handleDelete(id: string) {
-    startTransition(async () => {
-      await deleteVolunteerHoursAction(id);
-      router.refresh();
+    run(() => deleteVolunteerHoursAction(id), {
+      success: "Hours entry deleted.",
+      error: "Could not delete the hours entry. Please try again.",
+      onSuccess: () => router.refresh(),
     });
   }
 

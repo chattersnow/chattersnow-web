@@ -45,6 +45,7 @@ import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
 import { formatCalendarDate, personDisplayName } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
+import { runAction } from "@/components/portal/action-toast";
 
 function ownerFrom(actionItem: ActionItem): PickedPerson {
   return actionItem.owner;
@@ -87,17 +88,16 @@ function AddActionItemForm({
       return;
     }
 
+    const owner = selectedOwner;
     startTransition(async () => {
-      const result = await onSubmit(
-        selectedOwner.id,
-        packActionItemFormData(form),
-      );
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
-      onCancel();
+      await runAction(() => onSubmit(owner.id, packActionItemFormData(form)), {
+        success: "Action item added.",
+        onError: setError,
+        onSuccess: () => {
+          router.refresh();
+          onCancel();
+        },
+      });
     });
   }
 
@@ -187,17 +187,21 @@ function EditActionItemDialog({
       return;
     }
 
+    const owner = selectedOwner;
     startTransition(async () => {
-      const result = await updateActionItemAction(
-        actionItem.id,
-        selectedOwner.id,
-        packActionItemFormData(form),
+      await runAction(
+        () =>
+          updateActionItemAction(
+            actionItem.id,
+            owner.id,
+            packActionItemFormData(form),
+          ),
+        {
+          success: "Action item saved.",
+          onError: setError,
+          onSuccess: onSaved,
+        },
       );
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      onSaved();
     });
   }
 
@@ -297,19 +301,29 @@ export function ActionItemsTab({
   }
 
   function handleToggleStatus(actionItem: ActionItem) {
+    const nextStatus = actionItem.status === "done" ? "open" : "done";
     startMutation(async () => {
-      await updateActionItemStatusAction(
-        actionItem.id,
-        actionItem.status === "done" ? "open" : "done",
+      await runAction(
+        () => updateActionItemStatusAction(actionItem.id, nextStatus),
+        {
+          success:
+            nextStatus === "done"
+              ? "Action item marked done."
+              : "Action item reopened.",
+          error: "Could not update the action item. Please try again.",
+          onSuccess: refresh,
+        },
       );
-      refresh();
     });
   }
 
   function handleDelete(id: string) {
     startMutation(async () => {
-      await deleteActionItemAction(id);
-      refresh();
+      await runAction(() => deleteActionItemAction(id), {
+        success: "Action item deleted.",
+        error: "Could not delete the action item. Please try again.",
+        onSuccess: refresh,
+      });
     });
   }
 

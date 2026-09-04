@@ -61,6 +61,7 @@ import {
   SensitiveTopicCard,
 } from "./calendar-item-detail-cards";
 import { Spinner } from "@/components/ui/spinner";
+import { runAction } from "@/components/portal/action-toast";
 
 export function CalendarItemDetailView({
   item,
@@ -86,61 +87,62 @@ export function CalendarItemDetailView({
 
   function handleDuplicate() {
     startTransition(async () => {
-      const result = await duplicateCalendarItemAction(item.id);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      // The copy lands on the calendar list (titled "<title> (copy)").
-      router.push("/portal/calendar");
-      router.refresh();
+      await runAction(() => duplicateCalendarItemAction(item.id), {
+        success: `Duplicated as "${item.title} (copy)".`,
+        onError: setError,
+        onSuccess: () => {
+          // The copy lands on the calendar list (titled "<title> (copy)").
+          router.push("/portal/calendar");
+          router.refresh();
+        },
+      });
     });
   }
 
   function handleGenerateNextYear() {
     startTransition(async () => {
-      const result = await generateNextYearInstanceAction(item.id);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
+      await runAction(() => generateNextYearInstanceAction(item.id), {
+        success: "Next year's instance generated.",
+        onError: setError,
+        onSuccess: () => router.refresh(),
+      });
     });
   }
 
   function handleArchive() {
     startTransition(async () => {
-      const result = await archiveCalendarItemAction(item.id);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
+      await runAction(() => archiveCalendarItemAction(item.id), {
+        success: "Calendar item archived.",
+        onError: setError,
+        onSuccess: () => router.refresh(),
+      });
     });
   }
 
   function handleRestore() {
     startTransition(async () => {
-      const result = await restoreCalendarItemAction(item.id);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
+      await runAction(() => restoreCalendarItemAction(item.id), {
+        success: "Calendar item restored.",
+        onError: setError,
+        onSuccess: () => router.refresh(),
+      });
     });
   }
 
   function handleDelete() {
     startTransition(async () => {
-      const result = await deleteCalendarItemAction(item.id);
-      if ("error" in result) {
-        setConfirmDelete(false);
-        setError(result.error);
-        return;
-      }
-      setConfirmDelete(false);
-      router.push("/portal/calendar");
-      router.refresh();
+      await runAction(() => deleteCalendarItemAction(item.id), {
+        success: "Calendar item deleted.",
+        onError: (message) => {
+          setConfirmDelete(false);
+          setError(message);
+        },
+        onSuccess: () => {
+          setConfirmDelete(false);
+          router.push("/portal/calendar");
+          router.refresh();
+        },
+      });
     });
   }
 
