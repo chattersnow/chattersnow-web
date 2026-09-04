@@ -2,10 +2,7 @@ import type { Metadata } from "next";
 import { detailTitle } from "@/lib/portal/detail-title";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import {
-  getCurrentUserPermissions,
-  hasPermission,
-} from "@/lib/auth/permissions";
+import { hasPermission, requirePermission } from "@/lib/auth/permissions";
 import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Card, CardContent } from "@/components/ui/card";
 import { TEMPLATE_ROW_SELECT, mapTemplateRow } from "../template-shared";
@@ -34,7 +31,12 @@ export default async function TemplateDetailPage({
 }) {
   const { templateId } = await params;
   const supabase = await createSupabaseServerClient();
-  const permissions = await getCurrentUserPermissions(supabase);
+  const permissions = await requirePermission(
+    supabase,
+    "content_calendar",
+    "manage",
+    "Brief Templates",
+  );
   const canManage = hasPermission(permissions, "content_calendar", "manage");
 
   const { data: row, error } = await supabase

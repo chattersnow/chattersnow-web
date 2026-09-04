@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import {
-  getCurrentUserPermissions,
-  hasPermission,
-} from "@/lib/auth/permissions";
+import { hasPermission, requirePermission } from "@/lib/auth/permissions";
 import { Card, CardContent } from "@/components/ui/card";
 import { NewTemplateDialog } from "./new-template-dialog";
 import { TemplatesTable } from "./templates-table";
@@ -15,7 +12,12 @@ export const metadata: Metadata = {
 
 export default async function ContentBriefTemplatesPage() {
   const supabase = await createSupabaseServerClient();
-  const permissions = await getCurrentUserPermissions(supabase);
+  const permissions = await requirePermission(
+    supabase,
+    "content_calendar",
+    "manage",
+    "Brief Templates",
+  );
   const canManage = hasPermission(permissions, "content_calendar", "manage");
 
   const { data: rows, error } = await supabase
