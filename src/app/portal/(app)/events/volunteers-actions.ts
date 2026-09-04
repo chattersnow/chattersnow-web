@@ -38,9 +38,11 @@ export async function listEventVolunteersAction(
   const { data, error } = await supabase
     .from("event_volunteers")
     .select(
-      "id, event_id, person_id, shift_id, role, notes, person:people(id, name, email, phone)",
+      "id, event_id, person_id, shift_id, role, notes, person:people!inner(id, name, email, phone)",
     )
-    .eq("event_id", eventId);
+    .eq("event_id", eventId)
+    .order("person(name)", { ascending: true, nullsFirst: false })
+    .order("id", { ascending: true });
 
   if (error) {
     return { error: "Could not load volunteers. Please try again." };

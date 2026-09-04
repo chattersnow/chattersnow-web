@@ -47,7 +47,8 @@ export async function listDisclosuresAction(): Promise<
   const { data, error } = await supabase
     .from("conflict_of_interest_disclosures")
     .select(DISCLOSURE_SELECT)
-    .order("disclosure_year", { ascending: false });
+    .order("disclosure_year", { ascending: false })
+    .order("id", { ascending: true });
 
   if (error) {
     return { error: "Could not load disclosures. Please try again." };

@@ -32,7 +32,8 @@ export async function listDecisionsAction(
     .from("governance_meeting_decisions")
     .select("id, meeting_id, description, decision_date, topic, vote_result")
     .eq("meeting_id", meetingId)
-    .order("decision_date", { ascending: true });
+    .order("decision_date", { ascending: true })
+    .order("id", { ascending: true });
 
   if (error) {
     return { error: "Could not load decisions. Please try again." };

@@ -76,7 +76,9 @@ export async function listEventDonationsAction(
       "id, donated_at, notes, donor:people(name, is_anonymous), inventory_items(id, description, type, size, condition, face_value, status)",
     )
     .eq("event_id", eventId)
-    .order("donated_at", { ascending: false });
+    .order("donated_at", { ascending: false })
+    .order("id", { ascending: true })
+    .order("id", { referencedTable: "inventory_items", ascending: true });
 
   if (error) {
     return {
@@ -99,6 +101,8 @@ export async function listRecentDonationsAction(
       "id, donated_at, notes, donor:people(name, is_anonymous), inventory_items(id, description, type, size, condition, face_value, status)",
     )
     .order("donated_at", { ascending: false })
+    .order("id", { ascending: true })
+    .order("id", { referencedTable: "inventory_items", ascending: true })
     .limit(limit);
 
   if (error) {

@@ -83,7 +83,8 @@ export async function listEventExpensesAction(
     .from("event_expenses")
     .select(EXPENSE_COLUMNS)
     .eq("event_id", eventId)
-    .order("expense_date", { ascending: false });
+    .order("expense_date", { ascending: false })
+    .order("id", { ascending: true });
 
   if (error) {
     return {

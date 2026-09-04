@@ -102,6 +102,14 @@ export async function getEventGiveawayAction(
       "id, event_id, name, tickets_sold, ticket_price, revenue_amount, drawing_date, notes, giveaway_prizes(id, giveaway_id, prize_name, donor_person_id, donor:people(id, name, email, phone), estimated_value, notes, source_inventory_item_id, source_monetary_donation_id, giveaway_winners(id, giveaway_prize_id, winner_name, winner_contact, distribution_status, distributed_at, notes))",
     )
     .eq("event_id", eventId)
+    .order("created_at", {
+      referencedTable: "giveaway_prizes",
+      ascending: true,
+    })
+    .order("created_at", {
+      referencedTable: "giveaway_prizes.giveaway_winners",
+      ascending: true,
+    })
     .maybeSingle();
 
   if (error) {
