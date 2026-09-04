@@ -396,13 +396,14 @@ begin
   insert into public.discount_codes (event_id, code, description, source, registration_id, assigned_at, created_by)
   values (v_event_upcoming, 'SUMMIT-20', 'Twenty percent off partner gear', 'Summit Outdoor Co.', v_registration_id, now(), v_admin_id);
 
+  -- Only the figures with no system source are stored here now; participants,
+  -- first-time, beginner, volunteer and discount-code counts are derived
+  -- (20260904020000).
   insert into public.event_impact_notes (
-    event_id, total_participants, first_time_participants, beginner_participants,
-    volunteer_participants, equipment_loans_count, beginner_pairings_count,
-    survey_respondents_count, survey_felt_welcomed_yes_count,
-    survey_would_attend_again_yes_count, notes, created_by
+    event_id, first_time_riders, rental_subsidies_count, assistance_total,
+    beginner_pairings_count, notes, created_by
   )
-  values (v_event_past, 68, 24, 18, 11, 16, 9, 31, 30, 29, 'Participants especially valued loaner gear and peer support.', v_admin_id);
+  values (v_event_past, 14, 7, 480.00, 9, 'Participants especially valued loaner gear and peer support.', v_admin_id);
 
   -- Content and community calendar, including a pinned brief template version.
   insert into public.calendar_items (
@@ -822,15 +823,12 @@ begin
     -- Impact notes for completed/past published events, about a third.
     if v_starts_at < now() and random() < 0.3 then
       insert into public.event_impact_notes (
-        event_id, total_participants, first_time_participants, beginner_participants,
-        volunteer_participants, equipment_loans_count, beginner_pairings_count,
-        survey_respondents_count, survey_felt_welcomed_yes_count,
-        survey_would_attend_again_yes_count, notes, created_by
+        event_id, first_time_riders, rental_subsidies_count, assistance_total,
+        beginner_pairings_count, notes, created_by
       )
       values (
-        v_event_id, 10 + floor(random()*90)::int, floor(random()*30)::int, floor(random()*20)::int,
-        floor(random()*15)::int, floor(random()*25)::int, floor(random()*10)::int,
-        floor(random()*40)::int, floor(random()*35)::int, floor(random()*35)::int,
+        v_event_id, floor(random()*20)::int, floor(random()*15)::int,
+        round((random()*600)::numeric, 2), floor(random()*10)::int,
         'Seed bulk-data impact notes.', v_admin_id
       );
     end if;

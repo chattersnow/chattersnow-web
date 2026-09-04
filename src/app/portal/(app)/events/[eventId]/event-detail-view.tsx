@@ -16,11 +16,11 @@ import { Spinner } from "@/components/ui/spinner";
 import type { Program } from "../../programs/actions";
 import type { EventRow } from "../event-badges";
 import {
-  PhaseStatusBadge,
+  PhaseOutstandingBadge,
   StatusBadge,
   VisibilityBadge,
 } from "../event-badges";
-import { isPhaseKey, phaseStatus, type PhaseKey } from "../phase-status";
+import { isPhaseKey, type PhaseKey } from "../phase-status";
 import {
   FORM_ID_PREFIX,
   LOCKED_ON_REPORT_SUBMIT_TABS,
@@ -202,6 +202,7 @@ export function EventDetailView(props: {
   canManage: boolean;
   deleteBlockers: string[];
   initialTab?: TabValue;
+  phaseTasks?: Record<PhaseKey, string[]>;
 }) {
   return (
     <TabRefreshProvider>
@@ -216,12 +217,14 @@ function EventDetailContent({
   canManage,
   deleteBlockers,
   initialTab,
+  phaseTasks,
 }: {
   event: EventRow;
   programs: Program[];
   canManage: boolean;
   deleteBlockers: string[];
   initialTab?: TabValue;
+  phaseTasks?: Record<PhaseKey, string[]>;
 }) {
   // ?tab= stays the deep-link entry point (the notification bell and the
   // outstanding-tasks sheet both link with it), but the phase is what the
@@ -265,15 +268,12 @@ function EventDetailContent({
       >
         <div className="rainbow-surface flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
           <TabsList variant="line" className="flex-wrap">
-            {PHASES.map((phase) => {
-              const status = phaseStatus(phase.key, event);
-              return (
-                <TabsTrigger key={phase.key} value={phase.key}>
-                  {phase.key === "basic" ? "Overview" : phase.label}
-                  {status && <PhaseStatusBadge status={status} />}
-                </TabsTrigger>
-              );
-            })}
+            {PHASES.map((phase) => (
+              <TabsTrigger key={phase.key} value={phase.key}>
+                {phase.key === "basic" ? "Overview" : phase.label}
+                <PhaseOutstandingBadge tasks={phaseTasks?.[phase.key] ?? []} />
+              </TabsTrigger>
+            ))}
           </TabsList>
           {canManage && (
             <div className="flex flex-wrap items-center gap-2">

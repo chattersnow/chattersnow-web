@@ -14,6 +14,7 @@ import * as GiveawayActions from "../giveaway-actions";
 import * as ExpensesActions from "../../finance/expenses/actions";
 import * as RevenueActions from "../../finance/revenue/actions";
 import * as ImpactActions from "../impact-actions";
+import * as ImpactDerivedActions from "../impact-derived-actions";
 import * as HomeActions from "../../home/actions";
 import * as LogisticsActions from "../logistics-actions";
 import * as RoleTypesActions from "../../volunteers/roles/actions";
@@ -94,6 +95,22 @@ mock.module("../../finance/revenue/actions", () => ({
 mock.module("../impact-actions", () => ({
   ...ImpactActions,
   getEventImpactAction: mock(async () => ({ data: null })),
+}));
+mock.module("../impact-derived-actions", () => ({
+  ...ImpactDerivedActions,
+  getEventImpactDerivedAction: mock(async () => ({
+    data: {
+      participants: 0,
+      checkedIn: 0,
+      firstTimeParticipants: 0,
+      recurringParticipants: 0,
+      volunteerParticipants: 0,
+      beginnerParticipants: 0,
+      profiledAttendees: 0,
+      discountCodesAssigned: 0,
+      autoAssignDiscountCodes: false,
+    },
+  })),
 }));
 mock.module("../../home/actions", () => ({
   ...HomeActions,
@@ -261,5 +278,42 @@ describe("EventDetailView", () => {
 
     expect(screen.getByText("Registrants")).toBeInTheDocument();
     expect(screen.queryByText("Event details")).not.toBeInTheDocument();
+  });
+
+  test("counts a phase's outstanding tasks on its tab, and names them", () => {
+    render(
+      <EventDetailView
+        event={makeEvent()}
+        programs={[]}
+        canManage={true}
+        deleteBlockers={[]}
+        phaseTasks={{
+          basic: [],
+          planning: ["Planning incomplete"],
+          during: ["Attendance not logged"],
+          after: ["After-report not started", "Impact not recorded"],
+        }}
+      />,
+    );
+
+    expect(screen.getByLabelText("2 outstanding")).toHaveAttribute(
+      "title",
+      "After-report not started, Impact not recorded",
+    );
+    expect(screen.getAllByLabelText("1 outstanding")).toHaveLength(2);
+  });
+
+  test("shows no badge on a phase with nothing outstanding", () => {
+    render(
+      <EventDetailView
+        event={makeEvent()}
+        programs={[]}
+        canManage={true}
+        deleteBlockers={[]}
+        phaseTasks={{ basic: [], planning: [], during: [], after: [] }}
+      />,
+    );
+
+    expect(screen.queryByLabelText(/outstanding/)).not.toBeInTheDocument();
   });
 });

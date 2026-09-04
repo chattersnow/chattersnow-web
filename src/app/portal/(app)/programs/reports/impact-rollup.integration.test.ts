@@ -95,8 +95,14 @@ describe("get_program_impact_rollup_data (integration)", () => {
       registrations: after.data.registrations,
       checkinCounts: after.data.checkin_counts,
       discountCodes: after.data.discount_codes,
+      eventVolunteers: after.data.event_volunteers,
+      volunteerHourPeople: after.data.volunteer_hour_people,
+      beginnerAttendees: after.data.beginner_attendees,
+      profiledAttendees: after.data.profiled_attendees,
     });
     expect(rollup.volunteerHours).toBe(4.5);
+    // The same person signed up and logged hours, so they count once.
+    expect(rollup.volunteerParticipants).toBe(1);
 
     await adminClient.from("volunteer_hours").delete().eq("event_id", event.id);
     await adminClient

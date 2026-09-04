@@ -1,9 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import type { EventRow } from "./event-badges";
 import {
+  TASK_KIND_PHASE,
   afterStatus,
+  deriveEventPhaseTasks,
   duringStatus,
-  phaseStatus,
+  eventPhaseTaskLabels,
   planningStatus,
 } from "./phase-status";
 
@@ -161,25 +163,113 @@ describe("afterStatus", () => {
   });
 });
 
-describe("phaseStatus", () => {
+describe("deriveEventPhaseTasks", () => {
   const now = new Date("2026-09-01T12:00:00Z");
+  const upcoming = { ...baseEvent, starts_at: "2026-09-10T12:00:00Z" };
+  const started = { ...baseEvent, starts_at: "2026-08-30T12:00:00Z" };
+  const labels = (event: EventRow, options?: { includeImpact?: boolean }) =>
+    deriveEventPhaseTasks(event, { hasImpactNote: false }, now, options).map(
+      (task) => task.taskLabel,
+    );
 
-  test("delegates to planningStatus for the planning phase", () => {
-    const event = { ...baseEvent, event_lead_id: "person-1" };
-    expect(phaseStatus("planning", event, now)).toBe(planningStatus(event));
+  test("an upcoming event with nothing filled in only owes planning", () => {
+    expect(labels(upcoming)).toEqual(["Planning incomplete"]);
   });
 
-  test("delegates to duringStatus for the during phase, threading now through", () => {
-    const event = { ...baseEvent, starts_at: "2026-08-30T12:00:00Z" };
-    expect(phaseStatus("during", event, now)).toBe(duringStatus(event, now));
+  test("a fully planned upcoming event owes nothing", () => {
+    expect(
+      labels({
+        ...upcoming,
+        event_lead_id: "person-1",
+        capacity: 40,
+        budget_amount: 500,
+      }),
+    ).toEqual([]);
   });
 
-  test("delegates to afterStatus for the after phase", () => {
-    const event = { ...baseEvent, report_status: "submitted" };
-    expect(phaseStatus("after", event, now)).toBe(afterStatus(event));
+  test("planning stops being outstanding once the event has started", () => {
+    expect(labels(started)).not.toContain("Planning incomplete");
   });
 
-  test("returns null for the basic phase, which has no status", () => {
-    expect(phaseStatus("basic", baseEvent, now)).toBeNull();
+  test("a started event with no attendance and no report owes both", () => {
+    expect(labels(started)).toEqual([
+      "Attendance not logged",
+      "After-report not started",
+    ]);
+  });
+
+  test("logging attendance clears the during task", () => {
+    expect(labels({ ...started, attendance_count: 40 })).not.toContain(
+      "Attendance not logged",
+    );
+  });
+
+  test("submitting the report clears the after task", () => {
+    expect(labels({ ...started, report_status: "submitted" })).not.toContain(
+      "After-report not started",
+    );
+  });
+
+  test("the impact rule is opt-in, so the dashboard is unaffected by default", () => {
+    expect(labels(started)).not.toContain("Impact not recorded");
+    expect(labels(started, { includeImpact: true })).toContain(
+      "Impact not recorded",
+    );
+  });
+
+  test("an existing impact note clears the impact task", () => {
+    const tasks = deriveEventPhaseTasks(started, { hasImpactNote: true }, now, {
+      includeImpact: true,
+    });
+    expect(tasks.map((task) => task.taskLabel)).not.toContain(
+      "Impact not recorded",
+    );
+  });
+
+  test("every task kind maps to a phase", () => {
+    const kinds = deriveEventPhaseTasks(
+      started,
+      { hasImpactNote: false },
+      now,
+      {
+        includeImpact: true,
+      },
+    ).map((task) => task.kind);
+    for (const kind of kinds) {
+      expect(TASK_KIND_PHASE[kind]).toBeDefined();
+    }
+  });
+});
+
+describe("eventPhaseTaskLabels", () => {
+  const now = new Date("2026-09-01T12:00:00Z");
+  const started = { ...baseEvent, starts_at: "2026-08-30T12:00:00Z" };
+
+  test("groups each task under the phase whose cards it belongs to", () => {
+    const labels = eventPhaseTaskLabels(
+      started,
+      { hasImpactNote: false, openChecklistTitles: [] },
+      now,
+    );
+
+    expect(labels.during).toEqual(["Attendance not logged"]);
+    expect(labels.after).toEqual([
+      "After-report not started",
+      "Impact not recorded",
+    ]);
+    expect(labels.planning).toEqual([]);
+  });
+
+  test("open checklist items land in the basic phase, which had no badge before", () => {
+    const labels = eventPhaseTaskLabels(
+      started,
+      {
+        hasImpactNote: true,
+        openChecklistTitles: ["Send thank-you emails", "Return the van"],
+      },
+      now,
+    );
+
+    expect(labels.basic).toEqual(["Send thank-you emails", "Return the van"]);
   });
 });
