@@ -187,13 +187,13 @@ begin
   -- Local Roasters a lead and nothing more. owner_person_id is the internal
   -- person driving the opportunity and derives no role at all.
   insert into public.partnership_opportunities
-    (organization_person_id, organization_name, stage, next_step_date,
-     owner_person_id, notes, created_by)
+    (organization_person_id, stage, next_step_date, owner_person_id, notes,
+     created_by)
   values
-    (v_person_sponsor, 'Summit Outdoor Co.', 'closed_won', null,
-     v_admin_person_id, 'Season gear partnership, renewed annually.', v_admin_id),
-    (v_person_local_roasters, 'Local Roasters Coffee', 'prospecting',
-     current_date + 14, v_admin_person_id, 'Intro call scheduled.', v_admin_id);
+    (v_person_sponsor, 'closed_won', null, v_admin_person_id,
+     'Season gear partnership, renewed annually.', v_admin_id),
+    (v_person_local_roasters, 'prospecting', current_date + 14,
+     v_admin_person_id, 'Intro call scheduled.', v_admin_id);
 
   -- Events: one upcoming/published/public, one past/published/public with
   -- attendance recorded, one draft/private.

@@ -253,7 +253,7 @@ describe("people_with_roles", () => {
   async function createOpportunity(fields: Record<string, unknown>) {
     const { data, error } = await adminClient
       .from("partnership_opportunities")
-      .insert({ organization_name: "Integration Test Org", ...fields })
+      .insert(fields)
       .select("id")
       .single();
     if (error) throw error;
