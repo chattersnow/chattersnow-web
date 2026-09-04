@@ -362,3 +362,43 @@ export async function listEventOptionsAction(): Promise<
 
   return { data: (data ?? []) as EventOption[] };
 }
+
+/**
+ * Deleting is scoped to events nothing is attached to yet -- a mistyped
+ * duplicate, a test row. A `before delete` trigger on events (see
+ * 20260903060000) refuses anything with registrants, sponsors, staff,
+ * volunteers, incidents, a giveaway, or linked finance records, since those
+ * would either cascade away or be silently orphaned; those events get
+ * Cancelled/Archived instead. The detail page pre-checks via
+ * event_delete_blockers so the dialog can say so up front, but the trigger is
+ * the enforcement.
+ */
+export async function deleteEventAction(
+  id: string,
+): Promise<CreateEventResult> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to delete an event.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
+
+  const { error } = await supabase.from("events").delete().eq("id", id);
+
+  if (error) {
+    // The trigger's restrict_violation message already names what's blocking
+    // and what to do instead, so it's worth more to the user than the generic.
+    return {
+      error:
+        error.code === "23001"
+          ? error.message
+          : "Could not delete the event. Please try again.",
+    };
+  }
+
+  revalidatePath("/portal/home");
+  revalidatePath("/portal/events");
+  return { success: true };
+}
