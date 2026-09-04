@@ -11,6 +11,7 @@ import {
   type PersonRow,
 } from "../people-shared";
 import { AccountCard } from "./account-card";
+import { MergeCard } from "./merge-card";
 import { OrganizationsCard } from "./organizations-card";
 import { ProfileCard } from "./profile-card";
 import { resolvePersonAccount } from "./person-account";
@@ -79,6 +80,10 @@ export async function PersonCoreCards({ person }: { person: PersonRow }) {
         people={peopleOptionRows}
         canManage={canManage}
       />
+
+      {canManage && (
+        <MergeCard personId={person.id} people={peopleOptionRows} />
+      )}
 
       {canManageAccounts && (
         <AccountCard

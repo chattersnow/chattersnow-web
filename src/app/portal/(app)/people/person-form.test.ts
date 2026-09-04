@@ -35,6 +35,20 @@ describe("parsePersonForm", () => {
     expect("roles" in result && result.roles).toEqual(["volunteer"]);
   });
 
+  test("canonicalizes email to lowercase and trims it", () => {
+    const result = parsePersonForm(
+      formData({ name: "Jane", isDonor: "true", email: "  Jane@Example.COM " }),
+    );
+    expect("data" in result && result.data.email).toBe("jane@example.com");
+  });
+
+  test("stores a blank email as null, not an empty string", () => {
+    const result = parsePersonForm(
+      formData({ name: "Jane", isDonor: "true", email: "   " }),
+    );
+    expect("data" in result && result.data.email).toBeNull();
+  });
+
   test("parses valid input", () => {
     const result = parsePersonForm(
       formData({
