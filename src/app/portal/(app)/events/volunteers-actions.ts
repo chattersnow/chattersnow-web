@@ -142,6 +142,12 @@ export async function deleteEventVolunteerAction(
   return { success: true };
 }
 
+// The event-scoped projection of the shared `volunteer_hours` ledger, not a
+// table shape: `event_volunteer_hours` was folded into it by
+// 20260904010000. Field names and types are unchanged from that table, so
+// the Volunteers tab renders it as before -- but the list now also includes
+// entries logged for this event from Volunteers > Participation, which has
+// no signup requirement, so a listed person may not appear in Signups above.
 export type EventVolunteerHours = {
   id: string;
   event_id: string;
@@ -164,7 +170,7 @@ export async function listEventVolunteerHoursAction(
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase
-    .from("event_volunteer_hours")
+    .from("volunteer_hours")
     .select(
       "id, event_id, person_id, hours, logged_date, notes, person:people(id, name, email, phone)",
     )
@@ -214,7 +220,7 @@ export async function createEventVolunteerHoursAction(
   if ("error" in parsed) return parsed;
   const { hours, loggedDate, notes } = parsed.data;
 
-  const { error } = await supabase.from("event_volunteer_hours").insert({
+  const { error } = await supabase.from("volunteer_hours").insert({
     event_id: eventId,
     person_id: personId,
     hours,
@@ -227,6 +233,8 @@ export async function createEventVolunteerHoursAction(
   }
 
   revalidatePath("/portal/events");
+  // Same table now backs Volunteers > Participation (20260904010000).
+  revalidatePath("/portal/volunteers/participation");
   return { success: true };
 }
 
@@ -247,7 +255,7 @@ export async function deleteEventVolunteerHoursAction(
   if (permissionError) return permissionError;
 
   const { error } = await supabase
-    .from("event_volunteer_hours")
+    .from("volunteer_hours")
     .delete()
     .eq("id", id);
   if (error) {
@@ -255,5 +263,7 @@ export async function deleteEventVolunteerHoursAction(
   }
 
   revalidatePath("/portal/events");
+  // Same table now backs Volunteers > Participation (20260904010000).
+  revalidatePath("/portal/volunteers/participation");
   return { success: true };
 }

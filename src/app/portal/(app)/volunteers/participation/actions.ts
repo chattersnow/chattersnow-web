@@ -94,6 +94,14 @@ export async function updateVolunteerHoursAction(
     "You must be signed in to update a logged hours entry.",
   );
   if ("error" in userResult) return userResult;
+  // Deliberately the narrow `volunteers:manage` gate, not the widened one from
+  // 20260904010000's RLS. That policy also admits event_volunteer_hours:manage
+  // on rows where event_id is not null, but this page is the org-wide ledger:
+  // letting a coordinator through here only to have RLS reject the write on an
+  // event_id-null row turns a clean permission message into "Could not update
+  // this entry". Nothing is lost -- the event editor's Volunteers tab is where
+  // a coordinator manages event-linked hours, and it has no update action at
+  // all, so editing was already admin-only everywhere.
   const permissionError = await checkPermission(
     supabase,
     "volunteers",
@@ -138,6 +146,14 @@ export async function deleteVolunteerHoursAction(
     "You must be signed in to remove a logged hours entry.",
   );
   if ("error" in userResult) return userResult;
+  // Deliberately the narrow `volunteers:manage` gate, not the widened one from
+  // 20260904010000's RLS. That policy also admits event_volunteer_hours:manage
+  // on rows where event_id is not null, but this page is the org-wide ledger:
+  // letting a coordinator through here only to have RLS reject the write on an
+  // event_id-null row turns a clean permission message into "Could not update
+  // this entry". Nothing is lost -- the event editor's Volunteers tab is where
+  // a coordinator manages event-linked hours, and it has no update action at
+  // all, so editing was already admin-only everywhere.
   const permissionError = await checkPermission(
     supabase,
     "volunteers",

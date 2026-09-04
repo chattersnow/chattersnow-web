@@ -347,7 +347,11 @@ begin
   update public.event_volunteers set shift_id = v_shift_id
   where event_id = v_event_upcoming and person_id = v_person_volunteer;
 
-  insert into public.event_volunteer_hours (event_id, person_id, hours, logged_date, notes, logged_by)
+  -- Logged from the event editor's Volunteers tab. Since 20260904010000 that
+  -- writes the shared volunteer_hours ledger too, with no role type -- the tab
+  -- has no role picker. Kept distinct from the 3.00-hour entry below (same
+  -- person and event, different work) so the rollup exercises multi-row summing.
+  insert into public.volunteer_hours (event_id, person_id, hours, logged_date, notes, logged_by)
   values (v_event_past, v_person_volunteer, 4.50, current_date - 40, 'Cleanup and distribution support.', v_admin_id);
 
   insert into public.volunteer_role_types (name, description, is_public, created_by)
@@ -808,7 +812,7 @@ begin
 
     -- Volunteer hours logged for past events, about half.
     if v_starts_at < now() and random() < 0.5 and array_length(v_volunteer_ids, 1) is not null then
-      insert into public.event_volunteer_hours (event_id, person_id, hours, logged_date, notes, logged_by)
+      insert into public.volunteer_hours (event_id, person_id, hours, logged_date, notes, logged_by)
       values (
         v_event_id, v_volunteer_ids[1 + floor(random()*array_length(v_volunteer_ids,1))::int],
         round((1 + random()*7)::numeric, 2), v_starts_at::date, null, v_admin_id
