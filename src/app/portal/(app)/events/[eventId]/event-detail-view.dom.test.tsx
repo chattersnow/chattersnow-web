@@ -233,6 +233,49 @@ describe("EventDetailView", () => {
     ).toBeInTheDocument();
   });
 
+  test("puts a card's create actions in that card, not a shared strip", () => {
+    render(
+      <EventDetailView
+        event={makeEvent()}
+        programs={[]}
+        canManage={true}
+        deleteBlockers={[]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: /Planning/ }));
+
+    // The actions used to be merged into one row beside the phase tabs, which
+    // left the operator scrolling back up past three cards to reach them.
+    const addVolunteer = screen.getByRole("button", {
+      name: "+ Add volunteer",
+    });
+    const card = addVolunteer.closest("[data-slot=card]");
+    expect(card).not.toBeNull();
+    expect(card).toHaveTextContent("Volunteers");
+    expect(card).not.toHaveTextContent("Sponsors");
+
+    const strip = screen.getByRole("tablist").parentElement;
+    expect(strip?.querySelectorAll("button:not([role=tab])")).toHaveLength(0);
+  });
+
+  test("hides create actions without manage access", () => {
+    render(
+      <EventDetailView
+        event={makeEvent()}
+        programs={[]}
+        canManage={false}
+        deleteBlockers={[]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: /Planning/ }));
+
+    expect(
+      screen.queryByRole("button", { name: "+ Add volunteer" }),
+    ).not.toBeInTheDocument();
+  });
+
   test("hides edit controls without manage access", () => {
     render(
       <EventDetailView

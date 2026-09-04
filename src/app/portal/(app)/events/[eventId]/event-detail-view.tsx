@@ -161,6 +161,42 @@ function EditableTabCard({
 }
 
 /**
+ * A plain tab's create actions, in its own card header.
+ *
+ * These used to be merged into one strip beside the phase tabs, which put
+ * every card's actions in a single row -- seven of them on "During" -- with
+ * nothing tying a button to the card it belonged to, and left the operator
+ * scrolling back to the top of a long phase to reach any of them.
+ *
+ * Returns `CardAction` as its root so the div stays a direct grid child of
+ * `CardHeader`, which is what positions it. `EditableTabCard` spends its one
+ * `CardAction` on the edit pencil, so no `kind: "form"` tab may define
+ * `toolbarActions`.
+ */
+function TabCardActions({
+  entry,
+  event,
+  canManage,
+}: {
+  entry: TabConfigEntry;
+  event: EventRow;
+  canManage: boolean;
+}) {
+  const { notify } = useTabRefresh<TabValue>();
+  if (!canManage || !entry.toolbarActions) return null;
+
+  return (
+    <CardAction className="flex flex-wrap items-center justify-end gap-2">
+      {entry.toolbarActions({
+        eventId: event.id,
+        eventName: event.name,
+        onSaved: () => notify(entry.value),
+      })}
+    </CardAction>
+  );
+}
+
+/**
  * Card wrapper for list-style tabs whose add/manage controls are shown
  * based on the user's events permission rather than an edit toggle.
  */
@@ -195,6 +231,7 @@ function PlainTabCard({
         <CardTitle className="app-muted text-sm font-semibold">
           {title}
         </CardTitle>
+        <TabCardActions entry={entry} event={event} canManage={canManage} />
       </CardHeader>
       <CardContent>{entry.render(ctx)}</CardContent>
     </Card>
@@ -239,9 +276,6 @@ function EventDetailContent({
     fallback: initialTab ? phaseForTab(initialTab) : "basic",
     isValid: isPhaseKey,
   });
-  const { notify } = useTabRefresh<TabValue>();
-  const currentPhase = PHASES.find((phase) => phase.key === phaseKey)!;
-
   return (
     <>
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -271,7 +305,7 @@ function EventDetailContent({
         onValueChange={(value) => setPhaseKey(value as PhaseKey)}
         className="mt-6"
       >
-        <div className="rainbow-surface flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+        <div className="rainbow-surface rounded-xl border border-[var(--line)] p-4 shadow-md">
           <TabsList variant="line" className="flex-wrap">
             {PHASES.map((phase) => (
               <TabsTrigger key={phase.key} value={phase.key}>
@@ -280,26 +314,6 @@ function EventDetailContent({
               </TabsTrigger>
             ))}
           </TabsList>
-          {canManage && (
-            <div className="flex flex-wrap items-center gap-2">
-              {currentPhase.tabs.map((t) => {
-                const entry = entryFor(t.value);
-                if (!entry.toolbarActions) return null;
-                return (
-                  <div
-                    key={t.value}
-                    className="flex flex-wrap items-center gap-2"
-                  >
-                    {entry.toolbarActions({
-                      eventId: event.id,
-                      eventName: event.name,
-                      onSaved: () => notify(t.value),
-                    })}
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
 
         {PHASES.map((phase) => (

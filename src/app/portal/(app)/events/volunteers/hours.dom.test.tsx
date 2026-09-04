@@ -146,3 +146,77 @@ describe("AddHoursForm", () => {
     expect(screen.getByLabelText("Hours")).toHaveValue(null);
   });
 });
+
+describe("AddHoursForm with a locked volunteer", () => {
+  test("names the volunteer read-only instead of offering a picker", () => {
+    render(
+      <AddHoursForm
+        volunteers={[volunteerWithShift]}
+        shifts={[shift]}
+        lockedPerson={volunteerWithShift.person}
+        onSubmit={async () => ({ success: true })}
+        onCancel={noop}
+      />,
+    );
+
+    expect(screen.getByText("Jane Doe")).toBeInTheDocument();
+    expect(
+      screen.queryByPlaceholderText("Search signed-up volunteers..."),
+    ).not.toBeInTheDocument();
+  });
+
+  test("seeds hours and date from the locked volunteer's shift", () => {
+    render(
+      <AddHoursForm
+        volunteers={[volunteerWithShift]}
+        shifts={[shift]}
+        lockedPerson={volunteerWithShift.person}
+        onSubmit={async () => ({ success: true })}
+        onCancel={noop}
+      />,
+    );
+
+    expect(screen.getByLabelText("Hours")).toHaveValue(4.5);
+    expect(screen.getByLabelText("Date")).toHaveValue("2026-09-01");
+  });
+
+  test("submits for the locked volunteer without a selection step", async () => {
+    const onSubmit = mock(
+      async (
+        _personId: string,
+        _formData: FormData,
+      ): Promise<{ error: string } | { success: true }> => ({
+        success: true,
+      }),
+    );
+    const user = userEvent.setup();
+    render(
+      <AddHoursForm
+        volunteers={[volunteerWithShift]}
+        shifts={[shift]}
+        lockedPerson={volunteerWithShift.person}
+        onSubmit={onSubmit}
+        onCancel={noop}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Log hours" }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    expect(onSubmit.mock.calls[0][0]).toBe("person-1");
+  });
+
+  test("leaves hours blank when the locked volunteer has no shift", () => {
+    render(
+      <AddHoursForm
+        volunteers={[volunteerWithoutShift]}
+        shifts={[shift]}
+        lockedPerson={volunteerWithoutShift.person}
+        onSubmit={async () => ({ success: true })}
+        onCancel={noop}
+      />,
+    );
+
+    expect(screen.getByLabelText("Hours")).toHaveValue(null);
+  });
+});
