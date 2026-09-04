@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   deleteEventChecklistItemAction,
@@ -15,19 +15,27 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
+import {
+  LIST_PREVIEW_ROWS,
+  ListPreviewSheet,
+} from "@/components/portal/list-preview-sheet";
 import { EmptyState } from "@/components/portal/empty-state";
 
 export function ChecklistTab({
   eventId,
   mode,
+  previewRows = LIST_PREVIEW_ROWS,
 }: {
   eventId: string;
   mode: "view" | "edit";
+  /** Rows before the rest move behind "View all"; `null` disables the cap. */
+  previewRows?: number | null;
 }) {
   const router = useRouter();
   const [items, setItems] = useState<EventChecklistItem[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [pendingIds, setPendingIds] = useState<ReadonlySet<string>>(new Set());
+  const [query, setQuery] = useState("");
   const [, startTransition] = useTransition();
 
   function load() {
@@ -79,6 +87,54 @@ export function ChecklistTab({
 
   const doneCount = items?.filter((item) => item.is_done).length ?? 0;
 
+  const list = items ?? [];
+
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return list;
+    return list.filter((item) => item.title.toLowerCase().includes(needle));
+  }, [list, query]);
+
+  const capped = previewRows === null ? list : list.slice(0, previewRows);
+  const hasOverflow = previewRows !== null && list.length > previewRows;
+
+  function itemsList(rows: EventChecklistItem[]) {
+    return (
+      <ul className="flex flex-col divide-y divide-[var(--line)]">
+        {rows.map((item) => (
+          <li key={item.id} className="flex items-center gap-3 py-2">
+            <Checkbox
+              checked={item.is_done}
+              disabled={mode !== "edit" || pendingIds.has(item.id)}
+              aria-label={`Mark "${item.title}" ${item.is_done ? "not done" : "done"}`}
+              onCheckedChange={(checked) =>
+                handleToggle(item.id, checked === true)
+              }
+            />
+            <span
+              className={cn(
+                "flex-1 text-sm",
+                item.is_done && "app-muted line-through",
+              )}
+            >
+              {item.title}
+            </span>
+            {mode === "edit" && (
+              <ConfirmDeleteButton
+                label="Remove checklist item"
+                title={`Remove "${item.title}"?`}
+                description="This deletes the checklist item from this event. It can't be undone."
+                confirmLabel="Remove"
+                pending={pendingIds.has(item.id)}
+                onConfirm={() => handleDelete(item.id)}
+              />
+            )}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4">
       {loadError && (
@@ -96,43 +152,33 @@ export function ChecklistTab({
         />
       ) : (
         <div className="flex flex-col gap-1">
-          {items.length > 0 && (
-            <p className="app-muted text-xs">
-              {doneCount} of {items.length} done
-            </p>
-          )}
-          <ul className="flex flex-col divide-y divide-[var(--line)]">
-            {items.map((item) => (
-              <li key={item.id} className="flex items-center gap-3 py-2">
-                <Checkbox
-                  checked={item.is_done}
-                  disabled={mode !== "edit" || pendingIds.has(item.id)}
-                  aria-label={`Mark "${item.title}" ${item.is_done ? "not done" : "done"}`}
-                  onCheckedChange={(checked) =>
-                    handleToggle(item.id, checked === true)
-                  }
+          <p className="app-muted text-xs">
+            {doneCount} of {list.length} done
+          </p>
+          {itemsList(capped)}
+          {hasOverflow && (
+            <ListPreviewSheet
+              title="Checklist"
+              description={`${doneCount} of ${list.length} done`}
+              triggerLabel={`View all ${list.length} checklist items`}
+              searchPlaceholder="Search checklist items"
+              searchLabel="Search checklist items"
+              size="lg"
+              query={query}
+              onQueryChange={setQuery}
+              totalCount={list.length}
+              filteredCount={filtered.length}
+            >
+              {filtered.length === 0 ? (
+                <EmptyState
+                  title="No matching checklist items"
+                  description="Clear or loosen the search to see more."
                 />
-                <span
-                  className={cn(
-                    "flex-1 text-sm",
-                    item.is_done && "app-muted line-through",
-                  )}
-                >
-                  {item.title}
-                </span>
-                {mode === "edit" && (
-                  <ConfirmDeleteButton
-                    label="Remove checklist item"
-                    title={`Remove "${item.title}"?`}
-                    description="This deletes the checklist item from this event. It can't be undone."
-                    confirmLabel="Remove"
-                    pending={pendingIds.has(item.id)}
-                    onConfirm={() => handleDelete(item.id)}
-                  />
-                )}
-              </li>
-            ))}
-          </ul>
+              ) : (
+                itemsList(filtered)
+              )}
+            </ListPreviewSheet>
+          )}
         </div>
       )}
     </div>

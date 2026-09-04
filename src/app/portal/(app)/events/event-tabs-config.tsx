@@ -25,8 +25,7 @@ import { ImpactTab } from "./impact-tab";
 import { AddChecklistItemDialog } from "./add-checklist-item-dialog";
 import { LogIncidentDialog } from "./log-incident-dialog";
 import { AddDiscountCodesDialog } from "./add-discount-codes-dialog";
-import { CheckInWalkInDialog } from "./check-in-walkin-dialog";
-import { AddRegistrantDialog } from "./add-registrant-dialog";
+import { RegistrantsToolbar } from "./registrants-toolbar";
 import { AddSponsorDialog } from "./add-sponsor-dialog";
 import { AddStaffDialog } from "./add-staff-dialog";
 import { AddShiftDialog } from "./volunteers/add-shift-dialog";
@@ -229,13 +228,15 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         mode={ctx.mode}
         registrants={ctx.shared.registrants}
         derived={ctx.shared.impactDerived}
+        headerActions={
+          ctx.mode === "edit" ? (
+            <RegistrantsToolbar eventId={ctx.event.id} onSaved={ctx.onSaved} />
+          ) : undefined
+        }
       />
     ),
     toolbarActions: (ctx) => (
-      <>
-        <AddRegistrantDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
-        <CheckInWalkInDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
-      </>
+      <RegistrantsToolbar eventId={ctx.eventId} onSaved={ctx.onSaved} />
     ),
   },
   {

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { RegistrantsTab } from "../events/registrants-tab";
+import { RegistrantsToolbar } from "../events/registrants-toolbar";
 import { listEventRegistrantsAction } from "../events/registrants-actions";
 import { getEventImpactDerivedAction } from "../events/impact-derived-actions";
 import { useTabData } from "@/hooks/use-tab-data";
@@ -69,6 +70,19 @@ export function CheckInModal({
             mode="edit"
             registrants={registrants}
             derived={derived}
+            /* This sheet exists to work through the whole list, so it opts out
+               of the card's five-row cap -- and a "View all" trigger here would
+               only open a sheet on top of this one. */
+            previewRows={null}
+            headerActions={
+              <RegistrantsToolbar
+                eventId={eventId}
+                onSaved={() => {
+                  registrants.refresh();
+                  derived.refresh();
+                }}
+              />
+            }
           />
         </div>
       </SheetContent>
