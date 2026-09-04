@@ -140,11 +140,9 @@ export function AddStaffForm({
 
 export function StaffTab({
   eventId,
-  active,
   mode,
 }: {
   eventId: string;
-  active: boolean;
   mode: "view" | "edit";
 }) {
   const router = useRouter();
@@ -154,7 +152,6 @@ export function StaffTab({
     refresh: refreshTabData,
   } = useTabData<EventStaffMember[]>(
     () => listEventStaffAction(eventId),
-    active,
     [eventId],
   );
   const [isDeleting, startDeleteTransition] = useTransition();

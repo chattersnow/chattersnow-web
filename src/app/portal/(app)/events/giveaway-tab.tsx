@@ -7,8 +7,7 @@ import {
   getEventGiveawayAction,
   type Giveaway,
 } from "./giveaway-actions";
-import { type PickedPerson } from "../people/person-picker";
-import { listPeopleAction, type PersonListItem } from "../people/actions";
+import type { PersonListItem } from "../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { SalesSection } from "./giveaway/sales";
@@ -26,12 +25,14 @@ import { runAction } from "@/components/portal/action-toast";
 
 export function GiveawayTab({
   eventId,
-  active,
+  people,
+  onPersonCreated,
   mode,
   onExitEdit,
 }: {
   eventId: string;
-  active: boolean;
+  people: PersonListItem[];
+  onPersonCreated: (person: PersonListItem) => void;
   mode: "view" | "edit";
   onExitEdit: () => void;
 }) {
@@ -42,12 +43,8 @@ export function GiveawayTab({
     refresh: refreshGiveaway,
   } = useTabData<Giveaway | null>(
     () => getEventGiveawayAction(eventId),
-    active,
     [eventId],
   );
-  const { data: peopleData, refresh: refreshPeople } = useTabData<
-    PersonListItem[]
-  >(() => listPeopleAction(), active, [eventId]);
   // Tier setup only exists once a giveaway row does, so this is keyed off the
   // giveaway id rather than the event id.
   const giveawayId = giveaway?.id ?? null;
@@ -57,11 +54,9 @@ export function GiveawayTab({
         giveawayId
           ? getGiveawayTierConfigAction(giveawayId)
           : Promise.resolve({ data: null }),
-      active && !!giveawayId,
       [giveawayId],
+      !!giveawayId,
     );
-  const [newPeople, setNewPeople] = useState<PersonListItem[]>([]);
-  const people = [...(peopleData ?? []), ...newPeople];
   const [isDeleting, startDeleteTransition] = useTransition();
   const [editingWinnerId, setEditingWinnerId] = useState<string | null>(null);
   const [editingPrizeId, setEditingPrizeId] = useState<string | null>(null);
@@ -76,13 +71,8 @@ export function GiveawayTab({
 
   function refresh() {
     refreshGiveaway();
-    refreshPeople();
     refreshTierConfig();
     router.refresh();
-  }
-
-  function handlePersonCreated(person: PickedPerson) {
-    setNewPeople((prev) => [...prev, person]);
   }
 
   function handleDeletePrize(id: string) {
@@ -159,7 +149,7 @@ export function GiveawayTab({
               editingWinnerId={editingWinnerId}
               editingPrizeId={editingPrizeId}
               showAddPrize={showAddPrize}
-              onPersonCreated={handlePersonCreated}
+              onPersonCreated={onPersonCreated}
               onDeletePrize={handleDeletePrize}
               onEditPrize={(prizeId) => setEditingPrizeId(prizeId)}
               onPrizeSaved={() => {

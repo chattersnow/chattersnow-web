@@ -3,6 +3,7 @@ import type { Program } from "../programs/actions";
 import type { EventRow } from "./event-badges";
 import type { PhaseKey } from "./phase-status";
 import type { FormTabCallbacks } from "./use-form-tab-state";
+import type { EventPhaseData, SharedEventResource } from "./event-phase-data";
 import { OverviewTab } from "./overview-tab";
 import { PlanningTab } from "./planning-tab";
 import { LogisticsTab } from "./logistics-tab";
@@ -64,7 +65,8 @@ export type TabRenderContext = {
   event: EventRow;
   programs: Program[];
   mode: Mode;
-  activeTab: TabValue;
+  /** Reads the phase fetches once and shares them across its cards. */
+  shared: EventPhaseData;
   formId: (tabValue: TabValue) => string;
   onSaved: () => void;
   formCallbacks: Record<TabValue, FormTabCallbacks>;
@@ -81,6 +83,8 @@ export type TabConfigEntry = {
   label: string;
   phase: PhaseKey;
   kind: "form" | "plain";
+  /** Reads this card takes from the phase provider rather than fetching. */
+  sharedData?: readonly SharedEventResource[];
   render: (ctx: TabRenderContext) => ReactNode;
   toolbarActions?: (ctx: ToolbarActionContext) => ReactNode;
 };
@@ -109,13 +113,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     label: "Checklist",
     phase: "basic",
     kind: "plain",
-    render: (ctx) => (
-      <ChecklistTab
-        eventId={ctx.event.id}
-        active={ctx.activeTab === "checklist"}
-        mode={ctx.mode}
-      />
-    ),
+    render: (ctx) => <ChecklistTab eventId={ctx.event.id} mode={ctx.mode} />,
     toolbarActions: (ctx) => (
       <AddChecklistItemDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
     ),
@@ -125,11 +123,14 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     label: "Planning",
     phase: "planning",
     kind: "form",
+    sharedData: ["people"],
     render: (ctx) => (
       <PlanningTab
         ref={ctx.formCallbacks.planning.registerHandle}
         event={ctx.event}
         formId={ctx.formId("planning")}
+        people={ctx.shared.people.data ?? []}
+        onPersonCreated={ctx.shared.addLocalPerson}
         mode={ctx.mode}
         onSaved={ctx.onSaved}
         onPendingChange={ctx.formCallbacks.planning.onPendingChange}
@@ -147,7 +148,6 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         ref={ctx.formCallbacks.logistics.registerHandle}
         eventId={ctx.event.id}
         formId={ctx.formId("logistics")}
-        active={ctx.activeTab === "logistics"}
         mode={ctx.mode}
         onSaved={ctx.onSaved}
         onPendingChange={ctx.formCallbacks.logistics.onPendingChange}
@@ -160,13 +160,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     label: "Volunteers",
     phase: "planning",
     kind: "plain",
-    render: (ctx) => (
-      <VolunteersTab
-        eventId={ctx.event.id}
-        active={ctx.activeTab === "volunteers"}
-        mode={ctx.mode}
-      />
-    ),
+    render: (ctx) => <VolunteersTab eventId={ctx.event.id} mode={ctx.mode} />,
     toolbarActions: (ctx) => (
       <>
         <AddShiftDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
@@ -180,13 +174,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     label: "Staff",
     phase: "planning",
     kind: "plain",
-    render: (ctx) => (
-      <StaffTab
-        eventId={ctx.event.id}
-        active={ctx.activeTab === "staff"}
-        mode={ctx.mode}
-      />
-    ),
+    render: (ctx) => <StaffTab eventId={ctx.event.id} mode={ctx.mode} />,
     toolbarActions: (ctx) => (
       <AddStaffDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
     ),
@@ -196,10 +184,12 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     label: "Sponsors",
     phase: "planning",
     kind: "plain",
+    sharedData: ["people"],
     render: (ctx) => (
       <SponsorsTab
         eventId={ctx.event.id}
-        active={ctx.activeTab === "sponsors"}
+        people={ctx.shared.people.data ?? []}
+        onPersonCreated={ctx.shared.addLocalPerson}
         mode={ctx.mode}
       />
     ),
@@ -212,11 +202,12 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     label: "Attendance",
     phase: "during",
     kind: "plain",
+    sharedData: ["impactDerived"],
     render: (ctx) => (
       <AttendanceTab
         event={ctx.event}
         mode={ctx.mode}
-        active={ctx.activeTab === "attendance"}
+        derived={ctx.shared.impactDerived.data}
         onExitEdit={ctx.onSaved}
       />
     ),
@@ -226,12 +217,13 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     label: "Registrants",
     phase: "during",
     kind: "plain",
+    sharedData: ["registrants", "impactDerived"],
     render: (ctx) => (
       <RegistrantsTab
-        eventId={ctx.event.id}
         capacity={ctx.event.capacity}
-        active={ctx.activeTab === "registrants"}
         mode={ctx.mode}
+        registrants={ctx.shared.registrants}
+        derived={ctx.shared.impactDerived}
       />
     ),
     toolbarActions: (ctx) => (
@@ -246,11 +238,12 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     label: "Discount codes",
     phase: "during",
     kind: "plain",
+    sharedData: ["registrants"],
     render: (ctx) => (
       <DiscountCodesTab
         eventId={ctx.event.id}
-        active={ctx.activeTab === "discount-codes"}
         mode={ctx.mode}
+        registrants={ctx.shared.registrants}
       />
     ),
     toolbarActions: (ctx) => (
@@ -263,11 +256,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     phase: "during",
     kind: "plain",
     render: (ctx) => (
-      <DistributionsTab
-        eventId={ctx.event.id}
-        active={ctx.activeTab === "distributions"}
-        mode={ctx.mode}
-      />
+      <DistributionsTab eventId={ctx.event.id} mode={ctx.mode} />
     ),
     toolbarActions: (ctx) => (
       <RecordDistributionModal
@@ -282,13 +271,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     label: "Incidents",
     phase: "during",
     kind: "plain",
-    render: (ctx) => (
-      <IncidentsTab
-        eventId={ctx.event.id}
-        active={ctx.activeTab === "incidents"}
-        mode={ctx.mode}
-      />
-    ),
+    render: (ctx) => <IncidentsTab eventId={ctx.event.id} mode={ctx.mode} />,
     toolbarActions: (ctx) => (
       <LogIncidentDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
     ),
@@ -298,10 +281,12 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     label: "Giveaway",
     phase: "during",
     kind: "plain",
+    sharedData: ["people"],
     render: (ctx) => (
       <GiveawayTab
         eventId={ctx.event.id}
-        active={ctx.activeTab === "giveaway"}
+        people={ctx.shared.people.data ?? []}
+        onPersonCreated={ctx.shared.addLocalPerson}
         mode={ctx.mode}
         onExitEdit={ctx.onSaved}
       />
@@ -329,13 +314,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     label: "Donations",
     phase: "after",
     kind: "plain",
-    render: (ctx) => (
-      <DonationsTab
-        eventId={ctx.event.id}
-        active={ctx.activeTab === "donations"}
-        mode={ctx.mode}
-      />
-    ),
+    render: (ctx) => <DonationsTab eventId={ctx.event.id} mode={ctx.mode} />,
     toolbarActions: (ctx) => (
       <AddDonationModal
         triggerLabel="Record donation for this event"
@@ -353,7 +332,6 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
       <EventExpensesTab
         eventId={ctx.event.id}
         eventName={ctx.event.name}
-        active={ctx.activeTab === "expenses"}
         mode={ctx.mode}
       />
     ),
@@ -376,7 +354,6 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
       <EventRevenueTab
         eventId={ctx.event.id}
         eventName={ctx.event.name}
-        active={ctx.activeTab === "revenue"}
         mode={ctx.mode}
       />
     ),
@@ -395,12 +372,13 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     label: "Impact",
     phase: "after",
     kind: "form",
+    sharedData: ["impactDerived"],
     render: (ctx) => (
       <ImpactTab
         ref={ctx.formCallbacks.impact.registerHandle}
         eventId={ctx.event.id}
         formId={ctx.formId("impact")}
-        active={ctx.activeTab === "impact"}
+        derived={ctx.shared.impactDerived.data}
         mode={ctx.mode}
         onSaved={ctx.onSaved}
         onPendingChange={ctx.formCallbacks.impact.onPendingChange}
@@ -441,22 +419,30 @@ export const PHASES: {
   key: PhaseKey;
   label: string;
   tabs: { value: TabValue; label: string }[];
+  /** Union of what this phase's cards read, fetched once when it opens. */
+  sharedData: SharedEventResource[];
 }[] = (() => {
   const order: PhaseKey[] = [];
   const tabsByPhase = new Map<PhaseKey, { value: TabValue; label: string }[]>();
+  const sharedByPhase = new Map<PhaseKey, Set<SharedEventResource>>();
   for (const entry of TAB_CONFIG) {
     if (!tabsByPhase.has(entry.phase)) {
       order.push(entry.phase);
       tabsByPhase.set(entry.phase, []);
+      sharedByPhase.set(entry.phase, new Set());
     }
     tabsByPhase
       .get(entry.phase)!
       .push({ value: entry.value, label: entry.label });
+    for (const resource of entry.sharedData ?? []) {
+      sharedByPhase.get(entry.phase)!.add(resource);
+    }
   }
   return order.map((key) => ({
     key,
     label: PHASE_LABELS[key],
     tabs: tabsByPhase.get(key)!,
+    sharedData: [...sharedByPhase.get(key)!],
   }));
 })();
 

@@ -292,11 +292,9 @@ function EditResolutionDialog({
 
 export function ResolutionsTab({
   meetingId,
-  active,
   mode,
 }: {
   meetingId: string;
-  active: boolean;
   mode: "view" | "edit";
 }) {
   const router = useRouter();
@@ -304,9 +302,10 @@ export function ResolutionsTab({
     data: resolutions,
     loadError,
     refresh: refreshResolutions,
-  } = useTabData<Resolution[]>(() => listResolutionsAction(meetingId), active, [
-    meetingId,
-  ]);
+  } = useTabData<Resolution[]>(
+    () => listResolutionsAction(meetingId),
+    [meetingId],
+  );
   const [people, setPeople] = useState<PersonListItem[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -318,11 +317,10 @@ export function ResolutionsTab({
   });
 
   useEffect(() => {
-    if (!active) return;
     listPeopleAction().then((result) => {
       if (!("error" in result)) setPeople(result.data);
     });
-  }, [active, meetingId]);
+  }, [meetingId]);
 
   function refresh() {
     refreshResolutions();

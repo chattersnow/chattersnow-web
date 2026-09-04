@@ -8,11 +8,8 @@ import {
   markDiscountCodeSentAction,
   type DiscountCode,
 } from "./discount-codes-actions";
-import {
-  listEventRegistrantsAction,
-  type EventRegistrant,
-} from "./registrants-actions";
-import { useTabData } from "@/hooks/use-tab-data";
+import type { EventRegistrant } from "./registrants-actions";
+import { useTabData, type TabData } from "@/hooks/use-tab-data";
 import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
 import type { TabValue } from "./event-tabs-config";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -43,12 +40,12 @@ const UNASSIGNED = "__unassigned__";
 
 export function DiscountCodesTab({
   eventId,
-  active,
   mode,
+  registrants: registrantsData,
 }: {
   eventId: string;
-  active: boolean;
   mode: "view" | "edit";
+  registrants: TabData<EventRegistrant[]>;
 }) {
   const {
     data: codes,
@@ -56,18 +53,15 @@ export function DiscountCodesTab({
     refresh: refreshCodes,
   } = useTabData<DiscountCode[]>(
     () => listDiscountCodesAction(eventId),
-    active,
     [eventId],
   );
-  const { data: registrants, refresh: refreshRegistrants } = useTabData<
-    EventRegistrant[]
-  >(() => listEventRegistrantsAction(eventId), active, [eventId]);
+  const registrants = registrantsData.data;
   const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function refreshAll() {
     refreshCodes();
-    refreshRegistrants();
+    registrantsData.refresh();
   }
 
   useRegisterTabRefresh<TabValue>("discount-codes", refreshAll);

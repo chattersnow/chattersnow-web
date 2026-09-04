@@ -14,7 +14,6 @@ import {
   upsertEventImpactAction,
   type EventImpactNote,
 } from "./impact-actions";
-import { getEventImpactDerivedAction } from "./impact-derived-actions";
 import { InfoIcon } from "lucide-react";
 import { useTabData } from "@/hooks/use-tab-data";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
@@ -141,7 +140,7 @@ function DerivedFigures({ derived }: { derived: EventImpactDerived | null }) {
 export function ImpactTab({
   eventId,
   formId,
-  active,
+  derived,
   mode,
   onSaved,
   onPendingChange,
@@ -150,7 +149,7 @@ export function ImpactTab({
 }: {
   eventId: string;
   formId: string;
-  active: boolean;
+  derived: EventImpactDerived | undefined;
   mode: "view" | "edit";
   onSaved: () => void;
   onPendingChange?: (pending: boolean) => void;
@@ -164,12 +163,6 @@ export function ImpactTab({
     refresh,
   } = useTabData<EventImpactNote | null>(
     () => getEventImpactAction(eventId),
-    active,
-    [eventId],
-  );
-  const { data: derived } = useTabData<EventImpactDerived>(
-    () => getEventImpactDerivedAction(eventId),
-    active,
     [eventId],
   );
   const [form, setForm] = useState<FormState>(emptyForm());

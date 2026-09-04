@@ -56,11 +56,9 @@ async function fetchVolunteersTabData(
 
 export function VolunteersTab({
   eventId,
-  active,
   mode,
 }: {
   eventId: string;
-  active: boolean;
   mode: "view" | "edit";
 }) {
   const router = useRouter();
@@ -70,7 +68,6 @@ export function VolunteersTab({
     refresh: refreshTabData,
   } = useTabData<VolunteersTabData>(
     () => fetchVolunteersTabData(eventId),
-    active,
     [eventId],
   );
   const volunteers = tabData?.volunteers ?? [];

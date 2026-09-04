@@ -40,29 +40,27 @@ const EMPTY_APPROVAL_CONTEXT: ExpenseApprovalContext = {
 export function EventExpensesTab({
   eventId,
   eventName,
-  active,
 }: {
   eventId: string;
   eventName: string;
-  active: boolean;
   mode: "view" | "edit";
 }) {
   const {
     data: expenses,
     loadError,
     refresh,
-  } = useTabData<ExpenseRow[]>(() => listEventExpensesAction(eventId), active, [
-    eventId,
-  ]);
+  } = useTabData<ExpenseRow[]>(
+    () => listEventExpensesAction(eventId),
+    [eventId],
+  );
   const [approvalContext, setApprovalContext] =
     useState<ExpenseApprovalContext>(EMPTY_APPROVAL_CONTEXT);
 
   const eventOptions: EventOption[] = [{ id: eventId, name: eventName }];
 
   useEffect(() => {
-    if (!active) return;
     getExpenseApprovalContextAction().then(setApprovalContext);
-  }, [active, eventId]);
+  }, [eventId]);
 
   useRegisterTabRefresh<TabValue>("expenses", refresh);
 

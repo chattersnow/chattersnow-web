@@ -12,7 +12,7 @@ import {
   type SponsorActionResult,
 } from "./sponsors-actions";
 import { PersonPicker, type PickedPerson } from "../people/person-picker";
-import { listPeopleAction, type PersonListItem } from "../people/actions";
+import type { PersonListItem } from "../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -337,11 +337,13 @@ export function SponsorForm({
 
 export function SponsorsTab({
   eventId,
-  active,
+  people,
+  onPersonCreated,
   mode,
 }: {
   eventId: string;
-  active: boolean;
+  people: PersonListItem[];
+  onPersonCreated: (person: PersonListItem) => void;
   mode: "view" | "edit";
 }) {
   const router = useRouter();
@@ -351,14 +353,8 @@ export function SponsorsTab({
     refresh: refreshSponsors,
   } = useTabData<EventSponsor[]>(
     () => listEventSponsorsAction(eventId),
-    active,
     [eventId],
   );
-  const { data: peopleData, refresh: refreshPeople } = useTabData<
-    PersonListItem[]
-  >(() => listPeopleAction(), active, [eventId]);
-  const [newPeople, setNewPeople] = useState<PersonListItem[]>([]);
-  const people = [...(peopleData ?? []), ...newPeople];
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isDeleting, startDeleteTransition] = useTransition();
 
@@ -368,15 +364,10 @@ export function SponsorsTab({
 
   function refresh() {
     refreshSponsors();
-    refreshPeople();
     router.refresh();
   }
 
   useRegisterTabRefresh<TabValue>("sponsors", refresh);
-
-  function handlePersonCreated(person: PickedPerson) {
-    setNewPeople((prev) => [...prev, person]);
-  }
 
   function handleDelete(id: string) {
     startDeleteTransition(async () => {
@@ -434,7 +425,7 @@ export function SponsorsTab({
                         refresh();
                       }}
                       people={people}
-                      onPersonCreated={handlePersonCreated}
+                      onPersonCreated={onPersonCreated}
                       personDisplay={sponsor.person}
                     />
                   </TableCell>

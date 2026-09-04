@@ -126,11 +126,9 @@ function AddAttendeeForm({
 
 export function AttendeesTab({
   meetingId,
-  active,
   mode,
 }: {
   meetingId: string;
-  active: boolean;
   mode: "view" | "edit";
 }) {
   const router = useRouter();
@@ -140,7 +138,6 @@ export function AttendeesTab({
     refresh: refreshAttendees,
   } = useTabData<MeetingAttendee[]>(
     () => listMeetingAttendeesAction(meetingId),
-    active,
     [meetingId],
   );
   const [people, setPeople] = useState<PersonListItem[]>([]);
@@ -150,11 +147,10 @@ export function AttendeesTab({
   useResetOnModeChange(mode, () => setShowAdd(false));
 
   useEffect(() => {
-    if (!active) return;
     listPeopleAction().then((result) => {
       if (!("error" in result)) setPeople(result.data);
     });
-  }, [active, meetingId]);
+  }, [meetingId]);
 
   function refresh() {
     refreshAttendees();

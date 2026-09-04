@@ -33,6 +33,7 @@ import {
 } from "../event-tabs-config";
 import { useFormTabState, type FormTabCallbacks } from "../use-form-tab-state";
 import { TabRefreshProvider, useTabRefresh } from "@/hooks/use-tab-refresh";
+import { EventPhaseDataProvider, useEventPhaseData } from "../event-phase-data";
 import { useUrlTabState } from "@/components/portal/use-url-tab-state";
 import { DeleteEventButton } from "./delete-event-button";
 
@@ -94,12 +95,14 @@ function EditableTabCard({
   const formTabState = useFormTabState(formTabs);
   const pending = formTabState.pending[entry.value] ?? false;
 
+  const shared = useEventPhaseData();
+
   const formId = `${FORM_ID_PREFIX}-${entry.value}-${event.id}`;
   const ctx: TabRenderContext = {
     event,
     programs,
     mode,
-    activeTab: entry.value,
+    shared,
     formId: (tabValue) => `${FORM_ID_PREFIX}-${tabValue}-${event.id}`,
     onSaved: () => setMode("view"),
     formCallbacks: { ...NOOP_FORM_CALLBACKS, ...formTabState.callbacks },
@@ -174,11 +177,13 @@ function PlainTabCard({
   programs: Program[];
   canManage: boolean;
 }) {
+  const shared = useEventPhaseData();
+
   const ctx: TabRenderContext = {
     event,
     programs,
     mode: canManage ? "edit" : "view",
-    activeTab: entry.value,
+    shared,
     formId: (tabValue) => `${FORM_ID_PREFIX}-${tabValue}-${event.id}`,
     onSaved: () => {},
     formCallbacks: NOOP_FORM_CALLBACKS,
@@ -299,30 +304,41 @@ function EventDetailContent({
 
         {PHASES.map((phase) => (
           <TabsContent key={phase.key} value={phase.key} className="mt-4">
-            <div className="grid items-start gap-6 lg:grid-cols-2">
-              {phase.tabs.map((t) => {
-                const entry = entryFor(t.value);
-                const editToggle =
-                  entry.kind === "form" || SELF_MANAGED_EDIT_TABS.has(t.value);
-                const TabCard = editToggle ? EditableTabCard : PlainTabCard;
-                return (
-                  <div
-                    key={t.value}
-                    className={
-                      HALF_WIDTH_TABS.has(t.value) ? undefined : "lg:col-span-2"
-                    }
-                  >
-                    <TabCard
-                      entry={entry}
-                      title={CARD_TITLES[t.value] ?? t.label}
-                      event={event}
-                      programs={programs}
-                      canManage={canManage}
-                    />
-                  </div>
-                );
-              })}
-            </div>
+            {/* Base UI unmounts the phases you aren't looking at, so exactly
+                one provider is live and each shared read runs once per phase
+                rather than once per card. */}
+            <EventPhaseDataProvider
+              eventId={event.id}
+              resources={phase.sharedData}
+            >
+              <div className="grid items-start gap-6 lg:grid-cols-2">
+                {phase.tabs.map((t) => {
+                  const entry = entryFor(t.value);
+                  const editToggle =
+                    entry.kind === "form" ||
+                    SELF_MANAGED_EDIT_TABS.has(t.value);
+                  const TabCard = editToggle ? EditableTabCard : PlainTabCard;
+                  return (
+                    <div
+                      key={t.value}
+                      className={
+                        HALF_WIDTH_TABS.has(t.value)
+                          ? undefined
+                          : "lg:col-span-2"
+                      }
+                    >
+                      <TabCard
+                        entry={entry}
+                        title={CARD_TITLES[t.value] ?? t.label}
+                        event={event}
+                        programs={programs}
+                        canManage={canManage}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </EventPhaseDataProvider>
           </TabsContent>
         ))}
       </Tabs>

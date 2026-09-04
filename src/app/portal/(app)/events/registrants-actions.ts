@@ -39,61 +39,6 @@ export async function listEventRegistrantsAction(
   return { data: (data ?? []) as EventRegistrant[] };
 }
 
-export type EventAttendanceBreakdown = {
-  recurring: number;
-  firstTime: number;
-};
-
-export async function getEventAttendanceBreakdownAction(
-  eventId: string,
-): Promise<{ data: EventAttendanceBreakdown } | { error: string }> {
-  const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "events", "view");
-  if (permissionError) return permissionError;
-
-  const { data: checkedInHere, error: checkedInError } = await supabase
-    .from("event_registrations")
-    .select("person_id")
-    .eq("event_id", eventId)
-    .not("checked_in_at", "is", null)
-    .not("person_id", "is", null);
-  if (checkedInError) {
-    return { error: "Could not load attendance stats. Please try again." };
-  }
-
-  const personIds = [
-    ...new Set((checkedInHere ?? []).map((row) => row.person_id as string)),
-  ];
-  if (personIds.length === 0) return { data: { recurring: 0, firstTime: 0 } };
-
-  const { data: allAttended, error: allAttendedError } = await supabase
-    .from("event_registrations")
-    .select("person_id, event_id")
-    .in("person_id", personIds)
-    .not("checked_in_at", "is", null);
-  if (allAttendedError) {
-    return { error: "Could not load attendance stats. Please try again." };
-  }
-
-  const attendedEventsByPerson = new Map<string, Set<string>>();
-  for (const row of allAttended ?? []) {
-    const personId = row.person_id as string;
-    const events = attendedEventsByPerson.get(personId) ?? new Set<string>();
-    events.add(row.event_id as string);
-    attendedEventsByPerson.set(personId, events);
-  }
-
-  let recurring = 0;
-  let firstTime = 0;
-  for (const personId of personIds) {
-    const attendedCount = attendedEventsByPerson.get(personId)?.size ?? 1;
-    if (attendedCount > 1) recurring += 1;
-    else firstTime += 1;
-  }
-
-  return { data: { recurring, firstTime } };
-}
-
 export type RegistrantActionResult = { error: string } | { success: true };
 
 export async function checkInRegistrantAction(

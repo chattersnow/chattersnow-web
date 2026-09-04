@@ -22,10 +22,8 @@ import { EmptyState } from "@/components/portal/empty-state";
 
 export function DistributionsTab({
   eventId,
-  active,
 }: {
   eventId: string;
-  active: boolean;
   mode: "view" | "edit";
 }) {
   const {
@@ -34,7 +32,6 @@ export function DistributionsTab({
     refresh,
   } = useTabData<EventDistributionRow[]>(
     () => listEventDistributionsAction(eventId),
-    active,
     [eventId],
   );
 

@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
 import * as PeopleActions from "../../people/actions";
 import * as VolunteersActions from "../volunteers-actions";
@@ -24,9 +24,27 @@ import { mockUrlTabState } from "@/../test/url-tab-state-mock";
 
 mockUrlTabState();
 
+// The reads the phase provider owns (event-phase-data.tsx) are held by name so
+// the tests below can count how many times opening a phase fetches each one.
+const listPeopleActionMock = mock(async () => ({ data: [] }));
+const listEventRegistrantsActionMock = mock(async () => ({ data: [] }));
+const getEventImpactDerivedActionMock = mock(async () => ({
+  data: {
+    participants: 0,
+    checkedIn: 0,
+    firstTimeParticipants: 0,
+    recurringParticipants: 0,
+    volunteerParticipants: 0,
+    beginnerParticipants: 0,
+    profiledAttendees: 0,
+    discountCodesAssigned: 0,
+    autoAssignDiscountCodes: false,
+  },
+}));
+
 mock.module("../../people/actions", () => ({
   ...PeopleActions,
-  listPeopleAction: mock(async () => ({ data: [] })),
+  listPeopleAction: listPeopleActionMock,
 }));
 mock.module("../volunteers-actions", () => ({
   ...VolunteersActions,
@@ -47,13 +65,7 @@ mock.module("../staff-actions", () => ({
 }));
 mock.module("../registrants-actions", () => ({
   ...RegistrantsActions,
-  listEventRegistrantsAction: mock(async () => ({ data: [] })),
-  // The registrants tab loads this alongside the list; without the mock the
-  // real action runs and throws (`cookies` outside a request scope), failing
-  // the deep-link test that mounts the tab.
-  getEventAttendanceBreakdownAction: mock(async () => ({
-    data: { recurring: 0, firstTime: 0 },
-  })),
+  listEventRegistrantsAction: listEventRegistrantsActionMock,
 }));
 mock.module("../discount-codes-actions", () => ({
   ...DiscountCodesActions,
@@ -98,19 +110,7 @@ mock.module("../impact-actions", () => ({
 }));
 mock.module("../impact-derived-actions", () => ({
   ...ImpactDerivedActions,
-  getEventImpactDerivedAction: mock(async () => ({
-    data: {
-      participants: 0,
-      checkedIn: 0,
-      firstTimeParticipants: 0,
-      recurringParticipants: 0,
-      volunteerParticipants: 0,
-      beginnerParticipants: 0,
-      profiledAttendees: 0,
-      discountCodesAssigned: 0,
-      autoAssignDiscountCodes: false,
-    },
-  })),
+  getEventImpactDerivedAction: getEventImpactDerivedActionMock,
 }));
 mock.module("../../home/actions", () => ({
   ...HomeActions,
@@ -301,6 +301,54 @@ describe("EventDetailView", () => {
       "After-report not started, Impact not recorded",
     );
     expect(screen.getAllByLabelText("1 outstanding")).toHaveLength(2);
+  });
+
+  describe("shared phase reads", () => {
+    beforeEach(() => {
+      listPeopleActionMock.mockClear();
+      listEventRegistrantsActionMock.mockClear();
+      getEventImpactDerivedActionMock.mockClear();
+    });
+
+    test("fetches each shared read once per phase, not once per card", () => {
+      render(
+        <EventDetailView
+          event={makeEvent()}
+          programs={[]}
+          canManage={true}
+          deleteBlockers={[]}
+        />,
+      );
+
+      // Planning holds the Planning and Sponsors cards, which both want people.
+      fireEvent.click(screen.getByRole("tab", { name: /Planning/ }));
+      expect(listPeopleActionMock).toHaveBeenCalledTimes(1);
+
+      // During holds Registrants + Discount codes (registrants) and
+      // Attendance + Registrants (the derived figures).
+      fireEvent.click(screen.getByRole("tab", { name: /During/ }));
+      expect(listEventRegistrantsActionMock).toHaveBeenCalledTimes(1);
+      expect(getEventImpactDerivedActionMock).toHaveBeenCalledTimes(1);
+    });
+
+    test("skips the reads a phase's cards don't ask for", () => {
+      render(
+        <EventDetailView
+          event={makeEvent()}
+          programs={[]}
+          canManage={true}
+          deleteBlockers={[]}
+        />,
+      );
+
+      // Overview is the default phase and shares nothing.
+      expect(listPeopleActionMock).not.toHaveBeenCalled();
+      expect(listEventRegistrantsActionMock).not.toHaveBeenCalled();
+      expect(getEventImpactDerivedActionMock).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole("tab", { name: /Planning/ }));
+      expect(listEventRegistrantsActionMock).not.toHaveBeenCalled();
+    });
   });
 
   test("shows no badge on a phase with nothing outstanding", () => {

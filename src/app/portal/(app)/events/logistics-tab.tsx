@@ -57,7 +57,6 @@ export type LogisticsTabHandle = {
 export function LogisticsTab({
   eventId,
   formId,
-  active,
   mode,
   onSaved,
   onPendingChange,
@@ -66,7 +65,6 @@ export function LogisticsTab({
 }: {
   eventId: string;
   formId: string;
-  active: boolean;
   mode: "view" | "edit";
   onSaved: () => void;
   onPendingChange?: (pending: boolean) => void;
@@ -76,7 +74,6 @@ export function LogisticsTab({
   const router = useRouter();
   const { data: logistics, loadError } = useTabData<EventLogistics | null>(
     () => getEventLogisticsAction(eventId),
-    active,
     [eventId],
   );
   const [form, setForm] = useState<FormState>(() => formStateFor(null));
