@@ -40,7 +40,7 @@ This audit deliberately targets what axe cannot see. `bun run test:a11y` current
 | 18  | Inconsistent card affordance between `/learn` and `/support`                        | Consistency   | Minor    | Open   |
 | 19  | Events list ships every past event to the browser, unbounded                        | Performance   | Minor    | Open   |
 | 20  | `prefers-reduced-motion` guards only one animation                                  | Motion        | Minor    | Open   |
-| 21  | Carousel arrow causes 8px of horizontal scroll on `/home` at 1024–1136px            | Responsive    | Moderate | Open   |
+| 21  | Carousel arrow causes 8px of horizontal scroll on `/home` at 1024–1136px            | Responsive    | Moderate | Fixed  |
 | 22  | `page-visibility.spec.ts` races other specs over a shared `app_settings` row        | Test infra    | Serious  | Open   |
 
 ---
@@ -289,6 +289,8 @@ The only reduced-motion block in `globals.css` (line 175) covers `.bell-ring`. N
 The cause is `CarouselNext`, which is positioned outside the carousel's own box. The carousel is capped at `max-w-5xl` (1024px), so once the viewport reaches 1024px the carousel stops growing while the arrow keeps sitting beyond its right edge, poking past the page's padding until the `max-w-6xl` container starts centring with enough margin again at ~1140px.
 
 Only `/home` is affected — `/events` and `/contact` measured 0 overflow at the same widths. Not caused by the header work: this reproduces with the carousel and homepage untouched by that change.
+
+**Fixed** (issue #593). The arrows now flip outside the carousel box at `xl` rather than `lg` (`src/components/ui/carousel.tsx`). The arrow sits 48px past the carousel's edge, so it needs `viewport / 2 >= 512 + 48`, i.e. at least 1120px — `lg` fired about 96px too early. `e2e/home.spec.ts` asserts zero document overflow at 1000, 1024, 1060, 1100, 1140 and 1280px.
 
 ## 22. `page-visibility.spec.ts` races other specs over shared state — Serious
 
