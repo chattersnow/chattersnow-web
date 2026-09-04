@@ -8,6 +8,7 @@ export const TABLE_LABELS: Record<string, string> = {
   donations: "Donations",
   inventory_items: "Inventory items",
   inventory_movements: "Inventory movements",
+  events: "Events",
   event_expenses: "Event expenses",
   user_roles: "User roles",
   app_settings: "App settings",

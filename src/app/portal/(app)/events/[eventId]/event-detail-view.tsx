@@ -34,6 +34,7 @@ import {
 import { useFormTabState, type FormTabCallbacks } from "../use-form-tab-state";
 import { TabRefreshProvider, useTabRefresh } from "@/hooks/use-tab-refresh";
 import { useUrlTabState } from "@/components/portal/use-url-tab-state";
+import { DeleteEventButton } from "./delete-event-button";
 
 const NOOP_CALLBACKS: FormTabCallbacks = {
   onPendingChange: () => {},
@@ -199,6 +200,7 @@ export function EventDetailView(props: {
   event: EventRow;
   programs: Program[];
   canManage: boolean;
+  deleteBlockers: string[];
   initialTab?: TabValue;
 }) {
   return (
@@ -212,11 +214,13 @@ function EventDetailContent({
   event,
   programs,
   canManage,
+  deleteBlockers,
   initialTab,
 }: {
   event: EventRow;
   programs: Program[];
   canManage: boolean;
+  deleteBlockers: string[];
   initialTab?: TabValue;
 }) {
   // ?tab= stays the deep-link entry point (the notification bell and the
@@ -232,17 +236,26 @@ function EventDetailContent({
 
   return (
     <>
-      <div>
-        <div className="w-fit">
-          <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-            {event.name}
-          </h1>
-          <div className="rainbow-accent mt-3 w-full" />
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="w-fit">
+            <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+              {event.name}
+            </h1>
+            <div className="rainbow-accent mt-3 w-full" />
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <StatusBadge status={event.status} />
+            <VisibilityBadge visibility={event.visibility} />
+          </div>
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <StatusBadge status={event.status} />
-          <VisibilityBadge visibility={event.visibility} />
-        </div>
+        {canManage && (
+          <DeleteEventButton
+            eventId={event.id}
+            eventName={event.name}
+            blockers={deleteBlockers}
+          />
+        )}
       </div>
 
       <Tabs

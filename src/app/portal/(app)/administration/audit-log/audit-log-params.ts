@@ -4,6 +4,7 @@ export const TABLE_VALUES = [
   "donations",
   "inventory_items",
   "inventory_movements",
+  "events",
   "event_expenses",
   "user_roles",
   "app_settings",

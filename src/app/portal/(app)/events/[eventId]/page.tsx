@@ -67,6 +67,13 @@ export default async function EventDetailPage({
   const programsResult = await listProgramsAction();
   const programs = "data" in programsResult ? programsResult.data : [];
 
+  // What, if anything, stops this event from being deleted -- so the delete
+  // dialog can name it instead of only failing on submit. Only managers see the
+  // affordance, so only they need the check.
+  const { data: deleteBlockers } = canManage
+    ? await supabase.rpc("event_delete_blockers", { p_id: eventId })
+    : { data: null };
+
   return (
     <>
       <PortalBreadcrumbs current={event.name} />
@@ -75,6 +82,7 @@ export default async function EventDetailPage({
         event={event}
         programs={programs}
         canManage={canManage}
+        deleteBlockers={deleteBlockers ?? []}
         initialTab={initialTab}
       />
     </>

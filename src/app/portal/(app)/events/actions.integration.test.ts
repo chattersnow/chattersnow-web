@@ -22,7 +22,7 @@ mock.module("@/lib/supabase/server", () => ({
   createSupabaseServerClient: async () => currentSupabase,
 }));
 
-const { createEventAction } = await import("./actions");
+const { createEventAction, deleteEventAction } = await import("./actions");
 
 afterEach(() => {
   revalidatePathMock.mockClear();
@@ -101,5 +101,103 @@ describe("createEventAction (integration)", () => {
     currentSupabase = await signIn(SEEDED_USERS.former);
     const result = await createEventAction(eventForm());
     expect(result).toEqual(DENIED);
+  });
+});
+
+describe("deleteEventAction (integration)", () => {
+  async function createEvent() {
+    const { data, error } = await adminClient
+      .from("events")
+      .insert({
+        name: `Integration Test Event ${crypto.randomUUID()}`,
+        starts_at: new Date(Date.now() + 86_400_000).toISOString(),
+        timezone: "America/Chicago",
+        visibility: "public",
+        status: "draft",
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+    return data.id as string;
+  }
+
+  async function eventExists(id: string) {
+    const { data } = await adminClient
+      .from("events")
+      .select("id")
+      .eq("id", id)
+      .maybeSingle();
+    return data !== null;
+  }
+
+  test("requires a signed-in user", async () => {
+    const id = await createEvent();
+    currentSupabase = anonClient();
+    expect(await deleteEventAction(id)).toEqual({
+      error: "You must be signed in to delete an event.",
+    });
+    expect(await eventExists(id)).toBe(true);
+    await adminClient.from("events").delete().eq("id", id);
+  });
+
+  test("event_coordinator role (events manage) can delete a bare event", async () => {
+    const id = await createEvent();
+    currentSupabase = await signIn(SEEDED_USERS.coordinator);
+    expect(await deleteEventAction(id)).toEqual({ success: true });
+    expect(await eventExists(id)).toBe(false);
+  });
+
+  test("records the delete in the audit log", async () => {
+    const id = await createEvent();
+    currentSupabase = await signIn(SEEDED_USERS.admin);
+    expect(await deleteEventAction(id)).toEqual({ success: true });
+
+    const { data } = await adminClient
+      .from("audit_log")
+      .select("action")
+      .eq("table_name", "events")
+      .eq("record_id", id);
+    expect(data?.map((row) => row.action)).toContain("delete");
+  });
+
+  test("finance role (events view only) cannot delete an event", async () => {
+    const id = await createEvent();
+    currentSupabase = await signIn(SEEDED_USERS.finance);
+    expect(await deleteEventAction(id)).toEqual(DENIED);
+    expect(await eventExists(id)).toBe(true);
+    await adminClient.from("events").delete().eq("id", id);
+  });
+
+  test("refuses an event with linked records, naming what's blocking", async () => {
+    const id = await createEvent();
+    const { error: codeError } = await adminClient
+      .from("discount_codes")
+      .insert({ event_id: id, code: `INT-${crypto.randomUUID().slice(0, 8)}` });
+    if (codeError) throw codeError;
+
+    currentSupabase = await signIn(SEEDED_USERS.admin);
+    const result = await deleteEventAction(id);
+
+    expect(result).toHaveProperty("error");
+    const message = (result as { error: string }).error;
+    expect(message).toContain("1 discount code");
+    expect(message).toContain("Cancelled or Archived");
+    // The refusal is a BEFORE trigger, so nothing cascaded either.
+    expect(await eventExists(id)).toBe(true);
+
+    await adminClient.from("discount_codes").delete().eq("event_id", id);
+    await adminClient.from("events").delete().eq("id", id);
+  });
+
+  test("allows the delete once the linked records are gone", async () => {
+    const id = await createEvent();
+    await adminClient
+      .from("discount_codes")
+      .insert({ event_id: id, code: `INT-${crypto.randomUUID().slice(0, 8)}` });
+    await adminClient.from("discount_codes").delete().eq("event_id", id);
+
+    currentSupabase = await signIn(SEEDED_USERS.admin);
+    expect(await deleteEventAction(id)).toEqual({ success: true });
+    expect(await eventExists(id)).toBe(false);
   });
 });

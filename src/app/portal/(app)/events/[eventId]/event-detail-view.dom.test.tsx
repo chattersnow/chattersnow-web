@@ -154,7 +154,12 @@ function makeEvent(overrides: Partial<EventRow> = {}): EventRow {
 describe("EventDetailView", () => {
   test("shows one phase tab bar: Overview, Planning, During, After", () => {
     render(
-      <EventDetailView event={makeEvent()} programs={[]} canManage={true} />,
+      <EventDetailView
+        event={makeEvent()}
+        programs={[]}
+        canManage={true}
+        deleteBlockers={[]}
+      />,
     );
 
     expect(screen.getAllByRole("tab")).toHaveLength(4);
@@ -173,7 +178,12 @@ describe("EventDetailView", () => {
 
   test("switches phases through the tab bar", () => {
     render(
-      <EventDetailView event={makeEvent()} programs={[]} canManage={true} />,
+      <EventDetailView
+        event={makeEvent()}
+        programs={[]}
+        canManage={true}
+        deleteBlockers={[]}
+      />,
     );
 
     fireEvent.click(screen.getByRole("tab", { name: /Planning/ }));
@@ -187,7 +197,12 @@ describe("EventDetailView", () => {
 
   test("edits inline per card, without an edit sheet", () => {
     render(
-      <EventDetailView event={makeEvent()} programs={[]} canManage={true} />,
+      <EventDetailView
+        event={makeEvent()}
+        programs={[]}
+        canManage={true}
+        deleteBlockers={[]}
+      />,
     );
 
     expect(
@@ -205,7 +220,12 @@ describe("EventDetailView", () => {
 
   test("hides edit controls without manage access", () => {
     render(
-      <EventDetailView event={makeEvent()} programs={[]} canManage={false} />,
+      <EventDetailView
+        event={makeEvent()}
+        programs={[]}
+        canManage={false}
+        deleteBlockers={[]}
+      />,
     );
 
     expect(
@@ -219,6 +239,7 @@ describe("EventDetailView", () => {
         event={makeEvent({ report_status: "submitted" })}
         programs={[]}
         canManage={true}
+        deleteBlockers={[]}
       />,
     );
 
@@ -233,6 +254,7 @@ describe("EventDetailView", () => {
         event={makeEvent()}
         programs={[]}
         canManage={true}
+        deleteBlockers={[]}
         initialTab="registrants"
       />,
     );
