@@ -10,6 +10,7 @@ describe("rolesFor", () => {
         is_volunteer: false,
         is_attendee: false,
         is_staff: false,
+        is_partner: false,
       }),
     ).toEqual([]);
   });
@@ -22,6 +23,7 @@ describe("rolesFor", () => {
         is_volunteer: true,
         is_attendee: false,
         is_staff: false,
+        is_partner: false,
       }),
     ).toEqual(["Sponsor", "Volunteer"]);
   });
@@ -34,7 +36,15 @@ describe("rolesFor", () => {
         is_volunteer: true,
         is_attendee: true,
         is_staff: true,
+        is_partner: true,
       }),
-    ).toEqual(["Donor", "Sponsor", "Volunteer", "Attendee", "Staff"]);
+    ).toEqual([
+      "Donor",
+      "Sponsor",
+      "Volunteer",
+      "Attendee",
+      "Staff",
+      "Partner",
+    ]);
   });
 });

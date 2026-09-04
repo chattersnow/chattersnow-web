@@ -62,6 +62,7 @@ export function emptyPersonForm(
       is_volunteer: defaultRole === "is_volunteer",
       is_attendee: defaultRole === "is_attendee",
       is_staff: defaultRole === "is_staff",
+      is_partner: defaultRole === "is_partner",
     },
     personType: defaultPersonType,
     ridingDiscipline: "",
@@ -190,8 +191,9 @@ export function PersonFormFields({
         </div>
         <FieldDescription>
           These mark someone manually. Roles are also set automatically from
-          donations, sponsorships, event registrations, and volunteer records,
-          so a role earned that way stays on even when unchecked here.
+          donations, sponsorships, event registrations, volunteer records, and
+          won partnerships, so a role earned that way stays on even when
+          unchecked here.
         </FieldDescription>
       </Field>
 
@@ -356,6 +358,7 @@ export function packPersonFormData(form: PersonFormState) {
   formData.set("isVolunteer", String(form.roles.is_volunteer));
   formData.set("isAttendee", String(form.roles.is_attendee));
   formData.set("isStaff", String(form.roles.is_staff));
+  formData.set("isPartner", String(form.roles.is_partner));
   formData.set("personType", form.personType);
   formData.set("ridingDiscipline", form.ridingDiscipline);
   formData.set("skiExperienceLevel", form.skiExperienceLevel);

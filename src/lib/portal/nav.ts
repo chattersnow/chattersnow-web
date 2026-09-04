@@ -176,6 +176,16 @@ export const NAV_ITEMS: readonly NavItem[] = [
         href: "/portal/volunteers/applications",
         access: [{ resource: "volunteers", level: "view" }],
       },
+      // The People directory filtered to volunteers. Cross-linked rather than
+      // duplicated, and gated on the guard its route actually has
+      // (people/layout.tsx), which is why this one says people:view. Listed
+      // last so firstAccessibleHref still lands /portal/volunteers on Roles.
+      {
+        value: "directory",
+        label: "Directory",
+        href: "/portal/people/volunteers",
+        access: [{ resource: "people", level: "view" }],
+      },
     ],
   },
   {
@@ -253,6 +263,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
         access: [{ resource: "people", level: "view" }],
       },
       {
+        value: "volunteers",
+        label: "Volunteers",
+        href: "/portal/people/volunteers",
+        access: [{ resource: "people", level: "view" }],
+      },
+      {
         value: "attendees",
         label: "Attendees",
         href: "/portal/attendees",
@@ -262,6 +278,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
         value: "staff",
         label: "Staff",
         href: "/portal/staff",
+        access: [{ resource: "people", level: "view" }],
+      },
+      {
+        value: "partners",
+        label: "Partners",
+        href: "/portal/partners",
         access: [{ resource: "people", level: "view" }],
       },
       {
@@ -400,14 +422,21 @@ export const NAV_ITEMS: readonly NavItem[] = [
  * was somewhere else.
  */
 export function activeSectionFor(pathname: string): string | undefined {
+  // Two passes, not one interleaved pass: a section that owns the path
+  // outright beats one that merely cross-links to it. /portal/people/volunteers
+  // is listed under both Volunteers and People, and Volunteers comes first in
+  // NAV_ITEMS -- so a single pass would highlight Volunteers for a page that
+  // lives in, and is gated by, People.
   for (const item of NAV_ITEMS) {
     const testPath = item.basePath ?? item.href;
     if (pathname === testPath || pathname.startsWith(`${testPath}/`)) {
       return item.value;
     }
-    // People's segments live at their own top-level routes (/portal/donors and
-    // friends) rather than under /portal/people, so a basePath prefix alone
-    // would leave the sidebar highlighting nothing while the user is on one.
+  }
+  // People's other segments live at their own top-level routes (/portal/donors
+  // and friends) rather than under /portal/people, so a basePath prefix alone
+  // would leave the sidebar highlighting nothing while the user is on one.
+  for (const item of NAV_ITEMS) {
     if (
       item.subItems?.some(
         (sub) => pathname === sub.href || pathname.startsWith(`${sub.href}/`),

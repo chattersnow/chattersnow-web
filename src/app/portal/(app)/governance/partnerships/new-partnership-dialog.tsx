@@ -104,7 +104,7 @@ export function NewPartnershipDialog({ people }: { people: PersonListItem[] }) {
                 selected={organization}
                 onSelect={setOrganization}
                 onPersonCreated={handlePersonCreated}
-                newPersonRole="is_sponsor"
+                newPersonRole="is_partner"
               />
             </Field>
 

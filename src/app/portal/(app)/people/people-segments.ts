@@ -129,6 +129,22 @@ export const SPONSORS_SEGMENT: PeopleSegment = {
     "Sponsors appear here once someone is added with the sponsor role or recorded on an event's Sponsors tab.",
 };
 
+export const VOLUNTEERS_SEGMENT: PeopleSegment = {
+  // Not /portal/volunteers: that is the volunteer *programme* (role types,
+  // participation, applications). This is the directory filtered to people who
+  // volunteer, so it lives under People and inherits its people:view guard.
+  basePath: "/portal/people/volunteers",
+  title: "Volunteers",
+  filterColumn: "is_volunteer",
+  newPerson: { triggerLabel: "New Volunteer", defaultRole: "is_volunteer" },
+  noun: "volunteer",
+  emptyTitle: "No volunteers added yet",
+  emptyDescriptionManage:
+    "Add the first one with New Volunteer above, or approve an application from Volunteers › Applications.",
+  emptyDescriptionView:
+    "Volunteers appear here once someone applies, signs up for an event shift, or has hours logged.",
+};
+
 export const ATTENDEES_SEGMENT: PeopleSegment = {
   basePath: "/portal/attendees",
   title: "Attendees",
@@ -154,6 +170,25 @@ export const STAFF_SEGMENT: PeopleSegment = {
     "Add the first one with New Staff Member above, or assign someone on an event's Staff tab.",
   emptyDescriptionView:
     "Staff appear here once someone is added with the staff role or assigned on an event's Staff tab.",
+};
+
+export const PARTNERS_SEGMENT: PeopleSegment = {
+  basePath: "/portal/partners",
+  title: "Partners",
+  filterColumn: "is_partner",
+  newPerson: {
+    // A partner is almost always an organization, and the form requires a
+    // role, so the dialog opens on the shape this segment is about.
+    triggerLabel: "New Partner",
+    defaultRole: "is_partner",
+    defaultPersonType: "organization",
+  },
+  noun: "partner",
+  emptyTitle: "No partners added yet",
+  emptyDescriptionManage:
+    "Add the first one with New Partner above, or close a partnership as won from Governance › Partnerships.",
+  emptyDescriptionView:
+    "Partners appear here once a partnership opportunity is closed as won, or someone is added with the partner role.",
 };
 
 export const ORGANIZATIONS_SEGMENT: PeopleSegment = {

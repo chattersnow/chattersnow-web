@@ -22,7 +22,7 @@ afterEach(async () => {
 async function flagsFor(personId: string) {
   const { data, error } = await adminClient
     .from("people_with_roles")
-    .select("is_donor, is_sponsor, is_volunteer, is_attendee")
+    .select("is_donor, is_sponsor, is_volunteer, is_attendee, is_partner")
     .eq("id", personId)
     .single();
   if (error) throw error;
@@ -248,5 +248,84 @@ describe("people_with_roles", () => {
 
     expect(error).toBeNull();
     expect(data).toEqual([]);
+  });
+
+  async function createOpportunity(fields: Record<string, unknown>) {
+    const { data, error } = await adminClient
+      .from("partnership_opportunities")
+      .insert(fields)
+      .select("id")
+      .single();
+    if (error) throw error;
+    return {
+      id: data!.id as string,
+      cleanup: async () => {
+        await adminClient
+          .from("partnership_opportunities")
+          .delete()
+          .eq("id", data!.id);
+      },
+    };
+  }
+
+  test("only a won partnership makes an organization a partner", async () => {
+    const org = await createPerson({ person_type: "organization" });
+    cleanups.push(org.cleanup);
+
+    const opportunity = await createOpportunity({
+      organization_person_id: org.id,
+      stage: "prospecting",
+    });
+    cleanups.push(opportunity.cleanup);
+
+    // The narrowing is the point: a pipeline row is an intention to call
+    // someone, not a partnership with them.
+    expect((await flagsFor(org.id)).is_partner).toBe(false);
+
+    await adminClient
+      .from("partnership_opportunities")
+      .update({ stage: "closed_won" })
+      .eq("id", opportunity.id);
+    expect((await flagsFor(org.id)).is_partner).toBe(true);
+
+    // And losing it retracts the role, the same way deleting a last
+    // sponsorship clears is_sponsor.
+    await adminClient
+      .from("partnership_opportunities")
+      .update({ stage: "closed_lost" })
+      .eq("id", opportunity.id);
+    expect((await flagsFor(org.id)).is_partner).toBe(false);
+  });
+
+  test("owning an opportunity does not make the owner a partner", async () => {
+    const org = await createPerson({ person_type: "organization" });
+    cleanups.push(org.cleanup);
+    const owner = await createPerson();
+    cleanups.push(owner.cleanup);
+
+    const opportunity = await createOpportunity({
+      organization_person_id: org.id,
+      owner_person_id: owner.id,
+      stage: "closed_won",
+    });
+    cleanups.push(opportunity.cleanup);
+
+    expect((await flagsFor(org.id)).is_partner).toBe(true);
+    // owner_person_id is the internal staff member driving the opportunity.
+    expect((await flagsFor(owner.id)).is_partner).toBe(false);
+  });
+
+  test("the partner tag carries the role with no opportunity at all", async () => {
+    // The handshake partnership that never went through the pipeline.
+    const person = await createPerson({ person_type: "organization" });
+    cleanups.push(person.cleanup);
+
+    expect((await flagsFor(person.id)).is_partner).toBe(false);
+
+    const { error } = await adminClient
+      .from("person_role_tags")
+      .insert({ person_id: person.id, role: "partner" });
+    expect(error).toBeNull();
+    expect((await flagsFor(person.id)).is_partner).toBe(true);
   });
 });

@@ -11,6 +11,8 @@ const SECTIONS = [
   { path: "/portal/inventory", heading: "Inventory" },
   { path: "/portal/people", heading: "People" },
   { path: "/portal/organizations", heading: "Organizations" },
+  { path: "/portal/partners", heading: "Partners" },
+  { path: "/portal/people/volunteers", heading: "Volunteers" },
   { path: "/portal/programs", heading: "Programs" },
   { path: "/portal/volunteers", heading: "Roles" },
 ];

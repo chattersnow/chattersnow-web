@@ -33,9 +33,22 @@ type PaletteGroup = { value: string; items: PaletteItem[] };
  */
 function pageItems(permissions: PermissionMap): PaletteItem[] {
   const items: PaletteItem[] = [];
+  // One entry per destination. The nav tree cross-lists a page under more than
+  // one section -- the volunteer directory is both People > Volunteers and
+  // Volunteers > Directory -- and `value` is keyed by href, so without this the
+  // list carries two options sharing an id and aria-activedescendant stops
+  // tracking the highlight. The section listed first in the nav tree supplies
+  // the entry; either label finds it, since the other section's label is the
+  // `detail` this also matches on.
+  const seen = new Set<string>();
+  const push = (item: PaletteItem) => {
+    if (seen.has(item.value)) return;
+    seen.add(item.value);
+    items.push(item);
+  };
   for (const section of visibleNavItems(permissions)) {
     if (!section.subItems) {
-      items.push({
+      push({
         value: `page:${section.href}`,
         label: section.label,
         detail: null,
@@ -44,7 +57,7 @@ function pageItems(permissions: PermissionMap): PaletteItem[] {
       continue;
     }
     for (const sub of section.subItems) {
-      items.push({
+      push({
         value: `page:${sub.href}`,
         label: sub.label,
         // Two pairs of pages share a title -- Roles is both a volunteer and an
