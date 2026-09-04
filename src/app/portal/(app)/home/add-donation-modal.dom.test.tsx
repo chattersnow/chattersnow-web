@@ -4,15 +4,24 @@ import userEvent from "@testing-library/user-event";
 import type { CreateDonationInput } from "./donation-form";
 import * as HomeActions from "./actions";
 
-type CreateDonationResult = { error: string } | { success: true };
+type CreateDonationResult =
+  | { error: string }
+  | { success: true; giveaway: HomeActions.DonationGiveawayGrant | null };
 
 const createDonationActionMock = mock<
   (input: CreateDonationInput) => Promise<CreateDonationResult>
->(async () => ({ success: true }));
+>(async () => ({ success: true, giveaway: null }));
+
+// Events without a tiered giveaway return no tiers, which is the default the
+// existing cases exercise -- the per-item tier picker stays hidden.
+const listEventGiveawayTiersActionMock = mock<
+  (eventId: string) => Promise<{ data: HomeActions.GiveawayTierOption[] }>
+>(async () => ({ data: [] }));
 
 mock.module("./actions", () => ({
   ...HomeActions,
   createDonationAction: createDonationActionMock,
+  listEventGiveawayTiersAction: listEventGiveawayTiersActionMock,
 }));
 
 // The sheet loads event options on open whenever a caller passes neither an
@@ -51,6 +60,11 @@ describe("AddDonationModal", () => {
     createDonationActionMock.mockClear();
     createDonationActionMock.mockImplementation(async () => ({
       success: true,
+      giveaway: null,
+    }));
+    listEventGiveawayTiersActionMock.mockClear();
+    listEventGiveawayTiersActionMock.mockImplementation(async () => ({
+      data: [],
     }));
   });
 

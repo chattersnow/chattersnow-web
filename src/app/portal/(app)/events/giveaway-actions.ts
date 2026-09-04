@@ -37,6 +37,9 @@ export type GiveawayPrize = {
   notes: string | null;
   source_inventory_item_id: string | null;
   source_monetary_donation_id: string | null;
+  /** Which draw bucket this prize is pulled from (issue #5). Null for prizes
+   *  on a giveaway that isn't using buckets. */
+  bucket_id: string | null;
   source_item: { id: string; description: string } | null;
   source_donation: { id: string; amount: number | string } | null;
   giveaway_winners: GiveawayWinner | null;
@@ -99,7 +102,7 @@ export async function getEventGiveawayAction(
   const { data, error } = await supabase
     .from("giveaways")
     .select(
-      "id, event_id, name, tickets_sold, ticket_price, revenue_amount, drawing_date, notes, giveaway_prizes(id, giveaway_id, prize_name, donor_person_id, donor:people(id, name, email, phone), estimated_value, notes, source_inventory_item_id, source_monetary_donation_id, giveaway_winners(id, giveaway_prize_id, winner_name, winner_contact, distribution_status, distributed_at, notes))",
+      "id, event_id, name, tickets_sold, ticket_price, revenue_amount, drawing_date, notes, giveaway_prizes(id, giveaway_id, prize_name, donor_person_id, donor:people(id, name, email, phone), estimated_value, notes, source_inventory_item_id, source_monetary_donation_id, bucket_id, giveaway_winners(id, giveaway_prize_id, winner_name, winner_contact, distribution_status, distributed_at, notes))",
     )
     .eq("event_id", eventId)
     .order("created_at", {

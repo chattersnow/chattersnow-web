@@ -9,6 +9,9 @@ export type DonationItemInput = {
   faceValue?: number | null;
   notes?: string;
   intendedUse?: string;
+  /** Tier key (e.g. "gold") when the staffer picks one; otherwise the
+   *  giveaway's keyword hints suggest it server-side. */
+  giveawayTier?: string;
 };
 
 export type CreateDonationInput = {
@@ -48,6 +51,7 @@ export type DonationRpcArgs = {
     face_value: number | null;
     notes: string | null;
     intended_use: string;
+    giveaway_tier: string | null;
   }[];
   p_event_id: string | null;
 };
@@ -115,6 +119,7 @@ export function parseDonationInput(
         face_value: item.faceValue ?? null,
         notes: item.notes?.trim() || null,
         intended_use: item.intendedUse || "gear_library",
+        giveaway_tier: item.giveawayTier?.trim() || null,
       })),
       p_event_id: input.eventId ?? null,
     },

@@ -2,7 +2,14 @@
 
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createDonationAction, type CreateDonationInput } from "./actions";
+import {
+  createDonationAction,
+  listEventGiveawayTiersAction,
+  type CreateDonationInput,
+  type DonationGiveawayGrant,
+  type GiveawayTierOption,
+} from "./actions";
+import { GiveawayTicketSummary } from "./giveaway-ticket-summary";
 import { listEventOptionsAction } from "../events/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -59,7 +66,9 @@ const CONDITIONS = [
   { value: "poor", label: "Poor" },
 ];
 
-type Step = "donor" | "items";
+// "tickets" is a terminal step, only reached when the donation was recorded
+// against an event whose giveaway has tiers configured (issue #5).
+type Step = "donor" | "items" | "tickets";
 
 const initialDonorState = {
   isAnonymous: false,
@@ -82,6 +91,7 @@ type ItemDraft = {
   faceValue: string;
   notes: string;
   intendedUse: string;
+  giveawayTier: string;
 };
 
 function createEmptyItem(): ItemDraft {
@@ -95,6 +105,7 @@ function createEmptyItem(): ItemDraft {
     faceValue: "",
     notes: "",
     intendedUse: "gear_library",
+    giveawayTier: "",
   };
 }
 
@@ -117,6 +128,8 @@ export function AddDonationModal({
   const [sourceEventId, setSourceEventId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [giveawayTiers, setGiveawayTiers] = useState<GiveawayTierOption[]>([]);
+  const [grant, setGrant] = useState<DonationGiveawayGrant | null>(null);
   // Callers on a page that already queried events pass them in; the sidebar
   // quick action has none, so load them on open instead of silently dropping
   // the event picker.
@@ -125,6 +138,7 @@ export function AddDonationModal({
   >([]);
   const eventOptions = events ?? loadedEvents;
   const showEventPicker = !eventId && !!eventOptions.length;
+  const selectedEventId = eventId ?? sourceEventId;
 
   useEffect(() => {
     if (!open || eventId || events) return;
@@ -132,6 +146,20 @@ export function AddDonationModal({
       if (!("error" in result)) setLoadedEvents(result.data);
     });
   }, [open, eventId, events]);
+
+  // An event with no giveaway, or a giveaway with no tiers, returns an empty
+  // list and the per-item tier picker stays hidden.
+  useEffect(() => {
+    if (!open || !selectedEventId) return;
+    let active = true;
+    listEventGiveawayTiersAction(selectedEventId).then((result) => {
+      if (!active) return;
+      setGiveawayTiers("error" in result ? [] : result.data);
+    });
+    return () => {
+      active = false;
+    };
+  }, [open, selectedEventId]);
 
   function updateDonor<K extends keyof DonorState>(
     key: K,
@@ -170,6 +198,8 @@ export function AddDonationModal({
       setItems([createEmptyItem()]);
       setSourceEventId("");
       setError(null);
+      setGiveawayTiers([]);
+      setGrant(null);
     }
   }
 
@@ -206,6 +236,7 @@ export function AddDonationModal({
         faceValue: item.faceValue ? Number(item.faceValue) : null,
         notes: item.notes || undefined,
         intendedUse: item.intendedUse,
+        giveawayTier: item.giveawayTier || undefined,
       })),
       eventId: eventId ?? (sourceEventId || undefined),
     };
@@ -216,10 +247,19 @@ export function AddDonationModal({
         setError(result.error);
         return;
       }
-      handleOpenChange(false);
-      toast.success("Gear donation recorded.");
       router.refresh();
       onSaved?.();
+
+      // Tickets are a physical hand-over, so when there are any the sheet stays
+      // open on a summary rather than closing behind a toast.
+      if (result.giveaway) {
+        setGrant(result.giveaway);
+        setStep("tickets");
+        return;
+      }
+
+      handleOpenChange(false);
+      toast.success("Gear donation recorded.");
     });
   }
 
@@ -236,7 +276,9 @@ export function AddDonationModal({
           <SheetDescription>
             {step === "donor"
               ? "Capture who the donation is from."
-              : "Add each item being added to inventory."}
+              : step === "items"
+                ? "Add each item being added to inventory."
+                : "The donation is saved. Hand over the tickets below."}
           </SheetDescription>
         </SheetHeader>
 
@@ -244,10 +286,26 @@ export function AddDonationModal({
           <p className="app-muted text-sm">
             {step === "donor"
               ? "Step 1 of 2 · Donor details"
-              : "Step 2 of 2 · Donated items"}
+              : step === "items"
+                ? "Step 2 of 2 · Donated items"
+                : "Donation recorded"}
           </p>
 
-          <form id="add-donation-form" onSubmit={handleSubmit} className="mt-4">
+          {step === "tickets" && grant && (
+            <div className="mt-4">
+              <GiveawayTicketSummary
+                grant={grant}
+                untieredCount={grant.untieredItemIds.length}
+              />
+            </div>
+          )}
+
+          <form
+            id="add-donation-form"
+            onSubmit={handleSubmit}
+            className="mt-4"
+            hidden={step === "tickets"}
+          >
             {step === "donor" ? (
               <FieldGroup>
                 <Field orientation="horizontal">
@@ -334,7 +392,13 @@ export function AddDonationModal({
                     </FieldLabel>
                     <Select
                       value={sourceEventId || null}
-                      onValueChange={(value) => setSourceEventId(value ?? "")}
+                      onValueChange={(value) => {
+                        setSourceEventId(value ?? "");
+                        // Tiers belong to the previous event's giveaway; drop
+                        // them so the picker can't offer stale options while
+                        // the new event's tiers load.
+                        setGiveawayTiers([]);
+                      }}
                     >
                       <SelectTrigger id="sourceEventId" className="w-full">
                         <SelectValue placeholder="No event">
@@ -563,6 +627,43 @@ export function AddDonationModal({
                       </FieldDescription>
                     </Field>
 
+                    {giveawayTiers.length > 0 && (
+                      <Field>
+                        <FieldLabel htmlFor={`giveawayTier-${item.key}`}>
+                          Giveaway tier
+                        </FieldLabel>
+                        <Select
+                          value={item.giveawayTier || null}
+                          onValueChange={(value) =>
+                            updateItem(item.key, "giveawayTier", value ?? "")
+                          }
+                        >
+                          <SelectTrigger
+                            id={`giveawayTier-${item.key}`}
+                            className="w-full"
+                          >
+                            <SelectValue placeholder="Match on item type">
+                              {(value: string) =>
+                                giveawayTiers.find((tier) => tier.key === value)
+                                  ?.label ?? "Match on item type"
+                              }
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {giveawayTiers.map((tier) => (
+                              <SelectItem key={tier.id} value={tier.key}>
+                                {tier.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FieldDescription>
+                          Sets how many tickets this item earns. Left unset, the
+                          tier is matched from the item type.
+                        </FieldDescription>
+                      </Field>
+                    )}
+
                     <Field>
                       <FieldLabel htmlFor={`itemNotes-${item.key}`}>
                         Item notes
@@ -593,7 +694,11 @@ export function AddDonationModal({
         </div>
 
         <SheetFooter className="flex-row justify-end border-t bg-muted/50">
-          {step === "donor" ? (
+          {step === "tickets" ? (
+            <Button type="button" onClick={() => handleOpenChange(false)}>
+              Done
+            </Button>
+          ) : step === "donor" ? (
             <Button type="button" onClick={handleContinue}>
               Continue
             </Button>
