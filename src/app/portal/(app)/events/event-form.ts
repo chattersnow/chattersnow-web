@@ -89,6 +89,7 @@ export type EventPlanningFormData = {
 
 export function parseEventPlanningForm(
   formData: FormData,
+  event: { startsAt: string; endsAt: string | null },
 ): ParseResult<EventPlanningFormData> {
   const eventLeadId = String(formData.get("eventLeadId") ?? "").trim();
   const capacityRaw = String(formData.get("capacity") ?? "").trim();
@@ -121,14 +122,37 @@ export function parseEventPlanningForm(
     budgetAmount = parsed;
   }
 
+  // A deadline only means something while registration is open, so drop any
+  // value submitted with registration turned off rather than storing a stale
+  // cutoff that `register_for_event` would still read.
+  let registrationDeadlineIso: string | null = null;
+  if (registrationEnabled && registrationDeadline) {
+    const parsedDeadline = Date.parse(registrationDeadline);
+    if (Number.isNaN(parsedDeadline)) {
+      return { error: "Enter a valid registration deadline." };
+    }
+    registrationDeadlineIso = new Date(parsedDeadline).toISOString();
+
+    // Registration can't stay open past the event itself; events without an
+    // end time are bounded by their start instead. Compared as timestamps
+    // because the event's dates come straight from Postgres
+    // ("...+00:00") and won't string-compare against `toISOString()`.
+    const cutoff = Date.parse(event.endsAt ?? event.startsAt);
+    if (!Number.isNaN(cutoff) && parsedDeadline > cutoff) {
+      return {
+        error: event.endsAt
+          ? "Registration deadline must be on or before the event's end date."
+          : "Registration deadline must be on or before the event's start date.",
+      };
+    }
+  }
+
   return {
     data: {
       eventLeadId: eventLeadId || null,
       capacity,
       registrationEnabled,
-      registrationDeadline: registrationDeadline
-        ? new Date(registrationDeadline).toISOString()
-        : null,
+      registrationDeadline: registrationDeadlineIso,
       autoAssignDiscountCodes,
       budgetAmount,
     },
