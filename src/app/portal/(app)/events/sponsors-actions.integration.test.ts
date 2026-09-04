@@ -279,11 +279,22 @@ describe("event sponsor contributions sync into donations/monetary_donations (in
 
     const { data: itemRow } = await adminClient
       .from("inventory_items")
-      .select("description, face_value")
+      .select("description, face_value, intended_use")
       .eq("id", sponsor.inventory_item_id!)
       .single();
     expect(itemRow!.description).toBe("20 pairs of gloves");
     expect(Number(itemRow!.face_value)).toBe(300);
+    // Sponsor contributions are prize stock, not gear-library stock: they must
+    // not land on the public gear library, where vouchers read as gear the
+    // community can take home.
+    expect(itemRow!.intended_use).toBe("giveaway");
+
+    const { data: catalogRow } = await anonClient()
+      .from("public_gear_catalog")
+      .select("id")
+      .eq("id", sponsor.inventory_item_id!)
+      .maybeSingle();
+    expect(catalogRow).toBeNull();
 
     await updateEventSponsorAction(
       sponsor.id,

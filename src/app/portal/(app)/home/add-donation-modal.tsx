@@ -7,7 +7,12 @@ import { listEventOptionsAction } from "../events/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -26,6 +31,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
+import { INTENDED_USES } from "@/lib/inventory";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 
@@ -75,6 +81,7 @@ type ItemDraft = {
   condition: string;
   faceValue: string;
   notes: string;
+  intendedUse: string;
 };
 
 function createEmptyItem(): ItemDraft {
@@ -87,6 +94,7 @@ function createEmptyItem(): ItemDraft {
     condition: "",
     faceValue: "",
     notes: "",
+    intendedUse: "gear_library",
   };
 }
 
@@ -197,6 +205,7 @@ export function AddDonationModal({
         condition: item.condition,
         faceValue: item.faceValue ? Number(item.faceValue) : null,
         notes: item.notes || undefined,
+        intendedUse: item.intendedUse,
       })),
       eventId: eventId ?? (sourceEventId || undefined),
     };
@@ -516,6 +525,42 @@ export function AddDonationModal({
                           updateItem(item.key, "faceValue", event.target.value)
                         }
                       />
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor={`intendedUse-${item.key}`}>
+                        Intended use
+                      </FieldLabel>
+                      <Select
+                        value={item.intendedUse || null}
+                        onValueChange={(value) =>
+                          updateItem(item.key, "intendedUse", value ?? "")
+                        }
+                      >
+                        <SelectTrigger
+                          id={`intendedUse-${item.key}`}
+                          className="w-full"
+                        >
+                          <SelectValue placeholder="Select an intended use">
+                            {(value: string) =>
+                              INTENDED_USES.find(
+                                (option) => option.value === value,
+                              )?.label ?? "Select an intended use"
+                            }
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {INTENDED_USES.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FieldDescription>
+                        Gear library items go on the public gear library. Choose
+                        giveaway for prize stock like vouchers or gift cards.
+                      </FieldDescription>
                     </Field>
 
                     <Field>

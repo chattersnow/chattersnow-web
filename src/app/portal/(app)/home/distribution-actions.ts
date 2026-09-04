@@ -98,6 +98,9 @@ export async function listAvailableInventoryItemsAction(): Promise<
     .from("inventory_items")
     .select("id, description, type")
     .eq("status", "available")
+    // Giveaway prizes and internal-use items are not gear-library stock, so
+    // they must not be offered as something to distribute to a rider.
+    .eq("intended_use", "gear_library")
     .order("description", { ascending: true });
 
   if (error) {

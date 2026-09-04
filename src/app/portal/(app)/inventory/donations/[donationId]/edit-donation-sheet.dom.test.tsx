@@ -55,6 +55,7 @@ function makeDonation(overrides: Partial<DonationRow> = {}): DonationRow {
         condition: "good",
         face_value: null,
         status: "available",
+        intended_use: "gear_library",
         photo_url: null,
         notes: null,
       },

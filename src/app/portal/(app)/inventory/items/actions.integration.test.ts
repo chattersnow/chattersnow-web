@@ -34,6 +34,7 @@ function itemForm(overrides?: { description?: string }) {
   fd.set("type", "snowboard");
   fd.set("condition", "good");
   fd.set("status", "available");
+  fd.set("intendedUse", "gear_library");
   return fd;
 }
 

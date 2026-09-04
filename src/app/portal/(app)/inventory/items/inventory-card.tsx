@@ -5,6 +5,7 @@ import { EditInventoryModal } from "./edit-inventory-modal";
 import {
   CONDITIONS,
   GENDERS,
+  IntendedUseBadge,
   StatusBadge,
   formatFaceValue,
   labelFor,
@@ -47,7 +48,10 @@ export function InventoryCard({ item }: { item: InventoryItem }) {
             {formatFaceValue(item.face_value)}
           </span>
         </div>
-        <StatusBadge status={item.status} />
+        <div className="flex flex-wrap items-center gap-1.5">
+          <StatusBadge status={item.status} />
+          <IntendedUseBadge intendedUse={item.intended_use} />
+        </div>
       </CardContent>
     </Card>
   );

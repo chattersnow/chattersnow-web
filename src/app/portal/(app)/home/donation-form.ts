@@ -8,6 +8,7 @@ export type DonationItemInput = {
   condition: string;
   faceValue?: number | null;
   notes?: string;
+  intendedUse?: string;
 };
 
 export type CreateDonationInput = {
@@ -29,6 +30,7 @@ const SOURCE_TYPES = [
   "other",
 ] as const;
 const CONDITIONS = ["new", "like_new", "good", "fair", "poor"] as const;
+const INTENDED_USES = ["gear_library", "giveaway", "internal"] as const;
 
 export type DonationRpcArgs = {
   p_donor_name: string | null;
@@ -45,6 +47,7 @@ export type DonationRpcArgs = {
     condition: string;
     face_value: number | null;
     notes: string | null;
+    intended_use: string;
   }[];
   p_event_id: string | null;
 };
@@ -85,6 +88,14 @@ export function parseDonationInput(
     ) {
       return { error: `${label}: face value must be a positive number.` };
     }
+    if (
+      item.intendedUse != null &&
+      !INTENDED_USES.includes(
+        item.intendedUse as (typeof INTENDED_USES)[number],
+      )
+    ) {
+      return { error: `${label}: select a valid intended use.` };
+    }
   }
 
   return {
@@ -103,6 +114,7 @@ export function parseDonationInput(
         condition: item.condition,
         face_value: item.faceValue ?? null,
         notes: item.notes?.trim() || null,
+        intended_use: item.intendedUse || "gear_library",
       })),
       p_event_id: input.eventId ?? null,
     },

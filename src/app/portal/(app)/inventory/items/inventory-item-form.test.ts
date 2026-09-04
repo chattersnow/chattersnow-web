@@ -12,6 +12,7 @@ const validFields = {
   type: "jacket",
   condition: "good",
   status: "available",
+  intendedUse: "gear_library",
 };
 
 describe("parseInventoryItemForm", () => {
@@ -44,6 +45,14 @@ describe("parseInventoryItemForm", () => {
       parseInventoryItemForm(formData({ ...validFields, status: "sold" })),
     ).toEqual({
       error: "Select a valid item status.",
+    });
+  });
+
+  test("rejects an invalid intended use", () => {
+    expect(
+      parseInventoryItemForm(formData({ ...validFields, intendedUse: "sale" })),
+    ).toEqual({
+      error: "Select a valid intended use.",
     });
   });
 
@@ -80,6 +89,7 @@ describe("parseInventoryItemForm", () => {
         condition: "good",
         face_value: 80,
         status: "available",
+        intended_use: "gear_library",
         photo_url: "https://x/y.jpg",
         notes: "Warm",
       },

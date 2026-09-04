@@ -239,7 +239,7 @@ Available quantity should be derived from valid inventory transactions, subject 
 
 #### Public gear availability
 
-The public site shall let visitors browse a gallery of gear currently available (`status = available`), with filtering by type, condition, and gender, and free-text search by description. The public read path must go through a dedicated, curated database view rather than a relaxed policy on the internal `inventory_items` table, so donor linkage, face value, notes, status, and movement history stay behind authenticated-only access regardless of how the public view's field list evolves.
+The public site shall let visitors browse a gallery of gear currently available (`status = available` and `intended_use = gear_library`), with filtering by type, condition, and gender, and free-text search by description. The public read path must go through a dedicated, curated database view rather than a relaxed policy on the internal `inventory_items` table, so donor linkage, face value, notes, status, and movement history stay behind authenticated-only access regardless of how the public view's field list evolves.
 
 #### Public gear requests
 
@@ -272,6 +272,7 @@ Event sponsors/partners are people or organizations that already live in the sha
 3. Linking a person makes them a sponsor in the People directory (`/portal/people`) going forward, and their other roles are unaffected. **Implemented** by the derived role model described in §5.9 rather than by the sponsor-linking code: the `event_sponsors` row _is_ what makes them a sponsor, and unlinking their last sponsorship stops it. While the roles were stored flags each caller had to remember to set, linking an _existing_ person set nothing and `/portal/sponsors` was missing sponsors (issue #620).
 4. Per-event sponsorship details — support type (cash, in-kind, both, other), in-kind description, contribution value, public visibility, and notes — are stored on the event-sponsor link, not on the person record, since the same sponsor can support different events differently.
 5. A person may be linked to a given event only once; re-selecting an already-linked person edits the existing link rather than creating a duplicate.
+6. An in-kind sponsorship is mirrored into `donations` + one `inventory_items` row so the goods are tracked and valued like any other donation, but that row is created with `intended_use = 'giveaway'` (issue: sponsor vouchers on the public site). Sponsor contributions are usually vouchers, gift cards or lift tickets destined for an event giveaway, not gear for the community to take home, so they must not reach the public gear catalog, the public request flow, or the rider distribution picker. Staff can reclassify a specific item to `gear_library` from Inventory › Items when a sponsor really does donate gear; editing the sponsor record afterwards does not overwrite that choice.
 
 ### 5.6 Expense management
 
@@ -295,7 +296,7 @@ The initial inventory workflow is the primary way administrators manage donated 
 
 Giveaway recording is implemented for the initial release: authorized users can record, per event, tickets sold and revenue, prizes (name, prize donor, estimated value), and winners (name, contact, distribution status/date, drawing date), via the event editor's Giveaway tab (`giveaways`, `giveaway_prizes`, `giveaway_winners` tables). This is a manual recording tool only — there is no public ticket-purchase flow.
 
-The prize donor is a `people` foreign key (`donor_person_id`, issue #20), and a prize can additionally record the donation record it came from — either an `inventory_items` row or a `monetary_donations` row (`source_inventory_item_id` / `source_monetary_donation_id`, issue #520). Selecting an in-kind source reserves that inventory item (issue #570), so a donated item allocated to a giveaway stops appearing as available in the distribution picker and the public gear catalog; removing the prize or changing its source releases the item again. Prizes with no inventory record behind them (cash, gift cards) are still entered as free text.
+The prize donor is a `people` foreign key (`donor_person_id`, issue #20), and a prize can additionally record the donation record it came from — either an `inventory_items` row or a `monetary_donations` row (`source_inventory_item_id` / `source_monetary_donation_id`, issue #520). Selecting an in-kind source reserves that inventory item (issue #570), so a donated item allocated to a giveaway stops appearing as available in the distribution picker and the public gear catalog (`intended_use` is a separate, staff-set axis and is deliberately left alone by prize allocation, so releasing a prize restores the item exactly as it was); removing the prize or changing its source releases the item again. Prizes with no inventory record behind them (cash, gift cards) are still entered as free text.
 
 Public online ticket sales remain out of scope and must be reviewed for applicable legal, tax, and jurisdictional requirements before being enabled.
 
@@ -542,11 +543,11 @@ Impact rollups themselves (per-event, per-program, and season reports, including
 - `people`: shared directory of donors, sponsors, volunteers, and staff (name, email, phone, notes), so the same contact can be reused across roles instead of being duplicated per context. It carries **no role columns**: role membership is derived by `public.people_with_roles` (§5.9), the view every read site uses, from the records that create each role unioned with `person_role_tags`. A role is therefore never stale — it appears with the record behind it and goes away with the last one. `person_type` (`individual` | `organization`, issue #625) is the separate, exclusive axis: it is staff-asserted rather than derived and decides the shape of the record — an organization has a logo, a website, a primary contact and org memberships, an individual has a rider profile — so the person form renders one branch or the other off it. A further type (`household`, for family registrations) is a check-constraint change rather than another boolean.
 - `donations`
 - `donation_items`
-- `inventory_items`: donation-managed inventory records with description, size, type, gender, condition, face value, photo, and status
+- `inventory_items`: donation-managed inventory records with description, size, type, gender, condition, face value, photo, status, and `intended_use` — what the item is _for_ (`gear_library`, `giveaway`, `internal`), as distinct from where it is in its lifecycle (`status`)
 - `inventory_movements`: receipt, distribution, adjustment, and retirement transactions
 - `person_role_tags`: manual role assertions (`person_id`, `role`, `granted_at`, `granted_by`, `notes`) — the half of the derived role model no source record backs, such as a sponsor entered in the directory before any event link exists. Unlike a boolean it carries when the role was asserted and by whom
 - `people_with_roles`: `security_invoker` view over `people` adding the four derived role flags via the `security definer` helper `person_role_flags()` (§5.9); granted to `authenticated` only, and read-only — writes go to `people`
-- `public_gear_catalog`: read-only view over `inventory_items` limited to `status = available` rows and a curated column set (description, size, type, gender, condition, photo); granted to the `anon` role so it can back the public gear gallery without relaxing RLS on the base table
+- `public_gear_catalog`: read-only view over `inventory_items` limited to `status = available` **and** `intended_use = gear_library` rows and a curated column set (description, size, type, gender, condition, photo); granted to the `anon` role so it can back the public gear gallery without relaxing RLS on the base table
 - `inventory_photos`
 - `distribution_recipients`: protected recipient records, if needed
 
