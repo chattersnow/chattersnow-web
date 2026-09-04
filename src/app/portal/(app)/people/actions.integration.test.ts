@@ -47,6 +47,58 @@ function personForm(overrides?: { name?: string }) {
 
 const DENIED = { error: "You don't have permission to perform this action." };
 
+describe("person email uniqueness (integration)", () => {
+  // The index (20260904190000) is enforced in Postgres, not in the action, so
+  // this covers the volunteer path too: a volunteer holds people_intake:manage
+  // and can insert a person, and the "people select" carve-out
+  // (20260823160000) is what lets the error name the record they collided with.
+  for (const account of [SEEDED_USERS.admin, SEEDED_USERS.volunteer] as const) {
+    test(`createPersonAction names the existing person for ${account}`, async () => {
+      const email = `it-conflict-${crypto.randomUUID()}@example.test`;
+      const { data: existing } = await adminClient
+        .from("people")
+        .insert({
+          name: "Already Here",
+          source_type: "individual",
+          email,
+        })
+        .select("id")
+        .single();
+
+      currentSupabase = await signIn(account);
+      const form = personForm({ name: "Second Record" });
+      form.set("email", email.toUpperCase());
+      const result = await createPersonAction(form);
+
+      expect("error" in result).toBe(true);
+      if ("error" in result) {
+        expect(result.error).toContain("Already Here");
+        expect(result.error).toContain(email);
+        expect(result.conflict?.id).toBe(existing!.id);
+      }
+
+      await adminClient.from("people").delete().eq("id", existing!.id);
+    });
+  }
+
+  test("updatePersonAction does not report a person as their own conflict", async () => {
+    const email = `it-self-${crypto.randomUUID()}@example.test`;
+    const { data: person } = await adminClient
+      .from("people")
+      .insert({ name: "Self Save", source_type: "individual", email })
+      .select("id")
+      .single();
+
+    currentSupabase = await signIn(SEEDED_USERS.admin);
+    const form = personForm({ name: "Self Save" });
+    form.set("email", email);
+    const result = await updatePersonAction(person!.id, form);
+    expect(result).toEqual({ success: true });
+
+    await adminClient.from("people").delete().eq("id", person!.id);
+  });
+});
+
 describe("createPersonAction (integration)", () => {
   test("requires a signed-in user", async () => {
     currentSupabase = anonClient();

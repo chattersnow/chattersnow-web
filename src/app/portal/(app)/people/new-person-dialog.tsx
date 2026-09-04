@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createPersonAction, type PersonListItem } from "./actions";
 import {
@@ -50,6 +51,12 @@ export function NewPersonDialog({
   );
   const [contact, setContact] = useState<PickedPerson | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Set when the save collided with an existing person on email, so the
+  // message can offer their record instead of leaving staff to search.
+  const [conflict, setConflict] = useState<{
+    id: string;
+    name: string | null;
+  } | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function update<K extends keyof PersonFormState>(
@@ -76,6 +83,7 @@ export function NewPersonDialog({
     if (!guard.allowOpenChange(nextOpen)) return;
     setOpen(nextOpen);
     if (nextOpen) resetForm();
+    if (!nextOpen) setConflict(null);
   }
 
   function handlePersonCreated(person: PickedPerson) {
@@ -85,6 +93,7 @@ export function NewPersonDialog({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    setConflict(null);
 
     startTransition(async () => {
       const result = await createPersonAction(
@@ -93,6 +102,7 @@ export function NewPersonDialog({
       );
       if ("error" in result) {
         setError(result.error);
+        setConflict(result.conflict ?? null);
         return;
       }
       resetForm();
@@ -151,7 +161,20 @@ export function NewPersonDialog({
 
               {error && (
                 <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
+                  <AlertDescription>
+                    {error}
+                    {conflict && (
+                      <>
+                        {" "}
+                        <Link
+                          href={`/portal/people/${conflict.id}`}
+                          className="underline underline-offset-4"
+                        >
+                          Open their record
+                        </Link>
+                      </>
+                    )}
+                  </AlertDescription>
                 </Alert>
               )}
             </FieldGroup>

@@ -48,7 +48,16 @@ export function parsePersonForm(
 ): { error: string } | ParsedPersonForm {
   const name = String(formData.get("name") ?? "").trim();
   const preferredName = String(formData.get("preferredName") ?? "").trim();
-  const email = String(formData.get("email") ?? "").trim();
+  // Lowercased, not just trimmed: people.email is the schema's person
+  // identity key (resolve_or_create_person_by_email and every auth-linking
+  // RPC match on lower(email)), and since
+  // 20260904170000_normalize_person_email.sql a trigger canonicalizes it on
+  // write. Doing the same here keeps what the form shows and what the row
+  // stores identical, and matches createPendingGrantAction's handling of
+  // pending_role_grants.email.
+  const email = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
   const phone = String(formData.get("phone") ?? "").trim();
   const instagramHandle = String(formData.get("instagramHandle") ?? "")
     .trim()

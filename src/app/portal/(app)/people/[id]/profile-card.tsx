@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
 import { updatePersonAction, type PersonListItem } from "../actions";
@@ -25,6 +26,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 import {
   Card,
   CardAction,
@@ -35,7 +37,6 @@ import {
 } from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
-import { runAction } from "@/components/portal/action-toast";
 
 function formStateFor(person: PersonRow): PersonFormState {
   return {
@@ -80,6 +81,12 @@ export function ProfileCard({
   );
   const [newPeople, setNewPeople] = useState<PersonListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // See emailConflictError in ../actions.ts: set when the save collided on
+  // the person email uniqueness index.
+  const [conflict, setConflict] = useState<{
+    id: string;
+    name: string | null;
+  } | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const availablePeople = [...people, ...newPeople];
@@ -101,24 +108,25 @@ export function ProfileCard({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    setConflict(null);
 
     startTransition(async () => {
-      await runAction(
-        () =>
-          updatePersonAction(
-            person.id,
-            packPersonFormData(form),
-            contact?.id ?? null,
-          ),
-        {
-          success: "Profile saved.",
-          onError: setError,
-          onSuccess: () => {
-            setMode("view");
-            router.refresh();
-          },
-        },
+      // Called directly rather than through runAction: runAction reduces a
+      // failure to a bare string, which would drop the `conflict` that lets
+      // the error link to the person already using this email.
+      const result = await updatePersonAction(
+        person.id,
+        packPersonFormData(form),
+        contact?.id ?? null,
       );
+      if ("error" in result) {
+        setError(result.error);
+        setConflict(result.conflict ?? null);
+        return;
+      }
+      toast.success("Profile saved.");
+      setMode("view");
+      router.refresh();
     });
   }
 
@@ -225,7 +233,20 @@ export function ProfileCard({
 
               {error && (
                 <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
+                  <AlertDescription>
+                    {error}
+                    {conflict && (
+                      <>
+                        {" "}
+                        <Link
+                          href={`/portal/people/${conflict.id}`}
+                          className="underline underline-offset-4"
+                        >
+                          Open their record
+                        </Link>
+                      </>
+                    )}
+                  </AlertDescription>
                 </Alert>
               )}
             </FieldGroup>

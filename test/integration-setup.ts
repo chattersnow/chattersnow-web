@@ -404,12 +404,18 @@ export async function getInventoryItemStatus(itemId: string) {
 // resolution's mover/seconder, a distribution's recipient, a reimbursement's
 // payee) without the donor-specific fields `createAvailableGearItems` sets up
 // via `create_donation_with_items`.
-export async function createPerson(overrides: { name?: string } = {}) {
+export async function createPerson(
+  overrides: { name?: string; email?: string; person_type?: string } = {},
+) {
   const { data, error } = await adminClient
     .from("people")
     .insert({
       name: overrides.name ?? `Integration Test Person ${crypto.randomUUID()}`,
       source_type: "individual",
+      // Only set when a test cares: people.email is unique, so a default here
+      // would make two fixtures in one test collide.
+      ...(overrides.email ? { email: overrides.email } : {}),
+      ...(overrides.person_type ? { person_type: overrides.person_type } : {}),
     })
     .select("id")
     .single();

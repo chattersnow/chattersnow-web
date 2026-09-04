@@ -219,6 +219,19 @@ export async function PeopleDirectory({
             </FiltersSheet>
           )}
 
+          {/* Only on the full directory: the role segments (Donors, Sponsors,
+              ...) are filtered views, and a duplicate pair can straddle two of
+              them, so the queue belongs on the one page that lists everybody. */}
+          {canManage && segment.showRoleFilter && (
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href="/portal/people/duplicates" />}
+            >
+              Find duplicates
+            </Button>
+          )}
+
           {canManage && segment.newPerson && (
             <NewPersonDialog
               people={peopleOptions ?? []}

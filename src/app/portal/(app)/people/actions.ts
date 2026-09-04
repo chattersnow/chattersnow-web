@@ -6,6 +6,7 @@ import { parsePersonForm } from "./person-form";
 import type { PersonType } from "./people-shared";
 import { checkPermission, checkAnyPermission } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
+import { friendlyError } from "@/lib/db-errors";
 
 /**
  * Replaces a person's manual role tags -- the half of the derived role model
@@ -28,7 +29,11 @@ async function setRoleTags(
 }
 
 export type PersonActionResult =
-  | { error: string }
+  // `conflict` names the person who already holds the submitted email, so the
+  // caller can link to them instead of leaving staff to search for a record
+  // they cannot see. Only set when the save failed on the email uniqueness
+  // index (20260904190000_enforce_unique_person_email.sql).
+  | { error: string; conflict?: { id: string; name: string | null } }
   | {
       success: true;
       person?: {
@@ -64,6 +69,42 @@ export type PersonListItem = {
 export type OrganizationMembershipActionResult =
   { error: string } | { success: true };
 
+/**
+ * Turns a failed people insert/update into a message that names whoever
+ * already uses the address. A plain select is enough: the "people select"
+ * policy admits people_intake:manage (20260823160000) and
+ * reimbursement_approvals:manage (20260826000000) alongside people:view, so
+ * every role that can write a person can also read the one it collided with.
+ *
+ * `excludeId` is the row being updated -- without it, saving a person without
+ * changing their email would report them as their own conflict.
+ */
+async function emailConflictError(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  error: { code?: string },
+  email: string | null,
+  fallback: string,
+  excludeId?: string,
+): Promise<PersonActionResult> {
+  const message = friendlyError(
+    error,
+    "That email address is already used by another person.",
+    fallback,
+  );
+  if (error.code !== "23505" || !email) return { error: message };
+
+  let query = supabase.from("people").select("id, name").eq("email", email);
+  if (excludeId) query = query.neq("id", excludeId);
+  const { data } = await query.maybeSingle();
+  if (!data) return { error: message };
+
+  const who = data.name ?? "Another record";
+  return {
+    error: `${who} already uses ${email}. Open their record to update it, or use a different address.`,
+    conflict: { id: data.id, name: data.name },
+  };
+}
+
 export async function createPersonAction(
   formData: FormData,
   primaryContactPersonId: string | null = null,
@@ -94,7 +135,12 @@ export async function createPersonAction(
     .select("id, name, preferred_name, email, phone, auth_user_id")
     .single();
   if (error) {
-    return { error: "Could not save this person. Please try again." };
+    return emailConflictError(
+      supabase,
+      error,
+      parsed.data.email,
+      "Could not save this person. Please try again.",
+    );
   }
 
   // Roles are derived from source records unioned with these tags, so the
@@ -155,7 +201,13 @@ export async function updatePersonAction(
     })
     .eq("id", id);
   if (error) {
-    return { error: "Could not update this person. Please try again." };
+    return emailConflictError(
+      supabase,
+      error,
+      parsed.data.email,
+      "Could not update this person. Please try again.",
+      id,
+    );
   }
 
   const rolesError = await setRoleTags(supabase, id, parsed.roles);
