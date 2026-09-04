@@ -96,4 +96,34 @@ describe("CommandPalette", () => {
     );
     expect(searchPeopleMock).not.toHaveBeenCalled();
   });
+
+  // Issue #567. Every assertion above drives the palette with the mouse, so
+  // nothing held the keyboard path in place: navigation hangs off onClick on
+  // the item, and whether Enter ever reaches that is the primitive's business.
+  test("arrow keys move the highlight without moving focus", async () => {
+    const user = await openPalette();
+    const input = screen.getByRole("combobox", {
+      name: "Search pages and people",
+    });
+    await user.type(input, "reimburse");
+    await waitFor(() => expect(searchPeopleMock).toHaveBeenCalled());
+
+    // The Finance page, then the person the search action turned up.
+    const [page, person] = await screen.findAllByRole("option");
+
+    // autoHighlight="always" means Enter works before any arrow key.
+    expect(input.getAttribute("aria-activedescendant")).toBe(page.id);
+
+    await user.keyboard("{ArrowDown}");
+    expect(input.getAttribute("aria-activedescendant")).toBe(person.id);
+    // Virtual focus: the highlight walks the list while focus stays in the
+    // input, which is what lets a screen reader follow it.
+    expect(document.activeElement).toBe(input);
+
+    await user.keyboard("{ArrowUp}");
+    expect(input.getAttribute("aria-activedescendant")).toBe(page.id);
+
+    await user.keyboard("{Enter}");
+    expect(pushMock).toHaveBeenCalledWith("/portal/finance/reimbursements");
+  });
 });

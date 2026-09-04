@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { reloadStayingSignedIn, signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { modal } from "./helpers/dialog";
+import { pickPerson } from "./helpers/people";
 
 // Pre-creates the person directly (rather than exercising PersonPicker's
 // inline "+ Create new person" flow, which isn't otherwise covered by any
@@ -81,10 +82,7 @@ test.describe("portal access management", () => {
 
       await page.getByRole("button", { name: "Add access grant" }).click();
       const grantDialog = modal(page);
-      await grantDialog
-        .getByPlaceholder("Search by name or email...")
-        .fill(person.name);
-      await grantDialog.getByRole("button", { name: person.name }).click();
+      await pickPerson(grantDialog, person.name);
       await expect(grantDialog.getByText(person.name)).toBeVisible();
 
       await grantDialog

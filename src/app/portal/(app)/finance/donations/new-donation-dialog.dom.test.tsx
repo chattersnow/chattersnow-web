@@ -107,7 +107,9 @@ describe("NewDonationDialog", () => {
       screen.getByPlaceholderText("Search donors by name or email..."),
       "Jamie",
     );
-    await user.click(screen.getByRole("button", { name: /Jamie Rivera/ }));
+    await user.click(
+      await screen.findByRole("option", { name: /Jamie Rivera/ }),
+    );
 
     // The picker collapses to the selected person with a "Change" affordance.
     expect(screen.getByRole("button", { name: "Change" })).toBeInTheDocument();

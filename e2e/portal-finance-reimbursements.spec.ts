@@ -14,6 +14,7 @@ import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { modal } from "./helpers/dialog";
 import { markOnboarded } from "./helpers/onboarding";
+import { pickPerson } from "./helpers/people";
 
 type RoleUser = {
   userId: string;
@@ -111,10 +112,7 @@ test.describe("portal finance reimbursements", () => {
         addDialog.getByRole("heading", { name: "Add reimbursement" }),
       ).toBeVisible();
 
-      await addDialog
-        .getByPlaceholder("Search by name or email...")
-        .fill(requester.name);
-      await addDialog.getByRole("button", { name: requester.name }).click();
+      await pickPerson(addDialog, requester.name);
       await addDialog.getByLabel("Description").fill(description);
       // Reimbursement threshold defaults to $500 -- this stays under it so
       // the submitter (finance) is eligible to self-approve.
@@ -173,10 +171,7 @@ test.describe("portal finance reimbursements", () => {
 
       await page.getByRole("button", { name: "New Reimbursement" }).click();
       const addDialog = modal(page);
-      await addDialog
-        .getByPlaceholder("Search by name or email...")
-        .fill(requester.name);
-      await addDialog.getByRole("button", { name: requester.name }).click();
+      await pickPerson(addDialog, requester.name);
       await addDialog.getByLabel("Description").fill(description);
       // At or above the $500 threshold, the submitter can't self-approve --
       // it needs an admin or board member who isn't them.

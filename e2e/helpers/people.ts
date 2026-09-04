@@ -1,3 +1,4 @@
+import type { Locator, Page } from "@playwright/test";
 import type { createAdminClient } from "./admin-client";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -24,4 +25,24 @@ export async function seedPerson(
     .single();
   if (error) throw error;
   return { id: data.id as string, name };
+}
+
+/**
+ * Drives a PersonPicker: type into its combobox, then pick the match.
+ *
+ * Worth a helper because the picker's results are markup that has already
+ * changed once -- they were plain <button>s until #567 rebuilt the picker as a
+ * real combobox -- and nine specs were pinned to the old role.
+ */
+export async function pickPerson(
+  scope: Locator | Page,
+  name: string | RegExp,
+  opts?: { placeholder?: string },
+) {
+  const placeholder = opts?.placeholder ?? "Search by name or email...";
+  await scope
+    .getByPlaceholder(placeholder)
+    .first()
+    .fill(typeof name === "string" ? name : name.source);
+  await scope.getByRole("option", { name }).first().click();
 }
