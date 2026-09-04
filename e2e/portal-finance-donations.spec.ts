@@ -7,6 +7,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { signIn } from "./helpers/auth";
 import { modal } from "./helpers/dialog";
+import { pickPerson } from "./helpers/people";
 
 function uniqueAmount() {
   // Between $10.00 and $910.00 with non-round cents; below $1,000 so the
@@ -29,12 +30,9 @@ async function createDonation(
   ).toBeVisible();
 
   if (options.donorQuery) {
-    await dialog
-      .getByPlaceholder("Search donors by name or email...")
-      .fill(options.donorQuery);
-    await dialog
-      .getByRole("button", { name: new RegExp(options.donorQuery) })
-      .click();
+    await pickPerson(dialog, new RegExp(options.donorQuery), {
+      placeholder: "Search donors by name or email...",
+    });
     await expect(dialog.getByRole("button", { name: "Change" })).toBeVisible();
   }
 
@@ -144,5 +142,48 @@ test.describe("portal finance donations", () => {
       page.getByRole("row").filter({ hasText: "Jamie Rivera" }).first(),
     ).toBeVisible();
     await expect(page.getByText("$25.00")).toHaveCount(0);
+  });
+
+  // Issue #567. The donor picker was an input followed by plain buttons: no
+  // arrow keys, no Escape, and focus dropped to <body> when the field swapped
+  // for the chip. Unit tests cover the ARIA wiring; this is here for the one
+  // thing happy-dom cannot model -- how a real focus trap and a real Escape
+  // interact inside a dialog.
+  test("the donor picker is fully operable from the keyboard", async ({
+    page,
+  }) => {
+    await page.goto("/portal/finance/donations");
+    await page.getByRole("button", { name: "New donation" }).click();
+    const dialog = modal(page);
+    await expect(
+      dialog.getByRole("heading", { name: "Add donation" }),
+    ).toBeVisible();
+
+    const search = dialog.getByRole("combobox", {
+      name: "Search donors by name or email...",
+    });
+    await search.fill("Jamie");
+    await expect(dialog.getByRole("option").first()).toBeVisible();
+
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("Enter");
+    await expect(dialog.getByRole("button", { name: "Change" })).toBeVisible();
+
+    // "Change" swaps the chip back for the field, so focus has somewhere to
+    // go in both directions.
+    await page.keyboard.press("Enter");
+    await expect(search).toBeFocused();
+
+    await search.fill("Jamie");
+    await expect(dialog.getByRole("option").first()).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    await expect(dialog.getByRole("option")).toHaveCount(0);
+    // The first Escape belongs to the list; the dialog outlives it.
+    await expect(dialog).toBeVisible();
+    await expect(search).toHaveValue("Jamie");
+
+    await page.keyboard.press("Escape");
+    await expect(dialog).not.toBeVisible();
   });
 });

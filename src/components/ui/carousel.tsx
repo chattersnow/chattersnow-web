@@ -188,7 +188,11 @@ function CarouselPrevious({
       className={cn(
         "absolute touch-manipulation rounded-full",
         orientation === "horizontal"
-          ? "inset-y-0 left-2 my-auto lg:-left-12"
+          ? // Outside the box only once the viewport is wide enough to hold
+            // it: the arrow sits 48px past the carousel edge, and at lg the
+            // page has only ~40px of padding left, so it poked 8px past the
+            // viewport between 1024 and ~1120px (issue #593).
+            "inset-y-0 left-2 my-auto xl:-left-12"
           : "-top-12 left-1/2 -translate-x-1/2 rotate-90",
         className,
       )}
@@ -218,7 +222,9 @@ function CarouselNext({
       className={cn(
         "absolute touch-manipulation rounded-full",
         orientation === "horizontal"
-          ? "inset-y-0 right-2 my-auto lg:-right-12"
+          ? // See CarouselPrevious: xl, not lg, is the first width with room
+            // for the arrow outside the carousel box (issue #593).
+            "inset-y-0 right-2 my-auto xl:-right-12"
           : "-bottom-12 left-1/2 -translate-x-1/2 rotate-90",
         className,
       )}

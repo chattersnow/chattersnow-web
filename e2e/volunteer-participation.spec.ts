@@ -13,6 +13,7 @@ import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { seedUserWithRole } from "./helpers/rbac";
 import { modal } from "./helpers/dialog";
+import { pickPerson } from "./helpers/people";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -71,10 +72,7 @@ test.describe("portal volunteer participation", () => {
       const dialog = page.getByRole("dialog", { name: "Log volunteer hours" });
       await expect(dialog).toBeVisible();
 
-      await dialog
-        .getByPlaceholder("Search by name or email...")
-        .fill(volunteer.name);
-      await dialog.getByRole("button", { name: volunteer.name }).click();
+      await pickPerson(dialog, volunteer.name);
       await dialog.getByLabel("Hours").fill("3.25");
 
       // Both selects render their popup outside the dialog, so the options

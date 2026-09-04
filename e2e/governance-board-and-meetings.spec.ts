@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { signIn, reloadStayingSignedIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
-import { seedPerson } from "./helpers/people";
+import { pickPerson, seedPerson } from "./helpers/people";
 import { modal } from "./helpers/dialog";
 
 // Governance routes that revolve around the board and its meeting record
@@ -43,10 +43,7 @@ test.describe("portal governance board, meetings, and resolutions", () => {
         addDialog.getByRole("heading", { name: "Add board member" }),
       ).toBeVisible();
 
-      await addDialog
-        .getByPlaceholder("Search by name or email...")
-        .fill(person.name);
-      await addDialog.getByRole("button", { name: person.name }).click();
+      await pickPerson(addDialog, person.name);
       await expect(addDialog.getByText(person.name)).toBeVisible();
 
       await addDialog.getByLabel("Role / title").fill(roleTitle);
@@ -137,10 +134,7 @@ test.describe("portal governance board, meetings, and resolutions", () => {
       const actionItemForm = page
         .locator("form")
         .filter({ hasText: "Add action item" });
-      await actionItemForm
-        .getByPlaceholder("Search by name or email...")
-        .fill(owner.name);
-      await actionItemForm.getByRole("button", { name: owner.name }).click();
+      await pickPerson(actionItemForm, owner.name);
       await actionItemForm.getByLabel("Description").fill(actionItem);
       await actionItemForm
         .getByRole("button", { name: "Add action item", exact: true })
@@ -220,11 +214,7 @@ test.describe("portal governance board, meetings, and resolutions", () => {
 
       // The dialog holds a mover picker and a seconder picker; the mover
       // comes first, and the seconder is optional.
-      await addDialog
-        .getByPlaceholder("Search by name or email...")
-        .first()
-        .fill(mover.name);
-      await addDialog.getByRole("button", { name: mover.name }).click();
+      await pickPerson(addDialog, mover.name);
 
       await addDialog.getByLabel("Motion text").fill(motionText);
       const newOutcome = addDialog.getByLabel("Vote outcome");

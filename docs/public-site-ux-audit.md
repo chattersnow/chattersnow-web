@@ -12,7 +12,7 @@ Scope is the public site with depth on responsive and keyboard behaviour: 375 / 
 
 This audit deliberately targets what axe cannot see. `bun run test:a11y` currently reports **0 violations across 25 public and 43 portal routes**, so everything below is information architecture, affordance, layout, and semantics that automated scanning passes by.
 
-**Status.** The header and page-visibility cluster (1–10, 12, 13) has been fixed; finding 11 and everything from 14 on is recorded for triage and untouched. Findings 21 and 22 surfaced while implementing the fixes — both are pre-existing and neither was caused by that work.
+**Status.** The header and page-visibility cluster (1–10, 12, 13) has been fixed, as have findings 11 and 21; everything else from 14 on is recorded for triage and untouched. Findings 21 and 22 surfaced while implementing the fixes — both are pre-existing and neither was caused by that work.
 
 ---
 
@@ -30,7 +30,7 @@ This audit deliberately targets what axe cannot see. `bun run test:a11y` current
 | 8   | Mobile sheet: untappable group headers, 32px touch targets                          | Mobile        | Moderate | Fixed  |
 | 9   | "Home" nav item duplicates the logo                                                 | Header        | Minor    | Fixed  |
 | 10  | Gear dropdown presents four anchors into one page as four destinations              | IA            | Minor    | Fixed  |
-| 11  | No skip link; seven tab stops before main content on every page                     | Keyboard      | Moderate | Open   |
+| 11  | No skip link; seven tab stops before main content on every page                     | Keyboard      | Moderate | Fixed  |
 | 12  | No `aria-label` on either `<nav>`; footer links are not a navigation landmark       | Semantics     | Moderate | Fixed  |
 | 13  | Header has no call to action once Support is hidden                                 | Conversion    | Moderate | Fixed  |
 | 14  | Homepage carousel gives no indication that slides 2 and 3 exist on mobile           | Mobile        | Moderate | Open   |
@@ -40,7 +40,7 @@ This audit deliberately targets what axe cannot see. `bun run test:a11y` current
 | 18  | Inconsistent card affordance between `/learn` and `/support`                        | Consistency   | Minor    | Open   |
 | 19  | Events list ships every past event to the browser, unbounded                        | Performance   | Minor    | Open   |
 | 20  | `prefers-reduced-motion` guards only one animation                                  | Motion        | Minor    | Open   |
-| 21  | Carousel arrow causes 8px of horizontal scroll on `/home` at 1024–1136px            | Responsive    | Moderate | Open   |
+| 21  | Carousel arrow causes 8px of horizontal scroll on `/home` at 1024–1136px            | Responsive    | Moderate | Fixed  |
 | 22  | `page-visibility.spec.ts` races other specs over a shared `app_settings` row        | Test infra    | Serious  | Open   |
 
 ---
@@ -217,6 +217,10 @@ In the mobile sheet this makes Gear visually dominate the menu at nearly half it
 
 Seven tab stops before main content, on every page, with `<main>` on the homepage containing only five focusable elements. With all nine sections visible it becomes eleven. WCAG 2.4.1 (Bypass Blocks, level A) — axe does not flag a missing skip link because it cannot know the header repeats.
 
+**Fixed** (issue #595). `src/components/skip-link.tsx` is now the first element in the public layout, targeting a `<main id="main-content" tabIndex={-1}>`. The id is supplied by `PageShell` for the ten sections that wrap it and by `/home`'s hand-rolled `<main>`; `/gears/sizing` lost the `<main>` it was nesting inside the `/gears` `PageShell`. `e2e/skip-link.spec.ts` covers all three paths.
+
+Two things turned up while fixing it. The portal already had a skip link, so the audit's `grep` was out of date — but it sat inside `SidebarInset`, which renders _after_ `<Sidebar>`, so a keyboard user tabbed through all 25–40 stops it was meant to skip before reaching it. It now renders before the sidebar and is covered by the same spec. And `/gears/sizing` had been shipping nested `<main>` landmarks with doubled page padding, which axe also passed.
+
 ## 12. Unnamed navigation landmarks — Moderate
 
 Landmarks on `/home`:
@@ -289,6 +293,8 @@ The only reduced-motion block in `globals.css` (line 175) covers `.bell-ring`. N
 The cause is `CarouselNext`, which is positioned outside the carousel's own box. The carousel is capped at `max-w-5xl` (1024px), so once the viewport reaches 1024px the carousel stops growing while the arrow keeps sitting beyond its right edge, poking past the page's padding until the `max-w-6xl` container starts centring with enough margin again at ~1140px.
 
 Only `/home` is affected — `/events` and `/contact` measured 0 overflow at the same widths. Not caused by the header work: this reproduces with the carousel and homepage untouched by that change.
+
+**Fixed** (issue #593). The arrows now flip outside the carousel box at `xl` rather than `lg` (`src/components/ui/carousel.tsx`). The arrow sits 48px past the carousel's edge, so it needs `viewport / 2 >= 512 + 48`, i.e. at least 1120px — `lg` fired about 96px too early. `e2e/home.spec.ts` asserts zero document overflow at 1000, 1024, 1060, 1100, 1140 and 1280px.
 
 ## 22. `page-visibility.spec.ts` races other specs over shared state — Serious
 

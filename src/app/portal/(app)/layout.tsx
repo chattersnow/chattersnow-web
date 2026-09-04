@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Toaster } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { SkipLink } from "@/components/skip-link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CommandPalette } from "./command-palette";
 import { HelpButton } from "./help/help-button";
@@ -204,6 +205,14 @@ export default async function PortalAppLayout({
     <TooltipProvider>
       <PortalHelpProvider>
         <SidebarProvider defaultOpen={sidebarOpen}>
+          {/* Before <Sidebar>, not inside <SidebarInset>. Reaching the page
+              content otherwise costs 25-40 tab stops on every navigation: the
+              logo, up to 6 quick actions, 14 nav items with the open section
+              expanded, account, log out, then the whole header. It used to sit
+              inside the inset, which renders after the sidebar -- so a
+              keyboard user tabbed through everything it was meant to skip
+              before they could reach it (issue #595). */}
+          <SkipLink href="#portal-main" />
           <Sidebar collapsible="icon">
             <SidebarHeader>
               <Link
@@ -248,17 +257,6 @@ export default async function PortalAppLayout({
             </SidebarFooter>
           </Sidebar>
           <SidebarInset>
-            {/* First thing in the tab order. Reaching the page content
-                otherwise costs 25-40 tab stops on every navigation: the
-                sidebar trigger, the logo, up to 6 quick actions, 14 nav items
-                with the open section expanded, account, log out, then the
-                whole header. */}
-            <a
-              href="#portal-main"
-              className="sr-only rounded-lg bg-[var(--purple)] px-4 py-2 text-sm font-semibold text-white focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50"
-            >
-              Skip to main content
-            </a>
             <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-[var(--line)] bg-[var(--background)] px-6 py-4 sm:px-10">
               <SidebarTrigger />
               <Link href="/portal/home" className="flex items-center">

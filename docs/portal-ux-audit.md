@@ -43,7 +43,7 @@ Nothing here is fixed. Every finding is recorded for triage.
 | 25  | The status palette has no success or warning token — approved/paid/completed are all purple   | Design system   | Moderate |
 | 26  | Four top-level nav items are gated by one permission and describe one directory               | IA              | Moderate |
 | 27  | The help button is on all ~55 routes but only 25 have an entry                                | Help            | Moderate |
-| 28  | No skip link; roughly 25–40 tab stops before main content on every portal page                | Keyboard        | Moderate |
+| 28  | No skip link; roughly 25–40 tab stops before main content on every portal page (fixed)        | Keyboard        | Moderate |
 | 29  | Nav group toggles have no `aria-expanded`, and change behaviour when the sidebar is collapsed | Semantics       | Moderate |
 | 30  | Tab state on event and meeting detail is React state, not URL                                 | Navigation      | Moderate |
 | 31  | Permission resolution (2 RPCs) runs uncached in every layout and Server Action                | Performance     | Moderate |
@@ -333,6 +333,8 @@ The formats mostly agree today (65 use `dateStyle: "medium"`), and the `timeZone
 ### 28. No skip link, and a very long tab path to content — Moderate
 
 There is no skip link in the portal (this repeats public-site finding 11, which is still open). The path to main content for an admin is: sidebar trigger → logo → up to 6 quick-action buttons → 14 nav items, with the open section's sub-items expanded (up to 10 for Governance) → My account → Log out → header trigger → Operations Portal link → name link → theme toggle → help → notifications. That's roughly 25–40 tab stops, on every navigation, before reaching the page.
+
+**Fixed** (issue #595). The portal gained a skip link after this audit was written, but it was rendered inside `SidebarInset` — which comes after `<Sidebar>` — so a keyboard user still tabbed through every stop above before reaching the link meant to skip them. It now renders before the sidebar, as the first focusable element on the page, and shares `src/components/skip-link.tsx` with the public site. `e2e/skip-link.spec.ts` asserts the ordering in both trees.
 
 ### 29. Nav group toggles announce no state — Moderate
 

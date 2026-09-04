@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { signIn, reloadStayingSignedIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
-import { seedPerson } from "./helpers/people";
+import { pickPerson, seedPerson } from "./helpers/people";
 import { modal } from "./helpers/dialog";
 
 // The document-shaped governance routes (#442): bylaws, policies, conflict
@@ -162,10 +162,7 @@ test.describe("portal governance records", () => {
         addDialog.getByRole("heading", { name: "Add disclosure" }),
       ).toBeVisible();
 
-      await addDialog
-        .getByPlaceholder("Search by name or email...")
-        .fill(person.name);
-      await addDialog.getByRole("button", { name: person.name }).click();
+      await pickPerson(addDialog, person.name);
 
       // Disclosure year defaults to the current year, and the table is
       // unique per (person, year) -- the freshly seeded person keeps this
@@ -223,10 +220,7 @@ test.describe("portal governance records", () => {
 
       await addDialog.getByLabel("Name").fill(requirementName);
       await addDialog.getByLabel("Due date").fill("2026-05-15");
-      await addDialog
-        .getByPlaceholder("Search by name or email...")
-        .fill(person.name);
-      await addDialog.getByRole("button", { name: person.name }).click();
+      await pickPerson(addDialog, person.name);
       await addDialog
         .getByRole("button", { name: "Add requirement", exact: true })
         .click();

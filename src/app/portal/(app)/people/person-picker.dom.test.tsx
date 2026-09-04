@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { useState } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { PersonActionResult, PersonListItem } from "./actions";
@@ -15,6 +16,8 @@ mock.module("./actions", () => ({
 }));
 
 const { PersonPicker } = await import("./person-picker");
+const { Dialog, DialogContent } = await import("@/components/ui/dialog");
+type PickedPerson = Parameters<typeof PersonPicker>[0]["selected"] & object;
 
 const people: PersonListItem[] = [
   {
@@ -305,5 +308,204 @@ describe("PersonPicker portal accounts and preferred names", () => {
 
     expect(screen.getByText("Johnny")).toBeInTheDocument();
     expect(screen.getByText("Portal user")).toBeInTheDocument();
+  });
+
+  // Issue #567. The picker used to be an input followed by a flat list of
+  // <button>s: no combobox or listbox roles, no arrow keys, no Escape, and
+  // focus simply dropped to <body> whenever the field swapped for the chip.
+  describe("keyboard", () => {
+    test("is a combobox that owns its result listbox", async () => {
+      const user = userEvent.setup();
+      render(
+        <PersonPicker
+          people={people}
+          selected={null}
+          onSelect={noop}
+          onPersonCreated={noop}
+        />,
+      );
+
+      const input = screen.getByRole("combobox", {
+        name: "Search by name or email...",
+      });
+      expect(input.getAttribute("aria-expanded")).toBe("false");
+      expect(input.getAttribute("aria-haspopup")).toBe("listbox");
+
+      await user.type(input, "j");
+
+      expect(input.getAttribute("aria-expanded")).toBe("true");
+      const listbox = await screen.findByRole("listbox");
+      expect(input.getAttribute("aria-controls")).toBe(listbox.id);
+      expect(await screen.findAllByRole("option")).toHaveLength(2);
+    });
+
+    test("arrow keys move the highlight while focus stays in the input", async () => {
+      const user = userEvent.setup();
+      render(
+        <PersonPicker
+          people={people}
+          selected={null}
+          onSelect={noop}
+          onPersonCreated={noop}
+        />,
+      );
+
+      const input = screen.getByRole("combobox");
+      await user.type(input, "j");
+      const [first, second] = await screen.findAllByRole("option");
+
+      await user.keyboard("{ArrowDown}");
+      expect(input.getAttribute("aria-activedescendant")).toBe(first.id);
+      expect(document.activeElement).toBe(input);
+
+      await user.keyboard("{ArrowDown}");
+      expect(input.getAttribute("aria-activedescendant")).toBe(second.id);
+      expect(document.activeElement).toBe(input);
+
+      await user.keyboard("{ArrowUp}");
+      expect(input.getAttribute("aria-activedescendant")).toBe(first.id);
+      expect(document.activeElement).toBe(input);
+    });
+
+    test("Enter picks the highlighted person", async () => {
+      const user = userEvent.setup();
+      const onSelect = mock((_person: unknown) => {});
+      render(
+        <PersonPicker
+          people={people}
+          selected={null}
+          onSelect={onSelect}
+          onPersonCreated={noop}
+        />,
+      );
+
+      await user.type(screen.getByRole("combobox"), "j");
+      await screen.findAllByRole("option");
+      await user.keyboard("{ArrowDown}{ArrowDown}{Enter}");
+
+      expect(onSelect).toHaveBeenCalledTimes(1);
+      expect((onSelect.mock.calls[0][0] as { id: string }).id).toBe("2");
+    });
+
+    test("Escape closes the list but keeps what was typed", async () => {
+      const user = userEvent.setup();
+      render(
+        <PersonPicker
+          people={people}
+          selected={null}
+          onSelect={noop}
+          onPersonCreated={noop}
+        />,
+      );
+
+      const input = screen.getByRole("combobox");
+      await user.type(input, "jane");
+      await screen.findAllByRole("option");
+
+      await user.keyboard("{Escape}");
+
+      await waitFor(() =>
+        expect(screen.queryAllByRole("option")).toHaveLength(0),
+      );
+      // Clearing the query on Escape would make the key destructive; it only
+      // dismisses the list.
+      expect((input as HTMLInputElement).value).toBe("jane");
+      expect(document.activeElement).toBe(input);
+    });
+
+    test("focus follows the control that replaces the one it was on", async () => {
+      const user = userEvent.setup();
+
+      function Harness() {
+        const [selected, setSelected] = useState<PickedPerson | null>(null);
+        return (
+          <PersonPicker
+            people={people}
+            selected={selected}
+            onSelect={setSelected}
+            onPersonCreated={noop}
+          />
+        );
+      }
+      render(<Harness />);
+
+      await user.type(screen.getByRole("combobox"), "jane");
+      await screen.findAllByRole("option");
+      await user.keyboard("{ArrowDown}{Enter}");
+
+      const change = await screen.findByRole("button", { name: "Change" });
+      expect(document.activeElement).toBe(change);
+
+      await user.click(change);
+      await waitFor(() =>
+        expect(document.activeElement).toBe(screen.getByRole("combobox")),
+      );
+    });
+
+    test("announces the person that was picked", async () => {
+      render(
+        <PersonPicker
+          people={people}
+          selected={people[0] as PickedPerson}
+          onSelect={noop}
+          onPersonCreated={noop}
+        />,
+      );
+
+      expect(screen.getByRole("status").textContent).toContain(
+        "Jane Doe selected.",
+      );
+    });
+
+    // Most call sites put the picker in a Dialog or Sheet. Base UI hangs the
+    // combobox's Escape handler and the dialog's off `document`, and the two
+    // are not in one floating tree, so without the handler on the input a
+    // single Escape would take the whole dialog with it.
+    test("inside a dialog, Escape closes the list and not the dialog", async () => {
+      const user = userEvent.setup();
+      render(
+        <Dialog open>
+          <DialogContent title="Add person">
+            <PersonPicker
+              people={people}
+              selected={null}
+              onSelect={noop}
+              onPersonCreated={noop}
+            />
+          </DialogContent>
+        </Dialog>,
+      );
+
+      await user.type(screen.getByRole("combobox"), "jane");
+      await screen.findAllByRole("option");
+
+      await user.keyboard("{Escape}");
+
+      await waitFor(() =>
+        expect(screen.queryAllByRole("option")).toHaveLength(0),
+      );
+      expect(screen.queryByRole("dialog")).not.toBeNull();
+    });
+
+    test("Tab leaves the list rather than trapping in it", async () => {
+      const user = userEvent.setup();
+      render(
+        <PersonPicker
+          people={people}
+          selected={null}
+          onSelect={noop}
+          onPersonCreated={noop}
+        />,
+      );
+
+      await user.type(screen.getByRole("combobox"), "j");
+      await screen.findAllByRole("option");
+
+      await user.tab();
+
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "+ Create new person" }),
+      );
+    });
   });
 });
