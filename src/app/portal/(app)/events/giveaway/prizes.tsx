@@ -27,6 +27,10 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { PrizeWinnerSection } from "./winners";
+import {
+  setGiveawayPrizeBucketAction,
+  type GiveawayBucket,
+} from "../giveaway-tier-actions";
 import { Spinner } from "@/components/ui/spinner";
 import { formatCurrency } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
@@ -323,10 +327,15 @@ export function PrizesSection({
   onCancelWinnerEdit,
   onToggleAddPrize,
   onPrizeAdded,
+  buckets,
+  onBucketAssigned,
 }: {
   giveaway: Giveaway;
   people: PersonListItem[];
   canEdit: boolean;
+  /** Draw buckets for this giveaway (issue #5); empty when it isn't tiered. */
+  buckets: GiveawayBucket[];
+  onBucketAssigned: () => void;
   isDeleting: boolean;
   editingWinnerId: string | null;
   editingPrizeId: string | null;
@@ -342,6 +351,14 @@ export function PrizesSection({
   onToggleAddPrize: (show: boolean) => void;
   onPrizeAdded: () => void;
 }) {
+  function handleBucketChange(prizeId: string, bucketId: string | null) {
+    runAction(() => setGiveawayPrizeBucketAction(prizeId, bucketId), {
+      success: bucketId ? "Prize assigned to bucket." : "Prize unassigned.",
+      error: "Could not assign the prize. Please try again.",
+      onSuccess: onBucketAssigned,
+    });
+  }
+
   return (
     <div className="flex flex-col gap-3">
       <h4 className="text-sm font-semibold">Prizes</h4>
@@ -386,6 +403,42 @@ export function PrizesSection({
                       formatCurrency(prize.source_donation?.amount ?? null)}
                   </p>
                 )}
+                {buckets.length > 0 &&
+                  (canEdit ? (
+                    <div className="mt-2 w-52">
+                      <Select
+                        value={prize.bucket_id}
+                        onValueChange={(value) =>
+                          handleBucketChange(prize.id, value)
+                        }
+                      >
+                        <SelectTrigger
+                          aria-label={`Draw bucket for ${prize.prize_name}`}
+                          className="w-full"
+                        >
+                          <SelectValue placeholder="No bucket">
+                            {(value: string) =>
+                              buckets.find((bucket) => bucket.id === value)
+                                ?.name ?? "No bucket"
+                            }
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {buckets.map((bucket) => (
+                            <SelectItem key={bucket.id} value={bucket.id}>
+                              {bucket.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : (
+                    <p className="app-muted text-xs">
+                      Bucket:{" "}
+                      {buckets.find((bucket) => bucket.id === prize.bucket_id)
+                        ?.name ?? "None"}
+                    </p>
+                  ))}
               </div>
               {canEdit && (
                 <div className="flex shrink-0 gap-1">

@@ -13,6 +13,14 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { SalesSection } from "./giveaway/sales";
 import { PrizesSection } from "./giveaway/prizes";
+import { TiersSection } from "./giveaway/tiers";
+import { BucketsSection } from "./giveaway/buckets";
+import { PackagesSection } from "./giveaway/packages";
+import { TicketPoolSummary } from "./giveaway/ticket-pool";
+import {
+  getGiveawayTierConfigAction,
+  type GiveawayTierConfig,
+} from "./giveaway-tier-actions";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { runAction } from "@/components/portal/action-toast";
 
@@ -40,6 +48,18 @@ export function GiveawayTab({
   const { data: peopleData, refresh: refreshPeople } = useTabData<
     PersonListItem[]
   >(() => listPeopleAction(), active, [eventId]);
+  // Tier setup only exists once a giveaway row does, so this is keyed off the
+  // giveaway id rather than the event id.
+  const giveawayId = giveaway?.id ?? null;
+  const { data: tierConfig, refresh: refreshTierConfig } =
+    useTabData<GiveawayTierConfig | null>(
+      () =>
+        giveawayId
+          ? getGiveawayTierConfigAction(giveawayId)
+          : Promise.resolve({ data: null }),
+      active && !!giveawayId,
+      [giveawayId],
+    );
   const [newPeople, setNewPeople] = useState<PersonListItem[]>([]);
   const people = [...(peopleData ?? []), ...newPeople];
   const [isDeleting, startDeleteTransition] = useTransition();
@@ -57,6 +77,7 @@ export function GiveawayTab({
   function refresh() {
     refreshGiveaway();
     refreshPeople();
+    refreshTierConfig();
     router.refresh();
   }
 
@@ -102,11 +123,38 @@ export function GiveawayTab({
             onCancel={onExitEdit}
           />
 
+          {giveaway && tierConfig && (
+            <>
+              <TicketPoolSummary config={tierConfig} />
+              <TiersSection
+                giveawayId={giveaway.id}
+                config={tierConfig}
+                canEdit={canEdit}
+                onChanged={refresh}
+              />
+              <PackagesSection
+                giveawayId={giveaway.id}
+                config={tierConfig}
+                canEdit={canEdit}
+                onChanged={refresh}
+              />
+              <BucketsSection
+                giveawayId={giveaway.id}
+                config={tierConfig}
+                prizes={giveaway.giveaway_prizes}
+                canEdit={canEdit}
+                onChanged={refresh}
+              />
+            </>
+          )}
+
           {giveaway && (
             <PrizesSection
               giveaway={giveaway}
               people={people}
               canEdit={canEdit}
+              buckets={tierConfig?.buckets ?? []}
+              onBucketAssigned={refresh}
               isDeleting={isDeleting}
               editingWinnerId={editingWinnerId}
               editingPrizeId={editingPrizeId}

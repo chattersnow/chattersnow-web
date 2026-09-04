@@ -126,6 +126,7 @@ describe("parseDonationInput", () => {
             face_value: 40,
             intended_use: "gear_library",
             notes: null,
+            giveaway_tier: null,
           },
         ],
         p_event_id: "event-1",

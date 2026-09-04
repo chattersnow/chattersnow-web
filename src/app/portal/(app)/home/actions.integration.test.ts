@@ -55,7 +55,7 @@ describe("createDonationAction (integration)", () => {
     currentSupabase = await signIn(SEEDED_USERS.finance);
     const result = await createDonationAction(donationInput());
 
-    expect(result).toEqual({ success: true });
+    expect(result).toEqual({ success: true, giveaway: null });
     expect(revalidatePathMock).toHaveBeenCalledWith("/portal/home");
     expect(revalidatePathMock).toHaveBeenCalledWith("/portal/inventory/items");
 
@@ -75,7 +75,7 @@ describe("createDonationAction (integration)", () => {
     currentSupabase = await signIn(SEEDED_USERS.volunteer);
     const result = await createDonationAction(donationInput());
 
-    expect(result).toEqual({ success: true });
+    expect(result).toEqual({ success: true, giveaway: null });
 
     const { data } = await adminClient
       .from("donations")
