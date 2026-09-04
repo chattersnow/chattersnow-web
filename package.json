@@ -12,6 +12,8 @@
     "test:e2e": "playwright test",
     "test:e2e:pr": "playwright test --project=chromium --project=mobile-chromium",
     "test:a11y": "bun run e2e/a11y-scan.ts",
+    "test:a11y:check": "bun run e2e/a11y-scan.ts --check",
+    "a11y:baseline": "bun run e2e/a11y-scan.ts --update-baseline",
     "verify": "bun run e2e/verify-page.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

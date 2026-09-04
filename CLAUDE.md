@@ -21,7 +21,9 @@ bun run typecheck   # next typegen && tsc --noEmit
 bun run test        # unit tests (bun test), excludes e2e/** and *.integration.test.ts
 bun run test:integration  # integration tests against local Supabase (run `bun run db:start && bun run db:reset` first)
 bun run test:e2e    # Playwright e2e tests
-bun run test:a11y   # axe-core a11y scan of every public/portal route (report only, e2e/a11y-report.json)
+bun run test:a11y   # axe-core scan: every route in src/app, x {light,dark} x {desktop,mobile} x roles, plus transient UI (report: e2e/a11y-report.json)
+bun run test:a11y:check   # same scan, fails on violations not in e2e/a11y-baseline.json (what CI runs)
+bun run a11y:baseline     # re-record the baseline after fixing (or accepting) violations
 bun run format      # prettier --write .
 bun run format:check
 ```
