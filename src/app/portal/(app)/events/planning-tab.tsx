@@ -139,6 +139,25 @@ export function PlanningTab({
     });
   }
 
+  // Registration can't run past the event itself; events without an end time
+  // are bounded by their start instead.
+  const registrationCutoff = toDatetimeLocalValue(
+    event.ends_at ?? event.starts_at,
+    event.timezone,
+  );
+
+  function toggleRegistration(enabled: boolean) {
+    setForm((prev) => ({
+      ...prev,
+      registrationEnabled: enabled,
+      // Default a blank deadline to the cutoff on enable, but never overwrite
+      // a date the user already picked.
+      registrationDeadline: enabled
+        ? prev.registrationDeadline || registrationCutoff
+        : "",
+    }));
+  }
+
   const locked = event.report_status === "submitted";
 
   if (mode === "view" || locked) {
@@ -225,9 +244,7 @@ export function PlanningTab({
           <Checkbox
             id="planning-registrationEnabled"
             checked={form.registrationEnabled}
-            onCheckedChange={(checked) =>
-              update("registrationEnabled", Boolean(checked))
-            }
+            onCheckedChange={(checked) => toggleRegistration(Boolean(checked))}
           />
           <FieldLabel htmlFor="planning-registrationEnabled">
             Registration enabled
@@ -241,6 +258,8 @@ export function PlanningTab({
           <Input
             id="planning-registrationDeadline"
             type="datetime-local"
+            disabled={!form.registrationEnabled}
+            max={registrationCutoff || undefined}
             value={form.registrationDeadline}
             onChange={(changeEvent) =>
               update("registrationDeadline", changeEvent.target.value)

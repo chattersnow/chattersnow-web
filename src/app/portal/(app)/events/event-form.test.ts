@@ -166,8 +166,14 @@ describe("parseEventAttendanceForm", () => {
 });
 
 describe("parseEventPlanningForm", () => {
+  // Postgres-shaped timestamps, as the action reads them off the event row.
+  const eventDates = {
+    startsAt: "2026-12-01T17:00:00+00:00",
+    endsAt: "2026-12-01T21:00:00+00:00",
+  };
+
   test("allows all-empty planning fields", () => {
-    expect(parseEventPlanningForm(formData({}))).toEqual({
+    expect(parseEventPlanningForm(formData({}), eventDates)).toEqual({
       data: {
         eventLeadId: null,
         capacity: null,
@@ -180,13 +186,17 @@ describe("parseEventPlanningForm", () => {
   });
 
   test("rejects a negative capacity", () => {
-    expect(parseEventPlanningForm(formData({ capacity: "-5" }))).toEqual({
+    expect(
+      parseEventPlanningForm(formData({ capacity: "-5" }), eventDates),
+    ).toEqual({
       error: "Capacity must be a whole number of 0 or more.",
     });
   });
 
   test("rejects a negative budget", () => {
-    expect(parseEventPlanningForm(formData({ budgetAmount: "-100" }))).toEqual({
+    expect(
+      parseEventPlanningForm(formData({ budgetAmount: "-100" }), eventDates),
+    ).toEqual({
       error: "Budget must be a positive number.",
     });
   });
@@ -198,10 +208,85 @@ describe("parseEventPlanningForm", () => {
         registrationEnabled: "on",
         budgetAmount: "1200.50",
       }),
+      eventDates,
     );
     expect("data" in result && result.data.capacity).toBe(50);
     expect("data" in result && result.data.registrationEnabled).toBe(true);
     expect("data" in result && result.data.budgetAmount).toBe(1200.5);
+  });
+
+  test("rejects a deadline after the event end", () => {
+    expect(
+      parseEventPlanningForm(
+        formData({
+          registrationEnabled: "on",
+          registrationDeadline: "2026-12-01T21:00:00.001Z",
+        }),
+        eventDates,
+      ),
+    ).toEqual({
+      error: "Registration deadline must be on or before the event's end date.",
+    });
+  });
+
+  test("accepts a deadline exactly at the event end", () => {
+    const result = parseEventPlanningForm(
+      formData({
+        registrationEnabled: "on",
+        registrationDeadline: "2026-12-01T21:00:00.000Z",
+      }),
+      eventDates,
+    );
+    expect("data" in result && result.data.registrationDeadline).toBe(
+      "2026-12-01T21:00:00.000Z",
+    );
+  });
+
+  test("falls back to the start date when the event has no end", () => {
+    const noEnd = { startsAt: eventDates.startsAt, endsAt: null };
+    expect(
+      parseEventPlanningForm(
+        formData({
+          registrationEnabled: "on",
+          registrationDeadline: "2026-12-01T18:00:00.000Z",
+        }),
+        noEnd,
+      ),
+    ).toEqual({
+      error:
+        "Registration deadline must be on or before the event's start date.",
+    });
+    const result = parseEventPlanningForm(
+      formData({
+        registrationEnabled: "on",
+        registrationDeadline: "2026-12-01T16:00:00.000Z",
+      }),
+      noEnd,
+    );
+    expect("data" in result && result.data.registrationDeadline).toBe(
+      "2026-12-01T16:00:00.000Z",
+    );
+  });
+
+  test("clears the deadline when registration is disabled", () => {
+    const result = parseEventPlanningForm(
+      formData({ registrationDeadline: "2026-11-20T17:00:00.000Z" }),
+      eventDates,
+    );
+    expect("data" in result && result.data.registrationEnabled).toBe(false);
+    expect("data" in result && result.data.registrationDeadline).toBeNull();
+  });
+
+  test("rejects an unparseable deadline", () => {
+    expect(
+      parseEventPlanningForm(
+        formData({
+          registrationEnabled: "on",
+          registrationDeadline: "not-a-date",
+        }),
+        eventDates,
+      ),
+    ).toEqual({ error: "Enter a valid registration deadline." });
   });
 });
 

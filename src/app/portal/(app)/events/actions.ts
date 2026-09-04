@@ -173,6 +173,20 @@ export async function updateEventAction(
     flierUrl,
   } = parsed.data;
 
+  // Moving an event earlier can strand a registration deadline past its new
+  // end, which the events_registration_deadline_within_event check would
+  // reject with an unhelpful generic error. Clamp it instead.
+  const { data: existing } = await supabase
+    .from("events")
+    .select("registration_deadline")
+    .eq("id", id)
+    .single();
+
+  const cutoff = endsAt ?? startsAt;
+  const clampDeadline =
+    existing?.registration_deadline != null &&
+    Date.parse(existing.registration_deadline) > Date.parse(cutoff);
+
   const { error } = await supabase
     .from("events")
     .update({
@@ -185,6 +199,7 @@ export async function updateEventAction(
       visibility,
       status,
       flier_url: flierUrl,
+      ...(clampDeadline ? { registration_deadline: cutoff } : {}),
     })
     .eq("id", id);
 
@@ -213,7 +228,21 @@ export async function updateEventPlanningAction(
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return permissionError;
 
-  const parsed = parseEventPlanningForm(formData);
+  // The deadline is validated against the event's stored dates rather than
+  // anything the client submitted alongside it.
+  const { data: eventRow } = await supabase
+    .from("events")
+    .select("starts_at, ends_at")
+    .eq("id", id)
+    .single();
+  if (!eventRow) {
+    return { error: "Could not find that event." };
+  }
+
+  const parsed = parseEventPlanningForm(formData, {
+    startsAt: eventRow.starts_at,
+    endsAt: eventRow.ends_at,
+  });
   if ("error" in parsed) return parsed;
   const {
     eventLeadId,

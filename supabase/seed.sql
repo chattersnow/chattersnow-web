@@ -582,6 +582,7 @@ declare
   v_last text;
   v_starts_at timestamptz;
   v_status text;
+  v_registration_enabled boolean;
   v_item_type text;
   v_visibility text;
   v_expense_status text;
@@ -684,6 +685,7 @@ begin
   for i in 1..55 loop
     v_starts_at := now() + ((floor(random() * 500)::int - 250) || ' days')::interval + ((floor(random() * 12)::int) || ' hours')::interval;
     v_status := (array['draft','published','published','published','completed','completed','cancelled','archived'])[1 + floor(random() * 8)::int];
+    v_registration_enabled := random() < 0.5;
     v_visibility := case when v_status in ('draft', 'archived') and random() < 0.5 then 'private' else (array['public','private'])[1 + floor(random() * 2)::int] end;
 
     insert into public.events (
@@ -700,7 +702,7 @@ begin
       'America/Denver', v_visibility, v_status,
       'Seed bulk-data event for volume testing.',
       20 + floor(random()*180)::int,
-      random() < 0.5, v_starts_at - interval '7 days',
+      v_registration_enabled, case when v_registration_enabled then v_starts_at - interval '7 days' end,
       round((200 + random() * 4800)::numeric, 2),
       v_people_ids[1 + floor(random()*array_length(v_people_ids,1))::int],
       v_admin_id
