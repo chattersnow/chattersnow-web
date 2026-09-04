@@ -2,7 +2,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getClientIp } from "@/lib/get-client-ip";
-import { parseRiderProfileForm } from "./rider-profile-form";
+import { parseRiderProfileForm } from "@/lib/rider-profile-form";
 
 export type SaveRiderProfileResult = { error: string } | { success: true };
 

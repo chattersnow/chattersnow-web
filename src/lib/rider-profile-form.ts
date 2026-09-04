@@ -1,3 +1,7 @@
+// Shared by the public post-registration prompt and the portal's door-side
+// capture on the Registrants tab (issue #653), so it lives here rather than
+// inside either route group -- same reason as the vocabulary in
+// ./rider-profile.
 import type { ParseResult } from "@/lib/forms";
 import {
   OTHER_MOUNTAIN,
@@ -7,7 +11,7 @@ import {
   ridesSnowboard,
   type ExperienceLevel,
   type RidingDiscipline,
-} from "@/lib/rider-profile";
+} from "./rider-profile";
 
 export type RiderProfileFormData = {
   riding_discipline: RidingDiscipline;
