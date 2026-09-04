@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createEventAction } from "./actions";
+import { EventTypeSelect } from "./event-type-select";
 import { listProgramsAction, type Program } from "../programs/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -195,11 +196,10 @@ export function NewEventDialog({
             <Field orientation="responsive">
               <Field>
                 <FieldLabel htmlFor="eventType">Event type</FieldLabel>
-                <Input
+                <EventTypeSelect
                   id="eventType"
-                  placeholder="e.g. Access Day"
                   value={form.eventType}
-                  onChange={(event) => update("eventType", event.target.value)}
+                  onChange={(value) => update("eventType", value)}
                 />
               </Field>
               <Field>

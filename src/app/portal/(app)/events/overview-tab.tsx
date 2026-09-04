@@ -14,7 +14,9 @@ import {
   TIMEZONE_OPTIONS,
   utcIsoToDatetimeLocalInZone,
 } from "@/lib/time";
+import { eventTypeLabel } from "@/lib/event-types";
 import { updateEventAction } from "./actions";
+import { EventTypeSelect } from "./event-type-select";
 import type { Program } from "../programs/actions";
 import type { EventRow } from "./event-badges";
 import { StatusBadge, VisibilityBadge } from "./event-badges";
@@ -185,6 +187,15 @@ export function OverviewTab({
           {programName ?? "—"}
         </ReadOnlyField>
 
+        <Field orientation="responsive">
+          <ReadOnlyField label="Event type" htmlFor="details-eventType">
+            {eventTypeLabel(form.eventType) ?? "—"}
+          </ReadOnlyField>
+          <ReadOnlyField label="Venue / mountain" htmlFor="details-venue">
+            {form.venue || "—"}
+          </ReadOnlyField>
+        </Field>
+
         <ReadOnlyField label="Location" htmlFor="details-location">
           {form.location || "—"}
         </ReadOnlyField>
@@ -310,6 +321,27 @@ export function OverviewTab({
               ))}
             </SelectContent>
           </Select>
+        </Field>
+
+        <Field orientation="responsive">
+          <Field>
+            <FieldLabel htmlFor="details-eventType">Event type</FieldLabel>
+            <EventTypeSelect
+              id="details-eventType"
+              value={form.eventType}
+              onChange={(value) => update("eventType", value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="details-venue">Venue / mountain</FieldLabel>
+            <Input
+              id="details-venue"
+              value={form.venue}
+              onChange={(changeEvent) =>
+                update("venue", changeEvent.target.value)
+              }
+            />
+          </Field>
         </Field>
 
         <Field>

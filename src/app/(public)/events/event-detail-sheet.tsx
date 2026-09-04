@@ -14,6 +14,7 @@ import type { PublicEvent } from "./event-card";
 import { EventSponsors } from "./event-sponsors";
 import { formatDateTimeInZone } from "@/lib/time";
 import { resolveImageUrl } from "@/lib/inventory";
+import { eventTypeLabel } from "@/lib/event-types";
 
 const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
   dateStyle: "full",
@@ -40,7 +41,9 @@ export function EventDetailSheet({
         {event && (
           <>
             <SheetHeader>
-              <p className="app-eyebrow">{event.event_type ?? "Event"}</p>
+              <p className="app-eyebrow">
+                {eventTypeLabel(event.event_type) ?? "Event"}
+              </p>
               <SheetTitle className="text-xl">{event.name}</SheetTitle>
               <SheetDescription>
                 {formatDateTimeInZone(
