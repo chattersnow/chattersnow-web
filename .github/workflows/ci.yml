@@ -22,6 +22,13 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      # Fails the build on a high or critical advisory in the dependency
+      # tree. Dependabot's weekly PRs are what normally keep this green; if a
+      # new advisory lands with no fix available yet, add `--ignore <CVE>`
+      # here with a comment rather than dropping the severity threshold.
+      - name: Audit dependencies
+        run: bun audit --audit-level=high
+
       - name: Lint
         run: bun run lint
 
@@ -69,6 +76,14 @@ jobs:
 
       - name: Reset DB (migrate + seed)
         run: supabase db reset
+
+      # plpgsql static analysis over the migrated schema — unresolved
+      # identifiers, type mismatches, and dead code in functions and RLS
+      # policy expressions, which `supabase db reset` alone will not surface
+      # because Postgres only checks function bodies at execution time.
+      # Reuses this job's already-running stack rather than starting another.
+      - name: Lint database schema
+        run: supabase db lint --level warning --fail-on error
 
       - name: Integration tests
         run: bun run test:integration
@@ -194,3 +209,28 @@ jobs:
       - name: Stop Supabase
         if: always()
         run: supabase stop
+
+  dependency-review:
+    name: Dependency review
+    runs-on: ubuntu-latest
+    # Diffs the PR's dependency changes against the base branch and blocks
+    # newly *introduced* vulnerabilities. This is the per-PR complement to the
+    # whole-tree `bun audit` step above: a PR that adds a vulnerable package
+    # fails here even while the existing tree is clean.
+    #
+    # Requires the repository dependency graph. If this job starts failing
+    # with "Dependency review is not supported on this repository", that
+    # setting has been turned off rather than the workflow being wrong.
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Dependency review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure
