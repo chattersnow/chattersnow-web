@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requirePermission } from "@/lib/auth/permissions";
 import { resolveCurrentPersonId } from "@/lib/auth/current-person";
 import { Button } from "@/components/ui/button";
 import { listCalendarOwnersAction } from "../actions";
@@ -26,6 +27,7 @@ export default async function WorkQueuePage({
   searchParams,
 }: WorkQueuePageProps) {
   const supabase = await createSupabaseServerClient();
+  await requirePermission(supabase, "content_calendar", "view", "Work Queue");
 
   const params = await searchParams;
   const raw = (key: string) => {

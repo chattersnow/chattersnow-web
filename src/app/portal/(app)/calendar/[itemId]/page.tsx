@@ -2,10 +2,7 @@ import type { Metadata } from "next";
 import { detailTitle } from "@/lib/portal/detail-title";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import {
-  getCurrentUserPermissions,
-  hasPermission,
-} from "@/lib/auth/permissions";
+import { hasPermission, requirePermission } from "@/lib/auth/permissions";
 import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Card, CardContent } from "@/components/ui/card";
 import { listProgramsAction } from "../../programs/actions";
@@ -38,7 +35,12 @@ export default async function CalendarItemDetailPage({
 }) {
   const { itemId } = await params;
   const supabase = await createSupabaseServerClient();
-  const permissions = await getCurrentUserPermissions(supabase);
+  const permissions = await requirePermission(
+    supabase,
+    "content_calendar",
+    "view",
+    "Calendar",
+  );
   const canManage = hasPermission(permissions, "content_calendar", "manage");
 
   const { item, error } = await getCalendarItem(supabase, itemId);

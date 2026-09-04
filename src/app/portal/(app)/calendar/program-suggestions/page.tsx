@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import {
-  getCurrentUserPermissions,
-  hasPermission,
-} from "@/lib/auth/permissions";
+import { hasPermission, requirePermission } from "@/lib/auth/permissions";
 import { Card, CardContent } from "@/components/ui/card";
 import { NewSuggestionRuleDialog } from "./new-suggestion-rule-dialog";
 import type { SuggestionRuleListRow } from "./suggestion-rule-details-sheet";
@@ -16,7 +13,12 @@ export const metadata: Metadata = {
 
 export default async function ProgramSuggestionRulesPage() {
   const supabase = await createSupabaseServerClient();
-  const permissions = await getCurrentUserPermissions(supabase);
+  const permissions = await requirePermission(
+    supabase,
+    "content_calendar",
+    "manage",
+    "Program Suggestions",
+  );
   const canManage = hasPermission(permissions, "content_calendar", "manage");
 
   const { data: rows, error } = await supabase
