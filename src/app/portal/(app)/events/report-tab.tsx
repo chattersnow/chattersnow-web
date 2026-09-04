@@ -78,8 +78,11 @@ export function ReportTab({
   const [isPending, startTransition] = useTransition();
   const [isSubmitting, startSubmitTransition] = useTransition();
   const locked = event.report_status === "submitted";
+  // Only a submitted report can be reopened, so don't probe the permission
+  // until it is -- this is a real gate, not a "is my tab on screen" one.
   const { data: reopenContext } = useTabData<{ canReopen: boolean }>(
     () => getCanReopenEventReportAction(),
+    [locked],
     locked,
   );
   const canReopen = reopenContext?.canReopen ?? false;

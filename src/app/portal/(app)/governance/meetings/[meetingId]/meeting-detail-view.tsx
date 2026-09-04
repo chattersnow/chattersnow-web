@@ -106,7 +106,6 @@ function AgendaCard({
         <AgendaTab
           meetingId={meeting.id}
           meetingDate={meeting.meeting_date}
-          active
           mode={mode}
           canManage={canManage}
           minutesApprovedAt={meeting.minutes_approved_at}
@@ -206,24 +205,23 @@ export function MeetingDetailView({
             <MeetingDetailsCards meeting={meeting} canManage={canManage} />
 
             <SectionCard title="Attendees">
-              <AttendeesTab meetingId={meeting.id} active mode={listMode} />
+              <AttendeesTab meetingId={meeting.id} mode={listMode} />
             </SectionCard>
 
             <SectionCard id="action-items-section" title="Action Items">
-              <ActionItemsTab meetingId={meeting.id} active mode={listMode} />
+              <ActionItemsTab meetingId={meeting.id} mode={listMode} />
             </SectionCard>
 
             <SectionCard id="decisions-section" title="Decisions">
               <DecisionsTab
                 meetingId={meeting.id}
                 meetingDate={meeting.meeting_date.slice(0, 10)}
-                active
                 mode={listMode}
               />
             </SectionCard>
 
             <SectionCard title="Resolutions">
-              <ResolutionsTab meetingId={meeting.id} active mode={listMode} />
+              <ResolutionsTab meetingId={meeting.id} mode={listMode} />
             </SectionCard>
           </div>
         </TabsContent>

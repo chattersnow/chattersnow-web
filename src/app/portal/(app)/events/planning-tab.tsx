@@ -11,14 +11,13 @@ import {
 import { useRouter } from "next/navigation";
 import { updateEventPlanningAction } from "./actions";
 import type { EventRow } from "./event-badges";
-import { PersonPicker, type PickedPerson } from "../people/person-picker";
-import { listPeopleAction, type PersonListItem } from "../people/actions";
+import { PersonPicker } from "../people/person-picker";
+import type { PersonListItem } from "../people/actions";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { useTabData } from "@/hooks/use-tab-data";
 import { datetimeLocalToUtcIso, utcIsoToDatetimeLocalInZone } from "@/lib/time";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { runAction } from "@/components/portal/action-toast";
@@ -62,6 +61,8 @@ export type PlanningTabHandle = {
 export function PlanningTab({
   event,
   formId,
+  people,
+  onPersonCreated,
   mode,
   onSaved,
   onPendingChange,
@@ -70,6 +71,8 @@ export function PlanningTab({
 }: {
   event: EventRow;
   formId: string;
+  people: PersonListItem[];
+  onPersonCreated: (person: PersonListItem) => void;
   mode: "view" | "edit";
   onSaved: () => void;
   onPendingChange?: (pending: boolean) => void;
@@ -78,18 +81,8 @@ export function PlanningTab({
 }) {
   const router = useRouter();
   const [form, setForm] = useState(() => formStateFor(event));
-  const { data: peopleData } = useTabData<PersonListItem[]>(
-    () => listPeopleAction(),
-    true,
-  );
-  const [newPeople, setNewPeople] = useState<PersonListItem[]>([]);
-  const people = [...(peopleData ?? []), ...newPeople];
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-
-  function handlePersonCreated(person: PickedPerson) {
-    setNewPeople((prev) => [...prev, person]);
-  }
 
   useEffect(() => {
     onPendingChange?.(isPending);
@@ -195,7 +188,7 @@ export function PlanningTab({
             people={people}
             selected={form.eventLead}
             onSelect={(person) => update("eventLead", person)}
-            onPersonCreated={handlePersonCreated}
+            onPersonCreated={onPersonCreated}
           />
         </Field>
 

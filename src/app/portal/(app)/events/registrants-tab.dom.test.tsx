@@ -1,11 +1,10 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type {
-  EventAttendanceBreakdown,
-  EventRegistrant,
-} from "./registrants-actions";
+import type { EventRegistrant } from "./registrants-actions";
 import * as RegistrantsActions from "./registrants-actions";
+import type { EventImpactDerived } from "@/lib/portal/impact-metrics";
+import type { TabData } from "@/hooks/use-tab-data";
 
 type ActionResult = { error: string } | { success: true };
 
@@ -54,47 +53,66 @@ const registrants: EventRegistrant[] = [
   },
 ];
 
-const listEventRegistrantsActionMock = mock(async () => ({
-  data: registrants,
-}));
+const derivedFigures: EventImpactDerived = {
+  participants: 1,
+  checkedIn: 1,
+  firstTimeParticipants: 1,
+  recurringParticipants: 0,
+  volunteerParticipants: 0,
+  beginnerParticipants: null,
+  profiledAttendees: null,
+  discountCodesAssigned: null,
+  autoAssignDiscountCodes: false,
+};
+
 const checkInRegistrantActionMock = mock<(id: string) => Promise<ActionResult>>(
   async () => ({ success: true }),
 );
 const undoCheckInActionMock = mock<(id: string) => Promise<ActionResult>>(
   async () => ({ success: true }),
 );
-const getEventAttendanceBreakdownActionMock = mock(async () => ({
-  data: { recurring: 0, firstTime: 1 } satisfies EventAttendanceBreakdown,
-}));
 
 mock.module("./registrants-actions", () => ({
   ...RegistrantsActions,
-  listEventRegistrantsAction: listEventRegistrantsActionMock,
   checkInRegistrantAction: checkInRegistrantActionMock,
   undoCheckInAction: undoCheckInActionMock,
-  getEventAttendanceBreakdownAction: getEventAttendanceBreakdownActionMock,
 }));
 
 const { RegistrantsTab } = await import("./registrants-tab");
 
+// The card no longer fetches -- the phase provider does (event-phase-data.tsx)
+// -- so the tests hand it the same slices the provider would.
+const refreshRegistrants = mock(() => {});
+const refreshDerived = mock(() => {});
+
+function slices(): {
+  registrants: TabData<EventRegistrant[]>;
+  derived: TabData<EventImpactDerived>;
+} {
+  return {
+    registrants: {
+      data: registrants,
+      loadError: null,
+      refresh: refreshRegistrants,
+    },
+    derived: {
+      data: derivedFigures,
+      loadError: null,
+      refresh: refreshDerived,
+    },
+  };
+}
+
 describe("RegistrantsTab", () => {
   beforeEach(() => {
-    listEventRegistrantsActionMock.mockClear();
     checkInRegistrantActionMock.mockClear();
     undoCheckInActionMock.mockClear();
-    getEventAttendanceBreakdownActionMock.mockClear();
-    listEventRegistrantsActionMock.mockImplementation(async () => ({
-      data: registrants,
-    }));
-    getEventAttendanceBreakdownActionMock.mockImplementation(async () => ({
-      data: { recurring: 0, firstTime: 1 },
-    }));
+    refreshRegistrants.mockClear();
+    refreshDerived.mockClear();
   });
 
-  test("loads and displays registrants with summary counts", async () => {
-    render(
-      <RegistrantsTab eventId="event-1" capacity={10} active mode="view" />,
-    );
+  test("displays registrants with summary counts", async () => {
+    render(<RegistrantsTab capacity={10} mode="view" {...slices()} />);
 
     expect(await screen.findByText("Jamie Rivera")).toBeInTheDocument();
     expect(screen.getByText("Alex Chen")).toBeInTheDocument();
@@ -106,9 +124,7 @@ describe("RegistrantsTab", () => {
   });
 
   test("Rides shows the level snapshotted at check-in, not the current profile", async () => {
-    render(
-      <RegistrantsTab eventId="event-1" capacity={null} active mode="view" />,
-    );
+    render(<RegistrantsTab capacity={null} mode="view" {...slices()} />);
     await screen.findByText("Alex Chen");
 
     // Alex now rides both at advanced, but was a snowboard beginner on the day.
@@ -117,9 +133,7 @@ describe("RegistrantsTab", () => {
   });
 
   test("view mode hides check-in controls", async () => {
-    render(
-      <RegistrantsTab eventId="event-1" capacity={null} active mode="view" />,
-    );
+    render(<RegistrantsTab capacity={null} mode="view" {...slices()} />);
     await screen.findByText("Jamie Rivera");
 
     expect(screen.queryByRole("button", { name: "Check in" })).toBeNull();
@@ -127,9 +141,7 @@ describe("RegistrantsTab", () => {
 
   test("checks in a registrant and shows undo for an already checked-in one", async () => {
     const user = userEvent.setup();
-    render(
-      <RegistrantsTab eventId="event-1" capacity={null} active mode="edit" />,
-    );
+    render(<RegistrantsTab capacity={null} mode="edit" {...slices()} />);
     await screen.findByText("Jamie Rivera");
 
     expect(
@@ -139,14 +151,15 @@ describe("RegistrantsTab", () => {
     await user.click(screen.getByRole("button", { name: "Check in" }));
 
     expect(checkInRegistrantActionMock).toHaveBeenCalledWith("reg-1");
-    expect(listEventRegistrantsActionMock.mock.calls.length).toBeGreaterThan(1);
+    // Checking someone in changes the derived figures too, so both shared
+    // reads have to be refreshed, not just the registrant list.
+    expect(refreshRegistrants).toHaveBeenCalled();
+    expect(refreshDerived).toHaveBeenCalled();
   });
 
   test("undoing a check-in calls undoCheckInAction", async () => {
     const user = userEvent.setup();
-    render(
-      <RegistrantsTab eventId="event-1" capacity={null} active mode="edit" />,
-    );
+    render(<RegistrantsTab capacity={null} mode="edit" {...slices()} />);
     await screen.findByText("Alex Chen");
 
     await user.click(screen.getByRole("button", { name: "Undo check-in" }));

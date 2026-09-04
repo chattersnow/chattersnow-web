@@ -13,8 +13,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/portal/empty-state";
 import { runAction } from "@/components/portal/action-toast";
-import { useTabData } from "@/hooks/use-tab-data";
-import { getEventImpactDerivedAction } from "./impact-derived-actions";
 import { StatTile } from "../home/stat-tile";
 import type { EventImpactDerived } from "@/lib/portal/impact-metrics";
 
@@ -134,19 +132,14 @@ function AttendanceForm({
 export function AttendanceTab({
   event,
   mode,
-  active,
+  derived,
   onExitEdit,
 }: {
   event: EventRow;
   mode: "view" | "edit";
-  active: boolean;
+  derived: EventImpactDerived | undefined;
   onExitEdit: () => void;
 }) {
-  const { data: derived } = useTabData<EventImpactDerived>(
-    () => getEventImpactDerivedAction(event.id),
-    active,
-    [event.id],
-  );
   const hasAttendance =
     event.attendance_count !== null || Boolean(event.attendance_notes);
 

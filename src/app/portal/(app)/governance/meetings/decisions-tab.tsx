@@ -146,12 +146,10 @@ function AddDecisionForm({
 export function DecisionsTab({
   meetingId,
   meetingDate,
-  active,
   mode,
 }: {
   meetingId: string;
   meetingDate: string;
-  active: boolean;
   mode: "view" | "edit";
 }) {
   const router = useRouter();
@@ -159,9 +157,7 @@ export function DecisionsTab({
     data: decisions,
     loadError,
     refresh: refreshDecisions,
-  } = useTabData<Decision[]>(() => listDecisionsAction(meetingId), active, [
-    meetingId,
-  ]);
+  } = useTabData<Decision[]>(() => listDecisionsAction(meetingId), [meetingId]);
   const [showAdd, setShowAdd] = useState(false);
   const [isDeleting, startDeleteTransition] = useTransition();
 

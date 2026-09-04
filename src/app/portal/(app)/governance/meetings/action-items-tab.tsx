@@ -259,11 +259,9 @@ function EditActionItemDialog({
 
 export function ActionItemsTab({
   meetingId,
-  active,
   mode,
 }: {
   meetingId: string;
-  active: boolean;
   mode: "view" | "edit";
 }) {
   const router = useRouter();
@@ -271,9 +269,10 @@ export function ActionItemsTab({
     data: actionItems,
     loadError,
     refresh: refreshActionItems,
-  } = useTabData<ActionItem[]>(() => listActionItemsAction(meetingId), active, [
-    meetingId,
-  ]);
+  } = useTabData<ActionItem[]>(
+    () => listActionItemsAction(meetingId),
+    [meetingId],
+  );
   const [people, setPeople] = useState<PersonListItem[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -285,11 +284,10 @@ export function ActionItemsTab({
   });
 
   useEffect(() => {
-    if (!active) return;
     listPeopleAction().then((result) => {
       if (!("error" in result)) setPeople(result.data);
     });
-  }, [active, meetingId]);
+  }, [meetingId]);
 
   function refresh() {
     refreshActionItems();

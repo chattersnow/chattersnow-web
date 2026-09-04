@@ -26,11 +26,9 @@ import { EmptyState } from "@/components/portal/empty-state";
 
 export function IncidentsTab({
   eventId,
-  active,
   mode,
 }: {
   eventId: string;
-  active: boolean;
   mode: "view" | "edit";
 }) {
   const router = useRouter();
@@ -49,10 +47,9 @@ export function IncidentsTab({
   }
 
   useEffect(() => {
-    if (!active) return;
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, eventId]);
+  }, [eventId]);
 
   function refresh() {
     load();

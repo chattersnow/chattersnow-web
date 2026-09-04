@@ -5,10 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, Snowflake, Undo2 } from "lucide-react";
 import {
   checkInRegistrantAction,
-  getEventAttendanceBreakdownAction,
-  listEventRegistrantsAction,
   undoCheckInAction,
-  type EventAttendanceBreakdown,
   type EventRegistrant,
 } from "./registrants-actions";
 import { RiderProfileDialog } from "./rider-profile-dialog";
@@ -16,9 +13,8 @@ import {
   experienceLevelLabel,
   ridingDisciplineLabel,
 } from "@/lib/rider-profile";
-import { useTabData } from "@/hooks/use-tab-data";
-import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
-import type { TabValue } from "./event-tabs-config";
+import type { EventImpactDerived } from "@/lib/portal/impact-metrics";
+import type { TabData } from "@/hooks/use-tab-data";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -71,43 +67,27 @@ function ridesSummary(registrant: EventRegistrant): string | null {
 }
 
 export function RegistrantsTab({
-  eventId,
   capacity,
-  active,
   mode,
+  registrants: registrantsData,
+  derived,
 }: {
-  eventId: string;
   capacity: number | null;
-  active: boolean;
   mode: "view" | "edit";
+  registrants: TabData<EventRegistrant[]>;
+  derived: TabData<EventImpactDerived>;
 }) {
   const router = useRouter();
-  const {
-    data: registrants,
-    loadError,
-    refresh,
-  } = useTabData<EventRegistrant[]>(
-    () => listEventRegistrantsAction(eventId),
-    active,
-    [eventId],
-  );
-  const { data: attendanceBreakdown, refresh: refreshBreakdown } =
-    useTabData<EventAttendanceBreakdown>(
-      () => getEventAttendanceBreakdownAction(eventId),
-      active,
-      [eventId],
-    );
+  const { data: registrants, loadError } = registrantsData;
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [riderTarget, setRiderTarget] = useState<EventRegistrant | null>(null);
 
   function refreshAll() {
-    refresh();
-    refreshBreakdown();
+    registrantsData.refresh();
+    derived.refresh();
     router.refresh();
   }
-
-  useRegisterTabRefresh<TabValue>("registrants", refreshAll);
 
   function handleToggleCheckIn(registrant: EventRegistrant) {
     setPendingId(registrant.id);
@@ -144,9 +124,9 @@ export function RegistrantsTab({
           {totalAttending} attending
           {capacity !== null && ` of ${capacity} capacity`} &middot;{" "}
           {checkedInCount} checked in
-          {attendanceBreakdown &&
+          {derived.data &&
             checkedInCount > 0 &&
-            ` · ${attendanceBreakdown.recurring} recurring, ${attendanceBreakdown.firstTime} first-time`}
+            ` · ${derived.data.recurringParticipants} recurring, ${derived.data.firstTimeParticipants} first-time`}
         </p>
       )}
 

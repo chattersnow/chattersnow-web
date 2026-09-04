@@ -26,11 +26,9 @@ import { EmptyState } from "@/components/portal/empty-state";
 export function EventRevenueTab({
   eventId,
   eventName,
-  active,
 }: {
   eventId: string;
   eventName: string;
-  active: boolean;
   mode: "view" | "edit";
 }) {
   const [revenue, setRevenue] = useState<RevenueRow[] | null>(null);
@@ -50,10 +48,9 @@ export function EventRevenueTab({
   }
 
   useEffect(() => {
-    if (!active) return;
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, eventId]);
+  }, [eventId]);
 
   useRegisterTabRefresh<TabValue>("revenue", refresh);
 

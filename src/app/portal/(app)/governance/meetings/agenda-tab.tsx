@@ -415,7 +415,6 @@ function AgendaForm({
 export function AgendaTab({
   meetingId,
   meetingDate,
-  active,
   mode,
   canManage,
   minutesApprovedAt,
@@ -426,7 +425,6 @@ export function AgendaTab({
 }: {
   meetingId: string;
   meetingDate: string;
-  active: boolean;
   mode: "view" | "edit";
   canManage: boolean;
   minutesApprovedAt: string | null;
@@ -440,32 +438,25 @@ export function AgendaTab({
     data: agenda,
     loadError,
     refresh: refreshAgenda,
-  } = useTabData<Agenda | null>(() => getAgendaAction(meetingId), active, [
-    meetingId,
-  ]);
+  } = useTabData<Agenda | null>(() => getAgendaAction(meetingId), [meetingId]);
   const { data: templates } = useTabData<ActiveAgendaTemplate[]>(
     () => listActiveAgendaTemplatesAction(),
-    active,
     [meetingId],
   );
   const { data: carriedOverItems } = useTabData<ActionItem[]>(
     () => listCarriedOverActionItemsAction(meetingId, meetingDate),
-    active,
     [meetingId, meetingDate],
   );
   const { data: createdItems } = useTabData<ActionItem[]>(
     () => listActionItemsAction(meetingId),
-    active,
     [meetingId],
   );
   const { data: decisions } = useTabData<Decision[]>(
     () => listDecisionsAction(meetingId),
-    active,
     [meetingId],
   );
   const { data: previousMinutes } = useTabData<PreviousMeetingMinutes | null>(
     () => getPreviousMeetingMinutesAction(meetingId, meetingDate),
-    active,
     [meetingId, meetingDate],
   );
 
