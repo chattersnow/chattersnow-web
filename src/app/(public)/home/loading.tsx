@@ -2,7 +2,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function HomeLoading() {
   return (
-    <main className="app-shell px-6 py-8 sm:px-10">
+    // /home has no layout.tsx, so it has no PageShell ancestor -- it has to
+    // carry the skip link target itself.
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className="app-shell px-6 py-8 outline-none sm:px-10"
+    >
       <div className="mx-auto max-w-6xl">
         <section className="flex flex-col items-center text-center">
           <Skeleton className="aspect-[21/9] w-full max-w-5xl rounded-2xl" />

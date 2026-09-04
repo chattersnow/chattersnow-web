@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { InstagramLink } from "@/components/instagram-link";
+import { SkipLink } from "@/components/skip-link";
 import { CONTACT_EMAIL } from "@/lib/contact-addresses";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPageVisibility, hiddenSlots } from "@/lib/page-visibility";
@@ -47,6 +48,7 @@ export default async function PublicLayout({
 
   return (
     <>
+      <SkipLink href="#main-content" />
       <div className="rainbow-strip" />
       <header className="border-b border-[var(--line)] px-6 py-4 sm:px-10">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4">
