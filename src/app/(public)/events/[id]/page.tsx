@@ -5,6 +5,7 @@ import { PageShell } from "@/components/page-shell";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { formatDateTimeInZone } from "@/lib/time";
 import { resolveImageUrl } from "@/lib/inventory";
+import { eventTypeLabel } from "@/lib/event-types";
 import { EventRegistrationForm } from "../event-registration-form-fields";
 import { checkRegistrationWindow } from "../event-registration-form";
 import type { PublicEvent } from "../event-card";
@@ -75,7 +76,9 @@ export default async function EventDetailPage({
         </div>
       )}
       <section>
-        <p className="app-eyebrow">{event.event_type ?? "Event"}</p>
+        <p className="app-eyebrow">
+          {eventTypeLabel(event.event_type) ?? "Event"}
+        </p>
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
           {event.name}
         </h1>
