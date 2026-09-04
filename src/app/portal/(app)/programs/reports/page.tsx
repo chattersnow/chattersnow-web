@@ -116,9 +116,14 @@ export default async function ProgramImpactReportPage({
         },
         {
           label: "Beginner participants",
-          value: `${formatNumber(rollup.beginnerParticipants)} of ${formatNumber(
-            rollup.profiledAttendees,
-          )} with a rider profile`,
+          // Qualified only while rider-profile coverage is short of the
+          // checked-in headcount; at full coverage it is simply the number.
+          value:
+            rollup.profiledAttendees < rollup.checkedIn
+              ? `${formatNumber(rollup.beginnerParticipants)} of ${formatNumber(
+                  rollup.profiledAttendees,
+                )} with a rider profile`
+              : formatNumber(rollup.beginnerParticipants),
         },
         {
           label: "Participants with a discount code or rental subsidy",

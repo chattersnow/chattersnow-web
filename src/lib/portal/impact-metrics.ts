@@ -183,12 +183,16 @@ export function countVolunteerParticipants(
 }
 
 /**
- * Checked-in attendees whose person record says beginner on ski or snowboard.
+ * Checked-in attendees recorded as beginner on ski or snowboard.
  *
  * Scoped to checked-in registrants so it is comparable with first-time
- * participants. The rider profile is opt-in and was never backfilled, so always
- * show this against `countProfiledAttendees` as a denominator — on its own it
- * reads 0 for every historical event.
+ * participants. The level comes from the snapshot taken at check-in, falling
+ * back to the person's live profile where there is none (issue #653) — the RPCs
+ * resolve that, so both surfaces see one already-decided answer.
+ *
+ * The rider profile is still opt-in, so show this against
+ * `countProfiledAttendees` as a denominator whenever coverage is short of the
+ * checked-in headcount; on an event with no profiles it reads 0.
  */
 export function countBeginnerParticipants(
   beginnerAttendees: PersonEventRow[],
@@ -275,6 +279,8 @@ export function computeEventImpactDerived(
 export type ProgramImpactRollup = {
   eventCount: number;
   participants: number;
+  /** Checked-in registrations — the denominator rider-profile coverage is measured against. */
+  checkedIn: number;
   firstTimeParticipants: number;
   beginnerParticipants: number;
   profiledAttendees: number;
@@ -307,6 +313,7 @@ export function computeProgramImpactRollup(
   return {
     eventCount: input.eventCount,
     participants: computeParticipants(input.events, input.registrations),
+    checkedIn: countCheckedIn(input.registrations),
     firstTimeParticipants: computeFirstTimeParticipants(
       input.registrations,
       input.checkinCounts,

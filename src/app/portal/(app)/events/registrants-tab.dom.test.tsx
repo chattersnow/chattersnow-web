@@ -19,8 +19,17 @@ const registrants: EventRegistrant[] = [
     party_size: 2,
     notes: null,
     created_at: "2026-08-01T12:00:00Z",
-    person_id: null,
+    person_id: "person-1",
     checked_in_at: null,
+    rider: {
+      riding_discipline_at_event: null,
+      ski_experience_level_at_event: null,
+      snowboard_experience_level_at_event: null,
+      riding_discipline: null,
+      ski_experience_level: null,
+      snowboard_experience_level: null,
+      preferred_mountain: null,
+    },
   },
   {
     id: "reg-2",
@@ -31,8 +40,17 @@ const registrants: EventRegistrant[] = [
     party_size: 1,
     notes: null,
     created_at: "2026-08-01T12:05:00Z",
-    person_id: null,
+    person_id: "person-2",
     checked_in_at: "2026-08-28T09:00:00Z",
+    rider: {
+      riding_discipline_at_event: "snowboard",
+      ski_experience_level_at_event: null,
+      snowboard_experience_level_at_event: "beginner",
+      riding_discipline: "both",
+      ski_experience_level: "advanced",
+      snowboard_experience_level: "advanced",
+      preferred_mountain: "Hunter",
+    },
   },
 ];
 
@@ -85,6 +103,17 @@ describe("RegistrantsTab", () => {
         "2 registrations, 3 attending of 10 capacity · 1 checked in · 0 recurring, 1 first-time",
       ),
     ).toBeInTheDocument();
+  });
+
+  test("Rides shows the level snapshotted at check-in, not the current profile", async () => {
+    render(
+      <RegistrantsTab eventId="event-1" capacity={null} active mode="view" />,
+    );
+    await screen.findByText("Alex Chen");
+
+    // Alex now rides both at advanced, but was a snowboard beginner on the day.
+    expect(screen.getByText("Snowboard · Beginner")).toBeInTheDocument();
+    expect(screen.queryByText(/Both/)).toBeNull();
   });
 
   test("view mode hides check-in controls", async () => {

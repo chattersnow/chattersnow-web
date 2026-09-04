@@ -326,6 +326,7 @@ describe("computeProgramImpactRollup", () => {
     ).toEqual({
       eventCount: 2,
       participants: 13, // e1: 12 (manual) + e2: 1 (checked-in) = 13
+      checkedIn: 1, // only p1 on e2 is marked in at the door
       firstTimeParticipants: 1, // p1's only checked-in event ever
       beginnerParticipants: 1,
       profiledAttendees: 2,
