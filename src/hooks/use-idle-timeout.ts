@@ -43,6 +43,8 @@ export type UseIdleTimeoutOptions = {
   onExpire: () => void;
   idleMs?: number;
   warningMs?: number;
+  /** How often activity is persisted; see ACTIVITY_WRITE_INTERVAL_MS. */
+  writeIntervalMs?: number;
   enabled?: boolean;
 };
 
@@ -67,6 +69,7 @@ export function useIdleTimeout({
   onExpire,
   idleMs = IDLE_TIMEOUT_MS,
   warningMs = IDLE_WARNING_MS,
+  writeIntervalMs = ACTIVITY_WRITE_INTERVAL_MS,
   enabled = true,
 }: UseIdleTimeoutOptions): IdleTimeoutState {
   const [warningUntil, setWarningUntil] = useState<number | null>(null);
@@ -136,7 +139,7 @@ export function useIdleTimeout({
       // reaching the warning at all means nothing has been written for the
       // whole idle period, which is orders of magnitude past this window, so
       // the first movement that dismisses the dialog always writes through.
-      if (!force && at - lastWrite < ACTIVITY_WRITE_INTERVAL_MS) return;
+      if (!force && at - lastWrite < writeIntervalMs) return;
       lastWrite = at;
       lastActivity = at;
       writeLastActivity(at);
@@ -197,7 +200,7 @@ export function useIdleTimeout({
       window.removeEventListener("storage", handleStorage);
       document.removeEventListener("visibilitychange", recheck);
     };
-  }, [enabled, idleMs, warningMs]);
+  }, [enabled, idleMs, warningMs, writeIntervalMs]);
 
   // Ticks only while the warning is up, and only to re-render the countdown --
   // it never decides expiry, which stays with the scheduler above. A throttled

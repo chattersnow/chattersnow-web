@@ -1,21 +1,34 @@
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  jest,
-  mock,
-  test,
-} from "bun:test";
-import { act, fireEvent, render, screen } from "@testing-library/react";
-import {
-  ACTIVITY_WRITE_INTERVAL_MS,
-  LAST_ACTIVITY_KEY,
-} from "@/lib/auth/idle-timeout";
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { LAST_ACTIVITY_KEY } from "@/lib/auth/idle-timeout";
 import { useIdleTimeout } from "./use-idle-timeout";
 
-const IDLE_MS = 30 * 60_000;
-const WARNING_MS = 2 * 60_000;
+/**
+ * Real timers on purpose, with the durations dialled down.
+ *
+ * `jest.useFakeTimers()` works in a file on its own but patches the global
+ * timer functions for the whole runtime, and it took unrelated suites down
+ * with it once all 148 test files were running together -- innocent tests
+ * timing out at exactly 5s, and `useRealTimers()` reporting that fake timers
+ * were never active. Nothing else in this repo fakes timers, and this is why.
+ *
+ * So the clock is left alone and the thresholds are shrunk instead. Anything
+ * that would need a clock jump (a laptop waking after an hour) is expressed as
+ * a stale stored stamp, which is exactly the state such a machine wakes up in.
+ */
+const IDLE_MS = 900;
+const WARNING_MS = 450;
+const WRITE_MS = 100;
+
+// Comfortably past the longest transition, so a loaded CI runner doesn't fail
+// a test that was merely slow.
+const SETTLE = { timeout: 4_000 };
 
 function Harness({
   onExpire,
@@ -28,6 +41,7 @@ function Harness({
     onExpire,
     idleMs: IDLE_MS,
     warningMs: WARNING_MS,
+    writeIntervalMs: WRITE_MS,
     enabled,
   });
   return (
@@ -41,17 +55,6 @@ function Harness({
   );
 }
 
-/**
- * Bun's fake timers recompute `Date.now()` as base + total advance, so an
- * `advanceTimersByTime` after a `setSystemTime` silently discards the jump.
- * Every test here uses one or the other, never both.
- */
-async function advance(ms: number) {
-  await act(async () => {
-    jest.advanceTimersByTime(ms);
-  });
-}
-
 function phase() {
   return screen.getByText(/warning|quiet/).textContent;
 }
@@ -60,8 +63,24 @@ function stored() {
   return localStorage.getItem(LAST_ACTIVITY_KEY);
 }
 
+async function sleep(ms: number) {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, ms));
+  });
+}
+
+/** Waits for the warning dialog's state to appear. */
+function untilWarning() {
+  return waitFor(() => expect(phase()).toBe("warning"), SETTLE);
+}
+
+/** Seeds the stamp another tab (or a pre-sleep session) would have left. */
+function seedStamp(ageMs: number) {
+  localStorage.setItem(LAST_ACTIVITY_KEY, String(Date.now() - ageMs));
+}
+
 /**
- * Simulates storage being unavailable the way browsers actually do it: the
+ * Storage being unavailable the way browsers actually do it: the
  * `localStorage` getter itself throws (Safari private mode, site data
  * blocked). A `jest.spyOn(Storage.prototype, ...)` with a throwing
  * implementation looks like it works here but is silently ignored, which makes
@@ -85,71 +104,56 @@ function withBrokenStorage(run: () => Promise<void>) {
 }
 
 describe("useIdleTimeout", () => {
-  beforeEach(() => {
-    jest.useFakeTimers();
-    localStorage.clear();
-  });
+  beforeEach(() => localStorage.clear());
+  afterEach(() => localStorage.clear());
 
-  afterEach(() => {
-    jest.useRealTimers();
-    localStorage.clear();
-  });
-
-  test("warns at the threshold and expires at the timeout", async () => {
+  test("warns first, then expires", async () => {
     const onExpire = mock(() => {});
     render(<Harness onExpire={onExpire} />);
 
     expect(phase()).toBe("quiet");
-
-    await advance(IDLE_MS - WARNING_MS - 1_000);
-    expect(phase()).toBe("quiet");
-
-    await advance(1_000);
-    expect(phase()).toBe("warning");
+    await untilWarning();
     expect(onExpire).not.toHaveBeenCalled();
 
-    await advance(WARNING_MS);
-    expect(onExpire).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(onExpire).toHaveBeenCalledTimes(1), SETTLE);
   });
 
-  test("does not expire twice once the deadline is well past", async () => {
+  test("expires only once, however long it is left", async () => {
     const onExpire = mock(() => {});
     render(<Harness onExpire={onExpire} />);
 
-    await advance(IDLE_MS + 60 * 60_000);
+    await waitFor(() => expect(onExpire).toHaveBeenCalledTimes(1), SETTLE);
+    await sleep(IDLE_MS);
     expect(onExpire).toHaveBeenCalledTimes(1);
   });
 
   test("activity dismisses the warning and buys a full new window", async () => {
     const onExpire = mock(() => {});
     render(<Harness onExpire={onExpire} />);
-
-    await advance(IDLE_MS - 60_000);
-    expect(phase()).toBe("warning");
+    await untilWarning();
 
     await act(async () => {
       fireEvent.keyDown(window, { key: "a" });
     });
     expect(phase()).toBe("quiet");
 
-    await advance(IDLE_MS - WARNING_MS - 1_000);
-    expect(phase()).toBe("quiet");
+    // Past the deadline the original window would have had, proving the clock
+    // actually restarted rather than the warning merely being hidden.
+    await sleep(WARNING_MS + 150);
     expect(onExpire).not.toHaveBeenCalled();
   });
 
   test("the Stay button resets the clock", async () => {
     const onExpire = mock(() => {});
     render(<Harness onExpire={onExpire} />);
-
-    await advance(IDLE_MS - 30_000);
-    expect(phase()).toBe("warning");
+    await untilWarning();
 
     await act(async () => {
       screen.getByRole("button", { name: "Stay" }).click();
     });
     expect(phase()).toBe("quiet");
 
-    await advance(IDLE_MS - 1_000);
+    await sleep(WARNING_MS + 150);
     expect(onExpire).not.toHaveBeenCalled();
   });
 
@@ -158,19 +162,15 @@ describe("useIdleTimeout", () => {
     render(<Harness onExpire={onExpire} />);
     const seeded = stored();
 
-    // Spread across the throttle window rather than fired in one tick: with
-    // fake timers a same-tick storm would rewrite the identical timestamp, so
-    // the assertion would hold even with no throttle at all.
-    for (let i = 0; i < 10; i += 1) {
-      await advance(1_000);
-      await act(async () => {
+    await act(async () => {
+      for (let i = 0; i < 50; i += 1) {
         fireEvent.pointerMove(window, { clientX: i });
-      });
-    }
+      }
+    });
     expect(stored()).toBe(seeded);
 
-    // And once the window has passed, the next movement does write through.
-    await advance(ACTIVITY_WRITE_INTERVAL_MS);
+    // Once the window has passed, the next movement does write through.
+    await sleep(WRITE_MS + 50);
     await act(async () => {
       fireEvent.pointerMove(window, { clientX: 99 });
     });
@@ -180,8 +180,7 @@ describe("useIdleTimeout", () => {
   test("writes through as soon as the warning is dismissed", async () => {
     const onExpire = mock(() => {});
     render(<Harness onExpire={onExpire} />);
-    await advance(IDLE_MS - 30_000);
-    expect(phase()).toBe("warning");
+    await untilWarning();
     const seeded = stored();
 
     await act(async () => {
@@ -197,9 +196,7 @@ describe("useIdleTimeout", () => {
   test("activity in another tab keeps this one alive", async () => {
     const onExpire = mock(() => {});
     render(<Harness onExpire={onExpire} />);
-
-    await advance(IDLE_MS - 30_000);
-    expect(phase()).toBe("warning");
+    await untilWarning();
 
     await act(async () => {
       window.dispatchEvent(
@@ -211,7 +208,7 @@ describe("useIdleTimeout", () => {
     });
 
     expect(phase()).toBe("quiet");
-    await advance(29 * 60_000);
+    await sleep(WARNING_MS + 150);
     expect(onExpire).not.toHaveBeenCalled();
   });
 
@@ -222,7 +219,7 @@ describe("useIdleTimeout", () => {
   ])("ignores %s from another tab", async (_label, newValue) => {
     const onExpire = mock(() => {});
     render(<Harness onExpire={onExpire} />);
-    await advance(IDLE_MS - 30_000);
+    await untilWarning();
 
     await act(async () => {
       window.dispatchEvent(
@@ -236,26 +233,29 @@ describe("useIdleTimeout", () => {
     expect(onExpire).not.toHaveBeenCalled();
   });
 
-  test("expires on wake from sleep rather than granting another window", async () => {
+  test("expires at once when the stored stamp is already past the deadline", async () => {
+    // The state a slept-through laptop wakes up in: no timer ever fired, and
+    // the only evidence of the lost time is the stamp itself.
+    seedStamp(IDLE_MS * 3);
     const onExpire = mock(() => {});
     render(<Harness onExpire={onExpire} />);
 
-    // No timer advance at all: the machine slept, the timer never fired, and
-    // the first thing that runs on resume has to notice the real elapsed time.
-    await act(async () => {
-      jest.setSystemTime(new Date(Date.now() + IDLE_MS + 60_000));
-      document.dispatchEvent(new Event("visibilitychange"));
-    });
+    await waitFor(() => expect(onExpire).toHaveBeenCalledTimes(1), SETTLE);
+  });
 
-    expect(onExpire).toHaveBeenCalledTimes(1);
+  test("adopts an existing stamp instead of granting a fresh window", async () => {
+    seedStamp(IDLE_MS - WARNING_MS + 50);
+    const onExpire = mock(() => {});
+    render(<Harness onExpire={onExpire} />);
+
+    // Straight into the warning: opening a new tab must not reset the clock.
+    expect(phase()).toBe("warning");
   });
 
   test("returning to the tab is not itself activity", async () => {
     const onExpire = mock(() => {});
     render(<Harness onExpire={onExpire} />);
-
-    await advance(IDLE_MS - 60_000);
-    expect(phase()).toBe("warning");
+    await untilWarning();
 
     await act(async () => {
       document.dispatchEvent(new Event("visibilitychange"));
@@ -265,23 +265,12 @@ describe("useIdleTimeout", () => {
     expect(phase()).toBe("warning");
   });
 
-  test("adopts an existing stamp instead of granting a fresh window", async () => {
-    localStorage.setItem(
-      LAST_ACTIVITY_KEY,
-      String(Date.now() - (IDLE_MS - 30_000)),
-    );
-    const onExpire = mock(() => {});
-    render(<Harness onExpire={onExpire} />);
-
-    expect(phase()).toBe("warning");
-  });
-
   test("stops completely once unmounted", async () => {
     const onExpire = mock(() => {});
     const { unmount } = render(<Harness onExpire={onExpire} />);
     unmount();
 
-    await advance(IDLE_MS * 2);
+    await sleep(IDLE_MS + 300);
     expect(onExpire).not.toHaveBeenCalled();
   });
 
@@ -289,7 +278,7 @@ describe("useIdleTimeout", () => {
     const onExpire = mock(() => {});
     render(<Harness onExpire={onExpire} enabled={false} />);
 
-    await advance(IDLE_MS * 2);
+    await sleep(IDLE_MS + 300);
     expect(onExpire).not.toHaveBeenCalled();
     expect(phase()).toBe("quiet");
   });
@@ -302,10 +291,8 @@ describe("useIdleTimeout", () => {
 
       // Degrades to a single-tab, in-memory timeout rather than taking the
       // whole portal shell down with it.
-      await advance(IDLE_MS - WARNING_MS);
-      expect(phase()).toBe("warning");
-      await advance(WARNING_MS);
-      expect(onExpire).toHaveBeenCalledTimes(1);
+      await untilWarning();
+      await waitFor(() => expect(onExpire).toHaveBeenCalledTimes(1), SETTLE);
     });
   });
 });
