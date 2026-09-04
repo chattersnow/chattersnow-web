@@ -137,6 +137,66 @@ describe("get_event_impact_derived_data (integration)", () => {
     await seeded.cleanup();
   });
 
+  // Issue #653: the beginner figure reads the level frozen at check-in, and
+  // only falls back to the live person row where no snapshot was taken.
+  test("beginner participants follow the check-in snapshot, not later profile edits", async () => {
+    const seeded = await seedEvent();
+    const setSnapshot = await adminClient
+      .from("event_registrations")
+      .update({
+        riding_discipline_at_event: "snowboard",
+        snowboard_experience_level_at_event: "beginner",
+      })
+      .eq("event_id", seeded.event.id);
+    if (setSnapshot.error) throw setSnapshot.error;
+
+    // The person has since moved on; the event's figure must not.
+    const movedOn = await adminClient
+      .from("people")
+      .update({
+        riding_discipline: "snowboard",
+        snowboard_experience_level: "advanced",
+      })
+      .eq("id", seeded.person.id);
+    if (movedOn.error) throw movedOn.error;
+
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+    const result = await getEventImpactDerivedAction(seeded.event.id);
+    if ("error" in result) throw new Error(result.error);
+
+    expect(result.data.beginnerParticipants).toBe(1);
+    expect(result.data.profiledAttendees).toBe(1);
+
+    await seeded.cleanup();
+  });
+
+  test("with no snapshot the live profile still counts", async () => {
+    const seeded = await seedEvent();
+
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+    const before = await getEventImpactDerivedAction(seeded.event.id);
+    if ("error" in before) throw new Error(before.error);
+    expect(before.data.profiledAttendees).toBe(0);
+
+    // Entered after the event, the way the People module or the door-side
+    // dialog would for somebody nobody asked at the time.
+    const filledIn = await adminClient
+      .from("people")
+      .update({
+        riding_discipline: "ski",
+        ski_experience_level: "beginner",
+      })
+      .eq("id", seeded.person.id);
+    if (filledIn.error) throw filledIn.error;
+
+    const after = await getEventImpactDerivedAction(seeded.event.id);
+    if ("error" in after) throw new Error(after.error);
+    expect(after.data.beginnerParticipants).toBe(1);
+    expect(after.data.profiledAttendees).toBe(1);
+
+    await seeded.cleanup();
+  });
+
   test("a role with no events or impact access is refused", async () => {
     const seeded = await seedEvent();
     currentSupabase = await signInAs(SEEDED_USERS.noAccess);

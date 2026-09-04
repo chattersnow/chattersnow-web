@@ -111,8 +111,12 @@ function DerivedFigures({ derived }: { derived: EventImpactDerived | null }) {
         <p className="app-muted text-xs">
           Participants is the headcount from the Attendance card; checked in
           counts registrants marked in at the door.
+          {/* The caveat is only true while coverage is short: once every
+              checked-in attendee has a profile, the beginner count is the
+              whole picture and hedging it just makes staff distrust it. */}
           {derived.beginnerParticipants !== null &&
-            ` Beginners are ${derived.beginnerParticipants} of ${derived.profiledAttendees ?? 0} attendees with a rider profile on file — events predating rider profiles will read low.`}
+            (derived.profiledAttendees ?? 0) < derived.checkedIn &&
+            ` Beginners are ${derived.beginnerParticipants} of ${derived.profiledAttendees ?? 0} attendees with a rider profile on file — add the missing ones from the Registrants tab.`}
         </p>
       </div>
 
