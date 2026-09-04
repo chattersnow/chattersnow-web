@@ -22,12 +22,13 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # Fails the build on a high or critical advisory in the dependency
-      # tree. Dependabot's weekly PRs are what normally keep this green; if a
-      # new advisory lands with no fix available yet, add `--ignore <CVE>`
-      # here with a comment rather than dropping the severity threshold.
-      - name: Audit dependencies
-        run: bun audit --audit-level=high
+      # No dependency audit here on purpose. `bun audit` fails for reasons
+      # that have nothing to do with the change under review -- an advisory
+      # published overnight, or the npm advisory endpoint returning 503 -- and
+      # this workflow is the deploy gate, so a red X on it has to mean the
+      # change is broken. The audit now runs on a daily schedule in
+      # security-audit.yml; the `dependency-review` job below still blocks any
+      # PR that introduces a high-severity advisory.
 
       - name: Lint
         run: bun run lint
@@ -215,8 +216,10 @@ jobs:
     runs-on: ubuntu-latest
     # Diffs the PR's dependency changes against the base branch and blocks
     # newly *introduced* vulnerabilities. This is the per-PR complement to the
-    # whole-tree `bun audit` step above: a PR that adds a vulnerable package
-    # fails here even while the existing tree is clean.
+    # whole-tree `bun audit` in security-audit.yml: a PR that adds a vulnerable
+    # package fails here even while the existing tree is clean. It stays in the
+    # gate because it is change-scoped and reads GitHub's own dependency graph
+    # rather than the npm advisory endpoint.
     #
     # Requires the repository dependency graph. If this job starts failing
     # with "Dependency review is not supported on this repository", that
