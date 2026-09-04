@@ -14,16 +14,20 @@ import {
   TIMEZONE_OPTIONS,
   utcIsoToDatetimeLocalInZone,
 } from "@/lib/time";
-import { eventTypeLabel } from "@/lib/event-types";
 import { updateEventAction } from "./actions";
-import { EventTypeSelect } from "./event-type-select";
 import type { Program } from "../programs/actions";
 import type { EventRow } from "./event-badges";
 import { StatusBadge, VisibilityBadge } from "./event-badges";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -61,25 +65,31 @@ function formStateFor(event: EventRow) {
   return {
     name: event.name,
     description: event.description ?? "",
-    eventType: event.event_type ?? "",
     location: event.location ?? "",
-    venue: event.venue ?? "",
     startsAt: toDatetimeLocalValue(event.starts_at, event.timezone),
     endsAt: toDatetimeLocalValue(event.ends_at, event.timezone),
     timezone: event.timezone,
     visibility: event.visibility,
     status: event.status,
-    programId: event.program_id ?? "",
+    programIds: event.program_ids,
     flierUrl: event.flier_url ?? "",
   };
 }
 
 type FormState = ReturnType<typeof formStateFor>;
 
+function sameIds(a: string[], b: string[]) {
+  return a.length === b.length && [...a].sort().join() === [...b].sort().join();
+}
+
 function isDirty(form: FormState, event: EventRow) {
   const baseline = formStateFor(event);
-  return (Object.keys(baseline) as (keyof FormState)[]).some(
-    (key) => form[key] !== baseline[key],
+  return (Object.keys(baseline) as (keyof FormState)[]).some((key) =>
+    // programIds is the one array field: === would compare references and
+    // report every render as dirty.
+    key === "programIds"
+      ? !sameIds(form.programIds, baseline.programIds)
+      : form[key] !== baseline[key],
   );
 }
 
@@ -137,15 +147,15 @@ export function OverviewTab({
     const formData = new FormData();
     formData.set("name", form.name);
     formData.set("description", form.description);
-    formData.set("eventType", form.eventType);
     formData.set("location", form.location);
-    formData.set("venue", form.venue);
     formData.set("startsAt", form.startsAt);
     formData.set("endsAt", form.endsAt);
     formData.set("timezone", form.timezone);
     formData.set("visibility", form.visibility);
     formData.set("status", form.status);
-    formData.set("programId", form.programId);
+    for (const programId of form.programIds) {
+      formData.append("programIds", programId);
+    }
     formData.set("flierUrl", form.flierUrl);
 
     startTransition(async () => {
@@ -160,9 +170,18 @@ export function OverviewTab({
     });
   }
 
-  const programName = programs.find(
-    (program) => program.id === form.programId,
-  )?.name;
+  const programNames = programs
+    .filter((program) => form.programIds.includes(program.id))
+    .map((program) => program.name);
+
+  function toggleProgram(programId: string) {
+    setForm((prev) => ({
+      ...prev,
+      programIds: prev.programIds.includes(programId)
+        ? prev.programIds.filter((id) => id !== programId)
+        : [...prev.programIds, programId],
+    }));
+  }
   const locked = event.report_status === "submitted";
 
   if (mode === "view" || locked) {
@@ -183,18 +202,9 @@ export function OverviewTab({
           </Field>
         </Field>
 
-        <ReadOnlyField label="Program" htmlFor="details-programId">
-          {programName ?? "—"}
+        <ReadOnlyField label="Programs" htmlFor="details-programIds">
+          {programNames.length > 0 ? programNames.join(", ") : "—"}
         </ReadOnlyField>
-
-        <Field orientation="responsive">
-          <ReadOnlyField label="Event type" htmlFor="details-eventType">
-            {eventTypeLabel(form.eventType) ?? "—"}
-          </ReadOnlyField>
-          <ReadOnlyField label="Venue / mountain" htmlFor="details-venue">
-            {form.venue || "—"}
-          </ReadOnlyField>
-        </Field>
 
         <ReadOnlyField label="Location" htmlFor="details-location">
           {form.location || "—"}
@@ -295,53 +305,29 @@ export function OverviewTab({
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="details-programId">Program</FieldLabel>
-          <Select
-            value={form.programId || "none"}
-            onValueChange={(value) =>
-              update("programId", value === "none" ? "" : (value ?? ""))
-            }
-          >
-            <SelectTrigger id="details-programId" className="w-full">
-              <SelectValue placeholder="No program">
-                {(value: string) =>
-                  value && value !== "none"
-                    ? (programs.find((program) => program.id === value)?.name ??
-                      "No program")
-                    : "No program"
-                }
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">No program</SelectItem>
-              {programs.map((program) => (
-                <SelectItem key={program.id} value={program.id}>
+          <FieldLabel>Programs</FieldLabel>
+          <div id="details-programIds" className="flex flex-col gap-2">
+            {programs.length === 0 ? (
+              <p className="app-muted text-sm">No programs to choose from.</p>
+            ) : (
+              programs.map((program) => (
+                <label
+                  key={program.id}
+                  className="flex items-center gap-2 text-sm"
+                >
+                  <Checkbox
+                    checked={form.programIds.includes(program.id)}
+                    onCheckedChange={() => toggleProgram(program.id)}
+                  />
                   {program.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-
-        <Field orientation="responsive">
-          <Field>
-            <FieldLabel htmlFor="details-eventType">Event type</FieldLabel>
-            <EventTypeSelect
-              id="details-eventType"
-              value={form.eventType}
-              onChange={(value) => update("eventType", value)}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="details-venue">Venue / mountain</FieldLabel>
-            <Input
-              id="details-venue"
-              value={form.venue}
-              onChange={(changeEvent) =>
-                update("venue", changeEvent.target.value)
-              }
-            />
-          </Field>
+                </label>
+              ))
+            )}
+          </div>
+          <FieldDescription>
+            An event can count toward more than one program; every one you pick
+            includes it in that program&apos;s impact report.
+          </FieldDescription>
         </Field>
 
         <Field>

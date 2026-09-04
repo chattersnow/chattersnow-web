@@ -15,8 +15,42 @@ import {
   hasPermission,
 } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type CreateEventResult = { error: string } | { success: true };
+
+/**
+ * Replaces an event's program links with `programIds`. Delete-then-reinsert
+ * rather than a diff: the set is a handful of rows, and this keeps unchecking
+ * the last program working without a special case. Mirrors
+ * `syncCalendarItemLinks` in the calendar module, which handles the same
+ * relationship against the same `programs` table.
+ */
+async function syncEventPrograms(
+  supabase: SupabaseClient,
+  eventId: string,
+  programIds: string[],
+): Promise<{ error: string } | null> {
+  const { error: deleteError } = await supabase
+    .from("event_programs")
+    .delete()
+    .eq("event_id", eventId);
+  if (deleteError) {
+    return { error: "Could not save programs. Please try again." };
+  }
+
+  if (programIds.length === 0) return null;
+
+  const { error } = await supabase.from("event_programs").insert(
+    programIds.map((programId) => ({
+      event_id: eventId,
+      program_id: programId,
+    })),
+  );
+  if (error) return { error: "Could not save programs. Please try again." };
+
+  return null;
+}
 
 export async function createEventAction(
   formData: FormData,
@@ -35,36 +69,42 @@ export async function createEventAction(
   const {
     name,
     description,
-    eventType,
     location,
-    venue,
     startsAt,
     endsAt,
     timezone,
     visibility,
     status,
-    programId,
+    programIds,
     flierUrl,
   } = parsed.data;
 
-  const { error } = await supabase.from("events").insert({
-    name,
-    description,
-    event_type: eventType,
-    location,
-    venue,
-    starts_at: startsAt,
-    ends_at: endsAt,
-    timezone,
-    visibility,
-    status,
-    program_id: programId,
-    flier_url: flierUrl,
-  });
+  const { data: created, error } = await supabase
+    .from("events")
+    .insert({
+      name,
+      description,
+      location,
+      starts_at: startsAt,
+      ends_at: endsAt,
+      timezone,
+      visibility,
+      status,
+      flier_url: flierUrl,
+    })
+    .select("id")
+    .single();
 
-  if (error) {
+  if (error || !created) {
     return { error: "Could not create the event. Please try again." };
   }
+
+  const programsError = await syncEventPrograms(
+    supabase,
+    created.id,
+    programIds,
+  );
+  if (programsError) return programsError;
 
   revalidatePath("/portal/home");
   revalidatePath("/portal/events");
@@ -123,15 +163,13 @@ export async function updateEventAction(
   const {
     name,
     description,
-    eventType,
     location,
-    venue,
     startsAt,
     endsAt,
     timezone,
     visibility,
     status,
-    programId,
+    programIds,
     flierUrl,
   } = parsed.data;
 
@@ -154,15 +192,12 @@ export async function updateEventAction(
     .update({
       name,
       description,
-      event_type: eventType,
       location,
-      venue,
       starts_at: startsAt,
       ends_at: endsAt,
       timezone,
       visibility,
       status,
-      program_id: programId,
       flier_url: flierUrl,
       ...(clampDeadline ? { registration_deadline: cutoff } : {}),
     })
@@ -171,6 +206,9 @@ export async function updateEventAction(
   if (error) {
     return { error: "Could not update the event. Please try again." };
   }
+
+  const programsError = await syncEventPrograms(supabase, id, programIds);
+  if (programsError) return programsError;
 
   revalidatePath("/portal/home");
   revalidatePath("/portal/events");

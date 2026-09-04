@@ -3,7 +3,6 @@
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createEventAction } from "./actions";
-import { EventTypeSelect } from "./event-type-select";
 import { listProgramsAction, type Program } from "../programs/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -16,8 +15,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -43,15 +48,13 @@ function getInitialFormState() {
   return {
     name: "",
     description: "",
-    eventType: "",
     location: "",
-    venue: "",
     startsAt: "",
     endsAt: "",
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     visibility: "private",
     status: "draft",
-    programId: "",
+    programIds: [] as string[],
     flierUrl: "",
   };
 }
@@ -88,6 +91,15 @@ export function NewEventDialog({
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  function toggleProgram(programId: string) {
+    setForm((prev) => ({
+      ...prev,
+      programIds: prev.programIds.includes(programId)
+        ? prev.programIds.filter((id) => id !== programId)
+        : [...prev.programIds, programId],
+    }));
+  }
+
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
     if (!nextOpen) {
@@ -103,15 +115,15 @@ export function NewEventDialog({
     const formData = new FormData();
     formData.set("name", form.name);
     formData.set("description", form.description);
-    formData.set("eventType", form.eventType);
     formData.set("location", form.location);
-    formData.set("venue", form.venue);
     formData.set("startsAt", form.startsAt);
     formData.set("endsAt", form.endsAt);
     formData.set("timezone", form.timezone);
     formData.set("visibility", form.visibility);
     formData.set("status", form.status);
-    formData.set("programId", form.programId);
+    for (const programId of form.programIds) {
+      formData.append("programIds", programId);
+    }
     formData.set("flierUrl", form.flierUrl);
 
     startTransition(async () => {
@@ -164,52 +176,31 @@ export function NewEventDialog({
             </Field>
 
             <Field>
-              <FieldLabel htmlFor="programId">Program</FieldLabel>
-              <Select
-                value={form.programId || "none"}
-                onValueChange={(value) =>
-                  update("programId", value === "none" ? "" : (value ?? ""))
-                }
-              >
-                <SelectTrigger id="programId" className="w-full">
-                  <SelectValue placeholder="No program">
-                    {(value: string) =>
-                      value && value !== "none"
-                        ? (programOptions.find(
-                            (program) => program.id === value,
-                          )?.name ?? "No program")
-                        : "No program"
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No program</SelectItem>
-                  {programOptions.map((program) => (
-                    <SelectItem key={program.id} value={program.id}>
+              <FieldLabel>Programs</FieldLabel>
+              <div id="programIds" className="flex flex-col gap-2">
+                {programOptions.length === 0 ? (
+                  <p className="app-muted text-sm">
+                    No programs to choose from.
+                  </p>
+                ) : (
+                  programOptions.map((program) => (
+                    <label
+                      key={program.id}
+                      className="flex items-center gap-2 text-sm"
+                    >
+                      <Checkbox
+                        checked={form.programIds.includes(program.id)}
+                        onCheckedChange={() => toggleProgram(program.id)}
+                      />
                       {program.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-
-            <Field orientation="responsive">
-              <Field>
-                <FieldLabel htmlFor="eventType">Event type</FieldLabel>
-                <EventTypeSelect
-                  id="eventType"
-                  value={form.eventType}
-                  onChange={(value) => update("eventType", value)}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="venue">Venue / mountain</FieldLabel>
-                <Input
-                  id="venue"
-                  value={form.venue}
-                  onChange={(event) => update("venue", event.target.value)}
-                />
-              </Field>
+                    </label>
+                  ))
+                )}
+              </div>
+              <FieldDescription>
+                An event can count toward more than one program; every one you
+                pick includes it in that program&apos;s impact report.
+              </FieldDescription>
             </Field>
 
             <Field>

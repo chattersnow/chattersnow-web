@@ -14,6 +14,15 @@ import { eventPhaseTaskLabels } from "../phase-status";
 import { listProgramsAction } from "../../programs/actions";
 import { EventDetailView } from "./event-detail-view";
 
+/**
+ * The row as PostgREST returns it: program links arrive as an embedded array
+ * and are flattened to `EventRow["program_ids"]` below, the same normalisation
+ * the calendar does for `calendar_item_programs`.
+ */
+type RawEventRow = Omit<EventRow, "program_ids"> & {
+  event_programs: { program_id: string }[] | null;
+};
+
 export async function generateMetadata({
   params,
 }: {
@@ -46,13 +55,13 @@ export default async function EventDetailPage({
   const permissions = await getCurrentUserPermissions(supabase);
   const canManage = hasPermission(permissions, "events", "manage");
 
-  const { data: event, error } = await supabase
+  const { data: eventRow, error } = await supabase
     .from("events")
     .select(
-      "id, name, location, starts_at, ends_at, timezone, visibility, status, attendance_count, attendance_notes, description, event_type, venue, capacity, registration_enabled, registration_deadline, auto_assign_discount_codes, budget_amount, event_lead_id, event_lead:people!event_lead_id(id, name, preferred_name, email, phone), report_status, report_summary, lessons_learned, feedback_notes, content_notes, report_submitted_at, report_submitted_by, program_id, flier_url",
+      "id, name, location, starts_at, ends_at, timezone, visibility, status, attendance_count, attendance_notes, description, capacity, registration_enabled, registration_deadline, auto_assign_discount_codes, budget_amount, event_lead_id, event_lead:people!event_lead_id(id, name, preferred_name, email, phone), report_status, report_summary, lessons_learned, feedback_notes, content_notes, report_submitted_at, report_submitted_by, flier_url, event_programs(program_id)",
     )
     .eq("id", eventId)
-    .maybeSingle<EventRow>();
+    .maybeSingle<RawEventRow>();
 
   if (error) {
     return (
@@ -63,7 +72,13 @@ export default async function EventDetailPage({
       </Card>
     );
   }
-  if (!event) notFound();
+  if (!eventRow) notFound();
+
+  const { event_programs, ...rest } = eventRow;
+  const event: EventRow = {
+    ...rest,
+    program_ids: (event_programs ?? []).map((link) => link.program_id),
+  };
 
   const [
     programsResult,

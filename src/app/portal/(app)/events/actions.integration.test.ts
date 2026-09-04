@@ -22,13 +22,14 @@ mock.module("@/lib/supabase/server", () => ({
   createSupabaseServerClient: async () => currentSupabase,
 }));
 
-const { createEventAction, deleteEventAction } = await import("./actions");
+const { createEventAction, deleteEventAction, updateEventAction } =
+  await import("./actions");
 
 afterEach(() => {
   revalidatePathMock.mockClear();
 });
 
-function eventForm(overrides?: { name?: string }) {
+function eventForm(overrides?: { name?: string; programIds?: string[] }) {
   const fd = new FormData();
   fd.set(
     "name",
@@ -45,6 +46,9 @@ function eventForm(overrides?: { name?: string }) {
   fd.set("timezone", "America/Chicago");
   fd.set("visibility", "public");
   fd.set("status", "draft");
+  for (const programId of overrides?.programIds ?? []) {
+    fd.append("programIds", programId);
+  }
   return fd;
 }
 
@@ -199,5 +203,119 @@ describe("deleteEventAction (integration)", () => {
     currentSupabase = await signIn(SEEDED_USERS.admin);
     expect(await deleteEventAction(id)).toEqual({ success: true });
     expect(await eventExists(id)).toBe(false);
+  });
+});
+
+// An event can count toward more than one program's impact report, so the
+// link is a join table rather than the single events.program_id it replaced.
+// These exercise the real event_programs RLS as well as the sync itself.
+describe("event program links (integration)", () => {
+  async function createProgram() {
+    const { data, error } = await adminClient
+      .from("programs")
+      .insert({ name: `Integration Test Program ${crypto.randomUUID()}` })
+      .select("id")
+      .single();
+    if (error) throw error;
+    return data.id as string;
+  }
+
+  async function linkedProgramIds(eventId: string) {
+    const { data } = await adminClient
+      .from("event_programs")
+      .select("program_id")
+      .eq("event_id", eventId);
+    return (data ?? []).map((row) => row.program_id as string).sort();
+  }
+
+  async function eventIdByName(name: string) {
+    const { data } = await adminClient
+      .from("events")
+      .select("id")
+      .eq("name", name)
+      .single();
+    return data?.id as string;
+  }
+
+  test("creates an event linked to two programs at once", async () => {
+    const [programA, programB] = [await createProgram(), await createProgram()];
+    const name = `Integration Test Event ${crypto.randomUUID()}`;
+    currentSupabase = await signIn(SEEDED_USERS.coordinator);
+
+    expect(
+      await createEventAction(
+        eventForm({ name, programIds: [programA, programB] }),
+      ),
+    ).toEqual({ success: true });
+
+    const eventId = await eventIdByName(name);
+    expect(await linkedProgramIds(eventId)).toEqual(
+      [programA, programB].sort(),
+    );
+
+    await cleanupEvent(name);
+    await adminClient.from("programs").delete().in("id", [programA, programB]);
+  });
+
+  test("replaces the existing links rather than appending to them", async () => {
+    const [programA, programB] = [await createProgram(), await createProgram()];
+    const name = `Integration Test Event ${crypto.randomUUID()}`;
+    currentSupabase = await signIn(SEEDED_USERS.coordinator);
+    await createEventAction(eventForm({ name, programIds: [programA] }));
+    const eventId = await eventIdByName(name);
+
+    expect(
+      await updateEventAction(
+        eventId,
+        eventForm({ name, programIds: [programB] }),
+      ),
+    ).toEqual({ success: true });
+    expect(await linkedProgramIds(eventId)).toEqual([programB]);
+
+    // ...and unchecking the last one leaves the event with no programs.
+    expect(await updateEventAction(eventId, eventForm({ name }))).toEqual({
+      success: true,
+    });
+    expect(await linkedProgramIds(eventId)).toEqual([]);
+
+    await cleanupEvent(name);
+    await adminClient.from("programs").delete().in("id", [programA, programB]);
+  });
+
+  test("finance role (events view only) cannot change the links", async () => {
+    const programId = await createProgram();
+    const name = `Integration Test Event ${crypto.randomUUID()}`;
+    currentSupabase = await signIn(SEEDED_USERS.coordinator);
+    await createEventAction(eventForm({ name, programIds: [programId] }));
+    const eventId = await eventIdByName(name);
+
+    currentSupabase = await signIn(SEEDED_USERS.finance);
+    expect(await updateEventAction(eventId, eventForm({ name }))).toEqual(
+      DENIED,
+    );
+    expect(await linkedProgramIds(eventId)).toEqual([programId]);
+
+    await cleanupEvent(name);
+    await adminClient.from("programs").delete().eq("id", programId);
+  });
+
+  test("deleting a program drops its links, not the events", async () => {
+    const programId = await createProgram();
+    const name = `Integration Test Event ${crypto.randomUUID()}`;
+    currentSupabase = await signIn(SEEDED_USERS.coordinator);
+    await createEventAction(eventForm({ name, programIds: [programId] }));
+    const eventId = await eventIdByName(name);
+
+    await adminClient.from("programs").delete().eq("id", programId);
+
+    expect(await linkedProgramIds(eventId)).toEqual([]);
+    const { data } = await adminClient
+      .from("events")
+      .select("id")
+      .eq("id", eventId)
+      .maybeSingle();
+    expect(data).not.toBeNull();
+
+    await cleanupEvent(name);
   });
 });

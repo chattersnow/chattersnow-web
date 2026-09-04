@@ -319,11 +319,14 @@ begin
   returning id into v_program_id;
 
   update public.events
-  set program_id = v_program_id, description = 'A community gear exchange and winter access event.',
-      event_type = 'gear_swap', venue = 'Community Center', capacity = 100,
+  set description = 'A community gear exchange and winter access event.',
+      capacity = 100,
       registration_enabled = true, registration_deadline = now() + interval '14 days',
       budget_amount = 2500.00, event_lead_id = v_person_volunteer
   where id = v_event_upcoming;
+
+  insert into public.event_programs (event_id, program_id)
+  values (v_event_upcoming, v_program_id);
 
   insert into public.event_logistics (event_id, meeting_point, gear_requirements, transportation, food, supplies, created_by)
   values (v_event_upcoming, 'Community Center front entrance', 'Bring clean winter gear to exchange.', 'RTD bus route 15', 'Coffee and snacks', 'Racks, hangers, intake forms', v_admin_id);
@@ -542,7 +545,7 @@ declare
   brand_names text[] := array['Peak Outfitters','Alpine Gear Co.','Trailhead Supply','Frostline Apparel','Timberline Goods',
     'Ridgeline Outdoors','Summit Threads','Basecamp Provisions','Northface Neighbors Co-op','Powder Day Gear',
     'Evergreen Mercantile','Highline Sports'];
-  event_type_names text[] := array['gear_swap','trail_cleanup','fundraiser','community_meetup','skills_clinic','holiday_drive'];
+  event_kind_names text[] := array['gear swap','trail cleanup','fundraiser','community meetup','skills clinic','holiday drive'];
   item_types text[] := array['jacket','boots','pants','gloves','hat','scarf','socks','base_layer','goggles','backpack'];
   item_descs text[] := array['Insulated jacket','Waterproof boots','Snow pants','Fleece-lined gloves','Wool hat','Neck gaiter','Wool socks','Thermal base layer','Ski goggles','Daypack'];
   genders text[] := array['unisex','men','women','kids','other'];
@@ -687,28 +690,37 @@ begin
 
     insert into public.events (
       name, location, starts_at, ends_at, timezone, visibility, status,
-      description, event_type, venue, capacity, registration_enabled,
-      registration_deadline, budget_amount, event_lead_id, program_id,
+      description, capacity, registration_enabled,
+      registration_deadline, budget_amount, event_lead_id,
       created_by
     )
     values (
       initcap((array['Spring','Summer','Fall','Winter','Neighborhood','Downtown','Riverside','Mountain'])[1 + floor(random()*8)::int]) || ' ' ||
-        initcap((event_type_names[1 + floor(random() * array_length(event_type_names,1))::int])) || ' #' || i,
+        initcap((event_kind_names[1 + floor(random() * array_length(event_kind_names,1))::int])) || ' #' || i,
       (array['Community Center, Denver CO','Bear Creek Trailhead','Chatter Snow Office','Riverside Park','Downtown Rec Center'])[1 + floor(random()*5)::int],
       v_starts_at, v_starts_at + ((2 + floor(random()*5)::int) || ' hours')::interval,
       'America/Denver', v_visibility, v_status,
       'Seed bulk-data event for volume testing.',
-      event_type_names[1 + floor(random() * array_length(event_type_names,1))::int],
-      'Main hall', 20 + floor(random()*180)::int,
+      20 + floor(random()*180)::int,
       v_registration_enabled, case when v_registration_enabled then v_starts_at - interval '7 days' end,
       round((200 + random() * 4800)::numeric, 2),
       v_people_ids[1 + floor(random()*array_length(v_people_ids,1))::int],
-      case when random() < 0.4 and array_length(v_program_ids,1) is not null then v_program_ids[1 + floor(random()*array_length(v_program_ids,1))::int] else null end,
       v_admin_id
     )
     returning id into v_event_id;
 
     v_event_ids := array_append(v_event_ids, v_event_id);
+
+    -- Programs for about 40%, and a second program for half of those, so the
+    -- Program Impact Report has events that count toward two programs.
+    if random() < 0.4 and array_length(v_program_ids, 1) is not null then
+      insert into public.event_programs (event_id, program_id)
+      select v_event_id, program_id
+      from unnest(v_program_ids) as program_id
+      order by random()
+      limit case when random() < 0.5 then 2 else 1 end
+      on conflict do nothing;
+    end if;
 
     -- Logistics for about a third.
     if random() < 0.35 then

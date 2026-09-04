@@ -74,21 +74,29 @@ describe("parseEventForm", () => {
     }
   });
 
-  test("program is optional", () => {
+  test("programs are optional", () => {
     const result = parseEventForm(formData(validFields));
-    expect("data" in result && result.data.programId).toBeNull();
+    expect("data" in result && result.data.programIds).toEqual([]);
   });
 
   test("carries a selected program", () => {
-    const result = parseEventForm(
-      formData({
-        ...validFields,
-        programId: "11111111-1111-1111-1111-111111111111",
-      }),
-    );
-    expect("data" in result && result.data.programId).toBe(
+    const fd = formData(validFields);
+    fd.append("programIds", "11111111-1111-1111-1111-111111111111");
+    const result = parseEventForm(fd);
+    expect("data" in result && result.data.programIds).toEqual([
       "11111111-1111-1111-1111-111111111111",
-    );
+    ]);
+  });
+
+  test("carries every selected program, since an event can count toward more than one", () => {
+    const fd = formData(validFields);
+    fd.append("programIds", "11111111-1111-1111-1111-111111111111");
+    fd.append("programIds", "22222222-2222-2222-2222-222222222222");
+    const result = parseEventForm(fd);
+    expect("data" in result && result.data.programIds).toEqual([
+      "11111111-1111-1111-1111-111111111111",
+      "22222222-2222-2222-2222-222222222222",
+    ]);
   });
 
   test("flier URL is optional", () => {

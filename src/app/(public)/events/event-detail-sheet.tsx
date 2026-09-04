@@ -10,11 +10,10 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { checkRegistrationWindow } from "./event-registration-form";
-import type { PublicEvent } from "./event-card";
+import { eventProgramsLabel, type PublicEvent } from "./event-card";
 import { EventSponsors } from "./event-sponsors";
 import { formatDateTimeInZone } from "@/lib/time";
 import { resolveImageUrl } from "@/lib/inventory";
-import { eventTypeLabel } from "@/lib/event-types";
 
 const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
   dateStyle: "full",
@@ -42,7 +41,7 @@ export function EventDetailSheet({
           <>
             <SheetHeader>
               <p className="app-eyebrow">
-                {eventTypeLabel(event.event_type) ?? "Event"}
+                {eventProgramsLabel(event.programs)}
               </p>
               <SheetTitle className="text-xl">{event.name}</SheetTitle>
               <SheetDescription>
@@ -69,10 +68,8 @@ export function EventDetailSheet({
                   />
                 </div>
               )}
-              {(event.venue || event.location) && (
-                <p className="app-muted text-sm">
-                  {event.venue ?? event.location}
-                </p>
+              {event.location && (
+                <p className="app-muted text-sm">{event.location}</p>
               )}
               {event.description && (
                 <p className="mt-4 text-sm leading-relaxed">
