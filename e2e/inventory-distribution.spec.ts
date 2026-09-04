@@ -44,7 +44,11 @@ test.describe("portal inventory distribution", () => {
       .click();
     await addSheet.getByRole("button", { name: "Continue" }).click();
     await addSheet.getByLabel("Item description").fill(itemDescription);
-    await addSheet.getByLabel("Item type").fill("Jacket");
+    await addSheet.getByLabel("Item category").click();
+    await page
+      .getByRole("listbox")
+      .getByText("Jacket", { exact: true })
+      .click();
     await addSheet.getByLabel("Condition").click();
     await page.getByRole("listbox").getByText("Good", { exact: true }).click();
     await addSheet.getByRole("button", { name: "Save donation" }).click();

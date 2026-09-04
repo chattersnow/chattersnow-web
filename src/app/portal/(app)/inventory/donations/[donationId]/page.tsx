@@ -3,7 +3,11 @@ import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Card, CardContent } from "@/components/ui/card";
-import { donorLabel, type DonationRow } from "../donation-shared";
+import {
+  donorLabel,
+  withFlatItemCategories,
+  type DonationRow,
+} from "../donation-shared";
 import { DonationDetailView } from "./donation-detail-view";
 
 export async function generateMetadata({
@@ -36,7 +40,7 @@ export default async function DonationDetailPage({
   const { data: donation, error } = await supabase
     .from("donations")
     .select(
-      "id, donated_at, notes, event_id, donor:people!inner(id, name, is_anonymous, source_type), event:events(id, name), inventory_items(id, description, type, size, gender, condition, face_value, status, intended_use, photo_url, notes)",
+      "id, donated_at, notes, event_id, donor:people!inner(id, name, is_anonymous, source_type), event:events(id, name), inventory_items(id, description, type, category_id, size, gender, condition, face_value, status, intended_use, photo_url, notes, inventory_categories(key, label))",
     )
     .eq("id", donationId)
     .order("id", { referencedTable: "inventory_items", ascending: true })
@@ -59,7 +63,9 @@ export default async function DonationDetailPage({
         current={donorLabel((donation as unknown as DonationRow).donor)}
       />
 
-      <DonationDetailView donation={donation as unknown as DonationRow} />
+      <DonationDetailView
+        donation={withFlatItemCategories(donation as unknown as DonationRow)}
+      />
     </>
   );
 }

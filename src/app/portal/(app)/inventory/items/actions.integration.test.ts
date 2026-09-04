@@ -28,10 +28,26 @@ afterEach(() => {
   revalidatePathMock.mockClear();
 });
 
-function itemForm(overrides?: { description?: string }) {
+// The category is now a real FK, so the form has to carry the id of a seeded
+// category rather than a free-text string (issue #667).
+let snowboardCategoryId: string | undefined;
+
+async function categoryId() {
+  if (!snowboardCategoryId) {
+    const { data } = await adminClient
+      .from("inventory_categories")
+      .select("id")
+      .eq("key", "snowboard")
+      .single();
+    snowboardCategoryId = (data as { id: string }).id;
+  }
+  return snowboardCategoryId;
+}
+
+async function itemForm(overrides?: { description?: string }) {
   const fd = new FormData();
   fd.set("description", overrides?.description ?? "Updated description");
-  fd.set("type", "snowboard");
+  fd.set("categoryId", await categoryId());
   fd.set("condition", "good");
   fd.set("status", "available");
   fd.set("intendedUse", "gear_library");
@@ -45,7 +61,7 @@ describe("updateInventoryItemAction (integration)", () => {
     currentSupabase = anonClient();
     const result = await updateInventoryItemAction(
       crypto.randomUUID(),
-      itemForm(),
+      await itemForm(),
     );
     expect(result).toEqual({
       error: "You must be signed in to update an item.",
@@ -57,7 +73,7 @@ describe("updateInventoryItemAction (integration)", () => {
     currentSupabase = await signIn(SEEDED_USERS.admin);
     const result = await updateInventoryItemAction(
       itemIds[0],
-      itemForm({ description: "Admin updated" }),
+      await itemForm({ description: "Admin updated" }),
     );
     expect(result).toEqual({ success: true });
 
@@ -75,7 +91,7 @@ describe("updateInventoryItemAction (integration)", () => {
     currentSupabase = await signIn(SEEDED_USERS.volunteer);
     const result = await updateInventoryItemAction(
       itemIds[0],
-      itemForm({ description: "Volunteer updated" }),
+      await itemForm({ description: "Volunteer updated" }),
     );
     expect(result).toEqual({ success: true });
     await cleanup();
@@ -84,7 +100,10 @@ describe("updateInventoryItemAction (integration)", () => {
   test("finance role (no inventory or inventory_intake access) cannot update an item", async () => {
     const { itemIds, cleanup } = await createAvailableGearItems(1);
     currentSupabase = await signIn(SEEDED_USERS.finance);
-    const result = await updateInventoryItemAction(itemIds[0], itemForm());
+    const result = await updateInventoryItemAction(
+      itemIds[0],
+      await itemForm(),
+    );
     expect(result).toEqual(DENIED);
     await cleanup();
   });
@@ -92,7 +111,10 @@ describe("updateInventoryItemAction (integration)", () => {
   test("board role (no inventory access) cannot update an item", async () => {
     const { itemIds, cleanup } = await createAvailableGearItems(1);
     currentSupabase = await signIn(SEEDED_USERS.board);
-    const result = await updateInventoryItemAction(itemIds[0], itemForm());
+    const result = await updateInventoryItemAction(
+      itemIds[0],
+      await itemForm(),
+    );
     expect(result).toEqual(DENIED);
     await cleanup();
   });
@@ -100,7 +122,10 @@ describe("updateInventoryItemAction (integration)", () => {
   test("a deactivated (former) account cannot update an item", async () => {
     const { itemIds, cleanup } = await createAvailableGearItems(1);
     currentSupabase = await signIn(SEEDED_USERS.former);
-    const result = await updateInventoryItemAction(itemIds[0], itemForm());
+    const result = await updateInventoryItemAction(
+      itemIds[0],
+      await itemForm(),
+    );
     expect(result).toEqual(DENIED);
     await cleanup();
   });

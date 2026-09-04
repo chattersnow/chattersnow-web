@@ -1,10 +1,13 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
+import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Pencil } from "lucide-react";
 import { updateDonationAction } from "../actions";
 import { updateInventoryItemAction } from "../../items/actions";
+import { listInventoryCategoriesAction } from "../../categories/actions";
+import { CategorySelect } from "@/components/portal/category-select";
+import { OTHER_CATEGORY_KEY, type InventoryCategory } from "@/lib/inventory";
 import {
   CONDITIONS,
   GENDERS,
@@ -67,7 +70,8 @@ type DonationFormState = ReturnType<typeof donationFormStateFor>;
 function itemFormStateFor(item: DonationItemRow) {
   return {
     description: item.description,
-    type: item.type,
+    categoryId: item.category_id ?? "",
+    categoryDetail: item.type ?? "",
     size: item.size ?? "",
     gender: item.gender ?? "",
     condition: item.condition,
@@ -112,6 +116,16 @@ export function EditDonationSheet({ donation }: { donation: DonationRow }) {
   const [itemsForm, setItemsForm] = useState<Record<string, ItemFormState>>(
     () => itemsFormStateFor(donation),
   );
+  const [categories, setCategories] = useState<InventoryCategory[]>([]);
+
+  // Loaded on open rather than passed down: this sheet is rendered from a
+  // client component, so there is no server parent to hand it the vocabulary.
+  useEffect(() => {
+    if (!open) return;
+    listInventoryCategoriesAction().then((result) => {
+      if (!("error" in result)) setCategories(result.data);
+    });
+  }, [open]);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
@@ -188,7 +202,15 @@ export function EditDonationSheet({ donation }: { donation: DonationRow }) {
 
         const itemFormData = new FormData();
         itemFormData.set("description", form.description);
-        itemFormData.set("type", form.type);
+        itemFormData.set("categoryId", form.categoryId);
+        itemFormData.set("categoryDetail", form.categoryDetail);
+        itemFormData.set(
+          "categoryIsOther",
+          String(
+            categories.find((category) => category.id === form.categoryId)
+              ?.key === OTHER_CATEGORY_KEY,
+          ),
+        );
         itemFormData.set("size", form.size);
         itemFormData.set("gender", form.gender);
         itemFormData.set("condition", form.condition);
@@ -323,23 +345,18 @@ export function EditDonationSheet({ donation }: { donation: DonationRow }) {
                         />
                       </Field>
                       <Field orientation="responsive">
-                        <Field>
-                          <FieldLabel htmlFor={`edit-item-type-${item.id}`}>
-                            Item type
-                          </FieldLabel>
-                          <Input
-                            id={`edit-item-type-${item.id}`}
-                            required
-                            value={form.type}
-                            onChange={(event) =>
-                              updateItemField(
-                                item.id,
-                                "type",
-                                event.target.value,
-                              )
-                            }
-                          />
-                        </Field>
+                        <CategorySelect
+                          categories={categories}
+                          categoryId={form.categoryId}
+                          detail={form.categoryDetail}
+                          idPrefix={`edit-item-${item.id}`}
+                          onCategoryChange={(value) =>
+                            updateItemField(item.id, "categoryId", value)
+                          }
+                          onDetailChange={(value) =>
+                            updateItemField(item.id, "categoryDetail", value)
+                          }
+                        />
                         <Field>
                           <FieldLabel htmlFor={`edit-item-size-${item.id}`}>
                             Size

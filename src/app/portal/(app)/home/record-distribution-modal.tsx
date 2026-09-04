@@ -1,10 +1,12 @@
 "use client";
 
+import { categoryLabelFor, flattenCategory } from "@/lib/inventory";
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   listAvailableInventoryItemsAction,
   recordEventDistributionAction,
+  type AvailableInventoryItem,
 } from "./distribution-actions";
 import { listPeopleAction, type PersonListItem } from "../people/actions";
 import { PersonPicker, type PickedPerson } from "../people/person-picker";
@@ -53,7 +55,7 @@ export function RecordDistributionModal({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [availableItems, setAvailableItems] = useState<
-    { id: string; description: string; type: string }[]
+    AvailableInventoryItem[]
   >([]);
   const [people, setPeople] = useState<PersonListItem[]>([]);
   const [recipient, setRecipient] = useState<PickedPerson | null>(null);
@@ -159,7 +161,7 @@ export function RecordDistributionModal({
                         (candidate) => candidate.id === value,
                       );
                       return item
-                        ? `${item.description} (${item.type})`
+                        ? `${item.description} (${categoryLabelFor(flattenCategory(item))})`
                         : "Select an available item";
                     }}
                   </SelectValue>
@@ -167,7 +169,8 @@ export function RecordDistributionModal({
                 <SelectContent>
                   {availableItems.map((item) => (
                     <SelectItem key={item.id} value={item.id}>
-                      {item.description} ({item.type})
+                      {item.description} (
+                      {categoryLabelFor(flattenCategory(item))})
                     </SelectItem>
                   ))}
                 </SelectContent>

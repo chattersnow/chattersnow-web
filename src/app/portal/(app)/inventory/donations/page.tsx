@@ -16,7 +16,11 @@ import {
 } from "@/lib/pagination";
 import Link from "next/link";
 import { DonationsTable } from "./donations-table";
-import { SOURCE_TYPES, type DonationRow } from "./donation-shared";
+import {
+  SOURCE_TYPES,
+  withFlatItemCategories,
+  type DonationRow,
+} from "./donation-shared";
 
 type InventoryDonationsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -55,7 +59,7 @@ export default async function InventoryDonationsPage({
   let query = supabase
     .from("donations")
     .select(
-      "id, donated_at, notes, event_id, donor:people!inner(id, name, is_anonymous, source_type), event:events(id, name), inventory_items(id, description, type, size, gender, condition, face_value, status, intended_use, photo_url, notes)",
+      "id, donated_at, notes, event_id, donor:people!inner(id, name, is_anonymous, source_type), event:events(id, name), inventory_items(id, description, type, category_id, size, gender, condition, face_value, status, intended_use, photo_url, notes, inventory_categories(key, label))",
       { count: "exact" },
     )
     .order("donated_at", { ascending: false })
@@ -73,7 +77,9 @@ export default async function InventoryDonationsPage({
 
   const { offset, to } = pageRange(page);
   const { data, count } = await query.range(offset, to);
-  const donations = (data ?? []) as unknown as DonationRow[];
+  const donations = ((data ?? []) as unknown as DonationRow[]).map(
+    withFlatItemCategories,
+  );
 
   const filterParams = new URLSearchParams();
   if (search) filterParams.set("search", search);

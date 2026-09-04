@@ -38,7 +38,9 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
-import { INTENDED_USES } from "@/lib/inventory";
+import { INTENDED_USES, type InventoryCategory } from "@/lib/inventory";
+import { CategorySelect } from "@/components/portal/category-select";
+import { listInventoryCategoriesAction } from "../inventory/categories/actions";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 
@@ -85,7 +87,8 @@ type ItemDraft = {
   key: string;
   description: string;
   size: string;
-  type: string;
+  categoryId: string;
+  categoryDetail: string;
   gender: string;
   condition: string;
   faceValue: string;
@@ -99,7 +102,8 @@ function createEmptyItem(): ItemDraft {
     key: crypto.randomUUID(),
     description: "",
     size: "",
-    type: "",
+    categoryId: "",
+    categoryDetail: "",
     gender: "",
     condition: "",
     faceValue: "",
@@ -129,6 +133,7 @@ export function AddDonationModal({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [giveawayTiers, setGiveawayTiers] = useState<GiveawayTierOption[]>([]);
+  const [categories, setCategories] = useState<InventoryCategory[]>([]);
   const [grant, setGrant] = useState<DonationGiveawayGrant | null>(null);
   // Callers on a page that already queried events pass them in; the sidebar
   // quick action has none, so load them on open instead of silently dropping
@@ -146,6 +151,17 @@ export function AddDonationModal({
       if (!("error" in result)) setLoadedEvents(result.data);
     });
   }, [open, eventId, events]);
+
+  // This modal is opened from client components (the sidebar quick actions and
+  // the active-event card), so the vocabulary can't arrive as a server prop the
+  // way it does on the items page -- same reason the two lookups above are
+  // fetched here.
+  useEffect(() => {
+    if (!open) return;
+    listInventoryCategoriesAction().then((result) => {
+      if (!("error" in result)) setCategories(result.data);
+    });
+  }, [open]);
 
   // An event with no giveaway, or a giveaway with no tiers, returns an empty
   // list and the per-item tier picker stays hidden.
@@ -230,7 +246,10 @@ export function AddDonationModal({
       items: items.map((item) => ({
         description: item.description,
         size: item.size || undefined,
-        type: item.type,
+        categoryKey:
+          categories.find((category) => category.id === item.categoryId)?.key ??
+          "",
+        categoryDetail: item.categoryDetail || undefined,
         gender: item.gender || undefined,
         condition: item.condition,
         faceValue: item.faceValue ? Number(item.faceValue) : null,
@@ -477,20 +496,18 @@ export function AddDonationModal({
                     </Field>
 
                     <Field orientation="responsive">
-                      <Field>
-                        <FieldLabel htmlFor={`itemType-${item.key}`}>
-                          Item type
-                        </FieldLabel>
-                        <Input
-                          id={`itemType-${item.key}`}
-                          required
-                          placeholder="e.g. Jacket"
-                          value={item.type}
-                          onChange={(event) =>
-                            updateItem(item.key, "type", event.target.value)
-                          }
-                        />
-                      </Field>
+                      <CategorySelect
+                        categories={categories}
+                        categoryId={item.categoryId}
+                        detail={item.categoryDetail}
+                        idPrefix={`item-${item.key}`}
+                        onCategoryChange={(value) =>
+                          updateItem(item.key, "categoryId", value)
+                        }
+                        onDetailChange={(value) =>
+                          updateItem(item.key, "categoryDetail", value)
+                        }
+                      />
                       <Field>
                         <FieldLabel htmlFor={`itemSize-${item.key}`}>
                           Size

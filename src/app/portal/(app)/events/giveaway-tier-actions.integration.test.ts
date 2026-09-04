@@ -141,9 +141,21 @@ describe("donated-gear ticket path (integration)", () => {
       sourceType: "individual",
       eventId,
       items: [
-        { description: "Burton board", type: "Snowboard", condition: "good" },
-        { description: "Wool beanie", type: "Beanie", condition: "good" },
-        { description: "Wool beanie", type: "Beanie", condition: "good" },
+        {
+          description: "Burton board",
+          categoryKey: "snowboard",
+          condition: "good",
+        },
+        {
+          description: "Wool beanie",
+          categoryKey: "beanie",
+          condition: "good",
+        },
+        {
+          description: "Wool beanie",
+          categoryKey: "beanie",
+          condition: "good",
+        },
       ],
     });
 
@@ -159,6 +171,10 @@ describe("donated-gear ticket path (integration)", () => {
     await trackDonations();
   });
 
+  // Also the regression guard for issue #667: tier keywords are now matched
+  // against "<group label> <category label> <detail>" rather than the raw free
+  // text, so "Poles" must still match nothing -- the group is named
+  // "Hardgoods" precisely so that 'ski' does not match a pair of poles.
   test("an item matching no keyword earns nothing and is reported back", async () => {
     currentSupabase = await signIn(SEEDED_USERS.admin);
 
@@ -167,7 +183,9 @@ describe("donated-gear ticket path (integration)", () => {
       donorName: "",
       sourceType: "individual",
       eventId,
-      items: [{ description: "Ski poles", type: "Poles", condition: "good" }],
+      items: [
+        { description: "Ski poles", categoryKey: "poles", condition: "good" },
+      ],
     });
 
     if (!("success" in result)) throw new Error("expected success");
@@ -191,7 +209,7 @@ describe("donated-gear ticket path (integration)", () => {
       items: [
         {
           description: "Ski poles",
-          type: "Poles",
+          categoryKey: "poles",
           condition: "good",
           giveawayTier: "gold",
         },

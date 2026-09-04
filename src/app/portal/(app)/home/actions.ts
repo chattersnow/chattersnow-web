@@ -136,11 +136,12 @@ export type EventDonationRow = {
   inventory_items: {
     id: string;
     description: string;
-    type: string;
+    type: string | null;
     size: string | null;
     condition: string;
     face_value: number | string | null;
     status: string;
+    inventory_categories?: { key: string; label: string } | null;
   }[];
 };
 
@@ -154,7 +155,7 @@ export async function listEventDonationsAction(
   const { data, error } = await supabase
     .from("donations")
     .select(
-      "id, donated_at, notes, donor:people(name, is_anonymous), inventory_items(id, description, type, size, condition, face_value, status)",
+      "id, donated_at, notes, donor:people(name, is_anonymous), inventory_items(id, description, type, size, condition, face_value, status, inventory_categories(key, label))",
     )
     .eq("event_id", eventId)
     .order("donated_at", { ascending: false })
@@ -179,7 +180,7 @@ export async function listRecentDonationsAction(
   const { data, error } = await supabase
     .from("donations")
     .select(
-      "id, donated_at, notes, donor:people(name, is_anonymous), inventory_items(id, description, type, size, condition, face_value, status)",
+      "id, donated_at, notes, donor:people(name, is_anonymous), inventory_items(id, description, type, size, condition, face_value, status, inventory_categories(key, label))",
     )
     .order("donated_at", { ascending: false })
     .order("id", { ascending: true })

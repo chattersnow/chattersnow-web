@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import {
   CONDITIONS,
+  categoryLabelFor,
   GENDERS,
   INTENDED_USES,
   labelFor,
@@ -8,12 +9,24 @@ import {
 } from "@/lib/inventory";
 import { formatCurrency } from "@/lib/format";
 
-export { CONDITIONS, GENDERS, INTENDED_USES, labelFor, resolveImageUrl };
+export {
+  CONDITIONS,
+  categoryLabelFor,
+  GENDERS,
+  INTENDED_USES,
+  labelFor,
+  resolveImageUrl,
+};
 
 export type InventoryItem = {
   id: string;
   description: string;
-  type: string;
+  /** Legacy free text / the "Other" category's detail -- see categoryLabelFor. */
+  type: string | null;
+  category_id: string | null;
+  category_key: string | null;
+  category_label: string | null;
+  category_group_label: string | null;
   size: string | null;
   gender: string | null;
   condition: string;
@@ -32,7 +45,7 @@ export type InventoryItem = {
 
 export type SortColumn =
   | "description"
-  | "type"
+  | "category"
   | "size"
   | "gender"
   | "condition"
@@ -42,7 +55,7 @@ export type SortColumn =
 
 export const SORT_COLUMNS: { key: SortColumn; label: string }[] = [
   { key: "description", label: "Description" },
-  { key: "type", label: "Type" },
+  { key: "category", label: "Category" },
   { key: "size", label: "Size" },
   { key: "gender", label: "Gender" },
   { key: "condition", label: "Condition" },

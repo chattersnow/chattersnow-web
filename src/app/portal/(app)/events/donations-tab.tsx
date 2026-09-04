@@ -1,5 +1,6 @@
 "use client";
 
+import { categoryLabelFor, flattenCategory } from "@/lib/inventory";
 import {
   listEventDonationsAction,
   type EventDonationRow,
@@ -80,7 +81,9 @@ export function DonationsTab({
                   <span className="block truncate" title={item.description}>
                     {item.description}
                   </span>
-                  <span className="app-muted block text-xs">{item.type}</span>
+                  <span className="app-muted block text-xs">
+                    {categoryLabelFor(flattenCategory(item))}
+                  </span>
                 </TableCell>
                 <TableCell className="app-muted">{item.donorLabel}</TableCell>
                 <TableCell className="app-muted capitalize">

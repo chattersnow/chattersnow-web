@@ -1,5 +1,10 @@
+import { categoryLabelFor, UNCATEGORIZED_LABEL } from "@/lib/inventory";
+
 export type ValuationItem = {
   type: string | null;
+  category_key: string | null;
+  category_label: string | null;
+  category_group_label: string | null;
   status: string;
   face_value: number | string | null;
 };
@@ -35,7 +40,13 @@ export const DONOR_BUCKETS: { value: DonorBucket; label: string }[] = [
   { value: "unattributed", label: "Unattributed" },
 ];
 
-export type TypeValuation = { type: string; count: number; totalValue: number };
+export type CategoryValuation = {
+  /** Group label, or "Uncategorized" for items with no category. */
+  group: string;
+  category: string;
+  count: number;
+  totalValue: number;
+};
 export type StatusValuation = {
   status: string;
   count: number;
@@ -48,18 +59,57 @@ export function toNumber(value: number | string | null): number {
   return Number.isFinite(numeric) ? numeric : 0;
 }
 
-export function summarizeByType(
+/**
+ * On-hand value per category (issue #667).
+ *
+ * This used to group by the raw trimmed `type` string, so "Snowboard",
+ * "snowboard" and "snow board" were three rows of the same category -- the
+ * complaint that reports "can't roll up by category". Grouping is now on the
+ * vocabulary, and `categoryLabelFor` supplies the label so an "Other" item
+ * reads as its detail and a still-uncategorized legacy row reads as whatever
+ * was typed.
+ */
+export function summarizeByCategory(
   items: ValuationItem[],
   status = "available",
-): TypeValuation[] {
-  const totals = new Map<string, TypeValuation>();
+): CategoryValuation[] {
+  const totals = new Map<string, CategoryValuation>();
   for (const item of items) {
     if (item.status !== status) continue;
-    const key = item.type?.trim() || "Unspecified";
-    const entry = totals.get(key) ?? { type: key, count: 0, totalValue: 0 };
+    const category = categoryLabelFor(item);
+    const group = item.category_group_label ?? UNCATEGORIZED_LABEL;
+    const key = `${group}\u0000${category}`;
+    const entry = totals.get(key) ?? {
+      group,
+      category,
+      count: 0,
+      totalValue: 0,
+    };
     entry.count += 1;
     entry.totalValue += toNumber(item.face_value);
     totals.set(key, entry);
+  }
+  return [...totals.values()].sort((a, b) => b.totalValue - a.totalValue);
+}
+
+/** The same totals rolled up one level, which is what the report leads with. */
+export function summarizeByCategoryGroup(
+  items: ValuationItem[],
+  status = "available",
+): { group: string; count: number; totalValue: number }[] {
+  const totals = new Map<
+    string,
+    { group: string; count: number; totalValue: number }
+  >();
+  for (const row of summarizeByCategory(items, status)) {
+    const entry = totals.get(row.group) ?? {
+      group: row.group,
+      count: 0,
+      totalValue: 0,
+    };
+    entry.count += row.count;
+    entry.totalValue += row.totalValue;
+    totals.set(row.group, entry);
   }
   return [...totals.values()].sort((a, b) => b.totalValue - a.totalValue);
 }

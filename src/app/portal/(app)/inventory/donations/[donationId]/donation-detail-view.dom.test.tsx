@@ -20,7 +20,10 @@ function makeDonation(overrides: Partial<DonationRow> = {}): DonationRow {
       {
         id: "item-1",
         description: "Winter jacket",
-        type: "jacket",
+        type: null,
+        category_id: "category-jacket",
+        category_key: "jacket",
+        category_label: "Jacket",
         size: "M",
         gender: "unisex",
         condition: "good",

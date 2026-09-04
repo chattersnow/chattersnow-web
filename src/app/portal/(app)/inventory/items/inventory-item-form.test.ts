@@ -9,7 +9,7 @@ function formData(fields: Record<string, string>) {
 
 const validFields = {
   description: "Ski jacket",
-  type: "jacket",
+  categoryId: "11111111-1111-1111-1111-111111111111",
   condition: "good",
   status: "available",
   intendedUse: "gear_library",
@@ -24,12 +24,38 @@ describe("parseInventoryItemForm", () => {
     });
   });
 
-  test("requires a type", () => {
+  test("requires a category", () => {
     expect(
-      parseInventoryItemForm(formData({ ...validFields, type: "" })),
+      parseInventoryItemForm(formData({ ...validFields, categoryId: "" })),
     ).toEqual({
-      error: "Item type is required.",
+      error: "Item category is required.",
     });
+  });
+
+  test("requires the free-text detail when the category is Other", () => {
+    expect(
+      parseInventoryItemForm(
+        formData({ ...validFields, categoryIsOther: "true" }),
+      ),
+    ).toEqual({
+      error: "Describe the item when the category is Other.",
+    });
+  });
+
+  test("accepts the free-text detail when the category is Other", () => {
+    const result = parseInventoryItemForm(
+      formData({
+        ...validFields,
+        categoryIsOther: "true",
+        categoryDetail: "Vintage ski poles",
+      }),
+    );
+    expect("data" in result && result.data.type).toBe("Vintage ski poles");
+  });
+
+  test("stores no detail for an ordinary category", () => {
+    const result = parseInventoryItemForm(formData(validFields));
+    expect("data" in result && result.data.type).toBeNull();
   });
 
   test("rejects an invalid condition", () => {
@@ -83,7 +109,8 @@ describe("parseInventoryItemForm", () => {
     expect(result).toEqual({
       data: {
         description: "Ski jacket",
-        type: "jacket",
+        category_id: "11111111-1111-1111-1111-111111111111",
+        type: null,
         size: "M",
         gender: "unisex",
         condition: "good",

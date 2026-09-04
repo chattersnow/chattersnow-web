@@ -3,7 +3,8 @@ import {
   DONOR_BUCKETS,
   donorBucketFor,
   summarizeByStatus,
-  summarizeByType,
+  summarizeByCategory,
+  summarizeByCategoryGroup,
   summarizeReceivedByDonorBucket,
   sumMovementValue,
   toNumber,
@@ -39,44 +40,126 @@ describe("toNumber", () => {
   });
 });
 
-describe("summarizeByType", () => {
+function item(
+  category: string | null,
+  group: string | null,
+  status: string,
+  faceValue: number | string | null,
+  type: string | null = null,
+) {
+  return {
+    type,
+    // The key is the machine token, always lower_snake_case; the label is what
+    // a human sees. categoryLabelFor keys the "Other" special case off the key.
+    category_key: category && category.toLowerCase().replace(/ /g, "_"),
+    category_label: category,
+    category_group_label: group,
+    status,
+    face_value: faceValue,
+  };
+}
+
+describe("summarizeByCategory", () => {
   const items = [
-    { type: "jacket", status: "available", face_value: 40 },
-    { type: "jacket", status: "available", face_value: "60" },
-    { type: "boots", status: "available", face_value: 25 },
-    { type: "jacket", status: "distributed", face_value: 100 },
-    { type: null, status: "available", face_value: 10 },
-    { type: "  ", status: "available", face_value: 5 },
+    item("Jacket", "Outerwear", "available", 40),
+    item("Jacket", "Outerwear", "available", "60"),
+    item("Boots", "Footwear", "available", 25),
+    item("Jacket", "Outerwear", "distributed", 100),
+    // Never categorized: still counted, under its legacy free text if it has
+    // one and "Uncategorized" otherwise.
+    item(null, null, "available", 10, "snow board"),
+    item(null, null, "available", 5),
   ];
 
-  test("only includes items matching the given status, summed and counted per type", () => {
-    expect(summarizeByType(items, "available")).toEqual([
-      { type: "jacket", count: 2, totalValue: 100 },
-      { type: "boots", count: 1, totalValue: 25 },
-      { type: "Unspecified", count: 2, totalValue: 15 },
+  test("only includes items matching the given status, summed per category", () => {
+    expect(summarizeByCategory(items, "available")).toEqual([
+      { group: "Outerwear", category: "Jacket", count: 2, totalValue: 100 },
+      { group: "Footwear", category: "Boots", count: 1, totalValue: 25 },
+      {
+        group: "Uncategorized",
+        category: "snow board",
+        count: 1,
+        totalValue: 10,
+      },
+      {
+        group: "Uncategorized",
+        category: "Uncategorized",
+        count: 1,
+        totalValue: 5,
+      },
     ]);
   });
 
+  test("groups spelling variants of one category into a single row", () => {
+    // The bug this replaced: grouping on the raw free text made these three
+    // rows instead of one.
+    const variants = [
+      item("Snowboard", "Hardgoods", "available", 10, "Snowboard"),
+      item("Snowboard", "Hardgoods", "available", 10, "snowboard"),
+      item("Snowboard", "Hardgoods", "available", 10, "snow board"),
+    ];
+    expect(summarizeByCategory(variants, "available")).toEqual([
+      { group: "Hardgoods", category: "Snowboard", count: 3, totalValue: 30 },
+    ]);
+  });
+
+  test("shows an Other item as its free-text detail", () => {
+    const others = [item("Other", "Other", "available", 12, "Vintage poles")];
+    expect(summarizeByCategory(others, "available")[0].category).toBe(
+      "Vintage poles",
+    );
+  });
+
   test("sorts by total value descending", () => {
-    const result = summarizeByType(items, "available");
-    expect(result.map((row) => row.type)).toEqual([
-      "jacket",
-      "boots",
-      "Unspecified",
+    const result = summarizeByCategory(items, "available");
+    expect(result.map((row) => row.category)).toEqual([
+      "Jacket",
+      "Boots",
+      "snow board",
+      "Uncategorized",
     ]);
   });
 
   test("defaults to available status", () => {
-    expect(summarizeByType(items)).toEqual(summarizeByType(items, "available"));
+    expect(summarizeByCategory(items)).toEqual(
+      summarizeByCategory(items, "available"),
+    );
+  });
+});
+
+describe("summarizeByCategoryGroup", () => {
+  const items = [
+    item("Jacket", "Outerwear", "available", 40),
+    item("Pants", "Outerwear", "available", 60),
+    item("Boots", "Footwear", "available", 25),
+  ];
+
+  test("rolls the per-category totals up to their group", () => {
+    expect(summarizeByCategoryGroup(items, "available")).toEqual([
+      { group: "Outerwear", count: 2, totalValue: 100 },
+      { group: "Footwear", count: 1, totalValue: 25 },
+    ]);
+  });
+
+  test("totals the same as the per-category breakdown", () => {
+    const groupTotal = summarizeByCategoryGroup(items).reduce(
+      (sum, row) => sum + row.totalValue,
+      0,
+    );
+    const categoryTotal = summarizeByCategory(items).reduce(
+      (sum, row) => sum + row.totalValue,
+      0,
+    );
+    expect(groupTotal).toBe(categoryTotal);
   });
 });
 
 describe("summarizeByStatus", () => {
   const statuses = ["available", "distributed", "lost"];
   const items = [
-    { type: "jacket", status: "available", face_value: 40 },
-    { type: "boots", status: "distributed", face_value: 25 },
-    { type: "boots", status: "distributed", face_value: 25 },
+    item("Jacket", "Outerwear", "available", 40),
+    item("Boots", "Footwear", "distributed", 25),
+    item("Boots", "Footwear", "distributed", 25),
   ];
 
   test("zero-fills statuses with no items", () => {

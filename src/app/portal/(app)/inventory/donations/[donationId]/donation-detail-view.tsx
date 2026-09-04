@@ -1,3 +1,4 @@
+import { categoryLabelFor } from "@/lib/inventory";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FieldGroup, Field } from "@/components/ui/field";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
@@ -93,10 +94,10 @@ export function DonationDetailView({ donation }: { donation: DonationRow }) {
                     </ReadOnlyField>
                     <Field orientation="responsive">
                       <ReadOnlyField
-                        label="Item type"
-                        htmlFor={`item-type-${item.id}`}
+                        label="Item category"
+                        htmlFor={`item-category-${item.id}`}
                       >
-                        {item.type}
+                        {categoryLabelFor(item)}
                       </ReadOnlyField>
                       <ReadOnlyField
                         label="Size"

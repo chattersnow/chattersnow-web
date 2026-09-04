@@ -1,9 +1,13 @@
 import type { ParseResult } from "@/lib/forms";
+import { OTHER_CATEGORY_KEY } from "@/lib/inventory";
 
 export type DonationItemInput = {
   description: string;
   size?: string;
-  type: string;
+  /** Controlled category key (issue #667). */
+  categoryKey: string;
+  /** Free-text detail, required only when the category is "Other". */
+  categoryDetail?: string;
   gender?: string;
   condition: string;
   faceValue?: number | null;
@@ -45,7 +49,8 @@ export type DonationRpcArgs = {
   p_items: {
     description: string;
     size: string | null;
-    type: string;
+    category_key: string;
+    type: string | null;
     gender: string | null;
     condition: string;
     face_value: number | null;
@@ -80,8 +85,16 @@ export function parseDonationInput(
     if (!item.description.trim()) {
       return { error: `${label}: description is required.` };
     }
-    if (!item.type.trim()) {
-      return { error: `${label}: type is required.` };
+    if (!item.categoryKey.trim()) {
+      return { error: `${label}: category is required.` };
+    }
+    if (
+      item.categoryKey === OTHER_CATEGORY_KEY &&
+      !item.categoryDetail?.trim()
+    ) {
+      return {
+        error: `${label}: describe the item when the category is Other.`,
+      };
     }
     if (!CONDITIONS.includes(item.condition as (typeof CONDITIONS)[number])) {
       return { error: `${label}: select a valid condition.` };
@@ -113,7 +126,8 @@ export function parseDonationInput(
       p_items: input.items.map((item) => ({
         description: item.description.trim(),
         size: item.size?.trim() || null,
-        type: item.type.trim(),
+        category_key: item.categoryKey.trim(),
+        type: item.categoryDetail?.trim() || null,
         gender: item.gender || null,
         condition: item.condition,
         face_value: item.faceValue ?? null,

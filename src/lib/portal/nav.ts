@@ -139,6 +139,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
         ],
       },
       {
+        value: "categories",
+        label: "Item Categories",
+        href: "/portal/inventory/categories",
+        access: [{ resource: "inventory", level: "view" }],
+      },
+      {
         value: "reports",
         label: "Inventory Reports",
         href: "/portal/inventory/reports",

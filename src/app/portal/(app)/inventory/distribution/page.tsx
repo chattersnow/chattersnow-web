@@ -20,6 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDateTime, personDisplayName } from "@/lib/format";
+import { categoryLabelFor, flattenCategory } from "@/lib/inventory";
 import { EmptyState } from "@/components/portal/empty-state";
 
 export const metadata: Metadata = {
@@ -101,7 +102,11 @@ export default async function DistributionPage() {
                             {movement.inventory_item?.description ?? "—"}
                           </span>
                           <span className="app-muted block text-xs">
-                            {movement.inventory_item?.type}
+                            {movement.inventory_item
+                              ? categoryLabelFor(
+                                  flattenCategory(movement.inventory_item),
+                                )
+                              : null}
                           </span>
                         </TableCell>
                         <TableCell>{movement.quantity}</TableCell>

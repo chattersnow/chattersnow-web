@@ -14,7 +14,13 @@ const INTENDED_USES = ["gear_library", "giveaway", "internal"] as const;
 
 export type InventoryItemFormData = {
   description: string;
-  type: string;
+  category_id: string;
+  /**
+   * Free-text detail behind the "Other" category, stored in the legacy `type`
+   * column (issue #667). Null for every other category, so a reclassified item
+   * doesn't keep a stale description of a category it no longer has.
+   */
+  type: string | null;
   size: string | null;
   gender: string | null;
   condition: string;
@@ -29,7 +35,8 @@ export function parseInventoryItemForm(
   formData: FormData,
 ): ParseResult<InventoryItemFormData> {
   const description = String(formData.get("description") ?? "").trim();
-  const type = String(formData.get("type") ?? "").trim();
+  const categoryId = String(formData.get("categoryId") ?? "").trim();
+  const categoryDetail = String(formData.get("categoryDetail") ?? "").trim();
   const condition = String(formData.get("condition") ?? "");
   const status = String(formData.get("status") ?? "");
   const intendedUse = String(formData.get("intendedUse") ?? "");
@@ -37,8 +44,14 @@ export function parseInventoryItemForm(
   if (!description) {
     return { error: "Item description is required." };
   }
-  if (!type) {
-    return { error: "Item type is required." };
+  if (!categoryId) {
+    return { error: "Item category is required." };
+  }
+  // The picker only reveals the detail field for "Other", and only then is it
+  // required -- an empty box there means the item is filed as "Other" with
+  // nothing said about what it actually is.
+  if (formData.get("categoryIsOther") === "true" && !categoryDetail) {
+    return { error: "Describe the item when the category is Other." };
   }
   if (!CONDITIONS.includes(condition as (typeof CONDITIONS)[number])) {
     return { error: "Select a valid item condition." };
@@ -59,7 +72,8 @@ export function parseInventoryItemForm(
   return {
     data: {
       description,
-      type,
+      category_id: categoryId,
+      type: categoryDetail || null,
       size: String(formData.get("size") ?? "").trim() || null,
       gender: String(formData.get("gender") ?? "") || null,
       condition,
