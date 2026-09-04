@@ -110,6 +110,58 @@ describe("event volunteer actions (integration)", () => {
     await person.cleanup();
   });
 
+  // Regression: the signup list had no ORDER BY, so Postgres returned rows in
+  // physical heap order. An UPDATE writes a new row version at the end of the
+  // heap, which made the row you just edited jump to the bottom of the table.
+  // Ordering by the embedded person name (with an id tiebreaker) can only be
+  // exercised against real PostgREST -- a mocked client never parses `order=`.
+  test("lists volunteers by person name and keeps that order after an edit", async () => {
+    const event = await createPublishedEvent();
+    // Inserted in reverse alphabetical order so heap order and name order
+    // disagree from the start.
+    const zoe = await createPerson({ name: "Zoe Ordering Test" });
+    const mia = await createPerson({ name: "Mia Ordering Test" });
+    const abe = await createPerson({ name: "Abe Ordering Test" });
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+    for (const person of [zoe, mia, abe]) {
+      expect(
+        await createEventVolunteerAction(event.id, person.id, volunteerForm()),
+      ).toEqual({ success: true });
+    }
+
+    const listed = await listEventVolunteersAction(event.id);
+    if (!("data" in listed)) throw new Error("expected data");
+    expect(listed.data.map((v) => v.person.name)).toEqual([
+      "Abe Ordering Test",
+      "Mia Ordering Test",
+      "Zoe Ordering Test",
+    ]);
+
+    // Editing the first row must not move it. Writing the same shift_id still
+    // produces a new tuple version, which is what used to reorder the table.
+    const first = listed.data[0];
+    expect(await updateEventVolunteerShiftAction(first.id, null)).toEqual({
+      success: true,
+    });
+
+    const relisted = await listEventVolunteersAction(event.id);
+    if (!("data" in relisted)) throw new Error("expected data");
+    expect(relisted.data.map((v) => v.person.name)).toEqual([
+      "Abe Ordering Test",
+      "Mia Ordering Test",
+      "Zoe Ordering Test",
+    ]);
+
+    for (const volunteer of relisted.data) {
+      expect(await deleteEventVolunteerAction(volunteer.id)).toEqual({
+        success: true,
+      });
+    }
+    await event.cleanup();
+    await Promise.all([zoe.cleanup(), mia.cleanup(), abe.cleanup()]);
+  });
+
   test("event_coordinator role (events manage) can add a volunteer", async () => {
     const event = await createPublishedEvent();
     const person = await createPerson();

@@ -25,7 +25,8 @@ export default async function BoardMembersPage() {
         "id, role_title, term_start, term_end, is_active, notes, person:people(id, name, email, phone)",
       )
       .order("is_active", { ascending: false })
-      .order("term_start", { ascending: false }),
+      .order("term_start", { ascending: false })
+      .order("id", { ascending: true }),
     supabase
       .from("people")
       .select("id, name, preferred_name, email, phone, auth_user_id")

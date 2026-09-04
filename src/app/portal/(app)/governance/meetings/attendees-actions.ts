@@ -36,9 +36,11 @@ export async function listMeetingAttendeesAction(
   const { data, error } = await supabase
     .from("governance_meeting_attendees")
     .select(
-      "id, meeting_id, person_id, attended, person:people(id, name, email, phone)",
+      "id, meeting_id, person_id, attended, person:people!inner(id, name, email, phone)",
     )
-    .eq("meeting_id", meetingId);
+    .eq("meeting_id", meetingId)
+    .order("person(name)", { ascending: true, nullsFirst: false })
+    .order("id", { ascending: true });
 
   if (error) {
     return { error: "Could not load attendees. Please try again." };

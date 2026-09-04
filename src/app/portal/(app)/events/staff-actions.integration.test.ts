@@ -47,6 +47,50 @@ function staffForm(overrides: { role?: string; notes?: string } = {}) {
 const DENIED = { error: "You don't have permission to perform this action." };
 
 describe("event staff actions (integration)", () => {
+  // Regression: the staff list had no ORDER BY, so an in-place edit rewrote the
+  // row at the end of the heap and it jumped to the bottom of the table. Only
+  // real PostgREST parses `order=`, so this can't be covered by a unit test.
+  test("lists staff by person name and keeps that order after an edit", async () => {
+    const event = await createPublishedEvent();
+    // Inserted in reverse alphabetical order so heap order and name order
+    // disagree from the start.
+    const zoe = await createPerson({ name: "Zoe Staff Order" });
+    const mia = await createPerson({ name: "Mia Staff Order" });
+    const abe = await createPerson({ name: "Abe Staff Order" });
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+    for (const person of [zoe, mia, abe]) {
+      expect(
+        await createEventStaffAction(event.id, person.id, staffForm()),
+      ).toEqual({ success: true });
+    }
+
+    const expected = ["Abe Staff Order", "Mia Staff Order", "Zoe Staff Order"];
+
+    const listed = await listEventStaffAction(event.id);
+    if (!("data" in listed)) throw new Error("expected data");
+    expect(listed.data.map((s) => s.person.name)).toEqual(expected);
+
+    expect(
+      await updateEventStaffAction(
+        listed.data[0].id,
+        staffForm({ role: "Sweep" }),
+      ),
+    ).toEqual({ success: true });
+
+    const relisted = await listEventStaffAction(event.id);
+    if (!("data" in relisted)) throw new Error("expected data");
+    expect(relisted.data.map((s) => s.person.name)).toEqual(expected);
+
+    for (const member of relisted.data) {
+      expect(await deleteEventStaffAction(member.id)).toEqual({
+        success: true,
+      });
+    }
+    await event.cleanup();
+    await Promise.all([zoe.cleanup(), mia.cleanup(), abe.cleanup()]);
+  });
+
   test("requires a signed-in user to add staff", async () => {
     const event = await createPublishedEvent();
     const person = await createPerson();

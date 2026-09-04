@@ -98,7 +98,8 @@ export async function listEventRevenueAction(
     .from("event_revenue")
     .select(REVENUE_COLUMNS)
     .eq("event_id", eventId)
-    .order("received_date", { ascending: false });
+    .order("received_date", { ascending: false })
+    .order("id", { ascending: true });
 
   if (error) {
     return {

@@ -34,9 +34,11 @@ export async function listEventStaffAction(
   const { data, error } = await supabase
     .from("event_staff")
     .select(
-      "id, event_id, person_id, role, notes, person:people(id, name, email, phone)",
+      "id, event_id, person_id, role, notes, person:people!inner(id, name, email, phone)",
     )
-    .eq("event_id", eventId);
+    .eq("event_id", eventId)
+    .order("person(name)", { ascending: true, nullsFirst: false })
+    .order("id", { ascending: true });
 
   if (error) {
     return { error: "Could not load staff. Please try again." };

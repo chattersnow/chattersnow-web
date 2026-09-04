@@ -39,6 +39,7 @@ export default async function DonationDetailPage({
       "id, donated_at, notes, event_id, donor:people!inner(id, name, is_anonymous, source_type), event:events(id, name), inventory_items(id, description, type, size, gender, condition, face_value, status, photo_url, notes)",
     )
     .eq("id", donationId)
+    .order("id", { referencedTable: "inventory_items", ascending: true })
     .maybeSingle();
 
   if (error) {

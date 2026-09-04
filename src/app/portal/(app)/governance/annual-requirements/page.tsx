@@ -24,7 +24,8 @@ export default async function AnnualRequirementsPage() {
     supabase
       .from("annual_requirements")
       .select(REQUIREMENT_SELECT)
-      .order("due_date", { ascending: true }),
+      .order("due_date", { ascending: true })
+      .order("id", { ascending: true }),
     supabase
       .from("people")
       .select("id, name, preferred_name, email, phone, auth_user_id")
