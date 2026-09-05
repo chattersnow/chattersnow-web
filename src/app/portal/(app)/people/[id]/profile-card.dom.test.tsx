@@ -35,6 +35,7 @@ const person: PersonRow = {
   preferred_name: null,
   email: "jane@example.com",
   phone: "555-1234",
+  pronouns: null,
   instagram_handle: null,
   notes: "VIP",
   logo_url: null,

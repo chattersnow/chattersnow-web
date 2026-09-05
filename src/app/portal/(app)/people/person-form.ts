@@ -7,6 +7,8 @@ import {
   type RidingDiscipline,
 } from "@/lib/rider-profile";
 
+import { parsePronouns } from "@/lib/pronouns";
+
 import { isPersonType, type PersonType } from "./people-shared";
 
 const INSTAGRAM_HANDLE_PATTERN = /^[A-Za-z0-9._]{1,30}$/;
@@ -32,6 +34,7 @@ export type PersonFormData = {
   preferred_name: string | null;
   email: string | null;
   phone: string | null;
+  pronouns: string | null;
   instagram_handle: string | null;
   notes: string | null;
   logo_url: string | null;
@@ -59,6 +62,7 @@ export function parsePersonForm(
     .trim()
     .toLowerCase();
   const phone = String(formData.get("phone") ?? "").trim();
+  const pronouns = parsePronouns(formData.get("pronouns"));
   const instagramHandle = String(formData.get("instagramHandle") ?? "")
     .trim()
     .replace(/^@/, "");
@@ -110,6 +114,7 @@ export function parsePersonForm(
         "Select at least one role for this person — Donor, Sponsor, Volunteer, Attendee, Staff, or Partner.",
     };
   }
+  if ("error" in pronouns) return pronouns;
   if (instagramHandle && !INSTAGRAM_HANDLE_PATTERN.test(instagramHandle)) {
     return {
       error:
@@ -148,6 +153,7 @@ export function parsePersonForm(
       preferred_name: preferredName || null,
       email: email || null,
       phone: phone || null,
+      pronouns: pronouns.pronouns,
       instagram_handle: instagramHandle || null,
       notes: notes || null,
       logo_url: logoUrl || null,

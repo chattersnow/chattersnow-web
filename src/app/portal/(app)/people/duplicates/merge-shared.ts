@@ -20,6 +20,7 @@ export const MERGEABLE_FIELDS = [
   "preferred_name",
   "email",
   "phone",
+  "pronouns",
   "instagram_handle",
   "notes",
   "logo_url",

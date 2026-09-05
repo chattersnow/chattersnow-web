@@ -2,6 +2,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getClientIp } from "@/lib/get-client-ip";
+import { PRONOUNS_TOO_LONG_ERROR } from "@/lib/pronouns";
 import { parseVolunteerApplicationForm } from "./volunteer-application-form";
 
 export type SubmitVolunteerApplicationResult =
@@ -12,6 +13,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   INVALID_EMAIL: "A valid email is required.",
   ALREADY_SUBMITTED:
     "We already have a recent application from this email — we'll be in touch soon.",
+  PRONOUNS_TOO_LONG: PRONOUNS_TOO_LONG_ERROR,
   RATE_LIMITED: "Too many attempts — please try again in a few minutes.",
 };
 
@@ -38,6 +40,7 @@ export async function submitVolunteerApplicationAction(
     p_availability: parsed.data.availability,
     p_honeypot: honeypot,
     p_ip_address: ipAddress,
+    p_pronouns: parsed.data.pronouns,
   });
 
   if (error) {

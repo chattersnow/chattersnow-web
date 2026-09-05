@@ -8,12 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { PronounsField } from "@/components/pronouns-field";
 
 export function EventRegistrationForm({ eventId }: { eventId: string }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [instagramHandle, setInstagramHandle] = useState("");
+  const [pronouns, setPronouns] = useState("");
   const [partySize, setPartySize] = useState("1");
   const [notes, setNotes] = useState("");
   const [company, setCompany] = useState("");
@@ -32,6 +34,7 @@ export function EventRegistrationForm({ eventId }: { eventId: string }) {
     formData.set("email", email);
     formData.set("phone", phone);
     formData.set("instagramHandle", instagramHandle);
+    formData.set("pronouns", pronouns);
     formData.set("partySize", partySize);
     formData.set("notes", notes);
     formData.set("company", company);
@@ -108,6 +111,11 @@ export function EventRegistrationForm({ eventId }: { eventId: string }) {
             onChange={(event) => setInstagramHandle(event.target.value)}
           />
         </Field>
+        <PronounsField
+          id="registration-pronouns"
+          value={pronouns}
+          onChange={setPronouns}
+        />
         <Field>
           <FieldLabel htmlFor="registration-party-size">
             Number attending

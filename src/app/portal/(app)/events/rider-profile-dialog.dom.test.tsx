@@ -30,6 +30,7 @@ function registrant(
     name: "Jamie Rivera",
     email: "jamie@example.test",
     phone: null,
+    pronouns: null,
     party_size: 1,
     notes: null,
     created_at: "2026-08-01T12:00:00Z",

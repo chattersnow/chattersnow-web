@@ -22,6 +22,7 @@ const FIELD_LABELS: Record<MergeableField, string> = {
   preferred_name: "Preferred name",
   email: "Email",
   phone: "Phone",
+  pronouns: "Pronouns",
   instagram_handle: "Instagram",
   notes: "Notes",
   logo_url: "Logo URL",

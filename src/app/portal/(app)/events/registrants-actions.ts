@@ -36,6 +36,7 @@ export type EventRegistrant = {
   name: string;
   email: string;
   phone: string | null;
+  pronouns: string | null;
   party_size: number;
   notes: string | null;
   created_at: string;
@@ -71,7 +72,7 @@ export async function listEventRegistrantsAction(
 }
 
 const REGISTRANT_COLUMNS =
-  "id, event_id, name, email, phone, party_size, notes, created_at, person_id, checked_in_at";
+  "id, event_id, name, email, phone, pronouns, party_size, notes, created_at, person_id, checked_in_at";
 
 const RIDER_COLUMNS =
   "riding_discipline_at_event, ski_experience_level_at_event, snowboard_experience_level_at_event, person:people(riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain)";

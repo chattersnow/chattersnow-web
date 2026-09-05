@@ -43,6 +43,7 @@ describe("packPersonFormData", () => {
         preferred_name: "Janey",
         email: "jane@example.com",
         phone: null,
+        pronouns: null,
         instagram_handle: null,
         notes: null,
         logo_url: null,

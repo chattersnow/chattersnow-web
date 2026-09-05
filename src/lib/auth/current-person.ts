@@ -45,6 +45,7 @@ export type EnsuredPerson = {
   person_id: string;
   name: string | null;
   preferred_name: string | null;
+  pronouns: string | null;
   email: string | null;
 };
 
