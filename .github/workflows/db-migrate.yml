@@ -42,6 +42,13 @@ jobs:
   plan:
     name: Pending migrations
     runs-on: ubuntu-latest
+    # Not a gate -- `Preview` has no required reviewers, so this job still runs
+    # unattended. It is here only because SUPABASE_ACCESS_TOKEN and
+    # SUPABASE_DB_PASSWORD are environment secrets, and GitHub injects those
+    # only into jobs that name an environment. Without this line the workflow's
+    # `env:` block above resolves both to empty strings and `supabase link`
+    # fails with "Access token not provided" before a migration is ever read.
+    environment: Preview
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -73,7 +80,7 @@ jobs:
     # 20260828050000_drop_minutes_table.sql drops a table outright, and several
     # others drop columns -- and there are no down migrations to reverse them,
     # so schema writes to the live database get a human and an audit trail.
-    environment: production
+    environment: Production
     steps:
       - name: Checkout
         uses: actions/checkout@v5
