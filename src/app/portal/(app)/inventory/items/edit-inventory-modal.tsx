@@ -326,7 +326,12 @@ export function EditInventoryModal({
                         label="Request notes"
                         htmlFor="edit-hold-notes"
                       >
-                        {item.holdNotes}
+                        {/* The public form's Notes is a textarea, and the RPC
+                            only trims, so the text arrives with the line
+                            breaks the requester typed. */}
+                        <span className="whitespace-pre-line">
+                          {item.holdNotes}
+                        </span>
                       </ReadOnlyField>
                     )}
                   </>

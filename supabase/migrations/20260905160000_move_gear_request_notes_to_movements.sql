@@ -24,6 +24,85 @@ alter table public.inventory_movements add column notes text;
 comment on column public.inventory_movements.notes is
   'Free text supplied with this movement -- e.g. what a public gear requester wrote on the request form. Per-request context, unlike reason, which is a short fixed label. Cleared by the gear_requests retention rule.';
 
+-- Moving the text onto inventory_movements walks it into a second problem:
+-- unlike people, that table carries an audit_log_row trigger (20260822120000),
+-- which copies to_jsonb(NEW)/to_jsonb(OLD) into audit_log on every write. Left
+-- alone, each gear request would file the visitor's sentence into audit_log on
+-- insert, the relocation below would file every historical one, and the purge's
+-- own `set notes = null` would file it a third time as old_data. audit_log has
+-- no retention clock -- deliberately, it is kept for governance, security,
+-- audit, insurance and legal purposes -- so the text this migration exists to
+-- bring under the 3-year clock would sit permanently in Administration > Audit
+-- Log instead.
+--
+-- Registered per column rather than hardcoded in the trigger, in the spirit of
+-- the audited_tables registry (20260828060000): the next column holding
+-- personal data on a published clock is one additive update, not another branch
+-- in a shared function. The audit trail keeps everything it exists for -- who
+-- reserved what, when, for whom -- and loses only the requester's own prose.
+alter table public.audited_tables
+  add column redacted_columns text[] not null default '{}';
+
+comment on column public.audited_tables.redacted_columns is
+  'Columns stripped from audit_log.old_data/new_data for this table. For personal data on a published retention clock, which audit_log -- retained indefinitely -- must not outlive.';
+
+update public.audited_tables
+   set redacted_columns = array['notes']
+ where table_name = 'inventory_movements';
+
+-- Body from 20260905150000, plus the redaction. Everything else -- the
+-- pk_column lookup, the retention_policies uuid derivation -- is unchanged.
+create or replace function public.audit_log_row()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_pk_column text;
+  v_redacted text[];
+  v_old_id uuid;
+  v_new_id uuid;
+begin
+  select pk_column, redacted_columns into v_pk_column, v_redacted
+    from public.audited_tables where table_name = TG_TABLE_NAME;
+
+  if TG_TABLE_NAME = 'retention_policies' then
+    if TG_OP <> 'INSERT' then
+      execute format('select extensions.uuid_generate_v5(extensions.uuid_ns_dns(), ($1).%I::text)', v_pk_column)
+        into v_old_id using OLD;
+    end if;
+    if TG_OP <> 'DELETE' then
+      execute format('select extensions.uuid_generate_v5(extensions.uuid_ns_dns(), ($1).%I::text)', v_pk_column)
+        into v_new_id using NEW;
+    end if;
+  else
+    if TG_OP <> 'INSERT' then
+      execute format('select ($1).%I', v_pk_column) into v_old_id using OLD;
+    end if;
+    if TG_OP <> 'DELETE' then
+      execute format('select ($1).%I', v_pk_column) into v_new_id using NEW;
+    end if;
+  end if;
+
+  v_redacted := coalesce(v_redacted, '{}');
+
+  if TG_OP = 'DELETE' then
+    insert into public.audit_log (table_name, record_id, action, actor_id, old_data, new_data)
+    values (TG_TABLE_NAME, v_old_id, 'delete', auth.uid(), to_jsonb(OLD) - v_redacted, null);
+    return OLD;
+  elsif TG_OP = 'UPDATE' then
+    insert into public.audit_log (table_name, record_id, action, actor_id, old_data, new_data)
+    values (TG_TABLE_NAME, v_new_id, 'update', auth.uid(), to_jsonb(OLD) - v_redacted, to_jsonb(NEW) - v_redacted);
+    return NEW;
+  else
+    insert into public.audit_log (table_name, record_id, action, actor_id, old_data, new_data)
+    values (TG_TABLE_NAME, v_new_id, 'insert', auth.uid(), null, to_jsonb(NEW) - v_redacted);
+    return NEW;
+  end if;
+end;
+$$;
+
 -- Public request path, single item. Body from 20260826090000; the only change
 -- is where p_notes goes. Signature unchanged, so create-or-replace is safe and
 -- no caller has to move.
