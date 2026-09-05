@@ -93,14 +93,22 @@ test.describe("portal people directory", () => {
     // the form's native GET navigation can be swallowed while the portal
     // page re-hydrates. page.goto waits for the load event, after which
     // sheet triggers respond reliably (same pattern as the other specs).
-    await page.goto("/portal/people?role=is_sponsor");
-
+    // Both assertions are search-scoped so the directory's pagination can't
+    // decide them: at ten rows a page, a name being absent otherwise proves
+    // nothing about the filter -- it may just be on page 4. Searching a
+    // non-sponsor who *does* match the text is the stronger claim anyway:
+    // only the role filter can be what removes her.
+    await page.goto("/portal/people?role=is_sponsor&search=Summit");
     await expect(
       page.getByRole("row").filter({ hasText: "Summit Outdoor Co." }),
     ).toBeVisible();
+
+    await page.goto("/portal/people?role=is_sponsor&search=Priya");
     await expect(
       page.getByRole("row").filter({ hasText: "Priya Natarajan" }),
     ).toHaveCount(0);
+
+    await page.goto("/portal/people?role=is_sponsor");
 
     await page.getByRole("button", { name: "Filters" }).click();
     const filters = modal(page);
