@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { listEventRevenueAction } from "../finance/revenue/actions";
 import { EditRevenueModal } from "../finance/revenue/edit-revenue-modal";
 import {
@@ -12,13 +12,9 @@ import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
 import type { TabValue } from "./event-tabs-config";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { formatCalendarDate, formatCurrency } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
@@ -34,9 +30,14 @@ export function EventRevenueTab({
   const [revenue, setRevenue] = useState<RevenueRow[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const eventOptions: EventOption[] = [{ id: eventId, name: eventName }];
+  const eventOptions: EventOption[] = useMemo(
+    () => [{ id: eventId, name: eventName }],
+    [eventId, eventName],
+  );
 
-  function refresh() {
+  // Stable, so the column list below only rebuilds when something it renders
+  // differently changes.
+  const refresh = useCallback(() => {
     listEventRevenueAction(eventId).then((result) => {
       if ("error" in result) {
         setLoadError(result.error);
@@ -45,14 +46,56 @@ export function EventRevenueTab({
         setRevenue(result.data);
       }
     });
-  }
+  }, [eventId]);
 
   useEffect(() => {
     refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventId]);
+  }, [refresh]);
 
   useRegisterTabRefresh<TabValue>("revenue", refresh);
+
+  const columns = useMemo<PortalDataTableColumn<RevenueRow>[]>(
+    () => [
+      {
+        key: "source",
+        label: "Source",
+        // Sorts on the label the cell actually shows. On the raw enum,
+        // "onsite_donations" ordered against "Registration fees".
+        sortValue: (row) => revenueSourceLabel(row.source),
+        render: (row) => revenueSourceLabel(row.source),
+      },
+      {
+        key: "received_date",
+        label: "Date",
+        sortValue: (row) => row.received_date,
+        cellClassName: "app-muted",
+        render: (row) => formatCalendarDate(row.received_date),
+      },
+      {
+        key: "amount",
+        label: "Amount",
+        // Numeric, because amounts arrive from Postgres as strings and would
+        // otherwise sort "100" before "9".
+        sortValue: (row) => Number(row.amount),
+        render: (row) => formatCurrency(row.amount),
+      },
+      {
+        key: "actions",
+        label: "Actions",
+        srOnlyLabel: true,
+        headClassName: "w-0",
+        render: (row) => (
+          <EditRevenueModal
+            revenue={row}
+            events={eventOptions}
+            lockEventSelection
+            onSaved={refresh}
+          />
+        ),
+      },
+    ],
+    [eventOptions, refresh],
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -70,35 +113,16 @@ export function EventRevenueTab({
           description="Add the first entry with New Revenue above."
         />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Source</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead className="w-0" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {revenue.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell>{revenueSourceLabel(row.source)}</TableCell>
-                <TableCell className="app-muted">
-                  {formatCalendarDate(row.received_date)}
-                </TableCell>
-                <TableCell>{formatCurrency(row.amount)}</TableCell>
-                <TableCell>
-                  <EditRevenueModal
-                    revenue={row}
-                    events={eventOptions}
-                    lockEventSelection
-                    onSaved={refresh}
-                  />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <PortalDataTable
+          columns={columns}
+          rows={revenue}
+          getRowKey={(row) => row.id}
+          // listEventRevenueAction returns newest first.
+          defaultSort={{ key: "received_date", dir: "desc" }}
+          emptyMessage="No revenue to show."
+          // The tab is already inside its own card on the phase grid.
+          shell="bare"
+        />
       )}
     </div>
   );

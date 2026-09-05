@@ -399,7 +399,10 @@ export function SponsorsTab({
           description="Add the first one with + Add sponsor above."
         />
       ) : (
-        <Table>
+        // Not a PortalDataTable: editing a sponsor swaps its row for a
+        // full-width form, and a flat row list has nowhere to put that. It
+        // takes the sticky header and leaves the rest.
+        <Table stickyHeader="page">
           <TableHeader>
             <TableRow>
               <TableHead>Sponsor</TableHead>

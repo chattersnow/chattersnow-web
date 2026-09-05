@@ -1,4 +1,10 @@
-import { DependencyList, useEffect, useRef, useState } from "react";
+import {
+  DependencyList,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 type FetchResult<T> = { error: string } | { data: T };
 
@@ -29,7 +35,10 @@ export function useTabData<T>(
     fetcherRef.current = fetcher;
   });
 
-  function refresh() {
+  // Stable across renders -- it reads the fetcher through a ref anyway -- so
+  // callers can list it in a `useMemo` or effect without rebuilding on every
+  // render. `PortalDataTable` column lists are the ones that care.
+  const refresh = useCallback(() => {
     fetcherRef.current().then((result) => {
       if ("error" in result) {
         setLoadError(result.error);
@@ -38,7 +47,7 @@ export function useTabData<T>(
         setData(result.data);
       }
     });
-  }
+  }, []);
 
   useEffect(() => {
     if (!enabled) return;

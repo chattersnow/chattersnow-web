@@ -1,6 +1,12 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter } from "next/navigation";
 import {
   deleteEventStaffAction,
@@ -15,13 +21,9 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
 import { Textarea } from "@/components/ui/textarea";
 import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { EmptyState } from "@/components/portal/empty-state";
@@ -156,19 +158,85 @@ export function StaffTab({
   );
   const [isDeleting, startDeleteTransition] = useTransition();
 
-  function refresh() {
+  const refresh = useCallback(() => {
     refreshTabData();
     router.refresh();
-  }
+  }, [refreshTabData, router]);
 
   useRegisterTabRefresh<TabValue>("staff", refresh);
 
-  function handleDelete(id: string) {
-    startDeleteTransition(async () => {
-      await deleteEventStaffAction(id);
-      refresh();
-    });
-  }
+  // Stable, so the column list below only rebuilds when something it renders
+  // differently changes.
+  const handleDelete = useCallback(
+    (id: string) => {
+      startDeleteTransition(async () => {
+        await deleteEventStaffAction(id);
+        refresh();
+      });
+    },
+    [refresh],
+  );
+
+  const columns = useMemo<PortalDataTableColumn<EventStaffMember>[]>(
+    () => [
+      {
+        key: "person",
+        label: "Staff member",
+        // Sorts on the name the cell shows, placeholder included, rather than
+        // on a null the reader never sees.
+        sortValue: (member) => personDisplayName(member.person),
+        cellClassName: "max-w-xs font-medium",
+        render: (member) => (
+          <span
+            className="block truncate"
+            title={member.person?.name ?? undefined}
+          >
+            {personDisplayName(member.person)}
+          </span>
+        ),
+      },
+      {
+        key: "role",
+        label: "Role",
+        sortValue: (member) => member.role,
+        cellClassName: "app-muted",
+        render: (member) => member.role || "—",
+      },
+      {
+        key: "notes",
+        label: "Notes",
+        sortValue: (member) => member.notes,
+        cellClassName: "app-muted max-w-xs",
+        render: (member) => (
+          <span className="block truncate" title={member.notes ?? undefined}>
+            {member.notes || "—"}
+          </span>
+        ),
+      },
+      ...(mode === "edit"
+        ? [
+            {
+              key: "actions",
+              label: "Actions",
+              srOnlyLabel: true,
+              headClassName: "w-0",
+              cellClassName: "text-right",
+              render: (member: EventStaffMember) => (
+                <ConfirmDeleteButton
+                  label="Remove staff member"
+                  title={`Remove ${personDisplayName(member.person)} from this event?`}
+                  description="This deletes their staff assignment. It can't be undone."
+                  confirmLabel="Remove"
+                  pending={isDeleting}
+                  onConfirm={() => handleDelete(member.id)}
+                />
+              ),
+            } satisfies PortalDataTableColumn<EventStaffMember>,
+          ]
+        : []),
+    ],
+    [mode, isDeleting, handleDelete],
+  );
 
   return (
     <div className="flex flex-col gap-3">
@@ -186,46 +254,16 @@ export function StaffTab({
           description="Assign the first one with + Add staff above."
         />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Staff member</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Notes</TableHead>
-              <TableHead className="w-px" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {staff.map((member) => (
-              <TableRow key={member.id}>
-                <TableCell
-                  className="max-w-xs truncate font-medium"
-                  title={member.person?.name ?? undefined}
-                >
-                  {personDisplayName(member.person)}
-                </TableCell>
-                <TableCell className="app-muted">
-                  {member.role || "—"}
-                </TableCell>
-                <TableCell className="app-muted max-w-xs truncate">
-                  {member.notes || "—"}
-                </TableCell>
-                <TableCell className="text-right">
-                  {mode === "edit" && (
-                    <ConfirmDeleteButton
-                      label="Remove staff member"
-                      title={`Remove ${personDisplayName(member.person)} from this event?`}
-                      description="This deletes their staff assignment. It can't be undone."
-                      confirmLabel="Remove"
-                      pending={isDeleting}
-                      onConfirm={() => handleDelete(member.id)}
-                    />
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <PortalDataTable
+          columns={columns}
+          rows={staff}
+          getRowKey={(member) => member.id}
+          // listEventStaffAction returns them by name.
+          defaultSort={{ key: "person", dir: "asc" }}
+          emptyMessage="No staff to show."
+          // The tab is already inside its own card on the phase grid.
+          shell="bare"
+        />
       )}
     </div>
   );

@@ -172,10 +172,15 @@ export function RosterSection({
     stickyHeader = false,
   ) {
     return (
-      <Table id={tableId} stickyFirstColumn>
-        <TableHeader
-          className={stickyHeader ? "sticky top-0 z-10 bg-popover" : undefined}
-        >
+      // Not a PortalDataTable: a volunteer's hours open as a full-width row
+      // under their own, and a flat row list has nowhere to put that. It
+      // takes the sticky header and leaves the rest.
+      <Table
+        id={tableId}
+        stickyFirstColumn
+        stickyHeader={stickyHeader ? "container" : "page"}
+      >
+        <TableHeader>
           <TableRow>
             <TableHead>Volunteer</TableHead>
             <TableHead>Shift</TableHead>

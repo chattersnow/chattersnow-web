@@ -11,13 +11,10 @@ import { useTabData } from "@/hooks/use-tab-data";
 import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
 import type { TabValue } from "./event-tabs-config";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  PortalDataTable,
+  withoutSorting,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import {
   LIST_PREVIEW_ROWS,
@@ -25,6 +22,69 @@ import {
 } from "@/components/portal/list-preview-sheet";
 import { formatCurrency, formatInstantDate } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
+
+/**
+ * One donated item, carrying the two fields that live on the donation it
+ * arrived in. The table lists items rather than donations, because a single
+ * donation of twenty pairs of gloves is twenty things the inventory holds.
+ */
+type DonatedItem = EventDonationRow["inventory_items"][number] & {
+  donatedAt: string;
+  donorLabel: string;
+};
+
+const COLUMNS: PortalDataTableColumn<DonatedItem>[] = [
+  {
+    key: "description",
+    label: "Item",
+    // Sorts on the description the cell shows, not on the category line under
+    // it, which is only there to say what kind of thing it was.
+    sortValue: (item) => item.description,
+    cellClassName: "max-w-xs font-medium",
+    render: (item) => (
+      <>
+        <span className="block truncate" title={item.description}>
+          {item.description}
+        </span>
+        <span className="app-muted block text-xs">
+          {categoryLabelFor(flattenCategory(item))}
+        </span>
+      </>
+    ),
+  },
+  {
+    key: "donor",
+    label: "Donor",
+    sortValue: (item) => item.donorLabel,
+    cellClassName: "app-muted",
+    render: (item) => item.donorLabel,
+  },
+  {
+    key: "condition",
+    label: "Condition",
+    sortValue: (item) => item.condition,
+    cellClassName: "app-muted capitalize",
+    render: (item) => item.condition.replace("_", " "),
+  },
+  {
+    key: "face_value",
+    label: "Value",
+    // Numeric, because face values arrive from Postgres as strings and would
+    // otherwise sort "100" before "9".
+    sortValue: (item) =>
+      item.face_value === null ? null : Number(item.face_value),
+    render: (item) => formatCurrency(item.face_value),
+  },
+  {
+    key: "donatedAt",
+    label: "Date",
+    sortValue: (item) => item.donatedAt,
+    cellClassName: "app-muted",
+    render: (item) => formatInstantDate(item.donatedAt),
+  },
+];
+
+const PREVIEW_COLUMNS = withoutSorting(COLUMNS);
 
 export function DonationsTab({
   eventId,
@@ -48,14 +108,18 @@ export function DonationsTab({
 
   const [query, setQuery] = useState("");
 
-  const items = (donations ?? []).flatMap((donation) =>
-    donation.inventory_items.map((item) => ({
-      ...item,
-      donatedAt: donation.donated_at,
-      donorLabel: donation.donor?.is_anonymous
-        ? "Anonymous"
-        : donation.donor?.name || "—",
-    })),
+  const items = useMemo<DonatedItem[]>(
+    () =>
+      (donations ?? []).flatMap((donation) =>
+        donation.inventory_items.map((item) => ({
+          ...item,
+          donatedAt: donation.donated_at,
+          donorLabel: donation.donor?.is_anonymous
+            ? "Anonymous"
+            : donation.donor?.name || "—",
+        })),
+      ),
+    [donations],
   );
 
   const filtered = useMemo(() => {
@@ -70,46 +134,9 @@ export function DonationsTab({
 
   const capped = previewRows === null ? items : items.slice(0, previewRows);
   const hasOverflow = previewRows !== null && items.length > previewRows;
-
-  function itemsTable(rows: typeof items, stickyHeader = false) {
-    return (
-      <Table>
-        <TableHeader
-          className={stickyHeader ? "sticky top-0 z-10 bg-popover" : undefined}
-        >
-          <TableRow>
-            <TableHead>Item</TableHead>
-            <TableHead>Donor</TableHead>
-            <TableHead>Condition</TableHead>
-            <TableHead>Value</TableHead>
-            <TableHead>Date</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((item) => (
-            <TableRow key={item.id}>
-              <TableCell className="max-w-xs font-medium">
-                <span className="block truncate" title={item.description}>
-                  {item.description}
-                </span>
-                <span className="app-muted block text-xs">
-                  {categoryLabelFor(flattenCategory(item))}
-                </span>
-              </TableCell>
-              <TableCell className="app-muted">{item.donorLabel}</TableCell>
-              <TableCell className="app-muted capitalize">
-                {item.condition.replace("_", " ")}
-              </TableCell>
-              <TableCell>{formatCurrency(item.face_value)}</TableCell>
-              <TableCell className="app-muted">
-                {formatInstantDate(item.donatedAt)}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    );
-  }
+  // Only the copy that holds every row may claim to order them; see
+  // `withoutSorting`.
+  const previewIsWholeList = !hasOverflow;
 
   return (
     <div className="flex flex-col gap-4">
@@ -128,7 +155,18 @@ export function DonationsTab({
         />
       ) : (
         <>
-          {itemsTable(capped)}
+          <PortalDataTable
+            columns={previewIsWholeList ? COLUMNS : PREVIEW_COLUMNS}
+            rows={capped}
+            getRowKey={(item) => item.id}
+            // listEventDonationsAction returns newest first.
+            defaultSort={
+              previewIsWholeList ? { key: "donatedAt", dir: "desc" } : undefined
+            }
+            emptyMessage="No donated items to show."
+            // The tab is already inside its own card on the phase grid.
+            shell="bare"
+          />
           {hasOverflow && (
             <ListPreviewSheet
               title="Donations"
@@ -141,14 +179,18 @@ export function DonationsTab({
               totalCount={items.length}
               filteredCount={filtered.length}
             >
-              {filtered.length === 0 ? (
-                <EmptyState
-                  title="No matching donations"
-                  description="Clear or loosen the search to see more."
-                />
-              ) : (
-                itemsTable(filtered, true)
-              )}
+              <PortalDataTable
+                columns={COLUMNS}
+                rows={filtered}
+                getRowKey={(item) => item.id}
+                defaultSort={{ key: "donatedAt", dir: "desc" }}
+                emptyMessage="No donated items match your search. Clear or loosen it to see more."
+                // The sheet body is the scroller here and brings its own
+                // surface, so the header pins to the top of that rather than
+                // to the portal's header.
+                shell="bare"
+                stickyHeader="container"
+              />
             </ListPreviewSheet>
           )}
         </>
