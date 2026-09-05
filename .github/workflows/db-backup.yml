@@ -1,0 +1,201 @@
+# Nightly encrypted backup of the hosted Supabase project to Cloudflare R2.
+#
+# Supabase's automated daily backups and point-in-time recovery are paid-plan
+# features. On the free plan nothing is capturing this database, so until the
+# plan changes this workflow is the only backup that exists. Before it, the
+# most recent dump on disk was two weeks and roughly 120 migrations old.
+#
+# Three constraints shape everything below.
+#
+#   1. This repository is public, so Actions artifacts are downloadable by
+#      anyone with the run URL. The dump carries donor, participant, and
+#      volunteer records across 65 tables, so it can never be an artifact and
+#      can never be committed. It leaves the runner encrypted, for R2 only.
+#
+#   2. Encryption is asymmetric on purpose. The runner holds only the age
+#      *public* key, so a compromise of this repository or its secrets yields
+#      ciphertext and nothing that can open it. The private key lives offline
+#      -- see docs/backups.md. Never add it as a secret.
+#
+#   3. Retention is a privacy commitment, not just housekeeping. The published
+#      policy (planning: decisions/2026-09-02-personal-data-retention-and-
+#      privacy-policy.md) promises deletion on fixed schedules, and a backup is
+#      a second copy that outlives it. Expiry is enforced by a lifecycle rule
+#      on the bucket rather than here, so it applies to every object regardless
+#      of how it got there. docs/backups.md records the window.
+name: Database backup
+
+on:
+  schedule:
+    # 09:00 UTC daily, comfortably outside US evening editing hours. GitHub
+    # runs scheduled jobs late under load; nothing here depends on the exact
+    # minute.
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+# A scheduled run overlapping a manual one would dump the same database twice
+# and race on the object key.
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+env:
+  SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+  SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+  # Not a secret: the same ref is already public in NEXT_PUBLIC_SUPABASE_URL.
+  SUPABASE_PROJECT_REF: eorxcscxvqgiqbcrrpyj
+
+jobs:
+  backup:
+    name: Dump, encrypt, upload
+    runs-on: ubuntu-latest
+    # SUPABASE_ACCESS_TOKEN and SUPABASE_DB_PASSWORD are environment secrets,
+    # not repository ones, so a job that declares no environment receives them
+    # as empty strings and the CLI fails with "Access token not provided".
+    #
+    # Deliberately not `Production`: that environment requires a reviewer, and a
+    # nightly backup waiting on manual approval is a backup that does not
+    # happen. `Backups` holds the same two Supabase secrets plus the three R2
+    # ones, with no protection rules -- everything this job does is read-only
+    # against the database, so there is nothing here for a gate to protect.
+    environment: Backups
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.114.0
+
+      - name: Install age
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y age
+
+      - name: Link project
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+
+      - name: Dump schema, data, and roles
+        run: |
+          set -euo pipefail
+          mkdir -p backup
+          supabase db dump --linked -f backup/schema.sql
+          supabase db dump --linked --data-only -f backup/data.sql
+          supabase db dump --linked --role-only -f backup/roles.sql
+
+      # A backup job that quietly starts producing empty files is worse than no
+      # backup job, because it also stops anyone worrying about it. `supabase
+      # db dump` exits 0 on an authenticated connection that returns nothing,
+      # so the exit code alone proves very little. These thresholds sit well
+      # below the 2026-09-05 baseline (schema 388K, data 821K across 65
+      # INSERT-carrying tables); they catch collapse, not drift.
+      - name: Verify the dumps are real
+        run: |
+          set -euo pipefail
+          schema_bytes=$(wc -c < backup/schema.sql)
+          data_bytes=$(wc -c < backup/data.sql)
+          insert_count=$(grep -c '^INSERT INTO' backup/data.sql || true)
+
+          echo "schema: ${schema_bytes} bytes"
+          echo "data:   ${data_bytes} bytes, ${insert_count} tables with rows"
+
+          if [ "$schema_bytes" -lt 100000 ]; then
+            echo "::error::Schema dump is ${schema_bytes} bytes, expected >= 100000. Refusing to upload."
+            exit 1
+          fi
+          if [ "$data_bytes" -lt 200000 ]; then
+            echo "::error::Data dump is ${data_bytes} bytes, expected >= 200000. Refusing to upload."
+            exit 1
+          fi
+          if [ "$insert_count" -lt 20 ]; then
+            echo "::error::Data dump carries rows for ${insert_count} tables, expected >= 20. Refusing to upload."
+            exit 1
+          fi
+
+      - name: Archive and encrypt
+        env:
+          # Public half of an age keypair. Not a secret -- it can only encrypt.
+          AGE_PUBLIC_KEY: ${{ vars.BACKUP_AGE_PUBLIC_KEY }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          if [ -z "${AGE_PUBLIC_KEY:-}" ]; then
+            echo "::error::Repository variable BACKUP_AGE_PUBLIC_KEY is not set. See docs/backups.md."
+            exit 1
+          fi
+
+          stamp="$(date -u +%Y%m%d-%H%M%S)"
+          archive="backup-${stamp}.tar.gz.age"
+
+          tar czf - -C backup schema.sql data.sql roles.sql \
+            | age -r "$AGE_PUBLIC_KEY" -o "$archive"
+
+          # The plaintext dumps never leave this step.
+          rm -rf backup
+
+          echo "ARCHIVE=${archive}" >> "$GITHUB_ENV"
+          echo "OBJECT_KEY=db/$(date -u +%Y/%m)/${stamp}-${RUN_ID}.tar.gz.age" >> "$GITHUB_ENV"
+
+      - name: Upload to R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ vars.BACKUP_R2_BUCKET }}
+          # AWS CLI v2 sends CRC32 checksums by default, which some
+          # S3-compatible endpoints reject. Ask for them only where the API
+          # requires them.
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+        run: |
+          set -euo pipefail
+          aws s3 cp "$ARCHIVE" "s3://${R2_BUCKET}/${OBJECT_KEY}" \
+            --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo '## Database backup'
+            echo
+            if [ -n "${ARCHIVE:-}" ] && [ -f "${ARCHIVE}" ]; then
+              echo "- Object: \`${OBJECT_KEY}\`"
+              echo "- Encrypted size: $(du -h "${ARCHIVE}" | cut -f1)"
+            else
+              echo '- No archive produced; see the failing step above.'
+            fi
+            echo '- Restore procedure: `docs/backups.md`'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # GitHub's own notifications for failed scheduled runs are easy to miss and
+  # reach only whoever last touched the cron. A backup that stopped working
+  # should surface in the same place as everything else that needs doing.
+  report-failure:
+    name: Open an issue on failure
+    needs: backup
+    if: failure() && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: File or update the alert issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          title='Scheduled database backup is failing'
+          existing="$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number // empty')"
+          body="The nightly database backup failed: ${RUN_URL}
+
+          Until this is green again there is no backup of the hosted database
+          beyond the last successful run, and the free plan provides none of its
+          own. See docs/backups.md."
+
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body" --label bug
+          fi
