@@ -1,102 +1,13 @@
 {
-  "admin|desktop|light|/portal/account": ["color-contrast"],
   "admin|desktop|dark|/portal/administration": ["target-size"],
-  "admin|desktop|light|/portal/administration/access-management": [
-    "color-contrast"
-  ],
-  "admin|desktop|light|/portal/administration/access-management/assets/[assetId]": [
-    "color-contrast"
-  ],
-  "admin|desktop|light|/portal/administration/access-management/services": [
-    "color-contrast"
-  ],
-  "admin|desktop|light|/portal/administration/audit-log": ["color-contrast"],
-  "admin|desktop|light|/portal/administration/permissions": ["color-contrast"],
-  "admin|desktop|light|/portal/administration/roles": ["color-contrast"],
-  "admin|desktop|light|/portal/administration/system-settings": [
-    "color-contrast"
-  ],
-  "admin|desktop|light|/portal/administration/users": ["color-contrast"],
   "admin|desktop|dark|/portal/administration/users": ["target-size"],
-  "admin|desktop|light|/portal/attendees": ["color-contrast"],
-  "admin|desktop|light|/portal/calendar": ["color-contrast"],
-  "admin|desktop|light|/portal/calendar/[itemId]": ["color-contrast"],
-  "admin|mobile|light|/portal/calendar/[itemId]": ["color-contrast"],
-  "admin|desktop|light|/portal/calendar/import": ["color-contrast"],
-  "admin|desktop|light|/portal/calendar/program-suggestions": [
-    "color-contrast"
-  ],
-  "admin|desktop|light|/portal/calendar/reports": ["color-contrast"],
-  "admin|desktop|light|/portal/calendar/templates": ["color-contrast"],
-  "admin|desktop|light|/portal/calendar/work-queue": ["color-contrast"],
-  "admin|desktop|light|/portal/communications": ["color-contrast"],
-  "admin|desktop|light|/portal/donors": ["color-contrast"],
-  "admin|desktop|light|/portal/events": ["color-contrast"],
-  "admin|desktop|light|/portal/events/[eventId]": ["color-contrast"],
-  "admin|mobile|light|/portal/events/[eventId]": ["color-contrast"],
-  "admin|desktop|light|/portal/finance": ["color-contrast"],
-  "admin|mobile|light|/portal/finance": ["color-contrast"],
-  "admin|desktop|light|/portal/finance/donations": ["color-contrast"],
-  "admin|desktop|light|/portal/finance/expenses": ["color-contrast"],
-  "admin|mobile|light|/portal/finance/expenses": ["color-contrast"],
-  "admin|desktop|light|/portal/finance/reimbursements": ["color-contrast"],
-  "admin|mobile|light|/portal/finance/reimbursements": ["color-contrast"],
-  "admin|desktop|light|/portal/finance/reports": ["color-contrast"],
-  "admin|desktop|light|/portal/finance/revenue": ["color-contrast"],
-  "admin|desktop|light|/portal/governance/annual-requirements": [
-    "color-contrast"
-  ],
-  "admin|desktop|light|/portal/governance/board-members": ["color-contrast"],
-  "admin|desktop|light|/portal/governance/bylaws": ["color-contrast"],
-  "admin|desktop|light|/portal/governance/grants": ["color-contrast"],
-  "admin|desktop|light|/portal/governance/meetings": ["color-contrast"],
-  "admin|mobile|light|/portal/governance/meetings": ["color-contrast"],
   "admin|desktop|light|/portal/governance/meetings/[meetingId]": [
-    "aria-toggle-field-name",
-    "color-contrast"
+    "aria-toggle-field-name"
   ],
   "admin|desktop|dark|/portal/governance/meetings/[meetingId]": [
     "aria-toggle-field-name"
   ],
   "admin|mobile|light|/portal/governance/meetings/[meetingId]": [
-    "aria-toggle-field-name",
-    "color-contrast"
-  ],
-  "admin|desktop|light|/portal/governance/nonprofit-status": ["color-contrast"],
-  "admin|desktop|light|/portal/governance/partnerships": ["color-contrast"],
-  "admin|desktop|light|/portal/governance/policies": ["color-contrast"],
-  "admin|desktop|light|/portal/governance/resolutions": ["color-contrast"],
-  "admin|desktop|light|/portal/home": ["color-contrast"],
-  "admin|desktop|light|/portal/inventory/distribution": ["color-contrast"],
-  "admin|desktop|light|/portal/inventory/distribution/[movementId]": [
-    "color-contrast"
-  ],
-  "admin|desktop|light|/portal/inventory/donations/[donationId]": [
-    "color-contrast"
-  ],
-  "admin|desktop|light|/portal/inventory/items": ["color-contrast"],
-  "admin|desktop|light|/portal/inventory/reports": ["color-contrast"],
-  "admin|desktop|light|/portal/organizations": ["color-contrast"],
-  "admin|desktop|light|/portal/people": ["color-contrast"],
-  "admin|desktop|light|/portal/people/[id]": ["color-contrast"],
-  "admin|desktop|light|/portal/programs": ["color-contrast"],
-  "admin|desktop|light|/portal/programs/reports": ["color-contrast"],
-  "admin|desktop|light|/portal/sponsors": ["color-contrast"],
-  "admin|desktop|light|/portal/staff": ["color-contrast"],
-  "admin|desktop|light|/portal/volunteers/applications": ["color-contrast"],
-  "admin|desktop|light|/portal/volunteers/participation": ["color-contrast"],
-  "admin|desktop|light|/portal/volunteers/roles": ["color-contrast"],
-  "coordinator|desktop|light|/portal/home": ["color-contrast"],
-  "coordinator|desktop|light|/portal/events": ["color-contrast"],
-  "finance|desktop|light|/portal/home": ["color-contrast"],
-  "finance|desktop|light|/portal/finance": ["color-contrast"],
-  "finance|mobile|light|/portal/finance": ["color-contrast"],
-  "finance|desktop|light|/portal/finance/expenses": ["color-contrast"],
-  "finance|mobile|light|/portal/finance/expenses": ["color-contrast"],
-  "board|desktop|light|/portal/home": ["color-contrast"],
-  "board|desktop|light|/portal/programs/reports": ["color-contrast"],
-  "volunteer|desktop|light|/portal/home": ["color-contrast"],
-  "volunteer|desktop|light|/portal/events": ["color-contrast"],
-  "multi|desktop|light|/portal/home": ["color-contrast"],
-  "multi|desktop|light|/portal/events": ["color-contrast"]
+    "aria-toggle-field-name"
+  ]
 }
