@@ -5,6 +5,60 @@ config({ path: ".env.local" });
 
 const baseURL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://127.0.0.1:3000";
 
+/**
+ * Specs that mutate state the whole site shares, so they cannot run beside
+ * anything else. They get a project of their own below, ordered after every
+ * browser project by a dependency edge.
+ *
+ * page-visibility.spec.ts toggles the real `page_visibility.*` row in
+ * app_settings to prove the visibility gate works. Playwright's serial mode
+ * only orders a describe block within its project, so a parallel worker
+ * running support.spec.ts loaded the site while Support was toggled off and
+ * failed on the 404 the gate correctly served (#594). Every public section is
+ * gated now, so any slot a spec toggles can take out every other spec that
+ * touches that section.
+ *
+ * Playwright runs a dependency project in full, ignoring any file or --grep
+ * filter, so run one of these on its own with --no-deps:
+ *   bunx playwright test e2e/page-visibility.spec.ts --no-deps
+ * Filters that don't select this project don't pull the browsers in at all.
+ */
+const MUTATING_SPECS = /page-visibility\.spec\.ts/;
+
+const ALL_BROWSER_PROJECTS = [
+  { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+  { name: "firefox", use: { ...devices["Desktop Firefox"] } },
+  { name: "webkit", use: { ...devices["Desktop Safari"] } },
+  { name: "mobile-chromium", use: { ...devices["Pixel 7"] } },
+];
+
+/**
+ * Narrow the browser matrix with E2E_BROWSERS rather than `--project`, so the
+ * page-visibility project's dependency edge still covers exactly the projects
+ * that are running. `--project=chromium` would leave that project unselected
+ * (nothing depends on it), and naming it as well would drag in the browsers it
+ * depends on that the run meant to skip.
+ */
+const requestedBrowsers = (process.env.E2E_BROWSERS ?? "")
+  .split(",")
+  .map((name) => name.trim())
+  .filter(Boolean);
+
+for (const name of requestedBrowsers) {
+  if (!ALL_BROWSER_PROJECTS.some((project) => project.name === name)) {
+    throw new Error(
+      `E2E_BROWSERS names an unknown project "${name}". Known projects: ` +
+        ALL_BROWSER_PROJECTS.map((project) => project.name).join(", "),
+    );
+  }
+}
+
+const browserProjects = requestedBrowsers.length
+  ? ALL_BROWSER_PROJECTS.filter((project) =>
+      requestedBrowsers.includes(project.name),
+    )
+  : ALL_BROWSER_PROJECTS;
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -22,21 +76,17 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   projects: [
+    ...browserProjects.map((project) => ({
+      ...project,
+      testIgnore: MUTATING_SPECS,
+    })),
     {
-      name: "chromium",
+      // Runs after every browser project, on its own, because it mutates
+      // global state -- see MUTATING_SPECS above.
+      name: "page-visibility",
       use: { ...devices["Desktop Chrome"] },
-    },
-    {
-      name: "firefox",
-      use: { ...devices["Desktop Firefox"] },
-    },
-    {
-      name: "webkit",
-      use: { ...devices["Desktop Safari"] },
-    },
-    {
-      name: "mobile-chromium",
-      use: { ...devices["Pixel 7"] },
+      testMatch: MUTATING_SPECS,
+      dependencies: browserProjects.map((project) => project.name),
     },
   ],
   webServer: {
