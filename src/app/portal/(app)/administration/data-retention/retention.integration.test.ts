@@ -19,6 +19,7 @@ import { RETENTION_POLICIES } from "@/lib/retention";
 import {
   SEEDED_USERS,
   adminClient,
+  createAvailableGearItems,
   createPerson,
   createPublishedEvent,
   signInAs,
@@ -443,6 +444,93 @@ describe("run_retention_purge", () => {
         .single();
       expect(data!.name).toBe("Retention Registrant");
       expect(data!.phone).toBe("555-0100");
+    });
+  });
+
+  // #721 moved the requester's free text off people.notes and onto the
+  // movement, precisely so this rule could reach it: on the person it was
+  // shielded indefinitely by anyone the purge is required to keep.
+  describe("gear requests lose the requester and their notes", () => {
+    const REQUEST_NOTES = "Size 10 boots if you have them.";
+    let oldMovementId: string;
+    let recentMovementId: string;
+
+    beforeAll(async () => {
+      const gear = await createAvailableGearItems(2);
+      const requester = await createPerson({
+        name: "Retention Requester",
+        email: uniqueEmail("retention-requester"),
+      });
+
+      async function reservationAt(occurredAt: number, itemId: string) {
+        const { data, error } = await adminClient
+          .from("inventory_movements")
+          .insert({
+            inventory_item_id: itemId,
+            movement_type: "reserved",
+            quantity: 1,
+            reason: "Public gear library request",
+            recipient_person_id: requester.id,
+            notes: REQUEST_NOTES,
+            occurred_at: new Date(occurredAt).toISOString(),
+          })
+          .select("id")
+          .single();
+        if (error) throw error;
+        return data.id as string;
+      }
+
+      oldMovementId = await reservationAt(
+        Date.now() - 7 * DAY,
+        gear.itemIds[0],
+      );
+      recentMovementId = await reservationAt(
+        Date.now() + 10 * DAY,
+        gear.itemIds[1],
+      );
+
+      // Reverse order: the donation cleanup deletes the items these movements
+      // point at, and the requester outlives neither.
+      cleanups.push(gear.cleanup);
+      cleanups.push(requester.cleanup);
+      cleanups.push(async () => {
+        await adminClient
+          .from("inventory_movements")
+          .delete()
+          .in("id", [oldMovementId, recentMovementId]);
+      });
+    });
+
+    test("the movement survives as inventory history with both fields cleared", async () => {
+      await setMode("gear_requests", "enforce");
+      await runPurge({ dryRun: false, asOf: clockAt(3 * YEAR + DAY) });
+
+      const { data } = await adminClient
+        .from("inventory_movements")
+        .select("recipient_person_id, notes, quantity, reason")
+        .eq("id", oldMovementId)
+        .single();
+
+      expect(data).not.toBeNull();
+      expect(data!.recipient_person_id).toBeNull();
+      expect(data!.notes).toBeNull();
+      // The inventory half, untouched.
+      expect(data!.quantity).toBe(1);
+      expect(data!.reason).toBe("Public gear library request");
+    });
+
+    test("a request inside the window keeps its notes", async () => {
+      await setMode("gear_requests", "enforce");
+      await runPurge({ dryRun: false, asOf: clockAt(3 * YEAR + DAY) });
+
+      const { data } = await adminClient
+        .from("inventory_movements")
+        .select("recipient_person_id, notes")
+        .eq("id", recentMovementId)
+        .single();
+
+      expect(data!.recipient_person_id).not.toBeNull();
+      expect(data!.notes).toBe(REQUEST_NOTES);
     });
   });
 

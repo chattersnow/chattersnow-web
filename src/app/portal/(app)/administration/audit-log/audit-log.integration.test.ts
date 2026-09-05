@@ -12,6 +12,7 @@
 import { describe, expect, mock, test } from "bun:test";
 import {
   adminClient,
+  createAvailableGearItems,
   uniqueEmail,
 } from "../../../../../../test/integration-setup";
 
@@ -82,6 +83,50 @@ describe("audit_log_row() via audited_tables registry", () => {
       expect((rows?.[1].old_data as { user_id: string }).user_id).toBe(userId);
     } finally {
       await serviceRoleClient.auth.admin.deleteUser(userId);
+    }
+  });
+
+  // #721: inventory_movements.notes carries a public gear requester's own
+  // words, on a published 3-year clock. audit_log has no clock, so a column
+  // registered in audited_tables.redacted_columns must never reach it -- or
+  // moving the text off people.notes would only have relocated the leak.
+  test("strips a registered redacted column from old_data and new_data", async () => {
+    const gear = await createAvailableGearItems(1);
+    try {
+      const { data: inserted, error: insertError } = await serviceRoleClient
+        .from("inventory_movements")
+        .insert({
+          inventory_item_id: gear.itemIds[0],
+          movement_type: "reserved",
+          quantity: 1,
+          reason: "Public gear library request",
+          notes: "Only for the requester and the staff who fill the request.",
+        })
+        .select("id")
+        .single();
+      expect(insertError).toBeNull();
+      const id = inserted!.id as string;
+
+      // The shape the retention purge writes.
+      await serviceRoleClient
+        .from("inventory_movements")
+        .update({ notes: null })
+        .eq("id", id);
+
+      const rows = await auditRows("inventory_movements", id);
+      expect(rows?.map((r) => r.action)).toEqual(["insert", "update"]);
+      for (const row of rows ?? []) {
+        expect(row.new_data ?? {}).not.toHaveProperty("notes");
+        expect(row.old_data ?? {}).not.toHaveProperty("notes");
+      }
+      // Everything the audit trail exists for is still there.
+      expect((rows?.[0].new_data as { reason: string }).reason).toBe(
+        "Public gear library request",
+      );
+
+      await serviceRoleClient.from("inventory_movements").delete().eq("id", id);
+    } finally {
+      await gear.cleanup();
     }
   });
 

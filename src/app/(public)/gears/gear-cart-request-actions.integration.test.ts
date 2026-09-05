@@ -4,6 +4,7 @@
 // `bun run test:integration`. Not picked up by `bun run test`.
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import {
+  adminClient,
   anonClient,
   createAvailableGearItems,
   getInventoryItemStatus,
@@ -126,6 +127,41 @@ describe("requestGearItemsAction (integration)", () => {
     });
     expect(await getInventoryItemStatus(available)).toBe("available");
     expect(await getInventoryItemStatus(alreadyTaken)).toBe("reserved");
+  });
+
+  // #721: the request text belongs to the request, not to the requester's
+  // directory record -- where it survived retention and could overwrite what
+  // staff had written about a returning person.
+  test("stores the request notes on the movements, not on the person", async () => {
+    currentIp = uniqueIp();
+    const [first, second] = await gearItems(2);
+    const email = uniqueEmail("notes");
+    const notes = "Size 10 boots if you have them; otherwise a 9.5 works.";
+
+    const result = await requestGearItemsAction(
+      [first, second],
+      formData({ name: "Jamie Rivera", email, notes }),
+    );
+    expect(result).toEqual({ success: true });
+
+    const { data: movements } = await adminClient
+      .from("inventory_movements")
+      .select("notes, recipient_person_id")
+      .in("inventory_item_id", [first, second])
+      .eq("movement_type", "reserved");
+
+    expect(movements).toHaveLength(2);
+    for (const movement of movements ?? []) {
+      expect(movement.notes).toBe(notes);
+    }
+
+    const { data: person } = await adminClient
+      .from("people")
+      .select("notes")
+      .eq("id", movements![0].recipient_person_id)
+      .single();
+
+    expect(person!.notes).toBeNull();
   });
 
   test("reports an error for an empty cart", async () => {

@@ -41,6 +41,8 @@ export type InventoryItem = {
     email: string | null;
     phone: string | null;
   } | null;
+  /** Free text the requester left on the public gear request (#721). */
+  holdNotes?: string | null;
 };
 
 export type SortColumn =
