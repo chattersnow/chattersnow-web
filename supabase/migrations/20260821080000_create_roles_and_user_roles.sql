@@ -85,20 +85,50 @@ create policy "admin manage user_roles" on public.user_roles
 grant select on public.roles to authenticated;
 grant select, insert, update, delete on public.user_roles to authenticated;
 
--- Bootstrap admin: seed the admin role for the account this account already
--- signs in with, if it exists yet. No-op locally where that account hasn't
--- logged in yet; safe to run on production where it has.
+-- Bootstrap admin: grants the admin role to the account named by the
+-- `app.bootstrap_admin_email` database setting, and to nobody at all when that
+-- setting is absent.
+--
+-- This deliberately does not name an account. The original version matched a
+-- hardcoded address against auth.users, which meant the grant followed an
+-- address rather than a fixed user id: in any database where that address was
+-- unregistered -- a fresh Supabase project, a staging environment, or a
+-- white-label deployment -- whoever registered it first would receive admin the
+-- next time migrations ran (#708).
+--
+-- Local development does not need this at all; supabase/seed.sql grants the
+-- admin role to admin@example.test directly. Hosted environments are
+-- bootstrapped as an explicit, deliberate step -- see docs/admin-bootstrap.md.
 do $$
 declare
+  v_bootstrap_email text;
   v_user_id uuid;
   v_admin_role_id uuid;
 begin
+  v_bootstrap_email := nullif(
+    trim(coalesce(current_setting('app.bootstrap_admin_email', true), '')), ''
+  );
+
+  if v_bootstrap_email is null then
+    raise notice 'Skipping admin bootstrap: app.bootstrap_admin_email is not set (see docs/admin-bootstrap.md).';
+    return;
+  end if;
+
   select id into v_admin_role_id from public.roles where name = 'admin';
 
-  select id into v_user_id from auth.users where email = 'ricardo.dev.js@gmail.com' limit 1;
-  if v_user_id is not null then
-    insert into public.user_roles (user_id, role_id, created_by)
-    values (v_user_id, v_admin_role_id, v_user_id)
-    on conflict (user_id, role_id) do nothing;
+  -- Addresses are compared case-insensitively; the notice deliberately does not
+  -- echo the configured address, so it stays out of migration logs.
+  select id into v_user_id
+  from auth.users
+  where lower(email) = lower(v_bootstrap_email)
+  limit 1;
+
+  if v_user_id is null then
+    raise notice 'Skipping admin bootstrap: no account matches the configured address in this environment.';
+    return;
   end if;
+
+  insert into public.user_roles (user_id, role_id, created_by)
+  values (v_user_id, v_admin_role_id, v_user_id)
+  on conflict (user_id, role_id) do nothing;
 end $$;
