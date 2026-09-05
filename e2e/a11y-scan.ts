@@ -83,6 +83,9 @@ const MATRIX: { viewport: ViewportName; theme: ThemeName }[] = QUICK
 
 const SEEDED_PASSWORD = "password123";
 
+/** Longest a theme crossfade is waited on before scanning anyway. */
+const THEME_TRANSITION_CAP_MS = 1_000;
+
 /**
  * Which account scans which routes.
  *
@@ -187,9 +190,57 @@ function baselineKeyFor(result: {
 }
 
 async function applyTheme(page: Page, theme: ThemeName): Promise<void> {
-  await page.evaluate((next) => {
-    document.documentElement.classList.toggle("dark", next === "dark");
+  const switched = await page.evaluate((next) => {
+    const root = document.documentElement;
+    const wanted = next === "dark";
+    if (root.classList.contains("dark") === wanted) return false;
+    root.classList.toggle("dark", wanted);
+    return true;
   }, theme);
+  // Only a real switch starts the crossfade below. The light pass lands on a
+  // page that is already light, so it waits for nothing and scans exactly what
+  // it scanned before.
+  if (switched) await settleThemeTransition(page);
+}
+
+/**
+ * Waits out the palette crossfade a theme switch starts.
+ *
+ * Components carry `transition-all` / `transition-colors`, so flipping the
+ * `dark` class does not repaint -- it animates every colour from its light
+ * value to its dark one over ~150ms. axe measures the colours that are on
+ * screen when it runs, so scanning inside that window measured blends of the
+ * two palettes rather than either one: a card mid-flight from white to
+ * near-black reads as mid-grey, and every piece of text on it fails against it.
+ *
+ * That was #657 -- "dark mode fails AA contrast on ~every route" -- and the
+ * blends being timing-dependent is why its node counts moved by a factor of
+ * four between runs and why one run reported none at all. Waiting for the
+ * crossfade to land makes the dark pass measure the dark palette.
+ *
+ * Only transitions are awaited: a page with a looping or long keyframe
+ * animation (the header bell) would otherwise cost the full cap on every dark
+ * scan, and those animations do not blend the palette. The cap is a guard for
+ * a transition that never finishes.
+ */
+async function settleThemeTransition(page: Page): Promise<void> {
+  await page
+    .evaluate(async (cap) => {
+      // A transition does not exist until styles are recalculated; the first
+      // frame does that, the second lets it register.
+      await new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(resolve)),
+      );
+      const transitions = document
+        .getAnimations()
+        .filter((animation) => animation instanceof CSSTransition)
+        .map((animation) => animation.finished.catch(() => undefined));
+      await Promise.race([
+        Promise.all(transitions),
+        new Promise((resolve) => setTimeout(resolve, cap)),
+      ]);
+    }, THEME_TRANSITION_CAP_MS)
+    .catch(() => {});
 }
 
 /**
