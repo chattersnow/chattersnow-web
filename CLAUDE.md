@@ -51,6 +51,7 @@ Issues are tracked on the `ChatterWeb` GitHub Project (owner `chattersnow`, proj
 - make sure to always start from latest development
 - When starting work on a ticket (e.g. creating/checking out its branch), move the linked issue's `Status` to `In progress`.
 - When a PR for that ticket is opened, move it to `In review`.
+- Right after opening the PR, review it locally with `/code-review --comment <PR number>` so the findings land on the pull request as inline comments. There is no CI review workflow: the `anthropics/claude-code-action` job that used to run on every PR was removed because it authenticated with an `ANTHROPIC_API_KEY` secret that had no API credit behind it and failed on every run. The managed GitHub Code Review app is Team/Enterprise only and bills per review, so the local command is the review step for this repo.
 - Don't run the full `bun run test:integration` or `bun run test:e2e` suites while working a ticket — they're slow and cover far more than the ticket touches. Run targeted tests for the files/routes you changed instead; leave the full suites to CI.
 
 ## Architecture
