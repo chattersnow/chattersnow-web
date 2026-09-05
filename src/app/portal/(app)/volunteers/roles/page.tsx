@@ -6,19 +6,9 @@ import {
 } from "@/lib/auth/permissions";
 import { EmptyState } from "@/components/portal/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { NewRoleTypeDialog } from "./new-role-type-dialog";
-import {
-  RoleTypeDetailsSheet,
-  type RoleTypeRow,
-} from "./role-type-details-sheet";
+import { RoleTypesTable } from "./role-types-table";
+import type { RoleTypeRow } from "./role-type-details-sheet";
 
 export const metadata: Metadata = {
   title: "Volunteer Roles",
@@ -53,56 +43,34 @@ export default async function VolunteerRolesPage() {
         </div>
       ) : null}
 
-      <Card className="mt-6">
-        <CardContent className="px-0">
-          {error ? (
-            <p className="app-muted px-4 py-6 text-sm">
-              Could not load role types. Please try again.
-            </p>
-          ) : !roleTypes || roleTypes.length === 0 ? (
-            <EmptyState
-              title="No role types yet"
-              description={
-                canManage
-                  ? "Add the first one with New role type above."
-                  : "Role types appear here once someone with volunteers access creates one."
-              }
-            />
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Public</TableHead>
-                  <TableHead className="w-px" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(roleTypes as RoleTypeRow[]).map((roleType) => (
-                  <TableRow key={roleType.id}>
-                    <TableCell className="font-medium">
-                      {roleType.name}
-                    </TableCell>
-                    <TableCell className="app-muted max-w-sm truncate">
-                      {roleType.description || "—"}
-                    </TableCell>
-                    <TableCell className="app-muted">
-                      {roleType.is_public ? "Yes" : "No"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <RoleTypeDetailsSheet
-                        roleType={roleType}
-                        canManage={canManage}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      {error || !roleTypes || roleTypes.length === 0 ? (
+        <Card className="mt-6">
+          <CardContent className="px-0">
+            {error ? (
+              <p className="app-muted px-4 py-6 text-sm">
+                Could not load role types. Please try again.
+              </p>
+            ) : (
+              <EmptyState
+                title="No role types yet"
+                description={
+                  canManage
+                    ? "Add the first one with New role type above."
+                    : "Role types appear here once someone with volunteers access creates one."
+                }
+              />
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        // PortalDataTable brings its own card.
+        <div className="mt-6">
+          <RoleTypesTable
+            roleTypes={roleTypes as RoleTypeRow[]}
+            canManage={canManage}
+          />
+        </div>
+      )}
     </>
   );
 }

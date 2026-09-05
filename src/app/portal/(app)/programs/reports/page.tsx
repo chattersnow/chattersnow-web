@@ -277,7 +277,11 @@ export default async function ProgramImpactReportPage({
               <CardTitle>All metrics</CardTitle>
             </CardHeader>
             <CardContent className="px-0">
-              <Table>
+              {/* Not a PortalDataTable: a fixed list of metrics in the order
+                  they read in, where sorting would only scramble them and
+                  pagination would never appear. It takes the shared sticky
+                  header and stays server-rendered. */}
+              <Table stickyHeader="page">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Metric</TableHead>
