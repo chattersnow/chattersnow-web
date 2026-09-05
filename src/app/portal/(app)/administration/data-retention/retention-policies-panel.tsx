@@ -16,6 +16,7 @@ import {
   runRetentionDryRunAction,
   setRetentionPolicyModeAction,
 } from "./actions";
+import { formatRetentionPeriod } from "@/lib/retention-period";
 import type { RetentionPolicyRow } from "./retention-query";
 
 const MODE_LABEL: Record<RetentionPolicyRow["mode"], string> = {
@@ -32,16 +33,6 @@ const MODE_VARIANT: Record<
   dry_run: "secondary",
   enforce: "default",
 };
-
-/**
- * Turns an interval as Postgres renders it ("2 years", "7 days") into the same
- * words a person would use. Kept dumb on purpose: the periods are a board
- * decision and the seed writes them in this shape, so anything cleverer would
- * be inventing a format nobody asked for.
- */
-function formatPeriod(period: string) {
-  return period.replace(/^1 (year|month|day)s?$/, "1 $1");
-}
 
 export function RetentionPoliciesPanel({
   policies,
@@ -99,9 +90,9 @@ export function RetentionPoliciesPanel({
                   </Badge>
                 </div>
                 <p className="app-muted mt-1 text-sm leading-relaxed">
-                  Kept for {formatPeriod(policy.period)}
+                  Kept for {formatRetentionPeriod(policy.period)}
                   {policy.secondary_period
-                    ? `, or ${formatPeriod(policy.secondary_period)} when declined or closed`
+                    ? `, or ${formatRetentionPeriod(policy.secondary_period)} when declined or closed`
                     : ""}
                   . {policy.description}
                 </p>
