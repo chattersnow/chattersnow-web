@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PRIVACY_EMAIL } from "@/lib/contact-addresses";
+import { RETENTION } from "@/lib/retention";
 import {
   LegalPageShell,
   type LegalSection,
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
 
 // Shown to visitors and kept in sync by hand: bump it in the same commit as
 // any change to the policy text below, since a stale date is worse than none.
-const LAST_UPDATED = "September 2, 2026";
+const LAST_UPDATED = "September 5, 2026";
 
 // One entry per place on this site that asks a visitor for personal
 // information. The fields listed here are the ones the form actually submits
@@ -62,48 +63,10 @@ const COLLECTION = [
   },
 ] as const;
 
-// Retention periods are a board decision, recorded in the planning repo at
-// decisions/2026-09-02-personal-data-retention-and-privacy-policy.md.
-// Change them there first.
-const RETENTION = [
-  {
-    what: "Contact form messages",
-    howLong: "2 years from the date you sent them.",
-  },
-  {
-    what: "Volunteer applications",
-    // 2 years, not 3: there is little operational reason to hold an
-    // application we did not act on for three seasons, and the shorter
-    // clock still covers a volunteer's history across two winters.
-    howLong:
-      "2 years after your last activity with us, or 1 year if the application is withdrawn or declined.",
-  },
-  {
-    what: "Event registrations",
-    howLong: "3 years after the event.",
-  },
-  {
-    // Split out from event registrations: a rider profile is standing
-    // information about a person, not a record of one event, so tying its
-    // clock to an event they happened to attend is the wrong shape.
-    what: "Rider profiles",
-    howLong:
-      "Until you ask us to delete your profile, or after 2 years of inactivity.",
-  },
-  {
-    what: "Gear requests",
-    // Was "3 years after the gear comes back", which describes a lending
-    // program Chatter does not run: donated gear is given away and never
-    // returned (inventory_movements has 'distributed' and no 'returned'), so
-    // the clock never started. Same 3 years, from an event that happens.
-    howLong: "3 years after we hand the gear over.",
-  },
-  {
-    what: "Portal accounts",
-    howLong:
-      "For as long as you hold the role. When your role ends your access is disabled and the account is removed. Records of what was done through the portal are kept separately, for governance, security, audit, insurance, and legal reasons.",
-  },
-] as const;
+// RETENTION now lives in src/lib/retention.ts, imported above: the purge job
+// added in #602 enforces the same periods from the retention_policies table, and
+// an integration test asserts the published prose and the enforced clock cannot
+// drift apart. Change a period in the planning decision record first.
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
@@ -258,6 +221,12 @@ export default function PrivacyPage() {
             </div>
           ))}
         </dl>
+        <p className="app-muted mt-6 text-sm leading-relaxed sm:text-base">
+          These periods are enforced by a scheduled job, not by hand: it runs
+          nightly and removes or anonymizes whatever has passed its date, and
+          keeps a record of what it did so we can check the policy is being
+          applied.
+        </p>
         <p className="app-muted mt-6 text-sm leading-relaxed sm:text-base">
           Some records have to outlive those periods because the law or our own
           accounting requires it — donation and financial records we need for
