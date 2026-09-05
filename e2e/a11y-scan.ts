@@ -320,6 +320,8 @@ async function resolveDynamicRoute(
 ): Promise<string | null> {
   const source = DYNAMIC_ROUTE_SOURCES[pattern];
   if (!source) return null;
+  // A route nothing links to, pinned to a literal seed id instead (#665).
+  if ("path" in source) return source.path;
 
   try {
     await page.goto(new URL(source.listPath, baseURL).toString(), {
