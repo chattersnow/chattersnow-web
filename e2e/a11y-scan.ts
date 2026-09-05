@@ -452,6 +452,11 @@ async function scanRoute(
         continue;
       }
 
+      // Park the pointer unless the surface is about hover. Clicking a
+      // control leaves the mouse on it, and the help button's own tooltip
+      // opened by itself during the help-sheet scan and was measured
+      // mid-animation -- #657's blend, from a third direction.
+      if (surface.name !== "tooltip") await page.mouse.move(0, 0);
       await settleSurfaceMotion(page);
 
       const opened_result = await safeAnalyze(page);
