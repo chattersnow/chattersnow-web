@@ -233,6 +233,20 @@ export function PortalDataTable<T, K extends string = string>({
   );
 }
 
+/**
+ * The same columns with sorting turned off.
+ *
+ * For the capped preview an event card shows above its "View all" sheet:
+ * there the rows are the first five the server returned, so a sort button
+ * would only reorder the handful that happen to be visible and quietly claim
+ * to have ordered the list. The sheet gets the sortable copy.
+ */
+export function withoutSorting<T, K extends string>(
+  columns: readonly PortalDataTableColumn<T, K>[],
+): PortalDataTableColumn<T, K>[] {
+  return columns.map((column) => ({ ...column, sortValue: undefined }));
+}
+
 type SortDirection = "asc" | "desc";
 
 /**

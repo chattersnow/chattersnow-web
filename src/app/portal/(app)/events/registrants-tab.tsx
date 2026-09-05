@@ -1,6 +1,12 @@
 "use client";
 
-import { useMemo, useState, useTransition, type ReactNode } from "react";
+import {
+  useCallback,
+  useMemo,
+  useState,
+  useTransition,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import { Check, Snowflake, Undo2 } from "lucide-react";
 import {
@@ -18,13 +24,10 @@ import type { TabData } from "@/hooks/use-tab-data";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  PortalDataTable,
+  withoutSorting,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import {
   LIST_PREVIEW_ROWS,
@@ -76,122 +79,6 @@ function matchesQuery(registrant: EventRegistrant, needle: string): boolean {
   );
 }
 
-/**
- * The table itself, rendered twice: capped in the card, in full in the sheet.
- *
- * Everything it needs is passed in, so both copies drive the same pending row
- * and the same rider dialog rather than keeping two sets of state that can
- * disagree about what is in flight.
- */
-function RegistrantsTable({
-  rows,
-  mode,
-  showRides,
-  pendingId,
-  isPending,
-  stickyHeader = false,
-  onToggleCheckIn,
-  onOpenRider,
-}: {
-  rows: EventRegistrant[];
-  mode: "view" | "edit";
-  showRides: boolean;
-  pendingId: string | null;
-  isPending: boolean;
-  /** Pins the header while the sheet's own body scrolls. */
-  stickyHeader?: boolean;
-  onToggleCheckIn: (registrant: EventRegistrant) => void;
-  onOpenRider: (registrant: EventRegistrant) => void;
-}) {
-  return (
-    <Table stickyFirstColumn>
-      <TableHeader
-        className={stickyHeader ? "sticky top-0 z-10 bg-popover" : undefined}
-      >
-        <TableRow>
-          <TableHead>Name</TableHead>
-          <TableHead hideBelow="md">Contact</TableHead>
-          <TableHead hideBelow="sm">Party size</TableHead>
-          <TableHead hideBelow="lg">Registered</TableHead>
-          {showRides && <TableHead hideBelow="lg">Rides</TableHead>}
-          <TableHead>Checked in</TableHead>
-          {mode === "edit" && (
-            <TableHead className="w-px">
-              <span className="sr-only">Actions</span>
-            </TableHead>
-          )}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.map((registrant) => (
-          <TableRow key={registrant.id}>
-            <TableCell className="max-w-xs font-medium" title={registrant.name}>
-              <span className="block truncate">{registrant.name}</span>
-              {/* Under the name rather than in a column of its own: the door
-                  reads it at the same moment it reads who this is, and the
-                  table is already wide enough to drop columns on small
-                  screens. */}
-              {registrant.pronouns && (
-                <span className="app-muted block truncate text-xs font-normal">
-                  {registrant.pronouns}
-                </span>
-              )}
-            </TableCell>
-            <TableCell hideBelow="md" className="app-muted">
-              {registrant.email}
-              {registrant.phone && (
-                <span className="block text-xs">{registrant.phone}</span>
-              )}
-            </TableCell>
-            <TableCell hideBelow="sm">{registrant.party_size}</TableCell>
-            <TableCell hideBelow="lg" className="app-muted whitespace-nowrap">
-              {formatDateTime(registrant.created_at)}
-            </TableCell>
-            {showRides && (
-              <TableCell hideBelow="lg" className="app-muted">
-                {ridesSummary(registrant) ?? "—"}
-              </TableCell>
-            )}
-            <TableCell className="app-muted whitespace-nowrap">
-              {formatDateTime(registrant.checked_in_at)}
-            </TableCell>
-            {mode === "edit" && (
-              <TableCell className="text-right whitespace-nowrap">
-                {/* The profile hangs off the person record, so a
-                    registration never linked to one has nowhere to put it —
-                    link it from the People module first. */}
-                {registrant.rider && registrant.person_id && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={`Rider profile for ${registrant.name}`}
-                    onClick={() => onOpenRider(registrant)}
-                  >
-                    <Snowflake />
-                  </Button>
-                )}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={
-                    registrant.checked_in_at ? "Undo check-in" : "Check in"
-                  }
-                  disabled={isPending && pendingId === registrant.id}
-                  onClick={() => onToggleCheckIn(registrant)}
-                >
-                  {registrant.checked_in_at ? <Undo2 /> : <Check />}
-                </Button>
-              </TableCell>
-            )}
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  );
-}
-
 export function RegistrantsTab({
   capacity,
   mode,
@@ -217,30 +104,37 @@ export function RegistrantsTab({
 }) {
   const router = useRouter();
   const { data: registrants, loadError } = registrantsData;
+  const refreshRegistrants = registrantsData.refresh;
+  const refreshDerived = derived.refresh;
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [riderTarget, setRiderTarget] = useState<EventRegistrant | null>(null);
   const [query, setQuery] = useState("");
 
-  function refreshAll() {
-    registrantsData.refresh();
-    derived.refresh();
+  // Stable, so the column list below only rebuilds when something it renders
+  // differently changes.
+  const refreshAll = useCallback(() => {
+    refreshRegistrants();
+    refreshDerived();
     router.refresh();
-  }
+  }, [refreshRegistrants, refreshDerived, router]);
 
-  function handleToggleCheckIn(registrant: EventRegistrant) {
-    setPendingId(registrant.id);
-    startTransition(async () => {
-      const action = registrant.checked_in_at
-        ? undoCheckInAction
-        : checkInRegistrantAction;
-      await action(registrant.id);
-      setPendingId(null);
-      refreshAll();
-    });
-  }
+  const handleToggleCheckIn = useCallback(
+    (registrant: EventRegistrant) => {
+      setPendingId(registrant.id);
+      startTransition(async () => {
+        const action = registrant.checked_in_at
+          ? undoCheckInAction
+          : checkInRegistrantAction;
+        await action(registrant.id);
+        setPendingId(null);
+        refreshAll();
+      });
+    },
+    [refreshAll],
+  );
 
-  const list = registrants ?? [];
+  const list = useMemo(() => registrants ?? [], [registrants]);
   const totalAttending = list.reduce(
     (sum, registrant) => sum + registrant.party_size,
     0,
@@ -257,8 +151,133 @@ export function RegistrantsTab({
     return list.filter((registrant) => matchesQuery(registrant, needle));
   }, [list, query]);
 
+  const columns = useMemo<PortalDataTableColumn<EventRegistrant>[]>(
+    () => [
+      {
+        key: "name",
+        label: "Name",
+        sortValue: (registrant) => registrant.name,
+        cellClassName: "max-w-xs font-medium",
+        render: (registrant) => (
+          <>
+            <span className="block truncate" title={registrant.name}>
+              {registrant.name}
+            </span>
+            {/* Under the name rather than in a column of its own: the door
+                reads it at the same moment it reads who this is, and the
+                table is already wide enough to drop columns on small
+                screens. */}
+            {registrant.pronouns && (
+              <span className="app-muted block truncate text-xs font-normal">
+                {registrant.pronouns}
+              </span>
+            )}
+          </>
+        ),
+      },
+      {
+        key: "contact",
+        label: "Contact",
+        sortValue: (registrant) => registrant.email,
+        hideBelow: "md",
+        cellClassName: "app-muted",
+        render: (registrant) => (
+          <>
+            {registrant.email}
+            {registrant.phone && (
+              <span className="block text-xs">{registrant.phone}</span>
+            )}
+          </>
+        ),
+      },
+      {
+        key: "party_size",
+        label: "Party size",
+        sortValue: (registrant) => registrant.party_size,
+        hideBelow: "sm",
+        render: (registrant) => registrant.party_size,
+      },
+      {
+        key: "created_at",
+        label: "Registered",
+        sortValue: (registrant) => registrant.created_at,
+        hideBelow: "lg",
+        cellClassName: "app-muted whitespace-nowrap",
+        render: (registrant) => formatDateTime(registrant.created_at),
+      },
+      ...(showRides
+        ? [
+            {
+              key: "rides",
+              label: "Rides",
+              sortValue: (registrant: EventRegistrant) =>
+                ridesSummary(registrant),
+              hideBelow: "lg",
+              cellClassName: "app-muted",
+              render: (registrant: EventRegistrant) =>
+                ridesSummary(registrant) ?? "—",
+            } satisfies PortalDataTableColumn<EventRegistrant>,
+          ]
+        : []),
+      {
+        key: "checked_in_at",
+        label: "Checked in",
+        sortValue: (registrant) => registrant.checked_in_at,
+        cellClassName: "app-muted whitespace-nowrap",
+        render: (registrant) => formatDateTime(registrant.checked_in_at),
+      },
+      ...(mode === "edit"
+        ? [
+            {
+              key: "actions",
+              label: "Actions",
+              srOnlyLabel: true,
+              headClassName: "w-0",
+              cellClassName: "text-right whitespace-nowrap",
+              render: (registrant: EventRegistrant) => (
+                <>
+                  {/* The profile hangs off the person record, so a
+                      registration never linked to one has nowhere to put it —
+                      link it from the People module first. */}
+                  {registrant.rider && registrant.person_id && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Rider profile for ${registrant.name}`}
+                      onClick={() => setRiderTarget(registrant)}
+                    >
+                      <Snowflake />
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={
+                      registrant.checked_in_at ? "Undo check-in" : "Check in"
+                    }
+                    disabled={isPending && pendingId === registrant.id}
+                    onClick={() => handleToggleCheckIn(registrant)}
+                  >
+                    {registrant.checked_in_at ? <Undo2 /> : <Check />}
+                  </Button>
+                </>
+              ),
+            } satisfies PortalDataTableColumn<EventRegistrant>,
+          ]
+        : []),
+    ],
+    [showRides, mode, isPending, pendingId, handleToggleCheckIn],
+  );
+
+  // Only the copy that holds every row may claim to order them; see
+  // `withoutSorting`.
+  const previewColumns = useMemo(() => withoutSorting(columns), [columns]);
+
   const capped = previewRows === null ? list : list.slice(0, previewRows);
   const hasOverflow = previewRows !== null && list.length > previewRows;
+  const previewIsWholeList = !hasOverflow;
 
   const summary =
     registrants === undefined ? null : (
@@ -272,15 +291,6 @@ export function RegistrantsTab({
           ` · ${derived.data.recurringParticipants} recurring, ${derived.data.firstTimeParticipants} first-time`}
       </>
     );
-
-  const tableProps = {
-    mode,
-    showRides,
-    pendingId,
-    isPending,
-    onToggleCheckIn: handleToggleCheckIn,
-    onOpenRider: setRiderTarget,
-  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -301,7 +311,21 @@ export function RegistrantsTab({
         />
       ) : (
         <>
-          <RegistrantsTable rows={capped} {...tableProps} />
+          <PortalDataTable
+            columns={previewIsWholeList ? columns : previewColumns}
+            rows={capped}
+            getRowKey={(registrant) => registrant.id}
+            // listEventRegistrantsAction returns them in the order they
+            // registered.
+            defaultSort={
+              previewIsWholeList ? { key: "created_at", dir: "asc" } : undefined
+            }
+            emptyMessage="No registrants to show."
+            // The tab is already inside its own card on the phase grid -- and
+            // inside the check-in sheet, which brings its own surface.
+            shell="bare"
+            stickyFirstColumn
+          />
 
           {hasOverflow && (
             <ListPreviewSheet
@@ -316,18 +340,19 @@ export function RegistrantsTab({
               filteredCount={filtered.length}
               actions={headerActions}
             >
-              {filtered.length === 0 ? (
-                <EmptyState
-                  title="No matching registrants"
-                  description="Clear or loosen the search to see more."
-                />
-              ) : (
-                <RegistrantsTable
-                  rows={filtered}
-                  stickyHeader
-                  {...tableProps}
-                />
-              )}
+              <PortalDataTable
+                columns={columns}
+                rows={filtered}
+                getRowKey={(registrant) => registrant.id}
+                defaultSort={{ key: "created_at", dir: "asc" }}
+                emptyMessage="No registrants match your search. Clear or loosen it to see more."
+                // The sheet body is the scroller here and brings its own
+                // surface, so the header pins to the top of that rather than
+                // to the portal's header.
+                shell="bare"
+                stickyHeader="container"
+                stickyFirstColumn
+              />
             </ListPreviewSheet>
           )}
         </>

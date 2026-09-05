@@ -275,7 +275,10 @@ export function ShiftsSection({
           event.
         </p>
       ) : (
-        <Table>
+        // Not a PortalDataTable: editing a shift swaps its row for a
+        // full-width form, and a flat row list has nowhere to put that. It
+        // takes the sticky header and leaves the rest.
+        <Table stickyHeader="page">
           <TableHeader>
             <TableRow>
               <TableHead>Duty / location</TableHead>
