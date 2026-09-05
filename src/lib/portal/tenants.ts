@@ -20,9 +20,23 @@ export type TenantContext = {
    * has not chosen one yet.
    */
   currentTenantId: string | null;
+  /**
+   * Whether the read actually succeeded.
+   *
+   * Without this, an empty `tenants` means both "this account belongs to no
+   * tenant" and "the database did not answer" -- and the caller acts on the
+   * difference: the first is a real state to explain, the second is a
+   * transient failure that must not tell a legitimate member they were never
+   * added to anything.
+   */
+  resolved: boolean;
 };
 
-const EMPTY: TenantContext = { tenants: [], currentTenantId: null };
+const UNRESOLVED: TenantContext = {
+  tenants: [],
+  currentTenantId: null,
+  resolved: false,
+};
 
 /**
  * Memoized per Supabase client for the same reason as
@@ -38,19 +52,26 @@ export async function getTenantContext(
   const cached = contextByClient.get(supabase);
   if (cached) return cached;
 
+  // resolveTenantContext settles rather than rejecting, so the memoized
+  // promise is safe to hand to a second caller in the same request -- a
+  // rejection cached here would surface to whichever caller arrived after it.
   const pending = resolveTenantContext(supabase);
   contextByClient.set(supabase, pending);
-  try {
-    return await pending;
-  } catch {
-    // Don't pin a rejection to the client for the rest of the request, and
-    // don't take the portal shell down over it -- the switcher is chrome.
-    contextByClient.delete(supabase);
-    return EMPTY;
-  }
+  return pending;
 }
 
 async function resolveTenantContext(
+  supabase: SupabaseClient,
+): Promise<TenantContext> {
+  try {
+    return await readTenantContext(supabase);
+  } catch {
+    // A thrown fetch (the network, not PostgREST) lands here.
+    return UNRESOLVED;
+  }
+}
+
+async function readTenantContext(
   supabase: SupabaseClient,
 ): Promise<TenantContext> {
   // Joins a brand-new account to the tenant before anything reads it, the
@@ -67,13 +88,14 @@ async function resolveTenantContext(
     supabase.rpc("current_tenant_id"),
   ]);
 
-  if (tenantsResult.error) return EMPTY;
+  if (tenantsResult.error) return UNRESOLVED;
 
   return {
     tenants: (tenantsResult.data ?? []) as Tenant[],
     currentTenantId: currentResult.error
       ? null
       : ((currentResult.data as string | null) ?? null),
+    resolved: true,
   };
 }
 

@@ -61,13 +61,29 @@ describe("TenantSwitcher", () => {
     expect(screen.queryByRole("button")).toBeNull();
   });
 
-  test("renders nothing when the account has no membership", () => {
-    // The layout renders <NoTenant /> instead of the shell in this case, so
-    // the switcher must not also try to say something about it.
-    const { container } = render(
-      <TenantSwitcher tenants={[]} currentTenantId={null} />,
+  test("names the link even when the sidebar hides the text", () => {
+    // The name span carries group-data-[collapsible=icon]:hidden, which takes
+    // it out of the accessibility tree along with the pixels, and the logo is
+    // decorative -- so without an explicit label the link is nameless exactly
+    // when it is the only thing left in the header.
+    render(
+      <TenantSwitcher tenants={[tenant()]} currentTenantId={tenant().id} />,
     );
-    expect(container).toBeEmptyDOMElement();
+    expect(screen.getByRole("link")).toHaveAttribute(
+      "aria-label",
+      "Chatter Snow",
+    );
+  });
+
+  test("still renders a home link when the tenant read failed", () => {
+    // The layout shows <NoTenant /> for an account that genuinely has no
+    // tenant, so an empty list here means a failed read and a degraded shell.
+    // Returning null would leave the sidebar header blank.
+    render(<TenantSwitcher tenants={[]} currentTenantId={null} />);
+    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute(
+      "href",
+      "/portal/home",
+    );
   });
 
   test("becomes a menu naming the current tenant once there are two", () => {

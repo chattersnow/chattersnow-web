@@ -27,6 +27,10 @@
 --    just has_permission('administration', 'manage') -- and this migration
 --    keeps it that way.
 --
+-- Authenticated access to all three tables is read-only in this phase. See
+-- the note above the `tenants` grants for why the write policies wait for
+-- Phase 2.
+--
 -- auto_expose_new_tables is unset in this project's config, so every table
 -- below needs an explicit grant alongside its RLS policies.
 
@@ -52,8 +56,10 @@ create trigger set_updated_at before update on public.tenants
 --
 -- `member` is an ordinary, permanent grant. `support` is the platform-staff
 -- grant from decision 2: always time-boxed, always carrying a reason, and
--- writable only by service_role -- the insert policy below pins authenticated
--- writes to kind = 'member', so a tenant admin can never mint one.
+-- writable only by service_role. The check constraints below are what make
+-- "time-boxed" structural rather than a convention -- a support row without
+-- an expiry and a reason is rejected outright, by any writer, service_role
+-- included.
 create table public.tenant_memberships (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -189,10 +195,17 @@ begin
     return v_tenant_id;
   end if;
 
-  -- current_tenant_id() is also null for a user who holds several
-  -- memberships and has not chosen one. They must not be auto-joined to
-  -- anything, so check for the absence of memberships, not its result.
-  if exists (select 1 from public.my_tenant_ids()) then
+  -- current_tenant_id() is null for several reasons that are not "has no
+  -- tenant": several memberships and no choice made, a membership in a
+  -- suspended tenant, an expired support grant. None of them may auto-join,
+  -- so this asks the raw table rather than my_tenant_ids() -- which filters
+  -- to live memberships in active tenants, and would therefore have read
+  -- "member of a suspended tenant" as "member of nothing" and handed that
+  -- account a permanent membership in whichever other tenant happened to be
+  -- the only active one.
+  if exists (
+    select 1 from public.tenant_memberships tm where tm.user_id = auth.uid()
+  ) then
     return null;
   end if;
 
@@ -221,32 +234,21 @@ alter table public.user_tenant_selection enable row level security;
 create policy "tenants select" on public.tenants for select to authenticated
   using (id in (select public.my_tenant_ids()));
 
--- A tenant admin may rename their own tenant and nothing else: slug, status,
--- plan and custom_domain are platform concerns, and custom_domain in
--- particular is unique across tenants, so letting a customer set it would let
--- them claim another tenant's host. The column-level grant below is what
--- actually enforces that; this policy scopes it to their own row.
+-- Read-only for authenticated in Phase 1, deliberately.
 --
--- has_permission() is still global until Phase 2 makes user_roles per-tenant,
--- so today "administration:manage" means admin everywhere. The
--- current_tenant_id() predicate is what keeps the write scoped in the
--- meantime, and it is already the shape Phase 3 generalises.
-create policy "tenants update" on public.tenants for update to authenticated
-  using (
-    id = (select public.current_tenant_id())
-    and public.has_permission('administration', 'manage')
-  )
-  with check (
-    id = (select public.current_tenant_id())
-    and public.has_permission('administration', 'manage')
-  );
-
--- No insert or delete policy, and no insert or delete grant: provisioning and
--- deprovisioning a tenant is a service_role operation
--- (20260826320000_grant_service_role_table_access.sql), not something any
--- signed-in user can do.
+-- has_permission() is still global -- Phase 2 is what makes user_roles
+-- per-tenant -- so "administration:manage" currently means admin *everywhere*,
+-- and current_tenant_id() is caller-controlled through set_current_tenant().
+-- Pairing the two would therefore let an admin of tenant A who is also an
+-- ordinary member of tenant B switch to B and write B's rows. Nothing in this
+-- phase needs to write either table, so the safe answer is to grant nothing
+-- and add the write policies in Phase 2, once has_permission() is itself
+-- tenant-scoped and the pairing actually means what it looks like it means.
+--
+-- Provisioning a tenant, and issuing or revoking a support grant, are
+-- service_role operations either way
+-- (20260826320000_grant_service_role_table_access.sql).
 grant select on public.tenants to authenticated;
-grant update (name) on public.tenants to authenticated;
 
 -- Everyone can see their own memberships -- the switcher needs that, and it
 -- has to work before current_tenant_id() resolves to anything. Seeing anyone
@@ -260,36 +262,13 @@ create policy "tenant_memberships select" on public.tenant_memberships for selec
     )
   );
 
--- kind = 'member' on every authenticated write path: a tenant admin manages
--- their own people and can never create, alter, or extend a platform support
--- grant. Those are service_role only.
-create policy "tenant_memberships insert" on public.tenant_memberships for insert to authenticated
-  with check (
-    kind = 'member'
-    and tenant_id = (select public.current_tenant_id())
-    and public.has_permission('administration', 'manage')
-  );
-
-create policy "tenant_memberships update" on public.tenant_memberships for update to authenticated
-  using (
-    kind = 'member'
-    and tenant_id = (select public.current_tenant_id())
-    and public.has_permission('administration', 'manage')
-  )
-  with check (
-    kind = 'member'
-    and tenant_id = (select public.current_tenant_id())
-    and public.has_permission('administration', 'manage')
-  );
-
-create policy "tenant_memberships delete" on public.tenant_memberships for delete to authenticated
-  using (
-    kind = 'member'
-    and tenant_id = (select public.current_tenant_id())
-    and public.has_permission('administration', 'manage')
-  );
-
-grant select, insert, update, delete on public.tenant_memberships to authenticated;
+-- No write policy or grant, for the reason given above `tenants`: there is no
+-- membership-management UI in this phase, and a write predicate built out of
+-- a still-global has_permission() plus a caller-controlled current_tenant_id()
+-- would not mean what it appears to. Phase 2 adds them, gated on
+-- kind = 'member' so that a tenant admin can manage their own people but can
+-- never create, alter or extend a platform support grant.
+grant select on public.tenant_memberships to authenticated;
 
 -- Read-only to the user it belongs to. Writes go through set_current_tenant()
 -- so the membership check cannot be skipped, hence no write policy or grant.

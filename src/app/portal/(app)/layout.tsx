@@ -174,7 +174,12 @@ export default async function PortalAppLayout({
   // An account with no membership has nothing to be shown: from Phase 2 every
   // query in the portal filters on current_tenant_id(), so the shell would
   // render a nav over an empty database rather than an explanation.
-  if (tenantContext.tenants.length === 0) {
+  //
+  // Only when the read actually succeeded, though. A failed one also comes
+  // back with no tenants, and telling a legitimate member that they were never
+  // added to an organization -- with nothing to do but sign out -- would turn
+  // a transient database error into a lockout.
+  if (tenantContext.resolved && tenantContext.tenants.length === 0) {
     return <NoTenant />;
   }
 

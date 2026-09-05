@@ -43,13 +43,20 @@ export function TenantSwitcher({
 }) {
   const [isPending, startTransition] = useTransition();
 
-  if (tenants.length === 0) return null;
-
-  if (tenants.length === 1) {
+  // One membership, or none because the read failed -- the layout intercepts a
+  // genuinely tenant-less account before this renders, so an empty list here
+  // means the shell is running degraded and still needs its home link.
+  if (tenants.length <= 1) {
+    const name = tenants[0]?.name;
     return (
       <Link
         href="/portal/home"
         className="flex min-w-0 items-center gap-2 px-2 py-1.5"
+        // The name is hidden when the sidebar is collapsed to icons, which
+        // takes it out of the accessibility tree with it. The logo is
+        // decorative, so without this the link has no accessible name at all
+        // in that state.
+        aria-label={name ?? "Dashboard"}
       >
         <Image
           src={LOGO}
@@ -59,7 +66,7 @@ export function TenantSwitcher({
           className="size-8 shrink-0"
           priority
         />
-        <span className={NAME_CLASS}>{tenants[0].name}</span>
+        {name && <span className={NAME_CLASS}>{name}</span>}
       </Link>
     );
   }

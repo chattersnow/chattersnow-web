@@ -25,13 +25,17 @@ let chatterTenantId: string;
 let secondTenantId: string;
 
 beforeAll(async () => {
-  const { data: chatter, error: chatterError } = await service
+  // By age, not by slug: 20260905190000 takes the slug from
+  // app.initial_tenant_slug, so a developer who has set it would otherwise
+  // fail this whole file in setup.
+  const { data: initial, error: initialError } = await service
     .from("tenants")
     .select("id")
-    .eq("slug", "chatter-snow")
+    .order("created_at")
+    .limit(1)
     .single();
-  if (chatterError) throw chatterError;
-  chatterTenantId = chatter.id as string;
+  if (initialError) throw initialError;
+  chatterTenantId = initial.id as string;
 
   // `tenants` has no insert policy for authenticated at all -- provisioning is
   // a platform operation -- so even the seeded admin cannot create this.
@@ -88,6 +92,38 @@ describe("tenant identity", () => {
       reason: "integration test",
     });
     expect(error).not.toBeNull();
+  });
+
+  test("an admin cannot write memberships at all in this phase", async () => {
+    // Stronger than the check above, and deliberate: has_permission() is still
+    // global until Phase 2, so pairing it with a caller-controlled
+    // current_tenant_id() would not scope a write the way it appears to.
+    // Nothing in Phase 1 needs to write, so nothing may.
+    const admin = await signInAs(SEEDED_USERS.admin);
+
+    const inserted = await admin.from("tenant_memberships").insert({
+      user_id: SEEDED_USER_IDS.noAccess,
+      tenant_id: chatterTenantId,
+      kind: "member",
+    });
+    expect(inserted.error).not.toBeNull();
+
+    const { error: deleteError, count } = await admin
+      .from("tenant_memberships")
+      .delete({ count: "exact" })
+      .eq("user_id", SEEDED_USER_IDS.volunteer);
+    expect(deleteError ?? count).not.toBe(null);
+    expect(count ?? 0).toBe(0);
+  });
+
+  test("an admin cannot rename a tenant in this phase", async () => {
+    const admin = await signInAs(SEEDED_USERS.admin);
+    const { error, count } = await admin
+      .from("tenants")
+      .update({ name: "Renamed By Admin" }, { count: "exact" })
+      .eq("id", chatterTenantId);
+    expect(error ?? count).not.toBe(null);
+    expect(count ?? 0).toBe(0);
   });
 
   test("a support grant without an expiry or a reason is rejected outright", async () => {
@@ -262,7 +298,7 @@ describe("ensure_tenant_membership", () => {
     await service
       .from("tenants")
       .update({ status: "active" })
-      .eq("id", secondTenantId);
+      .in("id", [secondTenantId, chatterTenantId]);
     // Restores what seed.sql gave this account. The last test may already have
     // re-created it, hence upsert rather than insert.
     await service.from("tenant_memberships").upsert(
@@ -306,5 +342,38 @@ describe("ensure_tenant_membership", () => {
     const { data, error } = await noAccess.rpc("ensure_tenant_membership");
     expect(error).toBeNull();
     expect(data).toBe(chatterTenantId);
+  });
+
+  test("does not move a member of a suspended tenant into the active one", async () => {
+    // The guard has to read the raw membership table, not my_tenant_ids():
+    // that view filters to live memberships in *active* tenants, so a member
+    // of a suspended tenant looks membership-less. Checking the filtered view
+    // meant suspending a tenant handed every one of its users a permanent
+    // membership in whichever other tenant happened to be the only active one.
+    await service
+      .from("tenants")
+      .update({ status: "active" })
+      .eq("id", secondTenantId);
+    await service
+      .from("tenants")
+      .update({ status: "suspended" })
+      .eq("id", chatterTenantId);
+
+    const finance = await signInAs(SEEDED_USERS.finance);
+    const { data, error } = await finance.rpc("ensure_tenant_membership");
+    expect(error).toBeNull();
+    expect(data).toBeNull();
+
+    const { data: leaked } = await service
+      .from("tenant_memberships")
+      .select("id")
+      .eq("user_id", SEEDED_USER_IDS.finance)
+      .eq("tenant_id", secondTenantId);
+    expect(leaked).toHaveLength(0);
+
+    await service
+      .from("tenants")
+      .update({ status: "active" })
+      .eq("id", chatterTenantId);
   });
 });

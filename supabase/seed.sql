@@ -128,11 +128,14 @@ where u.email in (
 -- organisation's data you are looking at, and is orthogonal to whether you may
 -- do anything with it. Those two accounts exercise the no-role and deactivated
 -- paths, which have to keep behaving that way *inside* a tenant.
+--
+-- Matched on "the tenant that exists" rather than on the slug: 20260905190000
+-- takes the slug from app.initial_tenant_slug, so hardcoding 'chatter-snow'
+-- here would seed zero memberships for anyone who has set it.
 insert into public.tenant_memberships (user_id, tenant_id, kind, created_by)
 select u.id, t.id, 'member', u.id
 from auth.users u
-cross join public.tenants t
-where t.slug = 'chatter-snow'
+cross join (select id from public.tenants order by created_at limit 1) t
 on conflict (user_id, tenant_id) do nothing;
 
 -- Sample operational data, owned by the seeded admin account.

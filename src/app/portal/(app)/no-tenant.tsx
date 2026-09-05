@@ -41,11 +41,12 @@ export function NoTenant() {
           <EmptyMedia variant="icon">
             <Building2 />
           </EmptyMedia>
-          <EmptyTitle>No organization yet</EmptyTitle>
+          <EmptyTitle>No organization available</EmptyTitle>
           <EmptyDescription>
-            Your sign-in worked, but this account has not been added to an
-            organization. Ask whoever invited you to add you, then sign in
-            again.
+            Your sign-in worked, but there is no active organization for this
+            account — either it has not been added to one yet, or the one it
+            belongs to is not currently active. Whoever invited you can sort
+            this out.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
