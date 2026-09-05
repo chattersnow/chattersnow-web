@@ -81,7 +81,7 @@ export default async function VolunteerApplicationsPage({
   let query = supabase
     .from("volunteer_applications")
     .select(
-      "id, name, email, phone, role_interest, availability, status, created_at",
+      "id, name, email, phone, pronouns, role_interest, availability, status, created_at",
       { count: "exact" },
     )
     .order("created_at", { ascending: false })

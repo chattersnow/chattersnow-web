@@ -7,6 +7,7 @@
 // via `bun run test:integration`. Not picked up by `bun run test`.
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import {
+  adminClient,
   anonClient,
   deleteVolunteerApplications,
   findVolunteerApplications,
@@ -49,6 +50,26 @@ afterEach(async () => {
 });
 
 describe("submitVolunteerApplicationAction (integration)", () => {
+  test("stores pronouns on the application and on the person record", async () => {
+    currentIp = uniqueIp();
+    const email = applicantEmail("pronouns");
+
+    const result = await submitVolunteerApplicationAction(
+      formData({ name: "Jamie Rivera", email, pronouns: "  they/them  " }),
+    );
+    expect(result).toMatchObject({ success: true });
+
+    const [application] = await findVolunteerApplications(email);
+    expect(application.pronouns).toBe("they/them");
+
+    const { data: person } = await adminClient
+      .from("people")
+      .select("pronouns")
+      .eq("id", application.person_id as string)
+      .single();
+    expect(person?.pronouns).toBe("they/them");
+  });
+
   test("stores an application and returns its reference code", async () => {
     currentIp = uniqueIp();
     const email = applicantEmail("happy-path");

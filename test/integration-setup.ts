@@ -599,7 +599,7 @@ export async function findVolunteerApplications(email: string) {
   const { data, error } = await adminClient
     .from("volunteer_applications")
     .select(
-      "id, person_id, name, email, phone, role_interest, availability, reference_code, status",
+      "id, person_id, name, email, phone, pronouns, role_interest, availability, reference_code, status",
     )
     .ilike("email", email);
   if (error) throw error;

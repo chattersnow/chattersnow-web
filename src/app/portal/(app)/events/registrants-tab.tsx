@@ -125,11 +125,17 @@ function RegistrantsTable({
       <TableBody>
         {rows.map((registrant) => (
           <TableRow key={registrant.id}>
-            <TableCell
-              className="max-w-xs truncate font-medium"
-              title={registrant.name}
-            >
-              {registrant.name}
+            <TableCell className="max-w-xs font-medium" title={registrant.name}>
+              <span className="block truncate">{registrant.name}</span>
+              {/* Under the name rather than in a column of its own: the door
+                  reads it at the same moment it reads who this is, and the
+                  table is already wide enough to drop columns on small
+                  screens. */}
+              {registrant.pronouns && (
+                <span className="app-muted block truncate text-xs font-normal">
+                  {registrant.pronouns}
+                </span>
+              )}
             </TableCell>
             <TableCell hideBelow="md" className="app-muted">
               {registrant.email}

@@ -79,6 +79,7 @@ describe("parsePersonForm", () => {
         preferred_name: null,
         email: "jane@example.com",
         phone: "555-1234",
+        pronouns: null,
         instagram_handle: "jane.doe",
         notes: "VIP",
         logo_url: "https://example.com/logo.png",

@@ -25,12 +25,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { PronounsField } from "@/components/pronouns-field";
 
 export type PersonFormState = {
   name: string;
   preferredName: string;
   email: string;
   phone: string;
+  pronouns: string;
   instagramHandle: string;
   notes: string;
   logoUrl: string;
@@ -52,6 +54,7 @@ export function emptyPersonForm(
     preferredName: "",
     email: "",
     phone: "",
+    pronouns: "",
     instagramHandle: "",
     notes: "",
     logoUrl: "",
@@ -138,6 +141,13 @@ export function PersonFormFields({
           />
         </Field>
       </Field>
+
+      <PronounsField
+        id={`${idPrefix}-pronouns`}
+        value={form.pronouns}
+        onChange={(value) => update("pronouns", value)}
+        description="As the person gives them. Shown wherever we introduce or write about them."
+      />
 
       <Field>
         <FieldLabel htmlFor={`${idPrefix}-instagramHandle`}>
@@ -349,6 +359,7 @@ export function packPersonFormData(form: PersonFormState) {
   formData.set("preferredName", form.preferredName);
   formData.set("email", form.email);
   formData.set("phone", form.phone);
+  formData.set("pronouns", form.pronouns);
   formData.set("instagramHandle", form.instagramHandle);
   formData.set("notes", form.notes);
   formData.set("logoUrl", form.logoUrl);

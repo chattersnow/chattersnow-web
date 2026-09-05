@@ -55,6 +55,7 @@ export default async function AccountPage() {
             </div>
             <AccountForm
               preferredName={person?.preferred_name ?? null}
+              pronouns={person?.pronouns ?? null}
               fallbackName={fallbackName}
             />
           </CardContent>

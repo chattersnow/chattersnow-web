@@ -44,6 +44,7 @@ function formStateFor(person: PersonRow): PersonFormState {
     preferredName: person.preferred_name ?? "",
     email: person.email ?? "",
     phone: person.phone ?? "",
+    pronouns: person.pronouns ?? "",
     instagramHandle: person.instagram_handle ?? "",
     notes: person.notes ?? "",
     logoUrl: person.logo_url ?? "",
@@ -170,6 +171,10 @@ export function ProfileCard({
             </p>
             <p>
               <span className="app-muted">Phone:</span> {person.phone ?? "—"}
+            </p>
+            <p>
+              <span className="app-muted">Pronouns:</span>{" "}
+              {person.pronouns ?? "—"}
             </p>
             <p>
               <span className="app-muted">Instagram:</span>{" "}

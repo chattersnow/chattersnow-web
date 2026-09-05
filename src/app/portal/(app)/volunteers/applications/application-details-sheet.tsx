@@ -136,6 +136,9 @@ export function VolunteerApplicationDetailsSheet({
             <ReadOnlyField label="Phone" htmlFor="application-phone">
               {application.phone || "—"}
             </ReadOnlyField>
+            <ReadOnlyField label="Pronouns" htmlFor="application-pronouns">
+              {application.pronouns || "—"}
+            </ReadOnlyField>
             <ReadOnlyField
               label="Role interest"
               htmlFor="application-role-interest"

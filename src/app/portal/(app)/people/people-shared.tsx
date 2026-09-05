@@ -47,6 +47,7 @@ export type PersonRow = {
   preferred_name: string | null;
   email: string | null;
   phone: string | null;
+  pronouns: string | null;
   instagram_handle: string | null;
   notes: string | null;
   logo_url: string | null;

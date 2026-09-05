@@ -14,6 +14,7 @@ export type VolunteerApplication = {
   name: string;
   email: string;
   phone: string | null;
+  pronouns: string | null;
   role_interest: string | null;
   availability: string | null;
   status: VolunteerApplicationStatus;

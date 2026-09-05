@@ -41,7 +41,7 @@ export async function getMergeCandidatesAction(
   const { data, error } = await supabase
     .from("people")
     .select(
-      "id, name, preferred_name, person_type, email, auth_user_id, created_at, phone, instagram_handle, notes, logo_url, website, source_type, preferred_mountain",
+      "id, name, preferred_name, person_type, email, auth_user_id, created_at, phone, pronouns, instagram_handle, notes, logo_url, website, source_type, preferred_mountain",
     )
     .in("id", ids);
   if (error) return { error: "Could not load these records." };
