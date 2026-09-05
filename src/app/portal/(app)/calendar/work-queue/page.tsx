@@ -148,6 +148,9 @@ export default async function WorkQueuePage({
           items={myWorkItems}
           owners={owners}
           currentPersonId={currentPersonId}
+          // No default sort: this tab arrives ordered by whichever item
+          // changed hands most recently, which is not one of the columns, so
+          // the list keeps that order until the reader picks another.
           emptyMessage="Nothing is assigned to you as an owner or reviewer right now"
           emptyDescription="Items land here when you are set as owner or reviewer on a calendar item."
         />
@@ -156,6 +159,8 @@ export default async function WorkQueuePage({
           items={queueItems}
           owners={owners}
           currentPersonId={currentPersonId}
+          // Matches the order the queue is built in above.
+          defaultSort={{ key: "due", dir: "asc" }}
           emptyMessage={
             overdueOnly
               ? "Nothing is overdue right now"

@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useMemo, useState } from "react";
+import { ReactNode, useCallback, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { FiltersSheet } from "@/components/filters-sheet";
 import {
@@ -11,13 +11,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
 import { CATEGORIES, ITEM_TYPES, labelFor } from "../calendar-shared";
 import type { Program } from "../../programs/actions";
 import {
@@ -42,8 +38,13 @@ export function SuggestionRulesTable({
   const [programFilter, setProgramFilter] = useState(FILTER_ALL);
   const [activeFilter, setActiveFilter] = useState(FILTER_ALL);
 
-  const programName = (programId: string) =>
-    programs.find((program) => program.id === programId)?.name ?? "—";
+  // Stable, so the column list below only rebuilds when the programs it
+  // resolves names from change.
+  const programName = useCallback(
+    (programId: string) =>
+      programs.find((program) => program.id === programId)?.name ?? "—",
+    [programs],
+  );
 
   const visibleRules = useMemo(() => {
     return rules.filter((rule) => {
@@ -59,6 +60,70 @@ export function SuggestionRulesTable({
     programFilter !== FILTER_ALL,
     activeFilter !== FILTER_ALL,
   ].filter(Boolean).length;
+
+  const columns = useMemo<PortalDataTableColumn<SuggestionRuleListRow>[]>(
+    () => [
+      {
+        key: "item_type",
+        label: "Item type",
+        // On the word the cell shows, "Any" included: a rule that matches
+        // every type is a real value a reader sorts by, not a blank.
+        sortValue: (rule) =>
+          rule.item_type ? labelFor(ITEM_TYPES, rule.item_type) : "Any",
+        cellClassName: "app-muted",
+        render: (rule) =>
+          rule.item_type ? labelFor(ITEM_TYPES, rule.item_type) : "Any",
+      },
+      {
+        key: "category",
+        label: "Category",
+        sortValue: (rule) =>
+          rule.category ? labelFor(CATEGORIES, rule.category) : "Any",
+        cellClassName: "app-muted",
+        render: (rule) =>
+          rule.category ? labelFor(CATEGORIES, rule.category) : "Any",
+      },
+      {
+        key: "program",
+        label: "Program",
+        sortValue: (rule) => programName(rule.program_id),
+        cellClassName: "font-medium",
+        render: (rule) => programName(rule.program_id),
+      },
+      {
+        key: "note",
+        // Truncated free text: there is nothing a reader would look for in
+        // its alphabetical order, so it stays unsorted.
+        label: "Note",
+        cellClassName: "max-w-xs truncate app-muted",
+        render: (rule) => rule.note || "—",
+      },
+      {
+        key: "is_active",
+        label: "Active",
+        // The word the cell shows, so ascending groups the "No"s first
+        // instead of ordering on a boolean a reader can't see.
+        sortValue: (rule) => (rule.is_active ? "Yes" : "No"),
+        cellClassName: "app-muted",
+        render: (rule) => (rule.is_active ? "Yes" : "No"),
+      },
+      {
+        key: "actions",
+        label: "Actions",
+        srOnlyLabel: true,
+        headClassName: "w-0",
+        cellClassName: "text-right",
+        render: (rule) => (
+          <SuggestionRuleDetailsSheet
+            rule={rule}
+            programs={programs}
+            canManage={canManage}
+          />
+        ),
+      },
+    ],
+    [programs, programName, canManage],
+  );
 
   return (
     <div className="space-y-4">
@@ -123,62 +188,15 @@ export function SuggestionRulesTable({
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="px-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Item type</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Program</TableHead>
-                  <TableHead>Note</TableHead>
-                  <TableHead>Active</TableHead>
-                  <TableHead className="w-px" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visibleRules.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="app-muted text-center">
-                      No rules match your filters.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  visibleRules.map((rule) => (
-                    <TableRow key={rule.id}>
-                      <TableCell className="app-muted">
-                        {rule.item_type
-                          ? labelFor(ITEM_TYPES, rule.item_type)
-                          : "Any"}
-                      </TableCell>
-                      <TableCell className="app-muted">
-                        {rule.category
-                          ? labelFor(CATEGORIES, rule.category)
-                          : "Any"}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {programName(rule.program_id)}
-                      </TableCell>
-                      <TableCell className="max-w-xs truncate app-muted">
-                        {rule.note || "—"}
-                      </TableCell>
-                      <TableCell className="app-muted">
-                        {rule.is_active ? "Yes" : "No"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <SuggestionRuleDetailsSheet
-                          rule={rule}
-                          programs={programs}
-                          canManage={canManage}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <PortalDataTable
+          columns={columns}
+          rows={visibleRules}
+          getRowKey={(rule) => rule.id}
+          // No default sort: the rules arrive in the order they were
+          // created, which is not one of the columns, so the list keeps that
+          // order until the reader picks another.
+          emptyMessage="No rules match your filters."
+        />
       )}
     </div>
   );
