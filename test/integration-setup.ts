@@ -466,8 +466,13 @@ export async function createGovernanceMeeting(
 // the service-role key instead, which bypasses RLS and holds every table
 // grant since #221's migration (20260826320000). Created lazily so files
 // that never touch contact_messages don't need SUPABASE_SECRET_KEY set.
+//
+// Exported for the same reason the helpers below use it: some fixtures cannot
+// be created through a signed-in client at all. Provisioning a tenant
+// (#707, 20260905180000) is one -- `tenants` deliberately has no insert
+// policy for authenticated, because creating one is a platform operation.
 let serviceRoleClientInstance: SupabaseClient | null = null;
-function serviceRoleClient() {
+export function serviceRoleClient() {
   serviceRoleClientInstance ??= createClient(
     SUPABASE_URL,
     process.env.SUPABASE_SECRET_KEY!,

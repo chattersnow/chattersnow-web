@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { UserRound } from "lucide-react";
 import { cookies, headers } from "next/headers";
@@ -40,12 +39,15 @@ import { HelpButton } from "./help/help-button";
 import { PortalHelpProvider } from "./help/help-context";
 import { getContentWorkSummary } from "./home/queries";
 import { ensureCurrentPerson } from "@/lib/auth/current-person";
+import { getTenantContext } from "@/lib/portal/tenants";
 import { ensureMyOnboarding } from "@/lib/portal/onboarding";
 import { personDisplayName } from "@/lib/format";
 import { IdleTimeout } from "./idle-timeout";
 import { LogoutButton } from "./logout-button";
+import { NoTenant } from "./no-tenant";
 import { NotificationsMenu } from "./notifications-menu";
 import { PortalNav } from "./portal-nav";
+import { TenantSwitcher } from "./tenant-switcher";
 import { SidebarQuickActions } from "./sidebar-quick-actions";
 import { CURRENT_RELEASE, RELEASE_NOTES } from "./welcome/releases";
 import { WelcomeDialog } from "./welcome/welcome-dialog";
@@ -135,6 +137,7 @@ export default async function PortalAppLayout({
     contentWork,
     calendarCoverageReminder,
     accessManagementAlerts,
+    tenantContext,
   ] = await Promise.all([
     currentPersonPromise,
     // Records this account's first arrival and tells us what it has already
@@ -163,7 +166,17 @@ export default async function PortalAppLayout({
       : { items: [] },
     getCalendarCoverageReminderSummary(supabase, { canManageContentCalendar }),
     getAccessManagementAttentionSummary(supabase, { canSeeAccessManagement }),
+    // Also joins a first-time account to the tenant, the same way
+    // ensureCurrentPerson above provisions its people row (#707 Phase 1).
+    getTenantContext(supabase),
   ]);
+
+  // An account with no membership has nothing to be shown: from Phase 2 every
+  // query in the portal filters on current_tenant_id(), so the shell would
+  // render a nav over an empty database rather than an explanation.
+  if (tenantContext.tenants.length === 0) {
+    return <NoTenant />;
+  }
 
   const welcomeOwed =
     onboarding !== null && onboarding.welcomeCompletedAt === null;
@@ -216,22 +229,10 @@ export default async function PortalAppLayout({
           <SkipLink href="#portal-main" />
           <Sidebar collapsible="icon">
             <SidebarHeader>
-              <Link
-                href="/portal/home"
-                className="flex min-w-0 items-center gap-2 px-2 py-1.5"
-              >
-                <Image
-                  src="/chatter-logo-transparent.png"
-                  alt="Chatter Snow"
-                  width={32}
-                  height={32}
-                  className="size-8 shrink-0"
-                  priority
-                />
-                <span className="app-muted min-w-0 truncate text-sm font-semibold uppercase tracking-[0.14em] group-data-[collapsible=icon]:hidden">
-                  Chatter Snow
-                </span>
-              </Link>
+              <TenantSwitcher
+                tenants={tenantContext.tenants}
+                currentTenantId={tenantContext.currentTenantId}
+              />
             </SidebarHeader>
             <SidebarContent>
               <SidebarQuickActions
