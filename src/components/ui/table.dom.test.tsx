@@ -1,15 +1,19 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { render } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 import { Table, TableBody, TableCell, TableRow } from "./table";
 
 /**
- * happy-dom does no layout, so the widths the container measures and the
- * observer that triggers the measurement both have to be supplied here.
+ * happy-dom does no layout and its ResizeObserver is a stub, so both halves of
+ * the measurement have to be supplied here: the widths, and the callback that
+ * reads them. The observer is captured rather than fired on `observe`, so the
+ * test decides when the measurement happens instead of racing the effect.
  */
-class ImmediateResizeObserver {
+let notify: (() => void) | undefined;
+
+class CapturingResizeObserver {
   constructor(private readonly callback: ResizeObserverCallback) {}
   observe() {
-    this.callback([], this as unknown as ResizeObserver);
+    notify = () => this.callback([], this as unknown as ResizeObserver);
   }
   unobserve() {}
   disconnect() {}
@@ -17,15 +21,9 @@ class ImmediateResizeObserver {
 
 const originalResizeObserver = globalThis.ResizeObserver;
 
-function renderTableWith(widths: { scrollWidth: number; clientWidth: number }) {
-  for (const [name, value] of Object.entries(widths)) {
-    Object.defineProperty(HTMLElement.prototype, name, {
-      configurable: true,
-      get: () => value,
-    });
-  }
+function renderTable() {
   globalThis.ResizeObserver =
-    ImmediateResizeObserver as unknown as typeof ResizeObserver;
+    CapturingResizeObserver as unknown as typeof ResizeObserver;
 
   const { container } = render(
     <Table>
@@ -36,26 +34,47 @@ function renderTableWith(widths: { scrollWidth: number; clientWidth: number }) {
       </TableBody>
     </Table>,
   );
-  return container.querySelector('[data-slot="table-container"]')!;
+  return container.querySelector<HTMLElement>('[data-slot="table-container"]')!;
+}
+
+/** Stands in for the layout happy-dom never performs. */
+function measure(
+  element: HTMLElement,
+  widths: { scrollWidth: number; clientWidth: number },
+) {
+  for (const [name, value] of Object.entries(widths)) {
+    Object.defineProperty(element, name, {
+      configurable: true,
+      get: () => value,
+    });
+  }
+  act(() => notify?.());
 }
 
 afterEach(() => {
   globalThis.ResizeObserver = originalResizeObserver;
-  for (const name of ["scrollWidth", "clientWidth"]) {
-    delete (HTMLElement.prototype as unknown as Record<string, unknown>)[name];
-  }
+  notify = undefined;
 });
 
 describe("Table", () => {
   test("takes a tab stop while the container overflows", () => {
     // Nothing inside a table is focusable, so without this a keyboard user
     // cannot scroll to the columns past the right edge.
-    const container = renderTableWith({ scrollWidth: 900, clientWidth: 390 });
+    const container = renderTable();
+    measure(container, { scrollWidth: 900, clientWidth: 390 });
     expect(container.getAttribute("tabindex")).toBe("0");
   });
 
   test("stays out of the tab order when it fits", () => {
-    const container = renderTableWith({ scrollWidth: 900, clientWidth: 900 });
+    const container = renderTable();
+    measure(container, { scrollWidth: 900, clientWidth: 900 });
+    expect(container.getAttribute("tabindex")).toBeNull();
+  });
+
+  test("gives up the tab stop when the overflow goes away", () => {
+    const container = renderTable();
+    measure(container, { scrollWidth: 900, clientWidth: 390 });
+    measure(container, { scrollWidth: 900, clientWidth: 900 });
     expect(container.getAttribute("tabindex")).toBeNull();
   });
 });

@@ -20,17 +20,26 @@ export type Surface = {
   /** Returns false when the surface isn't present for this page/role. */
   open: (page: Page) => Promise<boolean>;
   close: (page: Page) => Promise<void>;
+  /**
+   * Opening this one submits something or navigates, so the route has to be
+   * reloaded before the next surface rather than trusted to be as it was.
+   */
+  mutates?: boolean;
 };
 
 const modal = (page: Page) =>
   page.getByRole("dialog").and(page.locator(':not([data-slot="toast"])'));
 
+/** Any overlay a surface can leave behind, toasts excepted. */
+export const OVERLAY_SELECTOR =
+  '[role="dialog"]:not([data-slot="toast"]), [role="alertdialog"], [role="listbox"], [data-slot="tooltip-content"]';
+
 async function pressEscape(page: Page): Promise<void> {
   await page.keyboard.press("Escape");
   await page
     .waitForFunction(
-      () => !document.querySelector('[role="dialog"]:not([data-slot="toast"])'),
-      undefined,
+      (selector) => !document.querySelector(selector),
+      OVERLAY_SELECTOR,
       { timeout: 2_000 },
     )
     .catch(() => {});
@@ -126,9 +135,72 @@ export const SURFACES: Surface[] = [
     close: pressEscape,
   },
   {
+    // Every destructive confirmation in the portal (39 files use AlertDialog),
+    // none of which had ever been in the DOM when axe ran. The trigger is the
+    // safe half of the pattern: it only opens the confirmation, so nothing is
+    // deleted by opening one. Targeted by slot rather than by button label,
+    // because a label regex would eventually click a button that deletes on
+    // the spot. Confirmations driven by a controlled `open` prop instead of a
+    // trigger are out of reach here, and stay unmeasured.
+    name: "alert-dialog",
+    routes: "*",
+    open: async (page) => {
+      const trigger = page
+        .locator('[data-slot="alert-dialog-trigger"]')
+        .first();
+      if ((await trigger.count()) === 0) return false;
+      if (!(await trigger.isVisible().catch(() => false))) return false;
+      await trigger.click({ timeout: 5_000 }).catch(() => {});
+      await page
+        .getByRole("alertdialog")
+        .first()
+        .waitFor({ state: "visible", timeout: 5_000 })
+        .catch(() => {});
+      return (await page.getByRole("alertdialog").count()) > 0;
+    },
+    close: pressEscape,
+  },
+  {
+    // A tooltip is often the only label an icon-only button has, so a naming
+    // or contrast problem in one is a real barrier rather than a cosmetic
+    // finding. Base UI portals the content and unmounts it when closed.
+    name: "tooltip",
+    routes: "*",
+    open: async (page) => {
+      const trigger = page.locator('[data-slot="tooltip-trigger"]').first();
+      if ((await trigger.count()) === 0) return false;
+      if (!(await trigger.isVisible().catch(() => false))) return false;
+      await trigger.hover({ timeout: 5_000 }).catch(() => {});
+      const content = page.locator('[data-slot="tooltip-content"]').first();
+      await content
+        .waitFor({ state: "visible", timeout: 3_000 })
+        .catch(() => {});
+      return (await content.count()) > 0;
+    },
+    // Tooltips close on pointer-out, not on Escape.
+    close: async (page) => {
+      await page.mouse.move(0, 0);
+      await page
+        .waitForFunction(
+          () => !document.querySelector('[data-slot="tooltip-content"]'),
+          undefined,
+          { timeout: 2_000 },
+        )
+        .catch(() => {});
+    },
+  },
+  {
     // The error state of a form -- Alert variant="destructive" on a white Card.
     // Submitting the sign-in form with bad credentials is the cheapest way to
     // render one, and it happens to be on the highest-traffic page in the app.
+    //
+    // It is also the only one: the other 126 destructive-Alert call sites are
+    // behind a submit that either mutates data or is blocked outright by a
+    // native `required` field, so a generic "submit the first form empty"
+    // opener would measure nothing on most pages and create records on the
+    // rest. /portal/set-password's mismatch error looked like a second one
+    // until the run showed the page is scanned as anon, where it redirects to
+    // sign-in and the form never renders.
     name: "form-error",
     routes: ["/portal/login"],
     open: async (page) => {
@@ -147,25 +219,66 @@ export const SURFACES: Surface[] = [
       return true;
     },
     close: async () => {},
+    mutates: true,
   },
   {
-    // Inactive tab panels. #436 found a violation on a TabsTrigger here; the
-    // panel behind it has still never been rendered for the scan.
-    name: "second-tab-panel",
-    routes: ["/portal/administration/system-settings", "/portal/events/"],
+    // Where the AlertDialogs actually are. Only 5 call sites use a trigger;
+    // the other ~34 are controlled by state, and 27 files implement the same
+    // one -- "Discard changes?" when a dialog with edits is dismissed. Typing
+    // into a field and pressing Escape reaches it without writing anything,
+    // which no path to a delete confirmation can promise.
+    name: "discard-confirmation",
+    routes: ["/portal"],
+    open: async (page) => {
+      const dialogOpened = await clickIfPresent(
+        page,
+        () =>
+          page.getByRole("button", {
+            name: /^(new|add|record|log|create|invite|edit)\b/i,
+          }),
+        () => modal(page).first().waitFor({ state: "visible", timeout: 5_000 }),
+      );
+      if (!dialogOpened) return false;
+      const field = modal(page).getByRole("textbox").first();
+      if ((await field.count()) === 0) return false;
+      await field.fill("a11y scan", { timeout: 5_000 }).catch(() => {});
+      await page.keyboard.press("Escape");
+      await page
+        .getByRole("alertdialog")
+        .first()
+        .waitFor({ state: "visible", timeout: 3_000 })
+        .catch(() => {});
+      return (await page.getByRole("alertdialog").count()) > 0;
+    },
+    // Two overlays deep: the confirmation, then the dialog behind it.
+    close: async (page) => {
+      await pressEscape(page);
+      await pressEscape(page);
+    },
+    mutates: true,
+  },
+  // Inactive tab panels. #436 found a violation on a TabsTrigger; the panels
+  // behind them had never been rendered for the scan, and only the second one
+  // was covered. Every portal route with tabs gets its panels scanned now --
+  // a route with fewer tabs than the index simply reports "never opened".
+  ...[2, 3, 4].map((position): Surface => ({
+    name: `tab-panel-${position}`,
+    routes: ["/portal"],
     open: async (page) => {
       const tabs = page.getByRole("tab");
-      const count = await tabs.count();
-      if (count < 2) return false;
+      if ((await tabs.count()) < position) return false;
       await tabs
-        .nth(1)
+        .nth(position - 1)
         .click({ timeout: 5_000 })
         .catch(() => {});
       await page.waitForTimeout(400);
       return true;
     },
+    // Selecting a tab is a view change, not state the next surface can
+    // trust: some tabs are URL-backed, so the route is reloaded after.
     close: async () => {},
-  },
+    mutates: true,
+  })),
 ];
 
 export function surfacesFor(route: string): Surface[] {
