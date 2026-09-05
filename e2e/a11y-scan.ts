@@ -9,7 +9,8 @@
 //
 //   routes    derived from src/app instead of a hand-written list (22 routes,
 //             including /portal/login, had never been scanned)
-//   surfaces  sheets, dialogs, selects, form error states, inactive tab panels
+//   surfaces  sheets, dialogs, alert dialogs, tooltips, selects, form error
+//             states, inactive tab panels
 //   viewport  mobile as well as desktop
 //   theme     dark as well as light -- the theme toggle is live now
 //   roles     the other seeded accounts, not just admin
@@ -38,7 +39,7 @@ import {
   discoverRoutes,
   type DiscoveredRoute,
 } from "./a11y-routes";
-import { surfacesFor } from "./a11y-surfaces";
+import { OVERLAY_SELECTOR, surfacesFor } from "./a11y-surfaces";
 
 const baseURL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://127.0.0.1:3000";
 const args = new Set(process.argv.slice(2));
@@ -424,8 +425,16 @@ async function scanRoute(
       });
 
       await surface.close(page).catch(() => {});
-      // The form-error surface navigates/mutates state; reload to be safe.
-      if (surface.name === "form-error") {
+
+      // A surface that fails to close leaks into the next one, and the next
+      // one gets the blame: that bug produced two entirely phantom rules
+      // before it was caught. Escape is not trusted -- the DOM is checked --
+      // and a surface that submits or changes the view says so itself.
+      const leaked = await page
+        .locator(OVERLAY_SELECTOR)
+        .count()
+        .catch(() => 0);
+      if (leaked > 0 || surface.mutates) {
         await page
           .goto(new URL(route, baseURL).toString(), {
             waitUntil: "networkidle",
