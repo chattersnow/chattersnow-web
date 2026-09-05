@@ -260,7 +260,13 @@ export default async function PortalAppLayout({
           <SidebarInset>
             <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-[var(--line)] bg-[var(--background)] px-6 py-4 sm:px-10">
               <SidebarTrigger />
-              <Link href="/portal/home" className="flex items-center">
+              {/* The label is hidden below `sm`, which takes it out of the
+                  accessibility tree too, so the link carries its own name. */}
+              <Link
+                href="/portal/home"
+                aria-label="Operations Portal home"
+                className="flex items-center"
+              >
                 <span className="app-muted hidden text-sm font-semibold uppercase tracking-[0.14em] sm:inline">
                   Operations Portal
                 </span>
