@@ -8,24 +8,49 @@ const hrefFor = (page: number) =>
 describe("Pagination", () => {
   test("shows the record range alongside the page number", () => {
     render(
-      <Pagination page={3} totalPages={7} count={312} hrefFor={hrefFor} />,
+      <Pagination page={3} totalPages={32} count={312} hrefFor={hrefFor} />,
     );
     // The total was always fetched to compute totalPages; it just was never
-    // shown, so "Page 3 of 7" gave no sense of how many records that was.
-    expect(screen.getByText(/Showing 101–150 of 312/)).toBeTruthy();
-    expect(screen.getByText(/Page 3 of 7/)).toBeTruthy();
+    // shown, so "Page 3 of 32" gave no sense of how many records that was.
+    expect(screen.getByText(/Showing 21–30 of 312/)).toBeTruthy();
+    expect(screen.getByText(/Page 3 of 32/)).toBeTruthy();
   });
 
   test("clamps the range on the last page", () => {
+    // 312 records over ten-row pages leaves the last one holding two.
     render(
-      <Pagination page={7} totalPages={7} count={312} hrefFor={hrefFor} />,
+      <Pagination page={32} totalPages={32} count={312} hrefFor={hrefFor} />,
     );
-    expect(screen.getByText(/Showing 301–312 of 312/)).toBeTruthy();
+    expect(screen.getByText(/Showing 311–312 of 312/)).toBeTruthy();
+  });
+
+  test("counts the range in whatever page size it was given", () => {
+    // The range has to follow the reader's rows-per-page choice, not the
+    // default, or the summary contradicts the rows on screen.
+    render(
+      <Pagination
+        page={3}
+        totalPages={13}
+        count={312}
+        pageSize={25}
+        hrefFor={hrefFor}
+      />,
+    );
+    expect(screen.getByText(/Showing 51–75 of 312/)).toBeTruthy();
+  });
+
+  test("offers no rows-per-page choice unless the list can honour one", () => {
+    // The control navigates, so a list that has nowhere to send the reader
+    // must not render it at all.
+    render(
+      <Pagination page={1} totalPages={3} count={30} hrefFor={hrefFor} />,
+    );
+    expect(screen.queryByRole("combobox", { name: "Rows per page" })).toBeNull();
   });
 
   test("offers a jump form that keeps the page's filters", () => {
     const { container } = render(
-      <Pagination page={3} totalPages={7} count={312} hrefFor={hrefFor} />,
+      <Pagination page={3} totalPages={32} count={312} hrefFor={hrefFor} />,
     );
     const form = container.querySelector("form");
     expect(form?.getAttribute("action")).toBe("/portal/people");
@@ -40,7 +65,7 @@ describe("Pagination", () => {
     ]);
     const jump = screen.getByLabelText("Go to page") as HTMLInputElement;
     expect(jump.name).toBe("page");
-    expect(jump.max).toBe("7");
+    expect(jump.max).toBe("32");
     expect(jump.value).toBe("3");
   });
 

@@ -225,11 +225,9 @@ export function PortalDataTable<T, K extends string = string>({
   if (shell === "bare") return body;
 
   return (
-    // `overflow-clip` rather than the Card's own `overflow-hidden`: `hidden`
-    // makes the Card a scroll container, and a sticky header pins to the
-    // nearest scroll container -- one that, here, never scrolls. `clip` clips
-    // identically without being one.
-    <Card className="overflow-clip">
+    // Card clips rather than hiding, which is what lets the sticky header
+    // below follow the page -- see the note on `Card` itself.
+    <Card>
       <CardContent className="px-0">{body}</CardContent>
     </Card>
   );
