@@ -1,6 +1,12 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter } from "next/navigation";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -33,13 +39,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
 import { formatRoleLabel } from "@/lib/format";
 import {
   createInviteLinkAction,
@@ -52,21 +54,30 @@ import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/portal/empty-state";
 import { runAction } from "@/components/portal/action-toast";
 
+const STATUS_BADGE_VARIANT = {
+  Expired: "outline",
+  Pending: "secondary",
+  Claimed: "default",
+  Revoked: "outline",
+} as const;
+
+/**
+ * The word the status cell shows. Split out from the badge so the column can
+ * sort on it: "Expired" is a live reading of `expires_at` rather than a
+ * stored status, and sorting on the raw column would file those under
+ * Pending.
+ */
+function statusLabel(grant: PendingGrant): keyof typeof STATUS_BADGE_VARIANT {
+  if (grant.status === "claimed") return "Claimed";
+  if (grant.status === "revoked") return "Revoked";
+  return grant.expires_at && new Date(grant.expires_at) <= new Date()
+    ? "Expired"
+    : "Pending";
+}
+
 function statusBadge(grant: PendingGrant) {
-  if (
-    grant.status === "pending" &&
-    grant.expires_at &&
-    new Date(grant.expires_at) <= new Date()
-  ) {
-    return <Badge variant="outline">Expired</Badge>;
-  }
-  if (grant.status === "pending") {
-    return <Badge variant="secondary">Pending</Badge>;
-  }
-  if (grant.status === "claimed") {
-    return <Badge variant="default">Claimed</Badge>;
-  }
-  return <Badge variant="outline">Revoked</Badge>;
+  const label = statusLabel(grant);
+  return <Badge variant={STATUS_BADGE_VARIANT[label]}>{label}</Badge>;
 }
 
 export function PendingAccessSection({
@@ -126,18 +137,23 @@ export function PendingAccessSection({
     });
   }
 
-  function handleInvite(grant: PendingGrant) {
-    setError(null);
-    startTransition(async () => {
-      const result = await createInviteLinkAction(grant.id);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      setInviteResult({ grant, link: result.link });
-      router.refresh();
-    });
-  }
+  // Stable, so the column list below only rebuilds when something it
+  // actually renders differently changes.
+  const handleInvite = useCallback(
+    (grant: PendingGrant) => {
+      setError(null);
+      startTransition(async () => {
+        const result = await createInviteLinkAction(grant.id);
+        if ("error" in result) {
+          setError(result.error);
+          return;
+        }
+        setInviteResult({ grant, link: result.link });
+        router.refresh();
+      });
+    },
+    [router],
+  );
 
   async function handleCopyLink() {
     if (!inviteResult) return;
@@ -145,6 +161,66 @@ export function PendingAccessSection({
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
+
+  const columns = useMemo<PortalDataTableColumn<PendingGrant>[]>(
+    () => [
+      {
+        key: "email",
+        label: "Email",
+        // The cell falls back to the email when no name was staged, so the
+        // sort follows the same rule rather than ordering on a blank name.
+        sortValue: (grant) => grant.name ?? grant.email,
+        cellClassName: "max-w-xs font-medium",
+        render: (grant) => (
+          <span className="block truncate" title={grant.name ?? grant.email}>
+            {grant.name ?? grant.email}
+          </span>
+        ),
+      },
+      {
+        key: "role",
+        label: "Role",
+        sortValue: (grant) => formatRoleLabel(grant.roles.name),
+        render: (grant) => formatRoleLabel(grant.roles.name),
+      },
+      {
+        key: "status",
+        label: "Status",
+        sortValue: (grant) => statusLabel(grant),
+        render: (grant) => statusBadge(grant),
+      },
+      {
+        key: "actions",
+        label: "Actions",
+        srOnlyLabel: true,
+        headClassName: "w-0",
+        render: (grant) =>
+          grant.status === "pending" && (
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={isPending}
+                onClick={() => handleInvite(grant)}
+              >
+                {grant.invited_at ? "Resend link" : "Invite"}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={isPending}
+                onClick={() => setRevokeTarget(grant)}
+              >
+                Revoke
+              </Button>
+            </div>
+          ),
+      },
+    ],
+    [isPending, handleInvite],
+  );
 
   return (
     <div className="space-y-4">
@@ -203,64 +279,32 @@ export function PendingAccessSection({
             </Button>
           </form>
 
-          {grants.length === 0 ? (
+          {grants.length === 0 && (
             <EmptyState
               title="No pending access staged"
               description="Enter an email and role above and choose Stage access, then share the invite link it produces."
             />
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-0">
-                    <span className="sr-only">Revoke</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {grants.map((grant) => (
-                  <TableRow key={grant.id}>
-                    <TableCell
-                      className="max-w-xs truncate font-medium"
-                      title={grant.name ?? grant.email}
-                    >
-                      {grant.name ?? grant.email}
-                    </TableCell>
-                    <TableCell>{formatRoleLabel(grant.roles.name)}</TableCell>
-                    <TableCell>{statusBadge(grant)}</TableCell>
-                    <TableCell>
-                      {grant.status === "pending" && (
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="secondary"
-                            disabled={isPending}
-                            onClick={() => handleInvite(grant)}
-                          >
-                            {grant.invited_at ? "Resend link" : "Invite"}
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="secondary"
-                            disabled={isPending}
-                            onClick={() => setRevokeTarget(grant)}
-                          >
-                            Revoke
-                          </Button>
-                        </div>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
           )}
         </CardContent>
+
+        {/* A content block of its own so the table runs to the card's edges,
+            the way every other portal table does, while the form above keeps
+            its padding. */}
+        {grants.length > 0 && (
+          <CardContent className="px-0">
+            <PortalDataTable
+              columns={columns}
+              rows={grants}
+              getRowKey={(grant) => grant.id}
+              // No default sort: the query returns newest staged first, and
+              // there is no created-at column to hang the arrow on, so the
+              // list keeps that order until the reader picks another.
+              emptyMessage="No pending access to show."
+              // The card around this section is the surface already.
+              shell="bare"
+            />
+          </CardContent>
+        )}
       </Card>
 
       <AlertDialog
