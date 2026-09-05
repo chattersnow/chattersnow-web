@@ -106,8 +106,13 @@ function Table({
       // element wins -- which would put the table header over the portal's
       // own top bar. One stacking context of its own keeps the internal
       // layering free and the whole table under that bar.
+      //
+      // Full-opacity ring, not the `ring-ring/50` halo Button and Input use:
+      // there it sits outside a `focus-visible:border-ring` edge that carries
+      // the contrast, and on its own a 50% ring measures about 2.3:1 against
+      // the page -- under the 3:1 a focus indicator needs.
       className={cn(
-        "relative isolate w-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+        "relative isolate w-full outline-none focus-visible:ring-3 focus-visible:ring-ring",
         scrollable && "overflow-x-auto",
       )}
     >
