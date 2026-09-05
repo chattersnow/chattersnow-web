@@ -11,6 +11,7 @@
 // of deliberate exceptions below.
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
+import { SEEDED_EVENT_IDS } from "../test/seed-fixtures";
 
 export type RouteKind = "public" | "portal" | "auth";
 
@@ -74,18 +75,33 @@ export const SKIPPED_ROUTES = SKIP;
 /**
  * How to turn a dynamic route pattern into a real URL.
  *
- * Each entry names a list page and the shape of the link to follow, so the scan
- * uses whatever the seed actually produced rather than a hard-coded id that
- * goes stale the next time seed.sql changes. A pattern with no resolver is
- * reported as skipped rather than silently dropped.
+ * Most entries name a list page and the shape of the link to follow, so the
+ * scan uses whatever the seed actually produced rather than a hard-coded id
+ * that goes stale the next time seed.sql changes. That stays the default.
+ *
+ * A `path` entry is the escape hatch for a route nothing links to. It only
+ * works because the record it points at now has a literal id in seed.sql (#665);
+ * don't reach for it where a link exists. `expectHeading` is what keeps it
+ * honest: following a link proves the record exists, a hard-coded id proves
+ * nothing, so a `path` has to name the heading its record renders and the scan
+ * checks for it before scanning.
+ *
+ * A pattern with no resolver is reported as skipped rather than silently
+ * dropped.
  */
-export const DYNAMIC_ROUTE_SOURCES: Record<
-  string,
-  { listPath: string; linkPattern: RegExp }
-> = {
+export type DynamicRouteSource =
+  | { listPath: string; linkPattern: RegExp }
+  | { path: string; expectHeading: string };
+
+export const DYNAMIC_ROUTE_SOURCES: Record<string, DynamicRouteSource> = {
+  // Nothing on /events links here: the list renders cards that open a detail
+  // sheet instead of navigating (#178), so there is no anchor to follow and the
+  // route was reported skipped on every run. Deep-link to the pinned upcoming
+  // event -- the page is still live and still takes public registrations, so it
+  // is worth scanning even though the UI no longer routes to it.
   "/events/[id]": {
-    listPath: "/events",
-    linkPattern: /^\/events\/[0-9a-f-]{36}$/,
+    path: `/events/${SEEDED_EVENT_IDS.upcoming}`,
+    expectHeading: "Winter Gear Swap",
   },
   "/learn/[slug]": {
     listPath: "/learn",
