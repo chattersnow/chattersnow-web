@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { isRevenueSource, revenueSourceLabel } from "../revenue/revenue-shared";
+import { EventTotalsTable, RevenueBySourceTable } from "./report-tables";
 import {
   computeFinanceSummary,
   SPEND_STATUSES,
@@ -275,28 +275,7 @@ export default async function FinancialReportsPage({
                     description="Widen the date range above, or record income under Finance › Revenue."
                   />
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Source</TableHead>
-                        <TableHead>Records</TableHead>
-                        <TableHead>Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {revenueBySource.map((row) => (
-                        <TableRow key={row.source}>
-                          <TableCell>
-                            {isRevenueSource(row.source)
-                              ? revenueSourceLabel(row.source)
-                              : row.source}
-                          </TableCell>
-                          <TableCell>{formatNumber(row.count)}</TableCell>
-                          <TableCell>{formatCurrency(row.total)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  <RevenueBySourceTable rows={revenueBySource} />
                 )}
               </CardContent>
             </Card>
@@ -306,7 +285,11 @@ export default async function FinancialReportsPage({
                 <CardTitle>Spend by status</CardTitle>
               </CardHeader>
               <CardContent className="px-0">
-                <Table>
+                {/* Not a PortalDataTable: four rows in the workflow's own
+                    order, where sorting has nothing to offer and pagination
+                    would never appear. It takes the shared sticky header and
+                    stays server-rendered. */}
+                <Table stickyHeader="page">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Status</TableHead>
@@ -345,34 +328,7 @@ export default async function FinancialReportsPage({
               <CardTitle>Income and paid spend by event</CardTitle>
             </CardHeader>
             <CardContent className="px-0">
-              {byEvent.length === 0 ? (
-                <p className="app-muted px-4 text-sm">
-                  Nothing recorded in this period.
-                </p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Event</TableHead>
-                      <TableHead>Income</TableHead>
-                      <TableHead>Paid spend</TableHead>
-                      <TableHead>Net</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {byEvent.map((row) => (
-                      <TableRow key={row.eventId ?? "no-event"}>
-                        <TableCell className="whitespace-normal">
-                          {row.eventName}
-                        </TableCell>
-                        <TableCell>{formatCurrency(row.income)}</TableCell>
-                        <TableCell>{formatCurrency(row.paidSpend)}</TableCell>
-                        <TableCell>{formatCurrency(row.net)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
+              <EventTotalsTable rows={byEvent} />
             </CardContent>
           </Card>
         </div>
