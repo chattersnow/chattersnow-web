@@ -58,10 +58,10 @@ describe("Pagination", () => {
   test("offers no rows-per-page choice unless the list can honour one", () => {
     // The control navigates, so a list that has nowhere to send the reader
     // must not render it at all.
-    render(
-      <Pagination page={1} totalPages={3} count={30} hrefFor={hrefFor} />,
-    );
-    expect(screen.queryByRole("combobox", { name: "Rows per page" })).toBeNull();
+    render(<Pagination page={1} totalPages={3} count={30} hrefFor={hrefFor} />);
+    expect(
+      screen.queryByRole("combobox", { name: "Rows per page" }),
+    ).toBeNull();
   });
 
   test("offers a jump form that keeps the page's filters", () => {
