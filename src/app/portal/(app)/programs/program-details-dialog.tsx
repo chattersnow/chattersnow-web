@@ -50,13 +50,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
@@ -86,6 +82,38 @@ function isDirty(form: FormState, program: ProgramRow) {
     form.status !== baseline.status
   );
 }
+
+const EVENT_COLUMNS: PortalDataTableColumn<ProgramEvent>[] = [
+  {
+    key: "name",
+    label: "Event",
+    sortValue: (event) => event.name,
+    cellClassName: "max-w-xs font-medium",
+    render: (event) => (
+      <span className="block truncate" title={event.name}>
+        {event.name}
+      </span>
+    ),
+  },
+  {
+    key: "starts_at",
+    label: "Starts",
+    sortValue: (event) => event.starts_at,
+    render: (event) => formatDateTime(event.starts_at),
+  },
+  {
+    key: "status",
+    label: "Status",
+    sortValue: (event) => event.status,
+    render: (event) => <StatusBadge status={event.status} />,
+  },
+  {
+    key: "visibility",
+    label: "Visibility",
+    sortValue: (event) => event.visibility,
+    render: (event) => <VisibilityBadge visibility={event.visibility} />,
+  },
+];
 
 export function ProgramDetailsDialog({
   program,
@@ -292,39 +320,19 @@ export function ProgramDetailsDialog({
                         description="Assign an event to this program from the event's Overview tab and it will be listed here."
                       />
                     ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Event</TableHead>
-                            <TableHead>Starts</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Visibility</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {events.map((event) => (
-                            <TableRow key={event.id}>
-                              <TableCell
-                                className="max-w-xs truncate font-medium"
-                                title={event.name}
-                              >
-                                {event.name}
-                              </TableCell>
-                              <TableCell>
-                                {formatDateTime(event.starts_at)}
-                              </TableCell>
-                              <TableCell>
-                                <StatusBadge status={event.status} />
-                              </TableCell>
-                              <TableCell>
-                                <VisibilityBadge
-                                  visibility={event.visibility}
-                                />
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                      <PortalDataTable
+                        columns={EVENT_COLUMNS}
+                        rows={events}
+                        getRowKey={(event) => event.id}
+                        // listProgramEventsAction returns newest first.
+                        defaultSort={{ key: "starts_at", dir: "desc" }}
+                        emptyMessage="No events to show."
+                        // The sheet body is the scroller here, and it brings
+                        // its own surface, so the header pins to the top of
+                        // that rather than to the portal's header.
+                        shell="bare"
+                        stickyHeader="container"
+                      />
                     )}
                   </div>
                 </Field>
