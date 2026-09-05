@@ -193,6 +193,14 @@ export const SURFACES: Surface[] = [
     // The error state of a form -- Alert variant="destructive" on a white Card.
     // Submitting the sign-in form with bad credentials is the cheapest way to
     // render one, and it happens to be on the highest-traffic page in the app.
+    //
+    // It is also the only one: the other 126 destructive-Alert call sites are
+    // behind a submit that either mutates data or is blocked outright by a
+    // native `required` field, so a generic "submit the first form empty"
+    // opener would measure nothing on most pages and create records on the
+    // rest. /portal/set-password's mismatch error looked like a second one
+    // until the run showed the page is scanned as anon, where it redirects to
+    // sign-in and the form never renders.
     name: "form-error",
     routes: ["/portal/login"],
     open: async (page) => {
@@ -214,32 +222,39 @@ export const SURFACES: Surface[] = [
     mutates: true,
   },
   {
-    // The other error state that can be reached without writing anything:
-    // two passwords that don't match are rejected in the browser, before the
-    // form ever calls Supabase. The 126 remaining destructive-Alert call sites
-    // are all behind a submit that either mutates data or is blocked outright
-    // by a native `required` field, so "submit the first form empty" would
-    // measure nothing on most pages and create records on the rest.
-    name: "set-password-error",
-    routes: ["/portal/set-password"],
+    // Where the AlertDialogs actually are. Only 5 call sites use a trigger;
+    // the other ~34 are controlled by state, and 27 files implement the same
+    // one -- "Discard changes?" when a dialog with edits is dismissed. Typing
+    // into a field and pressing Escape reaches it without writing anything,
+    // which no path to a delete confirmation can promise.
+    name: "discard-confirmation",
+    routes: ["/portal"],
     open: async (page) => {
-      const password = page.getByLabel("Password", { exact: true });
-      if ((await password.count()) === 0) return false;
-      await password.fill("correct-horse-battery");
-      await page.getByLabel("Confirm password").fill("something-else");
+      const dialogOpened = await clickIfPresent(
+        page,
+        () =>
+          page.getByRole("button", {
+            name: /^(new|add|record|log|create|invite|edit)\b/i,
+          }),
+        () => modal(page).first().waitFor({ state: "visible", timeout: 5_000 }),
+      );
+      if (!dialogOpened) return false;
+      const field = modal(page).getByRole("textbox").first();
+      if ((await field.count()) === 0) return false;
+      await field.fill("a11y scan", { timeout: 5_000 }).catch(() => {});
+      await page.keyboard.press("Escape");
       await page
-        .getByRole("button", { name: "Set password" })
+        .getByRole("alertdialog")
         .first()
-        .click({ timeout: 5_000 })
+        .waitFor({ state: "visible", timeout: 3_000 })
         .catch(() => {});
-      await page
-        .getByRole("alert")
-        .first()
-        .waitFor({ state: "visible", timeout: 5_000 })
-        .catch(() => {});
-      return (await page.getByRole("alert").count()) > 0;
+      return (await page.getByRole("alertdialog").count()) > 0;
     },
-    close: async () => {},
+    // Two overlays deep: the confirmation, then the dialog behind it.
+    close: async (page) => {
+      await pressEscape(page);
+      await pressEscape(page);
+    },
     mutates: true,
   },
   // Inactive tab panels. #436 found a violation on a TabsTrigger; the panels

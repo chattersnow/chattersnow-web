@@ -341,10 +341,15 @@ async function scanRoute(
     // A portal route that lands on the sign-in form means the session went away.
     // Scanning that page and filing it under the requested route would quietly
     // corrupt the baseline, so it is recorded as an error instead.
+    //
+    // /portal/set-password used to be exempt from this, which meant its three
+    // anon scans measured the sign-in page and filed the result under
+    // /portal/set-password: the same page counted twice under two names. The
+    // form itself needs a signed-in user, so as long as auth routes are
+    // scanned as anon it is honestly unreachable, and says so.
     if (
       pattern.startsWith("/portal") &&
       !pattern.startsWith("/portal/login") &&
-      !pattern.startsWith("/portal/set-password") &&
       new URL(page.url()).pathname.startsWith("/portal/login")
     ) {
       results.push({
