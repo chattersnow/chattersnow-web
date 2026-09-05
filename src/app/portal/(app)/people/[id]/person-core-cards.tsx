@@ -28,6 +28,12 @@ export async function PersonCoreCards({ person }: { person: PersonRow }) {
   const supabase = await createSupabaseServerClient();
   const permissions = await getCurrentUserPermissions(supabase);
   const canManage = hasPermission(permissions, "people", "manage");
+  // A rider profile deletion request reaches whoever is running the event as
+  // often as it reaches the directory, and a lead working the door holds
+  // events:manage without necessarily holding people:manage (#602). Matches the
+  // gate on delete_rider_profile itself.
+  const canDeleteRiderProfile =
+    canManage || hasPermission(permissions, "events", "manage");
   const canManageAccounts = hasPermission(
     permissions,
     "administration",
@@ -71,6 +77,7 @@ export async function PersonCoreCards({ person }: { person: PersonRow }) {
         person={person}
         people={peopleOptionRows}
         canManage={canManage}
+        canDeleteRiderProfile={canDeleteRiderProfile}
       />
 
       <OrganizationsCard

@@ -310,3 +310,50 @@ export async function linkPersonToAuthUserAction(
   revalidatePath("/portal/administration/users");
   return { success: true };
 }
+
+/**
+ * Honours a request to delete a rider profile.
+ *
+ * /privacy keeps a rider profile "until you ask us to delete your profile, or
+ * after 2 years of inactivity" (#602). The scheduled purge covers the second
+ * half; this is the first, and it is the only retention action a person outside
+ * Administration can take.
+ *
+ * Gated on events:manage as well as people:manage because that request reaches
+ * whoever is running the event at least as often as it reaches the directory,
+ * and a lead working the door holds events:manage without necessarily holding
+ * people:view -- the same asymmetry set_registrant_rider_profile was written
+ * around. The RPC re-checks both rather than trusting this call site.
+ */
+export async function deleteRiderProfileAction(
+  personId: string,
+  reason?: string,
+): Promise<{ error: string } | { success: true }> {
+  const supabase = await createSupabaseServerClient();
+
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to delete a rider profile.",
+  );
+  if ("error" in userResult) return userResult;
+
+  const permissionError = await checkAnyPermission(supabase, [
+    { resource: "people", level: "manage" },
+    { resource: "events", level: "manage" },
+  ]);
+  if (permissionError) return permissionError;
+
+  const { error } = await supabase.rpc("delete_rider_profile", {
+    p_person_id: personId,
+    p_reason: reason?.trim() ? reason.trim() : null,
+  });
+
+  if (error) {
+    return { error: "Could not delete this rider profile. Please try again." };
+  }
+
+  revalidatePath("/portal/people");
+  revalidatePath(`/portal/people/${personId}`);
+  revalidatePath("/portal/administration/data-retention");
+  return { success: true };
+}
