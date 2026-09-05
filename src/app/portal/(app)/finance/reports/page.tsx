@@ -18,9 +18,14 @@ import {
   summarizeByEvent,
   summarizeRevenueBySource,
   summarizeSpendByStatus,
-  yearToDateRange,
   type FinanceReportData,
 } from "./summary";
+import {
+  fiscalYearForDate,
+  fiscalYearToDateRange,
+  formatFiscalYearLabel,
+  getFiscalYearStartMonth,
+} from "@/lib/fiscal-year";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
 
@@ -56,7 +61,16 @@ export default async function FinancialReportsPage({
     return Array.isArray(value) ? value[0] : value;
   };
 
-  const defaults = yearToDateRange(new Date());
+  // Financial reporting is annual, so the page opens on fiscal-year-to-date
+  // rather than the current month the inventory report defaults to. The
+  // boundary is the org's fiscal year (July by default), not January -- a
+  // winter season would otherwise be split across two reports.
+  const now = new Date();
+  const fiscalYearStartMonth = await getFiscalYearStartMonth(supabase);
+  const fiscalYearLabel = formatFiscalYearLabel(
+    fiscalYearForDate(now, fiscalYearStartMonth),
+  );
+  const defaults = fiscalYearToDateRange(now, fiscalYearStartMonth);
   const fromParam = raw("from");
   const toParam = raw("to");
   const fromDate = isDateInput(fromParam) ? fromParam : defaults.from;
@@ -239,7 +253,7 @@ export default async function FinancialReportsPage({
                 nativeButton={false}
                 render={<Link href="/portal/finance/reports" />}
               >
-                Reset to this year
+                Reset to {fiscalYearLabel}
               </Button>
             )}
           </div>

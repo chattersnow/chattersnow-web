@@ -5,6 +5,10 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkPermission } from "@/lib/auth/permissions";
 import { siteImageSettingKey } from "@/lib/site-images";
 import { pageVisibilitySettingKey } from "@/lib/page-visibility";
+import {
+  FISCAL_YEAR_SETTING_KEY,
+  isFiscalYearStartMonth,
+} from "@/lib/fiscal-year";
 
 export type SettingActionResult = { error: string } | { success: true };
 
@@ -57,6 +61,24 @@ export async function updateReimbursementApprovalThresholdAction(
     "finance.reimbursement_approval_threshold",
     value,
   );
+}
+
+/**
+ * Sets the month the org's fiscal year starts in (issue: define fiscal year).
+ * Every annual figure in the portal reads this, so a bad value would quietly
+ * skew reports rather than fail loudly -- hence the range check here on top of
+ * the dropdown's own constraint.
+ */
+export async function updateFiscalYearStartMonthAction(
+  formData: FormData,
+): Promise<SettingActionResult> {
+  const raw = String(formData.get("startMonth") ?? "").trim();
+  const startMonth = Number(raw);
+  if (!isFiscalYearStartMonth(startMonth)) {
+    return { error: "Pick a month between January and December." };
+  }
+
+  return updateAppSettingAction(FISCAL_YEAR_SETTING_KEY, startMonth);
 }
 
 export async function updateSiteImageAction(

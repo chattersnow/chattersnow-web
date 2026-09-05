@@ -1172,6 +1172,15 @@ insert into public.app_settings (key, value) values
   ('page_visibility.support', to_jsonb(true))
 on conflict (key) do update set value = excluded.value;
 
+-- Fiscal year (20260905030000). The migration already seeds July as a
+-- placeholder pending the Board resolution, so this only pins it explicitly for
+-- local development and CI: the finance and calendar-report specs assert
+-- against a known year boundary, and inheriting whatever production happens to
+-- be set to would make them drift.
+insert into public.app_settings (key, value) values
+  ('org.fiscal_year_start_month', to_jsonb(7))
+on conflict (key) do update set value = excluded.value;
+
 -- The first-login welcome tour (20260902060000) opens a modal over the portal
 -- shell for any account whose welcome_completed_at is null. Every e2e spec
 -- signs in as one of these accounts and drives portal pages, so leaving them

@@ -6,6 +6,8 @@ import { PUBLIC_PAGE_SLOTS, getPageVisibility } from "@/lib/page-visibility";
 import { SystemSettingsForm } from "./system-settings-form";
 import { SiteImagesPanel } from "./site-images-panel";
 import { PageVisibilityPanel } from "./page-visibility-panel";
+import { OrganizationSettingsPanel } from "./organization-settings-panel";
+import { getFiscalYearStartMonth } from "@/lib/fiscal-year";
 
 function parseThreshold(value: unknown): number | null {
   const threshold = typeof value === "number" ? value : Number(value ?? NaN);
@@ -40,6 +42,7 @@ export default async function SystemSettingsPage() {
   ]);
 
   const pageVisibility = await getPageVisibility(supabase);
+  const fiscalYearStartMonth = await getFiscalYearStartMonth(supabase);
 
   const siteImageUrls: Record<string, string | null> = {};
   for (const slot of SITE_IMAGE_SLOTS) {
@@ -58,14 +61,27 @@ export default async function SystemSettingsPage() {
         <div className="rainbow-accent mt-3 w-full" />
       </div>
 
-      <Tabs defaultValue="workflow" className="mt-6">
+      <Tabs defaultValue="organization" className="mt-6">
         <div className="rainbow-surface flex flex-wrap items-center gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
           <TabsList variant="line">
+            <TabsTrigger value="organization">Organization</TabsTrigger>
             <TabsTrigger value="workflow">Workflow settings</TabsTrigger>
             <TabsTrigger value="images">Image settings</TabsTrigger>
             <TabsTrigger value="visibility">Page visibility</TabsTrigger>
           </TabsList>
         </div>
+
+        <TabsContent value="organization" className="mt-6 space-y-4">
+          <p className="app-muted max-w-3xl text-sm leading-relaxed">
+            Organization-wide settings that the rest of the portal reads. The
+            fiscal year is set by Board resolution under the bylaws, so changing
+            it here should follow that resolution — every change is recorded in
+            the audit log.
+          </p>
+          <OrganizationSettingsPanel
+            fiscalYearStartMonth={fiscalYearStartMonth}
+          />
+        </TabsContent>
 
         <TabsContent value="workflow" className="mt-6 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">

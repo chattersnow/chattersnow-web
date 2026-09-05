@@ -28,6 +28,12 @@ import {
 } from "./queries";
 import { getAccessManagementStatsSummary } from "@/lib/portal/access-management/queries";
 import { getEventTaskSummary } from "@/lib/portal/attention-items";
+import {
+  fiscalYearForDate,
+  fiscalYearToDateRange,
+  formatFiscalYearLabel,
+  getFiscalYearStartMonth,
+} from "@/lib/fiscal-year";
 import { listRecentDonationsAction } from "./actions";
 import {
   formatCalendarDate,
@@ -127,12 +133,21 @@ export default async function PortalHomePage({
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
 
-  const startOfYear = new Date(startOfMonth.getFullYear(), 0, 1);
-
-  const nowIso = new Date().toISOString();
+  const now = new Date();
+  const nowIso = now.toISOString();
   const todayDate = nowIso.slice(0, 10);
   const startOfMonthDate = startOfMonth.toISOString().slice(0, 10);
-  const startOfYearDate = startOfYear.toISOString().slice(0, 10);
+
+  // "This year" on this dashboard means the org's fiscal year, not the
+  // calendar year -- a winter season spans the new year, so a January boundary
+  // would split one season's income across two of these figures.
+  const fiscalYearStartMonth = await getFiscalYearStartMonth(supabase);
+  const currentFiscalYear = fiscalYearForDate(now, fiscalYearStartMonth);
+  const fiscalYearLabel = formatFiscalYearLabel(currentFiscalYear);
+  const { from: startOfYearDate } = fiscalYearToDateRange(
+    now,
+    fiscalYearStartMonth,
+  );
 
   const [
     upcoming,
@@ -162,7 +177,7 @@ export default async function PortalHomePage({
       ? listRecentDonationsAction(5)
       : Promise.resolve(null),
     canSeeOrganization
-      ? getOrganizationSummary(supabase, nowIso, todayDate)
+      ? getOrganizationSummary(supabase, nowIso, todayDate, currentFiscalYear)
       : Promise.resolve(null),
     resolveCurrentPersonId(supabase),
   ]);
@@ -304,14 +319,14 @@ export default async function PortalHomePage({
               label="Monthly income"
               href="/portal/finance/donations"
               value={formatCurrency(financial.incomeThisMonth)}
-              caption={`This month · ${formatCurrency(financial.incomeThisYear)} this year`}
+              caption={`This month · ${formatCurrency(financial.incomeThisYear)} ${fiscalYearLabel}`}
             />
             {canSeeExpenses && (
               <DashboardStatRow
                 label="Expenses"
                 href="/portal/finance/expenses"
                 value={formatCurrency(financial.expensesThisMonth)}
-                caption={`This month · ${formatCurrency(financial.expensesThisYear)} this year`}
+                caption={`This month · ${formatCurrency(financial.expensesThisYear)} ${fiscalYearLabel}`}
               />
             )}
             {canSeeRevenue && (
@@ -319,7 +334,7 @@ export default async function PortalHomePage({
                 label="Revenue"
                 href="/portal/finance/revenue"
                 value={formatCurrency(financial.revenueThisMonth)}
-                caption={`This month · ${formatCurrency(financial.revenueThisYear)} this year`}
+                caption={`This month · ${formatCurrency(financial.revenueThisYear)} ${fiscalYearLabel}`}
               />
             )}
             {canSeeReimbursements && (
@@ -486,7 +501,7 @@ export default async function PortalHomePage({
               label="Missing COI disclosures"
               href="/portal/governance/conflict-of-interest"
               value={organization.missingDisclosureCount}
-              caption={`Active board members without a ${organization.disclosureYear} disclosure on file`}
+              caption={`Active board members with no ${formatFiscalYearLabel(organization.disclosureYear)} disclosure on file`}
             />
             <DashboardStatRow
               label="Partnership opportunities"
