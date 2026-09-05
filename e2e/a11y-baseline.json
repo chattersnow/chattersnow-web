@@ -6,7 +6,6 @@
   "anon|desktop|dark|/gears/donate": ["color-contrast"],
   "anon|desktop|dark|/gears/library": ["color-contrast"],
   "anon|desktop|dark|/gears/sizing": ["color-contrast"],
-  "anon|mobile|light|/gears/sizing": ["scrollable-region-focusable"],
   "anon|desktop|dark|/get-involved": ["color-contrast"],
   "anon|desktop|dark|/get-involved/attend": ["color-contrast"],
   "anon|desktop|dark|/get-involved/partner": ["color-contrast"],
@@ -60,10 +59,7 @@
     "color-contrast"
   ],
   "admin|mobile|light|/portal/administration/system-settings": ["link-name"],
-  "admin|desktop|light|/portal/administration/users": [
-    "color-contrast",
-    "scrollable-region-focusable"
-  ],
+  "admin|desktop|light|/portal/administration/users": ["color-contrast"],
   "admin|desktop|dark|/portal/administration/users": ["color-contrast"],
   "admin|mobile|light|/portal/administration/users": ["link-name"],
   "admin|desktop|light|/portal/attendees": ["color-contrast"],
@@ -80,14 +76,10 @@
   "admin|desktop|dark|/portal/calendar/import": ["color-contrast"],
   "admin|mobile|light|/portal/calendar/import": ["link-name"],
   "admin|desktop|light|/portal/calendar/program-suggestions": [
-    "color-contrast",
-    "scrollable-region-focusable"
+    "color-contrast"
   ],
   "admin|mobile|light|/portal/calendar/program-suggestions": ["link-name"],
-  "admin|desktop|light|/portal/calendar/reports": [
-    "color-contrast",
-    "scrollable-region-focusable"
-  ],
+  "admin|desktop|light|/portal/calendar/reports": ["color-contrast"],
   "admin|mobile|light|/portal/calendar/reports": ["link-name"],
   "admin|desktop|light|/portal/calendar/templates": ["color-contrast"],
   "admin|mobile|light|/portal/calendar/templates": ["link-name"],
@@ -102,15 +94,9 @@
   "admin|mobile|light|/portal/communications": ["link-name"],
   "admin|desktop|light|/portal/donors": ["color-contrast"],
   "admin|mobile|light|/portal/donors": ["link-name"],
-  "admin|desktop|light|/portal/events": [
-    "color-contrast",
-    "scrollable-region-focusable"
-  ],
+  "admin|desktop|light|/portal/events": ["color-contrast"],
   "admin|mobile|light|/portal/events": ["link-name"],
-  "admin|desktop|light|/portal/events/[eventId]": [
-    "color-contrast",
-    "scrollable-region-focusable"
-  ],
+  "admin|desktop|light|/portal/events/[eventId]": ["color-contrast"],
   "admin|desktop|dark|/portal/events/[eventId]": ["color-contrast"],
   "admin|mobile|light|/portal/events/[eventId]": [
     "color-contrast",
@@ -133,10 +119,7 @@
     "link-name"
   ],
   "admin|desktop|light|/portal/finance/reports": ["color-contrast"],
-  "admin|mobile|light|/portal/finance/reports": [
-    "link-name",
-    "scrollable-region-focusable"
-  ],
+  "admin|mobile|light|/portal/finance/reports": ["link-name"],
   "admin|desktop|light|/portal/finance/revenue": ["color-contrast"],
   "admin|desktop|dark|/portal/finance/revenue": ["color-contrast"],
   "admin|mobile|light|/portal/finance/revenue": ["link-name"],
@@ -157,18 +140,14 @@
   "admin|desktop|light|/portal/governance/grants": ["color-contrast"],
   "admin|desktop|dark|/portal/governance/grants": ["color-contrast"],
   "admin|mobile|light|/portal/governance/grants": ["link-name"],
-  "admin|desktop|light|/portal/governance/meetings": [
-    "color-contrast",
-    "scrollable-region-focusable"
-  ],
+  "admin|desktop|light|/portal/governance/meetings": ["color-contrast"],
   "admin|mobile|light|/portal/governance/meetings": [
     "color-contrast",
     "link-name"
   ],
   "admin|desktop|light|/portal/governance/meetings/[meetingId]": [
     "aria-toggle-field-name",
-    "color-contrast",
-    "scrollable-region-focusable"
+    "color-contrast"
   ],
   "admin|mobile|light|/portal/governance/meetings/[meetingId]": [
     "aria-toggle-field-name",
@@ -207,10 +186,7 @@
   "admin|desktop|light|/portal/inventory/items": ["color-contrast"],
   "admin|desktop|dark|/portal/inventory/items": ["color-contrast"],
   "admin|mobile|light|/portal/inventory/items": ["link-name"],
-  "admin|desktop|light|/portal/inventory/reports": [
-    "color-contrast",
-    "scrollable-region-focusable"
-  ],
+  "admin|desktop|light|/portal/inventory/reports": ["color-contrast"],
   "admin|mobile|light|/portal/inventory/reports": ["link-name"],
   "admin|desktop|light|/portal/organizations": ["color-contrast"],
   "admin|mobile|light|/portal/organizations": ["link-name"],
@@ -243,10 +219,7 @@
   "coordinator|desktop|light|/portal/home": ["color-contrast"],
   "coordinator|desktop|dark|/portal/home": ["color-contrast"],
   "coordinator|mobile|light|/portal/home": ["link-name"],
-  "coordinator|desktop|light|/portal/events": [
-    "color-contrast",
-    "scrollable-region-focusable"
-  ],
+  "coordinator|desktop|light|/portal/events": ["color-contrast"],
   "coordinator|desktop|dark|/portal/events": ["color-contrast"],
   "coordinator|mobile|light|/portal/events": ["link-name"],
   "coordinator|mobile|light|/portal/volunteers": ["link-name"],
@@ -272,18 +245,12 @@
   "volunteer|desktop|light|/portal/home": ["color-contrast"],
   "volunteer|desktop|dark|/portal/home": ["color-contrast"],
   "volunteer|mobile|light|/portal/home": ["link-name"],
-  "volunteer|desktop|light|/portal/events": [
-    "color-contrast",
-    "scrollable-region-focusable"
-  ],
+  "volunteer|desktop|light|/portal/events": ["color-contrast"],
   "volunteer|mobile|light|/portal/events": ["link-name"],
   "volunteer|mobile|light|/portal/account": ["link-name"],
   "multi|desktop|light|/portal/home": ["color-contrast"],
   "multi|mobile|light|/portal/home": ["link-name"],
-  "multi|desktop|light|/portal/events": [
-    "color-contrast",
-    "scrollable-region-focusable"
-  ],
+  "multi|desktop|light|/portal/events": ["color-contrast"],
   "multi|desktop|dark|/portal/events": ["color-contrast"],
   "multi|mobile|light|/portal/events": ["link-name"]
 }

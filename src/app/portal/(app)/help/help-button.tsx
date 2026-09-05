@@ -51,7 +51,15 @@ export function HelpButton() {
             <SheetDescription>{entry.description}</SheetDescription>
           )}
         </SheetHeader>
-        <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-4 pb-4 text-sm">
+        {/* Help content is prose, so there is nothing inside the scroll area
+            to tab towards -- without a tab stop of its own a keyboard user
+            reads the first screenful and can go no further. */}
+        <div
+          tabIndex={0}
+          role="region"
+          aria-label="Help content"
+          className="flex flex-1 flex-col gap-6 overflow-y-auto px-4 pb-4 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
           {entry.body}
         </div>
       </SheetContent>
