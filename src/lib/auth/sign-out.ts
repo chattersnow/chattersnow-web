@@ -20,11 +20,21 @@ export async function signOutAndRedirect(
 ): Promise<void> {
   const supabase = createSupabaseBrowserClient();
   try {
-    await supabase.auth.signOut();
+    // Local scope, not Supabase's default of "global": this ends the session
+    // in this browser only. A global sign-out revokes every refresh token the
+    // account holds, so logging out on a laptop would silently sign the same
+    // person out on their phone -- and, in the e2e suite, sign every other
+    // worker signed in as the shared seeded admin out mid-test (#474).
+    await supabase.auth.signOut({ scope: "local" });
+  } catch {
+    // Swallowed deliberately -- see the redirect below.
   } finally {
     // Even a failed sign-out has to leave the portal. Letting a network blip
     // strand someone on an authenticated-looking shell with no error is worse
     // than redirecting to a login page they may still hold a session for.
+    // Callers rely on this settling rather than rejecting: LogoutButton would
+    // otherwise be stuck on "Signing out...", and IdleTimeout calls it with
+    // `void`, so a rejection there is unhandled.
     broadcastSignOut();
     router.replace(buildLoginUrl(options));
     router.refresh();
