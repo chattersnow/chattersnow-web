@@ -58,7 +58,9 @@ export function LoginForm() {
   async function handleSignOut() {
     setIsSigningOut(true);
     const supabase = createSupabaseBrowserClient();
-    await supabase.auth.signOut();
+    // Local scope for the same reason as signOutAndRedirect: clearing the
+    // no-access banner here must not revoke the account's sessions elsewhere.
+    await supabase.auth.signOut({ scope: "local" });
     // Back to a clean login with the banner cleared, so the page stops
     // describing a session that has just ended.
     router.replace("/portal/login");
