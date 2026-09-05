@@ -236,7 +236,11 @@ export function PersonPicker({
               <Autocomplete.Item
                 key={person.id}
                 value={person}
-                className="flex cursor-default flex-col items-start px-3 py-2 text-left text-sm outline-none data-highlighted:bg-[var(--purple-soft)]"
+                // Same highlight contract as the command palette: the tint
+                // is only 1.25:1, so the inset ring is what makes the
+                // keyboard position visible (1.4.11). `--muted` is
+                // `--purple-soft` -- one name for the tint, not two.
+                className="flex cursor-default flex-col items-start px-3 py-2 text-left text-sm outline-none data-highlighted:inset-ring-2 data-highlighted:inset-ring-ring data-highlighted:bg-muted"
                 onClick={() => {
                   focusAfterChange.current = "change";
                   onSelect(person);
