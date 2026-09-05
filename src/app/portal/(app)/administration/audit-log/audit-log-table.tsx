@@ -34,7 +34,9 @@ export function AuditLogTable({
   page,
   totalPages,
   count,
+  perPage,
   pageHref,
+  perPageHref,
 }: {
   entries: AuditLogEntry[] | null;
   error: unknown;
@@ -44,8 +46,10 @@ export function AuditLogTable({
   actorEmailById: Map<string, string>;
   page: number;
   totalPages: number;
+  perPage: number;
   count: number | null;
   pageHref: (nextPage: number) => string;
+  perPageHref: (nextPerPage: number) => string;
 }) {
   return (
     <>
@@ -60,7 +64,7 @@ export function AuditLogTable({
               No entries match these filters.
             </p>
           ) : (
-            <Table>
+            <Table stickyHeader="page">
               <TableHeader>
                 <TableRow>
                   {COLUMNS.map((column) => (
@@ -126,7 +130,9 @@ export function AuditLogTable({
           page={page}
           totalPages={totalPages}
           count={count}
+          pageSize={perPage}
           hrefFor={pageHref}
+          perPageHrefFor={perPageHref}
         />
       )}
     </>

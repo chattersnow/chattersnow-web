@@ -10,9 +10,11 @@ import { LinkPendingPulse } from "@/components/link-pending";
 import { Pagination } from "@/components/ui/pagination";
 import {
   buildHref,
+  PAGE_SIZE,
   escapeLikePattern,
   pageRange,
   parsePage,
+  parsePerPage,
   totalPagesFor,
 } from "@/lib/pagination";
 import { InventoryTable } from "./inventory-table";
@@ -66,6 +68,7 @@ export default async function InventoryPage({
   const dir: "asc" | "desc" = raw("dir") === "desc" ? "desc" : "asc";
 
   const page = parsePage(raw("page"));
+  const perPage = parsePerPage(raw("perPage"));
 
   // The vocabulary itself, not a scan of every value ever typed: the old
   // version selected the whole `type` column and de-duped it client-side, so
@@ -115,7 +118,7 @@ export default async function InventoryPage({
   if (intendedUseFilter !== "all")
     query = query.eq("intended_use", intendedUseFilter);
 
-  const { offset, to } = pageRange(page);
+  const { offset, to } = pageRange(page, perPage);
   const { data: items, count } = await query.range(offset, to);
 
   const reservedIds = (items ?? [])
@@ -161,6 +164,10 @@ export default async function InventoryPage({
   if (statusFilter !== "all") filterParams.set("status", statusFilter);
   if (intendedUseFilter !== "all")
     filterParams.set("intendedUse", intendedUseFilter);
+  // On filterParams rather than in each href, so sorting and paging both
+  // carry the reader's choice -- including the sort links the table builds
+  // from `filterQueryString` below.
+  if (perPage !== PAGE_SIZE) filterParams.set("perPage", String(perPage));
 
   function pageHref(nextPage: number) {
     return buildHref("/portal/inventory/items", filterParams, {
@@ -170,7 +177,18 @@ export default async function InventoryPage({
     });
   }
 
-  const totalPages = totalPagesFor(count);
+  function perPageHref(nextPerPage: number) {
+    // Back to page one: a bigger page renumbers them all, and page 4 of 9 is
+    // nothing in particular once each page holds 25.
+    return buildHref("/portal/inventory/items", filterParams, {
+      sort,
+      dir,
+      perPage: nextPerPage,
+      page: 1,
+    });
+  }
+
+  const totalPages = totalPagesFor(count, perPage);
   const hasActiveFilters =
     !!search ||
     categoryFilter !== "all" ||
@@ -416,7 +434,9 @@ export default async function InventoryPage({
           page={page}
           totalPages={totalPages}
           count={count}
+          pageSize={perPage}
           hrefFor={pageHref}
+          perPageHrefFor={perPageHref}
         />
       )}
     </>

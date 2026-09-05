@@ -24,9 +24,11 @@ import { FilterSubmitButton } from "@/components/filter-submit-button";
 import { LinkPendingPulse } from "@/components/link-pending";
 import {
   buildHref,
+  PAGE_SIZE,
   escapeLikePattern,
   pageRange,
   parsePage,
+  parsePerPage,
   totalPagesFor,
 } from "@/lib/pagination";
 import { EditExpenseModal } from "./edit-expense-modal";
@@ -100,6 +102,7 @@ export default async function ExpensesPage({
   const dir: "asc" | "desc" = raw("dir") === "asc" ? "asc" : "desc";
 
   const page = parsePage(raw("page"));
+  const perPage = parsePerPage(raw("perPage"));
 
   let query = supabase
     .from("event_expenses")
@@ -119,7 +122,7 @@ export default async function ExpensesPage({
     query = query.eq("status", statusFilter);
   }
 
-  const { offset, to } = pageRange(page);
+  const { offset, to } = pageRange(page, perPage);
   const [{ data: expenses, count }, { data: events }, approvalContext] =
     await Promise.all([
       query.range(offset, to),
@@ -137,6 +140,9 @@ export default async function ExpensesPage({
   if (search) filterParams.set("search", search);
   if (eventFilter !== "all") filterParams.set("event", eventFilter);
   if (statusFilter !== "all") filterParams.set("status", statusFilter);
+  // On filterParams rather than in each href, so sorting and paging both
+  // carry the reader's choice without either having to remember to.
+  if (perPage !== PAGE_SIZE) filterParams.set("perPage", String(perPage));
 
   function sortHref(column: SortColumn) {
     const nextDir = sort === column && dir === "asc" ? "desc" : "asc";
@@ -154,7 +160,18 @@ export default async function ExpensesPage({
     });
   }
 
-  const totalPages = totalPagesFor(count);
+  function perPageHref(nextPerPage: number) {
+    // Back to page one: a bigger page renumbers them all, and page 4 of
+    // 9 is nothing in particular once each page holds 25.
+    return buildHref("/portal/finance/expenses", filterParams, {
+      sort,
+      dir,
+      perPage: nextPerPage,
+      page: 1,
+    });
+  }
+
+  const totalPages = totalPagesFor(count, perPage);
   const hasActiveFilters =
     !!search || eventFilter !== "all" || statusFilter !== "all";
   const activeFilterCount = [
@@ -389,7 +406,7 @@ export default async function ExpensesPage({
                 />
               )
             ) : (
-              <Table stickyFirstColumn>
+              <Table stickyFirstColumn stickyHeader="page">
                 <TableHeader>
                   <TableRow>
                     {COLUMNS.map((column) => (
@@ -450,7 +467,9 @@ export default async function ExpensesPage({
             page={page}
             totalPages={totalPages}
             count={count}
+            pageSize={perPage}
             hrefFor={pageHref}
+            perPageHrefFor={perPageHref}
           />
         )}
       </div>

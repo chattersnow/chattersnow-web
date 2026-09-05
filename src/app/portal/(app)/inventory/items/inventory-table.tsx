@@ -88,7 +88,7 @@ export function InventoryTable({
       ) : (
         <Card>
           <CardContent className="px-0">
-            <Table>
+            <Table stickyHeader="page">
               <TableHeader>
                 <TableRow>
                   {SORT_COLUMNS.map((column) => (

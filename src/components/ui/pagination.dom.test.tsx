@@ -39,6 +39,22 @@ describe("Pagination", () => {
     expect(screen.getByText(/Showing 51–75 of 312/)).toBeTruthy();
   });
 
+  test("offers the rows-per-page choice at the size in play", () => {
+    render(
+      <Pagination
+        page={1}
+        totalPages={13}
+        count={312}
+        pageSize={25}
+        hrefFor={hrefFor}
+        perPageHrefFor={(perPage) => `/portal/people?perPage=${perPage}&page=1`}
+      />,
+    );
+    expect(
+      screen.getByRole("combobox", { name: "Rows per page" }),
+    ).toHaveTextContent("25");
+  });
+
   test("offers no rows-per-page choice unless the list can honour one", () => {
     // The control navigates, so a list that has nowhere to send the reader
     // must not render it at all.

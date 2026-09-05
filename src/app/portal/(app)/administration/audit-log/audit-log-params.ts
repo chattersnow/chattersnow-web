@@ -1,4 +1,4 @@
-import { parsePage } from "@/lib/pagination";
+import { parsePage, parsePerPage } from "@/lib/pagination";
 
 export const TABLE_VALUES = [
   "donations",
@@ -36,6 +36,7 @@ export type AuditLogParams = {
   from: string;
   to: string;
   page: number;
+  perPage: number;
 };
 
 function isSortColumn(value: string | undefined): value is SortColumn {
@@ -72,6 +73,7 @@ export function parseAuditLogParams(
   const from = raw("from") || "";
   const to = raw("to") || "";
   const page = parsePage(raw("page"));
+  const perPage = parsePerPage(raw("perPage"));
 
-  return { sort, dir, table, action, actor, from, to, page };
+  return { sort, dir, table, action, actor, from, to, page, perPage };
 }
