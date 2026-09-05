@@ -21,7 +21,10 @@ export type EventVolunteer = {
   event_id: string;
   person_id: string;
   shift_id: string | null;
+  /** Legacy free text, still shown when no role type resolves. */
   role: string | null;
+  volunteer_role_type_id: string | null;
+  role_type: { name: string } | null;
   notes: string | null;
   person: EventVolunteerPerson;
 };
@@ -38,7 +41,7 @@ export async function listEventVolunteersAction(
   const { data, error } = await supabase
     .from("event_volunteers")
     .select(
-      "id, event_id, person_id, shift_id, role, notes, person:people!inner(id, name, email, phone)",
+      "id, event_id, person_id, shift_id, role, volunteer_role_type_id, role_type:volunteer_role_types(name), notes, person:people!inner(id, name, email, phone)",
     )
     .eq("event_id", eventId)
     .order("person(name)", { ascending: true, nullsFirst: false })
@@ -155,6 +158,7 @@ export type EventVolunteerHours = {
   hours: number | string;
   logged_date: string;
   notes: string | null;
+  volunteer_role_type: { name: string } | null;
   person: EventVolunteerPerson;
 };
 
@@ -172,7 +176,7 @@ export async function listEventVolunteerHoursAction(
   const { data, error } = await supabase
     .from("volunteer_hours")
     .select(
-      "id, event_id, person_id, hours, logged_date, notes, person:people(id, name, email, phone)",
+      "id, event_id, person_id, hours, logged_date, notes, volunteer_role_type:volunteer_role_types(name), person:people(id, name, email, phone)",
     )
     .eq("event_id", eventId)
     .order("logged_date", { ascending: false });
@@ -218,11 +222,12 @@ export async function createEventVolunteerHoursAction(
 
   const parsed = parseEventVolunteerHoursForm(formData);
   if ("error" in parsed) return parsed;
-  const { hours, loggedDate, notes } = parsed.data;
+  const { volunteerRoleTypeId, hours, loggedDate, notes } = parsed.data;
 
   const { error } = await supabase.from("volunteer_hours").insert({
     event_id: eventId,
     person_id: personId,
+    volunteer_role_type_id: volunteerRoleTypeId,
     hours,
     logged_date: loggedDate,
     notes,

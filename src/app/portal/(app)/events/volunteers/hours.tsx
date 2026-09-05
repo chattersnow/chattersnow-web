@@ -7,16 +7,25 @@ import {
   type EventVolunteerPerson,
 } from "../volunteers-actions";
 import { type EventShift } from "../shifts-actions";
+import { type RoleType } from "../../volunteers/roles/actions";
 import { PersonPicker, type PickedPerson } from "../../people/person-picker";
 import { type PersonListItem } from "../../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import { personDisplayName } from "@/lib/format";
 import { runAction } from "@/components/portal/action-toast";
+import { NONE_VALUE } from "./shifts";
 
 function shiftHoursAndDate(shift: EventShift) {
   const durationHours =
@@ -30,9 +39,9 @@ function shiftHoursAndDate(shift: EventShift) {
 }
 
 /**
- * The hours and date a volunteer's own shift implies, so the common case --
- * "they worked the shift they signed up for" -- is one confirm rather than
- * two lookups. Falls back to a blank entry dated today.
+ * The hours, date and role a volunteer's own signup implies, so the common
+ * case -- "they worked the shift they signed up for" -- is one confirm rather
+ * than three lookups. Falls back to a blank entry dated today.
  */
 function defaultsForPerson(
   person: PickedPerson | null,
@@ -45,20 +54,27 @@ function defaultsForPerson(
   const shift = volunteer?.shift_id
     ? shifts.find((s) => s.id === volunteer.shift_id)
     : undefined;
-  return shift
-    ? shiftHoursAndDate(shift)
-    : { hours: "", loggedDate: new Date().toISOString().slice(0, 10) };
+  const roleTypeId =
+    shift?.volunteer_role_type_id ?? volunteer?.volunteer_role_type_id ?? null;
+  return {
+    ...(shift
+      ? shiftHoursAndDate(shift)
+      : { hours: "", loggedDate: new Date().toISOString().slice(0, 10) }),
+    roleTypeId,
+  };
 }
 
 export function AddHoursForm({
   volunteers,
   shifts,
+  roleTypes,
   lockedPerson,
   onSubmit,
   onCancel,
 }: {
   volunteers: EventVolunteer[];
   shifts: EventShift[];
+  roleTypes: RoleType[];
   /**
    * Set when the form is opened from a specific roster row. The volunteer is
    * then fixed and shown read-only instead of offering a picker that could
@@ -89,6 +105,10 @@ export function AddHoursForm({
     () =>
       defaultsForPerson(lockedPerson ?? null, volunteers, shifts).loggedDate,
   );
+  const [roleTypeId, setRoleTypeId] = useState<string | null>(
+    () =>
+      defaultsForPerson(lockedPerson ?? null, volunteers, shifts).roleTypeId,
+  );
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -96,6 +116,9 @@ export function AddHoursForm({
   function handleSelectPerson(person: PickedPerson | null) {
     setSelectedPerson(person);
     const defaults = defaultsForPerson(person, volunteers, shifts);
+    // The role comes from the signup itself, so it is known even for a
+    // volunteer with no shift to imply hours and a date.
+    setRoleTypeId(defaults.roleTypeId);
     if (!defaults.hours) return;
     setHours(defaults.hours);
     setLoggedDate(defaults.loggedDate);
@@ -110,6 +133,7 @@ export function AddHoursForm({
     }
 
     const formData = new FormData();
+    formData.set("volunteerRoleTypeId", roleTypeId ?? "");
     formData.set("hours", hours);
     formData.set("loggedDate", loggedDate);
     formData.set("notes", notes);
@@ -172,6 +196,35 @@ export function AddHoursForm({
               onChange={(event) => setLoggedDate(event.target.value)}
             />
           </Field>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="hours-role-type">Role</FieldLabel>
+          <Select
+            value={roleTypeId ?? NONE_VALUE}
+            onValueChange={(value) =>
+              setRoleTypeId(value === NONE_VALUE ? null : value)
+            }
+          >
+            <SelectTrigger id="hours-role-type" className="w-full">
+              <SelectValue placeholder="No role">
+                {(value: string) =>
+                  value === NONE_VALUE
+                    ? "No role"
+                    : (roleTypes.find((option) => option.id === value)?.name ??
+                      "No role")
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NONE_VALUE}>No role</SelectItem>
+              {roleTypes.map((option) => (
+                <SelectItem key={option.id} value={option.id}>
+                  {option.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </Field>
 
         <Field>

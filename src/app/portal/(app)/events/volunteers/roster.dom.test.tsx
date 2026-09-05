@@ -41,6 +41,8 @@ function makeVolunteer(
     person_id: "person-1",
     shift_id: null,
     role: null,
+    volunteer_role_type_id: null,
+    role_type: null,
     notes: null,
     person: { id: "person-1", name: "Jane Doe", email: null, phone: null },
     ...overrides,
@@ -57,6 +59,7 @@ function makeHours(
     hours: 3,
     logged_date: "2026-09-01",
     notes: null,
+    volunteer_role_type: null,
     person: { id: "person-1", name: "Jane Doe", email: null, phone: null },
     ...overrides,
   };
