@@ -118,6 +118,26 @@ where u.email in (
 );
 -- noaccess@example.test intentionally gets no user_roles row.
 
+-- Tenant membership (#707 Phase 1). 20260905190000 creates the initial tenant
+-- and backfills memberships for the accounts that exist at migration time --
+-- but migrations run *before* this file on `db reset`, so the seeded accounts
+-- are created after that backfill and have to be joined here, the same way
+-- their people rows are above.
+--
+-- Every account gets one, including noaccess@ and former@: tenancy says which
+-- organisation's data you are looking at, and is orthogonal to whether you may
+-- do anything with it. Those two accounts exercise the no-role and deactivated
+-- paths, which have to keep behaving that way *inside* a tenant.
+--
+-- Matched on "the tenant that exists" rather than on the slug: 20260905190000
+-- takes the slug from app.initial_tenant_slug, so hardcoding 'chatter-snow'
+-- here would seed zero memberships for anyone who has set it.
+insert into public.tenant_memberships (user_id, tenant_id, kind, created_by)
+select u.id, t.id, 'member', u.id
+from auth.users u
+cross join (select id from public.tenants order by created_at limit 1) t
+on conflict (user_id, tenant_id) do nothing;
+
 -- Sample operational data, owned by the seeded admin account.
 do $$
 declare
