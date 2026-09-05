@@ -308,18 +308,28 @@ export function EditInventoryModal({
                   </ReadOnlyField>
                 </Field>
                 {item.status === "reserved" && item.holdRequester && (
-                  <ReadOnlyField
-                    label="Requested by"
-                    htmlFor="edit-hold-requester"
-                  >
-                    {[
-                      item.holdRequester.name,
-                      item.holdRequester.email,
-                      item.holdRequester.phone,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ") || "—"}
-                  </ReadOnlyField>
+                  <>
+                    <ReadOnlyField
+                      label="Requested by"
+                      htmlFor="edit-hold-requester"
+                    >
+                      {[
+                        item.holdRequester.name,
+                        item.holdRequester.email,
+                        item.holdRequester.phone,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ") || "—"}
+                    </ReadOnlyField>
+                    {item.holdNotes && (
+                      <ReadOnlyField
+                        label="Request notes"
+                        htmlFor="edit-hold-notes"
+                      >
+                        {item.holdNotes}
+                      </ReadOnlyField>
+                    )}
+                  </>
                 )}
                 <Field orientation="responsive">
                   <Field>

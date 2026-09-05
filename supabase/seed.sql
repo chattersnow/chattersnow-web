@@ -304,8 +304,9 @@ begin
 
   insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, created_by)
   values (v_item5, 'received', 1, 'Donation intake', v_admin_id);
-  insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, recipient_person_id, created_by)
-  values (v_item5, 'reserved', 1, 'Public gear library request', v_person_volunteer, v_admin_id);
+  insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, recipient_person_id, notes, created_by)
+  values (v_item5, 'reserved', 1, 'Public gear library request', v_person_volunteer,
+          'Picking up Saturday morning before the shuttle -- happy to take a smaller size if this one is spoken for.', v_admin_id);
 
   -- Giveaway for the past event: two prizes, one claimed winner.
   insert into public.giveaways (event_id, name, tickets_sold, ticket_price, revenue_amount, drawing_date, created_by)

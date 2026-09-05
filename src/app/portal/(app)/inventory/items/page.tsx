@@ -125,15 +125,16 @@ export default async function InventoryPage({
     .filter((item) => item.status === "reserved")
     .map((item) => item.id);
 
-  const holdByItemId = new Map<
-    string,
-    NonNullable<InventoryItem["holdRequester"]>
-  >();
+  type Hold = {
+    requester: NonNullable<InventoryItem["holdRequester"]>;
+    notes: string | null;
+  };
+  const holdByItemId = new Map<string, Hold>();
   if (reservedIds.length > 0) {
     const { data: movements } = await supabase
       .from("inventory_movements")
       .select(
-        "inventory_item_id, occurred_at, recipient:people(id, name, email, phone)",
+        "inventory_item_id, occurred_at, notes, recipient:people(id, name, email, phone)",
       )
       .eq("movement_type", "reserved")
       .in("inventory_item_id", reservedIds)
@@ -142,20 +143,28 @@ export default async function InventoryPage({
     type HoldMovement = {
       inventory_item_id: string;
       occurred_at: string;
+      notes: string | null;
       recipient: NonNullable<InventoryItem["holdRequester"]> | null;
     };
 
     for (const movement of (movements ?? []) as unknown as HoldMovement[]) {
       if (movement.recipient && !holdByItemId.has(movement.inventory_item_id)) {
-        holdByItemId.set(movement.inventory_item_id, movement.recipient);
+        holdByItemId.set(movement.inventory_item_id, {
+          requester: movement.recipient,
+          notes: movement.notes,
+        });
       }
     }
   }
 
-  const itemsWithHolds: InventoryItem[] = (items ?? []).map((item) => ({
-    ...item,
-    holdRequester: holdByItemId.get(item.id) ?? null,
-  }));
+  const itemsWithHolds: InventoryItem[] = (items ?? []).map((item) => {
+    const hold = holdByItemId.get(item.id);
+    return {
+      ...item,
+      holdRequester: hold?.requester ?? null,
+      holdNotes: hold?.notes ?? null,
+    };
+  });
 
   const filterParams = new URLSearchParams();
   if (search) filterParams.set("search", search);
