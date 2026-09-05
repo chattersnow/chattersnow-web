@@ -120,41 +120,30 @@ export function TiersSection({
 
   if (!tiers.length) {
     return (
-      <section className="rounded-md border border-[var(--line)] p-4">
-        <h3 className="text-sm font-medium">Ticket tiers</h3>
-        <EmptyState
-          title="No tiers set up"
-          description="Set up Gold, Silver and Bronze with the standard ticket grants. You can change the numbers afterwards."
-          action={
-            canEdit ? (
-              <Button type="button" onClick={handleSeed} disabled={isPending}>
-                {isPending ? (
-                  <>
-                    <Spinner /> Setting up...
-                  </>
-                ) : (
-                  "Set up tiers"
-                )}
-              </Button>
-            ) : undefined
-          }
-        />
-      </section>
+      <EmptyState
+        title="No tiers set up"
+        description="Set up Gold, Silver and Bronze with the standard ticket grants. You can change the numbers afterwards."
+        action={
+          canEdit ? (
+            <Button type="button" onClick={handleSeed} disabled={isPending}>
+              {isPending ? (
+                <>
+                  <Spinner /> Setting up...
+                </>
+              ) : (
+                "Set up tiers"
+              )}
+            </Button>
+          ) : undefined
+        }
+      />
     );
   }
 
   const hasDraft = Object.keys(draft).length > 0;
 
   return (
-    <section className="flex flex-col gap-4 rounded-md border border-[var(--line)] p-4">
-      <div>
-        <h3 className="text-sm font-medium">Ticket tiers</h3>
-        <p className="app-muted mt-1 text-sm">
-          A donated item or a bought package earns the row&apos;s bundle. Every
-          donated item earns its own bundle.
-        </p>
-      </div>
-
+    <div className="flex flex-col gap-4">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[28rem] border-collapse text-sm">
           <caption className="sr-only">
@@ -333,6 +322,6 @@ export function TiersSection({
           </AlertDescription>
         </Alert>
       )}
-    </section>
+    </div>
   );
 }
