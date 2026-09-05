@@ -19,8 +19,10 @@ import {
 } from "@/components/ui/table";
 import {
   buildHref,
+  PAGE_SIZE,
   pageRange,
   parsePage,
+  parsePerPage,
   totalPagesFor,
 } from "@/lib/pagination";
 import { NewEventDialog } from "./new-event-dialog";
@@ -118,6 +120,7 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
     : "all";
 
   const page = parsePage(raw("page"));
+  const perPage = parsePerPage(raw("perPage"));
   // Deep link from the dashboard's "Outstanding tasks" count. Deliberately not
   // part of `filterParams` below -- it isn't a filter on the table, and sort/
   // page links shouldn't carry it and reopen the sheet on every navigation.
@@ -145,7 +148,7 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
     query = query.lt("starts_at", nowIso);
   }
 
-  const { offset, to } = pageRange(page);
+  const { offset, to } = pageRange(page, perPage);
   const { data: events, error, count } = await query.range(offset, to);
   const [programsResult, eventTasks] = await Promise.all([
     listProgramsAction(),
@@ -159,6 +162,9 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
   if (visibilityFilter !== "all")
     filterParams.set("visibility", visibilityFilter);
   if (whenFilter !== "all") filterParams.set("when", whenFilter);
+  // On filterParams rather than in each href, so sorting and paging both
+  // carry the reader's choice without either having to remember to.
+  if (perPage !== PAGE_SIZE) filterParams.set("perPage", String(perPage));
 
   function sortHref(column: SortColumn) {
     const nextDir = sort === column && dir === "asc" ? "desc" : "asc";
@@ -176,7 +182,18 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
     });
   }
 
-  const totalPages = totalPagesFor(count);
+  function perPageHref(nextPerPage: number) {
+    // Back to page one: a bigger page renumbers them all, and page 4 of
+    // 9 is nothing in particular once each page holds 25.
+    return buildHref("/portal/events", filterParams, {
+      sort,
+      dir,
+      perPage: nextPerPage,
+      page: 1,
+    });
+  }
+
+  const totalPages = totalPagesFor(count, perPage);
 
   const hasActiveFilters =
     statusFilter !== "all" ||
@@ -303,7 +320,7 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
               No events match these filters.
             </p>
           ) : (
-            <Table>
+            <Table stickyHeader="page">
               <TableHeader>
                 <TableRow>
                   {COLUMNS.map((column) => (
@@ -376,7 +393,9 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
           page={page}
           totalPages={totalPages}
           count={count}
+          pageSize={perPage}
           hrefFor={pageHref}
+          perPageHrefFor={perPageHref}
         />
       )}
     </>

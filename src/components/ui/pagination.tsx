@@ -11,6 +11,7 @@ import {
 import { LinkPendingPulse } from "@/components/link-pending";
 import { FilterSubmitButton } from "@/components/filter-submit-button";
 import { PAGE_SIZE, PAGE_SIZE_OPTIONS } from "@/lib/pagination";
+import { RowsPerPageNav } from "@/components/portal/rows-per-page-nav";
 
 /**
  * Splits a page href into the parts a GET form needs to rebuild it: the
@@ -72,6 +73,7 @@ export function Pagination({
   count,
   pageSize = PAGE_SIZE,
   pageParam = "page",
+  perPageHrefFor,
 }: {
   page: number;
   totalPages: number;
@@ -81,6 +83,13 @@ export function Pagination({
   pageSize?: number;
   /** The query parameter `hrefFor` writes the page number to. */
   pageParam?: string;
+  /**
+   * Supply this to offer a rows-per-page choice. It lives here rather than
+   * beside each call site so every list lays its pager out the same way, and
+   * it must send the reader back to page one -- a bigger page renumbers them
+   * all, and page 4 of 9 is nothing in particular once the page holds 25.
+   */
+  perPageHrefFor?: (perPage: number) => string;
 }) {
   const { action, hidden } = formTargetFrom(hrefFor(page), pageParam);
   const jumpId = `page-jump-${pageParam}`;
@@ -94,6 +103,15 @@ export function Pagination({
         pageSize={pageSize}
       />
       <div className="flex flex-wrap items-center gap-2">
+        {perPageHrefFor && (
+          <RowsPerPageNav
+            value={pageSize}
+            options={PAGE_SIZE_OPTIONS.map((option) => ({
+              value: option,
+              href: perPageHrefFor(option),
+            }))}
+          />
+        )}
         {totalPages > 2 && (
           <form
             method="get"

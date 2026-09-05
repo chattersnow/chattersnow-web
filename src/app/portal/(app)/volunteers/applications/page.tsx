@@ -13,6 +13,7 @@ import { FilterSubmitButton } from "@/components/filter-submit-button";
 import { LinkPendingPulse } from "@/components/link-pending";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
+import { SortHeaderLink } from "@/components/portal/sort-header-link";
 import {
   Table,
   TableBody,
@@ -24,8 +25,10 @@ import {
 import {
   buildHref,
   escapeLikePattern,
+  PAGE_SIZE,
   pageRange,
   parsePage,
+  parsePerPage,
   quoteOrValue,
   totalPagesFor,
 } from "@/lib/pagination";
@@ -58,6 +61,29 @@ export const metadata: Metadata = {
   title: "Volunteer Applications",
 };
 
+const SORTABLE_COLUMNS = [
+  "name",
+  "email",
+  "role_interest",
+  "created_at",
+  "status",
+] as const;
+type SortColumn = (typeof SORTABLE_COLUMNS)[number];
+
+function isSortColumn(value: string | undefined): value is SortColumn {
+  return !!value && (SORTABLE_COLUMNS as readonly string[]).includes(value);
+}
+
+const COLUMNS: { key: SortColumn; label: string }[] = [
+  { key: "name", label: "Name" },
+  { key: "email", label: "Email" },
+  { key: "role_interest", label: "Role interest" },
+  { key: "created_at", label: "Submitted" },
+  // Sorts alphabetically rather than by where a status sits in the workflow,
+  // which is what the column holds. Grouping like with like is the point.
+  { key: "status", label: "Status" },
+];
+
 export default async function VolunteerApplicationsPage({
   searchParams,
 }: ApplicationsPageProps) {
@@ -76,7 +102,12 @@ export default async function VolunteerApplicationsPage({
   const statusFilter: VolunteerApplicationStatus | "all" =
     isVolunteerApplicationStatus(statusRaw) ? statusRaw : "all";
 
+  const sortParam = raw("sort");
+  const sort: SortColumn = isSortColumn(sortParam) ? sortParam : "created_at";
+  const dir: "asc" | "desc" = raw("dir") === "asc" ? "asc" : "desc";
+
   const page = parsePage(raw("page"));
+  const perPage = parsePerPage(raw("perPage"));
 
   let query = supabase
     .from("volunteer_applications")
@@ -84,7 +115,7 @@ export default async function VolunteerApplicationsPage({
       "id, name, email, phone, pronouns, role_interest, availability, status, created_at",
       { count: "exact" },
     )
-    .order("created_at", { ascending: false })
+    .order(sort, { ascending: dir === "asc" })
     .order("id", { ascending: true });
 
   if (search) {
@@ -95,21 +126,45 @@ export default async function VolunteerApplicationsPage({
     query = query.eq("status", statusFilter);
   }
 
-  const { offset, to } = pageRange(page);
+  const { offset, to } = pageRange(page, perPage);
   const { data: applications, error, count } = await query.range(offset, to);
   const applicationRows = (applications ?? []) as VolunteerApplication[];
 
   const filterParams = new URLSearchParams();
   if (search) filterParams.set("search", search);
   if (statusFilter !== "all") filterParams.set("status", statusFilter);
+  // On filterParams rather than in each href, so sorting and paging both
+  // carry the reader's choice without either having to remember to.
+  if (perPage !== PAGE_SIZE) filterParams.set("perPage", String(perPage));
+
+  function sortHref(column: SortColumn) {
+    const nextDir = sort === column && dir === "asc" ? "desc" : "asc";
+    return buildHref("/portal/volunteers/applications", filterParams, {
+      sort: column,
+      dir: nextDir,
+    });
+  }
 
   function pageHref(nextPage: number) {
     return buildHref("/portal/volunteers/applications", filterParams, {
+      sort,
+      dir,
       page: nextPage,
     });
   }
 
-  const totalPages = totalPagesFor(count);
+  function perPageHref(nextPerPage: number) {
+    // Back to page one: a bigger page renumbers them all, and page 4 of 9 is
+    // nothing in particular once each page holds 25.
+    return buildHref("/portal/volunteers/applications", filterParams, {
+      sort,
+      dir,
+      perPage: nextPerPage,
+      page: 1,
+    });
+  }
+
+  const totalPages = totalPagesFor(count, perPage);
   const hasActiveFilters = !!search || statusFilter !== "all";
   const activeFilterCount = [!!search, statusFilter !== "all"].filter(
     Boolean,
@@ -211,14 +266,21 @@ export default async function VolunteerApplicationsPage({
                     }
                   />
                 ) : (
-                  <Table>
+                  <Table stickyHeader="page">
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Role interest</TableHead>
-                        <TableHead>Submitted</TableHead>
-                        <TableHead>Status</TableHead>
+                        {COLUMNS.map((column) => (
+                          <TableHead
+                            key={column.key}
+                            sortDirection={sort === column.key ? dir : null}
+                          >
+                            <SortHeaderLink
+                              href={sortHref(column.key)}
+                              label={column.label}
+                              dir={sort === column.key ? dir : null}
+                            />
+                          </TableHead>
+                        ))}
                         <TableHead className="w-0">
                           <span className="sr-only">Actions</span>
                         </TableHead>
@@ -262,7 +324,10 @@ export default async function VolunteerApplicationsPage({
               <Pagination
                 page={page}
                 totalPages={totalPages}
+                count={count}
+                pageSize={perPage}
                 hrefFor={pageHref}
+                perPageHrefFor={perPageHref}
               />
             )}
           </>

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/portal/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
 import { Pagination } from "@/components/ui/pagination";
+import { SortHeaderLink } from "@/components/portal/sort-header-link";
 import {
   Table,
   TableBody,
@@ -16,12 +17,15 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  type HideBelow,
 } from "@/components/ui/table";
 import {
   buildHref,
+  PAGE_SIZE,
   escapeLikePattern,
   pageRange,
   parsePage,
+  parsePerPage,
   quoteOrValue,
   totalPagesFor,
 } from "@/lib/pagination";
@@ -63,6 +67,24 @@ function isRoleKey(value: string | undefined): value is RoleKey {
  * Sponsors, and Attendees were near-identical copies of this file; everything
  * that genuinely differs between them lives in the PeopleSegment config.
  */
+const SORTABLE_COLUMNS = ["name", "email", "phone"] as const;
+type SortColumn = (typeof SORTABLE_COLUMNS)[number];
+
+function isSortColumn(value: string | undefined): value is SortColumn {
+  return !!value && (SORTABLE_COLUMNS as readonly string[]).includes(value);
+}
+
+/**
+ * Roles is missing from this on purpose: the cell is a string joined in JS
+ * from six boolean flags, so there is no column for Postgres to order by.
+ * Sorting it would mean ordering on one flag and calling it something else.
+ */
+const COLUMNS: { key: SortColumn; label: string; hideBelow?: HideBelow }[] = [
+  { key: "name", label: "Name" },
+  { key: "email", label: "Email", hideBelow: "md" },
+  { key: "phone", label: "Phone", hideBelow: "lg" },
+];
+
 export async function PeopleDirectory({
   segment,
   searchParams,
@@ -86,12 +108,17 @@ export async function PeopleDirectory({
   // stray ?role= on /portal/donors is ignored rather than silently narrowing.
   const roleFilter: RoleKey | "all" =
     segment.showRoleFilter && isRoleKey(roleRaw) ? roleRaw : "all";
+  const sortParam = raw("sort");
+  const sort: SortColumn = isSortColumn(sortParam) ? sortParam : "name";
+  const dir: "asc" | "desc" = raw("dir") === "desc" ? "desc" : "asc";
+
   const page = parsePage(raw("page"));
+  const perPage = parsePerPage(raw("perPage"));
 
   let query = supabase
     .from(PEOPLE_WITH_ROLES)
     .select(PERSON_COLUMNS, { count: "exact" })
-    .order("name", { ascending: true })
+    .order(sort, { ascending: dir === "asc" })
     .order("id", { ascending: true });
 
   if (segment.filterColumn) query = query.eq(segment.filterColumn, true);
@@ -104,7 +131,7 @@ export async function PeopleDirectory({
     );
   }
 
-  const { offset, to } = pageRange(page);
+  const { offset, to } = pageRange(page, perPage);
   const [{ data: people, count }, { data: peopleOptions }, stats] =
     await Promise.all([
       query.range(offset, to),
@@ -121,8 +148,41 @@ export async function PeopleDirectory({
   const filterParams = new URLSearchParams();
   if (search) filterParams.set("search", search);
   if (roleFilter !== "all") filterParams.set("role", roleFilter);
+  // On filterParams rather than in each href, so sorting and paging both
+  // carry the reader's choice without either having to remember to.
+  if (perPage !== PAGE_SIZE) filterParams.set("perPage", String(perPage));
 
-  const totalPages = totalPagesFor(count);
+  // Every segment -- donors, sponsors, staff and the rest -- renders through
+  // this component, so these hrefs have to be built from `segment.basePath`
+  // rather than a literal path.
+  function sortHref(column: SortColumn) {
+    const nextDir = sort === column && dir === "asc" ? "desc" : "asc";
+    return buildHref(segment.basePath, filterParams, {
+      sort: column,
+      dir: nextDir,
+    });
+  }
+
+  function pageHref(nextPage: number) {
+    return buildHref(segment.basePath, filterParams, {
+      sort,
+      dir,
+      page: nextPage,
+    });
+  }
+
+  function perPageHref(nextPerPage: number) {
+    // Back to page one: a bigger page renumbers them all, and page 4 of 9 is
+    // nothing in particular once each page holds 25.
+    return buildHref(segment.basePath, filterParams, {
+      sort,
+      dir,
+      perPage: nextPerPage,
+      page: 1,
+    });
+  }
+
+  const totalPages = totalPagesFor(count, perPage);
   const hasActiveFilters = !!search || roleFilter !== "all";
   const activeFilterCount = [roleFilter !== "all"].filter(Boolean).length;
   const appliedFilters: ActiveFilter[] = [];
@@ -268,13 +328,32 @@ export async function PeopleDirectory({
                 }
               />
             ) : (
-              <Table stickyFirstColumn>
+              <Table stickyFirstColumn stickyHeader="page">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
+                    <TableHead sortDirection={sort === "name" ? dir : null}>
+                      <SortHeaderLink
+                        href={sortHref("name")}
+                        label="Name"
+                        dir={sort === "name" ? dir : null}
+                      />
+                    </TableHead>
                     <TableHead>Roles</TableHead>
-                    <TableHead hideBelow="md">Email</TableHead>
-                    <TableHead hideBelow="lg">Phone</TableHead>
+                    {COLUMNS.filter((column) => column.key !== "name").map(
+                      (column) => (
+                        <TableHead
+                          key={column.key}
+                          hideBelow={column.hideBelow}
+                          sortDirection={sort === column.key ? dir : null}
+                        >
+                          <SortHeaderLink
+                            href={sortHref(column.key)}
+                            label={column.label}
+                            dir={sort === column.key ? dir : null}
+                          />
+                        </TableHead>
+                      ),
+                    )}
                     <TableHead className="w-0">
                       <span className="sr-only">Actions</span>
                     </TableHead>
@@ -329,9 +408,9 @@ export async function PeopleDirectory({
             page={page}
             totalPages={totalPages}
             count={count}
-            hrefFor={(nextPage) =>
-              buildHref(segment.basePath, filterParams, { page: nextPage })
-            }
+            pageSize={perPage}
+            hrefFor={pageHref}
+            perPageHrefFor={perPageHref}
           />
         )}
       </div>

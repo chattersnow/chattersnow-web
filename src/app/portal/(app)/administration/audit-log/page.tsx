@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { buildHref, totalPagesFor } from "@/lib/pagination";
+import { buildHref, PAGE_SIZE, totalPagesFor } from "@/lib/pagination";
 import { listUsersAction } from "../users/actions";
 import { AuditLogFilterForm } from "./audit-log-filter-form";
 import { parseAuditLogParams, type SortColumn } from "./audit-log-params";
@@ -38,6 +38,10 @@ export default async function AuditLogPage({
   if (filters.actor !== "all") filterParams.set("actor", filters.actor);
   if (filters.from) filterParams.set("from", filters.from);
   if (filters.to) filterParams.set("to", filters.to);
+  // On filterParams rather than in each href, so sorting and paging both
+  // carry the reader's choice without either having to remember to.
+  if (filters.perPage !== PAGE_SIZE)
+    filterParams.set("perPage", String(filters.perPage));
 
   function sortHref(column: SortColumn) {
     const nextDir =
@@ -56,6 +60,17 @@ export default async function AuditLogPage({
     });
   }
 
+  function perPageHref(nextPerPage: number) {
+    // Back to page one: a bigger page renumbers them all, and page 4 of 9 is
+    // nothing in particular once each page holds 25.
+    return buildHref("/portal/administration/audit-log", filterParams, {
+      sort: filters.sort,
+      dir: filters.dir,
+      perPage: nextPerPage,
+      page: 1,
+    });
+  }
+
   const hasActiveFilters =
     filters.table !== "all" ||
     filters.action !== "all" ||
@@ -63,7 +78,7 @@ export default async function AuditLogPage({
     !!filters.from ||
     !!filters.to;
 
-  const totalPages = totalPagesFor(count);
+  const totalPages = totalPagesFor(count, filters.perPage);
 
   return (
     <>
@@ -90,7 +105,9 @@ export default async function AuditLogPage({
         page={filters.page}
         totalPages={totalPages}
         count={count}
+        perPage={filters.perPage}
         pageHref={pageHref}
+        perPageHref={perPageHref}
       />
     </>
   );

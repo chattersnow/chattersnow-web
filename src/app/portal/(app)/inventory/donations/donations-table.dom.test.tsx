@@ -38,14 +38,19 @@ function makeDonation(overrides: Partial<DonationRow> = {}): DonationRow {
   };
 }
 
+/** Date is the only sortable column; the rest read through embeds. */
+const SORT = { dir: "desc", sortHref: "?dir=asc" } as const;
+
 describe("DonationsTable", () => {
   test("shows an empty state when there are no donations", () => {
-    render(<DonationsTable donations={[]} hasActiveFilters={false} />);
+    render(
+      <DonationsTable donations={[]} hasActiveFilters={false} {...SORT} />,
+    );
     expect(screen.getByText("No donations recorded yet")).toBeInTheDocument();
   });
 
   test("shows a filtered empty state when filters are active", () => {
-    render(<DonationsTable donations={[]} hasActiveFilters={true} />);
+    render(<DonationsTable donations={[]} hasActiveFilters={true} {...SORT} />);
     expect(
       screen.getByText("No donations match your filters"),
     ).toBeInTheDocument();
@@ -60,6 +65,7 @@ describe("DonationsTable", () => {
           }),
         ]}
         hasActiveFilters={false}
+        {...SORT}
       />,
     );
 
@@ -87,6 +93,7 @@ describe("DonationsTable", () => {
           }),
         ]}
         hasActiveFilters={false}
+        {...SORT}
       />,
     );
 
