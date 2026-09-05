@@ -104,7 +104,13 @@ export function Pagination({
       />
       <div className="flex flex-wrap items-center gap-2">
         {perPageHrefFor && (
-          <RowsPerPageNav value={pageSize} hrefFor={perPageHrefFor} />
+          <RowsPerPageNav
+            value={pageSize}
+            options={PAGE_SIZE_OPTIONS.map((option) => ({
+              value: option,
+              href: perPageHrefFor(option),
+            }))}
+          />
         )}
         {totalPages > 2 && (
           <form

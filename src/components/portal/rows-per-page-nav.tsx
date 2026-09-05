@@ -9,23 +9,31 @@ import { RowsPerPageSelect } from "@/components/ui/pagination";
  *
  * The same `Select` the client-side tables use, wired to a navigation instead
  * of a `useState` -- the split `SortHeaderLink` / `SortHeaderButton` already
- * makes for sorting. It stays a component of its own because it is the only
- * part of the server-rendered pager that needs to be a client component.
+ * makes for sorting.
+ *
+ * Takes each option's href already built rather than the function that builds
+ * them: `Pagination` renders on the server, and a function cannot cross into
+ * a client component. There are two options, so pre-building both costs
+ * nothing.
  */
 export function RowsPerPageNav({
   value,
-  hrefFor,
+  options,
 }: {
   value: number;
-  /** Must reset the page: a bigger page size renumbers every page. */
-  hrefFor: (perPage: number) => string;
+  /** Each offered size with the URL that selects it. */
+  options: readonly { value: number; href: string }[];
 }) {
   const router = useRouter();
 
   return (
     <RowsPerPageSelect
       value={value}
-      onChange={(next) => router.push(hrefFor(next))}
+      options={options.map((option) => option.value)}
+      onChange={(next) => {
+        const href = options.find((option) => option.value === next)?.href;
+        if (href) router.push(href);
+      }}
     />
   );
 }
