@@ -1,10 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import {
-  PortalDataTable,
-  type PortalDataTableColumn,
-} from "./data-table";
+import { PortalDataTable, type PortalDataTableColumn } from "./data-table";
 
 type Gear = { id: string; name: string; qty: number; owner: string | null };
 
@@ -66,9 +63,9 @@ function bodyNames() {
 }
 
 async function clickHeader(label: string) {
-  await userEvent.setup().click(
-    screen.getByRole("button", { name: new RegExp(`^${label},`) }),
-  );
+  await userEvent
+    .setup()
+    .click(screen.getByRole("button", { name: new RegExp(`^${label},`) }));
 }
 
 describe("PortalDataTable", () => {
@@ -147,7 +144,9 @@ describe("PortalDataTable", () => {
   test("hides the whole footer when the rows fit the smallest page size", () => {
     renderTable(gear(10));
     expect(screen.queryByRole("button", { name: "Next" })).toBeNull();
-    expect(screen.queryByRole("combobox", { name: "Rows per page" })).toBeNull();
+    expect(
+      screen.queryByRole("combobox", { name: "Rows per page" }),
+    ).toBeNull();
   });
 
   test("keeps the footer for a list that only fits because of the larger size", async () => {

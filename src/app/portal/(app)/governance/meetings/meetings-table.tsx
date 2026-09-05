@@ -85,9 +85,7 @@ export function MeetingsTable({
             size="icon-sm"
             nativeButton={false}
             aria-label={`View meeting on ${formatDateTime(meeting.meeting_date)}`}
-            render={
-              <Link href={`/portal/governance/meetings/${meeting.id}`} />
-            }
+            render={<Link href={`/portal/governance/meetings/${meeting.id}`} />}
           >
             <Eye />
           </Button>

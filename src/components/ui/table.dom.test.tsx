@@ -65,8 +65,7 @@ function measure(
     configurable: true,
     get: () => widths.clientWidth,
   });
-  table.getBoundingClientRect = () =>
-    ({ width: widths.tableWidth }) as DOMRect;
+  table.getBoundingClientRect = () => ({ width: widths.tableWidth }) as DOMRect;
   act(() => notify?.());
 }
 

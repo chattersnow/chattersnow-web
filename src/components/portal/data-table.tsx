@@ -87,8 +87,9 @@ export function PortalDataTable<T, K extends string = string>({
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
 
   const sorted = useMemo(() => {
-    const sortValue = columns.find((column) => column.key === sort?.key)
-      ?.sortValue;
+    const sortValue = columns.find(
+      (column) => column.key === sort?.key,
+    )?.sortValue;
     if (!sort || !sortValue) return rows;
     const sign = sort.dir === "asc" ? 1 : -1;
     // Copied, never sorted in place: the caller's array is usually its own
