@@ -411,6 +411,16 @@ export const NAV_ITEMS: readonly NavItem[] = [
         href: "/portal/administration/audit-log",
         access: [{ resource: "administration", level: "manage" }],
       },
+      // administration:manage rather than a resource of its own: the audience is
+      // exactly the one that already reads the audit log and system settings,
+      // and a new resources row would add a column to every role's permission
+      // matrix without anyone ever setting it differently.
+      {
+        value: "data-retention",
+        label: "Data Retention",
+        href: "/portal/administration/data-retention",
+        access: [{ resource: "administration", level: "manage" }],
+      },
     ],
   },
 ] as const;

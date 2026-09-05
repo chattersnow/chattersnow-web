@@ -4,13 +4,19 @@ import { FormEvent, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
-import { updatePersonAction, type PersonListItem } from "../actions";
+import {
+  deleteRiderProfileAction,
+  updatePersonAction,
+  type PersonListItem,
+} from "../actions";
 import {
   PersonFormFields,
   packPersonFormData,
   type PersonFormState,
 } from "../person-form-fields";
 import { PersonPicker, type PickedPerson } from "../person-picker";
+import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
+import { runAction } from "@/components/portal/action-toast";
 import {
   PortalUserBadge,
   isOrganization,
@@ -69,10 +75,12 @@ export function ProfileCard({
   person,
   people,
   canManage,
+  canDeleteRiderProfile = false,
 }: {
   person: PersonRow;
   people: PersonListItem[];
   canManage: boolean;
+  canDeleteRiderProfile?: boolean;
 }) {
   const router = useRouter();
   const formId = `person-profile-form-${person.id}`;
@@ -90,6 +98,18 @@ export function ProfileCard({
     name: string | null;
   } | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isDeletingRiderProfile, startRiderProfileTransition] = useTransition();
+
+  function deleteRiderProfile() {
+    startRiderProfileTransition(async () => {
+      await runAction(() => deleteRiderProfileAction(person.id), {
+        success: "Rider profile deleted.",
+        description: "The deletion is recorded under Data Retention.",
+        onError: setError,
+        onSuccess: () => router.refresh(),
+      });
+    });
+  }
 
   const availablePeople = [...people, ...newPeople];
 
@@ -210,6 +230,24 @@ export function ProfileCard({
               <span className="app-muted">Preferred mountain:</span>{" "}
               {person.preferred_mountain ?? "—"}
             </p>
+            {/* /privacy keeps a rider profile "until you ask us to delete your
+                profile", so somebody has to be able to action that request
+                (#602). Only offered when there is a profile to delete. */}
+            {canDeleteRiderProfile && person.riding_discipline && (
+              <div className="flex items-center gap-1">
+                <span className="app-muted text-sm">
+                  Rider profile requested for deletion?
+                </span>
+                <ConfirmDeleteButton
+                  label="Delete rider profile"
+                  title={`Delete ${person.name ?? "this person"}'s rider profile?`}
+                  description="Clears their riding discipline, experience levels and preferred mountain. Events they were checked in to keep the level recorded on the day, so past impact figures don't change. The rest of their record is untouched. This can't be undone."
+                  confirmLabel="Delete rider profile"
+                  pending={isDeletingRiderProfile}
+                  onConfirm={deleteRiderProfile}
+                />
+              </div>
+            )}
             <p>
               <span className="app-muted">Notes:</span> {person.notes ?? "—"}
             </p>
