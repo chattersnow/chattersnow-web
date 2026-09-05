@@ -51,6 +51,7 @@ Issues are tracked on the `ChatterWeb` GitHub Project (owner `chattersnow`, proj
 - make sure to always start from latest development
 - When starting work on a ticket (e.g. creating/checking out its branch), move the linked issue's `Status` to `In progress`.
 - When a PR for that ticket is opened, move it to `In review`.
+- Right after opening the PR, review it with `/code-review --comment <PR number>` so the findings land on it as inline comments. This is the review step for this repo: the `claude-code-review.yml` workflow that used to review every PR in CI was removed, so nothing reviews a PR automatically.
 - Don't run the full `bun run test:integration` or `bun run test:e2e` suites while working a ticket — they're slow and cover far more than the ticket touches. Run targeted tests for the files/routes you changed instead; leave the full suites to CI.
 
 ## Architecture

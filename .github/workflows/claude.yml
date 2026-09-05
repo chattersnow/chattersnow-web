@@ -1,7 +1,10 @@
 name: Claude Code
 
-# On-demand companion to Claude Code Review: mention @claude in a PR/issue
-# comment or review to have Claude answer questions or take follow-up action.
+# On-demand only: mention @claude in a PR/issue comment or review to have
+# Claude answer questions or take follow-up action. Nothing here runs on a
+# plain push or PR -- automatic review was removed with the Claude Code
+# Review workflow; PRs are reviewed from a local session with
+# `/code-review --comment <PR number>` instead.
 
 on:
   issue_comment:
@@ -37,6 +40,10 @@ jobs:
         id: claude
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Authenticate with the Claude Code OAuth token, not an API key: the
+          # ANTHROPIC_API_KEY secret has no API credit behind it, which is why the
+          # sibling Claude Code Review workflow failed on every PR before it was
+          # removed. The OAuth token bills the Claude subscription instead.
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           additional_permissions: |
             actions: read
