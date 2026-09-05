@@ -1,17 +1,54 @@
-import { Card, CardContent } from "@/components/ui/card";
+"use client";
+
+import { useMemo } from "react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
+import { Card, CardContent } from "@/components/ui/card";
 import { formatRoleLabel } from "@/lib/format";
 import { RoleDetailsDialog, type RoleRow } from "./role-details-dialog";
 import { EmptyState } from "@/components/portal/empty-state";
 
 export function RolesTable({ roles }: { roles: RoleRow[] }) {
+  const columns = useMemo<PortalDataTableColumn<RoleRow>[]>(
+    () => [
+      {
+        key: "name",
+        label: "Role",
+        // On the label rather than the stored name: "board_member" reads as
+        // "Board member" in the cell, and that is the order a reader expects
+        // to get back.
+        sortValue: (role) => formatRoleLabel(role.name),
+        cellClassName: "max-w-xs font-medium",
+        render: (role) => (
+          <span className="block truncate" title={formatRoleLabel(role.name)}>
+            {formatRoleLabel(role.name)}
+          </span>
+        ),
+      },
+      {
+        key: "description",
+        // Truncated free text: there is nothing a reader would look for in
+        // its alphabetical order, so it stays unsorted.
+        label: "Description",
+        cellClassName: "app-muted max-w-sm truncate",
+        render: (role) => role.description || "—",
+      },
+      {
+        key: "actions",
+        label: "Actions",
+        srOnlyLabel: true,
+        headClassName: "w-0",
+        cellClassName: "text-right",
+        render: (role) => <RoleDetailsDialog role={role} />,
+      },
+    ],
+    [],
+  );
+
+  // Distinct from the table's own empty row: nothing has been created yet,
+  // which is a different sentence and carries the pointer at New role.
   if (roles.length === 0) {
     return (
       <Card>
@@ -26,36 +63,14 @@ export function RolesTable({ roles }: { roles: RoleRow[] }) {
   }
 
   return (
-    <Card>
-      <CardContent className="px-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Role</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead className="w-px" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {roles.map((role) => (
-              <TableRow key={role.id}>
-                <TableCell
-                  className="max-w-xs truncate font-medium"
-                  title={formatRoleLabel(role.name)}
-                >
-                  {formatRoleLabel(role.name)}
-                </TableCell>
-                <TableCell className="app-muted max-w-sm truncate">
-                  {role.description || "—"}
-                </TableCell>
-                <TableCell className="text-right">
-                  <RoleDetailsDialog role={role} />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+    <PortalDataTable
+      columns={columns}
+      rows={roles}
+      getRowKey={(role) => role.id}
+      // The query orders by name, so the arrow starts on the column the list
+      // already arrives sorted by.
+      defaultSort={{ key: "name", dir: "asc" }}
+      emptyMessage="No roles to show."
+    />
   );
 }

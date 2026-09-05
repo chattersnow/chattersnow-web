@@ -83,7 +83,12 @@ test.describe("portal access management", () => {
       await page.getByRole("button", { name: "Add access grant" }).click();
       const grantDialog = modal(page);
       await pickPerson(grantDialog, person.name);
-      await expect(grantDialog.getByText(person.name)).toBeVisible();
+      // Exact, because the picker also announces the choice to screen
+      // readers as "<name> selected." in an sr-only live region, and a
+      // substring match resolves to both.
+      await expect(
+        grantDialog.getByText(person.name, { exact: true }),
+      ).toBeVisible();
 
       await grantDialog
         .getByRole("button", { name: "Add access grant" })
