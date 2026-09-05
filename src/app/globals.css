@@ -43,16 +43,23 @@
   --muted-foreground: rgb(50 19 79 / 72%);
   --accent: var(--purple-soft);
   --accent-foreground: var(--purple-deep);
-  --destructive: #cc2936;
-  /* The status palette's missing halves. Without a success token, "approved"
-     and "paid" were adjacent purples -- the two states a finance reviewer
-     most needs to tell apart -- and nothing in the portal was ever green or
-     amber, so an overdue annual requirement and a scheduled one differed
-     only by label. Both are chosen to clear 4.5:1 on the page background at
-     the tint the status badges use. */
-  --success: #15803d;
+  /* Status colours are measured as 12px text against their own 10% tint --
+     the shape `Badge` and the destructive icon button use -- over both the
+     card (#fff) and the page background (#f7f0ff). The tint over the page
+     background is the harder of the two and the one the earlier values
+     missed: success and warning landed at 3.96:1 and destructive at 4.13:1,
+     each a near miss of AA's 4.5 that no scan caught until the light theme
+     was measured at every route (#660). One step darker each clears it with
+     room to spare -- 5.14, 5.52 and 5.48 respectively -- and every solid use
+     (white on the colour) only gets safer.
+     Without success and warning at all, "approved" and "paid" would be
+     adjacent purples -- the two states a finance reviewer most needs to tell
+     apart -- and an overdue annual requirement would differ from a scheduled
+     one by label alone. */
+  --destructive: #b02330;
+  --success: #166534;
   --success-foreground: #ffffff;
-  --warning: #b45309;
+  --warning: #92400e;
   --warning-foreground: #ffffff;
   --border: var(--line);
   --input: var(--line);

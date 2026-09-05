@@ -85,6 +85,8 @@ const SEEDED_PASSWORD = "password123";
 
 /** Longest a theme crossfade is waited on before scanning anyway. */
 const THEME_TRANSITION_CAP_MS = 1_000;
+/** Same idea for a surface's open animation; Base UI's longest is 0.35s. */
+const SURFACE_MOTION_CAP_MS = 1_000;
 
 /**
  * Which account scans which routes.
@@ -244,6 +246,39 @@ async function settleThemeTransition(page: Page): Promise<void> {
 }
 
 /**
+ * Waits out the animation an opened surface is playing.
+ *
+ * This is #657 in a second place. A sheet or dialog mounts with `animate-in
+ * fade-in-0 zoom-in-95` and slides in over 100-350ms, and Playwright's
+ * "visible" is true from the first frame -- so axe was measuring text at
+ * partial opacity over whatever sits behind it. `text-foreground` (#32134f on
+ * white) came back as #9785aa on #f3eff8 and failed at 2.96:1, which is not a
+ * colour either palette contains. Like the theme crossfade, the blend depends
+ * on when axe happened to run, so the same sheet passed on one route and
+ * failed on the next.
+ *
+ * Infinite animations are excluded: the header bell loops, and waiting for it
+ * would spend the cap on every surface without ever settling.
+ */
+async function settleSurfaceMotion(page: Page): Promise<void> {
+  await page
+    .evaluate(async (cap) => {
+      await new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(resolve)),
+      );
+      const finite = document.getAnimations().filter((animation) => {
+        const timing = animation.effect?.getComputedTiming();
+        return timing !== undefined && timing.iterations !== Infinity;
+      });
+      await Promise.race([
+        Promise.all(finite.map((a) => a.finished.catch(() => undefined))),
+        new Promise((resolve) => setTimeout(resolve, cap)),
+      ]);
+    }, SURFACE_MOTION_CAP_MS)
+    .catch(() => {});
+}
+
+/**
  * Runs axe, returning null instead of throwing.
  *
  * Opening a surface can navigate -- a "New …" control that routes to a page
@@ -361,6 +396,8 @@ async function scanRoute(
     }
 
     await applyTheme(page, pass.theme);
+    // Mount animations blend colours exactly the way an opening sheet does.
+    await settleSurfaceMotion(page);
 
     const initial = await safeAnalyze(page);
     results.push({
@@ -408,6 +445,8 @@ async function scanRoute(
           .catch(() => {});
         continue;
       }
+
+      await settleSurfaceMotion(page);
 
       const opened_result = await safeAnalyze(page);
       results.push({
