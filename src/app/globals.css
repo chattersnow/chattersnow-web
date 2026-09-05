@@ -193,12 +193,6 @@ body {
     }
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    .bell-ring {
-      animation: none;
-    }
-  }
-
   .rainbow-accent {
     height: 0.375rem;
     width: 8rem;
@@ -328,6 +322,27 @@ body {
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* Reduced motion was honoured by exactly one animation -- the header bell --
+   while every dialog and sheet still zoomed and slid, every card and button
+   still ran `transition-all`, and the theme toggle still crossfaded the whole
+   palette. The preference is a request to stop moving things, not to stop one
+   of them.
+
+   Durations collapse rather than being set to `none`: Base UI waits for a
+   transition or animation to finish before unmounting an overlay, so removing
+   them outright would leave closed dialogs in the DOM. A near-zero duration
+   still fires the events it listens for. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
