@@ -18,18 +18,15 @@ async function setVisibility(visible: boolean) {
 
 test.describe("board-controlled page visibility", () => {
   // Visibility is one app_settings row shared by the whole site, so this file
-  // mutates global state and cannot run concurrently with itself: in parallel,
-  // one case's afterEach restores the section while another is still asserting
-  // it is gone. Serial mode handles that within a project, and the skip below
-  // keeps the browser projects from racing each other. The gate is server-side,
-  // so there is nothing browser-specific to gain from running it more than once.
+  // mutates global state and cannot run concurrently with anything -- itself
+  // included: in parallel, one case's afterEach restores the section while
+  // another is still asserting it is gone. Serial mode handles that within the
+  // file. Not racing the rest of the suite is playwright.config.ts's job: this
+  // file is the "page-visibility" project, which every browser project is
+  // excluded from and which depends on all of them, so it runs alone and last
+  // (#594). The gate is server-side, so there is nothing browser-specific to
+  // gain from running it in more than one browser.
   test.describe.configure({ mode: "serial" });
-  test.beforeEach(({}, testInfo) => {
-    test.skip(
-      testInfo.project.name !== "chromium",
-      "Mutates a global app_settings row; see comment above.",
-    );
-  });
 
   // seed.sql leaves Support visible locally; restore that however a test ends.
   test.afterEach(async () => {
