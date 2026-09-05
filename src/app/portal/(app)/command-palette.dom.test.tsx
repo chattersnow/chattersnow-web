@@ -126,4 +126,17 @@ describe("CommandPalette", () => {
     await user.keyboard("{Enter}");
     expect(pushMock).toHaveBeenCalledWith("/portal/finance/reimbursements");
   });
+
+  // Issue #703. The highlight used to be a `--muted` tint and nothing else --
+  // 1.25:1 against the popover, so a keyboard user had no 3:1 indicator of
+  // where they were (WCAG 1.4.11). axe misses it: the text keeps its contrast
+  // against the tint, and no scan here measures a highlight state at all. So
+  // the guard is the class contract itself -- a tint-only highlight is the
+  // regression.
+  test("the highlighted option is marked by more than a background tint", async () => {
+    await openPalette();
+    const [option] = await screen.findAllByRole("option");
+    expect(option.className).toContain("data-highlighted:inset-ring-2");
+    expect(option.className).toContain("data-highlighted:inset-ring-ring");
+  });
 });

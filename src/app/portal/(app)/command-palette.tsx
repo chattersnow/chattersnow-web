@@ -226,7 +226,11 @@ export function CommandPalette({
                             key={item.value}
                             value={item}
                             onClick={() => go(item.href)}
-                            className="flex min-h-9 cursor-default items-center justify-between gap-3 px-3 text-sm outline-none select-none data-highlighted:bg-muted"
+                            // The tint alone is 1.25:1 against the popover,
+                            // so with `outline-none` a keyboard user has no
+                            // 3:1 signal of where they are (1.4.11). The inset
+                            // ring carries that; the tint stays as reinforcement.
+                            className="flex min-h-9 cursor-default items-center justify-between gap-3 px-3 text-sm outline-none select-none data-highlighted:inset-ring-2 data-highlighted:inset-ring-ring data-highlighted:bg-muted"
                           >
                             <span className="min-w-0 truncate">
                               {item.label}

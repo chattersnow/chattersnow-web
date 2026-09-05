@@ -367,6 +367,27 @@ describe("PersonPicker portal accounts and preferred names", () => {
       expect(document.activeElement).toBe(input);
     });
 
+    // Issue #703, the same tint-only highlight as the command palette: at
+    // 1.25:1 the background was the whole signal, and `outline-none` removed
+    // the other one. Guarded here as a class contract because no scan in this
+    // repo measures a highlight state.
+    test("the highlighted person is marked by more than a background tint", async () => {
+      const user = userEvent.setup();
+      render(
+        <PersonPicker
+          people={people}
+          selected={null}
+          onSelect={noop}
+          onPersonCreated={noop}
+        />,
+      );
+
+      await user.type(screen.getByRole("combobox"), "j");
+      const [first] = await screen.findAllByRole("option");
+      expect(first.className).toContain("data-highlighted:inset-ring-2");
+      expect(first.className).toContain("data-highlighted:inset-ring-ring");
+    });
+
     test("Enter picks the highlighted person", async () => {
       const user = userEvent.setup();
       const onSelect = mock((_person: unknown) => {});
