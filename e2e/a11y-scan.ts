@@ -320,8 +320,35 @@ async function resolveDynamicRoute(
 ): Promise<string | null> {
   const source = DYNAMIC_ROUTE_SOURCES[pattern];
   if (!source) return null;
+
   // A route nothing links to, pinned to a literal seed id instead (#665).
-  if ("path" in source) return source.path;
+  //
+  // Following a link proves the record exists; a hard-coded id proves nothing,
+  // so confirm the record renders before handing the path back. A pin that
+  // stopped resolving -- the seed edited, the event flipped to private, the row
+  // purged by an earlier run -- would otherwise scan Next's not-found page,
+  // find nothing wrong with it, and bank a clean baseline entry for a route
+  // that was never reached.
+  //
+  // The check is the heading rather than the status: notFound() streams, so the
+  // response is committed 200 before it runs and page.goto() reports 200 for a
+  // missing record. Returning null reports the route skipped, which is the
+  // honest signal and the one it already had.
+  if ("path" in source) {
+    try {
+      await page.goto(new URL(source.path, baseURL).toString(), {
+        waitUntil: "domcontentloaded",
+        timeout: 30_000,
+      });
+      await page
+        .getByRole("heading", { name: source.expectHeading })
+        .first()
+        .waitFor({ state: "attached", timeout: 15_000 });
+      return source.path;
+    } catch {
+      return null;
+    }
+  }
 
   try {
     await page.goto(new URL(source.listPath, baseURL).toString(), {

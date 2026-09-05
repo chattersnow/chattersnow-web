@@ -14,7 +14,11 @@
  * specs already do.
  */
 
-/** The 8 seeded accounts. All share the password in `SEEDED_PASSWORD`. */
+/**
+ * The 8 seeded accounts. Their emails and shared password live with the
+ * helpers that sign in -- `SEEDED_USERS` in `test/integration-setup.ts` and
+ * `SEEDED_PASSWORD` in `e2e/helpers/auth.ts` -- not here.
+ */
 export const SEEDED_USER_IDS = {
   admin: "aaaaaaaa-0000-4000-8000-000000000001",
   coordinator: "aaaaaaaa-0000-4000-8000-000000000002",

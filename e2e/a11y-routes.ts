@@ -81,13 +81,17 @@ export const SKIPPED_ROUTES = SKIP;
  *
  * A `path` entry is the escape hatch for a route nothing links to. It only
  * works because the record it points at now has a literal id in seed.sql (#665);
- * don't reach for it where a link exists.
+ * don't reach for it where a link exists. `expectHeading` is what keeps it
+ * honest: following a link proves the record exists, a hard-coded id proves
+ * nothing, so a `path` has to name the heading its record renders and the scan
+ * checks for it before scanning.
  *
  * A pattern with no resolver is reported as skipped rather than silently
  * dropped.
  */
 export type DynamicRouteSource =
-  { listPath: string; linkPattern: RegExp } | { path: string };
+  | { listPath: string; linkPattern: RegExp }
+  | { path: string; expectHeading: string };
 
 export const DYNAMIC_ROUTE_SOURCES: Record<string, DynamicRouteSource> = {
   // Nothing on /events links here: the list renders cards that open a detail
@@ -95,7 +99,10 @@ export const DYNAMIC_ROUTE_SOURCES: Record<string, DynamicRouteSource> = {
   // route was reported skipped on every run. Deep-link to the pinned upcoming
   // event -- the page is still live and still takes public registrations, so it
   // is worth scanning even though the UI no longer routes to it.
-  "/events/[id]": { path: `/events/${SEEDED_EVENT_IDS.upcoming}` },
+  "/events/[id]": {
+    path: `/events/${SEEDED_EVENT_IDS.upcoming}`,
+    expectHeading: "Winter Gear Swap",
+  },
   "/learn/[slug]": {
     listPath: "/learn",
     linkPattern: /^\/learn\/[a-z0-9-]+$/,

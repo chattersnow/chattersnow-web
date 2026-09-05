@@ -14,6 +14,13 @@
 //
 // When you deliberately change the bulk block, these numbers move: re-record
 // them from a fresh reset rather than loosening the assertions.
+//
+// This file describes a *freshly reset* database, which is what CI gives it --
+// every job runs `supabase db reset` immediately before the suite. Run the
+// suite twice without a reset in between and the counts below are no longer
+// the seed's: other files in the suite write to these tables. A count that has
+// drifted upward locally usually means a test leaked its fixtures rather than
+// that the seed changed.
 import { describe, expect, test } from "bun:test";
 import { adminClient } from "./integration-setup";
 import {
@@ -47,10 +54,17 @@ const EXPECTED_COUNTS: Record<string, number> = {
   calendar_items: 67,
   governance_meetings: 21,
   volunteer_applications: 47,
-  contact_messages: 47,
   reimbursements: 36,
   discount_codes: 135,
 };
+
+// contact_messages is deliberately absent. retention.integration.test.ts drives
+// run_retention_purge() with an `as_of` two years and a day out, and the purge
+// is unscoped -- `delete from contact_messages where created_at < p_as_of -
+// v_period` with a two-year period puts the cutoff a day in the future, so it
+// removes every row in the table, the 47 seeded ones included. The seeded count
+// is real but only holds until that file runs, which makes it a statement about
+// test ordering rather than about the seed.
 
 // Every list in the portal whose rows the bulk seed gates behind a draw -- an
 // event gets logistics about a third of the time, a sponsor a quarter, a
