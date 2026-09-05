@@ -1,4 +1,5 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "./helpers/test";
+import type { Page } from "@playwright/test";
 import { signIn } from "./helpers/auth";
 
 // Issue #595: every public page put seven tab stops (logo, five nav links,

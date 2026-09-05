@@ -7,7 +7,7 @@
 // parallel against one Supabase instance, so two runs moving the same
 // application through its statuses would race (same reasoning as
 // volunteer-hours-self-log.spec.ts).
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { seedUserWithRole } from "./helpers/rbac";

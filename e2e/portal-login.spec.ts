@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 
 test("signing in redirects to the portal home", async ({ page }) => {
   await page.goto("/portal/login");

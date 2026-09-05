@@ -8,7 +8,7 @@
 // seeded Priya Natarajan: test:e2e:pr runs the chromium and mobile-chromium
 // projects fully in parallel against one Supabase instance, and both would
 // otherwise write and delete hours on the same person's rows.
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { seedUserWithRole } from "./helpers/rbac";

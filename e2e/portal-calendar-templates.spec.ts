@@ -6,7 +6,7 @@
 // create their own template with a run-unique key and name, because the
 // suite runs fully parallel across two Playwright projects against one
 // database -- anything shared would race.
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { reloadStayingSignedIn, signIn } from "./helpers/auth";
 import { modal } from "./helpers/dialog";
 

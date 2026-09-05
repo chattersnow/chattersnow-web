@@ -9,7 +9,8 @@
 // submitter who is NOT the approver, which the shared seeded accounts can't
 // safely provide without racing another run's sign-ins (see
 // volunteer-hours-self-log.spec.ts for the same reasoning).
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "./helpers/test";
+import type { Page } from "@playwright/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { modal } from "./helpers/dialog";

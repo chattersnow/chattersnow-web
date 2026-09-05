@@ -1,7 +1,7 @@
 // Issue #440: E2E coverage for /portal/finance/expenses. Only smoke-level
 // coverage of the Finance section existed before this (portal-sections.spec.ts,
 // #234), so this exercises the actual create-then-view workflow.
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { modal } from "./helpers/dialog";
 

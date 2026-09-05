@@ -3,7 +3,8 @@
 // this covers the page loading with its default (year-to-date) summary cards
 // and the date-range filter actually changing what's shown, rather than
 // asserting on specific seeded totals that could drift.
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "./helpers/test";
+import type { Page } from "@playwright/test";
 import { signIn } from "./helpers/auth";
 
 // hasText does substring matching, and "Income" is also a substring of the

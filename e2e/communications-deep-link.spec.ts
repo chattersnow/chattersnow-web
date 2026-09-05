@@ -3,7 +3,7 @@
 // was auto-marked read, since the status filter was still pinned to "new".
 // Seeds its own contact_message (rather than relying on the shared seed
 // data) so this test doesn't race other e2e runs mutating the same rows.
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { modal } from "./helpers/dialog";

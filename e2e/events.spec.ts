@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { modal } from "./helpers/dialog";
 
 const EVENT_NAME = "Winter Gear Swap";

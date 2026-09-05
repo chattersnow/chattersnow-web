@@ -10,7 +10,7 @@
 // post-login redirect, with the other project's identical run passing in
 // the same CI run, twice in a row). A unique account per run removes that
 // collision outright.
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { markOnboarded } from "./helpers/onboarding";

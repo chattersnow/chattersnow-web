@@ -4,7 +4,8 @@
 // tests lean on those instead of creating rows. Created rows use unique
 // cent amounts (the table shows no notes column) and non-seeded payment
 // methods so the method-filter test stays stable across parallel projects.
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "./helpers/test";
+import type { Page } from "@playwright/test";
 import { signIn } from "./helpers/auth";
 import { modal } from "./helpers/dialog";
 import { pickPerson } from "./helpers/people";

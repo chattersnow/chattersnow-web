@@ -5,7 +5,7 @@
 // donation first so it has a fresh available inventory item to distribute —
 // the suite runs fully parallel against one database, so nothing shared
 // would be safe to mutate.
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { reloadStayingSignedIn, signIn } from "./helpers/auth";
 import { modal } from "./helpers/dialog";
 

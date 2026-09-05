@@ -34,6 +34,10 @@ Husky runs a pre-commit hook (`.husky/pre-commit`). CI extends coverage over the
 
 Colocated with the source they exercise, same as unit tests, but run against a real local Supabase stack instead of a mocked client — the only way to catch RLS policy gaps and RPC behavior that mocks can't. Shared fixtures/clients live in `test/integration-setup.ts` (a signed-in admin-account client for fixture setup/cleanup, an anon client, `signIn(email)` for the accounts seeded by `supabase/seed.sql`). They're excluded from `bun run test` and only run via `bun run test:integration`, which requires the local stack running and reset (`bun run db:start && bun run db:reset`) first.
 
+### End-to-end tests (`e2e/*.spec.ts`)
+
+Import `test` and `expect` from `./helpers/test`, never from `@playwright/test` directly (type-only imports like `Page`/`Locator` still come from the package). That module extends `test` so each test reaches the app with its own `x-forwarded-for`. Every rate-limited public route is capped per `(route, ip_address)` over a 15-minute window, and without it the whole suite shares one bucket per route and trips limits of 5-10 on its own -- doubled by the two-project PR run, quadrupled by the nightly matrix (#587).
+
 ## Manual/interactive browser driving
 
 For ad-hoc browser interaction (manually exercising a UI change, poking at a page) use the `playwright-cli` terminal tool (`npm install -g @playwright/cli`, ships the `playwright-cli` binary), not an MCP browser server — the CLI is far cheaper on tokens since it doesn't round-trip full tool schemas/results through the model. Run `playwright-cli --help` for the command list (`open`, `goto`, `click`, `snapshot`, etc.). The project's `playwright` MCP server was removed for this reason; `@playwright/test` (used by `bun run test:e2e`) is unaffected — that's the automated e2e test runner, unrelated to the CLI/MCP choice above.

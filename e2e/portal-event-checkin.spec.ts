@@ -7,7 +7,7 @@
 // volunteer-hours-self-log.spec.ts: this file's tests may run fully in
 // parallel across Playwright projects, and each needs its own "today"
 // event + registrant without racing another run's fixtures.
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { modal } from "./helpers/dialog";

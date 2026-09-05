@@ -4,7 +4,7 @@
 // Role types created here carry a unique name so the chromium and
 // mobile-chromium projects, which test:e2e:pr runs fully in parallel
 // against one Supabase instance, never touch each other's rows.
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { seedUserWithRole } from "./helpers/rbac";

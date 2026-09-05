@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { signIn, reloadStayingSignedIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { pickPerson, seedPerson } from "./helpers/people";

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 
 // Issue #593: the carousel arrows used to flip outside the carousel box at the
 // lg breakpoint (1024px), 96px before the viewport was wide enough to hold

@@ -1,4 +1,5 @@
-import { test, expect, type Locator } from "@playwright/test";
+import { test, expect } from "./helpers/test";
+import type { Locator } from "@playwright/test";
 import { reloadStayingSignedIn, signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { seedInviteEmail, seedPortalUser } from "./helpers/rbac";

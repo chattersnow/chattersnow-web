@@ -3,7 +3,8 @@
 // page rendering its metric cards for the default year and the year filter
 // actually changing what's computed, rather than asserting on totals that
 // other specs' fixtures would drift.
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "./helpers/test";
+import type { Page } from "@playwright/test";
 import { signIn } from "./helpers/auth";
 
 const METRIC_LABELS = [

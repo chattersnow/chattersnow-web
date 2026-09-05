@@ -10,7 +10,7 @@
 // so the first run to click it would flip the other run's page to the
 // "already has an instance" empty state. The generation logic itself is
 // covered by calendar/recurrence-actions.integration.test.ts.
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { modal } from "./helpers/dialog";
 
