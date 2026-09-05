@@ -187,16 +187,9 @@ export function PackagesSection({
   );
 
   return (
-    <section className="flex flex-col gap-4 rounded-md border border-[var(--line)] p-4">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h3 className="text-sm font-medium">Ticket packages</h3>
-          <p className="app-muted mt-1 text-sm">
-            Price points participants can buy into. Each grants its tier&apos;s
-            bundle. Payment is taken outside the portal.
-          </p>
-        </div>
-        {canEdit && !showAdd && (
+    <div className="flex flex-col gap-4">
+      {canEdit && !showAdd && (
+        <div className="flex justify-end">
           <Button
             type="button"
             variant="secondary"
@@ -204,8 +197,8 @@ export function PackagesSection({
           >
             Add package
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       {packages.length ? (
         <ul className="divide-y divide-[var(--line)] rounded-md border border-[var(--line)]">
@@ -447,6 +440,6 @@ export function PackagesSection({
           </ul>
         </div>
       ) : null}
-    </section>
+    </div>
   );
 }

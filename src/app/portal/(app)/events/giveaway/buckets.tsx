@@ -89,16 +89,9 @@ export function BucketsSection({
   if (!tiers.length) return null;
 
   return (
-    <section className="flex flex-col gap-4 rounded-md border border-[var(--line)] p-4">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h3 className="text-sm font-medium">Draw buckets</h3>
-          <p className="app-muted mt-1 text-sm">
-            Participants choose which bucket to drop each ticket into. One pull
-            per prize.
-          </p>
-        </div>
-        {canEdit && !showAdd && (
+    <div className="flex flex-col gap-4">
+      {canEdit && !showAdd && (
+        <div className="flex justify-end">
           <Button
             type="button"
             variant="secondary"
@@ -106,8 +99,8 @@ export function BucketsSection({
           >
             Add bucket
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       {buckets.length ? (
         <ul className="divide-y divide-[var(--line)] rounded-md border border-[var(--line)]">
@@ -201,6 +194,6 @@ export function BucketsSection({
           </Button>
         </div>
       )}
-    </section>
+    </div>
   );
 }

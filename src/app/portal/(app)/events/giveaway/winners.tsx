@@ -1,13 +1,13 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
+import { FormEvent, useState, useTransition, type ComponentProps } from "react";
 import {
   upsertGiveawayWinnerAction,
   type GiveawayPrize,
   type GiveawayWinner,
 } from "../giveaway-actions";
-import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -167,6 +167,13 @@ export function WinnerForm({
   );
 }
 
+/**
+ * How a recorded winner reads once the draw is done: one line. It used to be
+ * four stacked label/value pairs in a 2-up grid, which took more vertical room
+ * than the prize it belonged to and made a list of prizes unscannable. The
+ * status is the one value worth spotting at a glance, so it carries a colour;
+ * contact and hand-off date ride along as detail and drop out when empty.
+ */
 export function WinnerSummary({
   winner,
   onEdit,
@@ -176,41 +183,36 @@ export function WinnerSummary({
   onEdit: () => void;
   canEdit: boolean;
 }) {
+  const status = winner.distribution_status;
+  const statusLabel = DISTRIBUTION_STATUS_LABELS[status] ?? status;
+
   return (
-    <div className="mt-3 rounded-md bg-muted/40 p-3">
-      <FieldGroup>
-        <Field orientation="responsive">
-          <ReadOnlyField
-            label="Winner name"
-            htmlFor={`winner-name-view-${winner.id}`}
-          >
-            {winner.winner_name || "—"}
-          </ReadOnlyField>
-          <ReadOnlyField
-            label="Winner contact"
-            htmlFor={`winner-contact-view-${winner.id}`}
-          >
-            {winner.winner_contact || "—"}
-          </ReadOnlyField>
-        </Field>
-        <Field orientation="responsive">
-          <ReadOnlyField
-            label="Distribution status"
-            htmlFor={`winner-status-view-${winner.id}`}
-          >
-            {DISTRIBUTION_STATUS_LABELS[winner.distribution_status] ??
-              winner.distribution_status}
-          </ReadOnlyField>
-          <ReadOnlyField
-            label="Distributed on"
-            htmlFor={`winner-distributedAt-view-${winner.id}`}
-          >
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-md bg-muted/40 px-3 py-2">
+      <p className="flex flex-wrap items-baseline gap-x-2 text-sm">
+        <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          Winner
+        </span>
+        <span className="font-medium">{winner.winner_name || "\u2014"}</span>
+        {winner.winner_contact && (
+          <span className="app-muted">
+            <span className="sr-only">Contact: </span>
+            {winner.winner_contact}
+          </span>
+        )}
+      </p>
+
+      <div className="flex items-center gap-2">
+        <Badge variant={STATUS_BADGE_VARIANTS[status] ?? "outline"}>
+          <span className="sr-only">Distribution status: </span>
+          {statusLabel}
+        </Badge>
+        {winner.distributed_at && (
+          <span className="app-muted text-sm">
+            <span className="sr-only">Distributed on: </span>
             {formatInstantDate(winner.distributed_at)}
-          </ReadOnlyField>
-        </Field>
-      </FieldGroup>
-      {canEdit && (
-        <div className="mt-2 flex justify-end">
+          </span>
+        )}
+        {canEdit && (
           <Button
             type="button"
             variant="ghost"
@@ -220,11 +222,21 @@ export function WinnerSummary({
           >
             <Pencil />
           </Button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
+
+/** Unclaimed is the state someone has to act on, so it reads as a problem. */
+const STATUS_BADGE_VARIANTS: Record<
+  string,
+  ComponentProps<typeof Badge>["variant"]
+> = {
+  pending: "warning",
+  distributed: "success",
+  unclaimed: "destructive",
+};
 
 export function PrizeWinnerSection({
   prize,

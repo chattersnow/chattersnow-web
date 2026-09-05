@@ -361,7 +361,7 @@ export function PrizesSection({
 
   return (
     <div className="flex flex-col gap-3">
-      <h4 className="text-sm font-semibold">Prizes</h4>
+      <h3 className="text-sm font-semibold">Prizes</h3>
       {giveaway.giveaway_prizes.length === 0 && (
         <EmptyState
           title="No prizes added yet"

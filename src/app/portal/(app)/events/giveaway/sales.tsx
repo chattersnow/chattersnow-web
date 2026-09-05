@@ -2,7 +2,8 @@
 
 import { FormEvent, useState, useTransition } from "react";
 import { upsertEventGiveawayAction, type Giveaway } from "../giveaway-actions";
-import { ReadOnlyField } from "@/components/ui/read-only-field";
+import type { GiveawayTierConfig } from "../giveaway-tier-actions";
+import { GiveawaySummaryStrip } from "./summary-strip";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -10,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toDateInputValue } from "./format";
 import { Spinner } from "@/components/ui/spinner";
-import { formatCurrency, formatInstantDate } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
 
 export function GiveawaySalesForm({
@@ -168,49 +168,17 @@ export function GiveawaySalesForm({
   );
 }
 
-export function GiveawaySummary({ giveaway }: { giveaway: Giveaway }) {
-  return (
-    <div className="rounded-md border border-[var(--line)] p-4">
-      <FieldGroup>
-        <ReadOnlyField label="Giveaway name" htmlFor="giveaway-name">
-          {giveaway.name || "—"}
-        </ReadOnlyField>
-
-        <Field orientation="responsive">
-          <ReadOnlyField label="Tickets sold" htmlFor="giveaway-ticketsSold">
-            {giveaway.tickets_sold}
-          </ReadOnlyField>
-          <ReadOnlyField label="Ticket price" htmlFor="giveaway-ticketPrice">
-            {formatCurrency(giveaway.ticket_price)}
-          </ReadOnlyField>
-        </Field>
-
-        <Field orientation="responsive">
-          <ReadOnlyField label="Revenue" htmlFor="giveaway-revenue">
-            {formatCurrency(giveaway.revenue_amount)}
-          </ReadOnlyField>
-          <ReadOnlyField label="Drawing date" htmlFor="giveaway-drawingDate">
-            {formatInstantDate(giveaway.drawing_date)}
-          </ReadOnlyField>
-        </Field>
-
-        <ReadOnlyField label="Notes" htmlFor="giveaway-notes">
-          {giveaway.notes || "—"}
-        </ReadOnlyField>
-      </FieldGroup>
-    </div>
-  );
-}
-
 export function SalesSection({
   eventId,
   giveaway,
+  config,
   canEdit,
   onSaved,
   onCancel,
 }: {
   eventId: string;
   giveaway: Giveaway | null;
+  config: GiveawayTierConfig | null;
   canEdit: boolean;
   onSaved: () => void;
   onCancel: () => void;
@@ -227,7 +195,7 @@ export function SalesSection({
   }
 
   if (giveaway) {
-    return <GiveawaySummary giveaway={giveaway} />;
+    return <GiveawaySummaryStrip giveaway={giveaway} config={config} />;
   }
 
   return (
