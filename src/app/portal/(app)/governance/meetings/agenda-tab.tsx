@@ -666,7 +666,9 @@ export function AgendaTab({
             {agenda.upcoming_dates.length === 0 ? (
               <p className="app-muted text-sm">None scheduled.</p>
             ) : (
-              <Table>
+              // Sticky header only: the agenda's upcoming dates read in
+              // the order the minute-taker entered them.
+              <Table stickyHeader="page">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Date</TableHead>

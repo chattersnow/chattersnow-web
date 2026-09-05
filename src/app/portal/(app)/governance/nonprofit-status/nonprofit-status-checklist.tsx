@@ -192,7 +192,13 @@ export function NonprofitStatusChecklist({
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-0">
-                <Table>
+                {/*
+                  Sticky header only, and no PortalDataTable: `sort_order`
+                  pins the checklist's reading order within a phase, so
+                  sorting has nothing to offer, and paging a phase would
+                  split a checklist the reader is meant to see whole.
+                */}
+                <Table stickyHeader="page">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Status</TableHead>

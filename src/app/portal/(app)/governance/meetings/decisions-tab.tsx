@@ -15,13 +15,9 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
 import { Textarea } from "@/components/ui/textarea";
 import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
@@ -178,6 +174,64 @@ export function DecisionsTab({
     });
   }
 
+  // Built on every render rather than memoized: the row action closes over
+  // `handleDelete`, which is redefined each render anyway, so a `useMemo`
+  // here would only look stable. A meeting has a handful of decisions.
+  const columns: PortalDataTableColumn<Decision>[] = [
+    {
+      key: "topic",
+      label: "Topic",
+      sortValue: (decision) => decision.topic,
+      cellClassName: "app-muted",
+      render: (decision) => decision.topic || "—",
+    },
+    {
+      key: "description",
+      // The discussion is a paragraph, wrapped rather than truncated: nothing
+      // a reader would look for in its alphabetical order.
+      label: "Discussion",
+      cellClassName: "whitespace-normal font-medium",
+      render: (decision) => decision.description,
+    },
+    {
+      key: "vote_result",
+      label: "Vote",
+      sortValue: (decision) => decision.vote_result,
+      cellClassName: "app-muted",
+      render: (decision) => decision.vote_result || "—",
+    },
+    {
+      key: "decision_date",
+      label: "Date",
+      sortValue: (decision) => decision.decision_date,
+      cellClassName: "app-muted",
+      render: (decision) => formatCalendarDate(decision.decision_date),
+    },
+    // Actions only while there is something in them: in view mode the column
+    // would be an empty strip with a name only a screen reader hears.
+    ...(mode === "edit"
+      ? [
+          {
+            key: "actions",
+            label: "Actions",
+            srOnlyLabel: true,
+            headClassName: "w-px",
+            cellClassName: "text-right",
+            render: (decision: Decision) => (
+              <ConfirmDeleteButton
+                label="Remove decision"
+                title="Remove this decision?"
+                description="This deletes the decision and its vote result from the meeting record. It can't be undone."
+                confirmLabel="Remove"
+                pending={isDeleting}
+                onConfirm={() => handleDelete(decision.id)}
+              />
+            ),
+          },
+        ]
+      : []),
+  ];
+
   return (
     <div className="flex flex-col gap-4">
       {loadError && (
@@ -198,47 +252,16 @@ export function DecisionsTab({
           }
         />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Topic</TableHead>
-              <TableHead>Discussion</TableHead>
-              <TableHead>Vote</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead className="w-px" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {decisions?.map((decision) => (
-              <TableRow key={decision.id}>
-                <TableCell className="app-muted">
-                  {decision.topic || "—"}
-                </TableCell>
-                <TableCell className="whitespace-normal font-medium">
-                  {decision.description}
-                </TableCell>
-                <TableCell className="app-muted">
-                  {decision.vote_result || "—"}
-                </TableCell>
-                <TableCell className="app-muted">
-                  {formatCalendarDate(decision.decision_date)}
-                </TableCell>
-                <TableCell className="text-right">
-                  {mode === "edit" && (
-                    <ConfirmDeleteButton
-                      label="Remove decision"
-                      title="Remove this decision?"
-                      description="This deletes the decision and its vote result from the meeting record. It can't be undone."
-                      confirmLabel="Remove"
-                      pending={isDeleting}
-                      onConfirm={() => handleDelete(decision.id)}
-                    />
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        // `bare`: the section card around this tab is the surface already.
+        // No `defaultSort` -- decisions arrive in the order the server sent
+        // them, and the arrows take over from there.
+        <PortalDataTable
+          columns={columns}
+          rows={decisions}
+          getRowKey={(decision) => decision.id}
+          emptyMessage="No decisions recorded yet."
+          shell="bare"
+        />
       )}
 
       {mode === "edit" &&

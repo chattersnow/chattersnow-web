@@ -33,13 +33,9 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
 import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
 import { formatCalendarDate, personDisplayName } from "@/lib/format";
@@ -341,6 +337,76 @@ export function ResolutionsTab({
     });
   }
 
+  // Built on every render rather than memoized: the row actions close over
+  // `handleDelete` and `setEditingId`, so a `useMemo` here would only look
+  // stable. A meeting has a handful of resolutions.
+  const columns: PortalDataTableColumn<Resolution>[] = [
+    {
+      key: "motion_text",
+      // The motion is a sentence, wrapped rather than truncated: nothing a
+      // reader would look for in its alphabetical order.
+      label: "Motion",
+      cellClassName: "whitespace-normal font-medium",
+      render: (resolution) => resolution.motion_text,
+    },
+    {
+      key: "mover",
+      label: "Mover",
+      sortValue: (resolution) => personDisplayName(resolution.mover),
+      cellClassName: "app-muted",
+      render: (resolution) => personDisplayName(resolution.mover),
+    },
+    {
+      key: "vote_outcome",
+      label: "Vote outcome",
+      sortValue: (resolution) => resolution.vote_outcome,
+      render: (resolution) => (
+        <VoteOutcomeBadge outcome={resolution.vote_outcome} />
+      ),
+    },
+    {
+      key: "effective_date",
+      label: "Effective date",
+      sortValue: (resolution) => resolution.effective_date,
+      cellClassName: "app-muted",
+      render: (resolution) => formatCalendarDate(resolution.effective_date),
+    },
+    // Actions only while there is something in them: in view mode the column
+    // would be an empty strip with a name only a screen reader hears.
+    ...(mode === "edit"
+      ? [
+          {
+            key: "actions",
+            label: "Actions",
+            srOnlyLabel: true,
+            headClassName: "w-px",
+            cellClassName: "text-right whitespace-nowrap",
+            render: (resolution: Resolution) => (
+              <>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Edit resolution"
+                  onClick={() => setEditingId(resolution.id)}
+                >
+                  <Pencil />
+                </Button>
+                <ConfirmDeleteButton
+                  label="Remove resolution"
+                  title="Remove this resolution?"
+                  description="This deletes the motion, its mover and its vote outcome from the meeting record. It can't be undone."
+                  confirmLabel="Remove"
+                  pending={isMutating}
+                  onConfirm={() => handleDelete(resolution.id)}
+                />
+              </>
+            ),
+          },
+        ]
+      : []),
+  ];
+
   const editingResolution =
     resolutions?.find((resolution) => resolution.id === editingId) ?? null;
 
@@ -364,58 +430,16 @@ export function ResolutionsTab({
           }
         />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Motion</TableHead>
-              <TableHead>Mover</TableHead>
-              <TableHead>Vote outcome</TableHead>
-              <TableHead>Effective date</TableHead>
-              <TableHead className="w-px" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {resolutions?.map((resolution) => (
-              <TableRow key={resolution.id}>
-                <TableCell className="whitespace-normal font-medium">
-                  {resolution.motion_text}
-                </TableCell>
-                <TableCell className="app-muted">
-                  {personDisplayName(resolution.mover)}
-                </TableCell>
-                <TableCell>
-                  <VoteOutcomeBadge outcome={resolution.vote_outcome} />
-                </TableCell>
-                <TableCell className="app-muted">
-                  {formatCalendarDate(resolution.effective_date)}
-                </TableCell>
-                <TableCell className="text-right whitespace-nowrap">
-                  {mode === "edit" && (
-                    <>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Edit resolution"
-                        onClick={() => setEditingId(resolution.id)}
-                      >
-                        <Pencil />
-                      </Button>
-                      <ConfirmDeleteButton
-                        label="Remove resolution"
-                        title="Remove this resolution?"
-                        description="This deletes the motion, its mover and its vote outcome from the meeting record. It can't be undone."
-                        confirmLabel="Remove"
-                        pending={isMutating}
-                        onConfirm={() => handleDelete(resolution.id)}
-                      />
-                    </>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        // `bare`: the section card around this tab is the surface already.
+        // No `defaultSort` -- resolutions arrive in the order the server sent
+        // them, and the arrows take over from there.
+        <PortalDataTable
+          columns={columns}
+          rows={resolutions}
+          getRowKey={(resolution) => resolution.id}
+          emptyMessage="No resolutions recorded yet."
+          shell="bare"
+        />
       )}
 
       {mode === "edit" &&

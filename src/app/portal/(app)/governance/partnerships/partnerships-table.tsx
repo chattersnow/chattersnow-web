@@ -10,14 +10,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { EditPartnershipModal } from "./edit-partnership-modal";
 import { PartnershipStageBadge } from "./partnership-badges";
 import { PARTNERSHIP_STAGE_LABELS } from "./partnership-opportunity-form-fields";
@@ -25,6 +17,10 @@ import type { PartnershipOpportunity } from "./partnerships-actions";
 import type { PersonListItem } from "../../people/actions";
 import { formatCalendarDate, personDisplayName } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
+import {
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
 
 const FILTER_ALL = "all";
 
@@ -55,6 +51,64 @@ export function PartnershipsTable({
       );
     });
   }, [opportunities, search, stageFilter]);
+
+  const columns = useMemo<PortalDataTableColumn<PartnershipOpportunity>[]>(
+    () => [
+      {
+        key: "organization",
+        label: "Organization",
+        sortValue: (opportunity) => opportunity.organization.name,
+        cellClassName: "max-w-xs truncate font-medium",
+        render: (opportunity) => (
+          <span title={opportunity.organization.name ?? undefined}>
+            {opportunity.organization.name ?? "—"}
+          </span>
+        ),
+      },
+      {
+        key: "email",
+        label: "Contact email",
+        sortValue: (opportunity) => opportunity.organization.email,
+        cellClassName: "app-muted",
+        render: (opportunity) => opportunity.organization.email ?? "—",
+      },
+      {
+        key: "stage",
+        // The label the badge shows, so the order reads the way the column
+        // does rather than following the enum's underscored values.
+        label: "Stage",
+        sortValue: (opportunity) => PARTNERSHIP_STAGE_LABELS[opportunity.stage],
+        render: (opportunity) => (
+          <PartnershipStageBadge stage={opportunity.stage} />
+        ),
+      },
+      {
+        key: "next_step_date",
+        label: "Next step",
+        sortValue: (opportunity) => opportunity.next_step_date,
+        cellClassName: "app-muted",
+        render: (opportunity) => formatCalendarDate(opportunity.next_step_date),
+      },
+      {
+        key: "owner",
+        label: "Internal owner",
+        sortValue: (opportunity) => personDisplayName(opportunity.owner),
+        cellClassName: "app-muted",
+        render: (opportunity) => personDisplayName(opportunity.owner),
+      },
+      {
+        key: "actions",
+        label: "Actions",
+        srOnlyLabel: true,
+        headClassName: "w-0",
+        render: (opportunity) =>
+          canManage ? (
+            <EditPartnershipModal opportunity={opportunity} people={people} />
+          ) : null,
+      },
+    ],
+    [canManage, people],
+  );
 
   return (
     <div className="space-y-4">
@@ -118,64 +172,16 @@ export function PartnershipsTable({
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="px-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Organization</TableHead>
-                  <TableHead>Contact email</TableHead>
-                  <TableHead>Stage</TableHead>
-                  <TableHead>Next step</TableHead>
-                  <TableHead>Internal owner</TableHead>
-                  <TableHead className="w-0">
-                    <span className="sr-only">Actions</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visibleOpportunities.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="app-muted text-center">
-                      No opportunities match your filters.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  visibleOpportunities.map((opportunity) => (
-                    <TableRow key={opportunity.id}>
-                      <TableCell
-                        className="max-w-xs truncate font-medium"
-                        title={opportunity.organization.name ?? undefined}
-                      >
-                        {opportunity.organization.name ?? "—"}
-                      </TableCell>
-                      <TableCell className="app-muted">
-                        {opportunity.organization.email ?? "—"}
-                      </TableCell>
-                      <TableCell>
-                        <PartnershipStageBadge stage={opportunity.stage} />
-                      </TableCell>
-                      <TableCell className="app-muted">
-                        {formatCalendarDate(opportunity.next_step_date)}
-                      </TableCell>
-                      <TableCell className="app-muted">
-                        {personDisplayName(opportunity.owner)}
-                      </TableCell>
-                      <TableCell>
-                        {canManage && (
-                          <EditPartnershipModal
-                            opportunity={opportunity}
-                            people={people}
-                          />
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <PortalDataTable
+          columns={columns}
+          rows={visibleOpportunities}
+          getRowKey={(opportunity) => opportunity.id}
+          // The query orders by next step date, soonest first, with the ones
+          // that have no date last -- which is where this table's own
+          // blanks-last rule puts them too.
+          defaultSort={{ key: "next_step_date", dir: "asc" }}
+          emptyMessage="No opportunities match your filters."
+        />
       )}
     </div>
   );

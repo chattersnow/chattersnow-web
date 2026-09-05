@@ -1,19 +1,16 @@
 "use client";
 
+import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { EditBylawsModal } from "./edit-bylaws-modal";
 import { NewBylawsDialog } from "./new-bylaws-dialog";
 import type { Bylaws } from "./bylaws-actions";
 import { formatCalendarDate } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
+import {
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
 
 export function BylawsTable({
   bylaws,
@@ -22,6 +19,47 @@ export function BylawsTable({
   bylaws: Bylaws[];
   canManage: boolean;
 }) {
+  // Above the empty-list return below, where a hook could not go.
+  const columns = useMemo<PortalDataTableColumn<Bylaws>[]>(
+    () => [
+      {
+        key: "version",
+        label: "Version",
+        sortValue: (entry) => entry.version,
+        cellClassName: "font-medium",
+        render: (entry) => entry.version,
+      },
+      {
+        key: "effective_date",
+        label: "Effective date",
+        sortValue: (entry) => entry.effective_date,
+        cellClassName: "app-muted",
+        render: (entry) => formatCalendarDate(entry.effective_date),
+      },
+      {
+        key: "amendment_summary",
+        // Free prose, truncated: nothing a reader would look for in its
+        // alphabetical order, so it stays unsorted.
+        label: "What changed",
+        cellClassName: "app-muted max-w-xs truncate",
+        render: (entry) => (
+          <span title={entry.amendment_summary ?? undefined}>
+            {entry.amendment_summary || "—"}
+          </span>
+        ),
+      },
+      {
+        key: "actions",
+        label: "Actions",
+        srOnlyLabel: true,
+        headClassName: "w-0",
+        render: (entry) =>
+          canManage ? <EditBylawsModal bylaws={entry} /> : null,
+      },
+    ],
+    [canManage],
+  );
+
   if (bylaws.length === 0) {
     return (
       <div className="space-y-4">
@@ -89,51 +127,15 @@ export function BylawsTable({
         <h2 className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
           Amendment history
         </h2>
-        <Card>
-          <CardContent className="px-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Version</TableHead>
-                  <TableHead>Effective date</TableHead>
-                  <TableHead>What changed</TableHead>
-                  <TableHead className="w-0">
-                    <span className="sr-only">Actions</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {history.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="app-muted text-center">
-                      No earlier versions on file.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  history.map((entry) => (
-                    <TableRow key={entry.id}>
-                      <TableCell className="font-medium">
-                        {entry.version}
-                      </TableCell>
-                      <TableCell className="app-muted">
-                        {formatCalendarDate(entry.effective_date)}
-                      </TableCell>
-                      <TableCell
-                        className="app-muted max-w-xs truncate"
-                        title={entry.amendment_summary ?? undefined}
-                      >
-                        {entry.amendment_summary || "—"}
-                      </TableCell>
-                      <TableCell>
-                        {canManage && <EditBylawsModal bylaws={entry} />}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <PortalDataTable
+          columns={columns}
+          rows={history}
+          getRowKey={(entry) => entry.id}
+          // The query orders by effective date, newest first; the arrow starts
+          // on the column the history is already reading in.
+          defaultSort={{ key: "effective_date", dir: "desc" }}
+          emptyMessage="No earlier versions on file."
+        />
       </div>
     </div>
   );

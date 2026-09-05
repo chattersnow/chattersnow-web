@@ -17,13 +17,9 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
 import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
 import { personDisplayName } from "@/lib/format";
@@ -171,6 +167,55 @@ export function AttendeesTab({
     });
   }
 
+  // Built on every render rather than memoized: the row action closes over
+  // `handleDelete`, which is redefined each render anyway, so a `useMemo` here
+  // would only look stable. The lists in a meeting are a handful of rows.
+  const columns: PortalDataTableColumn<MeetingAttendee>[] = [
+    {
+      key: "person",
+      label: "Person",
+      sortValue: (attendee) => personDisplayName(attendee.person),
+      cellClassName: "max-w-xs truncate font-medium",
+      render: (attendee) => (
+        <span title={attendee.person?.name ?? undefined}>
+          {personDisplayName(attendee.person)}
+        </span>
+      ),
+    },
+    {
+      key: "attended",
+      // Sorted on the Yes/No the cell shows rather than the boolean behind
+      // it, so ascending reads the way the column does.
+      label: "Attended",
+      sortValue: (attendee) => (attendee.attended ? "Yes" : "No"),
+      cellClassName: "app-muted",
+      render: (attendee) => (attendee.attended ? "Yes" : "No"),
+    },
+    // Actions only while there is something in them: in view mode the column
+    // would be an empty strip with a name only a screen reader hears.
+    ...(mode === "edit"
+      ? [
+          {
+            key: "actions",
+            label: "Actions",
+            srOnlyLabel: true,
+            headClassName: "w-px",
+            cellClassName: "text-right",
+            render: (attendee: MeetingAttendee) => (
+              <ConfirmDeleteButton
+                label="Remove attendee"
+                title={`Remove ${personDisplayName(attendee.person)} from the attendance record?`}
+                description="Attendance is what establishes quorum for this meeting's decisions. It can't be undone."
+                confirmLabel="Remove"
+                pending={isDeleting}
+                onConfirm={() => handleDelete(attendee.id)}
+              />
+            ),
+          },
+        ]
+      : []),
+  ];
+
   return (
     <div className="flex flex-col gap-4">
       {loadError && (
@@ -191,42 +236,16 @@ export function AttendeesTab({
           }
         />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Person</TableHead>
-              <TableHead>Attended</TableHead>
-              <TableHead className="w-px" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {attendees?.map((attendee) => (
-              <TableRow key={attendee.id}>
-                <TableCell
-                  className="max-w-xs truncate font-medium"
-                  title={attendee.person?.name ?? undefined}
-                >
-                  {personDisplayName(attendee.person)}
-                </TableCell>
-                <TableCell className="app-muted">
-                  {attendee.attended ? "Yes" : "No"}
-                </TableCell>
-                <TableCell className="text-right">
-                  {mode === "edit" && (
-                    <ConfirmDeleteButton
-                      label="Remove attendee"
-                      title={`Remove ${personDisplayName(attendee.person)} from the attendance record?`}
-                      description="Attendance is what establishes quorum for this meeting's decisions. It can't be undone."
-                      confirmLabel="Remove"
-                      pending={isDeleting}
-                      onConfirm={() => handleDelete(attendee.id)}
-                    />
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        // `bare`: the section card around this tab is the surface already.
+        // No `defaultSort` -- the list arrives in the order the server sent
+        // it, and the arrows take over from there.
+        <PortalDataTable
+          columns={columns}
+          rows={attendees}
+          getRowKey={(attendee) => attendee.id}
+          emptyMessage="No attendees recorded yet."
+          shell="bare"
+        />
       )}
 
       {mode === "edit" &&
