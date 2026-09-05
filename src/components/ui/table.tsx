@@ -30,10 +30,34 @@ function Table({
    */
   stickyFirstColumn?: boolean;
 }) {
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [scrollable, setScrollable] = React.useState(false);
+
+  // A container that scrolls but holds no focusable content is unreachable by
+  // keyboard: there is nothing to tab towards, so the columns past the right
+  // edge can never be read. It earns a tab stop of its own, but only while it
+  // actually overflows -- otherwise every table on the page would add a stop
+  // that does nothing. ResizeObserver fires once on observe, so this covers
+  // the first measurement as well as later resizes.
+  React.useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const observer = new ResizeObserver(() => {
+      setScrollable(container.scrollWidth > container.clientWidth);
+    });
+    observer.observe(container);
+    // The table can change width without the container doing so.
+    if (container.firstElementChild)
+      observer.observe(container.firstElementChild);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div
+      ref={containerRef}
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      tabIndex={scrollable ? 0 : undefined}
+      className="relative w-full overflow-x-auto outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
     >
       <table
         data-slot="table"
