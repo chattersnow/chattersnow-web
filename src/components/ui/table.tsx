@@ -57,7 +57,11 @@ function Table({
       ref={containerRef}
       data-slot="table-container"
       tabIndex={scrollable ? 0 : undefined}
-      className="relative w-full overflow-x-auto outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+      // Full-opacity ring, not the `ring-ring/50` halo Button and Input use:
+      // there it sits outside a `focus-visible:border-ring` edge that carries
+      // the contrast, and on its own a 50% ring measures about 2.3:1 against
+      // the page -- under the 3:1 a focus indicator needs.
+      className="relative w-full overflow-x-auto outline-none focus-visible:ring-3 focus-visible:ring-ring"
     >
       <table
         data-slot="table"
