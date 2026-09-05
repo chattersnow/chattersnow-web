@@ -204,7 +204,10 @@ describe("EditDonationSheet", () => {
     // The role query must outwait Base UI's inert/aria-hidden transition on
     // the sheet portal: byText finds the error regardless of aria-hidden, but
     // byRole excludes inaccessible elements, and on contended CI runners the
-    // transition can outlast findByRole's default 1s timeout (#540).
+    // transition can outlast findByRole's default 1s timeout (#540). The test
+    // gets a budget of its own, because a waiter allowed to run as long as
+    // bun's default 5s per-test timeout can never actually reach it -- the
+    // test times out first, which is what CI kept seeing.
     await waitFor(
       () =>
         expect(
@@ -212,5 +215,5 @@ describe("EditDonationSheet", () => {
         ).toBeEnabled(),
       { timeout: 5000 },
     );
-  });
+  }, 15000);
 });
