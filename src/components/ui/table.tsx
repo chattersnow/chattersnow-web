@@ -17,9 +17,30 @@ const HIDE_BELOW = {
 
 export type HideBelow = keyof typeof HIDE_BELOW;
 
+/**
+ * Where a sticky header pins to. `page` is the portal's window scroll, so the
+ * header stops under the sticky top bar; `container` is a scroller of the
+ * table's own -- a ListPreviewSheet body -- whose surface is the popover
+ * rather than the card. Whole class strings, same reason as HIDE_BELOW.
+ *
+ * The rule rides on the header cells, not on `<thead>`: preflight sets
+ * `border-collapse: collapse`, and a collapsed border belongs to the table
+ * box, so a `th` that has scrolled away from its row leaves its bottom rule
+ * behind. The inset shadow travels with the cell and lands on exactly the
+ * pixel `TableHeader`'s own `border-b` occupies when nothing is stuck.
+ */
+const STICKY_HEADER = {
+  page: "[&_thead_th]:sticky [&_thead_th]:top-(--portal-header-height) [&_thead_th]:z-20 [&_thead_th]:bg-card [&_thead_th]:shadow-[inset_0_-1px_0_var(--line)]",
+  container:
+    "[&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-20 [&_thead_th]:bg-popover [&_thead_th]:shadow-[inset_0_-1px_0_var(--line)]",
+} as const;
+
+export type StickyHeader = keyof typeof STICKY_HEADER;
+
 function Table({
   className,
   stickyFirstColumn,
+  stickyHeader,
   ...props
 }: React.ComponentProps<"table"> & {
   /**
@@ -29,9 +50,19 @@ function Table({
    * row's identifying name off screen with no way to tell rows apart.
    */
   stickyFirstColumn?: boolean;
+  /**
+   * Keeps the header row on screen while the table scrolls past it. Honoured
+   * only while the table fits its container -- see the overflow note below.
+   */
+  stickyHeader?: StickyHeader;
 }) {
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const [scrollable, setScrollable] = React.useState(false);
+  // Seeded true so the server renders the scrolling wrapper it has always
+  // rendered: a wide table on a phone would otherwise be clipped and
+  // unreachable between paint and hydration. The observer turns it off on
+  // its first measurement, which costs a fitting table a tab stop for one
+  // frame.
+  const [scrollable, setScrollable] = React.useState(true);
 
   // A container that scrolls but holds no focusable content is unreachable by
   // keyboard: there is nothing to tab towards, so the columns past the right
@@ -41,14 +72,21 @@ function Table({
   // the first measurement as well as later resizes.
   React.useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
-    const observer = new ResizeObserver(() => {
-      setScrollable(container.scrollWidth > container.clientWidth);
-    });
+    const table = container?.firstElementChild;
+    if (!container || !table) return;
+    // Measures the table against the container rather than reading the
+    // container's own scrollWidth: dropping `overflow-x-auto` below stops the
+    // container reporting overflow at all, so a self-measurement would latch
+    // on and never let go. The 1px allowance absorbs sub-pixel table widths
+    // rounding against an integer clientWidth.
+    const measure = () =>
+      setScrollable(
+        table.getBoundingClientRect().width - container.clientWidth > 1,
+      );
+    const observer = new ResizeObserver(measure);
     observer.observe(container);
     // The table can change width without the container doing so.
-    if (container.firstElementChild)
-      observer.observe(container.firstElementChild);
+    observer.observe(table);
     return () => observer.disconnect();
   }, []);
 
@@ -57,11 +95,26 @@ function Table({
       ref={containerRef}
       data-slot="table-container"
       tabIndex={scrollable ? 0 : undefined}
+      // `overflow-x-auto` only while it is needed. `overflow-x: auto` computes
+      // `overflow-y` to `auto`, which makes this div a scroll container, which
+      // is what a sticky header pins to -- and this one never scrolls
+      // vertically, so the header would sit 73px down over the first rows
+      // rather than following the page. Off, the header finds the viewport.
+      //
+      // `isolate` because the sticky cells below need z-20 to clear
+      // stickyFirstColumn's z-10 body cells, and at equal z-index the later
+      // element wins -- which would put the table header over the portal's
+      // own top bar. One stacking context of its own keeps the internal
+      // layering free and the whole table under that bar.
+      //
       // Full-opacity ring, not the `ring-ring/50` halo Button and Input use:
       // there it sits outside a `focus-visible:border-ring` edge that carries
       // the contrast, and on its own a 50% ring measures about 2.3:1 against
       // the page -- under the 3:1 a focus indicator needs.
-      className="relative w-full overflow-x-auto outline-none focus-visible:ring-3 focus-visible:ring-ring"
+      className={cn(
+        "relative isolate w-full outline-none focus-visible:ring-3 focus-visible:ring-ring",
+        scrollable && "overflow-x-auto",
+      )}
     >
       <table
         data-slot="table"
@@ -73,6 +126,11 @@ function Table({
           // keep a faint resting outline; the hover and focus treatments the
           // variant already provides still take over on top.
           "[&_td_[data-slot=button][data-variant=ghost]]:border-[var(--line)]",
+          // Honoured only when the container is not scrolling: see above.
+          stickyHeader && !scrollable && STICKY_HEADER[stickyHeader],
+          // The corner cell is pinned on both axes, so it has to clear the
+          // body's pinned column as well as its own row.
+          stickyHeader && stickyFirstColumn && "[&_thead_th:first-child]:z-30",
           stickyFirstColumn && [
             "[&_tr>*:first-child]:sticky [&_tr>*:first-child]:left-0 [&_tr>*:first-child]:z-10 [&_tr>*:first-child]:bg-card",
             // The pinned cell needs an opaque background to sit over the

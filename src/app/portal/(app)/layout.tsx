@@ -258,7 +258,7 @@ export default async function PortalAppLayout({
             </SidebarFooter>
           </Sidebar>
           <SidebarInset>
-            <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-[var(--line)] bg-[var(--background)] px-6 py-4 sm:px-10">
+            <header className="sticky top-0 z-20 flex h-(--portal-header-height) items-center gap-3 border-b border-[var(--line)] bg-[var(--background)] px-6 py-4 sm:px-10">
               <SidebarTrigger />
               {/* The label is hidden below `sm`, which takes it out of the
                   accessibility tree too, so the link carries its own name. */}

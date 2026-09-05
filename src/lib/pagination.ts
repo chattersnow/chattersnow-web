@@ -1,5 +1,15 @@
 export const PAGE_SIZE = 50;
 
+/**
+ * Rows-per-page choices offered wherever a list paginates. Small on purpose:
+ * the portal's lists are scanned, not browsed, and a 50-row wall was the
+ * reason nobody could find anything. The first entry is the default, and the
+ * rule for hiding the pager keys on it rather than on the current size --
+ * hiding the selector because 20 rows happen to fit a 25-row page would take
+ * away the only control that could put the reader back on 10.
+ */
+export const PAGE_SIZE_OPTIONS = [10, 25] as const;
+
 export function parsePage(raw: string | undefined): number {
   const parsed = Number.parseInt(raw ?? "1", 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;

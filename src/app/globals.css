@@ -65,6 +65,13 @@
   --input: var(--line);
   --ring: var(--purple);
   --radius: 0.75rem;
+
+  /* The portal's sticky top bar is the only thing a sticky table header has
+     to clear, and nothing could read its height -- it was `py-4` around
+     whatever the tallest control happened to be. The header now takes its
+     height from this, so the two can't drift: a 2.5rem control, 2rem of
+     padding, and the 1px bottom border. */
+  --portal-header-height: calc(4.5rem + 1px);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);

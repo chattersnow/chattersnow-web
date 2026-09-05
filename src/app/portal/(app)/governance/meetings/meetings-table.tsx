@@ -3,7 +3,6 @@
 import { ReactNode, useMemo, useState } from "react";
 import Link from "next/link";
 import { Eye } from "lucide-react";
-import { SortHeaderButton } from "@/components/portal/sort-header-link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -14,31 +13,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   MeetingStatusBadge,
   MeetingTypeBadge,
   type MeetingRow,
 } from "./meeting-badges";
 import { formatDateTime } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
+import {
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
 
 const FILTER_ALL = "all";
-
-type SortKey = "meeting_date" | "meeting_type" | "status" | "location";
-
-const SORT_COLUMNS: { key: SortKey; label: string }[] = [
-  { key: "meeting_date", label: "Date" },
-  { key: "meeting_type", label: "Type" },
-  { key: "status", label: "Status" },
-  { key: "location", label: "Location" },
-];
 
 export function MeetingsTable({
   meetings,
@@ -48,32 +34,66 @@ export function MeetingsTable({
   newAction?: ReactNode;
 }) {
   const [typeFilter, setTypeFilter] = useState<string>(FILTER_ALL);
-  const [sortKey, setSortKey] = useState<SortKey>("meeting_date");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
-  function handleSort(key: SortKey) {
-    if (key === sortKey) {
-      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
-    } else {
-      setSortKey(key);
-      setSortDirection("asc");
-    }
-  }
-
-  const visibleMeetings = useMemo(() => {
-    const filtered =
+  const visibleMeetings = useMemo(
+    () =>
       typeFilter === FILTER_ALL
         ? meetings
-        : meetings.filter((meeting) => meeting.meeting_type === typeFilter);
+        : meetings.filter((meeting) => meeting.meeting_type === typeFilter),
+    [meetings, typeFilter],
+  );
 
-    const direction = sortDirection === "asc" ? 1 : -1;
-
-    return [...filtered].sort((a, b) => {
-      const aValue = sortKey === "location" ? (a.location ?? "") : a[sortKey];
-      const bValue = sortKey === "location" ? (b.location ?? "") : b[sortKey];
-      return aValue.localeCompare(bValue) * direction;
-    });
-  }, [meetings, typeFilter, sortKey, sortDirection]);
+  const columns = useMemo<PortalDataTableColumn<MeetingRow>[]>(
+    () => [
+      {
+        key: "meeting_date",
+        label: "Date",
+        sortValue: (meeting) => meeting.meeting_date,
+        cellClassName: "font-medium",
+        render: (meeting) => formatDateTime(meeting.meeting_date),
+      },
+      {
+        key: "meeting_type",
+        label: "Type",
+        sortValue: (meeting) => meeting.meeting_type,
+        render: (meeting) => <MeetingTypeBadge type={meeting.meeting_type} />,
+      },
+      {
+        key: "status",
+        label: "Status",
+        sortValue: (meeting) => meeting.status,
+        render: (meeting) => <MeetingStatusBadge status={meeting.status} />,
+      },
+      {
+        key: "location",
+        label: "Location",
+        // Left null rather than coalesced to "", so a meeting with no
+        // location sorts to the end either way instead of leading the
+        // ascending sort with a column of em dashes.
+        sortValue: (meeting) => meeting.location,
+        cellClassName: "app-muted",
+        render: (meeting) => meeting.location ?? "—",
+      },
+      {
+        key: "actions",
+        label: "Actions",
+        srOnlyLabel: true,
+        headClassName: "w-0",
+        render: (meeting) => (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            nativeButton={false}
+            aria-label={`View meeting on ${formatDateTime(meeting.meeting_date)}`}
+            render={<Link href={`/portal/governance/meetings/${meeting.id}`} />}
+          >
+            <Eye />
+          </Button>
+        ),
+      },
+    ],
+    [],
+  );
 
   return (
     <div className="space-y-4">
@@ -118,77 +138,13 @@ export function MeetingsTable({
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="px-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  {SORT_COLUMNS.map((column) => (
-                    <TableHead
-                      key={column.key}
-                      sortDirection={
-                        sortKey === column.key ? sortDirection : null
-                      }
-                    >
-                      <SortHeaderButton
-                        label={column.label}
-                        dir={sortKey === column.key ? sortDirection : null}
-                        onSort={() => handleSort(column.key)}
-                      />
-                    </TableHead>
-                  ))}
-                  <TableHead className="w-0">
-                    <span className="sr-only">Actions</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visibleMeetings.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={SORT_COLUMNS.length + 1}
-                      className="app-muted text-center"
-                    >
-                      No meetings match your filters.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  visibleMeetings.map((meeting) => (
-                    <TableRow key={meeting.id}>
-                      <TableCell className="font-medium">
-                        {formatDateTime(meeting.meeting_date)}
-                      </TableCell>
-                      <TableCell>
-                        <MeetingTypeBadge type={meeting.meeting_type} />
-                      </TableCell>
-                      <TableCell>
-                        <MeetingStatusBadge status={meeting.status} />
-                      </TableCell>
-                      <TableCell className="app-muted">
-                        {meeting.location ?? "—"}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          nativeButton={false}
-                          aria-label={`View meeting on ${formatDateTime(meeting.meeting_date)}`}
-                          render={
-                            <Link
-                              href={`/portal/governance/meetings/${meeting.id}`}
-                            />
-                          }
-                        >
-                          <Eye />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <PortalDataTable
+          columns={columns}
+          rows={visibleMeetings}
+          getRowKey={(meeting) => meeting.id}
+          defaultSort={{ key: "meeting_date", dir: "desc" }}
+          emptyMessage="No meetings match your filters."
+        />
       )}
     </div>
   );
