@@ -49,6 +49,16 @@ jobs:
   backup:
     name: Dump, encrypt, upload
     runs-on: ubuntu-latest
+    # SUPABASE_ACCESS_TOKEN and SUPABASE_DB_PASSWORD are environment secrets,
+    # not repository ones, so a job that declares no environment receives them
+    # as empty strings and the CLI fails with "Access token not provided".
+    #
+    # Deliberately not `Production`: that environment requires a reviewer, and a
+    # nightly backup waiting on manual approval is a backup that does not
+    # happen. `Backups` holds the same two Supabase secrets plus the three R2
+    # ones, with no protection rules -- everything this job does is read-only
+    # against the database, so there is nothing here for a gate to protect.
+    environment: Backups
     steps:
       - name: Checkout
         uses: actions/checkout@v5

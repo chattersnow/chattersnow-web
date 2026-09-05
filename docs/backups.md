@@ -18,6 +18,12 @@ database. If this workflow is red, there is no backup newer than its last green
 run. That is why a failed scheduled run opens an issue instead of relying on
 email.
 
+**The schedule only starts once this file is on `main`.** GitHub runs `schedule:`
+triggers from the default branch only, and the "Run workflow" button for
+`workflow_dispatch` appears only once the workflow exists there too. Merging to
+`development` alone changes nothing — the nightly backup begins at the next
+release to `main`.
+
 ## Why not Actions artifacts
 
 This repository is public, and artifacts on a public repository can be
@@ -81,18 +87,32 @@ every commit that ever contained them.
 
 Set once, in repository settings.
 
-**Secrets** (Settings → Secrets and variables → Actions → Secrets):
+### The `Backups` environment
 
-| Name                   | Value                                                                |
-| ---------------------- | -------------------------------------------------------------------- |
-| `R2_ACCOUNT_ID`        | Cloudflare account id — a secret here so it stays out of public logs |
-| `R2_ACCESS_KEY_ID`     | R2 API token key id                                                  |
-| `R2_SECRET_ACCESS_KEY` | R2 API token secret                                                  |
+`SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` are **environment** secrets
+on `Production`, not repository secrets. A job that declares no environment
+receives them as empty strings and fails with "Access token not provided", so
+this workflow has to name an environment to see them.
 
-`SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` already exist for
-`db-migrate.yml` and are reused.
+It cannot be `Production`, because that environment requires a reviewer and a
+nightly backup waiting on manual approval is a backup that does not happen. So:
 
-**Variables** (same page → Variables):
+1. Settings → Environments → **New environment**, named `Backups`.
+2. Leave protection rules empty — no required reviewers, no wait timer.
+   Everything this job does is read-only against the database.
+3. Add all five secrets below to it.
+
+**Secrets** (Settings → Environments → `Backups` → Environment secrets):
+
+| Name                    | Value                                                                |
+| ----------------------- | -------------------------------------------------------------------- |
+| `SUPABASE_ACCESS_TOKEN` | Same value as on `Production`                                        |
+| `SUPABASE_DB_PASSWORD`  | Same value as on `Production`                                        |
+| `R2_ACCOUNT_ID`         | Cloudflare account id — a secret here so it stays out of public logs |
+| `R2_ACCESS_KEY_ID`      | R2 API token key id                                                  |
+| `R2_SECRET_ACCESS_KEY`  | R2 API token secret                                                  |
+
+**Variables** (Settings → Secrets and variables → Actions → Variables):
 
 | Name                    | Value                                   |
 | ----------------------- | --------------------------------------- |
