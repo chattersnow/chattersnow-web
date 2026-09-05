@@ -4,6 +4,12 @@ import userEvent from "@testing-library/user-event";
 import type { EventShift } from "../shifts-actions";
 import type { EventVolunteer } from "../volunteers-actions";
 import { AddHoursForm } from "./hours";
+import type { RoleType } from "../../volunteers/roles/actions";
+
+const roleTypes: RoleType[] = [
+  { id: "role-1", name: "Ride Buddy" },
+  { id: "role-2", name: "Setup Crew" },
+];
 
 function noop() {}
 
@@ -15,8 +21,8 @@ const shift: EventShift = {
   ends_at: "2026-09-01T12:30:00.000Z",
   target_headcount: 4,
   notes: null,
-  volunteer_role_type_id: null,
-  role_type: null,
+  volunteer_role_type_id: "role-1",
+  role_type: { id: "role-1", name: "Ride Buddy" },
 };
 
 const volunteerWithShift: EventVolunteer = {
@@ -25,6 +31,8 @@ const volunteerWithShift: EventVolunteer = {
   person_id: "person-1",
   shift_id: "shift-1",
   role: null,
+  volunteer_role_type_id: null,
+  role_type: null,
   notes: null,
   person: { id: "person-1", name: "Jane Doe", email: null, phone: null },
 };
@@ -34,7 +42,9 @@ const volunteerWithoutShift: EventVolunteer = {
   event_id: "event-1",
   person_id: "person-2",
   shift_id: null,
-  role: "Setup Crew",
+  role: null,
+  volunteer_role_type_id: "role-2",
+  role_type: { name: "Setup Crew" },
   notes: null,
   person: { id: "person-2", name: "John Smith", email: null, phone: null },
 };
@@ -57,6 +67,7 @@ describe("AddHoursForm", () => {
       <AddHoursForm
         volunteers={[volunteerWithShift, volunteerWithoutShift]}
         shifts={[shift]}
+        roleTypes={roleTypes}
         onSubmit={async () => ({ success: true })}
         onCancel={noop}
       />,
@@ -90,6 +101,7 @@ describe("AddHoursForm", () => {
       <AddHoursForm
         volunteers={[volunteerWithShift]}
         shifts={[shift]}
+        roleTypes={roleTypes}
         onSubmit={async () => ({ success: true })}
         onCancel={noop}
       />,
@@ -115,6 +127,7 @@ describe("AddHoursForm", () => {
       <AddHoursForm
         volunteers={[volunteerWithShift]}
         shifts={[shift]}
+        roleTypes={roleTypes}
         onSubmit={onSubmit}
         onCancel={noop}
       />,
@@ -136,6 +149,7 @@ describe("AddHoursForm", () => {
       <AddHoursForm
         volunteers={[volunteerWithoutShift]}
         shifts={[shift]}
+        roleTypes={roleTypes}
         onSubmit={async () => ({ success: true })}
         onCancel={noop}
       />,
@@ -153,6 +167,7 @@ describe("AddHoursForm with a locked volunteer", () => {
       <AddHoursForm
         volunteers={[volunteerWithShift]}
         shifts={[shift]}
+        roleTypes={roleTypes}
         lockedPerson={volunteerWithShift.person}
         onSubmit={async () => ({ success: true })}
         onCancel={noop}
@@ -170,6 +185,7 @@ describe("AddHoursForm with a locked volunteer", () => {
       <AddHoursForm
         volunteers={[volunteerWithShift]}
         shifts={[shift]}
+        roleTypes={roleTypes}
         lockedPerson={volunteerWithShift.person}
         onSubmit={async () => ({ success: true })}
         onCancel={noop}
@@ -194,6 +210,7 @@ describe("AddHoursForm with a locked volunteer", () => {
       <AddHoursForm
         volunteers={[volunteerWithShift]}
         shifts={[shift]}
+        roleTypes={roleTypes}
         lockedPerson={volunteerWithShift.person}
         onSubmit={onSubmit}
         onCancel={noop}
@@ -206,11 +223,62 @@ describe("AddHoursForm with a locked volunteer", () => {
     expect(onSubmit.mock.calls[0][0]).toBe("person-1");
   });
 
+  test("seeds the role from the locked volunteer's shift", () => {
+    render(
+      <AddHoursForm
+        volunteers={[volunteerWithShift]}
+        shifts={[shift]}
+        roleTypes={roleTypes}
+        lockedPerson={volunteerWithShift.person}
+        onSubmit={async () => ({ success: true })}
+        onCancel={noop}
+      />,
+    );
+
+    expect(screen.getByRole("combobox", { name: "Role" })).toHaveTextContent(
+      "Ride Buddy",
+    );
+  });
+
+  test("falls back to the signup's own role when it has no shift", async () => {
+    const onSubmit = mock(
+      async (
+        _personId: string,
+        _formData: FormData,
+      ): Promise<{ error: string } | { success: true }> => ({
+        success: true,
+      }),
+    );
+    const user = userEvent.setup();
+    render(
+      <AddHoursForm
+        volunteers={[volunteerWithoutShift]}
+        shifts={[shift]}
+        roleTypes={roleTypes}
+        lockedPerson={volunteerWithoutShift.person}
+        onSubmit={onSubmit}
+        onCancel={noop}
+      />,
+    );
+
+    expect(screen.getByRole("combobox", { name: "Role" })).toHaveTextContent(
+      "Setup Crew",
+    );
+
+    await user.type(screen.getByLabelText("Hours"), "2");
+    await user.click(screen.getByRole("button", { name: "Log hours" }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    const formData = onSubmit.mock.calls[0][1] as FormData;
+    expect(formData.get("volunteerRoleTypeId")).toBe("role-2");
+  });
+
   test("leaves hours blank when the locked volunteer has no shift", () => {
     render(
       <AddHoursForm
         volunteers={[volunteerWithoutShift]}
         shifts={[shift]}
+        roleTypes={roleTypes}
         lockedPerson={volunteerWithoutShift.person}
         onSubmit={async () => ({ success: true })}
         onCancel={noop}

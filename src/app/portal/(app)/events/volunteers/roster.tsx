@@ -35,7 +35,16 @@ import {
   LIST_PREVIEW_ROWS,
   ListPreviewSheet,
 } from "@/components/portal/list-preview-sheet";
-import { formatCalendarDate, personDisplayName } from "@/lib/format";
+import {
+  EMPTY_VALUE,
+  formatCalendarDate,
+  personDisplayName,
+} from "@/lib/format";
+import {
+  isShiftMissingRole,
+  NO_SHIFT_ROLE,
+  signupRoleLabel,
+} from "@/lib/volunteer-roles";
 import { cn } from "@/lib/utils";
 
 export type RosterRow = {
@@ -106,16 +115,6 @@ export function buildRoster(
     );
     return byName !== 0 ? byName : a.personId.localeCompare(b.personId);
   });
-}
-
-/** The role a signup shows: its shift's, else the free text it was given. */
-function roleLabelFor(row: RosterRow, shifts: EventShift[]) {
-  if (!row.signup) return "—";
-  const assignedShift = shifts.find(
-    (shift) => shift.id === row.signup?.shift_id,
-  );
-  if (assignedShift) return assignedShift.role_type?.name ?? "No role";
-  return row.signup.role || "—";
 }
 
 export function RosterSection({
@@ -251,7 +250,9 @@ export function RosterSection({
                   </TableCell>
 
                   <TableCell className="app-muted" hideBelow="md">
-                    {roleLabelFor(row, shifts)}
+                    {isShiftMissingRole(row.signup, shifts)
+                      ? NO_SHIFT_ROLE
+                      : (signupRoleLabel(row.signup, shifts) ?? EMPTY_VALUE)}
                   </TableCell>
 
                   <TableCell>
@@ -331,6 +332,9 @@ export function RosterSection({
                             <span className="app-muted">
                               {formatCalendarDate(entry.logged_date)} ·{" "}
                               {entry.hours} h
+                              {entry.volunteer_role_type
+                                ? ` · ${entry.volunteer_role_type.name}`
+                                : ""}
                               {entry.notes ? ` · ${entry.notes}` : ""}
                             </span>
                             {mode === "edit" && (

@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import { AddVolunteerForm } from "./signups";
 import { createEventVolunteerAction } from "../volunteers-actions";
 import { listEventShiftsAction, type EventShift } from "../shifts-actions";
+import {
+  listRoleTypesAction,
+  type RoleType,
+} from "../../volunteers/roles/actions";
 import { type PickedPerson } from "../../people/person-picker";
 import { listPeopleAction, type PersonListItem } from "../../people/actions";
 import { Button } from "@/components/ui/button";
@@ -28,6 +32,7 @@ export function AddVolunteerDialog({
   const [open, setOpen] = useState(false);
   const [people, setPeople] = useState<PersonListItem[]>([]);
   const [shifts, setShifts] = useState<EventShift[]>([]);
+  const [roleTypes, setRoleTypes] = useState<RoleType[]>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -36,6 +41,9 @@ export function AddVolunteerDialog({
     });
     listEventShiftsAction(eventId).then((result) => {
       if (!("error" in result)) setShifts(result.data);
+    });
+    listRoleTypesAction().then((result) => {
+      if (!("error" in result)) setRoleTypes(result.data);
     });
   }, [open, eventId]);
 
@@ -71,6 +79,7 @@ export function AddVolunteerDialog({
         <AddVolunteerForm
           people={people}
           shifts={shifts}
+          roleTypes={roleTypes}
           onPersonCreated={handlePersonCreated}
           onSubmit={(personId, formData) =>
             createEventVolunteerAction(eventId, personId, formData)

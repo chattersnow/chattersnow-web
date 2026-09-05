@@ -8,6 +8,10 @@ import {
   type EventVolunteer,
 } from "../volunteers-actions";
 import { listEventShiftsAction, type EventShift } from "../shifts-actions";
+import {
+  listRoleTypesAction,
+  type RoleType,
+} from "../../volunteers/roles/actions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -40,6 +44,7 @@ export function LogHoursDialog({
   const [open, setOpen] = useState(false);
   const [volunteers, setVolunteers] = useState<EventVolunteer[]>([]);
   const [shifts, setShifts] = useState<EventShift[]>([]);
+  const [roleTypes, setRoleTypes] = useState<RoleType[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -48,10 +53,12 @@ export function LogHoursDialog({
     Promise.all([
       listEventVolunteersAction(eventId),
       listEventShiftsAction(eventId),
-    ]).then(([volunteersResult, shiftsResult]) => {
+      listRoleTypesAction(),
+    ]).then(([volunteersResult, shiftsResult, roleTypesResult]) => {
       if (cancelled) return;
       if (!("error" in volunteersResult)) setVolunteers(volunteersResult.data);
       if (!("error" in shiftsResult)) setShifts(shiftsResult.data);
+      if (!("error" in roleTypesResult)) setRoleTypes(roleTypesResult.data);
       setLoaded(true);
     });
     return () => {
@@ -90,13 +97,14 @@ export function LogHoursDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {/* The form seeds its hours and date from the volunteer's shift on its
-            first render, so it must not mount before the shifts arrive. */}
+        {/* The form seeds its hours, date and role from the volunteer's signup
+            on its first render, so it must not mount before they arrive. */}
         {loaded ? (
           <AddHoursForm
             key={personId ?? "picker"}
             volunteers={volunteers}
             shifts={shifts}
+            roleTypes={roleTypes}
             lockedPerson={lockedPerson}
             onSubmit={(personIdToLog, formData) =>
               createEventVolunteerHoursAction(eventId, personIdToLog, formData)

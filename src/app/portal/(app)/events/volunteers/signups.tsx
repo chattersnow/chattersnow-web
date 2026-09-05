@@ -3,12 +3,12 @@
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { type EventShift } from "../shifts-actions";
+import { type RoleType } from "../../volunteers/roles/actions";
 import { PersonPicker, type PickedPerson } from "../../people/person-picker";
 import { type PersonListItem } from "../../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -25,12 +25,14 @@ import { runAction } from "@/components/portal/action-toast";
 export function AddVolunteerForm({
   people,
   shifts,
+  roleTypes,
   onPersonCreated,
   onSubmit,
   onCancel,
 }: {
   people: PersonListItem[];
   shifts: EventShift[];
+  roleTypes: RoleType[];
   onPersonCreated: (person: PickedPerson) => void;
   onSubmit: (
     personId: string,
@@ -43,7 +45,7 @@ export function AddVolunteerForm({
     null,
   );
   const [shiftId, setShiftId] = useState<string | null>(null);
-  const [role, setRole] = useState("");
+  const [roleTypeId, setRoleTypeId] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -57,7 +59,7 @@ export function AddVolunteerForm({
     }
 
     const formData = new FormData();
-    formData.set("role", shiftId ? "" : role);
+    formData.set("volunteerRoleTypeId", shiftId ? "" : (roleTypeId ?? ""));
     formData.set("notes", notes);
     formData.set("shiftId", shiftId ?? "");
 
@@ -133,12 +135,36 @@ export function AddVolunteerForm({
         ) : (
           <Field>
             <FieldLabel htmlFor="volunteer-role">Role</FieldLabel>
-            <Input
-              id="volunteer-role"
-              placeholder="e.g. Ride Buddy, Event Setup, Basecamp Staffing"
-              value={role}
-              onChange={(event) => setRole(event.target.value)}
-            />
+            <Select
+              value={roleTypeId ?? NONE_VALUE}
+              onValueChange={(value) =>
+                setRoleTypeId(value === NONE_VALUE ? null : value)
+              }
+            >
+              <SelectTrigger id="volunteer-role" className="w-full">
+                <SelectValue placeholder="No role">
+                  {(value: string) =>
+                    value === NONE_VALUE
+                      ? "No role"
+                      : (roleTypes.find((option) => option.id === value)
+                          ?.name ?? "No role")
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE_VALUE}>No role</SelectItem>
+                {roleTypes.map((option) => (
+                  <SelectItem key={option.id} value={option.id}>
+                    {option.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {roleTypes.length === 0 && (
+              <p className="app-muted text-xs">
+                No role types defined yet. Add them under Volunteers &gt; Roles.
+              </p>
+            )}
           </Field>
         )}
 

@@ -13,7 +13,7 @@ function formData(fields: Record<string, string>) {
 describe("parseVolunteerForm", () => {
   test("allows an empty role and notes", () => {
     expect(parseVolunteerForm(formData({}))).toEqual({
-      data: { role: null, notes: null },
+      data: { role: null, volunteer_role_type_id: null, notes: null },
     });
   });
 
@@ -23,6 +23,15 @@ describe("parseVolunteerForm", () => {
     );
     expect("data" in result && result.data.role).toBe("Ride Buddy");
     expect("data" in result && result.data.notes).toBe("Prefers mornings");
+  });
+
+  test("reads the role type the picker submits", () => {
+    const result = parseVolunteerForm(
+      formData({ volunteerRoleTypeId: " role-1 " }),
+    );
+    expect("data" in result && result.data.volunteer_role_type_id).toBe(
+      "role-1",
+    );
   });
 });
 
@@ -58,5 +67,17 @@ describe("parseEventVolunteerHoursForm", () => {
     expect("data" in result && result.data.hours).toBe(4.5);
     expect("data" in result && result.data.loggedDate).toBe("2026-01-05");
     expect("data" in result && result.data.notes).toBe("Setup crew");
+    expect("data" in result && result.data.volunteerRoleTypeId).toBeNull();
+  });
+
+  test("carries the selected role type through", () => {
+    const result = parseEventVolunteerHoursForm(
+      formData({
+        hours: "4.5",
+        loggedDate: "2026-01-05",
+        volunteerRoleTypeId: "role-1",
+      }),
+    );
+    expect("data" in result && result.data.volunteerRoleTypeId).toBe("role-1");
   });
 });
