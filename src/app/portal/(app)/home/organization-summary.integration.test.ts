@@ -12,6 +12,10 @@ import {
   createPerson,
 } from "../../../../../test/integration-setup";
 import { getOrganizationSummary } from "./queries";
+import {
+  DEFAULT_FISCAL_YEAR_START_MONTH,
+  fiscalYearForDate,
+} from "@/lib/fiscal-year";
 
 const YESTERDAY = new Date(Date.now() - 24 * 60 * 60 * 1000)
   .toISOString()
@@ -21,8 +25,17 @@ const NEXT_WEEK = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
   .slice(0, 10);
 
 function summary() {
-  const nowIso = new Date().toISOString();
-  return getOrganizationSummary(adminClient, nowIso, nowIso.slice(0, 10));
+  const now = new Date();
+  const nowIso = now.toISOString();
+  // `disclosure_year` names the fiscal year, so the caller resolves it. The
+  // seeded start month is the default (July); the assertions below compare
+  // against the year this returns rather than hardcoding one.
+  return getOrganizationSummary(
+    adminClient,
+    nowIso,
+    nowIso.slice(0, 10),
+    fiscalYearForDate(now, DEFAULT_FISCAL_YEAR_START_MONTH),
+  );
 }
 
 describe("getOrganizationSummary (integration)", () => {
@@ -179,7 +192,7 @@ describe("getOrganizationSummary (integration)", () => {
     await person.cleanup();
   });
 
-  test("counts active board members missing a current-year COI disclosure", async () => {
+  test("counts active board members missing a current-fiscal-year COI disclosure", async () => {
     const before = await summary();
 
     const person = await createPerson();

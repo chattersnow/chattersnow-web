@@ -200,12 +200,3 @@ export function computeFinanceSummary(data: FinanceReportData): FinanceSummary {
     inKindItemCount: data.in_kind_items.length,
   };
 }
-
-// Financial reporting is annual, so the page opens on year-to-date rather
-// than the current month the inventory report defaults to. Both bounds come
-// off the same UTC date so a run near midnight can't produce a range whose
-// end precedes its start.
-export function yearToDateRange(now: Date): { from: string; to: string } {
-  const to = now.toISOString().slice(0, 10);
-  return { from: `${to.slice(0, 4)}-01-01`, to };
-}

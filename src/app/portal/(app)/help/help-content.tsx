@@ -79,6 +79,23 @@ export const helpContent: Record<string, HelpEntry> = {
             match the number you clicked.
           </p>
         </HowToSection>
+        <HowToSection heading="&ldquo;FY&rdquo; means the fiscal year, not the calendar year">
+          <p>
+            The financial figures are captioned with a fiscal year — FY2027, say
+            — because Chatter&apos;s year does not start in January. A fiscal
+            year is named for the calendar year it ends in, so under a July
+            start FY2027 runs July 1 2026 to June 30 2027. That keeps a whole
+            winter season inside one year instead of splitting it across two. An
+            admin or board member sets the start month in{" "}
+            <Link
+              href="/portal/administration/system-settings"
+              className="underline hover:text-foreground"
+            >
+              System Settings
+            </Link>
+            .
+          </p>
+        </HowToSection>
         <HowToSection heading="Happening now">
           <p>
             Events currently running appear at the top with their in-context
@@ -550,8 +567,8 @@ export const helpContent: Record<string, HelpEntry> = {
               <strong className="text-foreground">
                 Tier 1 items with a decision
               </strong>{" "}
-              — the share of the selected year&apos;s Tier 1 items (by start
-              date) that have a Plan, Skip, or Defer decision recorded.
+              — the share of the selected fiscal year&apos;s Tier 1 items (by
+              start date) that have a Plan, Skip, or Defer decision recorded.
             </li>
             <li>
               <strong className="text-foreground">
@@ -562,8 +579,9 @@ export const helpContent: Record<string, HelpEntry> = {
             </li>
             <li>
               <strong className="text-foreground">Overdue content tasks</strong>{" "}
-              — this year&apos;s opportunities currently past their stage&apos;s
-              due date, using the same overdue logic as the Work Queue page.
+              — the selected fiscal year&apos;s opportunities currently past
+              their stage&apos;s due date, using the same overdue logic as the
+              Work Queue page.
             </li>
             <li>
               <strong className="text-foreground">
@@ -577,18 +595,34 @@ export const helpContent: Record<string, HelpEntry> = {
               <strong className="text-foreground">
                 Public items with a clear Chatter connection
               </strong>{" "}
-              — this year&apos;s items that are public, live (active or
-              complete), and have a non-empty Chatter connection recorded on
-              their opportunity.
+              — the selected fiscal year&apos;s items that are public, live
+              (active or complete), and have a non-empty Chatter connection
+              recorded on their opportunity.
             </li>
             <li>
               <strong className="text-foreground">
                 Publication permissions recorded
               </strong>{" "}
-              — a raw count of publication-permission rows tied to this
-              year&apos;s items.
+              — a raw count of publication-permission rows tied to the selected
+              fiscal year&apos;s items.
             </li>
           </ul>
+        </HowToSection>
+        <HowToSection heading="The year is the fiscal year">
+          <p>
+            The picker lists fiscal years, not calendar years, and a fiscal year
+            is named for the calendar year it ends in — so under a July start,
+            FY2027 covers items starting between July 1 2026 and June 30 2027. A
+            season&apos;s planning therefore sits in one review instead of being
+            split at New Year. An admin or board member sets the start month in{" "}
+            <Link
+              href="/portal/administration/system-settings"
+              className="underline hover:text-foreground"
+            >
+              System Settings
+            </Link>
+            .
+          </p>
         </HowToSection>
         <HowToSection heading="Who can do this">
           <p>
@@ -1104,6 +1138,23 @@ export const helpContent: Record<string, HelpEntry> = {
             figures; <strong className="text-foreground">board</strong> gets a
             view-only version for oversight; other roles have no access to
             Finance reports.
+          </p>
+        </HowToSection>
+        <HowToSection heading="The default range is the fiscal year">
+          <p>
+            The page opens on fiscal-year-to-date, not calendar-year-to-date:
+            from the first day of the current fiscal year through today. Under a
+            July start that means a report opened in January reaches back to the
+            previous July rather than to January 1, so a winter season stays
+            whole. &ldquo;Reset to FY2027&rdquo; returns to that default from
+            any range you&apos;ve typed. The start month is set in{" "}
+            <Link
+              href="/portal/administration/system-settings"
+              className="underline hover:text-foreground"
+            >
+              System Settings
+            </Link>
+            .
           </p>
         </HowToSection>
         <HowToSection heading="What happens downstream">
@@ -1639,11 +1690,28 @@ export const helpContent: Record<string, HelpEntry> = {
     ),
   },
   "/portal/administration/system-settings": {
-    title: "How these thresholds are used",
-    description: "Where the approval thresholds take effect.",
+    title: "How these settings are used",
+    description: "Where the fiscal year and approval thresholds take effect.",
     body: (
       <>
-        <HowToSection heading="Steps">
+        <HowToSection heading="The fiscal year">
+          <p>
+            The fiscal year decides what &ldquo;this year&rdquo; means
+            everywhere else in the portal: the dashboard&apos;s financial
+            figures, the default range on Financial Reports, the annual planning
+            review, and the year a conflict-of-interest disclosure covers.
+            Chatter&apos;s runs July 1 – June 30 so a winter season falls inside
+            one year rather than being split at New Year, and a fiscal year is
+            named for the calendar year it ends in — FY2027 is July 2026 through
+            June 2027.
+          </p>
+          <p>
+            Under the bylaws the fiscal year is set by Board resolution, so
+            changing the month here should follow that resolution rather than
+            lead it. The change is written to the audit log either way.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Approval thresholds">
           <ol className="list-decimal space-y-2 pl-4">
             <li>
               <strong className="text-foreground">Below the threshold</strong> —
@@ -1675,8 +1743,9 @@ export const helpContent: Record<string, HelpEntry> = {
         </HowToSection>
         <HowToSection heading="Who can do this">
           <p>
-            Only <strong className="text-foreground">admin</strong> can change
-            these settings.
+            <strong className="text-foreground">admin</strong> and{" "}
+            <strong className="text-foreground">board</strong> can change these
+            settings; every other role has no access to this page.
           </p>
         </HowToSection>
         <HowToSection heading="What happens downstream">

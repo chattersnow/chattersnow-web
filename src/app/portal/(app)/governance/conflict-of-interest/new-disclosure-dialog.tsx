@@ -26,7 +26,13 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 
-export function NewDisclosureDialog({ people }: { people: PersonListItem[] }) {
+export function NewDisclosureDialog({
+  people,
+  currentFiscalYear,
+}: {
+  people: PersonListItem[];
+  currentFiscalYear: number;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [availablePeople, setAvailablePeople] = useState(people);
@@ -34,7 +40,7 @@ export function NewDisclosureDialog({ people }: { people: PersonListItem[] }) {
     null,
   );
   const [form, setForm] = useState<DisclosureFormState>(() =>
-    emptyDisclosureForm(),
+    emptyDisclosureForm(currentFiscalYear),
   );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -51,7 +57,7 @@ export function NewDisclosureDialog({ people }: { people: PersonListItem[] }) {
     if (nextOpen) {
       setAvailablePeople(people);
       setSelectedPerson(null);
-      setForm(emptyDisclosureForm());
+      setForm(emptyDisclosureForm(currentFiscalYear));
       setError(null);
     }
   }

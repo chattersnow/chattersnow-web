@@ -7,7 +7,6 @@ import {
   summarizeSpendByStatus,
   sumSpendWithStatus,
   toNumber,
-  yearToDateRange,
   type FinanceReportData,
   type MonetaryDonationReportRow,
   type RevenueReportRow,
@@ -230,22 +229,6 @@ describe("computeFinanceSummary", () => {
       pendingSpend: 0,
       inKindValue: 0,
       inKindItemCount: 0,
-    });
-  });
-});
-
-describe("yearToDateRange", () => {
-  test("runs from January 1st of the current year to today", () => {
-    expect(yearToDateRange(new Date("2026-08-28T12:00:00.000Z"))).toEqual({
-      from: "2026-01-01",
-      to: "2026-08-28",
-    });
-  });
-
-  test("never returns a range whose end precedes its start", () => {
-    expect(yearToDateRange(new Date("2026-01-01T00:00:00.000Z"))).toEqual({
-      from: "2026-01-01",
-      to: "2026-01-01",
     });
   });
 });

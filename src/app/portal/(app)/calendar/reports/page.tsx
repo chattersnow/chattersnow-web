@@ -10,6 +10,13 @@ import {
   type AnnualReviewPermissionRow,
 } from "./annual-review";
 import { formatNumber } from "@/lib/format";
+import {
+  fiscalYearForDate,
+  fiscalYearOptions,
+  fiscalYearRange,
+  formatFiscalYearLabel,
+  getFiscalYearStartMonth,
+} from "@/lib/fiscal-year";
 
 type AnnualReviewData = {
   items: AnnualReviewItemRow[];
@@ -45,16 +52,15 @@ export default async function CalendarAnnualReviewPage({
     return Array.isArray(value) ? value[0] : value;
   };
 
-  const currentYear = new Date().getFullYear();
-  const year = Number(raw("year") ?? currentYear);
-  const yearOptions = [
-    currentYear + 1,
-    currentYear,
-    currentYear - 1,
-    currentYear - 2,
-    currentYear - 3,
-    currentYear - 4,
-  ];
+  // The review is scoped to the org's fiscal year, not the calendar year, so
+  // a winter season's planning sits in one report. `year` in the URL is the
+  // fiscal year, named for the calendar year it ends in.
+  const startMonth = await getFiscalYearStartMonth(supabase);
+  const currentYear = fiscalYearForDate(new Date(), startMonth);
+  const requestedYear = Number(raw("year"));
+  const year = Number.isInteger(requestedYear) ? requestedYear : currentYear;
+  const yearOptions = fiscalYearOptions(new Date(), startMonth);
+  const range = fiscalYearRange(year, startMonth);
 
   let review: AnnualReview | null = null;
   let loadError: string | null = null;
@@ -62,7 +68,8 @@ export default async function CalendarAnnualReviewPage({
   const { data, error } = await supabase.rpc(
     "get_calendar_annual_review_data",
     {
-      p_year: year,
+      p_from: range.from,
+      p_to: range.to,
     },
   );
 
@@ -126,7 +133,7 @@ export default async function CalendarAnnualReviewPage({
         <div className="rainbow-accent mt-3 w-full" />
       </div>
       <p className="app-muted mt-2 max-w-2xl text-sm">
-        Year-scoped rollup of the content calendar&apos;s planning-cycle success
+        Fiscal-year rollup of the content calendar&apos;s planning-cycle success
         measures, computed live from calendar items, content-opportunity briefs,
         and recorded publication permissions.
       </p>
@@ -138,7 +145,7 @@ export default async function CalendarAnnualReviewPage({
               htmlFor="year"
               className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
             >
-              Year
+              Fiscal year
             </label>
             <select
               id="year"
@@ -148,7 +155,7 @@ export default async function CalendarAnnualReviewPage({
             >
               {yearOptions.map((option) => (
                 <option key={option} value={option}>
-                  {option}
+                  {formatFiscalYearLabel(option)}
                 </option>
               ))}
             </select>

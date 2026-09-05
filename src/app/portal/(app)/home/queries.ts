@@ -359,7 +359,7 @@ const CLOSED_PARTNERSHIP_STAGES = ["closed_won", "closed_lost"];
  * group): next scheduled governance meeting, open/overdue annual
  * requirements, nonprofit-status milestones, meeting action items, active
  * board members missing a conflict-of-interest disclosure for the current
- * year, open partnership opportunities, and the next (or overdue) grant
+ * fiscal year, open partnership opportunities, and the next (or overdue) grant
  * deadline (issue #498). Every backing table's select RLS is
  * governance:view, so a single section gate covers all widgets (unlike the
  * Financial section's per-widget resources).
@@ -368,9 +368,11 @@ export async function getOrganizationSummary(
   supabase: SupabaseClient,
   nowIso: string,
   todayDate: string,
+  // The fiscal year, passed in rather than derived from todayDate: since the
+  // fiscal year is a setting, `conflict_of_interest_disclosures.disclosure_year`
+  // names the fiscal year the disclosure covers, not the calendar year.
+  disclosureYear: number,
 ): Promise<OrganizationSummary> {
-  const disclosureYear = Number(todayDate.slice(0, 4));
-
   const [
     { data: nextMeetings },
     { data: requirements },

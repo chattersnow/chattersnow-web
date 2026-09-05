@@ -12,9 +12,14 @@ export type DisclosureFormState = {
   bodyText: string;
 };
 
-export function emptyDisclosureForm(): DisclosureFormState {
+/**
+ * `defaultYear` is the current *fiscal* year, resolved on the server and passed
+ * down -- the fiscal year start month is a setting, so the browser's clock
+ * alone can't work out which year a disclosure covers.
+ */
+export function emptyDisclosureForm(defaultYear: number): DisclosureFormState {
   return {
-    disclosureYear: String(new Date().getFullYear()),
+    disclosureYear: String(defaultYear),
     onFileDate: "",
     notes: "",
     externalLink: "",
@@ -39,7 +44,7 @@ export function DisclosureFormFields({
       <Field orientation="responsive">
         <Field>
           <FieldLabel htmlFor={`${idPrefix}-disclosure-year`}>
-            Disclosure year
+            Disclosure fiscal year
           </FieldLabel>
           <Input
             id={`${idPrefix}-disclosure-year`}
