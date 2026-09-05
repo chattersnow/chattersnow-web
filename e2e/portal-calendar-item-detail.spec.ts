@@ -11,7 +11,7 @@
 //
 // Everything here is read-only against the seed: nothing saves, deletes,
 // duplicates, or generates, so the suite can't corrupt later specs.
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { modal } from "./helpers/dialog";
 

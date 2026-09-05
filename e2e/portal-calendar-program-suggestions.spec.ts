@@ -9,7 +9,8 @@
 // database. A per-test program keeps every triple distinct, and doubles as
 // the rule's identity: both the table row and the details-sheet trigger are
 // labelled by program name.
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "./helpers/test";
+import type { Page } from "@playwright/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { modal } from "./helpers/dialog";

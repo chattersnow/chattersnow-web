@@ -15,7 +15,7 @@
 // The seed never sets the opportunity's draft/review due columns, so
 // effectiveDueDate() is null and overdueStage() returns null for it. That
 // makes both rows reliable negative probes for the Overdue only filter.
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { modal } from "./helpers/dialog";
 

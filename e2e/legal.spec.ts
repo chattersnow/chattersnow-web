@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 
 // These notices have to be reachable from anywhere on the site, which is why
 // they live in the footer's legal bar rather than the header nav. They sit in

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { signIn, submitLogin } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { seedPortalUser, seedRole } from "./helpers/rbac";

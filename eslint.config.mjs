@@ -19,6 +19,28 @@ const eslintConfig = defineConfig([
     // each has its own .next build output that isn't source to lint.
     ".claude/worktrees/**",
   ]),
+  {
+    // Specs must go through e2e/helpers/test, which extends `test` so each one
+    // reaches the app with its own x-forwarded-for -- otherwise the whole suite
+    // shares a single bucket against the per-(route, ip) rate limiter and trips
+    // limits of 5-10 on its own (#587). Types are unaffected.
+    files: ["e2e/**/*.spec.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@playwright/test",
+              importNames: ["test", "expect"],
+              message:
+                "Import { test, expect } from './helpers/test' so the test gets its own client IP (#587). Type-only imports from @playwright/test are fine.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

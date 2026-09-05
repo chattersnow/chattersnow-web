@@ -1,7 +1,7 @@
 // Issue #584: the board hides a whole public section from Administration >
 // System Settings. Hiding it must remove it from the nav *and* make its URLs
 // unreachable -- a link the nav no longer renders is still a live page.
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 
