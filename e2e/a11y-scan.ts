@@ -9,7 +9,8 @@
 //
 //   routes    derived from src/app instead of a hand-written list (22 routes,
 //             including /portal/login, had never been scanned)
-//   surfaces  sheets, dialogs, selects, form error states, inactive tab panels
+//   surfaces  sheets, dialogs, alert dialogs, tooltips, selects, form error
+//             states, inactive tab panels
 //   viewport  mobile as well as desktop
 //   theme     dark as well as light -- the theme toggle is live now
 //   roles     the other seeded accounts, not just admin
@@ -38,7 +39,7 @@ import {
   discoverRoutes,
   type DiscoveredRoute,
 } from "./a11y-routes";
-import { surfacesFor } from "./a11y-surfaces";
+import { OVERLAY_SELECTOR, surfacesFor } from "./a11y-surfaces";
 
 const baseURL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://127.0.0.1:3000";
 const args = new Set(process.argv.slice(2));
@@ -375,10 +376,15 @@ async function scanRoute(
     // A portal route that lands on the sign-in form means the session went away.
     // Scanning that page and filing it under the requested route would quietly
     // corrupt the baseline, so it is recorded as an error instead.
+    //
+    // /portal/set-password used to be exempt from this, which meant its three
+    // anon scans measured the sign-in page and filed the result under
+    // /portal/set-password: the same page counted twice under two names. The
+    // form itself needs a signed-in user, so as long as auth routes are
+    // scanned as anon it is honestly unreachable, and says so.
     if (
       pattern.startsWith("/portal") &&
       !pattern.startsWith("/portal/login") &&
-      !pattern.startsWith("/portal/set-password") &&
       new URL(page.url()).pathname.startsWith("/portal/login")
     ) {
       results.push({
@@ -446,6 +452,11 @@ async function scanRoute(
         continue;
       }
 
+      // Park the pointer unless the surface is about hover. Clicking a
+      // control leaves the mouse on it, and the help button's own tooltip
+      // opened by itself during the help-sheet scan and was measured
+      // mid-animation -- #657's blend, from a third direction.
+      if (surface.name !== "tooltip") await page.mouse.move(0, 0);
       await settleSurfaceMotion(page);
 
       const opened_result = await safeAnalyze(page);
@@ -463,8 +474,16 @@ async function scanRoute(
       });
 
       await surface.close(page).catch(() => {});
-      // The form-error surface navigates/mutates state; reload to be safe.
-      if (surface.name === "form-error") {
+
+      // A surface that fails to close leaks into the next one, and the next
+      // one gets the blame: that bug produced two entirely phantom rules
+      // before it was caught. Escape is not trusted -- the DOM is checked --
+      // and a surface that submits or changes the view says so itself.
+      const leaked = await page
+        .locator(OVERLAY_SELECTOR)
+        .count()
+        .catch(() => 0);
+      if (leaked > 0 || surface.mutates) {
         await page
           .goto(new URL(route, baseURL).toString(), {
             waitUntil: "networkidle",
