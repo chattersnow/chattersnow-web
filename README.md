@@ -1,3 +1,29 @@
+# chattersnow-web
+
+The public website and operations portal for Chatter Snow — a Next.js App Router
+application backed by Supabase.
+
+- `CLAUDE.md` — build, lint, test, and architecture conventions. Read this first.
+- `docs/technical-spec.md` — what is built and specified today.
+- `CONTRIBUTING.md` — how to contribute, and the CLA required before a first
+  contribution.
+
+## License and ownership
+
+This repository is **proprietary, not open source**. It contains two categories
+of material with different owners: the generic nonprofit-operations platform
+(the Core) and Chatter Snow's own brand, content, and data.
+
+- `LICENSE` — the terms.
+- `docs/licensing.md` — where the boundary falls, and the rules for keeping it
+  clean while writing code.
+
+Two things are worth knowing before you touch anything: don't hardcode Chatter
+Snow specifics into platform code, and never copy production data into fixtures,
+tests, demos, screenshots, or prompts. Every row concerns a real person.
+
+---
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
