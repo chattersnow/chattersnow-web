@@ -34,13 +34,9 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
 import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
 import { formatCalendarDate, personDisplayName } from "@/lib/format";
@@ -325,6 +321,83 @@ export function ActionItemsTab({
     });
   }
 
+  // Built on every render rather than memoized: the row actions close over
+  // `handleToggleStatus` and `handleDelete`, which are redefined each render
+  // anyway, so a `useMemo` here would only look stable. A meeting has a
+  // handful of action items.
+  const columns: PortalDataTableColumn<ActionItem>[] = [
+    {
+      key: "description",
+      // The description is a sentence, wrapped rather than truncated: nothing
+      // a reader would look for in its alphabetical order.
+      label: "Description",
+      cellClassName: "whitespace-normal font-medium",
+      render: (actionItem) => actionItem.description,
+    },
+    {
+      key: "owner",
+      label: "Owner",
+      sortValue: (actionItem) => personDisplayName(actionItem.owner),
+      cellClassName: "app-muted",
+      render: (actionItem) => personDisplayName(actionItem.owner),
+    },
+    {
+      key: "due_date",
+      label: "Due date",
+      sortValue: (actionItem) => actionItem.due_date,
+      cellClassName: "app-muted",
+      render: (actionItem) => formatCalendarDate(actionItem.due_date),
+    },
+    {
+      key: "status",
+      // Open first while ascending: sorting a list of action items on Done is
+      // a way of asking what is still outstanding.
+      label: "Done",
+      sortValue: (actionItem) => (actionItem.status === "done" ? 1 : 0),
+      render: (actionItem) => (
+        <Checkbox
+          checked={actionItem.status === "done"}
+          disabled={mode !== "edit" || isMutating}
+          onCheckedChange={() => handleToggleStatus(actionItem)}
+        />
+      ),
+    },
+    // Actions only while there is something in them: in view mode the column
+    // would be an empty strip with a name only a screen reader hears.
+    ...(mode === "edit"
+      ? [
+          {
+            key: "actions",
+            label: "Actions",
+            srOnlyLabel: true,
+            headClassName: "w-px",
+            cellClassName: "text-right whitespace-nowrap",
+            render: (actionItem: ActionItem) => (
+              <>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Edit action item"
+                  onClick={() => setEditingId(actionItem.id)}
+                >
+                  <Pencil />
+                </Button>
+                <ConfirmDeleteButton
+                  label="Remove action item"
+                  title="Remove this action item?"
+                  description="This deletes the item, its owner and its due date from the meeting record. It can't be undone."
+                  confirmLabel="Remove"
+                  pending={isMutating}
+                  onConfirm={() => handleDelete(actionItem.id)}
+                />
+              </>
+            ),
+          },
+        ]
+      : []),
+  ];
+
   const editingItem =
     actionItems?.find((item) => item.id === editingId) ?? null;
 
@@ -348,62 +421,16 @@ export function ActionItemsTab({
           }
         />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Description</TableHead>
-              <TableHead>Owner</TableHead>
-              <TableHead>Due date</TableHead>
-              <TableHead>Done</TableHead>
-              <TableHead className="w-px" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {actionItems?.map((actionItem) => (
-              <TableRow key={actionItem.id}>
-                <TableCell className="whitespace-normal font-medium">
-                  {actionItem.description}
-                </TableCell>
-                <TableCell className="app-muted">
-                  {personDisplayName(actionItem.owner)}
-                </TableCell>
-                <TableCell className="app-muted">
-                  {formatCalendarDate(actionItem.due_date)}
-                </TableCell>
-                <TableCell>
-                  <Checkbox
-                    checked={actionItem.status === "done"}
-                    disabled={mode !== "edit" || isMutating}
-                    onCheckedChange={() => handleToggleStatus(actionItem)}
-                  />
-                </TableCell>
-                <TableCell className="text-right whitespace-nowrap">
-                  {mode === "edit" && (
-                    <>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Edit action item"
-                        onClick={() => setEditingId(actionItem.id)}
-                      >
-                        <Pencil />
-                      </Button>
-                      <ConfirmDeleteButton
-                        label="Remove action item"
-                        title="Remove this action item?"
-                        description="This deletes the item, its owner and its due date from the meeting record. It can't be undone."
-                        confirmLabel="Remove"
-                        pending={isMutating}
-                        onConfirm={() => handleDelete(actionItem.id)}
-                      />
-                    </>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        // `bare`: the section card around this tab is the surface already.
+        // No `defaultSort` -- action items arrive in the order the server sent
+        // them, and the arrows take over from there.
+        <PortalDataTable
+          columns={columns}
+          rows={actionItems}
+          getRowKey={(actionItem) => actionItem.id}
+          emptyMessage="No action items recorded yet."
+          shell="bare"
+        />
       )}
 
       {mode === "edit" &&

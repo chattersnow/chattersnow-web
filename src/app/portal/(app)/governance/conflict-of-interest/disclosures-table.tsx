@@ -3,19 +3,15 @@
 import { ReactNode, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { EditDisclosureModal } from "./edit-disclosure-modal";
 import type { Disclosure } from "./disclosures-actions";
 import type { PersonListItem } from "../../people/actions";
 import { formatCalendarDate } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
+import {
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
 
 export function DisclosuresTable({
   disclosures,
@@ -39,6 +35,55 @@ export function DisclosuresTable({
         String(disclosure.disclosure_year).includes(query),
     );
   }, [disclosures, search]);
+
+  const columns = useMemo<PortalDataTableColumn<Disclosure>[]>(
+    () => [
+      {
+        key: "person",
+        label: "Person",
+        sortValue: (disclosure) => disclosure.person.name,
+        cellClassName: "font-medium",
+        render: (disclosure) => disclosure.person.name ?? "—",
+      },
+      {
+        key: "disclosure_year",
+        label: "Disclosure year",
+        sortValue: (disclosure) => disclosure.disclosure_year,
+        cellClassName: "app-muted",
+        render: (disclosure) => disclosure.disclosure_year,
+      },
+      {
+        key: "on_file_date",
+        label: "On-file date",
+        sortValue: (disclosure) => disclosure.on_file_date,
+        cellClassName: "app-muted",
+        render: (disclosure) => formatCalendarDate(disclosure.on_file_date),
+      },
+      {
+        key: "notes",
+        // Free prose, truncated: unsorted for the same reason as every other
+        // notes column in the portal.
+        label: "Notes",
+        cellClassName: "app-muted max-w-xs truncate",
+        render: (disclosure) => (
+          <span title={disclosure.notes ?? undefined}>
+            {disclosure.notes || "—"}
+          </span>
+        ),
+      },
+      {
+        key: "actions",
+        label: "Actions",
+        srOnlyLabel: true,
+        headClassName: "w-0",
+        render: (disclosure) =>
+          canManage ? (
+            <EditDisclosureModal disclosure={disclosure} people={people} />
+          ) : null,
+      },
+    ],
+    [canManage, people],
+  );
 
   return (
     <div className="space-y-4">
@@ -76,60 +121,14 @@ export function DisclosuresTable({
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="px-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Person</TableHead>
-                  <TableHead>Disclosure year</TableHead>
-                  <TableHead>On-file date</TableHead>
-                  <TableHead>Notes</TableHead>
-                  <TableHead className="w-0">
-                    <span className="sr-only">Actions</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visibleDisclosures.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="app-muted text-center">
-                      No disclosures match your search.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  visibleDisclosures.map((disclosure) => (
-                    <TableRow key={disclosure.id}>
-                      <TableCell className="font-medium">
-                        {disclosure.person.name ?? "—"}
-                      </TableCell>
-                      <TableCell className="app-muted">
-                        {disclosure.disclosure_year}
-                      </TableCell>
-                      <TableCell className="app-muted">
-                        {formatCalendarDate(disclosure.on_file_date)}
-                      </TableCell>
-                      <TableCell
-                        className="app-muted max-w-xs truncate"
-                        title={disclosure.notes ?? undefined}
-                      >
-                        {disclosure.notes || "—"}
-                      </TableCell>
-                      <TableCell>
-                        {canManage && (
-                          <EditDisclosureModal
-                            disclosure={disclosure}
-                            people={people}
-                          />
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <PortalDataTable
+          columns={columns}
+          rows={visibleDisclosures}
+          getRowKey={(disclosure) => disclosure.id}
+          // The query orders by disclosure year, newest first.
+          defaultSort={{ key: "disclosure_year", dir: "desc" }}
+          emptyMessage="No disclosures match your search."
+        />
       )}
     </div>
   );
