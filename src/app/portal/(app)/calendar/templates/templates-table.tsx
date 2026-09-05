@@ -15,13 +15,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
 import type { TemplateListRow } from "./template-shared";
 import { EmptyState } from "@/components/portal/empty-state";
 
@@ -55,6 +51,71 @@ export function TemplatesTable({
     search.trim() !== "",
     activeFilter !== FILTER_ALL,
   ].filter(Boolean).length;
+
+  const columns = useMemo<PortalDataTableColumn<TemplateListRow>[]>(
+    () => [
+      {
+        key: "name",
+        label: "Name",
+        sortValue: (template) => template.name,
+        cellClassName: "max-w-xs font-medium",
+        render: (template) => (
+          <span className="block truncate" title={template.name}>
+            {template.name}
+          </span>
+        ),
+      },
+      {
+        key: "key",
+        label: "Key",
+        sortValue: (template) => template.key,
+        cellClassName: "app-muted",
+        render: (template) => template.key,
+      },
+      {
+        key: "version",
+        label: "Version",
+        // Numeric, so v9 sorts below v10 rather than after it.
+        sortValue: (template) => template.version,
+        render: (template) => `v${template.version}`,
+      },
+      {
+        key: "is_active",
+        label: "Active",
+        // The word the cell shows, so ascending groups the "No"s first
+        // instead of ordering on a boolean a reader can't see.
+        sortValue: (template) => (template.is_active ? "Yes" : "No"),
+        cellClassName: "app-muted",
+        render: (template) => (template.is_active ? "Yes" : "No"),
+      },
+      {
+        key: "requires_consent",
+        label: "Requires consent",
+        sortValue: (template) => (template.requires_consent ? "Yes" : "No"),
+        cellClassName: "app-muted",
+        render: (template) => (template.requires_consent ? "Yes" : "No"),
+      },
+      {
+        key: "actions",
+        label: "Actions",
+        srOnlyLabel: true,
+        headClassName: "w-0",
+        cellClassName: "text-right",
+        render: (template) => (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            nativeButton={false}
+            aria-label={`View ${template.name}`}
+            render={<Link href={`/portal/calendar/templates/${template.id}`} />}
+          >
+            <Eye />
+          </Button>
+        ),
+      },
+    ],
+    [],
+  );
 
   return (
     <div className="space-y-4">
@@ -112,67 +173,14 @@ export function TemplatesTable({
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="px-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Key</TableHead>
-                  <TableHead>Version</TableHead>
-                  <TableHead>Active</TableHead>
-                  <TableHead>Requires consent</TableHead>
-                  <TableHead className="w-px" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visibleTemplates.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="app-muted text-center">
-                      No templates match your filters.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  visibleTemplates.map((template) => (
-                    <TableRow key={template.id}>
-                      <TableCell
-                        className="max-w-xs truncate font-medium"
-                        title={template.name}
-                      >
-                        {template.name}
-                      </TableCell>
-                      <TableCell className="app-muted">
-                        {template.key}
-                      </TableCell>
-                      <TableCell>v{template.version}</TableCell>
-                      <TableCell className="app-muted">
-                        {template.is_active ? "Yes" : "No"}
-                      </TableCell>
-                      <TableCell className="app-muted">
-                        {template.requires_consent ? "Yes" : "No"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          nativeButton={false}
-                          aria-label={`View ${template.name}`}
-                          render={
-                            <Link
-                              href={`/portal/calendar/templates/${template.id}`}
-                            />
-                          }
-                        >
-                          <Eye />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <PortalDataTable
+          columns={columns}
+          rows={visibleTemplates}
+          getRowKey={(template) => template.id}
+          // Matches the query's own ordering.
+          defaultSort={{ key: "name", dir: "asc" }}
+          emptyMessage="No templates match your filters."
+        />
       )}
     </div>
   );

@@ -18,6 +18,7 @@
 import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { modal } from "./helpers/dialog";
+import { pager, revealRow } from "./helpers/table";
 
 const SEEDED_OPPORTUNITY = "Winter Gear Swap Promotion";
 const SEEDED_OBSERVANCE = "Sample Recurring Observance";
@@ -65,22 +66,30 @@ test.describe("portal calendar work queue", () => {
     await page.getByRole("button", { name: "Upcoming queue" }).click();
     await expect(page).toHaveURL(/\/work-queue\?tab=queue$/);
 
-    await expect(
-      page.getByRole("row").filter({ hasText: SEEDED_OPPORTUNITY }),
-    ).toBeVisible();
+    // Ten rows to a page, and this queue holds every non-archived calendar
+    // item, so neither seeded row is reliably on the first one.
+    const opportunityRow = page
+      .getByRole("row")
+      .filter({ hasText: SEEDED_OPPORTUNITY });
+    await revealRow(opportunityRow, pager(page));
+    await expect(opportunityRow).toBeVisible();
     // Only shows up here: it has no content opportunity, so it can't be
     // anyone's My work item.
-    await expect(
-      page.getByRole("row").filter({ hasText: SEEDED_OBSERVANCE }),
-    ).toBeVisible();
+    const observanceRow = page
+      .getByRole("row")
+      .filter({ hasText: SEEDED_OBSERVANCE });
+    await revealRow(observanceRow, pager(page));
+    await expect(observanceRow).toBeVisible();
   });
 
   test("filters the upcoming queue down to overdue work", async ({ page }) => {
     await page.goto("/portal/calendar/work-queue?tab=queue");
 
-    await expect(
-      page.getByRole("row").filter({ hasText: SEEDED_OPPORTUNITY }),
-    ).toBeVisible();
+    const opportunityRow = page
+      .getByRole("row")
+      .filter({ hasText: SEEDED_OPPORTUNITY });
+    await revealRow(opportunityRow, pager(page));
+    await expect(opportunityRow).toBeVisible();
 
     await page.getByRole("button", { name: "Overdue only" }).click();
     await expect(page).toHaveURL(/\/work-queue\?tab=queue&filter=overdue$/);
@@ -98,9 +107,8 @@ test.describe("portal calendar work queue", () => {
     // Clearing the filter restores the unfiltered queue.
     await page.getByRole("button", { name: "Overdue only" }).click();
     await expect(page).toHaveURL(/\/work-queue\?tab=queue$/);
-    await expect(
-      page.getByRole("row").filter({ hasText: SEEDED_OPPORTUNITY }),
-    ).toBeVisible();
+    await revealRow(opportunityRow, pager(page));
+    await expect(opportunityRow).toBeVisible();
   });
 
   test("links a queued item to its detail page, content brief included", async ({
