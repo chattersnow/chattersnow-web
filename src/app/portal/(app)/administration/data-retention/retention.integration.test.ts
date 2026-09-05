@@ -15,6 +15,7 @@
  */
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { createClient } from "@supabase/supabase-js";
+import { RETENTION_POLICIES } from "@/lib/retention";
 import {
   SEEDED_USERS,
   adminClient,
@@ -98,6 +99,47 @@ describe("run_retention_purge", () => {
     for (const policy of policies ?? []) {
       await setMode(policy.policy_key, "dry_run");
     }
+  });
+
+  // The reason src/lib/retention.ts duplicates `period` at all.
+  //
+  // /privacy renders its prose from that module and the purge reads its clocks
+  // from this table, so nothing structural stops someone changing a period in a
+  // migration and leaving the published page promising the old one -- which is
+  // the exact failure #602 exists to fix, reintroduced one layer down. Postgres
+  // normalises an interval on the way in ("3 mons" for "3 months"), so compare
+  // through interval arithmetic rather than string equality.
+  describe("the published periods and the enforced periods agree", () => {
+    test("every published policy has a matching row with the same clock", async () => {
+      const { data, error } = await serviceClient
+        .from("retention_policies")
+        .select("policy_key, period, secondary_period");
+      if (error) throw error;
+
+      const rows = new Map(data!.map((row) => [row.policy_key, row]));
+
+      for (const policy of RETENTION_POLICIES) {
+        const row = rows.get(policy.key);
+        expect(
+          row,
+          `no retention_policies row for ${policy.key}`,
+        ).toBeDefined();
+
+        const { data: agrees, error: compareError } = await serviceClient.rpc(
+          "retention_period_matches",
+          {
+            p_policy_key: policy.key,
+            p_period: policy.period,
+            p_secondary_period: policy.secondaryPeriod ?? null,
+          },
+        );
+        if (compareError) throw compareError;
+        expect(
+          agrees,
+          `${policy.key}: /privacy says "${policy.period}" but retention_policies says "${row!.period}"`,
+        ).toBe(true);
+      }
+    });
   });
 
   describe("contact messages, 2 years from submission", () => {
