@@ -248,7 +248,12 @@ export default async function InventoryReportsPage({
                 description="On-hand value appears here once a donation is recorded under Inventory › Donations."
               />
             ) : (
-              <Table>
+              // Not a PortalDataTable: the group subtotal rows between the
+              // category rows are the point of this table, and a flat row
+              // list can neither carry them nor be sorted without scattering
+              // the categories out of their groups. It takes the shared
+              // sticky header and keeps its grouping.
+              <Table stickyHeader="page">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Group</TableHead>
@@ -292,7 +297,9 @@ export default async function InventoryReportsPage({
             <CardTitle>Inventory value by status</CardTitle>
           </CardHeader>
           <CardContent className="px-0">
-            <Table>
+            {/* One row per inventory status, in STATUSES order: nothing to
+                sort, and never enough rows to page. Sticky header only. */}
+            <Table stickyHeader="page">
               <TableHeader>
                 <TableRow>
                   <TableHead>Status</TableHead>
@@ -320,7 +327,9 @@ export default async function InventoryReportsPage({
             <CardTitle>Donated value by donor type</CardTitle>
           </CardHeader>
           <CardContent className="px-0">
-            <Table>
+            {/* Three donor buckets in a fixed order -- same reasoning as
+                the status table above. */}
+            <Table stickyHeader="page">
               <TableHeader>
                 <TableRow>
                   <TableHead>Donor type</TableHead>

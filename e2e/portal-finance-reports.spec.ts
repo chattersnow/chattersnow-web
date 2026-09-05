@@ -81,7 +81,10 @@ test.describe("portal finance reports", () => {
     // explicit role="button" whenever nativeButton={false} -- see
     // src/components/ui/button.tsx and node_modules/@base-ui/react's
     // useButton -- so this is exposed as "button", not "link".
-    await page.getByRole("button", { name: "Reset to this year" }).click();
+    // The label names the fiscal year the page defaults back to ("Reset to
+    // FY2027"), which moves with the clock and with the org's fiscal-year
+    // start month, so it is matched by shape rather than spelled out.
+    await page.getByRole("button", { name: /^Reset to FY\d{4}$/ }).click();
 
     await expect(page).toHaveURL(/\/portal\/finance\/reports$/);
     await expect(
