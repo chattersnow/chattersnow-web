@@ -187,9 +187,21 @@ jobs:
       - name: Install Playwright browser (chromium)
         run: bunx playwright install --with-deps chromium
 
-      - name: Start dev server
+      # Built and served rather than `next dev` (#744): under the dev server
+      # every route was compiled on demand by whichever pass reached it first,
+      # and that cost landed inside the scan. NEXT_PUBLIC_* are inlined at
+      # build time, so they belong on this step, not just on `start`.
+      - name: Build
+        run: bun run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ env.API_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ env.PUBLISHABLE_KEY }}
+          SUPABASE_SECRET_KEY: ${{ env.SECRET_KEY }}
+          NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
+
+      - name: Start server
         run: |
-          bun run dev > dev-server.log 2>&1 &
+          bun run start > server.log 2>&1 &
           timeout 120 bash -c 'until curl -sf http://127.0.0.1:3000/home > /dev/null; do sleep 2; done'
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ env.API_URL }}
@@ -198,9 +210,13 @@ jobs:
           NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
 
       - name: Accessibility scan
+        # Shards the scan across browser contexts (#751). Set explicitly rather
+        # than left to the script's CI default so the runner's concurrency is
+        # visible and tunable here.
         run: bun run test:a11y:check
         env:
           NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
+          A11Y_WORKERS: "4"
 
       - name: Upload a11y report
         if: always()
