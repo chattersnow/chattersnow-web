@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { mintInviteLink } from "@/lib/auth/invite-link";
 import { checkPermission } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
 import { friendlyError } from "@/lib/db-errors";
@@ -266,34 +266,9 @@ export async function createInviteLinkAction(
   // The domain the admin is on, so a tenant's invite lands on that tenant's
   // site (#707 Phase 4).
   const siteUrl = await getRequestOrigin();
-  const admin = createSupabaseAdminClient();
-  const redirectTo = `${siteUrl}/auth/confirm`;
-
-  let result = await admin.auth.admin.generateLink({
-    type: "invite",
-    email: grant.email,
-    options: { redirectTo },
-  });
-  let linkType: "invite" | "magiclink" = "invite";
-
-  if (result.error?.code === "email_exists") {
-    result = await admin.auth.admin.generateLink({
-      type: "magiclink",
-      email: grant.email,
-      options: { redirectTo },
-    });
-    linkType = "magiclink";
-  }
-
-  if (result.error || !result.data) {
-    return {
-      error: "Could not generate a link for this email. Please try again.",
-    };
-  }
-
-  const link =
-    `${siteUrl}/auth/confirm?token_hash=${result.data.properties.hashed_token}` +
-    `&type=${linkType}&next=/portal/set-password`;
+  const minted = await mintInviteLink(grant.email, siteUrl);
+  if ("error" in minted) return minted;
+  const { link } = minted;
 
   await supabase
     .from("pending_role_grants")

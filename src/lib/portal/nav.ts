@@ -411,6 +411,16 @@ export const NAV_ITEMS: readonly NavItem[] = [
         href: "/portal/administration/site-content",
         access: [{ resource: "site_content", level: "view" }],
       },
+      // Gated on its own resource, which the platform RPCs only honour inside
+      // a tenant on the internal plan (#707 Phase 5c) -- so the entry simply
+      // does not resolve for a customer's admin, and needs no nav logic of its
+      // own to stay hidden.
+      {
+        value: "platform",
+        label: "Platform",
+        href: "/portal/administration/platform",
+        access: [{ resource: "platform_tenants", level: "manage" }],
+      },
       {
         value: "audit-log",
         label: "Audit Log",
