@@ -20,6 +20,11 @@ export type CategoryGroupFormData = {
  * `resolve_inventory_category()` join on, so it is derived once at creation and
  * never re-derived on rename — renaming "Beanie" to "Beanie / toque" must not
  * invalidate a shared filter link or orphan the alias map.
+ *
+ * A label with nothing sluggable in it ("!!!", or one written in a non-Latin
+ * script) slugifies to the empty string, which `key text not null unique`
+ * accepts exactly once and which no filter URL can address, so both parsers
+ * reject such a label rather than let the next one fail on a duplicate key.
  */
 export function slugifyCategoryKey(label: string): string {
   return label
@@ -43,6 +48,9 @@ export function parseCategoryForm(
 
   if (!label) return { error: "Category name is required." };
   if (!groupId) return { error: "Select a category group." };
+  if (!slugifyCategoryKey(label)) {
+    return { error: "Category name must include a letter or number." };
+  }
 
   const sortOrder = parseSortOrder(formData.get("sortOrder"));
   if (sortOrder === null) {
@@ -64,6 +72,9 @@ export function parseCategoryGroupForm(
 ): ParseResult<CategoryGroupFormData> {
   const label = String(formData.get("label") ?? "").trim();
   if (!label) return { error: "Group name is required." };
+  if (!slugifyCategoryKey(label)) {
+    return { error: "Group name must include a letter or number." };
+  }
 
   const sortOrder = parseSortOrder(formData.get("sortOrder"));
   if (sortOrder === null) {

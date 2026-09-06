@@ -147,4 +147,48 @@ describe("parseAgendaForm", () => {
       error: "Could not read the upcoming dates list. Please try again.",
     });
   });
+
+  test("rejects well-formed JSON of the wrong shape rather than throwing", () => {
+    for (const value of ["null", '"hi"', "[]", "42"]) {
+      expect(
+        parseAgendaForm(formData({ ...validFields, ongoingItems: value })),
+      ).toEqual({
+        error: "Could not read the ongoing board items. Please try again.",
+      });
+    }
+
+    for (const value of ["null", '{"a":1}', "[1,2]", "[null]"]) {
+      expect(
+        parseAgendaForm(formData({ ...validFields, newBusiness: value })),
+      ).toEqual({
+        error: "Could not read the new business list. Please try again.",
+      });
+      expect(
+        parseAgendaForm(formData({ ...validFields, parkingLot: value })),
+      ).toEqual({
+        error: "Could not read the parking lot list. Please try again.",
+      });
+    }
+
+    for (const value of ["null", '"hi"', "[null]", '["a"]']) {
+      expect(
+        parseAgendaForm(formData({ ...validFields, upcomingDates: value })),
+      ).toEqual({
+        error: "Could not read the upcoming dates list. Please try again.",
+      });
+    }
+  });
+
+  test("rejects an ongoing item that is not an object", () => {
+    expect(
+      parseAgendaForm(
+        formData({
+          ...validFields,
+          ongoingItems: JSON.stringify({ fundraising: "just a string" }),
+        }),
+      ),
+    ).toEqual({
+      error: "Could not read the ongoing board items. Please try again.",
+    });
+  });
 });

@@ -30,7 +30,7 @@ describe("slugifyCategoryKey", () => {
     expect(slugifyCategoryKey("Café gear")).toBe("caf_gear");
   });
 
-  test("returns an empty key for a label with nothing sluggable", () => {
+  test("returns an empty key for a label with nothing sluggable, which is why both parsers reject one", () => {
     expect(slugifyCategoryKey("!!!")).toBe("");
   });
 });
@@ -66,11 +66,19 @@ describe("parseCategoryForm", () => {
     ).toEqual({ error: "Select a category group." });
   });
 
+  test("rejects a label that would slugify to an empty key", () => {
+    for (const label of ["!!!", "---", "スキーブーツ"]) {
+      expect(parseCategoryForm(formData({ ...validFields, label }))).toEqual({
+        error: "Category name must include a letter or number.",
+      });
+    }
+  });
+
   test("only 'off' turns the active toggle off", () => {
     const off = parseCategoryForm(
       formData({ ...validFields, isActive: "off" }),
     );
-    expect("data" in off && off.data.is_active).toBe(false);
+    expect(off).toMatchObject({ data: { is_active: false } });
 
     const absent = formData(validFields);
     absent.delete("isActive");
@@ -121,6 +129,12 @@ describe("parseCategoryGroupForm", () => {
     ).toEqual({ error: "Group name is required." });
   });
 
+  test("rejects a label that would slugify to an empty key", () => {
+    expect(
+      parseCategoryGroupForm(formData({ ...validFields, label: "???" })),
+    ).toEqual({ error: "Group name must include a letter or number." });
+  });
+
   test("defaults an absent sort order to zero", () => {
     const result = parseCategoryGroupForm(formData({ label: "Outerwear" }));
     expect("data" in result && result.data.sort_order).toBe(0);
@@ -138,6 +152,6 @@ describe("parseCategoryGroupForm", () => {
     const off = parseCategoryGroupForm(
       formData({ ...validFields, isActive: "off" }),
     );
-    expect("data" in off && off.data.is_active).toBe(false);
+    expect(off).toMatchObject({ data: { is_active: false } });
   });
 });
