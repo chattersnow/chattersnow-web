@@ -1,12 +1,25 @@
-import Image from "next/image";
+import type { Metadata } from "next";
 import Link from "next/link";
+import { BrandLogo } from "@/components/brand-logo";
+import { BrandStyle } from "@/components/brand-style";
 import { InstagramLink } from "@/components/instagram-link";
 import { SkipLink } from "@/components/skip-link";
-import { CONTACT_EMAIL } from "@/lib/contact-addresses";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPageVisibility, hiddenSlots } from "@/lib/page-visibility";
+import { getPublicSite } from "@/lib/public-site";
 import { LEGAL_LINKS, visibleGroups } from "@/lib/public-nav";
 import { SiteNav } from "./site-nav";
+
+// The organization's name and description, per tenant (#707 Phase 4). Every
+// public page's own title is "<Page> | <name>", built from the same read.
+export async function generateMetadata(): Promise<Metadata> {
+  const supabase = await createSupabaseServerClient();
+  const site = await getPublicSite(supabase);
+  return {
+    title: site.name,
+    description: site.content.text("org.tagline"),
+  };
+}
 
 function FooterLink({ href, label }: { href: string; label: string }) {
   return (
@@ -44,29 +57,34 @@ export default async function PublicLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createSupabaseServerClient();
-  const hidden = hiddenSlots(await getPageVisibility(supabase));
+  const [visibility, site] = await Promise.all([
+    getPageVisibility(supabase),
+    getPublicSite(supabase),
+  ]);
+  const hidden = hiddenSlots(visibility);
+  const { name, branding, content } = site;
+  const contactEmail = content.text("org.email_general");
+  const supportLabel = `Support ${content.text("org.short_name")}`;
 
   return (
     <>
+      <BrandStyle branding={branding} />
       <SkipLink href="#main-content" />
       <div className="rainbow-strip" />
       <header className="border-b border-[var(--line)] px-6 py-4 sm:px-10">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4">
           <Link href="/home" className="flex shrink-0 items-center gap-2">
-            <Image
-              src="/chatter-logo-transparent.png"
-              alt="Chatter Snow"
-              width={643}
-              height={492}
-              className="h-10 w-auto"
-              style={{ width: "auto" }}
+            <BrandLogo
+              logoUrl={branding.logoUrl}
+              alt={name}
+              className="h-10 w-10"
               priority
             />
             <span className="brand-display text-lg font-semibold tracking-[-0.02em] sm:text-xl">
-              Chatter Snow
+              {name}
             </span>
           </Link>
-          <SiteNav hiddenSlots={hidden} />
+          <SiteNav hiddenSlots={hidden} supportLabel={supportLabel} />
         </div>
       </header>
       {children}
@@ -83,16 +101,13 @@ export default async function PublicLayout({
           <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex flex-col gap-4">
               <Link href="/home" className="flex w-fit items-center gap-2">
-                <Image
-                  src="/chatter-logo-transparent.png"
-                  alt="Chatter Snow"
-                  width={643}
-                  height={492}
-                  className="h-8 w-auto"
-                  style={{ width: "auto" }}
+                <BrandLogo
+                  logoUrl={branding.logoUrl}
+                  alt={name}
+                  className="h-8 w-8"
                 />
                 <span className="brand-display font-semibold tracking-[-0.02em]">
-                  Chatter Snow
+                  {name}
                 </span>
               </Link>
               <nav
@@ -104,23 +119,27 @@ export default async function PublicLayout({
             </div>
 
             <div className="flex flex-col gap-2 sm:items-end">
-              <span className="app-eyebrow">Get in touch</span>
+              <span className="app-eyebrow">
+                {content.text("org.footer_contact_eyebrow")}
+              </span>
               <div className="app-muted flex flex-col gap-1 text-sm sm:items-end">
                 <a
-                  href={`mailto:${CONTACT_EMAIL}`}
+                  href={`mailto:${contactEmail}`}
                   className="hover:text-foreground underline-offset-4 hover:underline"
                 >
-                  {CONTACT_EMAIL}
+                  {contactEmail}
                 </a>
-                <InstagramLink />
+                <InstagramLink
+                  handle={content.text("org.instagram_handle")}
+                  orgName={name}
+                />
               </div>
             </div>
           </div>
 
           <div className="mt-8 flex flex-col gap-3 border-t border-[var(--line)] pt-6 sm:flex-row sm:items-center sm:justify-between">
             <p className="app-muted text-sm">
-              &copy; {new Date().getFullYear()} Chatter Snow. All rights
-              reserved.
+              &copy; {new Date().getFullYear()} {name}. All rights reserved.
             </p>
             <nav aria-label="Legal" className="flex flex-wrap gap-x-6 gap-y-2">
               {LEGAL_LINKS.map((link) => (

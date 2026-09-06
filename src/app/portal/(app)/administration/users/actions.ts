@@ -6,13 +6,19 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { checkPermission } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
 import { friendlyError } from "@/lib/db-errors";
+import { getRequestOrigin } from "@/lib/request-origin";
 import type {
   PendingGrant,
   PortalRoleOption,
   PortalUser,
+  SupportGrant,
 } from "./users-shared";
 
-export type { PortalUser, PortalRoleOption } from "./users-shared";
+export type {
+  PortalUser,
+  PortalRoleOption,
+  SupportGrant,
+} from "./users-shared";
 
 export async function listRolesAction(): Promise<
   { data: PortalRoleOption[] } | { error: string }
@@ -257,8 +263,11 @@ export async function createInviteLinkAction(
     return { error: "This grant has already been claimed or revoked." };
   }
 
+  // The domain the admin is on, so a tenant's invite lands on that tenant's
+  // site (#707 Phase 4).
+  const siteUrl = await getRequestOrigin();
   const admin = createSupabaseAdminClient();
-  const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/confirm`;
+  const redirectTo = `${siteUrl}/auth/confirm`;
 
   let result = await admin.auth.admin.generateLink({
     type: "invite",
@@ -282,7 +291,6 @@ export async function createInviteLinkAction(
     };
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
   const link =
     `${siteUrl}/auth/confirm?token_hash=${result.data.properties.hashed_token}` +
     `&type=${linkType}&next=/portal/set-password`;
@@ -352,6 +360,14 @@ export async function deactivateUserAction(
     .from("deactivated_users")
     .insert({ user_id: userId, deactivated_by: user.id });
   if (error) {
+    // The policy refuses an account that also belongs to another
+    // organization: deactivation is platform-wide (#707 Phase 4).
+    if (error.code === "42501") {
+      return {
+        error:
+          "This account also belongs to another organization, so it can't be deactivated from here. Remove them from this organization instead.",
+      };
+    }
     return {
       error: friendlyError(
         error,
@@ -386,6 +402,171 @@ export async function reactivateUserAction(
   }
   if (!data || data.length === 0) {
     return { error: "This user is not deactivated." };
+  }
+
+  revalidatePath("/portal/administration/users");
+  return { success: true };
+}
+
+// Support access (#707 Phase 4) ---------------------------------------------
+//
+// Time-boxed platform-staff access, granted by this organization's own admin
+// and ended by them. The RPCs do the authorization: administration:manage in
+// the current tenant, and a caller whose own membership is not itself a
+// support grant.
+
+const SUPPORT_ERRORS: Record<string, string> = {
+  SUPPORT_CANNOT_GRANT_SUPPORT:
+    "Support access can only be granted by a member of this organization.",
+  SUPPORT_CANNOT_REVOKE_SUPPORT:
+    "Support access can only be ended by a member of this organization.",
+  SUPPORT_REASON_REQUIRED: "Say why support access is needed.",
+  SUPPORT_EXPIRY_MUST_BE_FUTURE: "The expiry has to be in the future.",
+  SUPPORT_EXPIRY_TOO_FAR: "Support access can run for at most 90 days.",
+  SUPPORT_USER_NOT_FOUND:
+    "No account has that email. Support staff sign in once before access can be granted.",
+  SUPPORT_CANNOT_GRANT_SELF: "You can't grant yourself support access.",
+  SUPPORT_USER_ALREADY_MEMBER:
+    "That account is already a member of this organization.",
+  SUPPORT_ROLE_NOT_FOUND: "Unknown role.",
+  SUPPORT_GRANT_NOT_FOUND: "This support grant no longer exists.",
+  MEMBER_NOT_FOUND: "This account is not a member of this organization.",
+  CANNOT_REMOVE_SELF: "You can't remove yourself from the organization.",
+};
+
+function rpcErrorMessage(
+  error: { message?: string } | null,
+  fallback: string,
+): string {
+  for (const [code, message] of Object.entries(SUPPORT_ERRORS)) {
+    if (error?.message?.includes(code)) return message;
+  }
+  return fallback;
+}
+
+export async function listSupportGrantsAction(): Promise<
+  { data: SupportGrant[] } | { error: string }
+> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(
+    supabase,
+    "administration",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  const { data, error } = await supabase.rpc("list_support_grants");
+  if (error) {
+    return { error: "Could not load support access. Please try again." };
+  }
+  return { data: (data ?? []) as SupportGrant[] };
+}
+
+/** Whether the caller's own membership lets them grant or end support access. */
+export async function canManageSupportAccessAction(): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.rpc("current_membership_kind");
+  return data === "member";
+}
+
+export async function grantSupportAccessAction(
+  email: string,
+  reason: string,
+  days: number,
+  role: string,
+): Promise<{ error: string } | { success: true }> {
+  const trimmedEmail = email.trim().toLowerCase();
+  if (!trimmedEmail || !trimmedEmail.includes("@")) {
+    return { error: "Enter a valid email address." };
+  }
+  if (!reason.trim()) {
+    return { error: SUPPORT_ERRORS.SUPPORT_REASON_REQUIRED };
+  }
+  if (!Number.isInteger(days) || days < 1 || days > 90) {
+    return { error: SUPPORT_ERRORS.SUPPORT_EXPIRY_TOO_FAR };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(
+    supabase,
+    "administration",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+  const { error } = await supabase.rpc("grant_support_access", {
+    p_email: trimmedEmail,
+    p_reason: reason.trim(),
+    p_expires_at: expiresAt.toISOString(),
+    p_role_name: role,
+  });
+  if (error) {
+    return {
+      error: rpcErrorMessage(
+        error,
+        "Could not grant support access. Please try again.",
+      ),
+    };
+  }
+
+  revalidatePath("/portal/administration/users");
+  return { success: true };
+}
+
+export async function revokeSupportAccessAction(
+  membershipId: string,
+): Promise<{ error: string } | { success: true }> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(
+    supabase,
+    "administration",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  const { error } = await supabase.rpc("revoke_support_access", {
+    p_membership_id: membershipId,
+  });
+  if (error) {
+    return {
+      error: rpcErrorMessage(
+        error,
+        "Could not end support access. Please try again.",
+      ),
+    };
+  }
+
+  revalidatePath("/portal/administration/users");
+  return { success: true };
+}
+
+/**
+ * Drops an account from this organization -- roles and membership here,
+ * nothing anywhere else. The path for an account that also belongs to
+ * another organization, where platform-wide deactivation is refused.
+ */
+export async function removeTenantMemberAction(
+  userId: string,
+): Promise<{ error: string } | { success: true }> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(
+    supabase,
+    "administration",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  const { error } = await supabase.rpc("remove_tenant_member", {
+    p_user_id: userId,
+  });
+  if (error) {
+    return {
+      error: rpcErrorMessage(
+        error,
+        "Could not remove this user. Please try again.",
+      ),
+    };
   }
 
   revalidatePath("/portal/administration/users");

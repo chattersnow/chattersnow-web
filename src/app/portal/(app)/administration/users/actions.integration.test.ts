@@ -66,6 +66,18 @@ async function createThrowawayUser() {
   });
   if (error || !data.user) throw error ?? new Error("createUser failed");
   const id = data.user.id;
+  // A member of the seeded tenant, as a first sign-in would make it: since
+  // #707 Phase 4 an admin may only deactivate an account whose sole
+  // membership is their own tenant.
+  const { data: tenant } = await serviceRoleClient
+    .from("tenants")
+    .select("id")
+    .order("created_at")
+    .limit(1)
+    .single();
+  await serviceRoleClient
+    .from("tenant_memberships")
+    .insert({ user_id: id, tenant_id: tenant!.id, kind: "member" });
   return {
     id,
     email,

@@ -1,6 +1,19 @@
 import { cache } from "react";
 import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+
+/**
+ * Header that carries the host the browser asked for through to Postgres.
+ *
+ * A request with no session -- every public page and every public form --
+ * has nothing else that says which tenant it is for. PostgREST exposes the
+ * request headers to SQL, and `public_tenant_id()` (multi-tenancy Phase 3,
+ * #707) resolves this one against `tenants.custom_domain`, so the public_*
+ * views and the anon intake RPCs answer for the site that was actually
+ * visited. Signed-in reads never consult it: they go through
+ * `current_tenant_id()`, which is membership-checked.
+ */
+export const TENANT_HOST_HEADER = "x-tenant-host";
 
 /**
  * One client per request, not per call site.
@@ -14,12 +27,19 @@ import { cookies } from "next/headers";
  */
 export const createSupabaseServerClient = cache(
   async function createSupabaseServerClient() {
-    const cookieStore = await cookies();
+    const [cookieStore, headerStore] = await Promise.all([
+      cookies(),
+      headers(),
+    ]);
+    // Same source the proxy routes on (src/proxy.ts); Vercel presents the
+    // custom domain here, not the deployment host.
+    const host = headerStore.get("host");
 
     return createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
       {
+        global: host ? { headers: { [TENANT_HOST_HEADER]: host } } : undefined,
         cookies: {
           getAll() {
             return cookieStore.getAll();

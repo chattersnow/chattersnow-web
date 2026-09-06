@@ -33,6 +33,7 @@ mock.module("./actions", () => ({
   assignRoleAction: ok,
   deactivateUserAction: ok,
   reactivateUserAction: ok,
+  removeTenantMemberAction: ok,
   revokeRoleAction: revokeRoleMock,
   updateUserPreferredNameAction: updatePreferredNameMock,
 }));
@@ -50,6 +51,7 @@ function portalUser(overrides: Partial<PortalUser> = {}): PortalUser {
     roles: ["admin"],
     created_at: "2026-01-01T00:00:00Z",
     deactivated_at: null,
+    shared_account: false,
     ...overrides,
   };
 }

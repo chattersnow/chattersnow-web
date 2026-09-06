@@ -8,19 +8,24 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSiteImageUrls } from "@/lib/site-images";
 import { VolunteerApplicationSheet } from "../volunteer-application-sheet";
 
-export const metadata: Metadata = {
-  title: "Volunteer | Chatter Snow",
-};
+import { getPublicSite, publicTitle } from "@/lib/public-site";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const supabase = await createSupabaseServerClient();
+  return { title: publicTitle(await getPublicSite(supabase), "Volunteer") };
+}
 
 export default async function VolunteerPage() {
   const supabase = await createSupabaseServerClient();
-  const [{ data: roleTypes }, siteImages] = await Promise.all([
-    supabase
-      .from("public_volunteer_role_types")
-      .select("id, name, description")
-      .order("name", { ascending: true }),
-    getSiteImageUrls(supabase),
-  ]);
+  const [{ data: roleTypes }, siteImages, { content, name }] =
+    await Promise.all([
+      supabase
+        .from("public_volunteer_role_types")
+        .select("id, name, description")
+        .order("name", { ascending: true }),
+      getSiteImageUrls(supabase),
+      getPublicSite(supabase),
+    ]);
 
   return (
     <div>
@@ -28,16 +33,15 @@ export default async function VolunteerPage() {
         <div className="w-fit">
           <div className="rainbow-accent w-full" />
           <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-            Volunteer
+            {content.text("get_involved.volunteer_heading")}
           </h1>
         </div>
         <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-          Chatter runs on volunteers. Here are some of the ways you can get
-          involved.
+          {content.text("get_involved.volunteer_intro")}
         </p>
         <SiteImage
           url={siteImages.get_involved_volunteer_photo ?? null}
-          alt="Chatter Snow volunteers"
+          alt={`${name} volunteers`}
           className="mt-8 aspect-[21/9] rounded-2xl"
         />
         {roleTypes && roleTypes.length > 0 ? (
@@ -58,7 +62,7 @@ export default async function VolunteerPage() {
           </div>
         ) : (
           <p className="app-muted mt-6 text-sm">
-            Check back soon for open volunteer roles.
+            {content.text("get_involved.volunteer_empty")}
           </p>
         )}
         <div className="mt-10 flex flex-wrap items-center gap-4">

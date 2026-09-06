@@ -12,6 +12,7 @@ export default async function AdministrationLayout({
     [
       { resource: "administration", level: "manage" },
       { resource: "system_settings", level: "manage" },
+      { resource: "site_content", level: "view" },
     ],
     "Administration",
   );

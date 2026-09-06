@@ -13,14 +13,24 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/components/ui/toast";
+import { DEFAULT_LOGO } from "@/components/brand-logo";
 import type { Tenant } from "@/lib/portal/tenants";
 import { switchTenantAction } from "./tenant-switcher-actions";
 
-// Phase 4 (#707) serves this per tenant from the branding tokens. Until then
-// every tenant renders the one mark, so it carries no accessible name -- the
-// adjacent text already names the link, and a wrong name would be worse than
-// none once a second tenant exists.
-const LOGO = "/chatter-logo-transparent.png";
+// The tenant's own logo when branding sets one (#707 Phase 4), else the
+// default mark. Decorative either way: the adjacent text names the link.
+function Logo({ logoUrl }: { logoUrl: string | null }) {
+  return (
+    <Image
+      src={logoUrl ?? DEFAULT_LOGO}
+      alt=""
+      width={32}
+      height={32}
+      className="size-8 shrink-0 object-contain"
+      priority
+    />
+  );
+}
 
 const NAME_CLASS =
   "app-muted min-w-0 truncate text-sm font-semibold uppercase tracking-[0.14em] group-data-[collapsible=icon]:hidden";
@@ -37,9 +47,11 @@ const NAME_CLASS =
 export function TenantSwitcher({
   tenants,
   currentTenantId,
+  logoUrl = null,
 }: {
   tenants: Tenant[];
   currentTenantId: string | null;
+  logoUrl?: string | null;
 }) {
   const [isPending, startTransition] = useTransition();
 
@@ -58,14 +70,7 @@ export function TenantSwitcher({
         // in that state.
         aria-label={name ?? "Dashboard"}
       >
-        <Image
-          src={LOGO}
-          alt=""
-          width={32}
-          height={32}
-          className="size-8 shrink-0"
-          priority
-        />
+        <Logo logoUrl={logoUrl} />
         {name && <span className={NAME_CLASS}>{name}</span>}
       </Link>
     );
@@ -94,14 +99,7 @@ export function TenantSwitcher({
           current ? `Current account: ${current.name}` : "Choose an account"
         }
       >
-        <Image
-          src={LOGO}
-          alt=""
-          width={32}
-          height={32}
-          className="size-8 shrink-0"
-          priority
-        />
+        <Logo logoUrl={logoUrl} />
         <span className={NAME_CLASS}>{current ? current.name : "Choose…"}</span>
         <ChevronsUpDown className="size-4 shrink-0 opacity-60 group-data-[collapsible=icon]:hidden" />
       </DropdownMenuTrigger>

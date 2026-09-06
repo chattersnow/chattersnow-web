@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeftIcon } from "lucide-react";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getPublicSite, publicTitle } from "@/lib/public-site";
 import { LEARN_CATEGORIES, getLearnCategory } from "../learn-data";
 import { ParkRidingSafetySections } from "../park-riding-safety/park-riding-safety-sections";
 import { PARK_SAFETY_ARTICLES } from "../park-riding-safety/park-riding-safety-data";
@@ -78,7 +80,9 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const category = getLearnCategory((await params).slug);
-  return { title: category ? `${category.title} | Chatter Snow` : "Learn" };
+  const supabase = await createSupabaseServerClient();
+  const site = await getPublicSite(supabase);
+  return { title: publicTitle(site, category ? category.title : "Learn") };
 }
 
 export default async function LearnCategoryPage({

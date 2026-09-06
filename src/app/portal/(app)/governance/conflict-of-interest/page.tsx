@@ -11,7 +11,7 @@ import type { PersonListItem } from "../../people/actions";
 import { fiscalYearForDate, getFiscalYearStartMonth } from "@/lib/fiscal-year";
 
 const DISCLOSURE_SELECT =
-  "id, disclosure_year, on_file_date, notes, external_link, body_text, person:people!person_id(id, name, preferred_name, email, phone)";
+  "id, disclosure_year, on_file_date, notes, external_link, body_text, person:people!conflict_of_interest_disclosures_person_id_fkey(id, name, preferred_name, email, phone)";
 
 export const metadata: Metadata = {
   title: "Conflict of Interest",

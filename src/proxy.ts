@@ -4,6 +4,18 @@ import { NextResponse, type NextRequest } from "next/server";
 const PRODUCTION_HOSTS = new Set(["chattersnow.org", "www.chattersnow.org"]);
 const PORTAL_HOST = "portal.chattersnow.org";
 
+/**
+ * Any `portal.` subdomain is a portal host (#707 Phase 4). A tenant on its
+ * own domain points `portal.<domain>` at the same deployment and gets the
+ * same unprefixed portal the Chatter Snow host has; `public_tenant_id()`
+ * resolves it through the parent-domain match on `tenants.custom_domain`.
+ * The apex -> portal redirect above stays Chatter Snow's own: it assumes the
+ * subdomain exists, which only that tenant's DNS has promised.
+ */
+function isPortalHost(hostname: string): boolean {
+  return hostname === PORTAL_HOST || hostname.startsWith("portal.");
+}
+
 // Paths that live at the app root and must keep working unprefixed on the
 // portal host. `/portal` is a route-group prefix, not a mount point, so
 // blanket-rewriting every path into it makes these unreachable:
@@ -41,7 +53,7 @@ export function resolvePortalRoute(
   const isPortalPath =
     pathname === "/portal" || pathname.startsWith("/portal/");
 
-  if (hostname === PORTAL_HOST) {
+  if (isPortalHost(hostname)) {
     const isRootPath =
       ROOT_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
       // Anything with a file extension is a public/ asset, never a page route.
@@ -137,7 +149,7 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const route = resolvePortalRoute(hostname, pathname);
   const isPortalRequest =
-    hostname === PORTAL_HOST ||
+    isPortalHost(hostname) ||
     pathname === "/portal" ||
     pathname.startsWith("/portal/");
 

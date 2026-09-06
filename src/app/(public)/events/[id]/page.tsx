@@ -3,6 +3,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { PageShell } from "@/components/page-shell";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getPublicSite, publicTitle } from "@/lib/public-site";
 import { formatDateTimeInZone } from "@/lib/time";
 import { resolveImageUrl } from "@/lib/inventory";
 import { EventRegistrationForm } from "../event-registration-form-fields";
@@ -33,7 +34,10 @@ export async function generateMetadata({
     .maybeSingle();
 
   return {
-    title: event ? `${event.name} | Chatter Snow` : "Event | Chatter Snow",
+    title: publicTitle(
+      await getPublicSite(supabase),
+      event ? event.name : "Event",
+    ),
   };
 }
 

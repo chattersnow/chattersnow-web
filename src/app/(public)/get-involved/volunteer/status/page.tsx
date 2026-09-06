@@ -2,9 +2,18 @@ import type { Metadata } from "next";
 import { Card, CardContent } from "@/components/ui/card";
 import { VolunteerStatusLookupForm } from "../../volunteer-status-lookup-form-fields";
 
-export const metadata: Metadata = {
-  title: "Check Application Status | Chatter Snow",
-};
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getPublicSite, publicTitle } from "@/lib/public-site";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const supabase = await createSupabaseServerClient();
+  return {
+    title: publicTitle(
+      await getPublicSite(supabase),
+      "Check Application Status",
+    ),
+  };
+}
 
 export default function VolunteerStatusPage() {
   return (

@@ -5,14 +5,17 @@ import { Button } from "@/components/ui/button";
 import { getSiteImageUrls } from "@/lib/site-images";
 import { GearCatalog } from "../gear-catalog";
 
-export const metadata: Metadata = {
-  title: "Gear Library | Chatter Snow",
-};
+import { getPublicSite, publicTitle } from "@/lib/public-site";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const supabase = await createSupabaseServerClient();
+  return { title: publicTitle(await getPublicSite(supabase), "Gear Library") };
+}
 
 export default async function GearLibraryPage() {
   const supabase = await createSupabaseServerClient();
 
-  const [{ data: items }, siteImages] = await Promise.all([
+  const [{ data: items }, siteImages, { content }] = await Promise.all([
     supabase
       .from("public_gear_catalog")
       .select(
@@ -20,6 +23,7 @@ export default async function GearLibraryPage() {
       )
       .order("created_at", { ascending: false }),
     getSiteImageUrls(supabase),
+    getPublicSite(supabase),
   ]);
 
   return (
@@ -27,11 +31,11 @@ export default async function GearLibraryPage() {
       <div className="w-fit">
         <div className="rainbow-accent w-full" />
         <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-          Gear library
+          {content.text("gears.library_heading")}
         </h1>
       </div>
       <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-        Browse gear currently available to the community.
+        {content.text("gears.library_intro")}
       </p>
       <Button
         variant="secondary"

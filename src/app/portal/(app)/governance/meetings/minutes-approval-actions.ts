@@ -67,7 +67,7 @@ export async function getPreviousMeetingMinutesAction(
     supabase
       .from("governance_meeting_action_items")
       .select(
-        "id, meeting_id, description, due_date, status, owner:people!owner_person_id(id, name, preferred_name, email, phone)",
+        "id, meeting_id, description, due_date, status, owner:people!governance_meeting_action_items_owner_person_id_fkey(id, name, preferred_name, email, phone)",
       )
       .eq("meeting_id", priorMeeting.id)
       .order("created_at", { ascending: true }),

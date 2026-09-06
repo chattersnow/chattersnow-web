@@ -7,7 +7,11 @@ import { SystemSettingsForm } from "./system-settings-form";
 import { SiteImagesPanel } from "./site-images-panel";
 import { PageVisibilityPanel } from "./page-visibility-panel";
 import { OrganizationSettingsPanel } from "./organization-settings-panel";
+import { BrandingPanel } from "./branding-panel";
+import { DataPanel } from "./data-panel";
 import { getFiscalYearStartMonth } from "@/lib/fiscal-year";
+import { getTenantBranding } from "@/lib/tenant-branding";
+import { currentTenant, getTenantContext } from "@/lib/portal/tenants";
 
 function parseThreshold(value: unknown): number | null {
   const threshold = typeof value === "number" ? value : Number(value ?? NaN);
@@ -41,8 +45,14 @@ export default async function SystemSettingsPage() {
       .like("key", "site_images.%"),
   ]);
 
-  const pageVisibility = await getPageVisibility(supabase);
-  const fiscalYearStartMonth = await getFiscalYearStartMonth(supabase);
+  const [pageVisibility, fiscalYearStartMonth, branding, tenantContext] =
+    await Promise.all([
+      getPageVisibility(supabase),
+      getFiscalYearStartMonth(supabase),
+      getTenantBranding(supabase),
+      getTenantContext(supabase),
+    ]);
+  const orgName = currentTenant(tenantContext)?.name ?? "this organization";
 
   const siteImageUrls: Record<string, string | null> = {};
   for (const slot of SITE_IMAGE_SLOTS) {
@@ -63,11 +73,16 @@ export default async function SystemSettingsPage() {
 
       <Tabs defaultValue="organization" className="mt-6">
         <div className="rainbow-surface flex flex-wrap items-center gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
-          <TabsList variant="line">
+          <TabsList
+            variant="line"
+            className="flex-wrap group-data-horizontal/tabs:h-auto"
+          >
             <TabsTrigger value="organization">Organization</TabsTrigger>
             <TabsTrigger value="workflow">Workflow settings</TabsTrigger>
+            <TabsTrigger value="branding">Branding</TabsTrigger>
             <TabsTrigger value="images">Image settings</TabsTrigger>
             <TabsTrigger value="visibility">Page visibility</TabsTrigger>
+            <TabsTrigger value="data">Data</TabsTrigger>
           </TabsList>
         </div>
 
@@ -98,6 +113,15 @@ export default async function SystemSettingsPage() {
           />
         </TabsContent>
 
+        <TabsContent value="branding" className="mt-6 space-y-4">
+          <p className="app-muted max-w-3xl text-sm leading-relaxed">
+            The colours, accent bar and logo the public site and this portal
+            use. Leave a field blank to keep the platform default. Every change
+            is recorded in the audit log.
+          </p>
+          <BrandingPanel branding={branding} />
+        </TabsContent>
+
         <TabsContent value="images" className="mt-6 space-y-4">
           <p className="app-muted max-w-3xl text-sm leading-relaxed">
             Set a Google Drive image for each placeholder slot on the public
@@ -119,6 +143,10 @@ export default async function SystemSettingsPage() {
             slots={PUBLIC_PAGE_SLOTS}
             visibility={pageVisibility}
           />
+        </TabsContent>
+
+        <TabsContent value="data" className="mt-6 space-y-4">
+          <DataPanel orgName={orgName} />
         </TabsContent>
       </Tabs>
     </>

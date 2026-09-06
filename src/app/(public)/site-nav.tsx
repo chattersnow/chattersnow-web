@@ -86,13 +86,28 @@ function MobileSubNavLink({
 
 export function SiteNav({
   hiddenSlots = [],
+  supportLabel,
 }: {
   hiddenSlots?: readonly string[];
+  /**
+   * The "Support <organization>" entry names the organization, so it is the
+   * one nav label that is site content rather than structure (#707 Phase 4).
+   */
+  supportLabel?: string;
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const closeMobile = () => setMobileOpen(false);
-  const groups = visibleGroups(hiddenSlots);
+  const groups = visibleGroups(hiddenSlots).map((group) =>
+    group.links && supportLabel
+      ? {
+          ...group,
+          links: group.links.map((link) =>
+            link.href === "/support" ? { ...link, label: supportLabel } : link,
+          ),
+        }
+      : group,
+  );
   const showEventsCta = isSlotVisible(hiddenSlots, "events");
 
   return (

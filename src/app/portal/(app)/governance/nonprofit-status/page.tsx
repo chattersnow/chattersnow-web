@@ -9,7 +9,7 @@ import type { Milestone } from "./nonprofit-status-actions";
 import type { PersonListItem } from "../../people/actions";
 
 const MILESTONE_SELECT =
-  "id, description, phase, due_date, status, notes, owner:people!owner_person_id(id, name, preferred_name, email, phone)";
+  "id, description, phase, due_date, status, notes, owner:people!nonprofit_status_milestones_owner_person_id_fkey(id, name, preferred_name, email, phone)";
 
 export const metadata: Metadata = {
   title: "Nonprofit Status",

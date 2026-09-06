@@ -34,6 +34,7 @@ import {
   assignRoleAction,
   deactivateUserAction,
   reactivateUserAction,
+  removeTenantMemberAction,
   revokeRoleAction,
   updateUserPreferredNameAction,
   type PortalUser,
@@ -69,6 +70,10 @@ export function UsersTable({
   const [deactivateTarget, setDeactivateTarget] = useState<PortalUser | null>(
     null,
   );
+  // An account that also belongs to another organization is removed from
+  // this one rather than deactivated: deactivation is platform-wide, and the
+  // database refuses it for such an account (#707 Phase 4).
+  const [removeTarget, setRemoveTarget] = useState<PortalUser | null>(null);
   // Revoking a live role takes effect on the target's next request, so it
   // gets the same confirmation step deactivation and pending-grant revocation
   // already had -- it was the only one of the three that acted on one click.
@@ -129,6 +134,16 @@ export function UsersTable({
         },
       });
     });
+  }
+
+  function handleRemove() {
+    if (!removeTarget) return;
+    const target = removeTarget;
+    setRemoveTarget(null);
+    submit(
+      () => removeTenantMemberAction(target.user_id),
+      `${portalUserDisplayName(target)} removed from the organization.`,
+    );
   }
 
   const columns = useMemo<PortalDataTableColumn<PortalUser>[]>(
@@ -317,6 +332,24 @@ export function UsersTable({
         headClassName: "w-0",
         render: (portalUser) => {
           const isSelf = portalUser.user_id === currentUserId;
+          if (portalUser.shared_account) {
+            return (
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={isPending || isSelf}
+                title={
+                  isSelf
+                    ? "You can't remove yourself from the organization."
+                    : "This account also belongs to another organization, so it is removed from this one rather than deactivated."
+                }
+                onClick={() => setRemoveTarget(portalUser)}
+              >
+                Remove
+              </Button>
+            );
+          }
           return portalUser.deactivated_at !== null ? (
             <Button
               type="button"
@@ -452,6 +485,37 @@ export function UsersTable({
               ) : (
                 "Deactivate"
               )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={removeTarget !== null}
+        onOpenChange={(next) => !next && setRemoveTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove from the organization?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {removeTarget && (
+                <>
+                  {portalUserDisplayName(removeTarget)} loses every role here
+                  and disappears from this list. Their account and their access
+                  to any other organization are unchanged. You can stage access
+                  for them again afterwards.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={handleRemove}
+              disabled={isPending}
+            >
+              Remove
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

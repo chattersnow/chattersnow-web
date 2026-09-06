@@ -4,13 +4,19 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { nowMs } from "@/lib/time";
 import { CommunityCalendar } from "./community-calendar";
 
-export const metadata: Metadata = {
-  title: "Community Calendar | Chatter Snow",
-};
+import { getPublicSite, publicTitle } from "@/lib/public-site";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const supabase = await createSupabaseServerClient();
+  return {
+    title: publicTitle(await getPublicSite(supabase), "Community Calendar"),
+  };
+}
 
 export default async function CommunityCalendarPage() {
   const supabase = await createSupabaseServerClient();
 
+  const { content } = await getPublicSite(supabase);
   const { data: items } = await supabase
     .from("public_calendar_items")
     .select(
@@ -24,13 +30,11 @@ export default async function CommunityCalendarPage() {
         <div className="w-fit">
           <div className="rainbow-accent w-full" />
           <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-            Community Calendar
+            {content.text("events.community_heading")}
           </h1>
         </div>
         <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-          Chatter-hosted events are marked as such. Other entries are community
-          observances, seasonal moments, and campaigns Chatter is highlighting —
-          not events Chatter hosts or organizes.
+          {content.text("events.community_intro")}
         </p>
       </section>
 

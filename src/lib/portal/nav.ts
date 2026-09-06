@@ -406,6 +406,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
         ],
       },
       {
+        value: "site-content",
+        label: "Site Content",
+        href: "/portal/administration/site-content",
+        access: [{ resource: "site_content", level: "view" }],
+      },
+      {
         value: "audit-log",
         label: "Audit Log",
         href: "/portal/administration/audit-log",
