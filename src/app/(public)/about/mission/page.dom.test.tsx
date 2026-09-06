@@ -1,5 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 import { render } from "@testing-library/react";
+import { fakePublicSiteClient } from "../../../../../test/fake-public-site-client";
 
 // next/image's getImgProps parses `src` through `new URL()`, which throws in
 // happy-dom for the relative/placeholder sources these tests don't care
@@ -26,18 +27,12 @@ mock.module("next/image", () => ({
 // MissionPage only needs a Supabase client to look up site image URLs, so
 // stub the server client factory rather than pulling in real cookies/env.
 mock.module("@/lib/supabase/server", () => ({
-  createSupabaseServerClient: async () => ({
-    from: () => ({
-      select: async () => ({
-        data: [
-          {
-            slot: "about_mission_photo",
-            value: "https://cdn.example.com/mission.jpg",
-          },
-        ],
-      }),
+  createSupabaseServerClient: async () =>
+    fakePublicSiteClient({
+      siteImages: {
+        about_mission_photo: "https://cdn.example.com/mission.jpg",
+      },
     }),
-  }),
 }));
 
 const { default: MissionPage } = await import("./page");

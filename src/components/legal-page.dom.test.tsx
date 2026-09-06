@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { render } from "@testing-library/react";
-import PrivacyPage from "@/app/(public)/privacy/page";
-import TermsPage from "@/app/(public)/terms/page";
-import CodeOfConductPage from "@/app/(public)/code-of-conduct/page";
+import { PrivacyDocument } from "@/app/(public)/privacy/document";
+import { TermsDocument } from "@/app/(public)/terms/document";
+import { CodeOfConductDocument } from "@/app/(public)/code-of-conduct/document";
+import { LegalDocument } from "@/components/legal-document";
 
 // The section nav beside each legal document is driven by a hand-written
 // SECTIONS array, while the anchors it points at live on <section> elements
@@ -11,9 +12,27 @@ import CodeOfConductPage from "@/app/(public)/code-of-conduct/page";
 // fragment is not an error. These pages are long enough that nobody would
 // notice by scrolling.
 const PAGES = [
-  { name: "privacy policy", Page: PrivacyPage },
-  { name: "terms of use", Page: TermsPage },
-  { name: "code of conduct", Page: CodeOfConductPage },
+  { name: "privacy policy", Page: PrivacyDocument },
+  { name: "terms of use", Page: TermsDocument },
+  { name: "code of conduct", Page: CodeOfConductDocument },
+  // A tenant-published document goes through the same shell, so the same
+  // invariants hold for it.
+  {
+    name: "tenant-published document",
+    Page: () => (
+      <LegalDocument
+        doc={{
+          title: "House Rules",
+          last_updated: "January 1, 2030",
+          summary: ["The short version."],
+          sections: [
+            { id: "one", title: "One", paragraphs: ["First."] },
+            { id: "two", title: "Two", paragraphs: ["Second.", "Third."] },
+          ],
+        }}
+      />
+    ),
+  },
 ];
 
 describe("legal page section navs", () => {

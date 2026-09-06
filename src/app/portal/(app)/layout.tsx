@@ -40,6 +40,7 @@ import { PortalHelpProvider } from "./help/help-context";
 import { getContentWorkSummary } from "./home/queries";
 import { ensureCurrentPerson } from "@/lib/auth/current-person";
 import { getTenantContext } from "@/lib/portal/tenants";
+import { getTenantBranding } from "@/lib/tenant-branding";
 import { ensureMyOnboarding } from "@/lib/portal/onboarding";
 import { personDisplayName } from "@/lib/format";
 import { IdleTimeout } from "./idle-timeout";
@@ -227,6 +228,7 @@ export default async function PortalAppLayout({
 
   const cookieStore = await cookies();
   const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false";
+  const branding = await getTenantBranding(supabase);
 
   return (
     <TooltipProvider>
@@ -245,6 +247,7 @@ export default async function PortalAppLayout({
               <TenantSwitcher
                 tenants={tenantContext.tenants}
                 currentTenantId={tenantContext.currentTenantId}
+                logoUrl={branding.logoUrl}
               />
             </SidebarHeader>
             <SidebarContent>

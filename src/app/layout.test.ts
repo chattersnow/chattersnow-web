@@ -1,4 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
+import { DEFAULT_SITE_CONTENT } from "@/lib/site-content";
 
 // layout.tsx pulls in font loaders, analytics, and global CSS that only
 // resolve inside a real Next.js build — stub them so `metadata` (a plain
@@ -15,11 +16,19 @@ const { metadata } = await import("./layout");
 describe("root layout metadata", () => {
   test("no longer advertises the site as coming soon", () => {
     expect(metadata.title).not.toContain("Coming soon");
-    expect(metadata.description).not.toContain("work in progress");
   });
 
-  test("title and description describe the live site", () => {
+  // Since #707 Phase 4 the public layout's generateMetadata names the tenant
+  // the request is for and describes it from site content; the root layout
+  // is only the fallback for routes outside it, and the default copy is what
+  // the public layout renders for a tenant that has set nothing.
+  test("the fallback title and the default description describe the live site", () => {
     expect(metadata.title).toBe("Chatter Snow");
-    expect(metadata.description).toContain("queer ski and snowboard community");
+    expect(DEFAULT_SITE_CONTENT.text("org.tagline")).toContain(
+      "queer ski and snowboard community",
+    );
+    expect(DEFAULT_SITE_CONTENT.text("org.tagline")).not.toContain(
+      "work in progress",
+    );
   });
 });

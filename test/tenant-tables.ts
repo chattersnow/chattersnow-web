@@ -80,6 +80,7 @@ export const TENANT_TABLES = [
   "resolutions",
   "roles",
   "services",
+  "site_content",
   "volunteer_applications",
   "volunteer_hours",
   "volunteer_role_types",

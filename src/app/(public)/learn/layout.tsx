@@ -4,6 +4,7 @@ import { SiteImage } from "@/components/site-image";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSiteImageUrls } from "@/lib/site-images";
 import { requireVisiblePage } from "@/lib/page-visibility";
+import { getPublicSite } from "@/lib/public-site";
 
 export default async function LearnLayout({
   children,
@@ -13,7 +14,10 @@ export default async function LearnLayout({
   await requireVisiblePage("learn");
 
   const supabase = await createSupabaseServerClient();
-  const siteImages = await getSiteImageUrls(supabase);
+  const [siteImages, { content }] = await Promise.all([
+    getSiteImageUrls(supabase),
+    getPublicSite(supabase),
+  ]);
 
   return (
     <PageShell>
@@ -21,7 +25,7 @@ export default async function LearnLayout({
         {children}
         <SiteImage
           url={siteImages.learn_photo ?? null}
-          alt="Chatter Snow community members"
+          alt={content.text("org.image_alt")}
           className="aspect-[21/9] rounded-2xl"
         />
         <EducationalDisclaimer />

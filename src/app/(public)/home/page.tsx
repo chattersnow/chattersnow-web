@@ -10,6 +10,7 @@ import {
 import { SiteImage } from "@/components/site-image";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSiteImageUrls } from "@/lib/site-images";
+import { getPublicSite } from "@/lib/public-site";
 import { isPageVisible } from "@/lib/page-visibility";
 import { nowMs } from "@/lib/time";
 import { formatDateTime } from "@/lib/format";
@@ -23,13 +24,15 @@ const CAROUSEL_SLOTS = [
 export default async function Home() {
   const supabase = await createSupabaseServerClient();
 
-  const [{ data: events }, siteImages] = await Promise.all([
+  const [{ data: events }, siteImages, site] = await Promise.all([
     supabase
       .from("public_events")
       .select("id, name, location, starts_at, ends_at")
       .order("starts_at", { ascending: true }),
     getSiteImageUrls(supabase),
+    getPublicSite(supabase),
   ]);
+  const { content } = site;
 
   const supportVisible = await isPageVisible("support");
 
@@ -54,7 +57,7 @@ export default async function Home() {
                 <CarouselItem key={slot}>
                   <SiteImage
                     url={siteImages[slot] ?? null}
-                    alt="Chatter Snow community"
+                    alt={content.text("org.image_alt")}
                     className="aspect-[21/9] rounded-2xl"
                     sizes="(min-width: 1024px) 1024px, 100vw"
                     priority={index === 0}
@@ -69,13 +72,11 @@ export default async function Home() {
           <div className="mt-5 w-fit">
             <div className="rainbow-accent w-full" />
             <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-              A queer ski &amp; snowboard community
+              {content.text("home.heading")}
             </h1>
           </div>
           <p className="app-muted mt-3 max-w-xl text-sm leading-relaxed sm:text-base">
-            Chatter brings LGBTQ+ skiers and snowboarders together on and off
-            the East Coast mountains, and works to make snow sports more
-            accessible through gear, mentorship, and community.
+            {content.text("home.intro")}
           </p>
 
           <div className="mt-6 flex flex-wrap justify-center gap-3">
@@ -84,14 +85,14 @@ export default async function Home() {
               nativeButton={false}
               render={<Link href="/events" />}
             >
-              Join an event
+              {content.text("home.cta_events")}
             </Button>
             <Button
               variant="secondary"
               nativeButton={false}
               render={<Link href="/get-involved" />}
             >
-              Get involved
+              {content.text("home.cta_get_involved")}
             </Button>
             {supportVisible ? (
               <Button
@@ -99,7 +100,7 @@ export default async function Home() {
                 nativeButton={false}
                 render={<Link href="/support" />}
               >
-                Donate
+                {content.text("home.cta_donate")}
               </Button>
             ) : null}
           </div>
@@ -107,7 +108,9 @@ export default async function Home() {
 
         {nextEvent && (
           <section className="rainbow-surface mt-16 rounded-xl border border-[var(--line)] p-6 text-center shadow-md sm:p-8">
-            <span className="app-eyebrow">Next up</span>
+            <span className="app-eyebrow">
+              {content.text("home.next_event_eyebrow")}
+            </span>
             <h2 className="brand-display mt-2 text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
               {nextEvent.name}
             </h2>

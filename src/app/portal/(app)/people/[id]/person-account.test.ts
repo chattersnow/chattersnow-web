@@ -13,6 +13,7 @@ function user(overrides: Partial<PortalUser>): PortalUser {
     roles: [],
     created_at: "2026-01-01T00:00:00Z",
     deactivated_at: null,
+    shared_account: false,
     ...overrides,
   };
 }

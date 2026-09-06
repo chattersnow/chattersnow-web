@@ -343,6 +343,10 @@ beforeAll(async () => {
     funder_name: `Isolation funder ${run}`,
     application_deadline: "2030-01-01",
   });
+  await fixture("site_content", {
+    key: "home.heading",
+    value: `Isolation heading ${run}`,
+  });
   await fixture("event_incidents", {
     event_id: SEEDED_EVENT_IDS.past,
     description: "Isolation incident",
