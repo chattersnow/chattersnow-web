@@ -32,21 +32,6 @@ async function seedRegistration(eventId: string, checkedIn: boolean) {
   if (error) throw error;
 }
 
-// 20260903060000 refuses to delete an event that still has registrations, so
-// a fixture has to clear its own before `event.cleanup()` -- otherwise the
-// delete is silently rejected and the event stays in the shared local stack,
-// permanently "awaiting check-in", for every later run.
-async function cleanupEvent(event: {
-  id: string;
-  cleanup: () => Promise<void>;
-}) {
-  await adminClient
-    .from("event_registrations")
-    .delete()
-    .eq("event_id", event.id);
-  await event.cleanup();
-}
-
 function todayIso() {
   return new Date().toISOString();
 }
@@ -82,8 +67,8 @@ describe("getOpsInboxSummary event check-ins (integration)", () => {
       false,
     );
 
-    await cleanupEvent(eventA);
-    await cleanupEvent(eventB);
+    await eventA.cleanup();
+    await eventB.cleanup();
   });
 
   test("omits an event once every registrant is checked in", async () => {
@@ -104,7 +89,7 @@ describe("getOpsInboxSummary event check-ins (integration)", () => {
       false,
     );
 
-    await cleanupEvent(event);
+    await event.cleanup();
   });
 
   test("returns no check-in items when the viewer can't see event check-ins", async () => {
@@ -125,7 +110,7 @@ describe("getOpsInboxSummary event check-ins (integration)", () => {
       false,
     );
 
-    await cleanupEvent(event);
+    await event.cleanup();
   });
 });
 
@@ -177,7 +162,7 @@ describe("attention summaries for unprivileged actors (integration)", () => {
 
     for (const { name, client } of await unprivilegedActors()) {
       // The volunteer role holds volunteers:view and events:view, so its ops
-      // inbox and event tasks are covered separately below.
+      // inbox and event tasks both get a case of their own below.
       if (name !== "volunteer") {
         expect({
           actor: name,
@@ -204,7 +189,7 @@ describe("attention summaries for unprivileged actors (integration)", () => {
       }).toEqual({ actor: name, ...EMPTY });
     }
 
-    await cleanupEvent(event);
+    await event.cleanup();
   });
 
   test("the volunteer role sees only the ops-inbox items its own grants cover", async () => {
@@ -221,6 +206,18 @@ describe("attention summaries for unprivileged actors (integration)", () => {
     expect(
       result.items.some((item) => item.key === "contact_messages_new"),
     ).toBe(false);
+
+    // Event tasks are read at events:view too, so forcing canManageEvents on
+    // does surface them for this role. Pinned rather than endorsed: the
+    // dashboard derives that flag from events:manage, which volunteer does
+    // not hold, so this is the page gate doing the work and not RLS.
+    const tasks = await getEventTaskSummary(volunteer, {
+      canManageEvents: true,
+    });
+    expect(tasks.items.length).toBeGreaterThan(0);
+    expect(
+      (await getEventTaskSummary(volunteer, { canManageEvents: false })).items,
+    ).toEqual([]);
   });
 
   test("the calendar coverage reminder stays empty without content_calendar access", async () => {

@@ -88,6 +88,10 @@ describe("listWorkQueueItems (integration)", () => {
 
     const items = await listWorkQueueItems(adminClient);
     const ids = items.map((item) => item.id);
+    // Asserted present before the ordering compare: the query is unranged and
+    // PostgREST caps a response at max_rows (1000, supabase/config.toml), so
+    // once the calendar outgrows that these year-2099 rows fall off the end
+    // and two indexOf misses would otherwise satisfy `-1 < -1` silently.
     expect(ids).toContain(earlier.id);
     expect(ids).toContain(later.id);
     expect(ids.indexOf(earlier.id)).toBeLessThan(ids.indexOf(later.id));

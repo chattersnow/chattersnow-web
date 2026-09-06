@@ -32,21 +32,6 @@ async function addVolunteer(eventId: string, personId: string) {
   if (error) throw error;
 }
 
-// 20260903060000 keeps an event deletable only while nothing is attached to
-// it, so a fixture that rosters a volunteer (or registers anyone) has to
-// detach its own rows first -- otherwise `event.cleanup()` is silently
-// refused and the event, plus every `people` row it references, stays in the
-// shared local stack for every later run.
-async function removeEventLinks(eventId: string) {
-  for (const table of [
-    "event_volunteers",
-    "event_registrations",
-    "event_sponsors",
-  ]) {
-    await adminClient.from(table).delete().eq("event_id", eventId);
-  }
-}
-
 describe("getMyActiveEvents (integration)", () => {
   test("includes the event's capacity for a today event the person volunteers for", async () => {
     const person = await createPerson();
@@ -67,7 +52,6 @@ describe("getMyActiveEvents (integration)", () => {
     expect(found).toBeDefined();
     expect(found?.capacity).toBe(75);
 
-    await removeEventLinks(event.id);
     await event.cleanup();
     await person.cleanup();
   });
@@ -91,7 +75,6 @@ describe("getMyActiveEvents (integration)", () => {
     expect(found).toBeDefined();
     expect(found?.capacity).toBeNull();
 
-    await removeEventLinks(event.id);
     await event.cleanup();
     await person.cleanup();
   });
@@ -112,7 +95,6 @@ describe("getMyActiveEvents (integration)", () => {
 
     expect(active.some((e) => e.id === event.id)).toBe(false);
 
-    await removeEventLinks(event.id);
     await event.cleanup();
     await person.cleanup();
   });
@@ -132,7 +114,6 @@ describe("getMyActiveEvents (integration)", () => {
 
     expect(active.some((e) => e.id === event.id)).toBe(false);
 
-    await removeEventLinks(event.id);
     await event.cleanup();
     await person.cleanup();
   });
@@ -156,7 +137,6 @@ describe("getMyActiveEvents (integration)", () => {
     expect(found).toBeDefined();
     expect(found?.capacity).toBe(40);
 
-    await removeEventLinks(event.id);
     await event.cleanup();
     await person.cleanup();
   });
@@ -194,7 +174,6 @@ describe("getMyActiveEvents (integration)", () => {
 
     expect(active.filter((e) => e.id === event.id)).toHaveLength(1);
 
-    await removeEventLinks(event.id);
     await event.cleanup();
     await person.cleanup();
   });
@@ -224,8 +203,12 @@ describe("getMyActiveEvents (integration)", () => {
 // created first and the privileged figures asserted non-zero, so an
 // unprivileged zero can't be a vacuously empty database.
 async function seedUpcomingFixture() {
+  // An hour out, not `now`: getUpcomingSummary filters on
+  // `.gte("starts_at", nowIso)`, and the caller's nowIso is taken after these
+  // inserts have round-tripped -- an event stamped `now` here sorts behind it
+  // and the whole fixture drops out of the summary it is meant to prove.
   const event = await createPublishedEvent({
-    startsAt: new Date().toISOString(),
+    startsAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
     timezone: "UTC",
   });
   const person = await createPerson();
@@ -251,7 +234,6 @@ async function seedUpcomingFixture() {
     event,
     person,
     async cleanup() {
-      await removeEventLinks(event.id);
       await event.cleanup();
       await person.cleanup();
     },
@@ -260,14 +242,18 @@ async function seedUpcomingFixture() {
 
 describe("getUpcomingSummary for unprivileged actors (integration)", () => {
   test("a session that can't read events gets a null next event and zero counts", async () => {
-    const fixture = await seedUpcomingFixture();
+    // Deltas against a before/after baseline rather than `> 0`: seed data
+    // already supplies upcoming events, so only the change proves the
+    // privileged session actually reads the rows the zeros below are about.
     const nowIso = new Date().toISOString();
+    const before = await getUpcomingSummary(adminClient, nowIso);
+    const fixture = await seedUpcomingFixture();
 
     const privileged = await getUpcomingSummary(adminClient, nowIso);
+    expect(privileged.registrationCount).toBe(before.registrationCount + 3);
+    expect(privileged.volunteerCount).toBe(before.volunteerCount + 1);
+    expect(privileged.partnerCount).toBe(before.partnerCount + 1);
     expect(privileged.nextEvent).not.toBeNull();
-    expect(privileged.registrationCount).toBeGreaterThan(0);
-    expect(privileged.volunteerCount).toBeGreaterThan(0);
-    expect(privileged.partnerCount).toBeGreaterThan(0);
 
     for (const { name, client } of await unprivilegedActors()) {
       if (name === "volunteer") continue; // holds events:view -- see below
@@ -290,16 +276,18 @@ describe("getUpcomingSummary for unprivileged actors (integration)", () => {
   // endorsed: narrowing either the role grant or the `events` policies should
   // fail here and be updated deliberately.
   test("the volunteer role sees the same upcoming figures as admin (events:view)", async () => {
-    const fixture = await seedUpcomingFixture();
     const nowIso = new Date().toISOString();
+    const before = await getUpcomingSummary(adminClient, nowIso);
+    const fixture = await seedUpcomingFixture();
+
+    const privileged = await getUpcomingSummary(adminClient, nowIso);
+    expect(privileged.registrationCount).toBe(before.registrationCount + 3);
 
     const volunteerView = await getUpcomingSummary(
       await signInAs(SEEDED_USERS.volunteer),
       nowIso,
     );
-    expect(volunteerView).toEqual(
-      await getUpcomingSummary(adminClient, nowIso),
-    );
+    expect(volunteerView).toEqual(privileged);
 
     await fixture.cleanup();
   });
@@ -361,7 +349,6 @@ describe("getMyActiveEvents for unprivileged actors (integration)", () => {
       });
     }
 
-    await removeEventLinks(event.id);
     await event.cleanup();
     await person.cleanup();
   });

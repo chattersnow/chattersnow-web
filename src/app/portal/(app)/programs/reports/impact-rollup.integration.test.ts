@@ -207,28 +207,38 @@ describe("get_program_impact_rollup_data for unprivileged actors (integration)",
       .insert({ event_id: event.id, program_id: program.id });
     if (linked.error) throw linked.error;
 
-    // The program has real rows behind it, so a refusal below is the check
-    // firing rather than an empty report.
-    const privileged = await adminClient.rpc("get_program_impact_rollup_data", {
-      p_program_id: program.id,
-    });
-    expect(privileged.error).toBeNull();
-    expect(privileged.data.event_ids).toEqual([event.id]);
-
-    for (const { name, client } of await unprivilegedActors()) {
-      const { data, error } = await client.rpc(
+    // In a finally: a failed expectation below would otherwise strand the
+    // event, and 20260903060000 makes an event with linked records
+    // undeletable -- which resurfaces later as an unrelated seed-shape
+    // row-count failure rather than as this test.
+    try {
+      // The program has real rows behind it, so a refusal below is the check
+      // firing rather than an empty report.
+      const privileged = await adminClient.rpc(
         "get_program_impact_rollup_data",
         { p_program_id: program.id },
       );
-      expect({ actor: name, data, message: error?.message }).toEqual({
-        actor: name,
-        data: null,
-        message: "Not authorized to view program impact reports",
-      });
-    }
+      expect(privileged.error).toBeNull();
+      expect(privileged.data.event_ids).toEqual([event.id]);
 
-    await adminClient.from("event_programs").delete().eq("event_id", event.id);
-    await event.cleanup();
-    await program.cleanup();
+      for (const { name, client } of await unprivilegedActors()) {
+        const { data, error } = await client.rpc(
+          "get_program_impact_rollup_data",
+          { p_program_id: program.id },
+        );
+        expect({ actor: name, data, message: error?.message }).toEqual({
+          actor: name,
+          data: null,
+          message: "Not authorized to view program impact reports",
+        });
+      }
+    } finally {
+      await adminClient
+        .from("event_programs")
+        .delete()
+        .eq("event_id", event.id);
+      await event.cleanup();
+      await program.cleanup();
+    }
   });
 });
