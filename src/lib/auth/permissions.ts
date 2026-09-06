@@ -50,11 +50,17 @@ export async function getCurrentUserPermissions(
 async function resolvePermissions(
   supabase: SupabaseClient,
 ): Promise<PermissionMap> {
-  // Best-effort: picks up a pending_role_grants row staged after this user's
-  // first login (e.g. while they were stuck with zero roles) without
-  // requiring a re-login. Unlike the same call in the OAuth callback, an
-  // error here must not block an already-working session on routine
-  // navigation, so it's swallowed rather than surfaced.
+  // Best-effort, both of them. The membership first: from #707 Phase 2
+  // my_permissions() answers for current_tenant_id(), which is null for an
+  // account that has never been joined to a tenant -- and an account that
+  // first signed in with zero roles was redirected away before the portal
+  // layout ever got to join it. Then the grant claim, which picks up a
+  // pending_role_grants row staged after this user's first login (e.g. while
+  // they were stuck with zero roles) without requiring a re-login. Unlike the
+  // same calls in the OAuth callback, an error here must not block an
+  // already-working session on routine navigation, so it's swallowed rather
+  // than surfaced.
+  await supabase.rpc("ensure_tenant_membership");
   await supabase.rpc("claim_pending_role_grants");
 
   const { data } = await supabase.rpc("my_permissions");

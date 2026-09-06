@@ -27,7 +27,7 @@ export async function updateAppSettingAction(
 
   const { error } = await supabase
     .from("app_settings")
-    .upsert({ key, value }, { onConflict: "key" });
+    .upsert({ key, value }, { onConflict: "tenant_id,key" });
   if (error) {
     return { error: "Could not save this setting. Please try again." };
   }

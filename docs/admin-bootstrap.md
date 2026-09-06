@@ -1,6 +1,6 @@
 # Granting the first admin
 
-**Updated:** 2026-09-05
+**Updated:** 2026-09-06
 
 How an account gets the `admin` role, and why migrations no longer do it on
 their own.
@@ -49,6 +49,13 @@ Run it with `supabase db query --linked --file <path>` or from the dashboard's
 SQL editor. Both act with privileges that bypass RLS, which is what makes the
 first grant possible when no admin exists yet.
 
+No `tenant_id` is needed: since multi-tenancy Phase 2 (#707) a trigger takes
+it from the role, and a second trigger creates the account's `member`
+membership in that tenant if it has none. On a database with more than one
+tenant, pick the role by tenant as well (`where r.name = 'admin' and
+r.tenant_id = '<tenant id>'`), or the statement grants admin in every tenant
+that has a role by that name.
+
 ### Bootstrapping a brand-new environment
 
 When standing up a fresh database — a new customer deployment, or a staging
@@ -90,12 +97,13 @@ Grant a second person the admin role using the by-user-id statement above, and
 check the current state with:
 
 ```sql
-select u.email, ur.created_at
+select t.slug as tenant, u.email, ur.created_at
 from public.user_roles ur
 join public.roles r on r.id = ur.role_id
+join public.tenants t on t.id = ur.tenant_id
 join auth.users u on u.id = ur.user_id
 where r.name = 'admin'
-order by ur.created_at;
+order by t.slug, ur.created_at;
 ```
 
 ## Protect the accounts that hold it
