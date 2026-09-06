@@ -37,6 +37,12 @@ describe("resolvePortalRoute on the portal host", () => {
     });
   });
 
+  test("leaves route handlers under /api at the app root", () => {
+    expect(resolvePortalRoute(PORTAL, "/api/cron/task-reminders")).toEqual({
+      kind: "pass",
+    });
+  });
+
   test("leaves public/ assets at the app root", () => {
     expect(resolvePortalRoute(PORTAL, "/chatter-logo-transparent.png")).toEqual(
       { kind: "pass" },

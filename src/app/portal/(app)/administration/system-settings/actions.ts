@@ -15,6 +15,7 @@ import {
   FISCAL_YEAR_SETTING_KEY,
   isFiscalYearStartMonth,
 } from "@/lib/fiscal-year";
+import { EMAIL_ENABLED_SETTING_KEY } from "@/lib/notifications/kinds";
 
 export type SettingActionResult = { error: string } | { success: true };
 
@@ -110,6 +111,19 @@ export async function updatePageVisibilityAction(
   visible: boolean,
 ): Promise<SettingActionResult> {
   return updateAppSettingAction(pageVisibilitySettingKey(slot), visible);
+}
+
+/**
+ * The organization's outbound email kill switch (#488). Off means this tenant
+ * sends nothing at all -- not the daily task digest, not anything a later
+ * ticket adds -- whatever any individual has turned on for themselves. Like
+ * every other setting here, the write is audit-logged by the app_settings
+ * trigger, which is what makes turning it off a record rather than a rumour.
+ */
+export async function updateEmailNotificationsEnabledAction(
+  enabled: boolean,
+): Promise<SettingActionResult> {
+  return updateAppSettingAction(EMAIL_ENABLED_SETTING_KEY, enabled);
 }
 
 /**
