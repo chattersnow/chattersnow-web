@@ -45,7 +45,9 @@ function ThresholdCard({
     const formData = new FormData(event.currentTarget);
     startTransition(async () => {
       await runAction(() => action(formData), {
-        success: `${title} threshold updated.`,
+        // `title` is already "<X> approval threshold" -- naming it again
+        // here read as "Expense approval threshold threshold updated."
+        success: `${title} updated.`,
         onError: setError,
         onSuccess: () => router.refresh(),
       });

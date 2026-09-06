@@ -62,6 +62,12 @@ const browserProjects = requestedBrowsers.length
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
+  // Double Playwright's 30s default. The suite runs against `next dev`, so a
+  // test that is the first to reach a route pays for compiling it, and a
+  // 30s budget left several specs failing on the compile rather than on
+  // anything they assert. Genuinely long tests still opt in with
+  // `test.slow()`.
+  timeout: 60_000,
   // Locally, Playwright's default worker count (half the machine's cores)
   // floods the shared dev-mode Next server + Docker Supabase stack with
   // concurrent sign-ins and on-demand compiles, failing large swaths of the

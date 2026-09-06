@@ -67,9 +67,15 @@ test.describe("portal administration users", () => {
 
       await row.getByRole("button", { name: "Add role", exact: true }).click();
       await row.getByRole("combobox", { name: "Add role" }).click();
-      await page
-        .getByRole("option", { name: "Volunteer", exact: true })
-        .click();
+      const option = page.getByRole("option", {
+        name: "Volunteer",
+        exact: true,
+      });
+      await option.click();
+      // The select's popup fades out. Clicking "Add" while it is still up
+      // lands on the backdrop, and the row then sits there with the role
+      // picked but never staged.
+      await expect(option).toBeHidden();
       await row.getByRole("button", { name: "Add", exact: true }).click();
 
       // The badge's remove button only exists once the assignment has landed

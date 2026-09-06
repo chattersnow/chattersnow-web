@@ -34,6 +34,13 @@ test.describe("portal finance expenses", () => {
 
     await expect(addDialog).not.toBeVisible();
 
+    // The list is server-paginated at ten rows, and it carries whatever the
+    // seed created plus whatever the other project is mid-run on, so a new
+    // expense is not on page one. Reload searched down to it.
+    await page.goto(
+      `/portal/finance/expenses?search=${encodeURIComponent(description)}`,
+    );
+
     const row = page.getByRole("row").filter({ hasText: description });
     await expect(row).toBeVisible();
     await expect(row).toContainText("$123.45");
