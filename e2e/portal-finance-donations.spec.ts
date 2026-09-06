@@ -9,6 +9,7 @@ import type { Page } from "@playwright/test";
 import { signIn } from "./helpers/auth";
 import { modal } from "./helpers/dialog";
 import { pickPerson } from "./helpers/people";
+import { pager, revealRow } from "./helpers/table";
 
 function uniqueAmount() {
   // Between $10.00 and $910.00 with non-round cents; below $1,000 so the
@@ -78,6 +79,10 @@ test.describe("portal finance donations", () => {
       .getByRole("row")
       .filter({ hasText: "Jamie Rivera" })
       .filter({ hasText: "$100.00" });
+    // Newest first, and the list is well past one page now that every spec
+    // that records a donation leaves one behind -- so page to the seeded
+    // row rather than assume it is still on page one.
+    await revealRow(donorRow, pager(page));
     await expect(donorRow.first()).toBeVisible();
     await expect(donorRow.first()).toContainText("Check");
 
@@ -85,6 +90,7 @@ test.describe("portal finance donations", () => {
       .getByRole("row")
       .filter({ hasText: "Anonymous" })
       .filter({ hasText: "$25.00" });
+    await revealRow(anonymousRow, pager(page));
     await expect(anonymousRow.first()).toBeVisible();
     await expect(anonymousRow.first()).toContainText("Cash");
   });

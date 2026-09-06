@@ -44,7 +44,12 @@ test.describe("portal governance board, meetings, and resolutions", () => {
       ).toBeVisible();
 
       await pickPerson(addDialog, person.name);
-      await expect(addDialog.getByText(person.name)).toBeVisible();
+      // Exact, because the picker also announces the choice to screen
+      // readers as "<name> selected." in an sr-only live region, and a
+      // substring match resolves to both.
+      await expect(
+        addDialog.getByText(person.name, { exact: true }),
+      ).toBeVisible();
 
       await addDialog.getByLabel("Role / title").fill(roleTitle);
       await addDialog.getByLabel("Term start").fill("2026-01-05");
@@ -61,7 +66,10 @@ test.describe("portal governance board, meetings, and resolutions", () => {
       await row.getByRole("button", { name: "View board member" }).click();
       const sheet = modal(page);
       await expect(sheet.getByText(roleTitle)).toBeVisible();
-      await expect(sheet.getByText(person.name)).toBeVisible();
+      // Exact, because the picker also announces the choice to screen
+      // readers as "<name> selected." in an sr-only live region, and a
+      // substring match resolves to both.
+      await expect(sheet.getByText(person.name, { exact: true })).toBeVisible();
 
       await sheet.getByRole("button", { name: "Edit board member" }).click();
       await sheet.getByLabel("Role / title").fill(updatedRoleTitle);
