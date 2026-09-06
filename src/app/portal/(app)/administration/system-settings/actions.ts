@@ -6,6 +6,12 @@ import { checkPermission } from "@/lib/auth/permissions";
 import { siteImageSettingKey } from "@/lib/site-images";
 import { pageVisibilitySettingKey } from "@/lib/page-visibility";
 import {
+  BRAND_COLOR_TOKENS,
+  MAX_ACCENT_STOPS,
+  brandSettingKey,
+  normalizeHexColor,
+} from "@/lib/branding";
+import {
   FISCAL_YEAR_SETTING_KEY,
   isFiscalYearStartMonth,
 } from "@/lib/fiscal-year";
@@ -104,4 +110,74 @@ export async function updatePageVisibilityAction(
   visible: boolean,
 ): Promise<SettingActionResult> {
   return updateAppSettingAction(pageVisibilitySettingKey(slot), visible);
+}
+
+/**
+ * Saves the tenant's branding (#707 Phase 4): one app_settings row per
+ * colour token, the accent stops, and the logo. A blank field clears its row
+ * to an empty value, which the readers treat as unset -- app_settings has no
+ * delete grant, the same constraint the image slots work under.
+ */
+export async function updateBrandingAction(
+  formData: FormData,
+): Promise<SettingActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(
+    supabase,
+    "system_settings",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  const rows: { key: string; value: unknown }[] = [];
+  for (const token of BRAND_COLOR_TOKENS) {
+    const raw = String(formData.get(token.key) ?? "").trim();
+    if (!raw) {
+      rows.push({ key: brandSettingKey(token.key), value: "" });
+      continue;
+    }
+    const color = normalizeHexColor(raw);
+    if (!color) {
+      return {
+        error: `${token.label} must be a six-digit hex colour like ${token.defaultValue}.`,
+      };
+    }
+    rows.push({ key: brandSettingKey(token.key), value: color });
+  }
+
+  const stopsRaw = String(formData.get("accent_stops") ?? "").trim();
+  if (!stopsRaw) {
+    rows.push({ key: brandSettingKey("accent_stops"), value: "" });
+  } else {
+    const stops = stopsRaw
+      .split(",")
+      .map((stop) => normalizeHexColor(stop))
+      .filter((stop): stop is string => stop !== null);
+    if (stops.length === 0 || stops.length !== stopsRaw.split(",").length) {
+      return {
+        error:
+          "Accent colours must be six-digit hex colours separated by commas.",
+      };
+    }
+    if (stops.length > MAX_ACCENT_STOPS) {
+      return { error: `Use at most ${MAX_ACCENT_STOPS} accent colours.` };
+    }
+    rows.push({ key: brandSettingKey("accent_stops"), value: stops });
+  }
+
+  rows.push({
+    key: brandSettingKey("logo_url"),
+    value: String(formData.get("logo_url") ?? "").trim(),
+  });
+
+  const { error } = await supabase
+    .from("app_settings")
+    .upsert(rows, { onConflict: "tenant_id,key" });
+  if (error) {
+    return { error: "Could not save the branding. Please try again." };
+  }
+
+  revalidatePath("/portal/administration/system-settings");
+  revalidatePath("/", "layout");
+  return { success: true };
 }

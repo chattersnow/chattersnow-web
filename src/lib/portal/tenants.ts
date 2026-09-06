@@ -3,7 +3,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 /**
  * A tenant the signed-in user may act inside. Name and slug only -- status,
  * plan and custom_domain are platform concerns the portal shell has no use
- * for, and Phase 4 reads them server-side when it resolves a host.
+ * for; custom_domain is what `public_tenant_id()` resolves a request host
+ * against in the database, never the client.
  */
 export type Tenant = {
   id: string;
@@ -76,8 +77,9 @@ async function readTenantContext(
 ): Promise<TenantContext> {
   // Joins a brand-new account to the tenant before anything reads it, the
   // same best-effort shape as the claim_pending_role_grants() call in
-  // resolvePermissions(). The RPC only auto-joins when the database holds
-  // exactly one active tenant, so it is a no-op the moment there is a second.
+  // resolvePermissions(). The RPC auto-joins the tenant the request host
+  // resolves to, else the sole active tenant, and never an account that
+  // already holds a membership anywhere.
   await supabase.rpc("ensure_tenant_membership");
 
   const [tenantsResult, currentResult] = await Promise.all([

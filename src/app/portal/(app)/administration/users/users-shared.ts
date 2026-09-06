@@ -12,6 +12,12 @@ export type PortalUser = {
   roles: string[];
   created_at: string;
   deactivated_at: string | null;
+  /**
+   * The account also belongs to another organization (#707 Phase 4).
+   * Deactivation is platform-wide, so such an account is removed from this
+   * organization instead.
+   */
+  shared_account: boolean;
 };
 
 export type PortalRoleOption = {
@@ -30,6 +36,26 @@ export type PendingGrant = {
   invited_at: string | null;
   roles: { name: string };
 };
+
+/** A time-boxed support membership in this organization (#707 Phase 4). */
+export type SupportGrant = {
+  id: string;
+  user_id: string;
+  email: string | null;
+  reason: string | null;
+  expires_at: string | null;
+  created_at: string;
+  created_by_email: string | null;
+  roles: string[];
+};
+
+/** How long a support grant may run, as the dialog offers it. */
+export const SUPPORT_DURATIONS = [
+  { days: 1, label: "1 day" },
+  { days: 7, label: "1 week" },
+  { days: 30, label: "30 days" },
+  { days: 90, label: "90 days" },
+] as const;
 
 /**
  * The display rule for a portal user: their preferred name, else the name on

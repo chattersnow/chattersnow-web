@@ -86,6 +86,13 @@ NOTICE:  Skipping admin bootstrap: app.bootstrap_admin_email is not set (see doc
 That is the correct outcome for any environment you have not deliberately
 bootstrapped.
 
+## A new tenant on an existing database
+
+None of the above applies to a second organization on a database that
+already has one: `bun run tenant:provision --admin <email> ...` stages the
+first admin's grant and mints their invite link in one step. See
+`docs/tenants.md`.
+
 ## Keep at least two admins
 
 `is_admin()` resolves to `has_permission('administration', 'manage')`, and only

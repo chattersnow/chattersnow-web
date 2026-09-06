@@ -5,6 +5,7 @@ application backed by Supabase.
 
 - `CLAUDE.md` — build, lint, test, and architecture conventions. Read this first.
 - `docs/technical-spec.md` — what is built and specified today.
+- `docs/tenants.md` — provisioning, custom domains, branding, support access, export and deletion for a second organization (multi-tenancy, #707).
 - `CONTRIBUTING.md` — how to contribute, and the CLA required before a first
   contribution.
 

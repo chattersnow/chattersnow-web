@@ -11,18 +11,35 @@ const SUPABASE_PUBLISHABLE_KEY =
 // default storage adapter keys sessions by URL, not by client instance, so
 // without this every createClient() call against the same local stack
 // would share (and leak) whichever session was signed in most recently.
-export function anonClient() {
+export type ClientOptions = {
+  /**
+   * Host to present as `x-tenant-host`, the header `createSupabaseServerClient`
+   * stamps from the request Host. A sessionless call resolves its tenant from
+   * it (`public_tenant_id()`, #707 Phase 3); without one, and with more than
+   * one active tenant, the public views and intake RPCs resolve nothing.
+   */
+  host?: string;
+};
+
+export function anonClient(options: ClientOptions = {}) {
   return createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
       detectSessionInUrl: false,
     },
+    global: options.host
+      ? { headers: { "x-tenant-host": options.host } }
+      : undefined,
   });
 }
 
-export async function signIn(email: string, password = "password123") {
-  const client = anonClient();
+export async function signIn(
+  email: string,
+  password = "password123",
+  options: ClientOptions = {},
+) {
+  const client = anonClient(options);
   const { error } = await client.auth.signInWithPassword({ email, password });
   if (error) throw error;
   return client;

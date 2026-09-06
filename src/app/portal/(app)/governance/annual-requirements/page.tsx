@@ -9,7 +9,7 @@ import type { AnnualRequirement } from "./annual-requirements-actions";
 import type { PersonListItem } from "../../people/actions";
 
 const REQUIREMENT_SELECT =
-  "id, name, due_date, status, completed_at, external_link, body_text, responsible:people!responsible_person_id(id, name, preferred_name, email, phone)";
+  "id, name, due_date, status, completed_at, external_link, body_text, responsible:people!annual_requirements_responsible_person_id_fkey(id, name, preferred_name, email, phone)";
 
 export const metadata: Metadata = {
   title: "Annual Requirements",

@@ -1,24 +1,30 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getPublicSite, publicTitle } from "@/lib/public-site";
 
-export const metadata: Metadata = {
-  title: "Support Chatter | Chatter Snow",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const supabase = await createSupabaseServerClient();
+  const site = await getPublicSite(supabase);
+  return { title: publicTitle(site, site.content.text("support.heading")) };
+}
 
-export default function SupportPage() {
+export default async function SupportPage() {
+  const supabase = await createSupabaseServerClient();
+  const { content } = await getPublicSite(supabase);
+
   return (
     <div className="space-y-12">
       <section>
         <div className="w-fit">
           <div className="rainbow-accent w-full" />
           <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-            Support Chatter
+            {content.text("support.heading")}
           </h1>
         </div>
         <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-          Chatter relies on donations, sponsorships, and gear to keep our
-          programs running and accessible.
+          {content.text("support.intro")}
         </p>
       </section>
 
@@ -27,15 +33,13 @@ export default function SupportPage() {
           <CardHeader>
             <CardTitle>
               <Link href="/support/donations" className="hover:underline">
-                Donations
+                {content.text("support.donations_heading")}
               </Link>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="app-muted text-sm leading-relaxed">
-              Support Chatter with a monetary or in-kind donation. Learn what we
-              accept and how your contribution helps make snow sports more
-              accessible.
+              {content.text("support.donations_card")}
             </p>
           </CardContent>
         </Card>
@@ -43,14 +47,13 @@ export default function SupportPage() {
           <CardHeader>
             <CardTitle>
               <Link href="/support/sponsorship" className="hover:underline">
-                Sponsorship
+                {content.text("support.sponsorship_heading")}
               </Link>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="app-muted text-sm leading-relaxed">
-              Partner with Chatter through cash, in-kind, or combined support
-              for events, mountain days, and access programs.
+              {content.text("support.sponsorship_card")}
             </p>
           </CardContent>
         </Card>

@@ -5,9 +5,13 @@ import { SkiSizingSections } from "./ski-sizing-sections";
 import { SnowboardSizingSections } from "./snowboard-sizing-sections";
 import { isPageVisible } from "@/lib/page-visibility";
 
-export const metadata: Metadata = {
-  title: "Sizing Guide | Chatter Snow",
-};
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getPublicSite, publicTitle } from "@/lib/public-site";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const supabase = await createSupabaseServerClient();
+  return { title: publicTitle(await getPublicSite(supabase), "Sizing Guide") };
+}
 
 const SKI_CATEGORIES = [
   { href: "#skis", label: "Skis" },

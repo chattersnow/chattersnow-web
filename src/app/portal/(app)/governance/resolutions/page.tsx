@@ -11,7 +11,7 @@ import type { ResolutionMeetingOption } from "./resolutions-shared";
 import type { PersonListItem } from "../../people/actions";
 
 const RESOLUTION_SELECT =
-  "id, meeting_id, motion_text, vote_outcome, effective_date, external_link, body_text, mover:people!mover_person_id(id, name, preferred_name, email, phone), seconder:people!seconder_person_id(id, name, preferred_name, email, phone)";
+  "id, meeting_id, motion_text, vote_outcome, effective_date, external_link, body_text, mover:people!resolutions_mover_person_id_fkey(id, name, preferred_name, email, phone), seconder:people!resolutions_seconder_person_id_fkey(id, name, preferred_name, email, phone)";
 
 export const metadata: Metadata = {
   title: "Resolutions",

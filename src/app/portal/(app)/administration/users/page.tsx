@@ -3,10 +3,13 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { UsersTable } from "./users-table";
 import { PendingAccessSection } from "./pending-access-section";
+import { SupportAccessSection } from "./support-access-section";
 import {
+  canManageSupportAccessAction,
   listUsersAction,
   listRolesAction,
   listPendingGrantsAction,
+  listSupportGrantsAction,
 } from "./actions";
 
 export const metadata: Metadata = {
@@ -19,11 +22,14 @@ export default async function UsersPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [result, rolesResult, pendingResult] = await Promise.all([
-    listUsersAction(),
-    listRolesAction(),
-    listPendingGrantsAction(),
-  ]);
+  const [result, rolesResult, pendingResult, supportResult, canManageSupport] =
+    await Promise.all([
+      listUsersAction(),
+      listRolesAction(),
+      listPendingGrantsAction(),
+      listSupportGrantsAction(),
+      canManageSupportAccessAction(),
+    ]);
   const availableRoles = "data" in rolesResult ? rolesResult.data : [];
 
   return (
@@ -62,6 +68,20 @@ export default async function UsersPage() {
           <PendingAccessSection
             grants={pendingResult.data}
             availableRoles={availableRoles}
+          />
+        )}
+
+        {"error" in supportResult ? (
+          <Card>
+            <CardContent className="app-muted text-sm">
+              {supportResult.error}
+            </CardContent>
+          </Card>
+        ) : (
+          <SupportAccessSection
+            grants={supportResult.data}
+            availableRoles={availableRoles}
+            canManage={canManageSupport}
           />
         )}
       </div>

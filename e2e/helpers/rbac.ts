@@ -24,7 +24,9 @@ export function roleLabel(name: string) {
  * seeded account a membership -- including the no-role and deactivated ones.
  * `list_portal_users` (#707) joins `tenant_memberships`, so an account
  * created at runtime without one is invisible on every Administration
- * screen, and a spec that stages a role for it has nothing to click.
+ * screen, and a spec that stages a role for it has nothing to click. Phase 4
+ * adds a second reason: an admin may only deactivate an account whose sole
+ * membership is their own tenant.
  *
  * Matched on "the tenant that exists" for the same reason seed.sql does:
  * the initial tenant's slug comes from `app.initial_tenant_slug`.
