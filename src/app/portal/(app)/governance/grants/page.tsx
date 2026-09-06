@@ -10,7 +10,7 @@ import type { Grant } from "./grants-actions";
 import type { PersonListItem } from "../../people/actions";
 
 const GRANT_SELECT =
-  "id, funder_name, amount, application_deadline, status, notes, owner:people!owner_person_id(id, name, preferred_name, email, phone)";
+  "id, funder_name, amount, application_deadline, status, notes, owner:people!grants_owner_person_id_fkey(id, name, preferred_name, email, phone)";
 
 export const metadata: Metadata = {
   title: "Grants",

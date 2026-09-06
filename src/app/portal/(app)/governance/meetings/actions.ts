@@ -90,7 +90,7 @@ export async function listMeetingsAction(): Promise<
   const { data, error } = await supabase
     .from("governance_meetings")
     .select(
-      "id, meeting_date, meeting_type, status, location, notes, minutes_approved_at, facilitator:people!facilitator_person_id(id, name, preferred_name, email, phone), notetaker:people!notetaker_person_id(id, name, preferred_name, email, phone)",
+      "id, meeting_date, meeting_type, status, location, notes, minutes_approved_at, facilitator:people!governance_meetings_facilitator_person_id_fkey(id, name, preferred_name, email, phone), notetaker:people!governance_meetings_notetaker_person_id_fkey(id, name, preferred_name, email, phone)",
     )
     .order("meeting_date", { ascending: false });
 

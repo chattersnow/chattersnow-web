@@ -55,7 +55,7 @@ export async function PersonCoreCards({ person }: { person: PersonRow }) {
     supabase
       .from("person_organizations")
       .select(
-        "id, role, is_primary, organization:people!organization_id(id, name, preferred_name, email, phone), person:people!person_id(id, name, preferred_name, email, phone)",
+        "id, role, is_primary, organization:people!person_organizations_organization_id_fkey(id, name, preferred_name, email, phone), person:people!person_organizations_person_id_fkey(id, name, preferred_name, email, phone)",
       )
       .eq(isOrganization(person) ? "organization_id" : "person_id", person.id),
   ]);

@@ -58,7 +58,7 @@ export default async function EventDetailPage({
   const { data: eventRow, error } = await supabase
     .from("events")
     .select(
-      "id, name, location, starts_at, ends_at, timezone, visibility, status, attendance_count, attendance_notes, description, capacity, registration_enabled, registration_deadline, auto_assign_discount_codes, budget_amount, event_lead_id, event_lead:people!event_lead_id(id, name, preferred_name, email, phone), report_status, report_summary, lessons_learned, feedback_notes, content_notes, report_submitted_at, report_submitted_by, flier_url, event_programs(program_id)",
+      "id, name, location, starts_at, ends_at, timezone, visibility, status, attendance_count, attendance_notes, description, capacity, registration_enabled, registration_deadline, auto_assign_discount_codes, budget_amount, event_lead_id, event_lead:people!events_event_lead_id_fkey(id, name, preferred_name, email, phone), report_status, report_summary, lessons_learned, feedback_notes, content_notes, report_submitted_at, report_submitted_by, flier_url, event_programs(program_id)",
     )
     .eq("id", eventId)
     .maybeSingle<RawEventRow>();

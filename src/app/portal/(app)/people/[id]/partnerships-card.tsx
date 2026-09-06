@@ -46,7 +46,9 @@ export async function PartnershipsCard({
       : Promise.resolve({ data: [] }),
     supabase
       .from("partnership_opportunities")
-      .select("id, stage, organization:people!organization_person_id(name)")
+      .select(
+        "id, stage, organization:people!partnership_opportunities_organization_person_id_fkey(name)",
+      )
       .eq("owner_person_id", personId),
   ]);
 

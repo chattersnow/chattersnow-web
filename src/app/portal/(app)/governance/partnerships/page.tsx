@@ -10,7 +10,7 @@ import type { PartnershipOpportunity } from "./partnerships-actions";
 import type { PersonListItem } from "../../people/actions";
 
 const PARTNERSHIP_SELECT =
-  "id, stage, next_step_date, notes, organization:people!organization_person_id(id, name, preferred_name, email, phone), owner:people!owner_person_id(id, name, preferred_name, email, phone)";
+  "id, stage, next_step_date, notes, organization:people!partnership_opportunities_organization_person_id_fkey(id, name, preferred_name, email, phone), owner:people!partnership_opportunities_owner_person_id_fkey(id, name, preferred_name, email, phone)";
 
 export const metadata: Metadata = {
   title: "Partnerships",
