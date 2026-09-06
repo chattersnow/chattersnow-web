@@ -9,8 +9,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   SEEDED_USERS,
   adminClient,
+  anonClient,
   createPerson,
   signIn,
+  signInAs,
 } from "../../../../../../test/integration-setup";
 
 mock.module("next/cache", () => ({ revalidatePath: mock(() => {}) }));
@@ -127,4 +129,46 @@ describe("linkPersonToAuthUserAction", () => {
       .single();
     expect(data?.auth_user_id).toBeNull();
   });
+});
+
+// Linking a directory record to a portal account decides which auth user a
+// person's data belongs to, so a hole here is an account-takeover shape
+// rather than a data-leak one -- and the cases above only ever exercise
+// `coordinator`, which is itself a privileged role (#746). These cover the
+// sessions that should not get near it: signed out, a narrow-carve-out role,
+// an account with no role at all, and a deactivated member who still holds
+// one. Each asserts the person row is untouched afterwards, since the RPC is
+// SECURITY DEFINER and a passing action gate is not proof the write was
+// refused.
+describe("linkPersonToAuthUserAction for unprivileged actors", () => {
+  const cases = [
+    ["signed out", async () => anonClient()],
+    ["volunteer", () => signInAs(SEEDED_USERS.volunteer)],
+    ["no-role", () => signInAs(SEEDED_USERS.noAccess)],
+    ["deactivated", () => signInAs(SEEDED_USERS.former)],
+  ] as const;
+
+  for (const [name, makeClient] of cases) {
+    test(`refuses ${name} and leaves the person unlinked`, async () => {
+      const { userId } = await seededUserId(SEEDED_USERS.coordinator);
+      const person = await createPerson();
+      cleanups.push(person.cleanup);
+
+      currentSupabase = await makeClient();
+      const result = await linkPersonToAuthUserAction(person.id, userId);
+      expect(result).toHaveProperty("error");
+      expect((result as { error: string }).error).toBe(
+        name === "signed out"
+          ? "You must be signed in to link a portal account."
+          : "You don't have permission to perform this action.",
+      );
+
+      const { data } = await adminClient
+        .from("people")
+        .select("auth_user_id")
+        .eq("id", person.id)
+        .single();
+      expect(data?.auth_user_id).toBeNull();
+    });
+  }
 });

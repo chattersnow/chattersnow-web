@@ -1,6 +1,9 @@
-// Integration test: exercises getCalendarItem (the detail-page query) against
-// a real local Supabase stack, covering the row mapping (categories +
-// content opportunity join) and RLS visibility for a view-only role.
+// Integration test: exercises the calendar read queries against a real local
+// Supabase stack -- getCalendarItem (the detail-page query) and
+// listWorkQueueItems (the work-queue page's only query, #456), covering the
+// row mapping (categories + content opportunity join), the archived filter
+// and starts_at ordering PostgREST applies, and RLS visibility for a
+// view-only role.
 // Requires `bun run db:start && bun run db:reset` first; run via
 // `bun run test:integration`. Not picked up by `bun run test`.
 import { describe, expect, test } from "bun:test";
@@ -12,7 +15,7 @@ import {
   createContentOpportunity,
   signInAs,
 } from "../../../../../test/integration-setup";
-import { getCalendarItem } from "./queries";
+import { getCalendarItem, listWorkQueueItems } from "./queries";
 
 describe("getCalendarItem (integration)", () => {
   test("returns the mapped item with categories and content opportunity", async () => {
@@ -64,6 +67,72 @@ describe("getCalendarItem (integration)", () => {
     const anonResult = await getCalendarItem(anonClient(), item.id);
     expect(anonResult.error).toBe(true);
     expect(anonResult.item).toBeNull();
+
+    await item.cleanup();
+  });
+});
+
+describe("listWorkQueueItems (integration)", () => {
+  test("returns non-archived items in starts_at order with their content opportunity", async () => {
+    // Inserted latest-first so heap order and starts_at order disagree; far
+    // enough out that no seeded or concurrently-created item lands between
+    // them.
+    const later = await createCalendarItem({
+      startsAt: new Date("2099-06-02T00:00:00.000Z").toISOString(),
+      categories: ["chatter_events"],
+    });
+    const earlier = await createCalendarItem({
+      startsAt: new Date("2099-06-01T00:00:00.000Z").toISOString(),
+    });
+    const opportunity = await createContentOpportunity(earlier.id);
+
+    const items = await listWorkQueueItems(adminClient);
+    const ids = items.map((item) => item.id);
+    // Asserted present before the ordering compare: the query is unranged and
+    // PostgREST caps a response at max_rows (1000, supabase/config.toml), so
+    // once the calendar outgrows that these year-2099 rows fall off the end
+    // and two indexOf misses would otherwise satisfy `-1 < -1` silently.
+    expect(ids).toContain(earlier.id);
+    expect(ids).toContain(later.id);
+    expect(ids.indexOf(earlier.id)).toBeLessThan(ids.indexOf(later.id));
+
+    const fetchedEarlier = items.find((item) => item.id === earlier.id)!;
+    expect(fetchedEarlier.content_opportunity?.id).toBe(opportunity.id);
+    expect(fetchedEarlier.content_opportunity?.content_status).toBe("idea");
+
+    // Not inner-joined: an item with no opportunity yet still belongs in the
+    // queue, since the Tier-1-undecided warning applies at the item level.
+    const fetchedLater = items.find((item) => item.id === later.id)!;
+    expect(fetchedLater.content_opportunity).toBeNull();
+    expect(fetchedLater.categories).toEqual(["chatter_events"]);
+
+    await earlier.cleanup();
+    await later.cleanup();
+  });
+
+  test("excludes archived items", async () => {
+    const active = await createCalendarItem({ calendarStatus: "active" });
+    const archived = await createCalendarItem({ calendarStatus: "archived" });
+
+    const ids = (await listWorkQueueItems(adminClient)).map((item) => item.id);
+    expect(ids).toContain(active.id);
+    expect(ids).not.toContain(archived.id);
+
+    await active.cleanup();
+    await archived.cleanup();
+  });
+
+  test("a view-only role sees the queue; anon gets nothing", async () => {
+    const item = await createCalendarItem();
+
+    const viewer = await signInAs(SEEDED_USERS.volunteer);
+    expect((await listWorkQueueItems(viewer)).map((i) => i.id)).toContain(
+      item.id,
+    );
+
+    // The query swallows its error (it has no error channel), so an
+    // anonymous caller must come back empty rather than with rows.
+    expect(await listWorkQueueItems(anonClient())).toEqual([]);
 
     await item.cleanup();
   });

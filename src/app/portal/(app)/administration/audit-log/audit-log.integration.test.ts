@@ -10,11 +10,15 @@
 // silently accepted. Requires `bun run db:start && bun run db:reset` first;
 // run via `bun run test:integration`. Not picked up by `bun run test`.
 import { describe, expect, mock, test } from "bun:test";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   adminClient,
   createAvailableGearItems,
   uniqueEmail,
+  unprivilegedActors,
 } from "../../../../../../test/integration-setup";
+import { fetchAuditLogEntries } from "./audit-log-query";
+import type { AuditLogParams } from "./audit-log-params";
 
 // admin.ts imports "server-only", which throws outside Next's bundler.
 mock.module("server-only", () => ({}));
@@ -139,5 +143,66 @@ describe("audit_log_row() via audited_tables registry", () => {
     });
     expect(error).not.toBeNull();
     expect(error?.code).toBe("23503");
+  });
+});
+
+// The audit log is the most sensitive read in the portal: every row carries
+// the before/after payload of a change to donations, inventory, user roles or
+// access grants, so a session that can read it can reconstruct data it was
+// never granted directly. The page redirects on administration:view and
+// fetchAuditLogEntries adds no check of its own, leaving `audit_log` RLS as
+// the whole defense -- and every case above writes rows through the
+// service-role client and reads them back as admin (#746).
+const ALL_ENTRIES: AuditLogParams = {
+  sort: "occurred_at",
+  dir: "desc",
+  table: "app_settings",
+  action: "all",
+  actor: "all",
+  from: "",
+  to: "",
+  page: 1,
+  perPage: 25,
+};
+
+function fetchAs(client: SupabaseClient) {
+  return fetchAuditLogEntries(
+    client as unknown as Parameters<typeof fetchAuditLogEntries>[0],
+    ALL_ENTRIES,
+  );
+}
+
+describe("fetchAuditLogEntries for unprivileged actors (integration)", () => {
+  test("returns no entries and no total for any unprivileged session", async () => {
+    // A change of its own, so the privileged read is provably non-empty.
+    const key = `it-audit-rls-${crypto.randomUUID()}`;
+    const { data: inserted } = await serviceRoleClient
+      .from("app_settings")
+      .insert({ key, value: { n: 1 } })
+      .select("id")
+      .single();
+    const id = inserted!.id as string;
+
+    const privileged = await fetchAs(adminClient);
+    expect(privileged.error).toBeNull();
+    expect(privileged.count ?? 0).toBeGreaterThan(0);
+    expect(privileged.entries?.length ?? 0).toBeGreaterThan(0);
+
+    for (const { name, client } of await unprivilegedActors()) {
+      const { entries, count, error } = await fetchAs(client);
+      // Anonymous is rejected outright by the API (42501) and never gets a
+      // count; a signed-in session without administration access is filtered
+      // to zero rows by the policy. Either way nothing comes back.
+      expect({
+        actor: name,
+        entries: entries ?? [],
+        count: count ?? 0,
+        leaked: (entries ?? []).length > 0,
+      }).toEqual({ actor: name, entries: [], count: 0, leaked: false });
+      if (name === "anonymous") expect(error?.code).toBe("42501");
+      else expect(error).toBeNull();
+    }
+
+    await serviceRoleClient.from("app_settings").delete().eq("id", id);
   });
 });

@@ -125,6 +125,17 @@ describe("event sponsor actions (integration)", () => {
       await createEventSponsorAction(event.id, person.id, sponsorForm()),
     ).toEqual({ success: true });
 
+    // The sponsor has to go through the action, not with the event: an
+    // in-kind contribution mirrors into `donations` + inventory
+    // (20260830180000), and those survive the event as orphans -- so the
+    // delete guard (20260903060000) refuses to remove the event until the
+    // sponsor delete has unwound them.
+    const listed = await listEventSponsorsAction(event.id);
+    if (!("data" in listed)) throw new Error("expected data");
+    expect(await deleteEventSponsorAction(listed.data[0].id)).toEqual({
+      success: true,
+    });
+
     await event.cleanup();
     await person.cleanup();
   });

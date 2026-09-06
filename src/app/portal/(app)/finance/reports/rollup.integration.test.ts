@@ -56,6 +56,26 @@ function amounts(rows: { amount: string | number }[]) {
   return rows.map((row) => Number(row.amount));
 }
 
+// Every array in the payload comes from a `jsonb_agg` with no `order by`
+// (20260906090000), so its order is whatever the planner happens to return
+// and two calls can disagree -- deleting a row leaves a heap hole that the
+// next insert reuses, which is enough to flip it. Comparing two payloads for
+// equality therefore has to sort first, or the test asserts an order the RPC
+// never promised. See #757 for giving the RPC a defined order.
+function canonical(payload: ReportPayload) {
+  const sorted = <T>(rows: T[]) =>
+    [...rows].sort((a, b) =>
+      JSON.stringify(a).localeCompare(JSON.stringify(b)),
+    );
+  return {
+    revenue: sorted(payload.revenue),
+    expenses: sorted(payload.expenses),
+    reimbursements: sorted(payload.reimbursements),
+    in_kind_items: sorted(payload.in_kind_items),
+    monetary_donations: sorted(payload.monetary_donations),
+  };
+}
+
 async function insertFixture(
   table: string,
   row: Record<string, unknown>,
@@ -134,7 +154,7 @@ describe("get_finance_report_data access", () => {
       report(boardClient, IN_RANGE),
       report(adminClient, IN_RANGE),
     ]);
-    expect(boardPayload).toEqual(adminPayload);
+    expect(canonical(boardPayload)).toEqual(canonical(adminPayload));
     expect(amounts(boardPayload.revenue)).toContain(revenueAmount);
     expect(amounts(boardPayload.expenses)).toContain(expenseAmount);
     expect(amounts(boardPayload.monetary_donations)).toContain(donationAmount);

@@ -18,6 +18,7 @@ import {
   adminClient,
   createPerson,
   signInAs,
+  unprivilegedActors,
 } from "../../../test/integration-setup";
 
 // admin.ts imports "server-only", which throws outside Next's bundler --
@@ -275,5 +276,34 @@ describe("count_pending_reimbursement_approvals (integration)", () => {
 
     await reimbursement.cleanup();
     await person.cleanup();
+  });
+});
+
+// Both RPCs are SECURITY DEFINER, so they answer with the definer's reach
+// unless they check the caller themselves -- and every case above calls them
+// from an approver's session (#746). A regression that dropped the internal
+// permission check would leak the size of the finance approval queue to
+// anyone signed in, and nothing here would have noticed.
+describe("approval-count RPCs for unprivileged actors (integration)", () => {
+  test("both return zero, never the approver's queue length", async () => {
+    // Non-zero for a real approver, so a zero below means "refused", not
+    // "nothing pending".
+    expect(
+      await count(adminClient, "count_pending_event_expense_approvals"),
+    ).toBeGreaterThan(0);
+    expect(
+      await count(adminClient, "count_pending_reimbursement_approvals"),
+    ).toBeGreaterThan(0);
+
+    for (const { name, client } of await unprivilegedActors()) {
+      expect({
+        actor: name,
+        expenses: await count(client, "count_pending_event_expense_approvals"),
+        reimbursements: await count(
+          client,
+          "count_pending_reimbursement_approvals",
+        ),
+      }).toEqual({ actor: name, expenses: 0, reimbursements: 0 });
+    }
   });
 });
