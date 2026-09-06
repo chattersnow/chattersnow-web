@@ -75,6 +75,19 @@ export default defineConfig({
   // ~2 workers naturally, which is why the same suite passes there — mirror
   // that locally. CI keeps the default.
   workers: process.env.CI ? undefined : 2,
+  // Two projects and 354 tests share one dev server and one Supabase
+  // instance on a small runner, and they seed each other's lists while they
+  // run. That leaves a handful of tests per run -- most of them on the
+  // mobile project -- that fail once and pass untouched on the next run,
+  // and the set is different every time.
+  //
+  // A retry that passes is reported as `flaky` rather than green, so the
+  // report still names every one of them and a test that starts flaking
+  // regularly is still visible. What it must not become is a way to let a
+  // genuinely broken test through: a failure that reproduces on all three
+  // attempts is a real one, and the trace from the first retry (already
+  // configured below) is there to diagnose it.
+  retries: process.env.CI ? 2 : 0,
   reporter: "html",
   use: {
     baseURL,
