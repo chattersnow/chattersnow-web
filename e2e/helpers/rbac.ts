@@ -44,6 +44,31 @@ export async function seedPortalUser(admin: AdminClient) {
   const userId = data.user.id;
   await markOnboarded(admin, userId);
 
+  // A member of the seeded tenant, as a first sign-in would make it. Since
+  // multi-tenancy Phase 2 (#707) the users screen lists members only, and
+  // since Phase 4 an admin may only deactivate an account whose sole
+  // membership is their own tenant -- an account with no membership is
+  // invisible to both.
+  const { data: tenant, error: tenantError } = await admin
+    .from("tenants")
+    .select("id")
+    .order("created_at")
+    .limit(1)
+    .single();
+  if (tenantError || !tenant) {
+    throw new Error(
+      `Could not find the seeded tenant: ${tenantError?.message}`,
+    );
+  }
+  const { error: membershipError } = await admin
+    .from("tenant_memberships")
+    .insert({ user_id: userId, tenant_id: tenant.id, kind: "member" });
+  if (membershipError) {
+    throw new Error(
+      `Could not add ${email} to the tenant: ${membershipError.message}`,
+    );
+  }
+
   return {
     userId,
     email,
@@ -52,6 +77,7 @@ export async function seedPortalUser(admin: AdminClient) {
     async cleanup() {
       await admin.from("deactivated_users").delete().eq("user_id", userId);
       await admin.from("user_roles").delete().eq("user_id", userId);
+      await admin.from("tenant_memberships").delete().eq("user_id", userId);
       await admin.from("pending_role_grants").delete().eq("email", email);
       await admin.auth.admin.deleteUser(userId);
     },

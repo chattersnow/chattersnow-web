@@ -9,10 +9,10 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 // tenant, so it is just "Portal" in the stylesheet's colours.
 export async function generateMetadata(): Promise<Metadata> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const tenant = user ? currentTenant(await getTenantContext(supabase)) : null;
+  // No auth.getUser() round trip: signed out, the tenant read simply comes
+  // back empty, and the (app) layout already validates the session once per
+  // request for every route that needs it.
+  const tenant = currentTenant(await getTenantContext(supabase));
   const name = tenant ? `${tenant.name} Portal` : "Portal";
   return {
     title: { default: name, template: `%s | ${name}` },
