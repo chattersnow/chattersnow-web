@@ -17,6 +17,7 @@ const MESSAGE = {
 const originalFetch = global.fetch;
 const originalKey = process.env.RESEND_API_KEY;
 const originalFrom = process.env.EMAIL_FROM;
+const originalReplyTo = process.env.EMAIL_REPLY_TO;
 
 function jsonResponse(status: number, body: unknown) {
   return new Response(JSON.stringify(body), {
@@ -28,6 +29,7 @@ function jsonResponse(status: number, body: unknown) {
 beforeEach(() => {
   process.env.RESEND_API_KEY = "re_test_key";
   process.env.EMAIL_FROM = "reminders@chattersnow.org";
+  delete process.env.EMAIL_REPLY_TO;
 });
 
 afterEach(() => {
@@ -36,6 +38,8 @@ afterEach(() => {
   else process.env.RESEND_API_KEY = originalKey;
   if (originalFrom === undefined) delete process.env.EMAIL_FROM;
   else process.env.EMAIL_FROM = originalFrom;
+  if (originalReplyTo === undefined) delete process.env.EMAIL_REPLY_TO;
+  else process.env.EMAIL_REPLY_TO = originalReplyTo;
 });
 
 describe("sendEmail without a key", () => {
@@ -117,6 +121,53 @@ describe("sendEmail with a key", () => {
     expect(result).toMatchObject({
       error: "Could not reach the email provider: socket hang up",
     });
+  });
+
+  test("sends a Reply-To when one is configured", async () => {
+    // The mailboxes people actually read are with a different provider, so a
+    // reply to the sending address would bounce.
+    process.env.EMAIL_REPLY_TO = "hello@chattersnow.org";
+    const fetchMock = mock(() => Promise.resolve(jsonResponse(200, {})));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await sendEmail(MESSAGE);
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    expect(JSON.parse(init.body as string).reply_to).toBe(
+      "hello@chattersnow.org",
+    );
+  });
+
+  test("a per-message Reply-To wins over the configured one", async () => {
+    process.env.EMAIL_REPLY_TO = "hello@chattersnow.org";
+    const fetchMock = mock(() => Promise.resolve(jsonResponse(200, {})));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await sendEmail({ ...MESSAGE, replyTo: "board@chattersnow.org" });
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    expect(JSON.parse(init.body as string).reply_to).toBe(
+      "board@chattersnow.org",
+    );
+  });
+
+  test("omits Reply-To entirely when none is configured", async () => {
+    const fetchMock = mock(() => Promise.resolve(jsonResponse(200, {})));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await sendEmail(MESSAGE);
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    expect(JSON.parse(init.body as string)).not.toHaveProperty("reply_to");
   });
 
   test("refuses to send with no from address configured", async () => {

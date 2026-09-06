@@ -22,6 +22,16 @@ export type EmailMessage = {
   subject: string;
   text: string;
   html: string;
+  /**
+   * Where a reply should go, overriding EMAIL_REPLY_TO.
+   *
+   * The application sends through a transactional provider, but the
+   * organization's mailboxes live somewhere else entirely (Zoho), and the
+   * address a digest is sent *from* is not necessarily one anybody reads.
+   * Without a Reply-To, someone answering a reminder gets a bounce -- so the
+   * header points at a real monitored inbox.
+   */
+  replyTo?: string;
 };
 
 /**
@@ -40,6 +50,7 @@ export async function sendEmail(
 ): Promise<SendEmailResult> {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM;
+  const replyTo = message.replyTo ?? process.env.EMAIL_REPLY_TO;
 
   // No key configured: log and succeed. Development, preview deploys and CI all
   // run without one, and this is what lets the whole path -- the cron route,
@@ -70,6 +81,9 @@ export async function sendEmail(
         subject: message.subject,
         text: message.text,
         html: message.html,
+        // Omitted rather than sent empty when unset: an empty Reply-To is
+        // worse than none, and some providers reject it outright.
+        ...(replyTo ? { reply_to: replyTo } : {}),
       }),
     });
   } catch (cause) {
