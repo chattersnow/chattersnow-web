@@ -34,6 +34,16 @@ Husky runs a pre-commit hook (`.husky/pre-commit`). CI extends coverage over the
 
 Colocated with the source they exercise, same as unit tests, but run against a real local Supabase stack instead of a mocked client — the only way to catch RLS policy gaps and RPC behavior that mocks can't. Shared fixtures/clients live in `test/integration-setup.ts` (a signed-in admin-account client for fixture setup/cleanup, an anon client, `signIn(email)` for the accounts seeded by `supabase/seed.sql`). They're excluded from `bun run test` and only run via `bun run test:integration`, which requires the local stack running and reset (`bun run db:start && bun run db:reset`) first.
 
+### Browser suites run against a production build
+
+Both browser-driving suites serve `bun run build && bun run start`, not `next dev` (#744) — under the dev server whichever test or scan pass reached a route first paid to compile it out of its own budget, which was the largest source of e2e churn. Playwright's `reuseExistingServer` is still on locally, so a `bun run dev` you already have open is used as-is. Consequences: React dev warnings, the dev error overlay and the `<nextjs-portal>` overlay aren't present in these runs (`skip-link.spec.ts` and `portal-finance-reports.spec.ts` already account for that), and a broken build fails the e2e/a11y jobs as well as the build job.
+
+### The a11y scan's concurrency (`A11Y_WORKERS`)
+
+`e2e/a11y-scan.ts` shards its ~520 axe passes across that many browser contexts, each with its own context, page and sign-in (#751). It defaults to **4 on CI and 1 everywhere else** — four concurrent Chromium contexts alongside Docker and Next will swap an 8 GB machine — so `bun run test:a11y` with nothing set behaves exactly as it always did. Results are sorted by their scan key before the report and baseline are written, so two runs at any worker count produce identical files; a key emitted by two shards fails the run.
+
+Its navigations still wait on `networkidle` on purpose. Anything cheaper measured worse: this app requests its CSS, font and JS chunks 150–330ms _after_ DOMContentLoaded, so a `domcontentloaded` wait scans an unstyled page, and several portal pages replace the URL on mount, so leaving early interrupts the next route's navigation. See #752.
+
 ### End-to-end tests (`e2e/*.spec.ts`)
 
 Import `test` and `expect` from `./helpers/test`, never from `@playwright/test` directly (type-only imports like `Page`/`Locator` still come from the package). That module extends `test` so each test reaches the app with its own `x-forwarded-for`. Every rate-limited public route is capped per `(route, ip_address)` over a 15-minute window, and without it the whole suite shares one bucket per route and trips limits of 5-10 on its own -- doubled by the two-project PR run, quadrupled by the nightly matrix (#587).

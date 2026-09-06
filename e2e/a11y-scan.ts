@@ -28,7 +28,25 @@
 // is stable across reseeds.
 //
 // Usage: bun run e2e/a11y-scan.ts [--check] [--update-baseline] [--quick]
-// Requires the dev server running and the local Supabase stack seeded.
+// Requires a server on NEXT_PUBLIC_SITE_URL and the local Supabase stack
+// seeded. CI serves a production build (`bun run build && bun run start`)
+// rather than `next dev`, so no route is compiled on demand mid-scan (#744).
+//
+// A11Y_WORKERS shards the scan across that many browser contexts (#751). It
+// defaults to 4 on CI and 1 everywhere else: concurrent Chromium contexts on
+// a dev machine that is also running Docker and Next would only swap.
+//
+// Navigations deliberately still wait on `networkidle`, which #752 proposed
+// replacing. Measured against a production build, this app requests its CSS,
+// font and JS chunks 150-330ms AFTER DOMContentLoaded, so a `domcontentloaded`
+// wait scans an unstyled page and reports colour-contrast against colours
+// neither palette contains. `load` plus a bounded wait for the URL to stop
+// changing is closer, but several portal pages replace the URL on mount, and
+// navigating away before that lands both destroys the execution context
+// applyTheme() runs in and interrupts the NEXT route's goto -- 7 of 20 sampled
+// routes failed that way. The whole prize is networkidle's 500ms idle window,
+// ~2.3 min across the run, which sharding above already reduces to ~35s of
+// wall clock. See #752 for the measurements.
 import { chromium, type Browser, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -83,6 +101,28 @@ const MATRIX: { viewport: ViewportName; theme: ThemeName }[] = QUICK
     ];
 
 const SEEDED_PASSWORD = "password123";
+
+/**
+ * How many browser contexts scan at once.
+ *
+ * The scan is ~520 axe passes at ~4s each, and every one of them was run
+ * sequentially on a single page -- 34 minutes, and by far the slowest thing in
+ * CI (#751). Sharding it across contexts is the whole fix; nothing about a
+ * pass depends on the pass before it, because every pass navigates afresh.
+ *
+ * Defaults to 1 off CI, deliberately: the same laptop is running Docker
+ * Desktop, Supabase and a Next server on 8 GB, and four concurrent Chromium
+ * contexts against that put it into swap. `bun run test:a11y` with nothing set
+ * therefore behaves exactly as it did before this existed.
+ */
+const A11Y_WORKERS = (() => {
+  const raw = process.env.A11Y_WORKERS ?? (process.env.CI ? "4" : "1");
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error(`A11Y_WORKERS must be a positive integer, got "${raw}".`);
+  }
+  return parsed;
+})();
 
 /** Longest a theme crossfade is waited on before scanning anyway. */
 const THEME_TRANSITION_CAP_MS = 1_000;
@@ -557,84 +597,180 @@ async function freshPage(browser: Browser): Promise<Page> {
   return context.newPage();
 }
 
+/**
+ * One unit of scanning work: a set of routes, viewed as one account.
+ *
+ * Every shard gets its own context, its own page and its own sign-in, which is
+ * what makes them safe to run beside each other -- the role sweeps already
+ * worked this way, so sharding the anon and admin sweeps is the same shape
+ * applied to the two loops that carried the bulk of the run.
+ */
+type ShardRoute = { pattern: string; isDynamic: boolean };
+
+type Shard = {
+  /** The role name recorded in every result key this shard produces. */
+  label: string;
+  /** null scans signed out. */
+  email: string | null;
+  /** A shard that cannot sign in fails the run rather than quietly vanishing. */
+  required: boolean;
+  routes: ShardRoute[];
+};
+
+/**
+ * Splits routes round-robin rather than into contiguous blocks.
+ *
+ * Route cost varies by an order of magnitude -- a portal list page with a
+ * dozen surfaces against a static public page -- and the expensive ones are
+ * clustered by path, so contiguous slices would hand one worker every heavy
+ * route in a section and leave another idle. Round-robin interleaves them.
+ *
+ * With parts === 1 this returns the input unchanged, so a local run scans in
+ * exactly the order it always did.
+ */
+function shardRoutes<T>(routes: T[], parts: number): T[][] {
+  if (parts <= 1) return routes.length > 0 ? [routes] : [];
+  const slices: T[][] = Array.from({ length: parts }, () => []);
+  routes.forEach((route, index) => slices[index % parts].push(route));
+  return slices.filter((slice) => slice.length > 0);
+}
+
+/** Runs shards over a fixed pool of workers, each pulling the next one. */
+async function runShards(shards: Shard[], workers: number): Promise<void> {
+  let next = 0;
+  const worker = async () => {
+    for (let index = next++; index < shards.length; index = next++) {
+      await runShard(shards[index]);
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(workers, shards.length) }, worker),
+  );
+}
+
+async function runShard(shard: Shard): Promise<void> {
+  const page = await freshPage(browser);
+  try {
+    if (shard.email && !(await signIn(page, shard.email))) {
+      if (shard.required) {
+        throw new Error(`Could not sign in as ${shard.email}`);
+      }
+      skipped.push({
+        pattern: `role:${shard.label}`,
+        reason: `could not sign in as ${shard.email}`,
+      });
+      return;
+    }
+    console.log(`Scanning ${shard.routes.length} routes as ${shard.label}…`);
+    for (const route of shard.routes) {
+      const concrete = route.isDynamic
+        ? await resolveDynamicRoute(page, route.pattern)
+        : route.pattern;
+      if (!concrete) {
+        skipped.push({
+          pattern: route.pattern,
+          reason: "no seeded record to resolve this dynamic route",
+        });
+        process.stdout.write("s");
+        continue;
+      }
+      await scanRoute(page, concrete, route.pattern, shard.label);
+      process.stdout.write(".");
+    }
+  } finally {
+    await page.context().close();
+  }
+}
+
 const routes = discoverRoutes();
 for (const [pattern, reason] of Object.entries(SKIPPED_ROUTES)) {
   skipped.push({ pattern, reason });
 }
 
+const anonRoutes: ShardRoute[] = routes
+  .filter((r: DiscoveredRoute) => r.kind === "public" || r.kind === "auth")
+  .map((r: DiscoveredRoute) => ({
+    pattern: r.pattern,
+    isDynamic: r.isDynamic,
+  }));
+const portalRoutes: ShardRoute[] = routes
+  .filter((r: DiscoveredRoute) => r.kind === "portal")
+  .map((r: DiscoveredRoute) => ({
+    pattern: r.pattern,
+    isDynamic: r.isDynamic,
+  }));
+
+const shards: Shard[] = [
+  ...shardRoutes(anonRoutes, A11Y_WORKERS).map((slice) => ({
+    label: "anon",
+    email: null,
+    required: true,
+    routes: slice,
+  })),
+  ...shardRoutes(portalRoutes, A11Y_WORKERS).map((slice) => ({
+    label: "admin",
+    email: "admin@example.test",
+    required: true,
+    routes: slice,
+  })),
+  // Each role sweep is already one context per role, so it is a shard as it
+  // stands. QUICK drops them, as it always did.
+  ...(QUICK
+    ? []
+    : ROLE_SWEEPS.map((sweep) => ({
+        label: sweep.label,
+        email: sweep.email,
+        required: false,
+        routes: sweep.routes.map((pattern) => ({ pattern, isDynamic: false })),
+      }))),
+];
+
 const browser = await chromium.launch({ headless: true });
 try {
-  // ---- Public + auth routes, signed out -------------------------------------
-  const anonPage = await freshPage(browser);
-  const anonRoutes = routes.filter(
-    (r: DiscoveredRoute) => r.kind === "public" || r.kind === "auth",
+  console.log(
+    `Scanning ${routes.length} routes across ${shards.length} shards ` +
+      `on ${A11Y_WORKERS} worker(s)…`,
   );
-  console.log(`Scanning ${anonRoutes.length} public/auth routes (signed out)…`);
-  for (const route of anonRoutes) {
-    const concrete = route.isDynamic
-      ? await resolveDynamicRoute(anonPage, route.pattern)
-      : route.pattern;
-    if (!concrete) {
-      skipped.push({
-        pattern: route.pattern,
-        reason: "no seeded record to resolve this dynamic route",
-      });
-      process.stdout.write("s");
-      continue;
-    }
-    await scanRoute(anonPage, concrete, route.pattern, "anon");
-    process.stdout.write(".");
-  }
+  await runShards(shards, A11Y_WORKERS);
   console.log();
-  await anonPage.context().close();
 
-  // ---- Portal routes as admin ----------------------------------------------
-  const adminPage = await freshPage(browser);
-  const portalRoutes = routes.filter(
-    (r: DiscoveredRoute) => r.kind === "portal",
+  // ---- Determinism ---------------------------------------------------------
+  //
+  // Shards finish in whatever order they finish, so results arrive unordered
+  // and the report and baseline would differ byte for byte between two
+  // identical runs -- which would make `--check`'s diff meaningless. Sorting on
+  // the key each result already carries fixes the order for good, and the
+  // baseline below is built by walking this sorted list, so its own key order
+  // is fixed too.
+  results.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  skipped.sort((a, b) =>
+    a.pattern === b.pattern
+      ? a.reason < b.reason
+        ? -1
+        : a.reason > b.reason
+          ? 1
+          : 0
+      : a.pattern < b.pattern
+        ? -1
+        : 1,
   );
-  if (!(await signIn(adminPage, "admin@example.test"))) {
-    throw new Error("Could not sign in as admin@example.test");
-  }
-  console.log(`Scanning ${portalRoutes.length} portal routes as admin…`);
-  for (const route of portalRoutes) {
-    const concrete = route.isDynamic
-      ? await resolveDynamicRoute(adminPage, route.pattern)
-      : route.pattern;
-    if (!concrete) {
-      skipped.push({
-        pattern: route.pattern,
-        reason: "no seeded record to resolve this dynamic route",
-      });
-      process.stdout.write("s");
-      continue;
-    }
-    await scanRoute(adminPage, concrete, route.pattern, "admin");
-    process.stdout.write(".");
-  }
-  console.log();
-  await adminPage.context().close();
 
-  // ---- Role sweeps ---------------------------------------------------------
-  if (!QUICK) {
-    for (const sweep of ROLE_SWEEPS) {
-      const rolePage = await freshPage(browser);
-      if (!(await signIn(rolePage, sweep.email))) {
-        skipped.push({
-          pattern: `role:${sweep.label}`,
-          reason: `could not sign in as ${sweep.email}`,
-        });
-        await rolePage.context().close();
-        continue;
-      }
-      console.log(`Scanning ${sweep.routes.length} routes as ${sweep.label}…`);
-      for (const route of sweep.routes) {
-        await scanRoute(rolePage, route, route, sweep.label);
-        process.stdout.write(".");
-      }
-      console.log();
-      await rolePage.context().close();
-    }
+  // Two shards emitting the same key means the same route/role/viewport/theme/
+  // surface was scanned twice and one result silently overwrote the other in
+  // the baseline. That can only come from a sharding bug, and it would be
+  // invisible in the report, so it fails the run rather than being logged.
+  const duplicateKeys = new Set<string>();
+  const seenKeys = new Set<string>();
+  for (const result of results) {
+    if (seenKeys.has(result.key)) duplicateKeys.add(result.key);
+    seenKeys.add(result.key);
+  }
+  if (duplicateKeys.size > 0) {
+    console.error(
+      `\n${duplicateKeys.size} scan keys were produced more than once:`,
+    );
+    for (const key of [...duplicateKeys].sort()) console.error(`  ✗ ${key}`);
+    process.exitCode = 1;
   }
 
   // ---- Report --------------------------------------------------------------

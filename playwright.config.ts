@@ -62,18 +62,17 @@ const browserProjects = requestedBrowsers.length
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
-  // Double Playwright's 30s default. The suite runs against `next dev`, so a
-  // test that is the first to reach a route pays for compiling it, and a
-  // 30s budget left several specs failing on the compile rather than on
-  // anything they assert. Genuinely long tests still opt in with
-  // `test.slow()`.
+  // Double Playwright's 30s default. This was set when the suite ran against
+  // `next dev` and the first test to reach a route paid for compiling it; the
+  // server is a production build now (#744), so that cost is gone, but the
+  // headroom still covers a slow runner under parallel load. Genuinely long
+  // tests still opt in with `test.slow()`.
   timeout: 60_000,
   // Locally, Playwright's default worker count (half the machine's cores)
-  // floods the shared dev-mode Next server + Docker Supabase stack with
-  // concurrent sign-ins and on-demand compiles, failing large swaths of the
-  // suite on navigation/sign-in timeouts (#479). CI's small runner lands at
-  // ~2 workers naturally, which is why the same suite passes there — mirror
-  // that locally. CI keeps the default.
+  // floods the shared Next server + Docker Supabase stack with concurrent
+  // sign-ins, failing large swaths of the suite on navigation/sign-in timeouts
+  // (#479). CI's small runner lands at ~2 workers naturally, which is why the
+  // same suite passes there — mirror that locally. CI keeps the default.
   workers: process.env.CI ? undefined : 2,
   // Two projects and 354 tests share one dev server and one Supabase
   // instance on a small runner, and they seed each other's lists while they
@@ -94,8 +93,8 @@ export default defineConfig({
     // trip first. Every write in the portal is a Server Action followed by
     // `router.refresh()`, so the assertion that the save landed -- a sheet
     // closing, a list picking up the new row, a phase badge clearing -- is
-    // waiting on the server to re-render the page against `next dev`. Under
-    // CI load that crosses 5s often enough that a handful of write tests
+    // waiting on the server to re-render the page and on Supabase to answer.
+    // Under CI load that crosses 5s often enough that a handful of write tests
     // failed or went flaky every run, always on the assertion right after a
     // save and never on what it asserted.
     //
@@ -129,15 +128,26 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "bun run dev",
+    // Build once, then serve, rather than `bun run dev` (#744). Under the dev
+    // server, whichever test was first to reach a route paid to compile it out
+    // of its own assertion budget, and which test that was changed every run --
+    // the single largest source of churn in the suite. It also spat
+    // "destination stream closed early" / ECONNRESET into every CI log under
+    // parallel load. A production build is the more honest target anyway: it is
+    // what ships. The cost is ~35s of `next build` against a job that runs for
+    // 20+ minutes.
+    //
+    // What this gives up: React dev warnings, the dev error overlay and
+    // dev-mode RSC behaviour are no longer exercised here -- the unit and
+    // integration suites still run against dev semantics. Two specs already
+    // account for the `<nextjs-portal>` dev overlay being absent
+    // (skip-link.spec.ts, portal-finance-reports.spec.ts).
+    command: "bun run build && bun run start",
     url: baseURL,
+    // Local runs still attach to a `bun run dev` a developer already has open,
+    // so nothing about the local loop changes.
     reuseExistingServer: !process.env.CI,
-    // On a cold .next/dev cache (first run after a checkout/clean, or when
-    // Turbopack's "Slow filesystem detected" path kicks in) the dev server's
-    // first response can take well over two minutes, which made local runs
-    // die in webServer startup before a single test ran (#479). Pre-warming
-    // with a manual `bun run dev` also works (reuseExistingServer is on
-    // locally), but the timeout shouldn't be the thing that fails the run.
+    // Generous because this now covers a full build before the first response.
     timeout: 300_000,
   },
 });
