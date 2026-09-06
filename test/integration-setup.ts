@@ -66,6 +66,25 @@ export const SEEDED_USERS = {
 // access to everything fixtures need.
 export const adminClient = await signIn(SEEDED_USERS.admin);
 
+// The four sessions a dashboard/report read must never hand privileged
+// figures to (#746): signed out, the narrow-carve-out `volunteer` role, a
+// signed-in account holding no role at all, and a deactivated member who
+// still holds one. `volunteer` is listed here because it is unprivileged for
+// finance/governance/inventory/audit purposes, not because it sees nothing --
+// it does hold events/volunteers/programs/content_calendar at `view`, so
+// files asserting on a resource it legitimately reads spell that case out
+// separately rather than looping over this list.
+export async function unprivilegedActors(): Promise<
+  { name: string; client: SupabaseClient }[]
+> {
+  return [
+    { name: "anonymous", client: anonClient() },
+    { name: "volunteer", client: await signInAs(SEEDED_USERS.volunteer) },
+    { name: "no-role", client: await signInAs(SEEDED_USERS.noAccess) },
+    { name: "deactivated", client: await signInAs(SEEDED_USERS.former) },
+  ];
+}
+
 // Random, not sequential: the rate limiter keys on (route, ip) over a
 // 15-minute window, so a counter that restarts at 1 on every process would
 // collide with IPs used by a previous run within that window.
