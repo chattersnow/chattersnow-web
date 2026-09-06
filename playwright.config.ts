@@ -88,6 +88,21 @@ export default defineConfig({
   // attempts is a real one, and the trace from the first retry (already
   // configured below) is there to diagnose it.
   retries: process.env.CI ? 2 : 0,
+  expect: {
+    // Playwright's default is 5s, which is a fine budget for a page that is
+    // already on screen and a poor one for anything that has to make a round
+    // trip first. Every write in the portal is a Server Action followed by
+    // `router.refresh()`, so the assertion that the save landed -- a sheet
+    // closing, a list picking up the new row, a phase badge clearing -- is
+    // waiting on the server to re-render the page against `next dev`. Under
+    // CI load that crosses 5s often enough that a handful of write tests
+    // failed or went flaky every run, always on the assertion right after a
+    // save and never on what it asserted.
+    //
+    // The per-action budget above stays at 15s for the same reason, and the
+    // 60s test timeout still bounds a test that is genuinely stuck.
+    timeout: 15_000,
+  },
   reporter: "html",
   use: {
     baseURL,
