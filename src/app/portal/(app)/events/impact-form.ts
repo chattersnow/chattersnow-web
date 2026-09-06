@@ -58,7 +58,7 @@ export function parseImpactForm(
   let assistanceTotal: number | null = null;
   if (assistanceTotalRaw) {
     const parsed = Number(assistanceTotalRaw);
-    if (Number.isNaN(parsed) || parsed < 0) {
+    if (!Number.isFinite(parsed) || parsed < 0) {
       return {
         error: "Total participant assistance must be a positive number.",
       };
