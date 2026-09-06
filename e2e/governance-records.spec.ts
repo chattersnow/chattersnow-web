@@ -178,7 +178,10 @@ test.describe("portal governance records", () => {
 
       await row.getByRole("button", { name: "View disclosure" }).click();
       const sheet = modal(page);
-      await expect(sheet.getByText(person.name)).toBeVisible();
+      // Exact, because the picker also announces the choice to screen
+      // readers as "<name> selected." in an sr-only live region, and a
+      // substring match resolves to both.
+      await expect(sheet.getByText(person.name, { exact: true })).toBeVisible();
       await expect(sheet.getByText(notes)).toBeVisible();
 
       await sheet.getByRole("button", { name: "Edit disclosure" }).click();
@@ -218,7 +221,10 @@ test.describe("portal governance records", () => {
         addDialog.getByRole("heading", { name: "Add annual requirement" }),
       ).toBeVisible();
 
-      await addDialog.getByLabel("Name").fill(requirementName);
+      // Exact, because the dialog also holds a person picker whose search
+      // input labels itself "Search by name or email..." -- a substring match
+      // on "Name" or "Email" resolves to both.
+      await addDialog.getByLabel("Name", { exact: true }).fill(requirementName);
       await addDialog.getByLabel("Due date").fill("2026-05-15");
       await pickPerson(addDialog, person.name);
       await addDialog

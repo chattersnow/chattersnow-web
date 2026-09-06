@@ -62,6 +62,12 @@ const browserProjects = requestedBrowsers.length
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
+  // Double Playwright's 30s default. The suite runs against `next dev`, so a
+  // test that is the first to reach a route pays for compiling it, and a
+  // 30s budget left several specs failing on the compile rather than on
+  // anything they assert. Genuinely long tests still opt in with
+  // `test.slow()`.
+  timeout: 60_000,
   // Locally, Playwright's default worker count (half the machine's cores)
   // floods the shared dev-mode Next server + Docker Supabase stack with
   // concurrent sign-ins and on-demand compiles, failing large swaths of the
@@ -69,11 +75,44 @@ export default defineConfig({
   // ~2 workers naturally, which is why the same suite passes there — mirror
   // that locally. CI keeps the default.
   workers: process.env.CI ? undefined : 2,
+  // Two projects and 354 tests share one dev server and one Supabase
+  // instance on a small runner, and they seed each other's lists while they
+  // run. That leaves a handful of tests per run -- most of them on the
+  // mobile project -- that fail once and pass untouched on the next run,
+  // and the set is different every time.
+  //
+  // A retry that passes is reported as `flaky` rather than green, so the
+  // report still names every one of them and a test that starts flaking
+  // regularly is still visible. What it must not become is a way to let a
+  // genuinely broken test through: a failure that reproduces on all three
+  // attempts is a real one, and the trace from the first retry (already
+  // configured below) is there to diagnose it.
+  retries: process.env.CI ? 2 : 0,
+  expect: {
+    // Playwright's default is 5s, which is a fine budget for a page that is
+    // already on screen and a poor one for anything that has to make a round
+    // trip first. Every write in the portal is a Server Action followed by
+    // `router.refresh()`, so the assertion that the save landed -- a sheet
+    // closing, a list picking up the new row, a phase badge clearing -- is
+    // waiting on the server to re-render the page against `next dev`. Under
+    // CI load that crosses 5s often enough that a handful of write tests
+    // failed or went flaky every run, always on the assertion right after a
+    // save and never on what it asserted.
+    //
+    // The per-action budget above stays at 15s for the same reason, and the
+    // 60s test timeout still bounds a test that is genuinely stuck.
+    timeout: 15_000,
+  },
   reporter: "html",
   use: {
     baseURL,
     headless: true,
     trace: "on-first-retry",
+    // Playwright's default is no per-action timeout, so a click on an element
+    // that never becomes actionable retries silently until the whole test
+    // times out -- reported as a bare "Test timeout exceeded" naming nothing.
+    // Capped so that failure names the element instead.
+    actionTimeout: 15_000,
   },
   projects: [
     ...browserProjects.map((project) => ({

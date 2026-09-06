@@ -214,8 +214,15 @@ test.describe("portal event detail", () => {
       await attendance.getByLabel("Notes").fill("Counted at the lift line.");
       await attendance.getByRole("button", { name: "Save attendance" }).click();
 
+      // Scoped to the read-only view, which renders from the server's copy
+      // of the event -- that is what makes this a wait for the save to land.
+      // The unscoped locator is not: Playwright reads a textarea's value as
+      // its text, so it matches the form this test just typed into and is
+      // already true before the write leaves the browser.
       await expect(
-        attendance.getByText("Counted at the lift line."),
+        attendance
+          .locator('[data-slot="read-only-field"]')
+          .getByText("Counted at the lift line."),
       ).toBeVisible();
 
       // The phase strip is server-derived, so this proves the write landed
@@ -234,7 +241,7 @@ test.describe("portal event detail", () => {
         .locator('[data-slot="card"]')
         .filter({ hasText: "Participants" })
         .first();
-      await expect(participants).toContainText("42", { timeout: 15_000 });
+      await expect(participants).toContainText("42");
     } finally {
       await fixture.cleanup();
     }

@@ -24,9 +24,14 @@ test.beforeEach(async ({ page }) => {
 for (const { path, heading } of SECTIONS) {
   test(`${path} loads and shows "${heading}"`, async ({ page }) => {
     await page.goto(path);
+    // Well past the 5s default. Each of these is the run's first visit to
+    // its route, and the suite runs against `next dev` -- so whichever test
+    // gets there first waits for the route to be compiled on demand before
+    // anything renders. That is also why a retry of one of these passes:
+    // by then the route is warm, not because anything was flaky.
     await expect(
       page.getByRole("heading", { level: 1, name: heading, exact: true }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 30_000 });
   });
 }
 

@@ -139,6 +139,16 @@ function Table({
             // hovered row highlights every cell except this one.
             "[&_tr:hover>*:first-child]:bg-[color-mix(in_oklab,var(--muted)_50%,var(--card))]",
             "[&_tr[data-state=selected]>*:first-child]:bg-muted",
+            // A pinned column must never take so much of the scrollport that
+            // the row's own controls cannot be brought out from under it.
+            // Administration's Users table caps its name cell at max-w-xs
+            // (20rem); on a 412px phone that is 320px of a 388px scrollport,
+            // leaving 68px -- less than half of the 160px "Add role" select,
+            // whose middle then sits under the pinned cell however far you
+            // scroll. Half the viewport is the most it may claim. Below `lg`
+            // only, so the callers' own cap still governs on a desktop
+            // width, where there is room for both.
+            "max-lg:[&_tr>*:first-child]:max-w-[50vw]",
           ],
           className,
         )}

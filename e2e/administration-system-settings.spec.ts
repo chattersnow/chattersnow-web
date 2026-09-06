@@ -22,12 +22,12 @@ test.describe("portal administration system settings", () => {
       }),
     ).toBeVisible();
 
-    // Organization is the default tab since the fiscal year moved here; the
-    // thresholds live one tab over.
+    // The page opens on Organization (the fiscal year setting); the approval
+    // thresholds moved behind "Workflow settings" when that tab was added.
     await expect(
       page.getByRole("tab", { name: "Organization" }),
     ).toHaveAttribute("aria-selected", "true");
-    await expect(page.getByText("Fiscal year starts in")).toBeVisible();
+    await expect(page.getByLabel("Fiscal year starts in")).toBeVisible();
 
     await page.getByRole("tab", { name: "Workflow settings" }).click();
     await expect(page.getByText("Expense approval threshold")).toBeVisible();
@@ -78,11 +78,13 @@ test.describe("portal administration system settings", () => {
       await expenseForm.locator("#expense-threshold").fill("321.5");
       await expenseForm.getByRole("button", { name: "Save" }).click();
 
-      // The receipt is a toast at the page root, not an alert in the form.
+      // Saves confirm with a toast at the page root, not an inline alert
+      // in the form.
       await expect(
-        page.getByText("Expense approval threshold updated."),
-      ).toBeVisible();
+        page.getByRole("region", { name: "Notifications" }),
+      ).toContainText("Expense approval threshold updated.");
 
+      // Tab state is client-side, so the reload lands back on Organization.
       await page.reload();
       await page.getByRole("tab", { name: "Workflow settings" }).click();
       await expect(page.locator("#expense-threshold")).toHaveValue("321.5");

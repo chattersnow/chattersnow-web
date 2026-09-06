@@ -62,12 +62,21 @@ test.describe("portal calendar annual review report", () => {
   test("recomputes for the selected year and shows the empty state for one with no items", async ({
     page,
   }) => {
-    // All seeded and test-created calendar items are dated relative to now,
-    // so a year this far back is reliably empty.
-    const emptyYear = new Date().getUTCFullYear() - 4;
-
     await page.goto("/portal/calendar/reports");
     await expect(metricCard(page, "Overdue content tasks")).toBeVisible();
+
+    // The report is scoped to the org's fiscal year, and the picker offers a
+    // bounded range around the current one (four back, one forward). Take the
+    // oldest it offers rather than computing a calendar year: every seeded
+    // and test-created calendar item is dated relative to now, so the far end
+    // of the range is reliably empty however the range or the fiscal-year
+    // start month is configured.
+    const yearSelect = page.getByLabel("Fiscal year");
+    const emptyYear = await yearSelect
+      .locator("option")
+      .last()
+      .getAttribute("value");
+    expect(emptyYear).toBeTruthy();
 
     // The year form is server-rendered and its <select> is uncontrolled, so
     // React sets the element's value from defaultValue when it hydrates. A
@@ -76,9 +85,7 @@ test.describe("portal calendar annual review report", () => {
     // select-and-submit -- it's idempotent, and by the second attempt the
     // page is hydrated and the choice sticks.
     await expect(async () => {
-      await page
-        .getByLabel("Year")
-        .selectOption(String(emptyYear), { timeout: 2_000 });
+      await yearSelect.selectOption(String(emptyYear), { timeout: 2_000 });
       await page
         .getByRole("button", { name: "View", exact: true })
         .click({ timeout: 2_000 });
@@ -93,6 +100,6 @@ test.describe("portal calendar annual review report", () => {
     await expect(metricCard(page, "Overdue content tasks")).toHaveCount(0);
 
     // The year the form came back with stays selected.
-    await expect(page.getByLabel("Year")).toHaveValue(String(emptyYear));
+    await expect(yearSelect).toHaveValue(String(emptyYear));
   });
 });
