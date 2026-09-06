@@ -3,7 +3,7 @@ import type { Locator } from "@playwright/test";
 import { reloadStayingSignedIn, signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { seedInviteEmail, seedPortalUser } from "./helpers/rbac";
-import { pager, revealRow } from "./helpers/table";
+import { clickRowControl, pager, revealRow } from "./helpers/table";
 
 /**
  * Every mutation on this page reports a failure as an inline Alert and
@@ -65,8 +65,10 @@ test.describe("portal administration users", () => {
       await expect(row).toBeVisible();
       await expect(row).toContainText("No access");
 
-      await row.getByRole("button", { name: "Add role", exact: true }).click();
-      await row.getByRole("combobox", { name: "Add role" }).click();
+      await clickRowControl(
+        row.getByRole("button", { name: "Add role", exact: true }),
+      );
+      await clickRowControl(row.getByRole("combobox", { name: "Add role" }));
       const option = page.getByRole("option", {
         name: "Volunteer",
         exact: true,
@@ -76,7 +78,9 @@ test.describe("portal administration users", () => {
       // lands on the backdrop, and the row then sits there with the role
       // picked but never staged.
       await expect(option).toBeHidden();
-      await row.getByRole("button", { name: "Add", exact: true }).click();
+      await clickRowControl(
+        row.getByRole("button", { name: "Add", exact: true }),
+      );
 
       // The badge's remove button only exists once the assignment has landed
       // and the list has refreshed -- unlike the row's text, which shows
@@ -106,7 +110,7 @@ test.describe("portal administration users", () => {
       await revealRow(row, pager(page));
       await expect(row).toContainText("Active");
 
-      await row.getByRole("button", { name: "Deactivate" }).click();
+      await clickRowControl(row.getByRole("button", { name: "Deactivate" }));
       const confirm = page.getByRole("alertdialog");
       await expect(confirm).toContainText(user.fullName);
       await confirm.getByRole("button", { name: "Deactivate" }).click();
@@ -114,7 +118,7 @@ test.describe("portal administration users", () => {
       await expect(confirm).not.toBeVisible();
       await expect(row).toContainText("Deactivated");
 
-      await row.getByRole("button", { name: "Reactivate" }).click();
+      await clickRowControl(row.getByRole("button", { name: "Reactivate" }));
       await expect(row).toContainText("Active");
     } finally {
       await user.cleanup();
@@ -247,6 +251,14 @@ test.describe("portal administration users", () => {
   test("an admin can set and clear another account's preferred name", async ({
     page,
   }) => {
+    // The Preferred name column is `hideBelow: "lg"`, so on the mobile
+    // project the cell and its Edit button are not rendered at all -- the
+    // spec was written when the column was unconditional.
+    test.skip(
+      (page.viewportSize()?.width ?? 0) < 1024,
+      "The Preferred name column is hidden below lg (1024px).",
+    );
+
     // The test clears the name itself at the end, but a failure in between
     // used to leave the preferred name set on the shared local instance, and
     // every later run then looked for a "Morgan Patel" that no longer
@@ -270,13 +282,13 @@ test.describe("portal administration users", () => {
       await revealRow(row, pager(page));
       await expect(row).toBeVisible();
 
-      await row
-        .getByRole("button", { name: /^Edit preferred name for / })
-        .click();
+      await clickRowControl(
+        row.getByRole("button", { name: /^Edit preferred name for / }),
+      );
       await row.getByLabel(/^Preferred name for /).fill(preferred);
-      await row
-        .getByRole("button", { name: /^Save preferred name for / })
-        .click();
+      await clickRowControl(
+        row.getByRole("button", { name: /^Save preferred name for / }),
+      );
 
       // The save lands as a refresh of the whole list, and the renamed row
       // re-sorts, so wait for the old name to go before paging around
@@ -289,13 +301,13 @@ test.describe("portal administration users", () => {
       await expect(renamed).toBeVisible();
 
       // Clearing it puts the account name back.
-      await renamed
-        .getByRole("button", { name: /^Edit preferred name for / })
-        .click();
+      await clickRowControl(
+        renamed.getByRole("button", { name: /^Edit preferred name for / }),
+      );
       await renamed.getByLabel(/^Preferred name for /).fill("");
-      await renamed
-        .getByRole("button", { name: /^Save preferred name for / })
-        .click();
+      await clickRowControl(
+        renamed.getByRole("button", { name: /^Save preferred name for / }),
+      );
 
       await expect(renamed).toHaveCount(0);
       await revealRow(row, pager(page));

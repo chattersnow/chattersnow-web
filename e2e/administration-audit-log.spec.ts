@@ -3,7 +3,7 @@ import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { seedPortalUser } from "./helpers/rbac";
 import { modal } from "./helpers/dialog";
-import { pager, revealRow } from "./helpers/table";
+import { clickRowControl, pager, revealRow } from "./helpers/table";
 
 test.describe("portal administration audit log", () => {
   test.beforeEach(async ({ page }) => {
@@ -38,8 +38,10 @@ test.describe("portal administration audit log", () => {
       // The Users table pages at ten rows and the seeded user lands wherever
       // its name sorts, so page to it first.
       await revealRow(row, pager(page));
-      await row.getByRole("button", { name: "Add role", exact: true }).click();
-      await row.getByRole("combobox", { name: "Add role" }).click();
+      await clickRowControl(
+        row.getByRole("button", { name: "Add role", exact: true }),
+      );
+      await clickRowControl(row.getByRole("combobox", { name: "Add role" }));
       const option = page.getByRole("option", {
         name: "Volunteer",
         exact: true,
@@ -49,7 +51,9 @@ test.describe("portal administration audit log", () => {
       // lands on the backdrop, and the row then sits there with the role
       // picked but never staged.
       await expect(option).toBeHidden();
-      await row.getByRole("button", { name: "Add", exact: true }).click();
+      await clickRowControl(
+        row.getByRole("button", { name: "Add", exact: true }),
+      );
       // The badge's remove button only exists once the assignment has landed
       // and the list has refreshed -- unlike the row's text, which shows
       // "Volunteer" as soon as it's picked in the still-open select.

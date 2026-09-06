@@ -79,3 +79,24 @@ export async function revealRow(row: Locator, tablePager: TablePager) {
     await expect(row.first()).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 30_000 });
 }
+
+/**
+ * Clicks a control that lives in a row of a `stickyFirstColumn` table.
+ *
+ * Those tables pin the row's name cell over whatever scrolls under it, which
+ * is the point of the feature -- you can reach the actions on a phone
+ * without losing track of which row you are on. Playwright clicks an
+ * element's centre, though, and for a control in a later column that centre
+ * can sit under the pinned cell, where the click is refused ("<td ...>
+ * intercepts pointer events") for as long as the test will let it retry.
+ *
+ * A person scrolls the control clear before reaching for it. Aligning it
+ * with the right edge of its scroll container does the same, and is a no-op
+ * on a table that fits.
+ */
+export async function clickRowControl(control: Locator) {
+  await control.evaluate((element) =>
+    element.scrollIntoView({ block: "nearest", inline: "end" }),
+  );
+  await control.click();
+}
