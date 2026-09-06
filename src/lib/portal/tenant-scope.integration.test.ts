@@ -82,6 +82,13 @@ beforeAll(async () => {
 afterAll(async () => {
   // Order matters: every tenant-table foreign key to tenants is `no action`,
   // and volunteer_applications references people.
+  // retention_policies first: since Phase 5b (#707, 20260906160000) a trigger on
+  // tenants seeds every new tenant's rules, and that foreign key is `no action`
+  // like every other one to tenants.
+  await service
+    .from("retention_policies")
+    .delete()
+    .eq("tenant_id", secondTenantId);
   await service
     .from("volunteer_applications")
     .delete()

@@ -55,6 +55,8 @@ let bSupport: SupabaseClient;
 
 // Rows in A the seed does not provide, with the columns that identify them,
 // for cleanup.
+let aRetentionRunId: string;
+
 const aFixtures: Array<{
   table: string;
   match: Record<string, unknown>;
@@ -437,11 +439,28 @@ beforeAll(async () => {
     }),
     "ticket sale",
   );
+
+  // retention_runs and retention_run_tables became tenant tables in Phase 5b
+  // (20260906160000), and nothing but the purge may write them -- they have no
+  // insert policy, which is what makes the run log evidence. So the only way to
+  // give tenant A rows for the per-table assertions is to run the purge, as
+  // service_role because run_retention_purge() is ungranted. A dry run changes
+  // nothing and still writes a full log.
+  aRetentionRunId = await must(
+    service.rpc("run_retention_purge", {
+      p_dry_run: true,
+      p_trigger: "manual",
+      p_tenant_id: tenantA,
+    }),
+    "tenant A retention run",
+  );
 });
 
 afterAll(async () => {
   // A's fixtures, newest first so dependents go before what they reference;
   // the giveaway pieces the RPCs created go by their parent.
+  // retention_run_tables cascades from the run (composite key, on delete cascade).
+  await service.from("retention_runs").delete().eq("id", aRetentionRunId);
   await service
     .from("giveaway_ticket_sales")
     .delete()
@@ -457,6 +476,12 @@ afterAll(async () => {
 
   // B, in dependency order; every foreign key to tenants is `no action`.
   for (const table of [
+    // The retention tables first: run_tables references people, and both runs
+    // and policies reference auth.users (triggered_by, updated_by), so B's
+    // accounts cannot be deleted below while these rows stand.
+    "retention_run_tables",
+    "retention_runs",
+    "retention_policies",
     "contact_messages",
     "event_registrations",
     "event_expenses",
@@ -833,6 +858,139 @@ describe("security definer RPCs answer for the caller's tenant", () => {
       "flags B",
     );
     expect(Object.values(flagsB[0]).some(Boolean)).toBe(false);
+  });
+});
+
+describe("retention rules and runs are the tenant's own", () => {
+  // Phase 5b (#707, 20260906160000). Before it, set_retention_policy_mode() and
+  // trigger_retention_run() were granted to `authenticated`, gated only on
+  // administration:manage, and acted on a global retention_policies -- so any
+  // tenant's admin could turn on and run an enforcing purge over every tenant's
+  // donor and participant data. These are the assertions that it is now closed.
+
+  test("a provisioned tenant gets its own rules, every one in dry_run", async () => {
+    const rules = await must(
+      bAdmin.from("retention_policies").select("policy_key, mode"),
+      "B's rules",
+    );
+    expect(rules.length).toBeGreaterThan(0);
+    // Enforcement is each organization's own decision after reviewing its own
+    // counts (#722). Inheriting the template's answer is the one thing
+    // provisioning must not do.
+    expect(rules.every((r: { mode: string }) => r.mode === "dry_run")).toBe(
+      true,
+    );
+  });
+
+  test("changing a mode in B leaves A's rule alone", async () => {
+    await must(
+      bAdmin.rpc("set_retention_policy_mode", {
+        p_policy_key: "contact_messages",
+        p_mode: "off",
+      }),
+      "set mode in B",
+    );
+
+    const inA = await must(
+      adminClient
+        .from("retention_policies")
+        .select("mode")
+        .eq("policy_key", "contact_messages")
+        .single(),
+      "A's rule",
+    );
+    expect(inA.mode).toBe("dry_run");
+
+    await must(
+      bAdmin.rpc("set_retention_policy_mode", {
+        p_policy_key: "contact_messages",
+        p_mode: "dry_run",
+      }),
+      "restore mode in B",
+    );
+  });
+
+  test("a policy key that exists only in another tenant is unknown here", async () => {
+    // Nothing distinguishes this from a typo, which is the point: B is told
+    // about B's rules and learns nothing about anyone else's.
+    const { error } = await bAdmin.rpc("set_retention_policy_mode", {
+      p_policy_key: "not_a_policy",
+      p_mode: "off",
+    });
+    expect(error?.message).toContain("No such retention policy");
+  });
+
+  test("trigger_retention_run sweeps the caller's tenant and returns its run", async () => {
+    const runId = await must(
+      bAdmin.rpc("trigger_retention_run", { p_dry_run: true }),
+      "B's manual run",
+    );
+    expect(runId).toBeTruthy();
+
+    const mine = await must(
+      bAdmin.from("retention_runs").select("tenant_id").eq("id", runId),
+      "B reads its run",
+    );
+    expect(mine).toHaveLength(1);
+    expect(mine[0].tenant_id).toBe(tenantB);
+
+    // A's admin cannot see it, and A gained no run from B's call.
+    const theirs = await must(
+      adminClient.from("retention_runs").select("id").eq("id", runId),
+      "A reads B's run",
+    );
+    expect(theirs).toHaveLength(0);
+
+    await service.from("retention_runs").delete().eq("id", runId);
+  });
+
+  test("A's stale rows survive an enforcing sweep of B", async () => {
+    // The rule that mattered most: rule F used to delete user_roles by user id
+    // alone, across every tenant the account belonged to.
+    const email = uniqueEmail("retention-a");
+    await must(
+      service.from("contact_messages").insert({
+        tenant_id: tenantA,
+        name: "A",
+        email,
+        topic: "general",
+        message: "a",
+        created_at: new Date(Date.now() - 10 * 365 * 86400000).toISOString(),
+      }),
+      "A's stale message",
+    );
+
+    await must(
+      bAdmin.rpc("set_retention_policy_mode", {
+        p_policy_key: "contact_messages",
+        p_mode: "enforce",
+      }),
+      "B enforces",
+    );
+    const runId = await must(
+      service.rpc("run_retention_purge", {
+        p_dry_run: false,
+        p_trigger: "manual",
+        p_tenant_id: tenantB,
+      }),
+      "enforcing sweep of B",
+    );
+
+    const survivors = await must(
+      service.from("contact_messages").select("id").eq("email", email),
+      "A's message after B's sweep",
+    );
+    expect(survivors).toHaveLength(1);
+
+    await service.from("retention_runs").delete().eq("id", runId);
+    await service.from("contact_messages").delete().eq("email", email);
+    await must(
+      bAdmin.rpc("set_retention_policy_mode", {
+        p_policy_key: "contact_messages",
+        p_mode: "dry_run",
+      }),
+      "B back to dry_run",
+    );
   });
 });
 

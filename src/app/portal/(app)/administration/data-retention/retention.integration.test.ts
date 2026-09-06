@@ -48,6 +48,31 @@ const serviceClient = createClient(
 
 const cleanups: Array<() => Promise<void>> = [];
 
+/**
+ * The tenant every seeded fixture belongs to.
+ *
+ * Since Phase 5b (#707, 20260906160000) the rules, the runs and the run log are
+ * per tenant, and `run_retention_purge` sweeps every active tenant when it is
+ * given none -- returning null, because a sweep has no single run to name.
+ * These tests are about one tenant's rules, and they need the run id back, so
+ * they always name it. Resolved once and cached: on a single-tenant local stack
+ * this is the seeded tenant, and the isolation of two tenants is asserted in
+ * `tenant-isolation.integration.test.ts` rather than here.
+ */
+let seededTenantId: string | null = null;
+async function tenantId(): Promise<string> {
+  if (seededTenantId) return seededTenantId;
+  const { data, error } = await serviceClient
+    .from("tenants")
+    .select("id")
+    .order("created_at")
+    .limit(1)
+    .single();
+  if (error) throw error;
+  seededTenantId = data.id as string;
+  return seededTenantId;
+}
+
 async function runPurge(options: {
   dryRun: boolean;
   asOf: string;
@@ -56,6 +81,7 @@ async function runPurge(options: {
     p_dry_run: options.dryRun,
     p_as_of: options.asOf,
     p_trigger: "manual",
+    p_tenant_id: await tenantId(),
   });
   if (error) throw error;
   return data as string;
@@ -96,7 +122,8 @@ describe("run_retention_purge", () => {
     // would arm the nightly job on whatever database this ran against.
     const { data: policies } = await serviceClient
       .from("retention_policies")
-      .select("policy_key");
+      .select("policy_key")
+      .eq("tenant_id", await tenantId());
     for (const policy of policies ?? []) {
       await setMode(policy.policy_key, "dry_run");
     }
@@ -114,7 +141,11 @@ describe("run_retention_purge", () => {
     test("every published policy has a matching row with the same clock", async () => {
       const { data, error } = await serviceClient
         .from("retention_policies")
-        .select("policy_key, period, secondary_period");
+        .select("policy_key, period, secondary_period")
+        // One row per policy per tenant since Phase 5b, and the Map below keys
+        // on policy_key alone -- unscoped, another tenant's clock would decide
+        // whether /privacy is telling the truth about ours.
+        .eq("tenant_id", await tenantId());
       if (error) throw error;
 
       const rows = new Map(data!.map((row) => [row.policy_key, row]));
@@ -126,7 +157,10 @@ describe("run_retention_purge", () => {
           `no retention_policies row for ${policy.key}`,
         ).toBeDefined();
 
-        const { data: agrees, error: compareError } = await serviceClient.rpc(
+        // As an admin, not as service_role: since Phase 5b the comparison
+        // answers for the caller's tenant, and a session-less connection has
+        // none. This is also how the portal calls it.
+        const { data: agrees, error: compareError } = await adminClient.rpc(
           "retention_period_matches",
           {
             p_policy_key: policy.key,
