@@ -73,7 +73,10 @@ export default async function SystemSettingsPage() {
 
       <Tabs defaultValue="organization" className="mt-6">
         <div className="rainbow-surface flex flex-wrap items-center gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
-          <TabsList variant="line">
+          <TabsList
+            variant="line"
+            className="flex-wrap group-data-horizontal/tabs:h-auto"
+          >
             <TabsTrigger value="organization">Organization</TabsTrigger>
             <TabsTrigger value="workflow">Workflow settings</TabsTrigger>
             <TabsTrigger value="branding">Branding</TabsTrigger>
