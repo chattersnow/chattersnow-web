@@ -162,8 +162,9 @@ describe("permission memoization", () => {
     expect(first).toEqual({ events: "manage" });
     expect(second).toBe(first);
     expect(third).toBe(first);
-    // claim_pending_role_grants + my_permissions, once between them.
-    expect(calls).toBe(2);
+    // ensure_tenant_membership + claim_pending_role_grants + my_permissions,
+    // once between them.
+    expect(calls).toBe(3);
   });
 
   test("a different client resolves again", async () => {
@@ -179,7 +180,7 @@ describe("permission memoization", () => {
 
     await getCurrentUserPermissions(makeClient());
     await getCurrentUserPermissions(makeClient());
-    expect(calls).toBe(4);
+    expect(calls).toBe(6);
   });
 
   test("a failure isn't pinned to the client for the rest of the request", async () => {

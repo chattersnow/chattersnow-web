@@ -94,36 +94,85 @@ describe("tenant identity", () => {
     expect(error).not.toBeNull();
   });
 
-  test("an admin cannot write memberships at all in this phase", async () => {
-    // Stronger than the check above, and deliberate: has_permission() is still
-    // global until Phase 2, so pairing it with a caller-controlled
-    // current_tenant_id() would not scope a write the way it appears to.
-    // Nothing in Phase 1 needs to write, so nothing may.
-    const admin = await signInAs(SEEDED_USERS.admin);
+  test("an admin manages member rows in the tenant they are looking at", async () => {
+    // Phase 2 (20260906030000): has_permission() answers for the current
+    // tenant, so pairing it with tenant_id = current_tenant_id() now means
+    // what it looks like. A throwaway account keeps this from touching the
+    // seeded memberships the rest of the suite relies on.
+    const { data: created, error: createError } =
+      await service.auth.admin.createUser({
+        email: `it-member-${crypto.randomUUID().slice(0, 8)}@example.test`,
+        password: "password123",
+        email_confirm: true,
+      });
+    if (createError) throw createError;
+    const userId = created.user.id;
 
-    const inserted = await admin.from("tenant_memberships").insert({
-      user_id: SEEDED_USER_IDS.noAccess,
-      tenant_id: chatterTenantId,
-      kind: "member",
-    });
-    expect(inserted.error).not.toBeNull();
+    try {
+      const admin = await signInAs(SEEDED_USERS.admin);
 
-    const { error: deleteError, count } = await admin
-      .from("tenant_memberships")
-      .delete({ count: "exact" })
-      .eq("user_id", SEEDED_USER_IDS.volunteer);
-    expect(deleteError ?? count).not.toBe(null);
-    expect(count ?? 0).toBe(0);
+      const inserted = await admin.from("tenant_memberships").insert({
+        user_id: userId,
+        tenant_id: chatterTenantId,
+        kind: "member",
+      });
+      expect(inserted.error).toBeNull();
+
+      // Not in a tenant they are not looking at, even one they belong to.
+      const elsewhere = await admin.from("tenant_memberships").insert({
+        user_id: userId,
+        tenant_id: secondTenantId,
+        kind: "member",
+      });
+      expect(elsewhere.error).not.toBeNull();
+
+      const { error: deleteError, count } = await admin
+        .from("tenant_memberships")
+        .delete({ count: "exact" })
+        .eq("user_id", userId)
+        .eq("tenant_id", chatterTenantId);
+      expect(deleteError).toBeNull();
+      expect(count).toBe(1);
+    } finally {
+      await service.auth.admin.deleteUser(userId);
+    }
   });
 
-  test("an admin cannot rename a tenant in this phase", async () => {
+  test("an admin can rename their own tenant and no other", async () => {
     const admin = await signInAs(SEEDED_USERS.admin);
-    const { error, count } = await admin
+    const { data: before } = await service
       .from("tenants")
-      .update({ name: "Renamed By Admin" }, { count: "exact" })
-      .eq("id", chatterTenantId);
-    expect(error ?? count).not.toBe(null);
-    expect(count ?? 0).toBe(0);
+      .select("name")
+      .eq("id", chatterTenantId)
+      .single();
+
+    try {
+      const own = await admin
+        .from("tenants")
+        .update({ name: "Renamed By Admin" }, { count: "exact" })
+        .eq("id", chatterTenantId);
+      expect(own.error).toBeNull();
+      expect(own.count).toBe(1);
+
+      const other = await admin
+        .from("tenants")
+        .update({ name: "Renamed By Admin" }, { count: "exact" })
+        .eq("id", secondTenantId);
+      expect(other.error ?? other.count).not.toBe(null);
+      expect(other.count ?? 0).toBe(0);
+
+      // The column grant is what limits an admin to the name.
+      const slug = await admin
+        .from("tenants")
+        .update({ slug: "renamed-by-admin" })
+        .eq("id", chatterTenantId);
+      expect(slug.error).not.toBeNull();
+    } finally {
+      await service
+        .from("tenants")
+        .update({ name: before?.name as string })
+        .eq("id", chatterTenantId);
+    }
   });
 
   test("a support grant without an expiry or a reason is rejected outright", async () => {

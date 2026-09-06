@@ -132,6 +132,13 @@ where u.email in (
 -- Matched on "the tenant that exists" rather than on the slug: 20260905190000
 -- takes the slug from app.initial_tenant_slug, so hardcoding 'chatter-snow'
 -- here would seed zero memberships for anyone who has set it.
+--
+-- Phase 2 (20260906010000) gave every tenant table a tenant_id defaulting to
+-- default_tenant_id(). This file runs as postgres with no session, and that
+-- default falls back to the sole active tenant -- which is exactly the state
+-- of a freshly reset database -- so none of the inserts below name a tenant.
+-- Seeding a second tenant here would break that: add its rows with an
+-- explicit tenant_id, or it will stop every unscoped insert cold.
 insert into public.tenant_memberships (user_id, tenant_id, kind, created_by)
 select u.id, t.id, 'member', u.id
 from auth.users u
@@ -1219,7 +1226,7 @@ insert into public.app_settings (key, value) values
   ('page_visibility.programs', to_jsonb(true)),
   ('page_visibility.learn', to_jsonb(true)),
   ('page_visibility.support', to_jsonb(true))
-on conflict (key) do update set value = excluded.value;
+on conflict (tenant_id, key) do update set value = excluded.value;
 
 -- Fiscal year (20260905030000). The migration already seeds July as a
 -- placeholder pending the Board resolution, so this only pins it explicitly for
@@ -1228,7 +1235,7 @@ on conflict (key) do update set value = excluded.value;
 -- be set to would make them drift.
 insert into public.app_settings (key, value) values
   ('org.fiscal_year_start_month', to_jsonb(7))
-on conflict (key) do update set value = excluded.value;
+on conflict (tenant_id, key) do update set value = excluded.value;
 
 -- The first-login welcome tour (20260902060000) opens a modal over the portal
 -- shell for any account whose welcome_completed_at is null. Every e2e spec

@@ -44,6 +44,7 @@ import { ensureMyOnboarding } from "@/lib/portal/onboarding";
 import { personDisplayName } from "@/lib/format";
 import { IdleTimeout } from "./idle-timeout";
 import { LogoutButton } from "./logout-button";
+import { ChooseTenant } from "./choose-tenant";
 import { NoTenant } from "./no-tenant";
 import { NotificationsMenu } from "./notifications-menu";
 import { PortalNav } from "./portal-nav";
@@ -74,6 +75,29 @@ export default async function PortalAppLayout({
         ? "/portal/login"
         : `/portal/login?next=${encodeURIComponent(next)}`,
     );
+  }
+
+  // Tenant before permissions: from #707 Phase 2, has_permission() and
+  // my_permissions() answer for current_tenant_id(), so the two states where
+  // that is null -- no membership, or several and no choice yet -- would
+  // otherwise read as "no access" and bounce a legitimate account to the
+  // login screen. Also joins a first-time account to the tenant, the same way
+  // ensureCurrentPerson below provisions its people row (#707 Phase 1).
+  //
+  // Both branches act only when the read actually succeeded. A failed one
+  // also comes back with no tenants, and telling a legitimate member that they
+  // were never added to an organization -- with nothing to do but sign out --
+  // would turn a transient database error into a lockout.
+  const tenantContext = await getTenantContext(supabase);
+  if (tenantContext.resolved && tenantContext.tenants.length === 0) {
+    return <NoTenant />;
+  }
+  if (
+    tenantContext.resolved &&
+    tenantContext.tenants.length > 1 &&
+    tenantContext.currentTenantId === null
+  ) {
+    return <ChooseTenant tenants={tenantContext.tenants} />;
   }
 
   const permissions = await getCurrentUserPermissions(supabase);
@@ -137,7 +161,6 @@ export default async function PortalAppLayout({
     contentWork,
     calendarCoverageReminder,
     accessManagementAlerts,
-    tenantContext,
   ] = await Promise.all([
     currentPersonPromise,
     // Records this account's first arrival and tells us what it has already
@@ -166,22 +189,7 @@ export default async function PortalAppLayout({
       : { items: [] },
     getCalendarCoverageReminderSummary(supabase, { canManageContentCalendar }),
     getAccessManagementAttentionSummary(supabase, { canSeeAccessManagement }),
-    // Also joins a first-time account to the tenant, the same way
-    // ensureCurrentPerson above provisions its people row (#707 Phase 1).
-    getTenantContext(supabase),
   ]);
-
-  // An account with no membership has nothing to be shown: from Phase 2 every
-  // query in the portal filters on current_tenant_id(), so the shell would
-  // render a nav over an empty database rather than an explanation.
-  //
-  // Only when the read actually succeeded, though. A failed one also comes
-  // back with no tenants, and telling a legitimate member that they were never
-  // added to an organization -- with nothing to do but sign out -- would turn
-  // a transient database error into a lockout.
-  if (tenantContext.resolved && tenantContext.tenants.length === 0) {
-    return <NoTenant />;
-  }
 
   const welcomeOwed =
     onboarding !== null && onboarding.welcomeCompletedAt === null;

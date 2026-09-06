@@ -25,6 +25,10 @@ import { signOutAndRedirect } from "@/lib/auth/sign-out";
  * somebody else's organization. Building it now means the first white-label
  * deployment gets an explanation rather than an empty shell.
  *
+ * Its sibling, ChooseTenant, covers the other empty state: several
+ * memberships and no selection yet, where has_permission() answers "none" for
+ * everything until one is picked (#707 Phase 2).
+ *
  * Rendered as a standalone page rather than inside the shell: the nav, the
  * quick actions and the attention items all describe data this account cannot
  * reach, so a sidebar here would be a menu of dead ends. That also rules out

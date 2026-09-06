@@ -12,7 +12,7 @@ async function setVisibility(visible: boolean) {
   const admin = createAdminClient();
   const { error } = await admin
     .from("app_settings")
-    .upsert({ key: KEY, value: visible }, { onConflict: "key" });
+    .upsert({ key: KEY, value: visible }, { onConflict: "tenant_id,key" });
   if (error) throw new Error(`Could not set ${KEY}: ${error.message}`);
 }
 
