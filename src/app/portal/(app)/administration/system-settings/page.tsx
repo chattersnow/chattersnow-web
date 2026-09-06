@@ -6,11 +6,14 @@ import { PUBLIC_PAGE_SLOTS, getPageVisibility } from "@/lib/page-visibility";
 import { SystemSettingsForm } from "./system-settings-form";
 import { SiteImagesPanel } from "./site-images-panel";
 import { PageVisibilityPanel } from "./page-visibility-panel";
+import { NotificationsPanel } from "./notifications-panel";
 import { OrganizationSettingsPanel } from "./organization-settings-panel";
 import { BrandingPanel } from "./branding-panel";
 import { DataPanel } from "./data-panel";
 import { getFiscalYearStartMonth } from "@/lib/fiscal-year";
 import { getTenantBranding } from "@/lib/tenant-branding";
+import { NOTIFICATION_KINDS } from "@/lib/notifications/kinds";
+import { getOrgEmailEnabled } from "@/lib/notifications/settings";
 import { currentTenant, getTenantContext } from "@/lib/portal/tenants";
 
 function parseThreshold(value: unknown): number | null {
@@ -45,13 +48,19 @@ export default async function SystemSettingsPage() {
       .like("key", "site_images.%"),
   ]);
 
-  const [pageVisibility, fiscalYearStartMonth, branding, tenantContext] =
-    await Promise.all([
-      getPageVisibility(supabase),
-      getFiscalYearStartMonth(supabase),
-      getTenantBranding(supabase),
-      getTenantContext(supabase),
-    ]);
+  const [
+    pageVisibility,
+    fiscalYearStartMonth,
+    branding,
+    tenantContext,
+    emailEnabled,
+  ] = await Promise.all([
+    getPageVisibility(supabase),
+    getFiscalYearStartMonth(supabase),
+    getTenantBranding(supabase),
+    getTenantContext(supabase),
+    getOrgEmailEnabled(supabase),
+  ]);
   const orgName = currentTenant(tenantContext)?.name ?? "this organization";
 
   const siteImageUrls: Record<string, string | null> = {};
@@ -82,6 +91,7 @@ export default async function SystemSettingsPage() {
             <TabsTrigger value="branding">Branding</TabsTrigger>
             <TabsTrigger value="images">Image settings</TabsTrigger>
             <TabsTrigger value="visibility">Page visibility</TabsTrigger>
+            <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="data">Data</TabsTrigger>
           </TabsList>
         </div>
@@ -142,6 +152,19 @@ export default async function SystemSettingsPage() {
           <PageVisibilityPanel
             slots={PUBLIC_PAGE_SLOTS}
             visibility={pageVisibility}
+          />
+        </TabsContent>
+
+        <TabsContent value="notifications" className="mt-6 space-y-4">
+          <p className="app-muted max-w-3xl text-sm leading-relaxed">
+            The organization-wide switch for every email this portal sends. It
+            is a stop, not a preference: individual people choose what they want
+            on their own account pages, and this overrides all of them. Every
+            change here is recorded in the audit log.
+          </p>
+          <NotificationsPanel
+            emailEnabled={emailEnabled}
+            kinds={NOTIFICATION_KINDS}
           />
         </TabsContent>
 

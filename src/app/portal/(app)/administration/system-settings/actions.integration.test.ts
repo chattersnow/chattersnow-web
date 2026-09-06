@@ -37,6 +37,7 @@ const {
   updateExpenseApprovalThresholdAction,
   updateReimbursementApprovalThresholdAction,
   updateSiteImageAction,
+  updateEmailNotificationsEnabledAction,
 } = await import("./actions");
 
 afterEach(() => {
@@ -226,4 +227,70 @@ describe("administration/system-settings actions (integration)", () => {
       expect(await settingValue(key)).toBeUndefined();
     });
   }
+});
+
+describe("the outbound email kill switch (integration)", () => {
+  const KEY = "notifications.email_enabled";
+
+  afterEach(async () => {
+    await deleteSetting(KEY);
+  });
+
+  test("an admin can turn outbound email off", async () => {
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+    expect(await updateEmailNotificationsEnabledAction(false)).toEqual({
+      success: true,
+    });
+    expect(await settingValue(KEY)).toBe(false);
+  });
+
+  test("the board can turn it back on", async () => {
+    // system_settings, not administration: board holds manage on it too.
+    currentSupabase = await signInAs(SEEDED_USERS.board);
+
+    expect(await updateEmailNotificationsEnabledAction(true)).toEqual({
+      success: true,
+    });
+    expect(await settingValue(KEY)).toBe(true);
+  });
+
+  test.each([
+    ["a volunteer", SEEDED_USERS.volunteer],
+    ["an account with no roles", SEEDED_USERS.noAccess],
+    ["a deactivated account", SEEDED_USERS.former],
+  ])("%s cannot touch it", async (_label, email) => {
+    currentSupabase = await signInAs(email);
+
+    expect(await updateEmailNotificationsEnabledAction(false)).toEqual(DENIED);
+    expect(await settingValue(KEY)).toBeUndefined();
+  });
+
+  test("an anonymous visitor cannot touch it", async () => {
+    currentSupabase = anonClient();
+
+    expect(await updateEmailNotificationsEnabledAction(false)).toEqual(DENIED);
+    expect(await settingValue(KEY)).toBeUndefined();
+  });
+
+  test("turning it off is recorded in the audit log", async () => {
+    // The trigger on app_settings is what makes the switch a record of a
+    // decision rather than a rumour -- an administrator has to be able to show
+    // when outbound email was stopped, and by whom.
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+    await updateEmailNotificationsEnabledAction(false);
+
+    const { data, error } = await serviceRoleClient
+      .from("audit_log")
+      .select("table_name, action, new_data")
+      .eq("table_name", "app_settings")
+      .order("occurred_at", { ascending: false })
+      .limit(20);
+    expect(error).toBeNull();
+    expect(
+      data!.some(
+        (row) => (row.new_data as { key?: string } | null)?.key === KEY,
+      ),
+    ).toBe(true);
+  });
 });

@@ -38,6 +38,14 @@ function isTabValue(value: string): value is TabValue {
   return value === "overview" || value === "agenda";
 }
 
+/**
+ * Sections inside the overview tab that something outside this component may
+ * link to by hash. An allow-list rather than any id: the hash is attacker-
+ * controlled input, and scrolling to an arbitrary element is a small but free
+ * way to point someone at the wrong part of a record.
+ */
+const OVERVIEW_SECTION_IDS = ["action-items-section", "decisions-section"];
+
 function SectionCard({
   id,
   title,
@@ -136,6 +144,29 @@ export function MeetingDetailView({
   const [agendaDirty, setAgendaDirty] = useState(false);
   const [pendingTab, setPendingTab] = useState<TabValue | null>(null);
   const pendingScrollRef = useRef<string | null>(null);
+  const hashHandledRef = useRef(false);
+
+  // A link from outside can name an overview section in the hash -- how the
+  // daily task digest (#488) lands someone on the item it emailed them about
+  // rather than at the top of the meeting.
+  //
+  // Declared before the scroll effect below on purpose: on mount, effects run
+  // in order, so this one queues the section and that one performs the scroll,
+  // including the case where the hash arrives with ?tab=overview already set
+  // and `setTab` therefore changes nothing for it to react to.
+  //
+  // Once only. The hash stays in the URL after the first scroll, and re-running
+  // this on a later render would yank the page back while someone is reading.
+  useEffect(() => {
+    if (hashHandledRef.current) return;
+    hashHandledRef.current = true;
+
+    const section = window.location.hash.slice(1);
+    if (!OVERVIEW_SECTION_IDS.includes(section)) return;
+
+    pendingScrollRef.current = section;
+    setTab("overview");
+  }, [setTab]);
 
   // Cross-tab links (agenda -> action items/decisions) scroll after the
   // overview panel has re-mounted.

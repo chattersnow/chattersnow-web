@@ -1237,6 +1237,29 @@ insert into public.app_settings (key, value) values
   ('org.fiscal_year_start_month', to_jsonb(7))
 on conflict (tenant_id, key) do update set value = excluded.value;
 
+-- Outbound email (#488). The admin account opts in to the daily task digest and
+-- has one delivery already recorded, so both tables have a row locally: the
+-- account page shows a toggle in its on state, and the tenant-isolation suite
+-- (src/lib/portal/tenant-isolation.integration.test.ts) has something to assert
+-- about -- its per-table checks are vacuous on an empty table.
+--
+-- No `notifications.email_enabled` row on purpose: an unset switch means on,
+-- and leaving it unset is what production looks like on the day this ships.
+insert into public.person_notification_preferences (person_id, kind, enabled)
+select p.id, 'task_digest', true
+from public.people p
+join auth.users u on u.id = p.auth_user_id
+where u.email = 'admin@example.test'
+on conflict (tenant_id, person_id, kind) do update set enabled = excluded.enabled;
+
+insert into public.notification_deliveries (person_id, kind, dedupe_key, status, sent_at)
+select p.id, 'task_digest', 'task-digest:' || to_char(current_date - 1, 'YYYY-MM-DD'),
+       'sent', now() - interval '1 day'
+from public.people p
+join auth.users u on u.id = p.auth_user_id
+where u.email = 'admin@example.test'
+on conflict (tenant_id, person_id, kind, dedupe_key) do nothing;
+
 -- The first-login welcome tour (20260902060000) opens a modal over the portal
 -- shell for any account whose welcome_completed_at is null. Every e2e spec
 -- signs in as one of these accounts and drives portal pages, so leaving them

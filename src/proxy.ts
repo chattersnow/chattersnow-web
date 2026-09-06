@@ -27,7 +27,11 @@ function isPortalHost(hostname: string): boolean {
 //     the matcher, but the optimizer re-fetches the source through this same
 //     host, so a rewritten /portal/<file>.png 404 turns into a 400
 //     INVALID_IMAGE_OPTIMIZE_REQUEST and the image never renders.
-const ROOT_PATH_PREFIXES = ["/auth/"];
+//   - /api/* are route handlers, which live at the app root. The task-reminder
+//     cron (#488) is called by Vercel with a bearer token and no browser
+//     involved, so a rewrite to /portal/api/... would 404 a job nobody is
+//     watching -- it would simply stop sending, silently.
+const ROOT_PATH_PREFIXES = ["/auth/", "/api/"];
 
 /**
  * Header carrying the portal path the browser actually asked for.

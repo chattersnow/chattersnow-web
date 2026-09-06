@@ -6,6 +6,9 @@ import { ensureCurrentPerson } from "@/lib/auth/current-person";
 import { personDisplayName } from "@/lib/format";
 import { AccountForm } from "./account-form";
 import { ReplayTourButton } from "./replay-tour-button";
+import { NotificationPreferences } from "./notification-preferences";
+import { NOTIFICATION_KINDS } from "@/lib/notifications/kinds";
+import { getOrgEmailEnabled } from "@/lib/notifications/settings";
 
 export const metadata: Metadata = {
   title: "My Account",
@@ -25,6 +28,17 @@ export default async function AccountPage() {
   if (!user) redirect("/portal/login");
 
   const person = await ensureCurrentPerson(supabase);
+
+  // Only the caller's own rows come back: the select policy on
+  // person_notification_preferences is scoped to my_person_id().
+  const [{ data: preferenceRows }, orgEmailEnabled] = await Promise.all([
+    supabase.from("person_notification_preferences").select("kind, enabled"),
+    getOrgEmailEnabled(supabase),
+  ]);
+  const enabledByKind: Record<string, boolean> = {};
+  for (const row of preferenceRows ?? []) {
+    enabledByKind[row.kind as string] = Boolean(row.enabled);
+  }
 
   const fallbackName = personDisplayName(
     {
@@ -57,6 +71,22 @@ export default async function AccountPage() {
               preferredName={person?.preferred_name ?? null}
               pronouns={person?.pronouns ?? null}
               fallbackName={fallbackName}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="app-eyebrow">Email notifications</p>
+              <p className="app-muted mt-1 text-sm">
+                Nothing is sent unless you turn it on here.
+              </p>
+            </div>
+            <NotificationPreferences
+              kinds={NOTIFICATION_KINDS}
+              enabledByKind={enabledByKind}
+              orgEmailEnabled={orgEmailEnabled}
             />
           </CardContent>
         </Card>
