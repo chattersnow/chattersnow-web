@@ -80,6 +80,11 @@ export default defineConfig({
     baseURL,
     headless: true,
     trace: "on-first-retry",
+    // Playwright's default is no per-action timeout, so a click on an element
+    // that never becomes actionable retries silently until the whole test
+    // times out -- reported as a bare "Test timeout exceeded" naming nothing.
+    // Capped so that failure names the element instead.
+    actionTimeout: 15_000,
   },
   projects: [
     ...browserProjects.map((project) => ({

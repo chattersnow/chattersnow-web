@@ -118,7 +118,12 @@ test.describe("portal administration audit log", () => {
     // Rendered as a Link, but Base UI's Button gives it role="button".
     await page.getByRole("button", { name: "Clear", exact: true }).click();
 
-    await expect(page).toHaveURL(/\/portal\/administration\/audit-log$/);
+    // Client-side navigation out of a sheet, behind a server round trip for
+    // the unfiltered log -- more than the 5s default allows for under a full
+    // parallel run.
+    await expect(page).toHaveURL(/\/portal\/administration\/audit-log$/, {
+      timeout: 15_000,
+    });
     // Clearing navigates client-side, which leaves the sheet mounted and
     // open -- and while it is, it holds the rest of the page aria-hidden,
     // where no role-based locator can reach the Filters trigger.

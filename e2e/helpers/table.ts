@@ -26,8 +26,8 @@ export function pager(page: Page, index = 0): TablePager {
  * the new rows arrive a render later; the server-paginated tables page by
  * navigating, so they arrive a round trip later. Either way a `count()` fired
  * straight after the click can still see the page it just left -- and the
- * search loop below would then take that for "not here" and step past the
- * page the row is actually on.
+ * sweep below would then take that for "not here" and step past the page the
+ * row is actually on.
  */
 async function turnPage({ status }: TablePager, control: Locator) {
   const before = (await status.textContent())?.trim();
@@ -37,19 +37,8 @@ async function turnPage({ status }: TablePager, control: Locator) {
     .not.toBe(before);
 }
 
-/**
- * Pages a paginated table until `row` matches something.
- *
- * The portal's tables show ten rows at a time, and a spec has no way to know
- * which page a given row lands on: the list carries whatever the seed
- * created plus whatever other specs are mid-run. Asserting against page one
- * would make such a test pass or fail on the size of the list around it.
- *
- * Rewinds to the first page before searching, because a row the test has
- * just renamed re-sorts and may have moved backwards. The caller still makes
- * its own assertion afterwards; this only gets the row on screen.
- */
-export async function revealRow(row: Locator, tablePager: TablePager) {
+/** One rewind-and-search sweep over a table's pages. */
+async function sweep(row: Locator, tablePager: TablePager) {
   const { previous, next } = tablePager;
   // Bounded rather than `while (true)` throughout: a control that never
   // settles should end the test at the caller's own assertion rather than by
@@ -63,4 +52,30 @@ export async function revealRow(row: Locator, tablePager: TablePager) {
     if (!(await next.isVisible()) || (await next.isDisabled())) return;
     await turnPage(tablePager, next);
   }
+}
+
+/**
+ * Pages a paginated table until `row` is on screen.
+ *
+ * The portal's tables show ten rows at a time, and a spec has no way to know
+ * which page a given row lands on: the list carries whatever the seed
+ * created plus whatever other specs are mid-run. Asserting against page one
+ * would make such a test pass or fail on the size of the list around it.
+ *
+ * Rewinds to the first page before searching, because a row the test has
+ * just renamed re-sorts and may have moved backwards.
+ *
+ * Retried as a whole, and it does not return until the row is visible. A
+ * single sweep is not enough: on a page that has not finished rendering
+ * there is no Previous/Next yet, which reads exactly like a table with one
+ * page, so the sweep would return "not here" without ever paging -- and the
+ * caller's own assertion would then fail on a row that was only ever two
+ * pages away. Retrying also re-finds a row that moved while the sweep was
+ * walking, which the specs' concurrent fixtures can do at any moment.
+ */
+export async function revealRow(row: Locator, tablePager: TablePager) {
+  await expect(async () => {
+    await sweep(row, tablePager);
+    await expect(row.first()).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 30_000 });
 }
