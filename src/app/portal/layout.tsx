@@ -3,6 +3,7 @@ import { BrandStyle } from "@/components/brand-style";
 import { getTenantBranding } from "@/lib/tenant-branding";
 import { currentTenant, getTenantContext } from "@/lib/portal/tenants";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { PortalUrlCanonicalizer } from "./portal-url-canonicalizer";
 
 // The portal is titled and styled for the tenant the signed-in user has
 // selected (#707 Phase 4). Signed out -- the login page -- there is no
@@ -29,6 +30,7 @@ export default async function PortalLayout({
   return (
     <>
       <BrandStyle branding={branding} />
+      <PortalUrlCanonicalizer />
       {children}
     </>
   );
