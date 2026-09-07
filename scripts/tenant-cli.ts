@@ -17,7 +17,13 @@
 //   bun run tenant:support <slug> --email staff@platform.org --reason "..." \
 //       [--days 7] [--role admin]
 //
-// Provisioning prints the first admin's invite link; nothing is emailed.
+// Provisioning prints the first admin's invite link; nothing is emailed. The
+// link is a convenience, not part of the provisioning: the admin's role is
+// staged inside provision_tenant() and an existing account claims it on its
+// next portal navigation. So nothing after the tenant is created fails the
+// command -- with no --domain and no NEXT_PUBLIC_SITE_URL there is simply no
+// link, and provision still exits 0 (#805).
+//
 // Deletion needs the tenant archived first (`tenant:archive`) and the slug
 // typed a second time -- the database refuses an active tenant regardless,
 // so the second check is for the operator, not the schema.
@@ -37,6 +43,7 @@
 import fs from "node:fs";
 import { parseArgs } from "node:util";
 import { createClient } from "@supabase/supabase-js";
+import { inviteOrigin } from "./tenant/invite-origin";
 import { TenantPlanError, assertPlanChange } from "./tenant/plan-guards";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -95,17 +102,10 @@ async function tenantBySlug(slug: string) {
   return data;
 }
 
-/** The origin an invite for this tenant should land on. */
-function originFor(domain: string | null): string {
-  if (domain) return `https://${domain}`;
-  const fallback = process.env.NEXT_PUBLIC_SITE_URL;
-  if (!fallback) {
-    fail("Set --domain or NEXT_PUBLIC_SITE_URL so the invite has an origin.");
-  }
-  return fallback;
-}
-
-async function inviteLink(email: string, origin: string): Promise<string> {
+async function inviteLink(
+  email: string,
+  origin: string,
+): Promise<string | null> {
   const redirectTo = `${origin}/auth/confirm`;
   let result = await service.auth.admin.generateLink({
     type: "invite",
@@ -121,8 +121,13 @@ async function inviteLink(email: string, origin: string): Promise<string> {
     });
     linkType = "magiclink";
   }
+  // Never fatal: by the time this runs the tenant is already committed, so a
+  // GoTrue hiccup here must not report the provisioning as having failed.
   if (result.error || !result.data) {
-    fail(`Could not generate an invite link: ${result.error?.message}`);
+    console.error(
+      `Could not generate an invite link: ${result.error?.message}`,
+    );
+    return null;
   }
   return (
     `${origin}/auth/confirm?token_hash=${result.data.properties.hashed_token}` +
@@ -147,10 +152,27 @@ async function provision() {
   if (error) fail(`Provisioning failed: ${error.message}`);
 
   console.log(`Provisioned "${name}" (${slug}) as tenant ${data}.`);
-  const link = await inviteLink(admin, originFor(domain));
-  console.log(
-    `\nFirst admin: ${admin}\nInvite link (expires in about an hour, nothing was emailed):\n${link}\n`,
-  );
+
+  // Everything below is a convenience on top of a tenant that already exists.
+  // The admin's role is staged as a pending_role_grants row inside
+  // provision_tenant(), and an address that already has an account claims it on
+  // its next portal navigation, link or no link -- so nothing here may exit
+  // non-zero and report the provisioning as failed (#805).
+  const origin = inviteOrigin(domain, process.env.NEXT_PUBLIC_SITE_URL);
+  const link = origin ? await inviteLink(admin, origin) : null;
+  if (link) {
+    console.log(
+      `\nFirst admin: ${admin}\nInvite link (expires in about an hour, nothing was emailed):\n${link}\n`,
+    );
+  } else {
+    console.log(
+      `\nFirst admin: ${admin} -- staged, but no invite link was minted.` +
+        (origin
+          ? ""
+          : "\nThere was no origin to build one on: pass --domain, or set NEXT_PUBLIC_SITE_URL in the env file.") +
+        `\nAn address that already has an account does not need one; it picks the role up on its next portal navigation.\n`,
+    );
+  }
   if (domain) {
     console.log(
       `Next: add ${domain} (and portal.${domain}) to the Vercel project and to the Supabase Auth redirect allowlist. See docs/tenants.md.`,

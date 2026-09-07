@@ -62,6 +62,13 @@ is emailed; send it to them yourself. It lands on `https://<domain>/auth/confirm
 (or `NEXT_PUBLIC_SITE_URL` when there is no domain), so the domain has to be
 serving before they click it -- see the next section.
 
+With neither a `--domain` nor a `NEXT_PUBLIC_SITE_URL` there is nowhere to
+build a link on, and the command says so and still exits 0 (#805): the tenant
+is created either way, and the admin's role is staged inside
+`provision_tenant()` as a `pending_role_grants` row. An address that already
+has an account never needs the link -- it claims the role on its next portal
+navigation. The link matters only for an admin who has never signed in.
+
 `--plan` defaults to `white_label`; `--template <tenant id>` copies from a
 different tenant. `tenant:list` shows what exists.
 
