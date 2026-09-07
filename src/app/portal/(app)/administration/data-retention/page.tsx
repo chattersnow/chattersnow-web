@@ -45,20 +45,24 @@ export default async function DataRetentionPage({
   const totalPages = totalPagesFor(count, PAGE_SIZE);
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Data Retention</h1>
-        <p className="app-muted mt-2 max-w-3xl text-sm leading-relaxed">
-          The privacy policy tells people how long we keep what they give us.
-          These are the rules that make that true, and the record of what each
-          run actually did. Donation and financial records are exempt, and a
-          person is kept whenever any record still depends on them.
-        </p>
-      </header>
+    <>
+      <div className="w-fit">
+        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          Data Retention
+        </h1>
+        <div className="rainbow-accent mt-3 w-full" />
+      </div>
 
-      <RetentionPoliciesPanel policies={policies} />
+      <p className="app-muted mt-6 max-w-3xl text-sm leading-relaxed">
+        The retention periods published at <code>/privacy</code>, and the record
+        of what each run actually did.
+      </p>
 
-      <section className="space-y-4">
+      <div className="mt-6">
+        <RetentionPoliciesPanel policies={policies} />
+      </div>
+
+      <section className="mt-6 space-y-4">
         <h2 className="font-semibold">Run history</h2>
         <RetentionRunsTable
           runs={runs}
@@ -80,6 +84,6 @@ export default async function DataRetentionPage({
           />
         )}
       </section>
-    </div>
+    </>
   );
 }
