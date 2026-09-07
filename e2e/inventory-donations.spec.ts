@@ -58,7 +58,9 @@ test.describe("portal inventory donations", () => {
     // Remove control appearing is the signal that the object actually reached
     // the gear-photos bucket -- the whole client → Server Action → RLS → Storage
     // path, which nothing below the browser exercises end to end.
-    await addSheet.getByLabel("Photo").setInputFiles({
+    // `exact` because getByLabel matches on substring: the field's "use a link
+    // instead" box is labelled "Photo link", so a loose "Photo" is ambiguous.
+    await addSheet.getByLabel("Photo", { exact: true }).setInputFiles({
       name: "gear.png",
       mimeType: "image/png",
       buffer: PNG_PIXEL,
