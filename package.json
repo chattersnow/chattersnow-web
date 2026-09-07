@@ -30,7 +30,9 @@
     "tenant:export": "bun --env-file=.env.local scripts/tenant-cli.ts export",
     "tenant:archive": "bun --env-file=.env.local scripts/tenant-cli.ts archive",
     "tenant:delete": "bun --env-file=.env.local scripts/tenant-cli.ts delete",
-    "tenant:support": "bun --env-file=.env.local scripts/tenant-cli.ts support"
+    "tenant:support": "bun --env-file=.env.local scripts/tenant-cli.ts support",
+    "demo:reset": "bun --env-file=.env.local scripts/demo-reset.ts",
+    "demo:teardown": "bun --env-file=.env.local scripts/demo-reset.ts --teardown"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [

@@ -39,3 +39,21 @@ test("the login page offers a way back to the public site", async ({
   await page.getByRole("link", { name: "Back to chattersnow.org" }).click();
   await expect(page).toHaveURL(/\/home$/);
 });
+
+// #604. The demo button renders only when the server holds both DEMO_EMAIL and
+// DEMO_PASSWORD, and neither is set locally or in CI. The regression worth
+// catching is shipping the button with no demo behind it -- a visitor clicking
+// it would get an error and no way forward. The real thing gets a documented
+// post-deploy smoke instead, because exercising it needs credentials this run
+// deliberately does not have.
+test("the demo button is absent when no demo is configured", async ({
+  page,
+}) => {
+  await page.goto("/portal/login");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Operations Portal" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Explore the demo" }),
+  ).toHaveCount(0);
+});

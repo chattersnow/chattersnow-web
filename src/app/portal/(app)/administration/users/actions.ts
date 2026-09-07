@@ -20,6 +20,27 @@ export type {
   SupportGrant,
 } from "./users-shared";
 
+/**
+ * #604. Everything on this screen that reaches *outside* the tenant is refused
+ * in the demo, where the admin is an anonymous visitor: staging a grant and
+ * minting a link from it (a real sign-in link for a real address), granting
+ * support access (an account-existence oracle, and a membership in somebody's
+ * switcher), and deactivating an account (platform-wide, and the demo account
+ * is only in this tenant so the usual guard reads as "yes, go ahead").
+ *
+ * The database refuses each of these on its own -- these checks exist so the
+ * visitor is told why, rather than meeting a raw policy violation or, worse,
+ * the "belongs to another organization" explanation, which would not be true.
+ */
+const DEMO_ACCESS_MESSAGE = "Access management is turned off in the demo.";
+
+async function inDemoTenant(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+): Promise<boolean> {
+  const { data } = await supabase.rpc("current_tenant_is_demo");
+  return data === true;
+}
+
 export async function listRolesAction(): Promise<
   { data: PortalRoleOption[] } | { error: string }
 > {
@@ -182,6 +203,10 @@ export async function createPendingGrantAction(
     return { error: "Unknown role." };
   }
 
+  if (await inDemoTenant(supabase)) {
+    return { error: DEMO_ACCESS_MESSAGE };
+  }
+
   const { error } = await supabase.from("pending_role_grants").insert({
     email: trimmedEmail,
     role_id: roleRow.id,
@@ -250,6 +275,14 @@ export async function createInviteLinkAction(
     "manage",
   );
   if (permissionError) return permissionError;
+
+  // #604. In the demo tenant the caller is an anonymous visitor holding
+  // admin, and this action reaches a service-role client that mints real
+  // sign-in links. The insert policy on pending_role_grants refuses to stage
+  // one there at all; this is the other half, for a grant that predates it.
+  if (await inDemoTenant(supabase)) {
+    return { error: DEMO_ACCESS_MESSAGE };
+  }
 
   const { data: grant, error: grantError } = await supabase
     .from("pending_role_grants")
@@ -351,6 +384,10 @@ export async function deactivateUserAction(
     return { error: "You can't deactivate your own account." };
   }
 
+  if (await inDemoTenant(supabase)) {
+    return { error: DEMO_ACCESS_MESSAGE };
+  }
+
   const { error } = await supabase
     .from("deactivated_users")
     .insert({ user_id: userId, deactivated_by: user.id });
@@ -411,6 +448,10 @@ export async function reactivateUserAction(
 // support grant.
 
 const SUPPORT_ERRORS: Record<string, string> = {
+  // #604. The database refuses this in a demo tenant, and without a message
+  // here a visitor would meet the raw exception text.
+  DEMO_TENANT_FORBIDS_SUPPORT_ACCESS:
+    "Support access is turned off in the demo.",
   SUPPORT_CANNOT_GRANT_SUPPORT:
     "Support access can only be granted by a member of this organization.",
   SUPPORT_CANNOT_REVOKE_SUPPORT:

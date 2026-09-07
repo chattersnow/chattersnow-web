@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { DemoButton } from "./demo-button";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = {
@@ -11,6 +12,12 @@ export const metadata: Metadata = {
 };
 
 export default function PortalLoginPage() {
+  // Read here rather than in the button, so the credentials stay in the server
+  // tree entirely; the client only ever learns that a demo is configured.
+  const demoAvailable = Boolean(
+    process.env.DEMO_EMAIL && process.env.DEMO_PASSWORD,
+  );
+
   return (
     <main className="app-shell flex items-center justify-center px-6 py-12 sm:px-10">
       <Card className="w-full max-w-md [--card-spacing:--spacing(8)] sm:[--card-spacing:--spacing(10)]">
@@ -34,6 +41,8 @@ export default function PortalLoginPage() {
         </CardHeader>
 
         <CardContent className="mt-2 flex flex-col gap-7">
+          {demoAvailable && <DemoButton />}
+
           <Suspense fallback={null}>
             <LoginForm />
           </Suspense>
