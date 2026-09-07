@@ -10,7 +10,7 @@ in the planning repo's `decisions/2026-09-05-multi-tenancy-model.md`.
 
 Most of it can also be done from the portal, at Administration → **Platform**
 (#707 Phase 5c) — provisioning, the domain, the status and the export. That
-page resolves only inside Chatter Snow's own tenant: the RPCs behind it require
+page resolves only inside the platform's own tenant: the RPCs behind it require
 `platform_tenants:manage` **and** a full (non-support) membership **and** a
 tenant on the `internal` plan, so a customer's admin granting themselves the
 resource in their own matrix — which they can, they own their matrix — still
@@ -42,7 +42,7 @@ into:
 
 - the five seeded roles (`admin`, `event_coordinator`, `finance`, `board`,
   `volunteer`) with the **whole** permission matrix, copied from the template
-  tenant -- the oldest `internal` tenant, i.e. Chatter Snow -- for those five
+  tenant -- the oldest tenant on the `internal` plan -- for those five
   roles only. Every migration that seeds `role_permissions` does so by role
   name across all tenants, so the template's matrix is always the current
   platform default and provisioning never has to be updated when a resource
@@ -211,8 +211,8 @@ bun run tenant:delete example-nonprofit --confirm example-nonprofit
 
 The **status** dropdown on Administration → Platform does the archiving half
 (and suspend, and reactivate) — but not the deletion, which is why this is
-still two commands. It refuses to suspend or archive Chatter Snow's own
-tenant: platform access is a membership there rather than a bypass, so taking
+still two commands. It refuses to suspend or archive the `internal` tenant:
+platform access is a membership there rather than a bypass, so taking
 it off the air takes that page down with it, and there is no second door. The
 CLI can still do it.
 
@@ -226,8 +226,31 @@ Memberships cascade. Accounts are not touched: `auth.users` is platform-wide
 and the person may belong to another tenant; remove orphaned accounts from
 the Supabase dashboard if they should go too.
 
-Take an export first. Chatter Snow's own tenant is deleted the same way;
+Take an export first. The platform's own tenant is deleted the same way;
 there is no special case.
+
+## Changing a tenant's plan
+
+`tenants.plan` is written nowhere but the insert inside `provision_tenant()`.
+There is no RPC for it and the Platform page deliberately does not offer it, so
+this command is the only way:
+
+```bash
+bun run tenant:plan example-nonprofit --plan white_label
+```
+
+The plan decides two things and nothing else: `internal` is what
+`is_platform_operator()` requires of the caller's own tenant, and the oldest
+`internal` tenant is what `provision_tenant()` templates from. `demo` is what
+`current_tenant_is_demo()` reads and what `seed_demo_tenant()` insists on.
+
+It refuses to move the **last active `internal` tenant** off that plan.
+Platform administration resolves only inside one, and it is a membership rather
+than a bypass, so there would be no way back in and no super-admin to open one
+— the same reasoning behind `platform_set_tenant_status()` refusing to archive
+the internal tenant. Provision the replacement first, then move the old one.
+The guards are in `scripts/tenant/plan-guards.ts` and unit tested; the database
+has no opinion here, so they are the only check there is.
 
 ## Writing migrations on a multi-tenant database
 
