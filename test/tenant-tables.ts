@@ -1,7 +1,8 @@
 /**
  * Every table that carries a `tenant_id` (#707 Phase 2, 20260906010000) --
  * the 73 tables given the column with a default, plus the three that take it
- * from their role by trigger.
+ * from their role by trigger, plus the three retention tables Phase 5b scoped
+ * (20260906160000).
  *
  * `audit_log` is deliberately absent: its `tenant_id` is nullable, and its
  * select policy admits rows with no tenant on purpose. It is covered by its
@@ -80,6 +81,9 @@ export const TENANT_TABLES = [
   "programs",
   "reimbursements",
   "resolutions",
+  "retention_policies",
+  "retention_run_tables",
+  "retention_runs",
   "roles",
   "services",
   "site_content",

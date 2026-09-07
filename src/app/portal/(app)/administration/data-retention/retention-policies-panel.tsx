@@ -96,6 +96,18 @@ export function RetentionPoliciesPanel({
                     : ""}
                   . {policy.description}
                 </p>
+                {policy.policy_key === "rate_limit_hits" ? (
+                  // The one rule with nothing to scope: rate_limit_hits is keyed
+                  // by IP and route and has no tenant (#707 Phase 5b). The sweep
+                  // runs it once and every organization's clock is consulted, so
+                  // shortening this shortens it for everyone -- worth saying, or
+                  // the row reads like every other one.
+                  <p className="app-muted mt-1 text-sm leading-relaxed">
+                    Shared across every organization on the platform: these
+                    records identify a submitter, not an organization, so the
+                    shortest period anyone sets is the one that applies.
+                  </p>
+                ) : null}
               </div>
               <Select
                 value={policy.mode}
