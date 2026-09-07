@@ -8,6 +8,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPageVisibility, hiddenSlots } from "@/lib/page-visibility";
 import { getPublicSite } from "@/lib/public-site";
 import { LEGAL_LINKS, visibleGroups } from "@/lib/public-nav";
+import { LEGAL_PAGES_PUBLISHED } from "@/lib/legal-pages";
 import { SiteNav } from "./site-nav";
 
 // The organization's name and description, per tenant (#707 Phase 4). Every
@@ -141,15 +142,24 @@ export default async function PublicLayout({
             <p className="app-muted text-sm">
               &copy; {new Date().getFullYear()} {name}. All rights reserved.
             </p>
-            <nav aria-label="Legal" className="flex flex-wrap gap-x-6 gap-y-2">
-              {LEGAL_LINKS.map((link) => (
-                <FooterLink
-                  key={link.href}
-                  href={link.href}
-                  label={link.label}
-                />
-              ))}
-            </nav>
+            {/* Omitted entirely rather than rendered empty while the legal
+                review is outstanding: an empty <nav aria-label="Legal"> is
+                announced by screen readers as a landmark with nothing in it.
+                See src/lib/legal-pages.ts. */}
+            {LEGAL_PAGES_PUBLISHED && (
+              <nav
+                aria-label="Legal"
+                className="flex flex-wrap gap-x-6 gap-y-2"
+              >
+                {LEGAL_LINKS.map((link) => (
+                  <FooterLink
+                    key={link.href}
+                    href={link.href}
+                    label={link.label}
+                  />
+                ))}
+              </nav>
+            )}
           </div>
         </div>
       </footer>
