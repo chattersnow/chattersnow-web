@@ -11,9 +11,12 @@ import {
   anonClient,
   deleteVolunteerApplications,
   findVolunteerApplications,
+  serviceRoleClient,
   uniqueEmail,
   uniqueIp,
 } from "../../../../test/integration-setup";
+
+const service = serviceRoleClient();
 
 let currentIp: string | null = null;
 mock.module("@/lib/get-client-ip", () => ({
@@ -23,6 +26,28 @@ mock.module("@/lib/get-client-ip", () => ({
 mock.module("@/lib/supabase/server", () => ({
   createSupabaseServerClient: async () => anonClient(),
 }));
+
+// The action schedules its notification send with after() (#742). This file
+// imports the action directly, so there is no request scope and Next's real
+// after() would throw -- and the notifier it schedules imports "server-only",
+// which throws outside Next's bundler. Everything else in next/server is kept,
+// so the mock cannot surprise another file sharing this process.
+mock.module("server-only", () => ({}));
+const nextServer = await import("next/server");
+const afterTasks: Promise<unknown>[] = [];
+mock.module("next/server", () => ({
+  ...nextServer,
+  after: (task: () => Promise<unknown>) => {
+    afterTasks.push(task());
+  },
+}));
+
+/** Settles everything the action scheduled, and reports how much there was. */
+async function drainAfterTasks() {
+  const scheduled = afterTasks.length;
+  await Promise.all(afterTasks.splice(0));
+  return scheduled;
+}
 
 const { submitVolunteerApplicationAction } =
   await import("./volunteer-application-actions");
@@ -44,10 +69,56 @@ function applicantEmail(tag: string) {
 }
 
 afterEach(async () => {
+  // Settle the scheduled sends before deleting their rows, so a notify still
+  // in flight cannot race the cleanup it is reading through.
+  await drainAfterTasks();
+  await service
+    .from("notification_deliveries")
+    .delete()
+    .eq("kind", "volunteer_application");
   while (submittedEmails.length) {
     await deleteVolunteerApplications(submittedEmails.pop()!);
   }
 });
+
+/**
+ * Opts the seeded admin -- the only account holding volunteers:manage -- in to
+ * the volunteer-application notice for the duration of one test, so the case
+ * below can tell "sent nothing" apart from "nobody was listening". The gate
+ * matrix itself is covered in
+ * src/lib/notifications/submission-notifications.integration.test.ts.
+ */
+async function withAdminOptedIn(kind: string, body: () => Promise<void>) {
+  const { data: person } = await service
+    .from("people")
+    .select("id")
+    .eq("email", "admin@example.test")
+    .single();
+  const personId = person!.id as string;
+  await service
+    .from("person_notification_preferences")
+    .upsert(
+      { person_id: personId, kind, enabled: true },
+      { onConflict: "tenant_id,person_id,kind" },
+    );
+  try {
+    await body();
+  } finally {
+    await service
+      .from("person_notification_preferences")
+      .delete()
+      .eq("person_id", personId)
+      .eq("kind", kind);
+  }
+}
+
+async function deliveryCount(kind: string) {
+  const { count } = await service
+    .from("notification_deliveries")
+    .select("id", { count: "exact", head: true })
+    .eq("kind", kind);
+  return count ?? 0;
+}
 
 describe("submitVolunteerApplicationAction (integration)", () => {
   test("stores pronouns on the application and on the person record", async () => {
@@ -179,5 +250,38 @@ describe("submitVolunteerApplicationAction (integration)", () => {
       error: "Too many attempts — please try again in a few minutes.",
     });
     expect(await findVolunteerApplications(blockedEmail)).toHaveLength(0);
+  });
+
+  test("tells the volunteer queue about a real application, and not about a bot", async () => {
+    await withAdminOptedIn("volunteer_application", async () => {
+      currentIp = uniqueIp();
+      const result = await submitVolunteerApplicationAction(
+        formData({
+          name: "Robin Vale",
+          email: applicantEmail("notify"),
+          roleInterest: "Trip lead",
+        }),
+      );
+      expect(result).toMatchObject({ success: true });
+
+      // Scheduled, not awaited: the applicant's reference code does not wait
+      // on it.
+      expect(await drainAfterTasks()).toBe(1);
+      expect(await deliveryCount("volunteer_application")).toBe(1);
+
+      currentIp = uniqueIp();
+      await submitVolunteerApplicationAction(
+        formData({
+          name: "A Bot",
+          email: applicantEmail("notify-honeypot"),
+          company: "Definitely A Company",
+        }),
+      );
+
+      // The RPC answers a filled honeypot with a reference code for a row it
+      // never inserted, so the send is scheduled and finds nothing to announce.
+      expect(await drainAfterTasks()).toBe(1);
+      expect(await deliveryCount("volunteer_application")).toBe(1);
+    });
   });
 });

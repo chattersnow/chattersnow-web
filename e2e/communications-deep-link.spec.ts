@@ -1,3 +1,7 @@
+// #430 and #742: a message opened from a deep link -- the "new messages"
+// dashboard notification (?status=new), or the notification email's link at
+// one message (?message=<id>).
+//
 // #430: a message opened from the "new messages" dashboard notification
 // (?status=new deep link) used to disappear from the table the moment it
 // was auto-marked read, since the status filter was still pinned to "new".
@@ -99,6 +103,35 @@ test("the status filter still narrows normally without a pinned deep link", asyn
     // Not a deep link, so no stickiness -- a "new" message doesn't match a
     // "resolved" filter and should be hidden like any other row.
     await expect(row).not.toBeVisible();
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test("an email's ?message= link opens that message and takes the parameter back out", async ({
+  page,
+}) => {
+  const admin = createAdminClient();
+  const fixture = await seedNewMessage(admin);
+
+  try {
+    await signIn(page);
+    await page.goto(`/portal/communications?message=${fixture.id}`);
+
+    // The sheet is already open on arrival -- that is the whole promise the
+    // email makes, and the reason the parameter exists rather than a filter.
+    const sheet = modal(page);
+    await expect(sheet.getByText("Contact message")).toBeVisible();
+    await expect(sheet.getByText(fixture.name)).toBeVisible();
+
+    await sheet.getByRole("button", { name: "Close" }).click();
+
+    // Stripped on close, so a refresh does not re-open what was just
+    // dismissed, and Back still means Back.
+    await expect(page).toHaveURL(/\/portal\/communications$/);
+    await expect(
+      page.getByRole("row").filter({ hasText: fixture.name }),
+    ).toBeVisible();
   } finally {
     await fixture.cleanup();
   }

@@ -9,6 +9,10 @@ import { ReplayTourButton } from "./replay-tour-button";
 import { NotificationPreferences } from "./notification-preferences";
 import { NOTIFICATION_KINDS } from "@/lib/notifications/kinds";
 import { getOrgEmailEnabled } from "@/lib/notifications/settings";
+import {
+  getCurrentUserPermissions,
+  hasAnyPermission,
+} from "@/lib/auth/permissions";
 
 export const metadata: Metadata = {
   title: "My Account",
@@ -31,14 +35,32 @@ export default async function AccountPage() {
 
   // Only the caller's own rows come back: the select policy on
   // person_notification_preferences is scoped to my_person_id().
-  const [{ data: preferenceRows }, orgEmailEnabled] = await Promise.all([
-    supabase.from("person_notification_preferences").select("kind, enabled"),
-    getOrgEmailEnabled(supabase),
-  ]);
+  const [{ data: preferenceRows }, orgEmailEnabled, permissions] =
+    await Promise.all([
+      supabase.from("person_notification_preferences").select("kind, enabled"),
+      getOrgEmailEnabled(supabase),
+      getCurrentUserPermissions(supabase),
+    ]);
   const enabledByKind: Record<string, boolean> = {};
   for (const row of preferenceRows ?? []) {
     enabledByKind[row.kind as string] = Boolean(row.enabled);
   }
+
+  // Some kinds only exist for the people who own the queue they report on
+  // (#742). Showing a volunteer a "New volunteer applications" switch would be
+  // offering them a setting that can never change anything -- the sender
+  // resolves recipients from the same permission, so the toggle would be inert
+  // either way round.
+  const kinds = NOTIFICATION_KINDS.filter(({ requires }) => {
+    if (!requires) return true;
+    return hasAnyPermission(
+      permissions,
+      requires.resources.map((resource) => ({
+        resource,
+        level: requires.level,
+      })),
+    );
+  });
 
   const fallbackName = personDisplayName(
     {
@@ -84,7 +106,7 @@ export default async function AccountPage() {
               </p>
             </div>
             <NotificationPreferences
-              kinds={NOTIFICATION_KINDS}
+              kinds={kinds}
               enabledByKind={enabledByKind}
               orgEmailEnabled={orgEmailEnabled}
             />

@@ -17,15 +17,13 @@ import {
   type PortalDataTableColumn,
 } from "@/components/portal/data-table";
 import { MessageDetailsSheet } from "./message-details-sheet";
-import {
-  ContactMessageStatusBadge,
-  CONTACT_TOPIC_LABELS,
-} from "./message-badges";
+import { ContactMessageStatusBadge } from "./message-badges";
 import {
   CONTACT_MESSAGE_STATUSES,
   type ContactMessage,
   type ContactMessageStatus,
 } from "./message-types";
+import { CONTACT_TOPIC_LABELS } from "@/lib/contact-topics";
 import { formatInstantDate } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
 
@@ -35,10 +33,13 @@ export function MessagesTable({
   messages,
   canManage,
   initialStatusFilter = null,
+  linkedMessageId = null,
 }: {
   messages: ContactMessage[];
   canManage: boolean;
   initialStatusFilter?: ContactMessageStatus | null;
+  /** The `?message=` a notification email (#742) linked with, if any. */
+  linkedMessageId?: string | null;
 }) {
   const [search, setSearch] = useState("");
   const {
@@ -118,11 +119,15 @@ export function MessagesTable({
         srOnlyLabel: true,
         headClassName: "w-0",
         render: (message) => (
-          <MessageDetailsSheet message={message} canManage={canManage} />
+          <MessageDetailsSheet
+            message={message}
+            canManage={canManage}
+            defaultOpen={message.id === linkedMessageId}
+          />
         ),
       },
     ],
-    [canManage],
+    [canManage, linkedMessageId],
   );
 
   if (messages.length === 0) {

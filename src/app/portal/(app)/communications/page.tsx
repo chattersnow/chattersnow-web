@@ -7,6 +7,7 @@ import {
 import { MessagesTable } from "./messages-table";
 import {
   CONTACT_MESSAGE_STATUSES,
+  MESSAGE_PARAM,
   type ContactMessage,
   type ContactMessageStatus,
 } from "./message-types";
@@ -42,6 +43,14 @@ export default async function CommunicationsPage({
     ? (statusParam as ContactMessageStatus)
     : null;
 
+  // Which message a notification email (#742) linked at, if any. This list is
+  // unpaginated and the deep link carries no status filter, so the row is
+  // always among the ones rendered -- no separate fetch, unlike the volunteer
+  // applications queue.
+  const messageParam = params[MESSAGE_PARAM];
+  const linkedMessageId =
+    (Array.isArray(messageParam) ? messageParam[0] : messageParam) ?? null;
+
   const { data: messages, error } = await supabase
     .from("contact_messages")
     .select("id, name, email, topic, message, status, created_at")
@@ -69,6 +78,7 @@ export default async function CommunicationsPage({
             messages={(messages ?? []) as ContactMessage[]}
             canManage={canManage}
             initialStatusFilter={initialStatusFilter}
+            linkedMessageId={linkedMessageId}
           />
         )}
       </div>
