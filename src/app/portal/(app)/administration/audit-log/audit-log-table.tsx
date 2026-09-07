@@ -97,6 +97,7 @@ export function AuditLogTable({
                       : "System",
                     old_data: entry.old_data,
                     new_data: entry.new_data,
+                    redacted_at: entry.redacted_at,
                   };
                   return (
                     <TableRow key={entry.id}>

@@ -19,6 +19,7 @@ import { RETENTION_POLICIES } from "@/lib/retention";
 import {
   SEEDED_USERS,
   adminClient,
+  cleanupDonation,
   createAvailableGearItems,
   createPerson,
   createPublishedEvent,
@@ -94,6 +95,22 @@ function clockAt(offsetMs: number) {
 
 const DAY = 24 * 60 * 60 * 1000;
 const YEAR = 365 * DAY;
+
+/**
+ * `now() + n calendar years + offsetDays`, for the clocks long enough that leap
+ * days matter.
+ *
+ * The rules read `p_as_of - interval '7 years'`, which Postgres counts in
+ * calendar years, while `7 * YEAR` is 2555 days -- two days short by 2033, and
+ * two leap days is enough to put a just-outside fixture back inside the window.
+ * The three-year clocks above absorb their single leap day inside the ±1 day
+ * margin; seven years does not.
+ */
+function clockAtYears(years: number, offsetDays: number) {
+  const asOf = new Date();
+  asOf.setUTCFullYear(asOf.getUTCFullYear() + years);
+  return new Date(asOf.getTime() + offsetDays * DAY).toISOString();
+}
 
 // Through the granted RPC, not a table update: retention_policies has no write
 // policy and no update grant, which is itself part of the design.
@@ -566,6 +583,326 @@ describe("run_retention_purge", () => {
       expect(data!.recipient_person_id).not.toBeNull();
       expect(data!.notes).toBe(REQUEST_NOTES);
     });
+  });
+
+  // #720. The two append-only stores that hold copies of the same personal
+  // data: audit_log's row snapshots, and person_merges' copies of a people row.
+  // Both are redacted in place rather than deleted -- the entry, its table, its
+  // record, its actor and its timestamp are kept permanently, and only the
+  // registered personal values inside the snapshot are cleared.
+  describe("audit trail snapshots lose their personal keys and nothing else", () => {
+    let expiredGrantId: string;
+    let recentGrantId: string;
+
+    async function createGrant(email: string) {
+      const { data: role, error: roleError } = await serviceClient
+        .from("roles")
+        .select("id")
+        .eq("name", "volunteer")
+        .single();
+      if (roleError) throw roleError;
+
+      // Through the service client rather than the invitation action: this test
+      // is about what the audit trigger recorded, and minting a real invite link
+      // creates an auth.users row as a side effect (#763).
+      const { data, error } = await serviceClient
+        .from("pending_role_grants")
+        .insert({
+          tenant_id: await tenantId(),
+          email,
+          name: "Retention Invitee",
+          role_id: role.id,
+          status: "pending",
+          expires_at: new Date(Date.now() + 7 * DAY).toISOString(),
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+
+      const id = data.id as string;
+      // Deleting it is the point: rule G does exactly this, and the delete
+      // trigger writes the invitation email it just removed into old_data.
+      await serviceClient.from("pending_role_grants").delete().eq("id", id);
+      return id;
+    }
+
+    async function snapshotFor(grantId: string) {
+      const { data, error } = await serviceClient
+        .from("audit_log")
+        .select(
+          "table_name, record_id, action, occurred_at, old_data, redacted_at",
+        )
+        .eq("table_name", "pending_role_grants")
+        .eq("record_id", grantId)
+        .eq("action", "delete")
+        .single();
+      if (error) throw error;
+      return data;
+    }
+
+    beforeAll(async () => {
+      expiredGrantId = await createGrant(uniqueEmail("retention-invitee-old"));
+      recentGrantId = await createGrant(uniqueEmail("retention-invitee-new"));
+    });
+
+    // First, because the sweep in the next test moves the clock past every entry
+    // in the table, this one's included.
+    test("an entry inside the window keeps its snapshot", async () => {
+      await setMode("audit_log_snapshots", "enforce");
+      await runPurge({ dryRun: false, asOf: clockAtYears(7, -1) });
+
+      const entry = await snapshotFor(recentGrantId);
+      expect(entry.old_data?.email).toEqual(expect.any(String));
+      expect(entry.redacted_at).toBeNull();
+    });
+
+    test("the entry survives with the email cleared and the change intact", async () => {
+      await setMode("audit_log_snapshots", "enforce");
+      await runPurge({ dryRun: false, asOf: clockAtYears(7, 1) });
+
+      const entry = await snapshotFor(expiredGrantId);
+
+      // What the audit log is for, kept.
+      expect(entry.table_name).toBe("pending_role_grants");
+      expect(entry.record_id).toBe(expiredGrantId);
+      expect(entry.action).toBe("delete");
+      expect(entry.occurred_at).not.toBeNull();
+      expect(entry.old_data?.status).toBe("pending");
+      expect(entry.old_data?.role_id).not.toBeNull();
+
+      // What it should not hold, gone -- with the key still there, so a reader
+      // can tell a scrubbed field from one that did not exist yet.
+      expect("email" in (entry.old_data ?? {})).toBe(true);
+      expect(entry.old_data?.email).toBeNull();
+      expect(entry.old_data?.name).toBeNull();
+      expect(entry.redacted_at).not.toBeNull();
+    });
+
+    // Without the "is there anything left to scrub" test the sweep would rewrite
+    // and re-report the same entries every night, forever.
+    test("a second run finds nothing left to redact", async () => {
+      await setMode("audit_log_snapshots", "enforce");
+      const runId = await runPurge({
+        dryRun: false,
+        asOf: clockAtYears(7, 1),
+      });
+
+      const counts = await countsFor(runId, "audit_log_snapshots");
+      expect(counts).toHaveLength(1);
+      expect(counts[0].action).toBe("redacted");
+      expect(counts[0].row_count).toBe(0);
+    });
+
+    test("the audit log is still append-only through the API", async () => {
+      const { data } = await adminClient
+        .from("audit_log")
+        .update({ redacted_at: null })
+        .eq("record_id", expiredGrantId)
+        .select("id");
+      expect(data ?? []).toHaveLength(0);
+    });
+  });
+
+  describe("merge snapshots lose their personal keys", () => {
+    let mergeId: string;
+    let survivorId: string;
+
+    beforeAll(async () => {
+      const email = uniqueEmail("retention-merge");
+      const survivor = await createPerson({
+        name: "Retention Survivor",
+        email,
+      });
+      const duplicate = await createPerson({
+        name: "Retention Duplicate",
+        email: uniqueEmail("retention-merge-dupe"),
+      });
+      survivorId = survivor.id;
+
+      const { error } = await adminClient.rpc("merge_people", {
+        p_survivor_id: survivor.id,
+        p_duplicate_id: duplicate.id,
+      });
+      if (error) throw error;
+
+      const { data, error: mergeError } = await serviceClient
+        .from("person_merges")
+        .select("id")
+        .eq("survivor_person_id", survivor.id)
+        .single();
+      if (mergeError) throw mergeError;
+      mergeId = data.id as string;
+
+      cleanups.push(survivor.cleanup);
+      cleanups.push(async () => {
+        await serviceClient.from("person_merges").delete().eq("id", mergeId);
+      });
+    });
+
+    async function mergeRow() {
+      const { data, error } = await serviceClient
+        .from("person_merges")
+        .select(
+          "survivor_person_id, merged_person_id, merged_at, repointed, merged_snapshot, survivor_before, redacted_at",
+        )
+        .eq("id", mergeId)
+        .single();
+      if (error) throw error;
+      return data;
+    }
+
+    test("a merge inside the window keeps both snapshots", async () => {
+      await setMode("person_merge_snapshots", "enforce");
+      await runPurge({ dryRun: false, asOf: clockAtYears(7, -1) });
+
+      const row = await mergeRow();
+      expect(row.merged_snapshot?.name).toBe("Retention Duplicate");
+      expect(row.redacted_at).toBeNull();
+    });
+
+    test("the record of the merge survives without the person's details", async () => {
+      await setMode("person_merge_snapshots", "enforce");
+      await runPurge({ dryRun: false, asOf: clockAtYears(7, 1) });
+
+      const row = await mergeRow();
+
+      // Who merged whom, when, and what moved: the reason the table exists.
+      expect(row.survivor_person_id).toBe(survivorId);
+      expect(row.merged_person_id).not.toBeNull();
+      expect(row.merged_at).not.toBeNull();
+      expect(row.repointed).not.toBeNull();
+
+      expect(row.merged_snapshot?.name).toBeNull();
+      expect(row.merged_snapshot?.email).toBeNull();
+      expect(row.survivor_before?.name).toBeNull();
+      expect(row.survivor_before?.email).toBeNull();
+      // Not personal, and not registered: the shape of the row stays readable.
+      expect(row.merged_snapshot?.id).not.toBeNull();
+      expect(row.redacted_at).not.toBeNull();
+    });
+  });
+
+  // "Does a deletion request reach the audit log?" -- #720's second open
+  // question. It does, at the moment of the request rather than seven years
+  // later, and without consulting the policy mode: the scheduled clocks are
+  // proposals awaiting a board decision, while honouring a request is a
+  // commitment /privacy already makes.
+  describe("a deletion request reaches both copies immediately", () => {
+    let personId: string;
+    let donationId: string;
+    let mergeId: string;
+
+    beforeAll(async () => {
+      const person = await createPerson({
+        name: "Retention Requester",
+        email: uniqueEmail("retention-request"),
+      });
+      personId = person.id;
+
+      const duplicate = await createPerson({ name: "Retention Request Dupe" });
+      const { error: mergeError } = await adminClient.rpc("merge_people", {
+        p_survivor_id: person.id,
+        p_duplicate_id: duplicate.id,
+      });
+      if (mergeError) throw mergeError;
+
+      const { data: merge } = await serviceClient
+        .from("person_merges")
+        .select("id")
+        .eq("survivor_person_id", person.id)
+        .single();
+      mergeId = merge!.id as string;
+
+      // An audited row that both names this person and carries free text about
+      // them, so its audit entry holds both. A gear movement would not do:
+      // inventory_movements.notes is in audited_tables.redacted_columns
+      // (20260905160000) and never reaches a snapshot in the first place.
+      const { data, error } = await adminClient
+        .from("donations")
+        .insert({
+          donor_id: person.id,
+          donated_at: new Date().toISOString(),
+          notes: "Dropping off two jackets on Saturday.",
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      donationId = data.id as string;
+
+      cleanups.push(person.cleanup);
+      cleanups.push(async () => {
+        await serviceClient.from("person_merges").delete().eq("id", mergeId);
+        // The request path records the subject on the run log, and
+        // retention_run_tables.subject_person_id is a real foreign key -- so the
+        // fixture person cannot be deleted until this evidence row goes.
+        await serviceClient
+          .from("retention_run_tables")
+          .delete()
+          .eq("subject_person_id", personId);
+        // Takes the donor row with it, which is why person.cleanup above is
+        // pushed first and so runs last: cleanups are replayed in reverse.
+        await cleanupDonation(donationId);
+      });
+    });
+
+    test("the request redacts the snapshots and records that it did", async () => {
+      // Off, not merely dry_run: a request is not on a clock and is not gated
+      // on the board having approved one.
+      await setMode("audit_log_snapshots", "off");
+      await setMode("person_merge_snapshots", "off");
+
+      const { error } = await adminClient.rpc("delete_rider_profile", {
+        p_person_id: personId,
+        p_reason: "Asked us to delete their profile",
+      });
+      if (error) throw error;
+
+      const { data: merge } = await serviceClient
+        .from("person_merges")
+        .select("merged_snapshot, survivor_before, redacted_at")
+        .eq("id", mergeId)
+        .single();
+      expect(merge!.merged_snapshot?.name).toBeNull();
+      expect(merge!.survivor_before?.name).toBeNull();
+      expect(merge!.redacted_at).not.toBeNull();
+
+      const { data: entry } = await serviceClient
+        .from("audit_log")
+        .select("new_data, record_id, redacted_at")
+        .eq("table_name", "donations")
+        .eq("record_id", donationId)
+        .eq("action", "insert")
+        .single();
+      expect(entry!.new_data?.notes).toBeNull();
+      // The id stays: the person row it points at is anonymized by the same
+      // rules, and it is what still explains why the donation exists.
+      expect(entry!.new_data?.donor_id).toBe(personId);
+      expect(entry!.redacted_at).not.toBeNull();
+
+      const { data: logged } = await adminClient
+        .from("retention_run_tables")
+        .select("policy_key, action, row_count, subject_person_id")
+        .eq("subject_person_id", personId);
+      const byPolicy = new Map(
+        (logged ?? []).map((row) => [row.policy_key, row]),
+      );
+      expect(byPolicy.get("person_merge_snapshots")?.action).toBe("redacted");
+      expect(byPolicy.get("person_merge_snapshots")?.row_count).toBe(1);
+      expect(byPolicy.get("audit_log_snapshots")?.row_count).toBe(1);
+    });
+  });
+
+  // The failure this design has, guarded rather than hoped about: an audited
+  // table added next season whose personal columns nobody registered, whose
+  // snapshots are then kept in full forever while the page reports the rule as
+  // applied. Registering the column in the migration that audits the table is
+  // what makes this pass again.
+  test("every obviously personal column on an audited table is registered", async () => {
+    const { data, error } = await serviceClient.rpc(
+      "retention_unregistered_personal_columns",
+    );
+    if (error) throw error;
+    expect(data ?? []).toEqual([]);
   });
 
   describe("authorization", () => {
