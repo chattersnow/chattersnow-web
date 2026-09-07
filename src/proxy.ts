@@ -3,21 +3,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import {
   PORTAL_HOST,
   PUBLIC_HOSTS,
+  isPortalHost,
   isPortalPathname,
   stripPortalPrefix,
 } from "@/lib/portal/paths";
-
-/**
- * Any `portal.` subdomain is a portal host (#707 Phase 4). A tenant on its
- * own domain points `portal.<domain>` at the same deployment and gets the
- * same unprefixed portal the Chatter Snow host has; `public_tenant_id()`
- * resolves it through the parent-domain match on `tenants.custom_domain`.
- * The apex -> portal redirect above stays Chatter Snow's own: it assumes the
- * subdomain exists, which only that tenant's DNS has promised.
- */
-function isPortalHost(hostname: string): boolean {
-  return hostname === PORTAL_HOST || hostname.startsWith("portal.");
-}
 
 // Paths that live at the app root and must keep working unprefixed on the
 // portal host. `/portal` is a route-group prefix, not a mount point, so
@@ -82,12 +71,18 @@ export function resolvePortalRoute(
     // is what stops them showing up as portal.chattersnow.org/portal/home.
     // 307 rather than 308: nothing about the split is settled enough to want
     // it burned into browser caches.
+    //
+    // The redirect stays on the host it arrived at, not PORTAL_HOST: a tenant
+    // reaching its own portal.<domain> has to stay there. Sending it to Chatter
+    // Snow's host would drop the tenant `public_tenant_id()` resolves from the
+    // hostname, and strand the session cookie on a domain the visitor never
+    // asked for.
     if (isPortalPath) {
       return isNonDocumentRequest
         ? { kind: "pass" }
         : {
             kind: "redirect",
-            host: PORTAL_HOST,
+            host: hostname,
             pathname: stripPortalPrefix(pathname),
             status: 307,
           };
