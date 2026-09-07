@@ -65,14 +65,36 @@ afterAll(async () => {
   await service
     .from("retention_policies")
     .update({ mode: baselineMode })
-    .eq("policy_key", POLICY_KEY);
+    .eq("policy_key", POLICY_KEY)
+    .eq("tenant_id", await tenantId());
 });
+
+/**
+ * The tenant the actions under test answer for. Named explicitly because
+ * `service` bypasses RLS and, since #707 Phase 5b, there is one policy row per
+ * policy *per tenant* -- an unscoped read is only ever right by accident, on a
+ * database that happens to hold one tenant.
+ */
+let seededTenantId: string | null = null;
+async function tenantId(): Promise<string> {
+  if (seededTenantId) return seededTenantId;
+  const { data, error } = await service
+    .from("tenants")
+    .select("id")
+    .order("created_at")
+    .limit(1)
+    .single();
+  if (error) throw error;
+  seededTenantId = data.id as string;
+  return seededTenantId;
+}
 
 async function modeOf(policyKey: string) {
   const { data, error } = await service
     .from("retention_policies")
     .select("mode")
     .eq("policy_key", policyKey)
+    .eq("tenant_id", await tenantId())
     .single();
   if (error) throw error;
   return data.mode as string;

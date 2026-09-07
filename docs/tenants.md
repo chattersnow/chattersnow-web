@@ -247,11 +247,40 @@ Permission rows already work this way (`join public.roles r on r.name = ...`
 reaches every tenant's role of that name), which is what keeps
 `provision_tenant()` correct without maintenance.
 
+## Data retention
+
+Every tenant has its own rules, its own runs and its own log (#707 Phase 5b,
+`20260906160000`). A tenant gets the platform-default clocks the moment it is
+created -- an `after insert` trigger on `tenants` copies them from the oldest
+tenant -- and every one of them arrives in `dry_run`, whatever the source
+tenant has set. Turning a rule on is a decision each organization makes for
+itself after reviewing a few nights of its own counts (#722); inheriting
+somebody else's answer is the one thing provisioning must not do.
+
+Administration → Data Retention therefore shows an organization its own rules
+and its own history and nothing else. `trigger_retention_run()` sweeps the
+caller's tenant; `set_retention_policy_mode()` changes the caller's rule, and
+reports a key that exists only in another tenant as unknown.
+
+Before this, both of those RPCs were granted to `authenticated`, gated only on
+`administration:manage`, and acted on one global table -- so any tenant's admin
+could turn on and run an enforcing purge over every tenant's donor and
+participant data. That was the last standing cross-tenant control.
+
+The nightly `pg_cron` job (`20260905140000`) is unchanged and must not be
+rescheduled: it calls `run_retention_purge(p_dry_run => false, p_trigger =>
+'cron')`, the new fourth argument `p_tenant_id` defaults to null, and null
+means every active tenant -- one run row, one log and one status per tenant, so
+one organization's bad clock cannot discard another's sweep.
+
+One rule is deliberately platform-wide. `rate_limit_hits` holds an IP address
+and a route and has no tenant to belong to, so the sweep purges it once and
+takes the **shortest** period any tenant has set -- the privacy-correct
+direction for that data, and the reason the page labels that row as shared.
+Each tenant's run still logs the rule, so the page explains it rather than
+appearing to have skipped it.
+
 ## Still owed
 
-- Per-tenant retention policies: `retention_policies` is one platform-wide
-  set and `run_retention_purge()` is one nightly sweep. Any tenant's admin
-  can run or reconfigure it from Administration → Data Retention until it is
-  scoped, which is the remaining cross-tenant control.
 - Nothing in Supabase Storage is per tenant today; if a bucket ever is,
   `delete_tenant()` and the export have to learn about it.

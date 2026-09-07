@@ -103,7 +103,21 @@ afterAll(async () => {
     .delete()
     .in("person_id", madeHere);
   await service.from("people").delete().eq("id", otherPersonId);
-  await service.from("tenants").delete().eq("id", otherTenantId);
+  // retention_policies first: since #707 Phase 5b a trigger on tenants seeds
+  // every new tenant's rules, and that foreign key is `no action` like every
+  // other one to tenants. The error is checked because it was not: the delete
+  // failed silently, the tenant survived the rest of the run, and the next
+  // file to read a per-tenant table as service_role got two rows where it
+  // expected one.
+  await service
+    .from("retention_policies")
+    .delete()
+    .eq("tenant_id", otherTenantId);
+  const { error: tenantDeleteError } = await service
+    .from("tenants")
+    .delete()
+    .eq("id", otherTenantId);
+  if (tenantDeleteError) throw tenantDeleteError;
   // supabase/seed.sql deliberately leaves volunteer@ without a people row --
   // src/lib/auth/current-person.integration.test.ts depends on that to
   // exercise the link-by-email and no-row paths -- so the one provisioned in
