@@ -230,3 +230,98 @@ describe("requestGearItemsAction (integration)", () => {
     expect(await getInventoryItemStatus(items[8])).toBe("available");
   });
 });
+
+// #748. The "already taken" case above is sequential -- the first request has
+// committed before the second starts, so the RPC's status read sees it. The
+// case that actually double-books an item is two carts checking availability
+// before either has reserved, which only overlapping promises produce.
+describe("requestGearItemsAction under concurrency", () => {
+  // The requester `people` rows resolve_or_create_person_by_email() minted.
+  // Registered before the gear fixture so it pops last: cleanupDonation()
+  // clears the movements that reference them first.
+  function cleanUpRequesters(emails: string[]) {
+    cleanups.push(async () => {
+      await adminClient.from("people").delete().in("email", emails);
+    });
+  }
+
+  async function reservedMovements(itemIds: string[]) {
+    const { data, error } = await adminClient
+      .from("inventory_movements")
+      .select("inventory_item_id, recipient_person_id")
+      .in("inventory_item_id", itemIds)
+      .eq("movement_type", "reserved");
+    if (error) throw error;
+    return data;
+  }
+
+  test("hands one item to exactly one of two simultaneous requesters", async () => {
+    currentIp = uniqueIp();
+    const emails = [uniqueEmail("race-a"), uniqueEmail("race-b")];
+    cleanUpRequesters(emails);
+    const [item] = await gearItems(1);
+
+    const results = await Promise.all(
+      emails.map((email, i) =>
+        requestGearItemsAction([item], formData({ name: `Racer ${i}`, email })),
+      ),
+    );
+
+    expect(results.filter((result) => "success" in result)).toHaveLength(1);
+    expect(results.filter((result) => "error" in result)).toEqual([
+      {
+        error:
+          "Sorry, one of the items in your cart was just requested by someone else. Remove it and try again.",
+      },
+    ]);
+
+    // One reservation, to one person -- not two rows, and not a second row
+    // silently overwriting the first requester.
+    const movements = await reservedMovements([item]);
+    expect(movements).toHaveLength(1);
+    expect(await getInventoryItemStatus(item)).toBe("reserved");
+  });
+
+  // Two carts that overlap on one item but not the other. Whoever loses the
+  // contested item must lose their whole cart: a half-filled request would
+  // strand the uncontested item as reserved for someone who was told no.
+  test("keeps overlapping carts all-or-nothing, in either lock order", async () => {
+    currentIp = uniqueIp();
+    const emails = [uniqueEmail("cart-a"), uniqueEmail("cart-b")];
+    cleanUpRequesters(emails);
+    const [onlyA, contested, onlyB] = await gearItems(3);
+
+    // Reversed item order between the two carts: request_gear_items locks its
+    // pre-check pass in sorted order precisely so this cannot deadlock.
+    const [first, second] = await Promise.all([
+      requestGearItemsAction(
+        [onlyA, contested],
+        formData({ name: "Cart A", email: emails[0] }),
+      ),
+      requestGearItemsAction(
+        [contested, onlyB],
+        formData({ name: "Cart B", email: emails[1] }),
+      ),
+    ]);
+
+    const winnerIsA = "success" in first;
+    expect(winnerIsA ? second : first).toEqual({
+      error:
+        "Sorry, one of the items in your cart was just requested by someone else. Remove it and try again.",
+    });
+    expect(winnerIsA ? first : second).toEqual({ success: true });
+
+    expect(await getInventoryItemStatus(contested)).toBe("reserved");
+    expect(await getInventoryItemStatus(winnerIsA ? onlyA : onlyB)).toBe(
+      "reserved",
+    );
+    // The loser's uncontested item stays free for the next visitor.
+    expect(await getInventoryItemStatus(winnerIsA ? onlyB : onlyA)).toBe(
+      "available",
+    );
+
+    const movements = await reservedMovements([onlyA, contested, onlyB]);
+    expect(movements).toHaveLength(2);
+    expect(new Set(movements.map((m) => m.recipient_person_id)).size).toBe(1);
+  });
+});

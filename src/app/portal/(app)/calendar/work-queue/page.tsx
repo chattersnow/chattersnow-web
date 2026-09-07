@@ -4,8 +4,9 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth/permissions";
 import { resolveCurrentPersonId } from "@/lib/auth/current-person";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { listCalendarOwnersAction } from "../actions";
-import { listWorkQueueItems } from "../queries";
+import { listWorkQueueItems, WORK_QUEUE_MAX_ITEMS } from "../queries";
 import { WorkQueueTable } from "../work-queue-table";
 import {
   effectiveDueDate,
@@ -40,11 +41,12 @@ export default async function WorkQueuePage({
 
   // owner_id/reviewer_id are people ids, so "my work" has to match on the
   // signed-in user's people row, not their auth id.
-  const [currentPersonId, items, ownersResult] = await Promise.all([
+  const [currentPersonId, queue, ownersResult] = await Promise.all([
     resolveCurrentPersonId(supabase),
     listWorkQueueItems(supabase),
     listCalendarOwnersAction(),
   ]);
+  const items = queue.items;
   const owners = "data" in ownersResult ? ownersResult.data : [];
 
   const myWorkItems = currentPersonId
@@ -142,6 +144,30 @@ export default async function WorkQueuePage({
           )}
         </div>
       </div>
+
+      {queue.error && (
+        <Alert variant="destructive" className="mt-4">
+          <AlertTitle>The work queue could not be loaded</AlertTitle>
+          <AlertDescription>
+            Nothing below is a reliable picture of what is outstanding. Reload
+            the page, and if it keeps failing tell an administrator.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {queue.truncated && (
+        <Alert className="mt-4">
+          <AlertTitle>
+            Showing the first {WORK_QUEUE_MAX_ITEMS.toLocaleString()} calendar
+            items
+          </AlertTitle>
+          <AlertDescription>
+            The calendar holds more non-archived items than this page loads, so
+            the furthest-out ones are not listed. Archive what is finished on
+            the Calendar page to bring the queue back under the limit.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {tab === "my-work" ? (
         <WorkQueueTable

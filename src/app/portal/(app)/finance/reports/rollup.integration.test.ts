@@ -27,6 +27,7 @@ function uniqueAmount() {
 }
 
 const IN_RANGE_DATE = "2026-03-15";
+const EARLIER_IN_RANGE_DATE = "2026-03-05";
 const IN_RANGE = { p_from: "2026-03-01", p_to: "2026-03-31" };
 const OUT_OF_RANGE = { p_from: "2026-04-01", p_to: "2026-04-30" };
 const today = new Date().toISOString().slice(0, 10);
@@ -56,26 +57,6 @@ function amounts(rows: { amount: string | number }[]) {
   return rows.map((row) => Number(row.amount));
 }
 
-// Every array in the payload comes from a `jsonb_agg` with no `order by`
-// (20260906090000), so its order is whatever the planner happens to return
-// and two calls can disagree -- deleting a row leaves a heap hole that the
-// next insert reuses, which is enough to flip it. Comparing two payloads for
-// equality therefore has to sort first, or the test asserts an order the RPC
-// never promised. See #757 for giving the RPC a defined order.
-function canonical(payload: ReportPayload) {
-  const sorted = <T>(rows: T[]) =>
-    [...rows].sort((a, b) =>
-      JSON.stringify(a).localeCompare(JSON.stringify(b)),
-    );
-  return {
-    revenue: sorted(payload.revenue),
-    expenses: sorted(payload.expenses),
-    reimbursements: sorted(payload.reimbursements),
-    in_kind_items: sorted(payload.in_kind_items),
-    monetary_donations: sorted(payload.monetary_donations),
-  };
-}
-
 async function insertFixture(
   table: string,
   row: Record<string, unknown>,
@@ -102,6 +83,17 @@ const revenueId = await insertFixture("event_revenue", {
   source: "ticket_sales",
   amount: revenueAmount,
   received_date: IN_RANGE_DATE,
+});
+
+// Inserted after the row above but dated before it, so the ordering test
+// below fails if the RPC ever goes back to returning rows in whatever order
+// the planner produces.
+const earlierRevenueAmount = uniqueAmount();
+const earlierRevenueId = await insertFixture("event_revenue", {
+  event_id: event.id,
+  source: "ticket_sales",
+  amount: earlierRevenueAmount,
+  received_date: EARLIER_IN_RANGE_DATE,
 });
 
 const expenseId = await insertFixture("event_expenses", {
@@ -134,6 +126,7 @@ afterAll(async () => {
   await adminClient.from("monetary_donations").delete().eq("id", donationId);
   await person.cleanup();
   await adminClient.from("event_revenue").delete().eq("id", revenueId);
+  await adminClient.from("event_revenue").delete().eq("id", earlierRevenueId);
   await adminClient.from("event_expenses").delete().eq("id", expenseId);
   await event.cleanup();
 });
@@ -154,7 +147,10 @@ describe("get_finance_report_data access", () => {
       report(boardClient, IN_RANGE),
       report(adminClient, IN_RANGE),
     ]);
-    expect(canonical(boardPayload)).toEqual(canonical(adminPayload));
+    // Compared unsorted: every array in the payload is ordered by date then
+    // id (20260907130000), so two callers reading the same period get the
+    // same rows in the same order.
+    expect(boardPayload).toEqual(adminPayload);
     expect(amounts(boardPayload.revenue)).toContain(revenueAmount);
     expect(amounts(boardPayload.expenses)).toContain(expenseAmount);
     expect(amounts(boardPayload.monetary_donations)).toContain(donationAmount);
@@ -168,6 +164,26 @@ describe("get_finance_report_data access", () => {
     const client = await signInAs(email);
     const { error } = await client.rpc("get_finance_report_data", IN_RANGE);
     expect(error?.message).toContain("Not authorized");
+  });
+});
+
+describe("get_finance_report_data row order", () => {
+  // #757: the arrays used to come back in planner order, so the same report
+  // could list its rows differently on two consecutive loads.
+  test("orders revenue by received date, not insertion order", async () => {
+    const payload = await report(adminClient, IN_RANGE);
+    const rows = amounts(payload.revenue);
+    const earlier = rows.indexOf(earlierRevenueAmount);
+    const later = rows.indexOf(revenueAmount);
+    expect(earlier).toBeGreaterThanOrEqual(0);
+    expect(later).toBeGreaterThanOrEqual(0);
+    expect(earlier).toBeLessThan(later);
+  });
+
+  test("returns the same order on two consecutive calls", async () => {
+    const first = await report(adminClient, IN_RANGE);
+    const second = await report(adminClient, IN_RANGE);
+    expect(second).toEqual(first);
   });
 });
 

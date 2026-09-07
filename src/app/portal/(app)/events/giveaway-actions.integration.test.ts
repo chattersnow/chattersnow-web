@@ -470,3 +470,101 @@ describe("giveaway actions (integration)", () => {
     await event.cleanup();
   });
 });
+
+// #748. The serial allocation tests above prove the reserve happens; they
+// cannot prove it happens once. Two coordinators picking the same donated
+// item out of a source list they each loaded a moment ago is the case that
+// puts one physical item behind two prizes -- the FK is not unique, so only
+// the RPC's row lock stands between them.
+describe("giveaway prize allocation under concurrency", () => {
+  async function prizesUsingItem(itemId: string) {
+    const { data, error } = await adminClient
+      .from("giveaway_prizes")
+      .select("id")
+      .eq("source_inventory_item_id", itemId);
+    if (error) throw error;
+    return data;
+  }
+
+  async function reservedMovements(itemId: string) {
+    const { data, error } = await adminClient
+      .from("inventory_movements")
+      .select("id")
+      .eq("inventory_item_id", itemId)
+      .eq("movement_type", "reserved");
+    if (error) throw error;
+    return data;
+  }
+
+  test("allocates one donated item to exactly one prize", async () => {
+    const event = await createPublishedEvent();
+    const giveawayId = await seedGiveaway(event.id);
+    const donation = await seedEventDonation(event.id);
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+    const results = await Promise.all([
+      createGiveawayPrizeAction(giveawayId, null, prizeForm(), donation.itemId),
+      createGiveawayPrizeAction(giveawayId, null, prizeForm(), donation.itemId),
+    ]);
+
+    expect(results.filter((result) => "success" in result)).toHaveLength(1);
+    expect(await prizesUsingItem(donation.itemId)).toHaveLength(1);
+    // One reservation, not two: a second would leave a movement the release
+    // path never undoes, since releasing only writes one 'available' back.
+    expect(await reservedMovements(donation.itemId)).toHaveLength(1);
+    expect(await getInventoryItemStatus(donation.itemId)).toBe("reserved");
+
+    await adminClient.from("giveaways").delete().eq("id", giveawayId);
+    await adminClient
+      .from("inventory_movements")
+      .delete()
+      .eq("inventory_item_id", donation.itemId)
+      .eq("movement_type", "reserved");
+    await donation.cleanup();
+    await event.cleanup();
+  });
+
+  // The same item reached from two different giveaways -- two coordinators on
+  // two events, both offered it because it was donated to neither in
+  // particular. Nothing scopes the lock to one giveaway, so this must hold too.
+  test("allocates one donated item to exactly one giveaway", async () => {
+    const firstEvent = await createPublishedEvent();
+    const secondEvent = await createPublishedEvent();
+    const firstGiveaway = await seedGiveaway(firstEvent.id);
+    const secondGiveaway = await seedGiveaway(secondEvent.id);
+    const donation = await seedEventDonation(firstEvent.id);
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+    const results = await Promise.all([
+      createGiveawayPrizeAction(
+        firstGiveaway,
+        null,
+        prizeForm(),
+        donation.itemId,
+      ),
+      createGiveawayPrizeAction(
+        secondGiveaway,
+        null,
+        prizeForm(),
+        donation.itemId,
+      ),
+    ]);
+
+    expect(results.filter((result) => "success" in result)).toHaveLength(1);
+    expect(await prizesUsingItem(donation.itemId)).toHaveLength(1);
+    expect(await reservedMovements(donation.itemId)).toHaveLength(1);
+
+    await adminClient
+      .from("giveaways")
+      .delete()
+      .in("id", [firstGiveaway, secondGiveaway]);
+    await adminClient
+      .from("inventory_movements")
+      .delete()
+      .eq("inventory_item_id", donation.itemId)
+      .eq("movement_type", "reserved");
+    await donation.cleanup();
+    await secondEvent.cleanup();
+    await firstEvent.cleanup();
+  });
+});

@@ -393,3 +393,80 @@ describe("inventory_movements table RLS (integration, no Server Action to exerci
     await movement.cleanup();
   });
 });
+
+// #748. Nothing above fires two distributions at the same item at once, and
+// nothing in the serial tests can: the picker only offers `status =
+// 'available'` items, so a second staffer's stale page is the only way to
+// reach the RPC with an item that is already gone -- which is exactly what a
+// stale page does.
+describe("recordEventDistributionAction under concurrency", () => {
+  async function distributedMovements(itemId: string) {
+    const { data, error } = await adminClient
+      .from("inventory_movements")
+      .select("id")
+      .eq("inventory_item_id", itemId)
+      .eq("movement_type", "distributed");
+    if (error) throw error;
+    return data;
+  }
+
+  test("gives the last unit away once when two sessions distribute it at once", async () => {
+    const { itemIds, cleanup } = await createAvailableGearItems(1);
+    const [itemId] = itemIds;
+    // Two overlapping calls on one signed-in staffer's session: the double
+    // submit a stale picker produces. The guard has to live in Postgres, so
+    // whose session each call belongs to makes no difference to the race.
+    currentSupabase = await signIn(SEEDED_USERS.admin);
+
+    const results = await Promise.all([
+      recordEventDistributionAction(distributionInput(itemId)),
+      recordEventDistributionAction(distributionInput(itemId)),
+    ]);
+
+    expect(results.filter((result) => "success" in result)).toHaveLength(1);
+    expect(results.filter((result) => "error" in result)).toEqual([
+      {
+        error:
+          "That item has already been distributed. Refresh and pick another.",
+      },
+    ]);
+    expect(await distributedMovements(itemId)).toHaveLength(1);
+    expect(await getInventoryItemStatus(itemId)).toBe("distributed");
+
+    await adminClient
+      .from("inventory_movements")
+      .delete()
+      .eq("inventory_item_id", itemId)
+      .eq("movement_type", "distributed");
+    await cleanup();
+  });
+
+  // markDistributed: false is the partial-quantity path -- the item stays on
+  // the shelf on purpose, so repeat movements against it are legitimate
+  // bookkeeping and must not be refused by the guard above.
+  test("still allows concurrent movements that do not claim the item", async () => {
+    const { itemIds, cleanup } = await createAvailableGearItems(1);
+    const [itemId] = itemIds;
+    currentSupabase = await signIn(SEEDED_USERS.admin);
+
+    const results = await Promise.all([
+      recordEventDistributionAction(
+        distributionInput(itemId, { markDistributed: false }),
+      ),
+      recordEventDistributionAction(
+        distributionInput(itemId, { markDistributed: false }),
+      ),
+    ]);
+
+    expect(results).toEqual([{ success: true }, { success: true }]);
+    expect(await distributedMovements(itemId)).toHaveLength(2);
+    expect(await getInventoryItemStatus(itemId)).toBe("available");
+
+    await adminClient
+      .from("inventory_movements")
+      .delete()
+      .eq("inventory_item_id", itemId)
+      .eq("movement_type", "distributed");
+    await cleanup();
+  });
+});
