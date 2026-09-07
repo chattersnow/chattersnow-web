@@ -1,10 +1,8 @@
 import Link from "next/link";
 import { PRIVACY_EMAIL } from "@/lib/contact-addresses";
 import { RETENTION } from "@/lib/retention";
-import {
-  LegalPageShell,
-  type LegalSection,
-} from "@/components/legal-page-shell";
+import { LegalPageShell } from "@/components/legal-page-shell";
+import { LEGAL_DOCUMENT_OUTLINES } from "@/lib/site-content";
 
 // Shown to visitors and kept in sync by hand: bump it in the same commit as
 // any change to the policy text below, since a stale date is worse than none.
@@ -69,22 +67,11 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Drives the section nav beside the document. Every entry has to match an
-// id on a <section> below, or the link scrolls nowhere -- legal-page.dom.test.tsx
-// checks the two stay in step.
-const SECTIONS: readonly LegalSection[] = [
-  { id: "what-we-collect", title: "What we collect, and why" },
-  { id: "what-we-dont-do", title: "What we don’t do" },
-  { id: "how-long-we-keep-it", title: "How long we keep it" },
-  { id: "who-can-see-it", title: "Who can see it" },
-  { id: "how-we-protect-it", title: "How we protect it" },
-  { id: "cookies-and-analytics", title: "Cookies and analytics" },
-  { id: "other-sites", title: "Other sites we link to" },
-  { id: "your-choices", title: "Your choices" },
-  { id: "minors", title: "Minors" },
-  { id: "changes", title: "Changes to this policy" },
-  { id: "contact", title: "Contact" },
-] as const;
+// Drives the section nav beside the document, and the outline the Site Content
+// editor offers as a starting point for a tenant's own version -- one list, so
+// the two cannot drift (#792). Every entry has to match an id on a <section>
+// below, or the link scrolls nowhere; legal-page.dom.test.tsx checks that.
+const SECTIONS = LEGAL_DOCUMENT_OUTLINES["legal.privacy"].sections;
 
 /** Search/link-preview description for the platform's own document. */
 export const DESCRIPTION =
