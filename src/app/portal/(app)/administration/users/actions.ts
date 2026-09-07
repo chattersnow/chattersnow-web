@@ -263,6 +263,26 @@ export async function createInviteLinkAction(
     return { error: "This grant has already been claimed or revoked." };
   }
 
+  // #759. mintInviteLink falls back from `invite` to `magiclink` when the
+  // address already has an account -- which is what makes re-inviting somebody
+  // work, and what would otherwise hand this caller a *session* as an account
+  // that is not theirs to invite. A grant staged before the policy below
+  // existed is still in the table, so this check is the load-bearing half;
+  // the policy is what stops new ones.
+  const { data: ours, error: oursError } = await supabase.rpc(
+    "email_is_this_tenants_to_invite",
+    { p_email: grant.email },
+  );
+  if (oursError) {
+    return { error: "Could not check this email. Please try again." };
+  }
+  if (!ours) {
+    return {
+      error:
+        "That address already has an account that is not this organization's, so a link cannot be sent to it. Ask them to sign in with the account they have — their access here is waiting for them.",
+    };
+  }
+
   // The domain the admin is on, so a tenant's invite lands on that tenant's
   // site (#707 Phase 4).
   const siteUrl = await getRequestOrigin();

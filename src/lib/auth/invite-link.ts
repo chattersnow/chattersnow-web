@@ -11,12 +11,12 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
  * session.
  *
  * The magic-link fallback is what makes re-inviting somebody who already has
- * an account work rather than dead-end on `email_exists`. It is also why #759
- * exists: nothing here checks that the address is the caller's tenant's to
- * invite, so the fallback can mint a session for an account belonging to
- * somebody else. Fixing that is #759's job -- this helper deliberately does
- * not grow a policy of its own, because a check that lives in one of three
- * copies is the situation we just removed. Callers gate; this mints.
+ * an account work rather than dead-end on `email_exists`. It is also why this
+ * helper mints and does not decide: the fallback produces a token that
+ * /auth/confirm turns into a *session* as that account, so whether the address
+ * is the caller's to invite is a question that must be answered before getting
+ * here. `email_is_this_tenants_to_invite()` (#759) is that answer, and
+ * `createInviteLinkAction` is where it is asked. Callers gate; this mints.
  */
 export type InviteLink = { link: string } | { error: string };
 

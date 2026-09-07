@@ -275,7 +275,7 @@ export function PlatformTenants({
                     description: (result) =>
                       result.link
                         ? undefined
-                        : "No invite link: no first admin was given, or the link could not be minted.",
+                        : "No invite link: no first admin was given, or that address already has an account — they sign in with it and their access is waiting.",
                     onError: setFormError,
                     onSuccess: (result) => {
                       setInvite(result.link);

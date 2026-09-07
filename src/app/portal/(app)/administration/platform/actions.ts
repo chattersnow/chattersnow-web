@@ -76,6 +76,19 @@ export async function provisionTenantAction(input: {
   // from the new tenant's own Users page or the CLI.
   if (!adminEmail) return { success: true, link: null };
 
+  // #759 applies here too, and arguably most of all: minting a link to an
+  // address that already has an account is the takeover primitive, and this
+  // page is the one that makes it reachable from a browser rather than a
+  // shell. The operator is trusted -- they are the person who would otherwise
+  // run `tenant:provision` as service_role -- but "trusted" is not a reason to
+  // leave the primitive sitting on a page. A first admin who already has an
+  // account signs in with it and claims the staged grant; no link is needed,
+  // and the CLI remains the escape hatch for the case that needs one.
+  const { data: ours } = await supabase.rpc("email_is_this_tenants_to_invite", {
+    p_email: adminEmail,
+  });
+  if (!ours) return { success: true, link: null };
+
   // The link has to land on the tenant's own domain, not on ours, or the first
   // admin signs in somewhere that is not their site. Falls back to the origin
   // the operator is on when the tenant has no domain yet.
