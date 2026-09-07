@@ -66,10 +66,16 @@ describe("renderOpsReport bodies", () => {
     // 13:00 UTC on the 13th is 7:00 in the morning in Denver, which is when
     // the job actually runs -- rendering it in the server's UTC would read as
     // a report covering since 1pm.
-    expect(text).toStartWith(
-      "Covering everything since Mar 13 at 7:00 AM MDT.",
-    );
-    expect(html).toContain("Covering everything since Mar 13 at 7:00 AM MDT.");
+    //
+    // Asserted piece by piece rather than as one literal: Intl's date/time
+    // separator is an ICU detail, not ours ("Mar 13 at 7:00 AM" on macOS,
+    // "Mar 13, 7:00 AM" on the Linux CI runner), and pinning it makes this
+    // test fail on whichever machine it was not written on.
+    for (const body of [text, html]) {
+      expect(body).toContain("Covering everything since Mar 13");
+      expect(body).toContain("7:00 AM MDT.");
+    }
+    expect(text).toStartWith("Covering everything since ");
   });
 
   test("both parts point at the setting that controls the list", () => {
