@@ -34,7 +34,19 @@ export const GENDERS = [
  */
 export function resolveImageUrl(url: string | null): string | null {
   if (!url) return null;
-  if (!url.includes("drive.google.com")) return url;
+
+  // Matched on the parsed host, not as a substring: "drive.google.com" can sit
+  // anywhere in a URL, so `https://evil.example/drive.google.com/x` passed the
+  // old check (CodeQL js/incomplete-url-substring-sanitization). Site images
+  // may be root-relative paths rather than absolute URLs; those throw here and
+  // fall through unchanged, exactly as they did before.
+  let host: string;
+  try {
+    host = new URL(url).hostname.toLowerCase();
+  } catch {
+    return url;
+  }
+  if (host !== "drive.google.com") return url;
 
   const fileId =
     url.match(/\/file\/d\/([^/]+)/)?.[1] ?? url.match(/[?&]id=([^&]+)/)?.[1];
