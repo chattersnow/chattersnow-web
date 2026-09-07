@@ -476,3 +476,129 @@ describe("markExpensePaidAction (integration)", () => {
     await expense.cleanup();
   });
 });
+
+// #748. Every approval test above acts alone, so the RPC's `status <>
+// 'submitted'` guard is only ever asked about a status some earlier awaited
+// call already wrote. Two approvers clearing the same queue -- the ordinary
+// way a finance queue gets worked -- read `submitted` at the same moment, and
+// only the row lock decides what happens next.
+describe("expense approval under concurrency", () => {
+  // The createSupabaseServerClient mock reads `currentSupabase` synchronously
+  // (its body has no await before the read) and every action captures the
+  // client in its first statement, so setting the variable immediately before
+  // each call pins that call to that session -- which is what lets two
+  // different approvers race through the real action rather than the RPC.
+  function as<T>(client: SupabaseClient, call: () => Promise<T>): Promise<T> {
+    currentSupabase = client;
+    return call();
+  }
+
+  test("two approvers clearing the same queue produce one approval", async () => {
+    const coordinatorId = await userId(SEEDED_USERS.coordinator);
+    const expense = await createExpense({
+      submittedBy: coordinatorId,
+      amount: 42,
+    });
+    const [adminSession, boardSession] = await Promise.all([
+      signIn(SEEDED_USERS.admin),
+      signIn(SEEDED_USERS.board),
+    ]);
+
+    const results = await Promise.all([
+      as(adminSession, () => approveExpenseAction(expense.id)),
+      as(boardSession, () => approveExpenseAction(expense.id)),
+    ]);
+
+    expect(results.filter((result) => "success" in result)).toHaveLength(1);
+    for (const result of results.filter((result) => "error" in result)) {
+      expect(result).toEqual({
+        error: "Only submitted expenses can be approved",
+      });
+    }
+
+    const row = await getExpense(expense.id);
+    expect(row.status).toBe("approved");
+    // One approver is recorded, and it is one of the two who actually raced.
+    expect([
+      await userId(SEEDED_USERS.admin),
+      await userId(SEEDED_USERS.board),
+    ]).toContain(row.approved_by);
+
+    await expense.cleanup();
+  });
+
+  // An approve and a reject arriving together must not leave the row in a
+  // state neither approver chose, and must not record both decisions.
+  test("an approval and a rejection at once settle on exactly one outcome", async () => {
+    const coordinatorId = await userId(SEEDED_USERS.coordinator);
+    const expense = await createExpense({
+      submittedBy: coordinatorId,
+      amount: 42,
+    });
+    const [adminSession, boardSession] = await Promise.all([
+      signIn(SEEDED_USERS.admin),
+      signIn(SEEDED_USERS.board),
+    ]);
+
+    const [approval, rejection] = await Promise.all([
+      as(adminSession, () => approveExpenseAction(expense.id)),
+      as(boardSession, () =>
+        rejectExpenseAction(expense.id, "Duplicate submission"),
+      ),
+    ]);
+
+    expect(
+      [approval, rejection].filter((result) => "success" in result),
+    ).toHaveLength(1);
+
+    const row = await getExpense(expense.id);
+    if ("success" in approval) {
+      expect(row.status).toBe("approved");
+      expect(row.rejected_at).toBeNull();
+    } else {
+      expect(row.status).toBe("rejected");
+      expect(row.approved_by).toBeNull();
+    }
+
+    await expense.cleanup();
+  });
+
+  // The self-approval carve-out is a per-row threshold check, so the only way
+  // concurrency could defeat it is by letting a self-approval commit beside
+  // someone else's. It must still be the one refusal, whichever call wins.
+  test("a self-approval over the threshold is refused even racing a real approver", async () => {
+    const threshold = await approvalThreshold();
+    const financeId = await userId(SEEDED_USERS.finance);
+    const expense = await createExpense({
+      submittedBy: financeId,
+      amount: threshold,
+    });
+    const [financeSession, adminSession] = await Promise.all([
+      signIn(SEEDED_USERS.finance),
+      signIn(SEEDED_USERS.admin),
+    ]);
+
+    const [selfApproval, otherApproval] = await Promise.all([
+      as(financeSession, () => approveExpenseAction(expense.id)),
+      as(adminSession, () => approveExpenseAction(expense.id)),
+    ]);
+
+    // Which refusal the self-approval gets depends on who took the row lock
+    // first -- the threshold when it got there first, "already settled" when
+    // the admin did. Either is correct; approving its own submission is not,
+    // so the assertion is on the outcome rather than on the message.
+    expect(selfApproval).not.toEqual({ success: true });
+    expect([
+      "This expense is at or above the approval threshold and requires a second approver",
+      "Only submitted expenses can be approved",
+    ]).toContain((selfApproval as { error: string }).error);
+    expect(otherApproval).toEqual({ success: true });
+
+    const row = await getExpense(expense.id);
+    expect(row.status).toBe("approved");
+    expect(row.approved_by).toBe(await userId(SEEDED_USERS.admin));
+    expect(row.approved_by).not.toBe(financeId);
+
+    await expense.cleanup();
+  });
+});
