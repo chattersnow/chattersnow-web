@@ -1,9 +1,14 @@
 version: 2
 
 updates:
-  # Application dependencies. Dependabot reads bun.lock directly under the
-  # npm ecosystem, so no separate Bun configuration is needed.
-  - package-ecosystem: "npm"
+  # Application dependencies. This has to be the `bun` ecosystem, not `npm`:
+  # Dependabot split Bun out of npm_and_yarn into its own ecosystem, and the
+  # npm one maintains package-lock.json / yarn.lock -- neither of which this
+  # repo has. Under `npm` it rewrote package.json and left bun.lock untouched,
+  # so every job in every workflow died at `bun install --frozen-lockfile`
+  # ("lockfile had changes, but lockfile is frozen") before running a single
+  # test. `bun` is generally available, so no enable-beta-ecosystems flag.
+  - package-ecosystem: "bun"
     directory: "/"
     schedule:
       interval: "weekly"
@@ -27,6 +32,16 @@ updates:
       - dependency-name: "react"
         update-types: ["version-update:semver-major"]
       - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      # Same reasoning for the build chain. These three are declared with wide
+      # ranges ("^5", "^9", "^20"), so the first weekly run proposed TypeScript
+      # 7, ESLint 10 and @types/node 26 as drive-by bumps. Each is a migration
+      # with its own config and lint-rule fallout, so they get done on purpose.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
