@@ -19,16 +19,26 @@ mock.module("next/navigation", () => ({
   useRouter: () => routerMock,
 }));
 
-const resetMock = mock(
-  async (_key: string): Promise<{ error: string } | { success: true }> => ({
-    success: true,
-  }),
+type ActionResult = { error: string } | { success: true };
+
+const saveMock = mock(
+  async (_entries: { key: string; value: unknown }[]): Promise<ActionResult> =>
+    ({ success: true }) as const,
+);
+const publishMock = mock(
+  async (_keys: string[]): Promise<ActionResult> =>
+    ({ success: true }) as const,
+);
+const discardMock = mock(
+  async (_keys: string[]): Promise<ActionResult> =>
+    ({ success: true }) as const,
 );
 // Mocked wholesale: actions.ts reaches the server Supabase client, which
 // throws when pulled into a client-component module graph.
 mock.module("./actions", () => ({
-  resetSiteContentAction: resetMock,
-  saveSiteContentAction: async () => ({ success: true }) as const,
+  saveSiteContentDraftAction: saveMock,
+  publishSiteContentAction: publishMock,
+  discardSiteContentDraftAction: discardMock,
 }));
 
 const { ContentEditor } = await import("./content-editor");
@@ -87,8 +97,21 @@ function editorSlot(
   slot: ContentSlot,
   value: unknown,
   overridden = false,
+  hasDraft = false,
 ): EditorSlot {
-  return { slot, value, overridden };
+  return {
+    slot,
+    value,
+    // What the public sees: the draft's value is not it, so a slot with a
+    // pending draft is published as whatever it was before.
+    published: hasDraft ? slot.default : overridden ? value : slot.default,
+    overridden,
+    hasDraft,
+    draftUpdatedAt: hasDraft ? "2026-09-07T10:00:00Z" : null,
+    draftUpdatedBy: hasDraft ? "Robin" : null,
+    publishedAt: overridden ? "2026-09-01T10:00:00Z" : null,
+    publishedBy: overridden ? "Alex" : null,
+  };
 }
 
 /** What the server sends for the twelve pages that are not being edited. */
@@ -98,17 +121,19 @@ const OTHER_PAGE: OutlineEntry = {
   key: "contact.intro",
   label: "Introduction",
   overridden: false,
+  hasDraft: false,
   text: "Ask us anything about a rutabaga.",
 };
 
 function outlineFor(slots: EditorSlot[]): OutlineEntry[] {
   return [
-    ...slots.map(({ slot, overridden }) => ({
+    ...slots.map(({ slot, overridden, hasDraft }) => ({
       page: slot.page,
       section: slot.section,
       key: slot.key,
       label: slot.label,
       overridden,
+      hasDraft,
       text: "",
     })),
     OTHER_PAGE,
@@ -144,39 +169,130 @@ function pageSwitch(label: string) {
 }
 
 function saveBar() {
-  return screen.getByRole("button", { name: "Save changes" });
+  return screen.getByRole("button", { name: "Save draft" });
+}
+
+function publishBar() {
+  return screen.getByRole("button", { name: "Publish" });
 }
 
 beforeEach(() => {
   pushMock.mockClear();
   refreshMock.mockClear();
-  resetMock.mockClear();
+  saveMock.mockClear();
+  publishMock.mockClear();
+  discardMock.mockClear();
 });
 
 describe("Back to default", () => {
-  test("puts the registry default back in the field instead of the reverted text", async () => {
+  test("puts the registry default back in the field, staged rather than published", async () => {
     const view = renderEditor([editorSlot(HEADING, "Our own heading", true)]);
 
-    const field = screen.getByRole("textbox", { name: /Heading/ });
-    expect(field).toHaveValue("Our own heading");
+    expect(screen.getByRole("textbox", { name: /Heading/ })).toHaveValue(
+      "Our own heading",
+    );
 
     await userEvent.click(
       screen.getByRole("button", { name: "Back to default" }),
     );
 
-    await waitFor(() => expect(resetMock).toHaveBeenCalledWith("home.heading"));
-    // Leaving the old text in place showed words that were no longer
-    // published, and armed Save to write them straight back.
+    // Local now: the revert is a draft like any other edit, and the site keeps
+    // serving the old words until it is published (#793).
+    expect(screen.getByRole("textbox", { name: /Heading/ })).toHaveValue(
+      DEFAULT_HEADING,
+    );
+    expect(saveMock).not.toHaveBeenCalled();
+    expect(screen.getByText("1 change not published yet.")).toBeInTheDocument();
+
+    await userEvent.click(saveBar());
+    // A value back at the registry default is stored as a null draft, so the
+    // row reverts on publish instead of keeping a copy of the default.
     await waitFor(() =>
-      expect(screen.getByRole("textbox", { name: /Heading/ })).toHaveValue(
-        DEFAULT_HEADING,
-      ),
+      expect(saveMock).toHaveBeenCalledWith([
+        { key: "home.heading", value: null },
+      ]),
     );
 
-    // Once the refresh lands, the form is clean rather than offering to save.
     view.refreshWith([editorSlot(HEADING, DEFAULT_HEADING, false)]);
     expect(saveBar()).toBeDisabled();
-    expect(screen.getByText("No unsaved changes.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Everything here is published."),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("saving and publishing are two steps", () => {
+  test("saving stores a draft and leaves the public site alone", async () => {
+    const view = renderEditor([editorSlot(HEADING, DEFAULT_HEADING)]);
+
+    await userEvent.type(screen.getByRole("textbox", { name: /Heading/ }), "!");
+    await userEvent.click(saveBar());
+
+    await waitFor(() =>
+      expect(saveMock).toHaveBeenCalledWith([
+        { key: "home.heading", value: `${DEFAULT_HEADING}!` },
+      ]),
+    );
+    expect(publishMock).not.toHaveBeenCalled();
+
+    // The server comes back with the draft staged; the copy is still not live.
+    view.refreshWith([editorSlot(HEADING, `${DEFAULT_HEADING}!`, false, true)]);
+    expect(saveBar()).toBeDisabled();
+    expect(screen.getByText("1 change not published yet.")).toBeInTheDocument();
+    // Said twice on purpose, beside the field and in the rail, the same way
+    // "Unsaved" is.
+    expect(screen.getAllByText("Not published")).toHaveLength(2);
+  });
+
+  test("publishing shows what changes before it changes it", async () => {
+    renderEditor([editorSlot(HEADING, `${DEFAULT_HEADING}!`, false, true)]);
+
+    await userEvent.click(publishBar());
+
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("Publish this change?");
+    // The words coming off the site, then the words going on.
+    expect(within(dialog).getByText(DEFAULT_HEADING)).toBeInTheDocument();
+    expect(within(dialog).getByText(`${DEFAULT_HEADING}!`)).toBeInTheDocument();
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Publish" }),
+    );
+    await waitFor(() =>
+      expect(publishMock).toHaveBeenCalledWith(["home.heading"]),
+    );
+  });
+
+  test("publishing an unsaved edit stages it first, so the diff shown is the diff that lands", async () => {
+    renderEditor([editorSlot(HEADING, DEFAULT_HEADING)]);
+
+    await userEvent.type(
+      screen.getByRole("textbox", { name: /Heading/ }),
+      " today",
+    );
+    await userEvent.click(publishBar());
+    await userEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: "Publish",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(saveMock).toHaveBeenCalledWith([
+        { key: "home.heading", value: `${DEFAULT_HEADING} today` },
+      ]),
+    );
+    expect(publishMock).toHaveBeenCalledWith(["home.heading"]);
+  });
+
+  test("Discard drops the saved draft as well as the edits on screen", async () => {
+    renderEditor([editorSlot(HEADING, `${DEFAULT_HEADING}!`, false, true)]);
+
+    await userEvent.click(screen.getByRole("button", { name: "Discard" }));
+
+    await waitFor(() =>
+      expect(discardMock).toHaveBeenCalledWith(["home.heading"]),
+    );
   });
 });
 
@@ -248,13 +364,15 @@ describe("the save bar", () => {
     expect(saveBar()).toBeDisabled();
 
     await userEvent.type(screen.getByRole("textbox", { name: /Heading/ }), "!");
-    expect(screen.getByText("1 unsaved change.")).toBeInTheDocument();
+    expect(screen.getByText("1 change not published yet.")).toBeInTheDocument();
 
     await userEvent.type(
       screen.getByRole("textbox", { name: /Introduction/ }),
       "!",
     );
-    expect(screen.getByText("2 unsaved changes.")).toBeInTheDocument();
+    expect(
+      screen.getByText("2 changes not published yet."),
+    ).toBeInTheDocument();
     expect(saveBar()).toBeEnabled();
 
     await userEvent.click(screen.getByRole("button", { name: "Discard" }));
@@ -265,7 +383,11 @@ describe("the save bar", () => {
     expect(screen.getByRole("textbox", { name: /Introduction/ })).toHaveValue(
       "Come ride with us.",
     );
-    expect(screen.getByText("No unsaved changes.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Everything here is published."),
+    ).toBeInTheDocument();
+    // Nothing had been saved, so there was no draft to ask the server to drop.
+    expect(discardMock).not.toHaveBeenCalled();
   });
 
   test("marks the changed slot in the rail as well as beside the field", async () => {
@@ -324,7 +446,7 @@ describe("the list editor", () => {
       "Access",
       "Joy",
     ]);
-    expect(screen.getByText("1 unsaved change.")).toBeInTheDocument();
+    expect(screen.getByText("1 change not published yet.")).toBeInTheDocument();
   });
 
   test("cannot move the first item up or the last one down", () => {

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { formatDateTime } from "@/lib/format";
 import type {
   ContentSlot,
   LegalDocumentContent,
@@ -54,19 +55,30 @@ export function slotRoute(slot: ContentSlot): string | undefined {
  * Every slot used to carry a "Default" or "Your text" badge in a card header
  * of its own, which is most of what made eighty-six fields three thousand
  * pixels tall. Default is now the silent case -- there is nothing to say about
- * a slot nobody has touched.
+ * a slot nobody has touched. "Not published" is the state #793 adds, and it is
+ * the one an editor most needs to see: the words on screen are not the words
+ * on the site.
  */
 function SlotStatus({
   overridden,
   dirty,
+  hasDraft,
 }: {
   overridden: boolean;
   dirty: boolean;
+  hasDraft: boolean;
 }) {
   if (dirty) {
     return (
       <span className="rounded-full bg-[var(--purple-soft)] px-2 py-0.5 text-xs font-medium text-[var(--purple-deep)]">
         Unsaved
+      </span>
+    );
+  }
+  if (hasDraft) {
+    return (
+      <span className="rounded-full bg-[var(--purple-soft)] px-2 py-0.5 text-xs font-medium text-[var(--purple-deep)]">
+        Not published
       </span>
     );
   }
@@ -80,35 +92,94 @@ function SlotStatus({
   return null;
 }
 
+/**
+ * Who last touched this slot and when.
+ *
+ * The audit log has recorded every write since the table existed, but nothing
+ * on this page said so, and reaching it means leaving the editor and knowing
+ * the table name. One line against the field answers the question that was
+ * actually being asked: is this copy current, and whose is it (#793)?
+ */
+function SlotAttribution({
+  hasDraft,
+  draftUpdatedAt,
+  draftUpdatedBy,
+  publishedAt,
+  publishedBy,
+}: {
+  hasDraft: boolean;
+  draftUpdatedAt: string | null;
+  draftUpdatedBy: string | null;
+  publishedAt: string | null;
+  publishedBy: string | null;
+}) {
+  const lines: string[] = [];
+  if (hasDraft && draftUpdatedAt) {
+    lines.push(
+      `Draft saved ${formatDateTime(draftUpdatedAt)}${
+        draftUpdatedBy ? ` by ${draftUpdatedBy}` : ""
+      }`,
+    );
+  }
+  if (publishedAt) {
+    lines.push(
+      `Published ${formatDateTime(publishedAt)}${
+        publishedBy ? ` by ${publishedBy}` : ""
+      }`,
+    );
+  }
+  if (lines.length === 0) return null;
+  return <FieldDescription>{lines.join(" · ")}</FieldDescription>;
+}
+
 export function ContentSlotField({
   slot,
   value,
   initialValue,
   overridden,
+  hasDraft,
+  publishedAt,
+  publishedBy,
+  draftUpdatedAt,
+  draftUpdatedBy,
   dirty,
   canEdit,
   onChange,
   onReset,
+  onPublish,
 }: {
   slot: ContentSlot;
   value: unknown;
   /** What the server sent, which decides the control a text slot gets. */
   initialValue: unknown;
   overridden: boolean;
+  /** Whether a saved draft is waiting to be published. */
+  hasDraft: boolean;
+  publishedAt: string | null;
+  publishedBy: string | null;
+  draftUpdatedAt: string | null;
+  draftUpdatedBy: string | null;
   dirty: boolean;
   canEdit: boolean;
   onChange: (value: unknown) => void;
   onReset: () => void;
+  /** Publish this slot on its own, rather than the whole page. */
+  onPublish: () => void;
 }) {
   const controlId = slotControlId(slot.key);
   const route = slotRoute(slot);
   const paragraphs = Array.isArray(value) ? (value as string[]) : [];
   const composite = slot.type === "list" || slot.type === "document";
+  // "Back to default" now stages a revert rather than deleting the row, so it
+  // is offered whenever the copy on screen is not already the default -- an
+  // unsaved edit included.
+  const isDefault =
+    JSON.stringify(value ?? null) === JSON.stringify(slot.default ?? null);
 
   const heading = (
     <>
       {slot.label}
-      <SlotStatus overridden={overridden} dirty={dirty} />
+      <SlotStatus overridden={overridden} dirty={dirty} hasDraft={hasDraft} />
       {route && (
         <Link
           href={route}
@@ -186,11 +257,26 @@ export function ContentSlotField({
         />
       )}
 
-      {canEdit && overridden && slot.type !== "document" && (
-        <div>
-          <Button type="button" variant="ghost" size="sm" onClick={onReset}>
-            Back to default
-          </Button>
+      <SlotAttribution
+        hasDraft={hasDraft}
+        draftUpdatedAt={draftUpdatedAt}
+        draftUpdatedBy={draftUpdatedBy}
+        publishedAt={publishedAt}
+        publishedBy={publishedBy}
+      />
+
+      {canEdit && (!isDefault || hasDraft) && (
+        <div className="flex flex-wrap gap-2">
+          {!isDefault && slot.type !== "document" && (
+            <Button type="button" variant="ghost" size="sm" onClick={onReset}>
+              Back to default
+            </Button>
+          )}
+          {(hasDraft || dirty) && (
+            <Button type="button" variant="ghost" size="sm" onClick={onPublish}>
+              Publish this
+            </Button>
+          )}
         </div>
       )}
     </Field>

@@ -415,12 +415,17 @@ describe("membership and deactivation", () => {
 
 describe("site content and branding", () => {
   test("the public surface serves each tenant's own by host", async () => {
+    // Two steps since #793: copy is staged as a draft and only reaches the
+    // public views once it is published.
     await must(
-      admin
-        .from("site_content")
-        .insert({ key: "home.heading", value: `Heading ${run}` })
-        .select("id"),
-      "content",
+      admin.rpc("save_site_content_drafts", {
+        p_entries: [{ key: "home.heading", value: `Heading ${run}` }],
+      }),
+      "content draft",
+    );
+    await must(
+      admin.rpc("publish_site_content", { p_keys: ["home.heading"] }),
+      "content publish",
     );
     await must(
       admin
@@ -478,11 +483,18 @@ describe("site content and branding", () => {
     expect(
       await must(seededAdmin.from("site_content").select("key"), "a reads"),
     ).not.toContainEqual({ key: "home.heading" });
-    // The site_content view for the seeded admin's session is A's.
+    // The site_content view for the seeded admin's session is A's: the draft
+    // RPC stamps the caller's own tenant, never the one being read by host.
+    await must(
+      seededAdmin.rpc("save_site_content_drafts", {
+        p_entries: [{ key: "home.intro", value: "A's intro" }],
+      }),
+      "a intro",
+    );
     const { data } = await seededAdmin
       .from("site_content")
-      .insert({ key: "home.intro", value: "A's intro" })
       .select("tenant_id")
+      .eq("key", "home.intro")
       .single();
     expect(data?.tenant_id).toBe(tenantA);
     await service.from("site_content").delete().eq("tenant_id", tenantA);

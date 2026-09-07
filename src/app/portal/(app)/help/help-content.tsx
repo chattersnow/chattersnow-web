@@ -1992,11 +1992,19 @@ export const helpContent: Record<string, HelpEntry> = {
         <HowToSection heading="Steps">
           <ol className="list-decimal space-y-2 pl-4">
             <li>
-              Pick a page from the rail on the left, edit the slots on it, and
-              save from the bar at the foot of the form. Each slot is one piece
-              of copy — a heading, a run of paragraphs, a list, or a whole
-              document — and slots are grouped into the sections they make up on
-              the page.
+              Pick a page from the rail on the left and edit the slots on it.
+              Each slot is one piece of copy — a heading, a run of paragraphs, a
+              list, or a whole document — and slots are grouped into the
+              sections they make up on the page.
+            </li>
+            <li>
+              <strong className="text-foreground">Save draft</strong> stores
+              what you have written without changing the public website.{" "}
+              <strong className="text-foreground">Publish</strong> is the step
+              that puts it live, and it shows you exactly which words change
+              before it does. You can publish everything pending on the page, or
+              one slot on its own with{" "}
+              <strong className="text-foreground">Publish this</strong>.
             </li>
             <li>
               Search covers every page at once, not just the one you are on, so
@@ -2008,30 +2016,35 @@ export const helpContent: Record<string, HelpEntry> = {
               and can be put back to the default; a slot with no marker is
               rendering the platform&apos;s text.{" "}
               <strong className="text-foreground">Unsaved</strong> marks what
-              you have changed and not yet saved — the rail marks the same
-              slots, and <strong className="text-foreground">Discard</strong>{" "}
-              puts all of them back.
+              you have changed and not yet saved, and{" "}
+              <strong className="text-foreground">Not published</strong> marks a
+              saved draft the public site is not serving yet — the rail marks
+              the same slots and counts them per page.{" "}
+              <strong className="text-foreground">Discard</strong> throws away
+              both.
             </li>
           </ol>
         </HowToSection>
         <HowToSection heading="Who can do this">
           <p>
-            View on Site content opens this page read-only; saving or resetting
-            needs Manage.
+            View on Site content opens this page read-only; drafting and
+            publishing both need Manage.
           </p>
         </HowToSection>
         <HowToSection heading="What happens downstream">
           <ul className="list-disc space-y-2 pl-4">
             <li>
-              A save publishes to the live public website immediately — there is
-              no draft or review step — and every change is written to the{" "}
+              Nothing you save is visible to the public until you publish it. A
+              publish takes effect immediately, and both the draft and the
+              publish are written to the{" "}
               <Link
                 href="/portal/administration/audit-log?table=site_content"
                 className="underline"
               >
                 audit log
               </Link>
-              .
+              . Each slot also carries who last drafted and published it, and
+              when.
             </li>
             <li>
               Values are checked against the registry&apos;s expected shape
@@ -2044,9 +2057,15 @@ export const helpContent: Record<string, HelpEntry> = {
         <HowToSection heading="Common mistakes">
           <ul className="list-disc space-y-2 pl-4">
             <li>
-              Treating &quot;back to default&quot; as an undo. It deletes your
-              text so the platform default renders again; recovering what you
-              had means retyping it or reading it out of the audit log.
+              Treating &quot;back to default&quot; as an undo of your own last
+              edit. It stages a change back to the platform&apos;s wording, and
+              publishing it drops your text; recovering what you had means
+              retyping it or reading it out of the audit log.
+            </li>
+            <li>
+              Saving and walking away. A saved draft is not on the website — the
+              page list in the rail shows a highlighted count against any page
+              still holding one.
             </li>
           </ul>
         </HowToSection>
