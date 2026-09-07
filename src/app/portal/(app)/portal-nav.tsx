@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { toPortalPathname } from "@/lib/portal/paths";
 import {
   CalendarDays,
   CalendarRange,
@@ -60,7 +61,9 @@ const SECTION_ICONS: Record<string, typeof LayoutDashboard> = {
 };
 
 export function PortalNav({ permissions }: { permissions: PermissionMap }) {
-  const pathname = usePathname();
+  // The portal host serves prefix-free URLs; nav hrefs are canonical
+  // `/portal/...` paths, so normalize before matching.
+  const pathname = toPortalPathname(usePathname());
   const { state: sidebarState } = useSidebar();
   const activeSection = activeSectionFor(pathname) ?? null;
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { toPortalPathname } from "@/lib/portal/paths";
 import { CircleHelp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,7 +25,9 @@ const helpKeys = Object.keys(helpContent);
  * <PageHelpContent>.
  */
 export function HelpButton() {
-  const pathname = usePathname();
+  // Help keys are canonical `/portal/...` paths; the portal host serves
+  // these routes prefix-free.
+  const pathname = toPortalPathname(usePathname());
   const { override } = usePortalHelp();
   const key = resolveHelpKey(pathname, helpKeys) ?? "/portal";
   const entry = override ?? helpContent[key];
