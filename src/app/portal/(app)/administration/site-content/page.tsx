@@ -63,9 +63,7 @@ export default async function SiteContentPage({
       </div>
 
       <p className="app-muted mt-6 max-w-3xl text-sm leading-relaxed">
-        The words on the public website, page by page. Anything left as it is
-        renders the platform default; anything you change is published the
-        moment it is saved and recorded in the audit log.
+        The words on the public website, page by page.
       </p>
 
       <nav aria-label="Pages" className="mt-6 flex flex-wrap gap-2">
