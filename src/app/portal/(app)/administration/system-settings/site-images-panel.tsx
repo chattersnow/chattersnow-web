@@ -23,25 +23,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { resolveImageUrl } from "@/lib/inventory";
+import { isRenderableImageSrc, resolveImageUrl } from "@/lib/inventory";
 import type { SiteImageSlot } from "@/lib/site-images";
 import { Spinner } from "@/components/ui/spinner";
 import { runAction } from "@/components/portal/action-toast";
-
-// next/image throws at render time (crashing the page) if `src` isn't a valid
-// absolute URL or a root-relative path. resolveImageUrl passes non-Drive
-// input through unchanged, so a partially-typed or malformed URL must be
-// filtered out here before it ever reaches <Image>.
-function isRenderableImageSrc(value: string | null): value is string {
-  if (!value) return false;
-  if (value.startsWith("/")) return true;
-  try {
-    new URL(value);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 function SiteImageGridItem({
   slot,

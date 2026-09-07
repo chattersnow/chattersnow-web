@@ -379,7 +379,28 @@ export (already `current_tenant_id()`-scoped, and exporting invented data is
 worth showing off), and renaming the tenant (the update policy grants `name`
 only — `custom_domain`, `slug`, `status` and `plan` are `service_role`).
 
+## Storage
+
+One bucket holds per-tenant data: `gear-photos` (#781), laid out flat as
+`{tenant_id}/{uuid}.jpg`. It is public to read and RLS-gated to write, and the
+tenant prefix is the isolation -- enforced by policies on `storage.objects`
+(20260907160000), not by anything `tenant_isolation_gaps()` can see, since that
+function only scans `public`. `src/lib/storage/gear-photos.integration.test.ts`
+is what asserts it instead.
+
+**Deleting a tenant has to sweep the bucket first.** `delete_tenant()` cannot:
+removing `storage.objects` rows in SQL leaves the underlying files on disk on
+hosted Supabase. Run `deleteTenantGearPhotos(serviceRoleClient(), tenantId)`
+from `src/lib/storage/orphan-purge.ts` **before** `delete_tenant()` -- afterwards
+the tenant id is gone and there is nothing left to derive the prefix from.
+
+**The export deliberately carries no bytes.** `inventory_items.photo_url` holds
+a public, durable URL that resolves with no credentials, so a receiving
+organization can fetch every photo from the export as it stands. Inlining
+megabytes of base64 into a JSON document would be worse in every way.
+
 ## Still owed
 
-- Nothing in Supabase Storage is per tenant today; if a bucket ever is,
-  `delete_tenant()` and the export have to learn about it.
+- Nothing beyond `gear-photos` is per tenant in Supabase Storage today. A second
+  bucket needs the same two things: a tenant prefix with policies to enforce it,
+  and a line in the teardown procedure above.

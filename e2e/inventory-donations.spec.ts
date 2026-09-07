@@ -2,6 +2,12 @@ import { test, expect } from "./helpers/test";
 import { reloadStayingSignedIn, signIn } from "./helpers/auth";
 import { modal } from "./helpers/dialog";
 
+/** A 1x1 PNG, small enough to inline and real enough for the browser to decode. */
+const PNG_PIXEL = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+  "base64",
+);
+
 test.describe("portal inventory donations", () => {
   test.beforeEach(async ({ page }) => {
     await signIn(page);
@@ -47,6 +53,20 @@ test.describe("portal inventory donations", () => {
       .click();
     await addSheet.getByLabel("Condition").click();
     await page.getByRole("listbox").getByText("Good", { exact: true }).click();
+
+    // The photo field (#781) uploads on select rather than on save, so the
+    // Remove control appearing is the signal that the object actually reached
+    // the gear-photos bucket -- the whole client → Server Action → RLS → Storage
+    // path, which nothing below the browser exercises end to end.
+    await addSheet.getByLabel("Photo").setInputFiles({
+      name: "gear.png",
+      mimeType: "image/png",
+      buffer: PNG_PIXEL,
+    });
+    await expect(
+      addSheet.getByRole("button", { name: "Remove photo" }),
+    ).toBeVisible({ timeout: 15_000 });
+
     await addSheet.getByRole("button", { name: "Save donation" }).click();
 
     await expect(addSheet).not.toBeVisible();

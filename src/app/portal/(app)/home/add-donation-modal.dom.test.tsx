@@ -24,6 +24,28 @@ mock.module("./actions", () => ({
   listEventGiveawayTiersAction: listEventGiveawayTiersActionMock,
 }));
 
+// The photo field (#781) reaches Supabase Storage and a Server Action, neither
+// of which exists under happy-dom. next/image builds a real URL from the src at
+// render, which happy-dom refuses.
+mock.module("next/image", () => ({ default: () => null }));
+
+const GEAR_PHOTO_URL =
+  "http://127.0.0.1:54321/storage/v1/object/public/gear-photos/tenant-1/photo-2.jpg";
+
+mock.module("@/lib/storage/gear-photos", () => ({
+  GEAR_PHOTOS_BUCKET: "gear-photos",
+  gearPhotoPathFromUrl: () => null,
+  uploadGearPhoto: async (_file: File, path: string) => ({
+    url: GEAR_PHOTO_URL,
+    path,
+  }),
+  deleteGearPhoto: async () => {},
+}));
+
+mock.module("@/app/portal/(app)/gear-photo-actions", () => ({
+  createGearPhotoPathAction: async () => ({ path: "tenant-1/photo-2.jpg" }),
+}));
+
 // The sheet loads event options on open whenever a caller passes neither an
 // events list nor a fixed eventId.
 mock.module("../events/actions", () => ({
@@ -197,6 +219,38 @@ describe("AddDonationModal", () => {
         intendedUse: "gear_library",
       },
     ]);
+  });
+
+  // Keyed on the item, not on its index: every id in an item card is suffixed
+  // with `item.key`, and a photo landing on the wrong draft is exactly what an
+  // index-keyed update would produce.
+  test("attaches a photo to the item it was added to", async () => {
+    const user = userEvent.setup();
+    await openModal(user);
+    await fillDonorAndContinue(user, "Jane Donor");
+
+    await user.type(screen.getByLabelText("Item description"), "Jacket");
+    await selectItemCategory(user, "Jacket");
+    await user.click(
+      screen.getByRole("button", { name: "+ Add another item" }),
+    );
+
+    const descriptions = screen.getAllByLabelText("Item description");
+    await user.type(descriptions[1], "Helmet");
+    await user.upload(
+      screen.getAllByLabelText("Photo")[1],
+      new File([new Uint8Array([137, 80, 78, 71])], "gear.png", {
+        type: "image/png",
+      }),
+    );
+    await screen.findByRole("button", { name: "Remove photo" });
+
+    await user.click(screen.getByRole("button", { name: "Save donation" }));
+    await screen.findByRole("button", { name: "Record donation" });
+
+    const payload = createDonationActionMock.mock.calls[0][0];
+    expect(payload.items[0].photoUrl).toBeUndefined();
+    expect(payload.items[1].photoUrl).toBe(GEAR_PHOTO_URL);
   });
 
   test("shows the server error and stays open on failure", async () => {

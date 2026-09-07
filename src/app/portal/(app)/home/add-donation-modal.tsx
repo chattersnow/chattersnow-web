@@ -40,6 +40,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { INTENDED_USES, type InventoryCategory } from "@/lib/inventory";
 import { CategorySelect } from "@/components/portal/category-select";
+import { PhotoUploadField } from "@/components/portal/photo-upload-field";
 import { listInventoryCategoriesAction } from "../inventory/categories/actions";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
@@ -95,6 +96,7 @@ type ItemDraft = {
   notes: string;
   intendedUse: string;
   giveawayTier: string;
+  photoUrl: string;
 };
 
 function createEmptyItem(): ItemDraft {
@@ -110,6 +112,7 @@ function createEmptyItem(): ItemDraft {
     notes: "",
     intendedUse: "gear_library",
     giveawayTier: "",
+    photoUrl: "",
   };
 }
 
@@ -256,6 +259,7 @@ export function AddDonationModal({
         notes: item.notes || undefined,
         intendedUse: item.intendedUse,
         giveawayTier: item.giveawayTier || undefined,
+        photoUrl: item.photoUrl || undefined,
       })),
       eventId: eventId ?? (sourceEventId || undefined),
     };
@@ -693,6 +697,12 @@ export function AddDonationModal({
                         }
                       />
                     </Field>
+
+                    <PhotoUploadField
+                      idPrefix={`item-${item.key}`}
+                      value={item.photoUrl}
+                      onChange={(url) => updateItem(item.key, "photoUrl", url)}
+                    />
                   </FieldGroup>
                 ))}
 
