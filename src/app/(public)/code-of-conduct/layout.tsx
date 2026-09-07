@@ -1,4 +1,6 @@
 import { PageShell } from "@/components/page-shell";
+import { notFound } from "next/navigation";
+import { LEGAL_PAGES_PUBLISHED } from "@/lib/legal-pages";
 
 // No visibility slot, for the same reason as the privacy policy and the terms:
 // the code of conduct governs every event and every space Chatter runs, so it
@@ -12,5 +14,8 @@ export default function CodeOfConductLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Awaiting the board's legal review; see src/lib/legal-pages.ts.
+  if (!LEGAL_PAGES_PUBLISHED) notFound();
+
   return <PageShell>{children}</PageShell>;
 }
