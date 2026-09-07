@@ -39,13 +39,18 @@ import { HelpButton } from "./help/help-button";
 import { PortalHelpProvider } from "./help/help-context";
 import { getContentWorkSummary } from "./home/queries";
 import { ensureCurrentPerson } from "@/lib/auth/current-person";
-import { getTenantContext } from "@/lib/portal/tenants";
+import {
+  currentTenant,
+  getTenantContext,
+  isDemoTenant,
+} from "@/lib/portal/tenants";
 import { getTenantBranding } from "@/lib/tenant-branding";
 import { ensureMyOnboarding } from "@/lib/portal/onboarding";
 import { personDisplayName } from "@/lib/format";
 import { IdleTimeout } from "./idle-timeout";
 import { LogoutButton } from "./logout-button";
 import { ChooseTenant } from "./choose-tenant";
+import { DemoBanner } from "./demo-banner";
 import { NoTenant } from "./no-tenant";
 import { NotificationsMenu } from "./notifications-menu";
 import { PortalNav } from "./portal-nav";
@@ -303,6 +308,7 @@ export default async function PortalAppLayout({
                 <NotificationsMenu items={attentionItems} />
               </div>
             </header>
+            {isDemoTenant(currentTenant(tenantContext)) && <DemoBanner />}
             <main
               id="portal-main"
               // Focusable only as a skip-link target, so focus actually lands

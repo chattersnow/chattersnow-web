@@ -280,6 +280,105 @@ direction for that data, and the reason the page labels that row as shared.
 Each tenant's run still logs the rule, so the page explains it rather than
 appearing to have skipped it.
 
+## The demo tenant
+
+The portal's login screen offers a one-click demo (#604). It is not a special
+mode: it is a tenant whose `plan` is `demo`, with an ordinary account holding
+the admin role inside it, kept apart by the same policies and composite foreign
+keys as any paying tenant. `DEMO_EMAIL` and `DEMO_PASSWORD` are server-only, so
+the button is rendered by `src/app/portal/login/page.tsx` only when both are
+set and the credentials themselves never reach the browser;
+`demoSignInAction()` signs in on the server and redirects to `/portal/home`.
+
+### The rollout order is load-bearing
+
+`public_tenant_id()` falls back to "the sole active tenant" **only while
+exactly one is active**, and `20260905190000` creates the Chatter Snow tenant
+with no `custom_domain`. The moment a second tenant goes active, that fallback
+switches off — and until the first tenant has a domain of its own, nothing
+replaces it. The public site would lose events, the calendar, the gear
+catalogue, sponsors, programs, branding and the organization's own name;
+`page_visibility` would come back empty so `/programs`, `/learn` and `/support`
+would 404; every anonymous intake RPC would fail; and `default_tenant_id()`
+would return null so any sessionless insert would violate `not null`. The
+portal is unaffected throughout — `current_tenant_id()` is membership-based and
+never consults the host.
+
+The failure is invisible until it isn't, so the domain goes first and is
+verified **positively** while the fallback is still masking any mistake:
+
+1. `update public.tenants set custom_domain = 'chattersnow.org' where slug =
+'chatter-snow';` — lowercase, per the check constraint. The parent-domain
+   match in `resolve_tenant_id_from_host()` covers `www.` and `portal.`.
+2. Confirm `resolve_tenant_id_from_host('www.chattersnow.org')` and
+   `resolve_tenant_id_from_host('portal.chattersnow.org')` both return that
+   tenant's id. A null here is the whole failure, and it is silent until the
+   demo goes live.
+3. Set `TENANT_HOST_OVERRIDE` on the Vercel **Preview** and **Development**
+   environments. `vercel.json` deploys `development` and `main` against the
+   same Supabase project, and a request to
+   `chattersnow-web-git-development-*.vercel.app` matches no `custom_domain` —
+   which is a single unique column, so a second host cannot simply be listed
+   against the tenant. `src/lib/supabase/server.ts` prefers the override over
+   the request `Host` when it is set.
+4. Add `demo.chattersnow.org` to the Vercel project and to the Supabase Auth
+   redirect allowlist. Longest-suffix matching means it beats
+   `chattersnow.org`. `src/proxy.ts` needs no change: it is not a `portal.`
+   host, so `/portal/login` passes through as a path.
+5. Only then run the reset against the linked project.
+
+### Resetting it
+
+```bash
+DEMO_EMAIL=… DEMO_PASSWORD=… DEMO_SLUG=demo DEMO_HOST=demo.chattersnow.org \
+  bun --env-file=.env.production.local scripts/demo-reset.ts
+```
+
+`.github/workflows/demo-reset.yml` runs exactly that nightly, on a `Demo`
+GitHub environment with **no required reviewers** — an environment gate blocks
+a whole job before any step runs, so a `Production`-gated cron job would sit
+pending approval forever and the demo would quietly stop resetting. Its
+secrets are `SUPABASE_SECRET_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, `DEMO_EMAIL`,
+`DEMO_PASSWORD`, `DEMO_SLUG` and `DEMO_HOST`. No Supabase CLI and no database
+password: everything goes through PostgREST and the GoTrue admin API as
+`service_role`.
+
+A run re-asserts the fixed `DEMO_PASSWORD` on the demo account every time
+rather than rotating it — nothing here can write a new password back into
+Vercel's environment, and re-asserting is what undoes a visitor changing it at
+`/portal/set-password`. It then archives and `delete_tenant()`s the old demo
+tenant, provisions a new one with `p_plan: 'demo'` and `p_admin_email: null`
+(so no `pending_role_grants` row is ever staged, and the claim-by-email hazard
+does not arise), grants the demo account admin directly, and calls
+`seed_demo_tenant()`.
+
+Two independent guards stand between a mistyped `DEMO_SLUG` and somebody's live
+data: `assertDemoTenant()` in `scripts/demo/guards.ts` refuses any tenant whose
+plan is not `demo` and refuses the `chatter-snow` slug outright, and
+`seed_demo_tenant()` refuses a non-demo tenant in its first statement.
+
+**Never leave a demo tenant on the local stack.** The integration and e2e
+suites depend on the sole-active-tenant fallback, and a second active tenant
+switches it off. `demo-reset.ts` refuses a local URL unless `--local` is passed
+and warns loudly when it is; `bun run demo:teardown` removes it again.
+
+### What is blocked inside a demo tenant
+
+A visitor holds admin there anonymously, so every control that still reaches
+outside the tenant is closed by `current_tenant_is_demo()`:
+
+| Surface                                          | Block                                                                                                                                                                               |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Staging a `pending_role_grants` row              | Both the insert policy and `createInviteLinkAction`. #759 is the general fix; this is defence in depth                                                                              |
+| `grant_support_access` / `revoke_support_access` | Refused before the address lookup, so the error taxonomy is not an account-existence oracle and no real account gets a membership in its switcher                                   |
+| `deactivated_users` insert                       | The demo account's only membership is the demo tenant, so `user_is_only_in_current_tenant()` is true and a visitor could otherwise deactivate it platform-wide until the next reset |
+
+Three things are deliberately **not** blocked, each checked: retention (#760
+scoped `trigger_retention_run` and `set_retention_policy_mode` per tenant),
+export (already `current_tenant_id()`-scoped, and exporting invented data is
+worth showing off), and renaming the tenant (the update policy grants `name`
+only — `custom_domain`, `slug`, `status` and `plan` are `service_role`).
+
 ## Still owed
 
 - Nothing in Supabase Storage is per tenant today; if a bucket ever is,

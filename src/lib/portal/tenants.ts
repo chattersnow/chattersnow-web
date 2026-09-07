@@ -1,16 +1,28 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
- * A tenant the signed-in user may act inside. Name and slug only -- status,
- * plan and custom_domain are platform concerns the portal shell has no use
- * for; custom_domain is what `public_tenant_id()` resolves a request host
- * against in the database, never the client.
+ * A tenant the signed-in user may act inside. Status and custom_domain are
+ * platform concerns the portal shell has no use for; custom_domain is what
+ * `public_tenant_id()` resolves a request host against in the database, never
+ * the client.
+ *
+ * `plan` is here for one reason: the shell has to say out loud when someone is
+ * inside the public demo (#604), and the demo is `plan = 'demo'`. Comparing
+ * the slug would be wrong -- a slug is a free choice at provisioning time,
+ * while `plan` is a constrained enum on the tenants table and the same value
+ * `seed_demo_tenant()` and the reset script refuse to act without.
  */
 export type Tenant = {
   id: string;
   name: string;
   slug: string;
+  plan: string;
 };
+
+/** Whether this tenant is the public demo anyone can sign into. */
+export function isDemoTenant(tenant: Tenant | null): boolean {
+  return tenant?.plan === "demo";
+}
 
 export type TenantContext = {
   /** Every tenant the user holds a live membership in, name-sorted. */
@@ -86,7 +98,7 @@ async function readTenantContext(
     // No filter needed: the `tenants select` policy (20260905180000) already
     // scopes this to my_tenant_ids(), which excludes expired support grants
     // and suspended tenants.
-    supabase.from("tenants").select("id, name, slug").order("name"),
+    supabase.from("tenants").select("id, name, slug, plan").order("name"),
     supabase.rpc("current_tenant_id"),
   ]);
 
