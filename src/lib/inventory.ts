@@ -55,6 +55,27 @@ export function resolveImageUrl(url: string | null): string | null {
   return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
 }
 
+/**
+ * Whether a value is safe to hand to `next/image` as a `src`.
+ *
+ * next/image throws at render time -- crashing the whole page -- if `src` is
+ * neither a valid absolute URL nor a root-relative path, and `resolveImageUrl`
+ * passes non-Drive input through unchanged. So anywhere a stored or
+ * partially-typed value reaches an <Image>, it has to be filtered first. Lives
+ * here rather than beside one of its callers because the hazard belongs to
+ * `resolveImageUrl` above, and more than one surface now shares it.
+ */
+export function isRenderableImageSrc(value: string | null): value is string {
+  if (!value) return false;
+  if (value.startsWith("/")) return true;
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function labelFor(
   options: { value: string; label: string }[],
   value: string | null,
