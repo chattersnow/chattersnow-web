@@ -8,6 +8,16 @@ deleted. The model behind it -- `tenants`, `tenant_id` on every table,
 membership instead of a super-admin -- is in `docs/technical-spec.md` §6 and
 in the planning repo's `decisions/2026-09-05-multi-tenancy-model.md`.
 
+Most of it can also be done from the portal, at Administration → **Platform**
+(#707 Phase 5c) — provisioning, the domain, the status and the export. That
+page resolves only inside Chatter Snow's own tenant: the RPCs behind it require
+`platform_tenants:manage` **and** a full (non-support) membership **and** a
+tenant on the `internal` plan, so a customer's admin granting themselves the
+resource in their own matrix — which they can, they own their matrix — still
+gets nothing. Deletion and support grants are deliberately not there; see
+below. The commands stay the fallback, and the only route when the portal
+itself is what is broken.
+
 Every command below runs as `service_role` against whichever project the
 environment names. `bun run tenant:*` reads `.env.local`, which is the local
 stack; for the linked project run the script directly with the right env
@@ -55,6 +65,12 @@ serving before they click it -- see the next section.
 `--plan` defaults to `white_label`; `--template <tenant id>` copies from a
 different tenant. `tenant:list` shows what exists.
 
+**From the portal:** Administration → Platform → "Provision an organization",
+which takes the same name, slug, domain, plan and first-admin email and ends
+with the invite link on screen. It does not offer `--template`: choosing a
+template is choosing whose permission matrix a customer inherits, and that is
+not a dropdown. Use the command when you need one.
+
 ### What is not seeded
 
 The public observance calendar, the nonprofit-status milestones and the
@@ -72,11 +88,14 @@ So `custom_domain = 'example.org'` covers `www.example.org` and
 
 To put a tenant on its domain:
 
-1. **Set `custom_domain`** -- `--domain` at provisioning, or later:
+1. **Set `custom_domain`** -- `--domain` at provisioning, the **Domain**
+   button on Administration → Platform, or later in SQL:
    ```sql
    update public.tenants set custom_domain = 'example.org' where slug = 'example-nonprofit';
    ```
-   Store it lowercased; the check constraint refuses anything else.
+   Store it lowercased; the check constraint refuses anything else. (The
+   portal lowercases for you, and shows steps 2 and 3 beside the field, since
+   neither can be automated from here.)
 2. **Add the domains to the Vercel project**: `example.org`, `www.example.org`
    and `portal.example.org` (Project → Settings → Domains, or
    `vercel domains add`). Vercel issues the certificates. The customer points
@@ -135,6 +154,10 @@ Before it can be granted, the staff member's account has to exist: they sign
 in once (they land on the "no organization" screen), and the tenant admin
 enters that email.
 
+The operator can _see_ whether a tenant currently has support open, on
+Administration → Platform — read-only, and deliberately so: who is in and
+until when is the operator's business, letting themselves in is not.
+
 The fallback, for an organization that has locked itself out, is the
 service-role script -- with their agreement, and for as short a time as the
 work needs:
@@ -168,6 +191,9 @@ tenant:
 bun run tenant:export example-nonprofit --out example.json
 ```
 
+**From the portal:** Administration → Platform → **Export**, on any tenant's
+row.
+
 One JSON document: the tenant row, its memberships with account emails, its
 audit trail, and every row of every table that carries `tenant_id`, keyed by
 table name. The table list comes from the catalog, so a table added later is
@@ -182,6 +208,13 @@ Two steps, on purpose:
 bun run tenant:archive example-nonprofit
 bun run tenant:delete example-nonprofit --confirm example-nonprofit
 ```
+
+The **status** dropdown on Administration → Platform does the archiving half
+(and suspend, and reactivate) — but not the deletion, which is why this is
+still two commands. It refuses to suspend or archive Chatter Snow's own
+tenant: platform access is a membership there rather than a bypass, so taking
+it off the air takes that page down with it, and there is no second door. The
+CLI can still do it.
 
 Archiving takes the tenant off its hosts and out of every member's switcher
 immediately and is reversible (`status = 'active'` again). Deletion is not:
