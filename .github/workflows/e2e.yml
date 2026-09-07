@@ -1,0 +1,218 @@
+# The Playwright run, shared by ci.yml (two browser projects, per PR) and
+# e2e-nightly.yml (all four, once a day). Both need the same four-job shape --
+# a shard matrix, the mutating spec on its own, a merged report and a single
+# gate -- so it lives here once rather than twice.
+name: E2E
+
+on:
+  workflow_call:
+    inputs:
+      browsers:
+        description: >-
+          E2E_BROWSERS for the run: a comma-separated subset of chromium,
+          firefox, webkit, mobile-chromium. Empty runs all four.
+        type: string
+        default: ""
+      install-browsers:
+        description: >-
+          Arguments to `playwright install --with-deps`. Empty installs every
+          browser Playwright knows about, which takes minutes -- pass the
+          subset the run actually needs.
+        type: string
+        default: ""
+      artifact-prefix:
+        description: Distinguishes this caller's artifacts from the other's.
+        type: string
+        required: true
+
+# 354 tests over ~890s in one job was the long pole of CI (#753). Four shards
+# take that to ~215s each, at four times the runner minutes -- which are
+# unmetered on a public repository. Worker count is not an alternative: the
+# suite shares one server and one Supabase stack per runner, and
+# playwright.config.ts records what happens when you crowd them (#479).
+#
+# Changing the count means changing SHARD_TOTAL, the `shard:` matrix list and
+# the shard job's name together -- a matrix list can't be built from `env`.
+env:
+  SHARD_TOTAL: "4"
+
+jobs:
+  shards:
+    name: Shard ${{ matrix.shard }}/4
+    runs-on: ubuntu-latest
+    strategy:
+      # One shard failing must not cancel the other three: the merged report
+      # would then be missing tests that never ran, with nothing to say so.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.14"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v3
+        with:
+          version: 2.114.0
+
+      - name: Start Supabase
+        run: supabase start
+
+      - name: Load Supabase env
+        run: supabase status -o env | sed -E 's/="(.*)"$/=\1/' >> "$GITHUB_ENV"
+
+      - name: Reset DB (migrate + seed)
+        run: supabase db reset
+
+      - name: Install Playwright browsers
+        run: bunx playwright install --with-deps ${{ inputs.install-browsers }}
+
+      - name: E2E tests
+        # E2E_MUTATING=skip is what makes --shard do anything at all: with
+        # page-visibility in the run its dependencies are exempt from sharding
+        # and shard 1 gets the entire suite. See playwright.config.ts.
+        run: bun run test:e2e:ci --shard=${{ matrix.shard }}/${{ env.SHARD_TOTAL }}
+        env:
+          E2E_BROWSERS: ${{ inputs.browsers }}
+          E2E_MUTATING: skip
+          NEXT_PUBLIC_SUPABASE_URL: ${{ env.API_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ env.PUBLISHABLE_KEY }}
+          SUPABASE_SECRET_KEY: ${{ env.SECRET_KEY }}
+          NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
+
+      - name: Upload blob report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: blob-report-${{ inputs.artifact-prefix }}-${{ matrix.shard }}
+          path: blob-report/
+          retention-days: 1
+
+      - name: Stop Supabase
+        if: always()
+        run: supabase stop
+
+  mutating:
+    name: Page visibility (isolated)
+    runs-on: ubuntu-latest
+    # Deliberately parallel with the shards rather than after them. The only
+    # reason page-visibility ran last was that it shares a Supabase stack and a
+    # server with everything else (#594); on its own runner it shares neither,
+    # so there is nothing left to order it against.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.14"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v3
+        with:
+          version: 2.114.0
+
+      - name: Start Supabase
+        run: supabase start
+
+      - name: Load Supabase env
+        run: supabase status -o env | sed -E 's/="(.*)"$/=\1/' >> "$GITHUB_ENV"
+
+      - name: Reset DB (migrate + seed)
+        run: supabase db reset
+
+      # The page-visibility project is Desktop Chrome whatever the caller's
+      # browser matrix is, so this one never needs the others.
+      - name: Install Playwright browsers
+        run: bunx playwright install --with-deps chromium
+
+      - name: E2E tests (mutating specs)
+        run: bun run test:e2e:ci
+        env:
+          E2E_MUTATING: only
+          NEXT_PUBLIC_SUPABASE_URL: ${{ env.API_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ env.PUBLISHABLE_KEY }}
+          SUPABASE_SECRET_KEY: ${{ env.SECRET_KEY }}
+          NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
+
+      - name: Upload blob report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: blob-report-${{ inputs.artifact-prefix }}-mutating
+          path: blob-report/
+          retention-days: 1
+
+      - name: Stop Supabase
+        if: always()
+        run: supabase stop
+
+  report:
+    name: Merged report
+    runs-on: ubuntu-latest
+    needs: [shards, mutating]
+    # Runs whether the tests passed or failed -- a failed run is the one whose
+    # report anyone actually opens.
+    if: ${{ !cancelled() }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.14"
+
+      # merge-reports needs the Playwright package but no browsers.
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Download blob reports
+        uses: actions/download-artifact@v4
+        with:
+          path: all-blob-reports
+          pattern: blob-report-${{ inputs.artifact-prefix }}-*
+          merge-multiple: true
+
+      # Blob reports name themselves report-1.zip .. report-4.zip under --shard
+      # and report.zip without one, so merging them flat is safe.
+      - name: Merge into one HTML report
+        run: bunx playwright merge-reports --reporter html ./all-blob-reports
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ inputs.artifact-prefix }}
+          path: playwright-report/
+          retention-days: 7
+
+  gate:
+    name: Result
+    runs-on: ubuntu-latest
+    needs: [shards, mutating]
+    if: ${{ always() }}
+    # One check that is red if any shard or the mutating job is. It exists so
+    # the run's verdict does not ride on `report`, which merges a failing run's
+    # blobs perfectly happily and reports success for doing so. For a matrix
+    # job, `result` is success only when every leg succeeded.
+    steps:
+      - name: Check E2E results
+        run: |
+          echo "shards:   ${{ needs.shards.result }}"
+          echo "mutating: ${{ needs.mutating.result }}"
+          if [ "${{ needs.shards.result }}" != "success" ] || [ "${{ needs.mutating.result }}" != "success" ]; then
+            echo "::error::E2E tests did not pass."
+            exit 1
+          fi
