@@ -1,10 +1,5 @@
-import { describe, expect, mock, test } from "bun:test";
-
-// The route pulls in the admin client and the digest job, both of which import
-// "server-only" -- it throws outside Next's bundler, so stub it, the same way
-// src/lib/supabase/admin.integration.test.ts does.
-mock.module("server-only", () => ({}));
-const { isAuthorizedCronRequest } = await import("./route");
+import { describe, expect, test } from "bun:test";
+import { isAuthorizedCronRequest } from "./cron-auth";
 
 const SECRET = "s3cret-value";
 const VALID = `Bearer ${SECRET}`;

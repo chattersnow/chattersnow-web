@@ -15,9 +15,10 @@ import type { RenderedEmail } from "@/lib/notifications/rendered-email";
  *
  * This lives in one file rather than once per sender because the two branches
  * that matter -- 23505 means skip, and a failed finalize must not be reported
- * as a failed send -- are the whole correctness argument for the ledger. The
- * scheduled digest and the event-triggered submission notices are its callers
- * today; the leadership ops report (#743) will be the third.
+ * as a failed send -- are the whole correctness argument for the ledger. Its
+ * callers are the scheduled task digest, the event-triggered submission
+ * notices, and the leadership ops report (#743) -- the last of which is
+ * addressed to an inbox rather than a person, hence the nullable personId.
  *
  * Runs on the service-role client, which bypasses RLS. tenant_id is therefore
  * written explicitly rather than left to its column default: default_tenant_id()
@@ -28,7 +29,14 @@ export type DeliveryOutcome = "sent" | "skipped" | "failed";
 
 export type DeliveryRequest = {
   tenantId: string;
-  personId: string;
+  /**
+   * The recipient's people.id, or null for a send addressed to the
+   * organization -- the ops report's configured inbox has no `people` row
+   * behind it. A null row dedupes on the partial unique index added in
+   * 20260907120000 rather than on the four-column constraint, since Postgres
+   * treats NULLs in a unique index as distinct.
+   */
+  personId: string | null;
   /** A NOTIFICATION_KINDS key. */
   kind: string;
   /** What makes this send unique within its kind. */
