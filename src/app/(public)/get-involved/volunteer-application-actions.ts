@@ -1,8 +1,11 @@
 "use server";
 
+import { after } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getClientIp } from "@/lib/get-client-ip";
 import { PRONOUNS_TOO_LONG_ERROR } from "@/lib/pronouns";
+import { notifyNewVolunteerApplication } from "@/lib/notifications/submission-notifications";
 import { parseVolunteerApplicationForm } from "./volunteer-application-form";
 
 export type SubmitVolunteerApplicationResult =
@@ -51,5 +54,26 @@ export async function submitVolunteerApplicationAction(
     };
   }
 
-  return { success: true, referenceCode: data as string };
+  const referenceCode = data as string;
+
+  // After the response, never before it (#742): a slow provider or a failed
+  // send must not delay the reference code the applicant is waiting for, nor
+  // turn a committed application into an error on screen.
+  //
+  // The tenant comes from the request host, resolved in Postgres by the same
+  // public_tenant_id() the RPC itself used. It has to be carried explicitly,
+  // because a reference code is only unique *within* a tenant and the
+  // service-role lookup below has no RLS to keep it in one.
+  after(async () => {
+    const { data: tenantId } = await supabase.rpc("public_tenant_id");
+    if (!tenantId) return;
+
+    await notifyNewVolunteerApplication(createSupabaseAdminClient(), {
+      tenantId: tenantId as string,
+      referenceCode,
+      siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "",
+    });
+  });
+
+  return { success: true, referenceCode };
 }

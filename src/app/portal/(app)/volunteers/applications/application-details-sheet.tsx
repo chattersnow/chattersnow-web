@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Eye } from "lucide-react";
 import { updateVolunteerApplicationStatusAction } from "./actions";
 import {
+  APPLICATION_PARAM,
   VOLUNTEER_APPLICATION_STATUSES,
   type VolunteerApplication,
   type VolunteerApplicationStatus,
@@ -38,6 +39,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 import { humanizeStatus } from "@/components/portal/status-badge";
 import { formatDateTime } from "@/lib/format";
+import { useDeepLinkedSheet } from "@/components/portal/use-deep-linked-sheet";
 
 // Base UI's Select.Value shows the raw value unless Root is told the labels,
 // so the trigger reads "Placed" like the option (and the badge) rather than
@@ -49,12 +51,26 @@ const APPLICATION_STATUS_ITEMS = VOLUNTEER_APPLICATION_STATUSES.map(
 export function VolunteerApplicationDetailsSheet({
   application,
   canManage,
+  defaultOpen = false,
+  withTrigger = true,
 }: {
   application: VolunteerApplication;
   canManage: boolean;
+  /** True when `?application=` names this row. */
+  defaultOpen?: boolean;
+  /**
+   * False for the sheet the page renders when the linked application is not
+   * on the current page of the list -- there is no row to hang an eye icon
+   * off, and a second stray trigger above the table would be a control that
+   * means nothing to anyone who did not arrive from the email.
+   */
+  withTrigger?: boolean;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const { open, onOpenChange } = useDeepLinkedSheet(
+    APPLICATION_PARAM,
+    defaultOpen,
+  );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -76,26 +92,28 @@ export function VolunteerApplicationDetailsSheet({
   }
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <Tooltip>
-        <SheetTrigger
-          render={
-            <TooltipTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={`View application from ${application.name}`}
-                />
-              }
-            />
-          }
-        >
-          <Eye />
-        </SheetTrigger>
-        <TooltipContent>{`View application from ${application.name}`}</TooltipContent>
-      </Tooltip>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      {withTrigger ? (
+        <Tooltip>
+          <SheetTrigger
+            render={
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`View application from ${application.name}`}
+                  />
+                }
+              />
+            }
+          >
+            <Eye />
+          </SheetTrigger>
+          <TooltipContent>{`View application from ${application.name}`}</TooltipContent>
+        </Tooltip>
+      ) : null}
       <SheetContent side="right" showCloseButton={false}>
         <SheetHeader className="flex-row items-start gap-2 space-y-0">
           <Tooltip>

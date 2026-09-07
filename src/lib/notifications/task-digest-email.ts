@@ -3,6 +3,7 @@ import type {
   DigestItem,
   DigestRecipient,
 } from "@/lib/notifications/task-digest";
+import type { RenderedEmail } from "@/lib/notifications/rendered-email";
 
 /**
  * The daily task digest as text and HTML (#488).
@@ -14,11 +15,9 @@ import type {
  * stripped copy of the markup.
  */
 
-export type RenderedEmail = {
-  subject: string;
-  text: string;
-  html: string;
-};
+// Re-exported so this module's existing importers keep working; the type moved
+// to its own file when #742 gave it a second renderer.
+export type { RenderedEmail };
 
 export function renderTaskDigest(
   recipient: DigestRecipient,

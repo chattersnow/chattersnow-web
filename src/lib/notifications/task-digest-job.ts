@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { sendEmail } from "@/lib/email/send";
+import { deliverEmail } from "@/lib/notifications/deliver";
 import { isOrgEmailEnabled } from "@/lib/notifications/settings";
 import { renderTaskDigest } from "@/lib/notifications/task-digest-email";
 import {
@@ -108,13 +108,11 @@ export async function runTaskDigest(
 }
 
 /**
- * Claim the send, then send it.
+ * Records the outcome of one recipient's digest against the run summary.
  *
- * The insert comes first so that two invocations racing -- a retry, or the
- * same cron firing from two Vercel projects that share vercel.json -- resolve
- * on the unique constraint rather than on a "have we sent yet?" read that both
- * would answer "no". The loser gets 23505 and stops. The winner owns the row
- * and finishes it with whatever the provider said.
+ * The claim-then-send mechanics moved to deliverEmail() when #742 added a
+ * second sender; what stays here is the only part that is the digest's own --
+ * how an outcome reads in DigestRunSummary.
  */
 async function deliver(
   admin: SupabaseClient,
@@ -123,69 +121,19 @@ async function deliver(
   siteUrl: string,
   summary: DigestRunSummary,
 ): Promise<void> {
-  const { data: claimed, error: claimError } = await admin
-    .from("notification_deliveries")
-    .insert({
-      // Explicit, not defaulted: default_tenant_id() resolves to null for a
-      // sessionless caller once a second tenant exists, and this job is
-      // sessionless by construction.
-      tenant_id: recipient.tenantId,
-      person_id: recipient.personId,
-      kind: TASK_DIGEST_KIND,
-      dedupe_key: dedupeKey,
-      status: "pending",
-    })
-    .select("id")
-    .single();
-
-  if (claimError) {
-    if (claimError.code === "23505") {
-      summary.skipped += 1;
-      return;
-    }
-    console.error(
-      "[task-digest] could not claim a delivery row; skipping this recipient",
-      claimError,
-    );
-    summary.failed += 1;
-    return;
-  }
-
-  const message = renderTaskDigest(recipient, siteUrl);
-  const result = await sendEmail({
+  const outcome = await deliverEmail(admin, {
+    tenantId: recipient.tenantId,
+    personId: recipient.personId,
+    kind: TASK_DIGEST_KIND,
+    dedupeKey,
     to: recipient.email,
-    subject: message.subject,
-    text: message.text,
-    html: message.html,
+    render: () => renderTaskDigest(recipient, siteUrl),
+    logPrefix: "[task-digest]",
   });
 
-  if (result.ok) {
-    summary.sent += 1;
-  } else {
-    summary.failed += 1;
-  }
-
-  const { error: finalizeError } = await admin
-    .from("notification_deliveries")
-    .update(
-      result.ok
-        ? {
-            status: "sent",
-            provider_message_id: result.id,
-            sent_at: new Date().toISOString(),
-          }
-        : { status: "failed", error: result.error },
-    )
-    .eq("id", claimed.id as string);
-
-  // A finalize failure does not undo the send, so it must not look like one:
-  // the row stays 'pending' and the log is the only place that says otherwise.
-  if (finalizeError) {
-    console.error(
-      `[task-digest] sent, but could not record the outcome for delivery ${claimed.id}`,
-      finalizeError,
-    );
-  }
+  if (outcome === "sent") summary.sent += 1;
+  else if (outcome === "skipped") summary.skipped += 1;
+  else summary.failed += 1;
 }
 
 async function fetchOpenActionItems(

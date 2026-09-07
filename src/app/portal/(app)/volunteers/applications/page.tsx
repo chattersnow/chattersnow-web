@@ -35,6 +35,7 @@ import {
 import { VolunteerApplicationDetailsSheet } from "./application-details-sheet";
 import { VolunteerApplicationStatusBadge } from "./application-badges";
 import {
+  APPLICATION_PARAM,
   VOLUNTEER_APPLICATION_STATUSES,
   type VolunteerApplication,
   type VolunteerApplicationStatus,
@@ -129,6 +130,31 @@ export default async function VolunteerApplicationsPage({
   const { offset, to } = pageRange(page, perPage);
   const { data: applications, error, count } = await query.range(offset, to);
   const applicationRows = (applications ?? []) as VolunteerApplication[];
+
+  // A notification email (#742) links straight at one application. The list is
+  // filtered, sorted and paginated, so there is no guarantee that row is on
+  // the page the link happens to land on -- and it will not be, for anything
+  // but the newest few. Fetch it on its own when it is missing and render a
+  // triggerless sheet for it, so the link opens what it says it opens. RLS
+  // still decides whether the row comes back at all.
+  const linkedApplicationId = raw(APPLICATION_PARAM);
+  let linkedApplication: VolunteerApplication | null = null;
+  if (
+    linkedApplicationId &&
+    !applicationRows.some((row) => row.id === linkedApplicationId)
+  ) {
+    // Errors are ignored on purpose, including the 22P02 a hand-mangled id
+    // produces: a link that no longer resolves should leave the reader on the
+    // ordinary list, not on an error page.
+    const { data: linked } = await supabase
+      .from("volunteer_applications")
+      .select(
+        "id, name, email, phone, pronouns, role_interest, availability, status, created_at",
+      )
+      .eq("id", linkedApplicationId)
+      .maybeSingle();
+    linkedApplication = (linked as VolunteerApplication | null) ?? null;
+  }
 
   const filterParams = new URLSearchParams();
   if (search) filterParams.set("search", search);
@@ -310,6 +336,9 @@ export default async function VolunteerApplicationsPage({
                             <VolunteerApplicationDetailsSheet
                               application={application}
                               canManage={canManage}
+                              defaultOpen={
+                                application.id === linkedApplicationId
+                              }
                             />
                           </TableCell>
                         </TableRow>
@@ -319,6 +348,15 @@ export default async function VolunteerApplicationsPage({
                 )}
               </CardContent>
             </Card>
+
+            {linkedApplication ? (
+              <VolunteerApplicationDetailsSheet
+                application={linkedApplication}
+                canManage={canManage}
+                defaultOpen
+                withTrigger={false}
+              />
+            ) : null}
 
             {applicationRows.length > 0 && (
               <Pagination

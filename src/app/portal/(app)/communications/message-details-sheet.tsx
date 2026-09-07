@@ -6,10 +6,11 @@ import { ArrowLeft, Eye } from "lucide-react";
 import { updateContactMessageStatusAction } from "./actions";
 import {
   CONTACT_MESSAGE_STATUSES,
+  MESSAGE_PARAM,
   type ContactMessage,
   type ContactMessageStatus,
 } from "./message-types";
-import { CONTACT_TOPIC_LABELS } from "./message-badges";
+import { CONTACT_TOPIC_LABELS } from "@/lib/contact-topics";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
@@ -38,16 +39,23 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 import { formatDateTime } from "@/lib/format";
+import { useDeepLinkedSheet } from "@/components/portal/use-deep-linked-sheet";
 
 export function MessageDetailsSheet({
   message,
   canManage,
+  defaultOpen = false,
 }: {
   message: ContactMessage;
   canManage: boolean;
+  /** True when `?message=` names this row. */
+  defaultOpen?: boolean;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  // Arriving on a deep link marks the message read through the effect below,
+  // exactly as clicking the row would -- which is the right reading: someone
+  // followed the notification and is looking at it.
+  const { open, onOpenChange } = useDeepLinkedSheet(MESSAGE_PARAM, defaultOpen);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -78,7 +86,7 @@ export function MessageDetailsSheet({
   }, [open]);
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <Tooltip>
         <SheetTrigger
           render={
