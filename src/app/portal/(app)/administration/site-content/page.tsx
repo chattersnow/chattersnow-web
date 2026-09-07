@@ -1,6 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import {
   getCurrentUserPermissions,
   hasPermission,
@@ -66,29 +64,13 @@ export default async function SiteContentPage({
         The words on the public website, page by page.
       </p>
 
-      <nav aria-label="Pages" className="mt-6 flex flex-wrap gap-2">
-        {CONTENT_PAGES.map((candidate) => (
-          <Button
-            key={candidate.key}
-            size="sm"
-            variant={candidate.key === page.key ? "default" : "secondary"}
-            nativeButton={false}
-            render={
-              <Link
-                href={`/portal/administration/site-content?page=${candidate.key}`}
-                aria-current={candidate.key === page.key ? "page" : undefined}
-              />
-            }
-          >
-            {candidate.label}
-          </Button>
-        ))}
-      </nav>
-
+      {/* The page switcher lives inside the editor because leaving it here
+          navigated away from unsaved edits without asking (#791). */}
       <div className="mt-6">
         <ContentEditor
           key={page.key}
           page={page}
+          pages={CONTENT_PAGES}
           slots={slots}
           canEdit={canEdit}
         />
