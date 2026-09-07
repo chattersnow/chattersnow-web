@@ -14,6 +14,10 @@ import { getFiscalYearStartMonth } from "@/lib/fiscal-year";
 import { getTenantBranding } from "@/lib/tenant-branding";
 import { NOTIFICATION_KINDS } from "@/lib/notifications/kinds";
 import { getOrgEmailEnabled } from "@/lib/notifications/settings";
+import {
+  OPS_REPORT_RECIPIENTS_SETTING_KEY,
+  parseOpsReportRecipients,
+} from "@/lib/notifications/ops-report";
 import { currentTenant, getTenantContext } from "@/lib/portal/tenants";
 
 function parseThreshold(value: unknown): number | null {
@@ -31,6 +35,7 @@ export default async function SystemSettingsPage() {
     { data: expenseSetting },
     { data: reimbursementSetting },
     { data: siteImageSettings },
+    { data: opsReportSetting },
   ] = await Promise.all([
     supabase
       .from("app_settings")
@@ -46,6 +51,11 @@ export default async function SystemSettingsPage() {
       .from("app_settings")
       .select("key, value")
       .like("key", "site_images.%"),
+    supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", OPS_REPORT_RECIPIENTS_SETTING_KEY)
+      .maybeSingle(),
   ]);
 
   const [
@@ -159,12 +169,17 @@ export default async function SystemSettingsPage() {
           <p className="app-muted max-w-3xl text-sm leading-relaxed">
             The organization-wide switch for every email this portal sends. It
             is a stop, not a preference: individual people choose what they want
-            on their own account pages, and this overrides all of them. Every
-            change here is recorded in the audit log.
+            on their own account pages, and this overrides all of them &mdash;
+            including the daily ops report below, which goes to a shared inbox
+            rather than to anyone&rsquo;s account. Every change here is recorded
+            in the audit log.
           </p>
           <NotificationsPanel
             emailEnabled={emailEnabled}
             kinds={NOTIFICATION_KINDS}
+            opsReportRecipients={parseOpsReportRecipients(
+              opsReportSetting?.value,
+            )}
           />
         </TabsContent>
 

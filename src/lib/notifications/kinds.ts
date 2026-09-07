@@ -5,7 +5,14 @@
  * A registry rather than a database enum, for the same reason PUBLIC_PAGE_SLOTS
  * in src/lib/page-visibility.ts is one: adding a kind should be a line here and
  * a sender that reads it, not a migration. #742 (volunteer applications,
- * contact messages) and #743 (the leadership ops report) add entries.
+ * contact messages) added entries.
+ *
+ * The leadership ops report (#743) deliberately has none. It is addressed to a
+ * shared inbox configured in app_settings, not to a `people` row, so there is
+ * nobody to hold a preference -- and listing it here would grow a switch on
+ * /portal/account that could never change what anyone receives. Its own
+ * registration is OPS_REPORT_RECIPIENTS_SETTING_KEY in
+ * src/lib/notifications/ops-report.ts; the kill switch below still governs it.
  *
  * Zero runtime imports on purpose, so the client-side preference and admin
  * panels can import it directly without dragging a Supabase client into the

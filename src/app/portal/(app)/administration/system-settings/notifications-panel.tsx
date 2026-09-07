@@ -1,15 +1,24 @@
 "use client";
 
-import { useOptimistic, useState, useTransition } from "react";
+import { FormEvent, useOptimistic, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   updateEmailNotificationsEnabledAction,
+  updateOpsReportRecipientsAction,
   type SettingActionResult,
 } from "./actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
 import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
 import { runAction } from "@/components/portal/action-toast";
 // Type-only, like the other panels here: @/lib/notifications/kinds is a pure
 // registry, but keeping the import shape consistent makes it obvious that the
@@ -19,9 +28,11 @@ import type { NotificationKind } from "@/lib/notifications/kinds";
 export function NotificationsPanel({
   emailEnabled,
   kinds,
+  opsReportRecipients,
 }: {
   emailEnabled: boolean;
   kinds: NotificationKind[];
+  opsReportRecipients: string[];
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -87,6 +98,8 @@ export function NotificationsPanel({
         </CardContent>
       </Card>
 
+      <OpsReportRecipientsCard recipients={opsReportRecipients} />
+
       <Card>
         <CardContent className="space-y-3">
           <div>
@@ -109,5 +122,88 @@ export function NotificationsPanel({
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+/**
+ * The leadership ops report's recipients (#743).
+ *
+ * A free-text list rather than a person picker, because the address is
+ * routinely a distribution list -- board@, leadership@ -- with no `people` row
+ * and no portal account behind it. That is also why this report sits outside
+ * the per-person preferences above: nobody can opt themselves in or out of an
+ * inbox they do not own. Leaving the field empty switches the report off.
+ */
+function OpsReportRecipientsCard({ recipients }: { recipients: string[] }) {
+  const router = useRouter();
+  const [value, setValue] = useState(recipients.join("\n"));
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+
+    const formData = new FormData(event.currentTarget);
+    startTransition(async () => {
+      await runAction<SettingActionResult>(
+        () => updateOpsReportRecipientsAction(formData),
+        {
+          success: "Daily ops report recipients updated.",
+          onError: setError,
+          onSuccess: () => router.refresh(),
+        },
+      );
+    });
+  }
+
+  return (
+    <Card>
+      <CardContent>
+        <form onSubmit={handleSubmit}>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="ops-report-recipients">
+                Daily ops report recipients
+              </FieldLabel>
+              <Textarea
+                id="ops-report-recipients"
+                name="recipients"
+                rows={3}
+                spellCheck={false}
+                placeholder="leadership@example.org"
+                value={value}
+                onChange={(event) => setValue(event.target.value)}
+              />
+              <FieldDescription>
+                One address per line (commas work too). Each morning these
+                addresses get a summary of the day: approvals waiting, events
+                and shift gaps in the next week, new messages and applications,
+                and donations received. Leave this empty to send no report at
+                all. Every change here is recorded in the audit log.
+              </FieldDescription>
+            </Field>
+
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            <div>
+              <Button type="submit" disabled={isPending}>
+                {isPending ? (
+                  <>
+                    <Spinner /> Saving...
+                  </>
+                ) : (
+                  "Save"
+                )}
+              </Button>
+            </div>
+          </FieldGroup>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

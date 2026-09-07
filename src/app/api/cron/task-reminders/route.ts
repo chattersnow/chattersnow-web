@@ -1,6 +1,6 @@
-import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { isAuthorizedCronRequest } from "@/lib/notifications/cron-auth";
 import { runTaskDigest } from "@/lib/notifications/task-digest-job";
 
 /**
@@ -15,29 +15,6 @@ import { runTaskDigest } from "@/lib/notifications/task-digest-job";
  * which is exactly what the delivery ledger's unique constraint is for: the
  * second run claims nothing and sends nothing.
  */
-
-/**
- * Constant-time bearer check, exported so the interesting part is a unit test
- * rather than an HTTP one -- the same split as `resolveDestination` in
- * src/app/auth/callback/route.ts.
- *
- * Refuses outright when no secret is configured. A route that defaults to open
- * because someone forgot an environment variable is worse than one that never
- * runs: the failure is silent and the endpoint is public.
- */
-export function isAuthorizedCronRequest(
-  header: string | null,
-  secret: string | undefined,
-): boolean {
-  if (!secret) return false;
-
-  const provided = Buffer.from(header ?? "");
-  const expected = Buffer.from(`Bearer ${secret}`);
-  // timingSafeEqual throws on a length mismatch, so length has to be compared
-  // first -- and length is not the secret, so comparing it plainly is fine.
-  if (provided.length !== expected.length) return false;
-  return timingSafeEqual(provided, expected);
-}
 
 export async function GET(request: Request) {
   if (
