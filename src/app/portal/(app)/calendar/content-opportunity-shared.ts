@@ -107,21 +107,31 @@ export function effectiveDueDate(opp: StageDates): string | null {
   return null;
 }
 
+/**
+ * `personId` is a public.people id, not an auth.users id: owner_id and
+ * reviewer_id were repointed at people in
+ * 20260902010000_link_calendar_owners_to_people.sql. Callers must resolve the
+ * signed-in user with ensure_current_person()/resolve_current_person_id()
+ * first -- passing an auth id compiles fine and silently matches nothing.
+ */
 export function isMyContentWork(
   opp: Pick<
     ContentOpportunityRow,
     "content_status" | "owner_id" | "reviewer_id"
   >,
-  userId: string,
+  personId: string,
 ): boolean {
   if (opp.content_status === "published" || opp.content_status === "skipped")
     return false;
-  return opp.owner_id === userId || opp.reviewer_id === userId;
+  return opp.owner_id === personId || opp.reviewer_id === personId;
 }
 
+/** `personId` is a public.people id -- see isMyContentWork. */
 export function isChangesRequestedForMe(
   opp: Pick<ContentOpportunityRow, "content_status" | "owner_id">,
-  userId: string,
+  personId: string,
 ): boolean {
-  return opp.content_status === "changes_requested" && opp.owner_id === userId;
+  return (
+    opp.content_status === "changes_requested" && opp.owner_id === personId
+  );
 }

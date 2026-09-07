@@ -55,6 +55,307 @@ export const helpContent: Record<string, HelpEntry> = {
       </>
     ),
   },
+  "/portal/home": {
+    title: "Reading the dashboard",
+    description: "What the figures cover, and where each one leads.",
+    body: (
+      <>
+        <HowToSection heading="What you see depends on your roles">
+          <p>
+            Each card is gated on its own permission, and individual figures
+            inside a card are gated more narrowly still — a board member with
+            read-only finance sees the Financial card without the event-expense
+            rows. A card you can&apos;t see is an access question, not an empty
+            one.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Every figure opens">
+          <p>
+            Clicking a row takes you to the records behind it. Where a figure
+            spans two statuses — outstanding reimbursements is submitted{" "}
+            <em>and</em> approved-but-unpaid, inventory needing attention is
+            damaged <em>and</em> lost — the link goes to the unfiltered list on
+            purpose, since any single filter would show a total that didn&apos;t
+            match the number you clicked.
+          </p>
+        </HowToSection>
+        <HowToSection heading="&ldquo;FY&rdquo; means the fiscal year, not the calendar year">
+          <p>
+            The financial figures are captioned with a fiscal year — FY2027, say
+            — because Chatter&apos;s year does not start in January. A fiscal
+            year is named for the calendar year it ends in, so under a July
+            start FY2027 runs July 1 2026 to June 30 2027. That keeps a whole
+            winter season inside one year instead of splitting it across two. An
+            admin or board member sets the start month in{" "}
+            <Link
+              href="/portal/administration/system-settings"
+              className="underline hover:text-foreground"
+            >
+              System Settings
+            </Link>
+            .
+          </p>
+        </HowToSection>
+        <HowToSection heading="Happening now">
+          <p>
+            Events currently running appear at the top with their in-context
+            actions, so checking someone in doesn&apos;t start with finding the
+            event.
+          </p>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/governance": {
+    title: "How the governance record works",
+    description:
+      "What each record set is for, and why the board keeps it current.",
+    body: (
+      <>
+        <HowToSection heading="What lives here">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">Board members</strong> and{" "}
+              <strong className="text-foreground">Meetings</strong> — who
+              serves, their terms, and what was decided. Attendance is what
+              establishes quorum for a meeting&apos;s decisions, so removing an
+              attendee changes what those decisions rest on.
+            </li>
+            <li>
+              <strong className="text-foreground">Bylaws</strong>,{" "}
+              <strong className="text-foreground">Policies</strong> and{" "}
+              <strong className="text-foreground">Resolutions</strong> — the
+              rules and the formal decisions that changed them. Bylaws are
+              versioned rather than edited in place, so the history of what was
+              in force when stays intact.
+            </li>
+            <li>
+              <strong className="text-foreground">Conflict of Interest</strong>{" "}
+              and{" "}
+              <strong className="text-foreground">Annual Requirements</strong> —
+              the compliance calendar. A missing disclosure or an overdue
+              requirement surfaces on the dashboard and in the bell.
+            </li>
+            <li>
+              <strong className="text-foreground">Nonprofit Status</strong>,{" "}
+              <strong className="text-foreground">Grants</strong> and{" "}
+              <strong className="text-foreground">Partnerships</strong> — work
+              in flight toward funding and recognition, each with its own stage
+              or milestone track.
+            </li>
+          </ul>
+        </HowToSection>
+        <HowToSection heading="Why it's kept in the portal">
+          <p>
+            Grant applications and state filings ask for this record, and
+            reconstructing it after the fact is where nonprofits lose time. The
+            board keeping it current as it goes is the whole point — nothing
+            here is generated from anywhere else.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Who can change it">
+          <p>
+            Governance records need{" "}
+            <strong className="text-foreground">governance</strong> at manage
+            level, which the board and admin roles hold. Read-only governance
+            access shows the record without the edit controls.
+          </p>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/inventory/categories": {
+    title: "How item categories work",
+    description:
+      "The two-level vocabulary staff tag donated gear with, and why names matter.",
+    body: (
+      <>
+        <HowToSection heading="Two levels">
+          <p>
+            A <strong className="text-foreground">group</strong> (Outerwear)
+            holds <strong className="text-foreground">categories</strong>{" "}
+            (Jacket, Pants). Items are always tagged with a category, never a
+            group; groups exist so pickers stay readable and so reports can roll
+            up. There is no third level.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Retire, don't delete">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              Deleting only works while no item uses the category. Anything
+              already tagged with it blocks the delete on purpose, so history
+              can&apos;t lose its classification.
+            </li>
+            <li>
+              Turning <strong className="text-foreground">Active</strong> off is
+              the usual move: the category stays on the items that carry it and
+              disappears from the pickers.
+            </li>
+            <li>
+              Renaming a category is safe — the underlying key never changes, so
+              saved filter links and existing items keep working.
+            </li>
+          </ol>
+        </HowToSection>
+        <HowToSection heading="Names feed the giveaway tiers">
+          <p>
+            A giveaway&apos;s tier hints match on the item&apos;s group and
+            category names, so a name that happens to contain a keyword will
+            suggest the wrong ticket colour — &ldquo;Snowboard boots&rdquo;
+            would match the <em>snowboard</em> hint and suggest gold for a pair
+            of boots. That is why footwear is a single &ldquo;Boots&rdquo;
+            category and the boards group is called &ldquo;Hardgoods&rdquo;.
+            Staff can always override a suggested tier at intake.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            Anyone signed in can see the list, because donation intake has to
+            show it. Adding, renaming and retiring categories needs manage
+            access to inventory.
+          </p>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/inventory": {
+    title: "How gear moves through inventory",
+    description: "Item statuses, and what a distribution actually records.",
+    body: (
+      <>
+        <HowToSection heading="The lifecycle">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              A donation brings items in. Each physical item becomes its own
+              row, because gear is tracked and given out one piece at a time.
+            </li>
+            <li>
+              Items sit <strong className="text-foreground">available</strong>{" "}
+              until they&apos;re reserved for someone or distributed.
+            </li>
+            <li>
+              A distribution records who received what and when, which is what
+              impact reporting counts. It isn&apos;t a stock adjustment — the
+              recipient is part of the record.
+            </li>
+          </ol>
+        </HowToSection>
+        <HowToSection heading="Damaged, lost and retired">
+          <p>
+            These are statuses, not deletions, so a written-off item stays in
+            the history and in the totals it was part of. The dashboard&apos;s
+            &ldquo;needing attention&rdquo; figure counts damaged and lost
+            together.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Who can do what">
+          <p>
+            <strong className="text-foreground">inventory_intake</strong> covers
+            recording donations and distributions — the work that happens at an
+            event or in the van. Editing the catalogue itself needs{" "}
+            <strong className="text-foreground">inventory</strong> at manage
+            level.
+          </p>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/volunteers": {
+    title: "How volunteering is tracked",
+    description: "Roles, applications, and the hours that feed reporting.",
+    body: (
+      <>
+        <HowToSection heading="Three separate things">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">Roles</strong> are the kinds
+              of work someone can sign up for. Marking one public lists it on
+              the website&apos;s volunteer page; the rest stay internal.
+            </li>
+            <li>
+              <strong className="text-foreground">Applications</strong> come
+              from the public form and move through their own status track until
+              someone is placed or the application is closed.
+            </li>
+            <li>
+              <strong className="text-foreground">Participation</strong> is
+              logged hours: who did what, on which event, for how long.
+            </li>
+          </ul>
+        </HowToSection>
+        <HowToSection heading="Why hours matter more than they look">
+          <p>
+            Volunteer hours are reported to grantmakers and count toward in-kind
+            contribution totals, so an entry deleted here changes a number the
+            organization has already reported. That&apos;s why removing one asks
+            first.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Logging for someone else">
+          <p>
+            <strong className="text-foreground">volunteer_hours_logging</strong>{" "}
+            lets a coordinator log their own hours; logging on behalf of another
+            person needs <strong className="text-foreground">volunteers</strong>{" "}
+            at manage level.
+          </p>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/programs": {
+    title: "What a program is",
+    description: "The unit impact is reported against.",
+    body: (
+      <>
+        <HowToSection heading="Programs group the work">
+          <p>
+            A program is an ongoing strand of activity — a season of trips, a
+            gear library, a mentorship track. Events and calendar items are
+            attached to one, and the Impact Report totals up from that
+            attachment. An event with no program still runs; it just
+            doesn&apos;t roll up anywhere.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Status is about reporting, not visibility">
+          <p>
+            Marking a program complete stops it collecting new work; it
+            doesn&apos;t hide what it already holds, and past events keep
+            counting toward its totals.
+          </p>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/account": {
+    title: "Your account",
+    description: "What you can change here, and what an admin has to.",
+    body: (
+      <>
+        <HowToSection heading="Preferred name">
+          <p>
+            Set it and the whole portal uses it — sidebar, record owners,
+            attendance lists — in place of the name on your sign-in account.
+            It&apos;s the only place your own display name comes from, so
+            it&apos;s worth setting if your account name isn&apos;t what
+            colleagues call you.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What an admin controls">
+          <p>
+            Roles and portal access aren&apos;t editable here. If a section you
+            expect is missing, an admin grants your role access under
+            Administration and it appears immediately, without a re-login.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Password and the tour">
+          <p>
+            Password changes go through the reset link on the sign-in page. The
+            portal introduction can be replayed from here any time.
+          </p>
+        </HowToSection>
+      </>
+    ),
+  },
   "/portal/calendar": {
     title: "How calendar items work",
     description: "Priority tiers, sensitive topics, and content opportunities.",
@@ -84,7 +385,7 @@ export const helpContent: Record<string, HelpEntry> = {
                 href="/portal/calendar/work-queue"
                 className="underline hover:text-foreground"
               >
-                Work queue
+                Work Queue
               </Link>{" "}
               page.
             </li>
@@ -266,8 +567,8 @@ export const helpContent: Record<string, HelpEntry> = {
               <strong className="text-foreground">
                 Tier 1 items with a decision
               </strong>{" "}
-              — the share of the selected year&apos;s Tier 1 items (by start
-              date) that have a Plan, Skip, or Defer decision recorded.
+              — the share of the selected fiscal year&apos;s Tier 1 items (by
+              start date) that have a Plan, Skip, or Defer decision recorded.
             </li>
             <li>
               <strong className="text-foreground">
@@ -278,8 +579,9 @@ export const helpContent: Record<string, HelpEntry> = {
             </li>
             <li>
               <strong className="text-foreground">Overdue content tasks</strong>{" "}
-              — this year&apos;s opportunities currently past their stage&apos;s
-              due date, using the same overdue logic as the Work queue page.
+              — the selected fiscal year&apos;s opportunities currently past
+              their stage&apos;s due date, using the same overdue logic as the
+              Work Queue page.
             </li>
             <li>
               <strong className="text-foreground">
@@ -293,18 +595,34 @@ export const helpContent: Record<string, HelpEntry> = {
               <strong className="text-foreground">
                 Public items with a clear Chatter connection
               </strong>{" "}
-              — this year&apos;s items that are public, live (active or
-              complete), and have a non-empty Chatter connection recorded on
-              their opportunity.
+              — the selected fiscal year&apos;s items that are public, live
+              (active or complete), and have a non-empty Chatter connection
+              recorded on their opportunity.
             </li>
             <li>
               <strong className="text-foreground">
                 Publication permissions recorded
               </strong>{" "}
-              — a raw count of publication-permission rows tied to this
-              year&apos;s items.
+              — a raw count of publication-permission rows tied to the selected
+              fiscal year&apos;s items.
             </li>
           </ul>
+        </HowToSection>
+        <HowToSection heading="The year is the fiscal year">
+          <p>
+            The picker lists fiscal years, not calendar years, and a fiscal year
+            is named for the calendar year it ends in — so under a July start,
+            FY2027 covers items starting between July 1 2026 and June 30 2027. A
+            season&apos;s planning therefore sits in one review instead of being
+            split at New Year. An admin or board member sets the start month in{" "}
+            <Link
+              href="/portal/administration/system-settings"
+              className="underline hover:text-foreground"
+            >
+              System Settings
+            </Link>
+            .
+          </p>
         </HowToSection>
         <HowToSection heading="Who can do this">
           <p>
@@ -489,7 +807,12 @@ export const helpContent: Record<string, HelpEntry> = {
               </strong>{" "}
               — face value times quantity of <code>received</code> and{" "}
               <code>distributed</code> movements whose date falls in the From/To
-              range, which defaults to the current month.
+              range, which defaults to the current month. Value donated also
+              breaks its total into{" "}
+              <strong className="text-foreground">Sponsors &amp; orgs</strong>{" "}
+              and <strong className="text-foreground">Individuals</strong>,
+              using the donor&apos;s source type on the donation behind each
+              item.
             </li>
             <li>
               <strong className="text-foreground">
@@ -499,6 +822,20 @@ export const helpContent: Record<string, HelpEntry> = {
               statuses (Available, Reserved, Distributed, Damaged, Lost,
               Retired, Other) out separately. Neither is affected by the date
               range.
+            </li>
+            <li>
+              <strong className="text-foreground">
+                Donated value by donor type
+              </strong>{" "}
+              — the same <code>received</code> value and item count as the Value
+              donated card, split into Sponsors &amp; orgs (donors whose source
+              type is Brand or Organization), Individuals, and Other (Event or
+              Other). Unlike the two tables above, this one <em>is</em> scoped
+              to the date range. An{" "}
+              <strong className="text-foreground">Unattributed</strong> row
+              appears only if a donation or donor could not be read, which needs
+              a role holding inventory reports access without Finance or People
+              view.
             </li>
           </ul>
         </HowToSection>
@@ -515,9 +852,10 @@ export const helpContent: Record<string, HelpEntry> = {
         </HowToSection>
         <HowToSection heading="What happens downstream">
           <p>
-            Changing the date range only re-runs Value donated and Value
-            distributed — the on-hand cards and tables always reflect the
-            catalog&apos;s current state. Nothing here is cached.
+            Changing the date range re-runs Value donated, Value distributed,
+            and Donated value by donor type — the on-hand cards and the by-type
+            and by-status tables always reflect the catalog&apos;s current
+            state. Nothing here is cached.
           </p>
         </HowToSection>
         <HowToSection heading="Common mistakes">
@@ -800,6 +1138,23 @@ export const helpContent: Record<string, HelpEntry> = {
             figures; <strong className="text-foreground">board</strong> gets a
             view-only version for oversight; other roles have no access to
             Finance reports.
+          </p>
+        </HowToSection>
+        <HowToSection heading="The default range is the fiscal year">
+          <p>
+            The page opens on fiscal-year-to-date, not calendar-year-to-date:
+            from the first day of the current fiscal year through today. Under a
+            July start that means a report opened in January reaches back to the
+            previous July rather than to January 1, so a winter season stays
+            whole. &ldquo;Reset to FY2027&rdquo; returns to that default from
+            any range you&apos;ve typed. The start month is set in{" "}
+            <Link
+              href="/portal/administration/system-settings"
+              className="underline hover:text-foreground"
+            >
+              System Settings
+            </Link>
+            .
           </p>
         </HowToSection>
         <HowToSection heading="What happens downstream">
@@ -1335,11 +1690,28 @@ export const helpContent: Record<string, HelpEntry> = {
     ),
   },
   "/portal/administration/system-settings": {
-    title: "How these thresholds are used",
-    description: "Where the approval thresholds take effect.",
+    title: "How these settings are used",
+    description: "Where the fiscal year and approval thresholds take effect.",
     body: (
       <>
-        <HowToSection heading="Steps">
+        <HowToSection heading="The fiscal year">
+          <p>
+            The fiscal year decides what &ldquo;this year&rdquo; means
+            everywhere else in the portal: the dashboard&apos;s financial
+            figures, the default range on Financial Reports, the annual planning
+            review, and the year a conflict-of-interest disclosure covers.
+            Chatter&apos;s runs July 1 – June 30 so a winter season falls inside
+            one year rather than being split at New Year, and a fiscal year is
+            named for the calendar year it ends in — FY2027 is July 2026 through
+            June 2027.
+          </p>
+          <p>
+            Under the bylaws the fiscal year is set by Board resolution, so
+            changing the month here should follow that resolution rather than
+            lead it. The change is written to the audit log either way.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Approval thresholds">
           <ol className="list-decimal space-y-2 pl-4">
             <li>
               <strong className="text-foreground">Below the threshold</strong> —
@@ -1371,8 +1743,9 @@ export const helpContent: Record<string, HelpEntry> = {
         </HowToSection>
         <HowToSection heading="Who can do this">
           <p>
-            Only <strong className="text-foreground">admin</strong> can change
-            these settings.
+            <strong className="text-foreground">admin</strong> and{" "}
+            <strong className="text-foreground">board</strong> can change these
+            settings; every other role has no access to this page.
           </p>
         </HowToSection>
         <HowToSection heading="What happens downstream">
@@ -1594,25 +1967,29 @@ export const helpContent: Record<string, HelpEntry> = {
             </li>
             <li>Both are set independently from the event editor.</li>
             <li>
-              <strong className="text-foreground">Phase tabs</strong> — Basic,
-              Planning, During, After — each carry their own Not started / In
-              progress / Done badge, computed from the event&apos;s data rather
-              than set by hand:
+              <strong className="text-foreground">Phase tabs</strong> —
+              Overview, Planning, During, After — carry a count of what is still
+              outstanding in that phase, worked out from the event&apos;s own
+              data rather than set by hand. Hover the count to see what&apos;s
+              missing. No badge means nothing is outstanding.
               <ul className="mt-1 list-disc space-y-1 pl-4">
                 <li>
-                  <strong className="text-foreground">Planning</strong> is Done
-                  once a lead, capacity, and budget are all filled in; any
-                  subset shows In progress.
+                  <strong className="text-foreground">Overview</strong> counts
+                  unfinished checklist items.
                 </li>
                 <li>
-                  <strong className="text-foreground">During</strong> flips to
-                  In progress once the start time passes, then to Done once an
-                  attendance count is recorded.
+                  <strong className="text-foreground">Planning</strong> counts
+                  planning as incomplete until a lead, capacity and budget are
+                  all filled in — and stops asking once the event has started.
                 </li>
                 <li>
-                  <strong className="text-foreground">After</strong> mirrors the
-                  after-report&apos;s own submission status: Not started, In
-                  progress, or Done once submitted.
+                  <strong className="text-foreground">During</strong> asks for
+                  an attendance headcount once the start time has passed.
+                </li>
+                <li>
+                  <strong className="text-foreground">After</strong> asks for
+                  the after-report and for impact figures, until the report is
+                  submitted and an impact record exists.
                 </li>
               </ul>
             </li>
@@ -1651,9 +2028,16 @@ export const helpContent: Record<string, HelpEntry> = {
               upcoming in reports that key off status.
             </li>
             <li>
-              Expecting phase badges to follow the event Status field — they
+              Expecting phase counts to follow the event Status field — they
               don&apos;t. A cancelled or archived event&apos;s phase tabs keep
               computing from its own data.
+            </li>
+            <li>
+              Retyping figures on the Impact tab that the system already has.
+              Participants, first-time participants, beginners, volunteers on
+              site and assigned discount codes are computed from attendance,
+              check-ins, volunteer records and rider profiles — only the figures
+              under &ldquo;Staff-entered&rdquo; need typing.
             </li>
           </ul>
         </HowToSection>

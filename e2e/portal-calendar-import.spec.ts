@@ -10,8 +10,10 @@
 // so the first run to click it would flip the other run's page to the
 // "already has an instance" empty state. The generation logic itself is
 // covered by calendar/recurrence-actions.integration.test.ts.
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
+import { modal } from "./helpers/dialog";
+import { pager, revealRow } from "./helpers/table";
 
 // Far enough out that these rows never collide with the seeded data the
 // annual review report and the coverage card read for nearby years.
@@ -151,14 +153,19 @@ test.describe("portal calendar import", () => {
     ).toBeDisabled();
 
     // Both rows really landed. The work queue's Upcoming tab lists every
-    // non-archived calendar item, so it shows imported drafts as-is.
+    // non-archived calendar item, so it shows imported drafts as-is -- ten
+    // to a page, hence the paging to reach them.
     await page.goto("/portal/calendar/work-queue?tab=queue");
-    await expect(
-      page.getByRole("row").filter({ hasText: observanceTitle }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("row").filter({ hasText: campaignTitle }),
-    ).toBeVisible();
+    const observanceRow = page
+      .getByRole("row")
+      .filter({ hasText: observanceTitle });
+    await revealRow(observanceRow, pager(page));
+    await expect(observanceRow).toBeVisible();
+    const campaignRow = page
+      .getByRole("row")
+      .filter({ hasText: campaignTitle });
+    await revealRow(campaignRow, pager(page));
+    await expect(campaignRow).toBeVisible();
   });
 
   test("explains that imported items are never published automatically", async ({
@@ -168,7 +175,7 @@ test.describe("portal calendar import", () => {
 
     await page.getByRole("button", { name: "Help for this page" }).click();
 
-    const sheet = page.getByRole("dialog");
+    const sheet = modal(page);
     await expect(
       sheet.getByRole("heading", { name: "How calendar import works" }),
     ).toBeVisible();

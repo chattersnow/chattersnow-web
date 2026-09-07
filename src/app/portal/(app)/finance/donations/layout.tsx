@@ -7,6 +7,6 @@ export default async function FinanceDonationsLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createSupabaseServerClient();
-  await requirePermission(supabase, "finance", "manage");
+  await requirePermission(supabase, "finance", "manage", "Donations");
   return children;
 }

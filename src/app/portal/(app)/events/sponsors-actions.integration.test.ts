@@ -125,6 +125,17 @@ describe("event sponsor actions (integration)", () => {
       await createEventSponsorAction(event.id, person.id, sponsorForm()),
     ).toEqual({ success: true });
 
+    // The sponsor has to go through the action, not with the event: an
+    // in-kind contribution mirrors into `donations` + inventory
+    // (20260830180000), and those survive the event as orphans -- so the
+    // delete guard (20260903060000) refuses to remove the event until the
+    // sponsor delete has unwound them.
+    const listed = await listEventSponsorsAction(event.id);
+    if (!("data" in listed)) throw new Error("expected data");
+    expect(await deleteEventSponsorAction(listed.data[0].id)).toEqual({
+      success: true,
+    });
+
     await event.cleanup();
     await person.cleanup();
   });
@@ -279,11 +290,22 @@ describe("event sponsor contributions sync into donations/monetary_donations (in
 
     const { data: itemRow } = await adminClient
       .from("inventory_items")
-      .select("description, face_value")
+      .select("description, face_value, intended_use")
       .eq("id", sponsor.inventory_item_id!)
       .single();
     expect(itemRow!.description).toBe("20 pairs of gloves");
     expect(Number(itemRow!.face_value)).toBe(300);
+    // Sponsor contributions are prize stock, not gear-library stock: they must
+    // not land on the public gear library, where vouchers read as gear the
+    // community can take home.
+    expect(itemRow!.intended_use).toBe("giveaway");
+
+    const { data: catalogRow } = await anonClient()
+      .from("public_gear_catalog")
+      .select("id")
+      .eq("id", sponsor.inventory_item_id!)
+      .maybeSingle();
+    expect(catalogRow).toBeNull();
 
     await updateEventSponsorAction(
       sponsor.id,

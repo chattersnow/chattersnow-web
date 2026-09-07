@@ -31,7 +31,6 @@ const listPeopleActionMock = mock(async () => ({
       name: "Sam Walk-in",
       email: "sam@example.test",
       phone: null,
-      is_sponsor: false,
     },
   ],
 }));
@@ -71,7 +70,6 @@ describe("CheckInWalkInDialog", () => {
         name: "Sam Walk-in",
         email: "sam@example.test",
         phone: null,
-        is_sponsor: false,
       },
       1,
     );

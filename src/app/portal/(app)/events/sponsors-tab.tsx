@@ -2,7 +2,7 @@
 
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil } from "lucide-react";
 import {
   deleteEventSponsorAction,
   listEventSponsorsAction,
@@ -12,7 +12,7 @@ import {
   type SponsorActionResult,
 } from "./sponsors-actions";
 import { PersonPicker, type PickedPerson } from "../people/person-picker";
-import { listPeopleAction, type PersonListItem } from "../people/actions";
+import type { PersonListItem } from "../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -38,7 +38,11 @@ import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
 import type { TabValue } from "./event-tabs-config";
 import { Spinner } from "@/components/ui/spinner";
+import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
+import { formatCurrency, personDisplayName } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
+import { runAction } from "@/components/portal/action-toast";
 
 const SUPPORT_TYPES = [
   { value: "cash", label: "Cash" },
@@ -52,17 +56,6 @@ const FOLLOW_UP_STATUSES = [
   { value: "in_progress", label: "In progress" },
   { value: "done", label: "Done" },
 ];
-
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
-
-function formatValue(value: number | string | null) {
-  if (value === null || value === undefined) return "—";
-  const numeric = typeof value === "string" ? Number(value) : value;
-  return Number.isFinite(numeric) ? currencyFormatter.format(numeric) : "—";
-}
 
 export type SponsorFormState = {
   supportType: string;
@@ -154,14 +147,19 @@ export function SponsorForm({
     formData.set("followUpStatus", form.followUpStatus);
     formData.set("followUpNotes", form.followUpNotes);
 
+    const sponsorName = personDisplayName(personDisplay ?? selectedPerson);
     startTransition(async () => {
-      const result = await onSubmit(formData, selectedPerson?.id ?? null);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
-      onCancel?.();
+      await runAction(() => onSubmit(formData, selectedPerson?.id ?? null), {
+        // The same form adds and edits; `personDisplay` says which.
+        success: personDisplay
+          ? `${sponsorName} updated.`
+          : `${sponsorName} added as a sponsor.`,
+        onError: setError,
+        onSuccess: () => {
+          router.refresh();
+          onCancel?.();
+        },
+      });
     });
   }
 
@@ -339,11 +337,13 @@ export function SponsorForm({
 
 export function SponsorsTab({
   eventId,
-  active,
+  people,
+  onPersonCreated,
   mode,
 }: {
   eventId: string;
-  active: boolean;
+  people: PersonListItem[];
+  onPersonCreated: (person: PersonListItem) => void;
   mode: "view" | "edit";
 }) {
   const router = useRouter();
@@ -353,14 +353,8 @@ export function SponsorsTab({
     refresh: refreshSponsors,
   } = useTabData<EventSponsor[]>(
     () => listEventSponsorsAction(eventId),
-    active,
     [eventId],
   );
-  const { data: peopleData, refresh: refreshPeople } = useTabData<
-    PersonListItem[]
-  >(() => listPeopleAction(), active, [eventId]);
-  const [newPeople, setNewPeople] = useState<PersonListItem[]>([]);
-  const people = [...(peopleData ?? []), ...newPeople];
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isDeleting, startDeleteTransition] = useTransition();
 
@@ -370,20 +364,18 @@ export function SponsorsTab({
 
   function refresh() {
     refreshSponsors();
-    refreshPeople();
     router.refresh();
   }
 
   useRegisterTabRefresh<TabValue>("sponsors", refresh);
 
-  function handlePersonCreated(person: PickedPerson) {
-    setNewPeople((prev) => [...prev, { ...person, is_sponsor: true }]);
-  }
-
   function handleDelete(id: string) {
     startDeleteTransition(async () => {
-      await deleteEventSponsorAction(id);
-      refresh();
+      await runAction(() => deleteEventSponsorAction(id), {
+        success: "Sponsor removed.",
+        error: "Could not remove the sponsor. Please try again.",
+        onSuccess: refresh,
+      });
     });
   }
 
@@ -402,11 +394,15 @@ export function SponsorsTab({
       {sponsors === undefined ? (
         <TabLoadingSkeleton />
       ) : sortedSponsors.length === 0 ? (
-        <p className="app-muted text-sm">
-          No sponsors or partners recorded yet.
-        </p>
+        <EmptyState
+          title="No sponsors or partners recorded yet"
+          description="Add the first one with + Add sponsor above."
+        />
       ) : (
-        <Table>
+        // Not a PortalDataTable: editing a sponsor swaps its row for a
+        // full-width form, and a flat row list has nowhere to put that. It
+        // takes the sticky header and leaves the rest.
+        <Table stickyHeader="page">
           <TableHeader>
             <TableRow>
               <TableHead>Sponsor</TableHead>
@@ -432,7 +428,7 @@ export function SponsorsTab({
                         refresh();
                       }}
                       people={people}
-                      onPersonCreated={handlePersonCreated}
+                      onPersonCreated={onPersonCreated}
                       personDisplay={sponsor.person}
                     />
                   </TableCell>
@@ -443,13 +439,13 @@ export function SponsorsTab({
                     className="max-w-xs truncate font-medium"
                     title={sponsor.person?.name ?? undefined}
                   >
-                    {sponsor.person?.name ?? "—"}
+                    {personDisplayName(sponsor.person)}
                   </TableCell>
                   <TableCell className="app-muted capitalize">
                     {sponsor.support_type.replace("_", " ")}
                   </TableCell>
                   <TableCell>
-                    {formatValue(sponsor.contribution_value)}
+                    {formatCurrency(sponsor.contribution_value)}
                   </TableCell>
                   <TableCell className="app-muted">
                     {sponsor.is_public ? "Yes" : "No"}
@@ -466,16 +462,14 @@ export function SponsorsTab({
                         >
                           <Pencil />
                         </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label="Remove sponsor"
-                          disabled={isDeleting}
-                          onClick={() => handleDelete(sponsor.id)}
-                        >
-                          {isDeleting ? <Spinner /> : <Trash2 />}
-                        </Button>
+                        <ConfirmDeleteButton
+                          label="Remove sponsor"
+                          title={`Remove ${personDisplayName(sponsor.person)} as a sponsor?`}
+                          description="This deletes the sponsorship record for this event, including its contribution value. It can't be undone."
+                          confirmLabel="Remove"
+                          pending={isDeleting}
+                          onConfirm={() => handleDelete(sponsor.id)}
+                        />
                       </>
                     )}
                   </TableCell>

@@ -10,6 +10,8 @@ describe("emptyPersonForm", () => {
       is_sponsor: false,
       is_volunteer: false,
       is_attendee: false,
+      is_staff: false,
+      is_partner: false,
     });
   });
 
@@ -20,6 +22,8 @@ describe("emptyPersonForm", () => {
       is_sponsor: true,
       is_volunteer: false,
       is_attendee: false,
+      is_staff: false,
+      is_partner: false,
     });
   });
 });
@@ -28,23 +32,23 @@ describe("packPersonFormData", () => {
   test("round-trips through parsePersonForm", () => {
     const form = emptyPersonForm("is_sponsor");
     form.name = "Jane Donor";
+    form.preferredName = "Janey";
     form.email = "jane@example.com";
 
     const result = parsePersonForm(packPersonFormData(form));
     expect(result).toEqual({
+      roles: ["sponsor"],
       data: {
         name: "Jane Donor",
+        preferred_name: "Janey",
         email: "jane@example.com",
         phone: null,
+        pronouns: null,
         instagram_handle: null,
         notes: null,
         logo_url: null,
         website: null,
-        is_donor: false,
-        is_sponsor: true,
-        is_volunteer: false,
-        is_organization: false,
-        is_attendee: false,
+        person_type: "individual",
         riding_discipline: null,
         ski_experience_level: null,
         snowboard_experience_level: null,
@@ -60,9 +64,9 @@ describe("packPersonFormData", () => {
     expect(formData.get("isSponsor")).toBe("false");
   });
 
-  test("packs isOrganization as its string form", () => {
-    const form = emptyPersonForm("is_donor", true);
+  test("packs the person type", () => {
+    const form = emptyPersonForm("is_donor", "organization");
     const formData = packPersonFormData(form);
-    expect(formData.get("isOrganization")).toBe("true");
+    expect(formData.get("personType")).toBe("organization");
   });
 });

@@ -15,8 +15,42 @@ import {
   hasPermission,
 } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type CreateEventResult = { error: string } | { success: true };
+
+/**
+ * Replaces an event's program links with `programIds`. Delete-then-reinsert
+ * rather than a diff: the set is a handful of rows, and this keeps unchecking
+ * the last program working without a special case. Mirrors
+ * `syncCalendarItemLinks` in the calendar module, which handles the same
+ * relationship against the same `programs` table.
+ */
+async function syncEventPrograms(
+  supabase: SupabaseClient,
+  eventId: string,
+  programIds: string[],
+): Promise<{ error: string } | null> {
+  const { error: deleteError } = await supabase
+    .from("event_programs")
+    .delete()
+    .eq("event_id", eventId);
+  if (deleteError) {
+    return { error: "Could not save programs. Please try again." };
+  }
+
+  if (programIds.length === 0) return null;
+
+  const { error } = await supabase.from("event_programs").insert(
+    programIds.map((programId) => ({
+      event_id: eventId,
+      program_id: programId,
+    })),
+  );
+  if (error) return { error: "Could not save programs. Please try again." };
+
+  return null;
+}
 
 export async function createEventAction(
   formData: FormData,
@@ -35,36 +69,42 @@ export async function createEventAction(
   const {
     name,
     description,
-    eventType,
     location,
-    venue,
     startsAt,
     endsAt,
     timezone,
     visibility,
     status,
-    programId,
+    programIds,
     flierUrl,
   } = parsed.data;
 
-  const { error } = await supabase.from("events").insert({
-    name,
-    description,
-    event_type: eventType,
-    location,
-    venue,
-    starts_at: startsAt,
-    ends_at: endsAt,
-    timezone,
-    visibility,
-    status,
-    program_id: programId,
-    flier_url: flierUrl,
-  });
+  const { data: created, error } = await supabase
+    .from("events")
+    .insert({
+      name,
+      description,
+      location,
+      starts_at: startsAt,
+      ends_at: endsAt,
+      timezone,
+      visibility,
+      status,
+      flier_url: flierUrl,
+    })
+    .select("id")
+    .single();
 
-  if (error) {
+  if (error || !created) {
     return { error: "Could not create the event. Please try again." };
   }
+
+  const programsError = await syncEventPrograms(
+    supabase,
+    created.id,
+    programIds,
+  );
+  if (programsError) return programsError;
 
   revalidatePath("/portal/home");
   revalidatePath("/portal/events");
@@ -123,39 +163,52 @@ export async function updateEventAction(
   const {
     name,
     description,
-    eventType,
     location,
-    venue,
     startsAt,
     endsAt,
     timezone,
     visibility,
     status,
-    programId,
+    programIds,
     flierUrl,
   } = parsed.data;
+
+  // Moving an event earlier can strand a registration deadline past its new
+  // end, which the events_registration_deadline_within_event check would
+  // reject with an unhelpful generic error. Clamp it instead.
+  const { data: existing } = await supabase
+    .from("events")
+    .select("registration_deadline")
+    .eq("id", id)
+    .single();
+
+  const cutoff = endsAt ?? startsAt;
+  const clampDeadline =
+    existing?.registration_deadline != null &&
+    Date.parse(existing.registration_deadline) > Date.parse(cutoff);
 
   const { error } = await supabase
     .from("events")
     .update({
       name,
       description,
-      event_type: eventType,
       location,
-      venue,
       starts_at: startsAt,
       ends_at: endsAt,
       timezone,
       visibility,
       status,
-      program_id: programId,
       flier_url: flierUrl,
+      ...(clampDeadline ? { registration_deadline: cutoff } : {}),
     })
     .eq("id", id);
 
   if (error) {
     return { error: "Could not update the event. Please try again." };
   }
+
+  const programsError = await syncEventPrograms(supabase, id, programIds);
+  if (programsError) return programsError;
 
   revalidatePath("/portal/home");
   revalidatePath("/portal/events");
@@ -175,7 +228,21 @@ export async function updateEventPlanningAction(
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return permissionError;
 
-  const parsed = parseEventPlanningForm(formData);
+  // The deadline is validated against the event's stored dates rather than
+  // anything the client submitted alongside it.
+  const { data: eventRow } = await supabase
+    .from("events")
+    .select("starts_at, ends_at")
+    .eq("id", id)
+    .single();
+  if (!eventRow) {
+    return { error: "Could not find that event." };
+  }
+
+  const parsed = parseEventPlanningForm(formData, {
+    startsAt: eventRow.starts_at,
+    endsAt: eventRow.ends_at,
+  });
   if ("error" in parsed) return parsed;
   const {
     eventLeadId,
@@ -328,6 +395,74 @@ export async function reopenEventReportAction(
 
   if (error) {
     return { error: error.message };
+  }
+
+  revalidatePath("/portal/home");
+  revalidatePath("/portal/events");
+  return { success: true };
+}
+
+export type EventOption = { id: string; name: string };
+
+/**
+ * Event picker options for dialogs that can be opened outside their own
+ * module -- notably the sidebar quick actions, where there's no page query to
+ * pass options down from. Gated on events:view rather than the narrower gate
+ * used by the volunteers copy of this query, so the finance role (volunteers:
+ * none) can still populate an event picker.
+ */
+export async function listEventOptionsAction(): Promise<
+  { data: EventOption[] } | { error: string }
+> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "events", "view");
+  if (permissionError) return permissionError;
+
+  const { data, error } = await supabase
+    .from("events")
+    .select("id, name")
+    .order("starts_at", { ascending: false });
+
+  if (error) {
+    return { error: "Could not load events. Please try again." };
+  }
+
+  return { data: (data ?? []) as EventOption[] };
+}
+
+/**
+ * Deleting is scoped to events nothing is attached to yet -- a mistyped
+ * duplicate, a test row. A `before delete` trigger on events (see
+ * 20260903060000) refuses anything with registrants, sponsors, staff,
+ * volunteers, incidents, a giveaway, or linked finance records, since those
+ * would either cascade away or be silently orphaned; those events get
+ * Cancelled/Archived instead. The detail page pre-checks via
+ * event_delete_blockers so the dialog can say so up front, but the trigger is
+ * the enforcement.
+ */
+export async function deleteEventAction(
+  id: string,
+): Promise<CreateEventResult> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to delete an event.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
+
+  const { error } = await supabase.from("events").delete().eq("id", id);
+
+  if (error) {
+    // The trigger's restrict_violation message already names what's blocking
+    // and what to do instead, so it's worth more to the user than the generic.
+    return {
+      error:
+        error.code === "23001"
+          ? error.message
+          : "Could not delete the event. Please try again.",
+    };
   }
 
   revalidatePath("/portal/home");

@@ -1,40 +1,20 @@
-import type { ReactNode } from "react";
-import { cn } from "@/lib/utils";
+import {
+  humanizeStatus,
+  StatusBadge,
+  type StatusTone,
+} from "@/components/portal/status-badge";
 
-const VOTE_OUTCOME_STYLES: Record<string, string> = {
-  pending: "bg-muted text-muted-foreground",
-  passed: "bg-secondary text-secondary-foreground",
-  failed: "bg-destructive/10 text-destructive",
-  tabled: "bg-[var(--purple-soft)] text-foreground",
+const VOTE_OUTCOME_STYLES: Record<string, StatusTone> = {
+  pending: "neutral",
+  passed: "success",
+  failed: "danger",
+  tabled: "progress",
 };
-
-function Pill({
-  className,
-  children,
-}: {
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize",
-        className,
-      )}
-    >
-      {children}
-    </span>
-  );
-}
 
 export function VoteOutcomeBadge({ outcome }: { outcome: string }) {
   return (
-    <Pill
-      className={
-        VOTE_OUTCOME_STYLES[outcome] ?? "bg-muted text-muted-foreground"
-      }
-    >
-      {outcome}
-    </Pill>
+    <StatusBadge tone={VOTE_OUTCOME_STYLES[outcome] ?? "neutral"}>
+      {humanizeStatus(outcome)}
+    </StatusBadge>
   );
 }

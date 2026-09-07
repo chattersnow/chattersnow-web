@@ -1,7 +1,9 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { seedPortalUser } from "./helpers/rbac";
+import { modal } from "./helpers/dialog";
+import { clickRowControl, pager, revealRow } from "./helpers/table";
 
 test.describe("portal administration audit log", () => {
   test.beforeEach(async ({ page }) => {
@@ -33,12 +35,25 @@ test.describe("portal administration audit log", () => {
     try {
       await page.goto("/portal/administration/users");
       const row = page.getByRole("row").filter({ hasText: user.fullName });
-      await row.getByRole("button", { name: "Add role", exact: true }).click();
-      await row.getByRole("combobox", { name: "Add role" }).click();
-      await page
-        .getByRole("option", { name: "Volunteer", exact: true })
-        .click();
-      await row.getByRole("button", { name: "Add", exact: true }).click();
+      // The Users table pages at ten rows and the seeded user lands wherever
+      // its name sorts, so page to it first.
+      await revealRow(row, pager(page));
+      await clickRowControl(
+        row.getByRole("button", { name: "Add role", exact: true }),
+      );
+      await clickRowControl(row.getByRole("combobox", { name: "Add role" }));
+      const option = page.getByRole("option", {
+        name: "Volunteer",
+        exact: true,
+      });
+      await option.click();
+      // The select's popup fades out. Clicking "Add" while it is still up
+      // lands on the backdrop, and the row then sits there with the role
+      // picked but never staged.
+      await expect(option).toBeHidden();
+      await clickRowControl(
+        row.getByRole("button", { name: "Add", exact: true }),
+      );
       // The badge's remove button only exists once the assignment has landed
       // and the list has refreshed -- unlike the row's text, which shows
       // "Volunteer" as soon as it's picked in the still-open select.
@@ -60,8 +75,12 @@ test.describe("portal administration audit log", () => {
 
       await page.goto("/portal/administration/audit-log");
       await page.getByRole("button", { name: /^Filters/ }).click();
-      await page.getByLabel("Table").selectOption("user_roles");
-      await page.getByLabel("Action").selectOption("insert");
+      await page
+        .getByLabel("Table", { exact: true })
+        .selectOption("user_roles");
+      // Exact for the same reason as "Table" above: the sortable column
+      // header is labelled "Action, not sorted".
+      await page.getByLabel("Action", { exact: true }).selectOption("insert");
       await page.getByRole("button", { name: "Filter", exact: true }).click();
 
       await expect(page).toHaveURL(/table=user_roles/);
@@ -75,7 +94,7 @@ test.describe("portal administration audit log", () => {
       // Submitting the filters is a full page load, so this click can land
       // before the page has hydrated -- the trigger has no handler yet and
       // the click is simply lost. Retry until the sheet actually opens.
-      const detailSheet = page.getByRole("dialog");
+      const detailSheet = modal(page);
       await expect(async () => {
         await entryRow
           .getByRole("button", { name: "View entry details" })
@@ -103,12 +122,17 @@ test.describe("portal administration audit log", () => {
     // Rendered as a Link, but Base UI's Button gives it role="button".
     await page.getByRole("button", { name: "Clear", exact: true }).click();
 
-    await expect(page).toHaveURL(/\/portal\/administration\/audit-log$/);
+    // Client-side navigation out of a sheet, behind a server round trip for
+    // the unfiltered log -- more than the 5s default allows for under a full
+    // parallel run.
+    await expect(page).toHaveURL(/\/portal\/administration\/audit-log$/, {
+      timeout: 15_000,
+    });
     // Clearing navigates client-side, which leaves the sheet mounted and
     // open -- and while it is, it holds the rest of the page aria-hidden,
     // where no role-based locator can reach the Filters trigger.
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("dialog")).not.toBeVisible();
+    await expect(modal(page)).not.toBeVisible();
     await expect(
       page.getByRole("button", { name: /^Filters/ }),
     ).not.toContainText("2");

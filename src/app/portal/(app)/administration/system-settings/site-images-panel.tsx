@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/inventory";
 import type { SiteImageSlot } from "@/lib/site-images";
 import { Spinner } from "@/components/ui/spinner";
+import { runAction } from "@/components/portal/action-toast";
 
 // next/image throws at render time (crashing the page) if `src` isn't a valid
 // absolute URL or a root-relative path. resolveImageUrl passes non-Drive
@@ -97,7 +98,6 @@ function SiteImageEditForm({
   const router = useRouter();
   const [url, setUrl] = useState(initialUrl ?? "");
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const resolvedUrl = resolveImageUrl(url.trim() || null);
@@ -106,20 +106,17 @@ function SiteImageEditForm({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    setSuccess(false);
 
     const formData = new FormData(event.currentTarget);
     startTransition(async () => {
-      const result: SettingActionResult = await updateSiteImageAction(
-        slot.key,
-        formData,
+      await runAction<SettingActionResult>(
+        () => updateSiteImageAction(slot.key, formData),
+        {
+          success: `${slot.label} updated.`,
+          onError: setError,
+          onSuccess: () => router.refresh(),
+        },
       );
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      setSuccess(true);
-      router.refresh();
     });
   }
 
@@ -155,11 +152,6 @@ function SiteImageEditForm({
         {error && (
           <Alert variant="destructive">
             <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        {success && (
-          <Alert>
-            <AlertDescription>Image updated.</AlertDescription>
           </Alert>
         )}
 

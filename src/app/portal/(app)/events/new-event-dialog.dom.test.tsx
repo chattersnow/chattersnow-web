@@ -13,6 +13,12 @@ mock.module("./actions", () => ({
   createEventAction: createEventActionMock,
 }));
 
+// The dialog loads program options on open whenever a caller doesn't pass
+// them, which these tests never do.
+mock.module("../programs/actions", () => ({
+  listProgramsAction: async () => ({ data: [] }),
+}));
+
 const { NewEventDialog } = await import("./new-event-dialog");
 
 async function openDialog(user: ReturnType<typeof userEvent.setup>) {

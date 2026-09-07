@@ -17,11 +17,14 @@ import {
   VISIBILITIES,
   labelFor,
   needsSensitiveReview,
-  ownerEmail,
+  ownerName,
+  calendarActorName,
+  ownerOptions,
   type CalendarItemRow,
   type CalendarOwner,
   type CalendarProgram,
 } from "../calendar-shared";
+import { PersonSelect } from "../../people/person-select";
 import {
   CalendarStatusBadge,
   CalendarVisibilityBadge,
@@ -57,11 +60,8 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+import { formatDateTime } from "@/lib/format";
+import { runAction } from "@/components/portal/action-toast";
 
 function toDatetimeLocalValue(iso: string | null, timeZone: string) {
   if (!iso) return "";
@@ -121,7 +121,9 @@ function buildFormData(form: FormState) {
   return formData;
 }
 
-function useCalendarItemCardForm(item: CalendarItemRow) {
+// `subject` names the card in its own receipt, so the toast says which of
+// the three cards on this page actually saved.
+function useCalendarItemCardForm(item: CalendarItemRow, subject: string) {
   const router = useRouter();
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [form, setForm] = useState<FormState>(() => formStateFor(item));
@@ -163,17 +165,18 @@ function useCalendarItemCardForm(item: CalendarItemRow) {
     setWarning(null);
 
     startTransition(async () => {
-      const result = await updateCalendarItemAction(
-        item.id,
-        buildFormData(form),
+      await runAction(
+        () => updateCalendarItemAction(item.id, buildFormData(form)),
+        {
+          success: `${subject} saved.`,
+          onError: setError,
+          onSuccess: (result) => {
+            if (result.warning) setWarning(result.warning);
+            setMode("view");
+            router.refresh();
+          },
+        },
       );
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      if (result.warning) setWarning(result.warning);
-      setMode("view");
-      router.refresh();
     });
   }
 
@@ -281,7 +284,7 @@ export function ScheduleDetailsCard({
   item: CalendarItemRow;
   canManage: boolean;
 }) {
-  const card = useCalendarItemCardForm(item);
+  const card = useCalendarItemCardForm(item, "Schedule & details");
   const { form, update } = card;
 
   return (
@@ -301,12 +304,10 @@ export function ScheduleDetailsCard({
           </ReadOnlyField>
           <Field orientation="responsive">
             <ReadOnlyField label="Starts" htmlFor="item-starts">
-              {dateFormatter.format(new Date(item.starts_at))}
+              {formatDateTime(item.starts_at)}
             </ReadOnlyField>
             <ReadOnlyField label="Ends" htmlFor="item-ends">
-              {item.ends_at
-                ? dateFormatter.format(new Date(item.ends_at))
-                : "—"}
+              {formatDateTime(item.ends_at)}
             </ReadOnlyField>
           </Field>
           <Field orientation="responsive">
@@ -457,7 +458,7 @@ export function PlanningDecisionCard({
   programSuggestionRules: ProgramSuggestionRule[];
   canManage: boolean;
 }) {
-  const card = useCalendarItemCardForm(item);
+  const card = useCalendarItemCardForm(item, "Planning & decision");
   const { form, update, toggleListValue } = card;
 
   const relatedProgramNames = item.program_ids
@@ -495,7 +496,7 @@ export function PlanningDecisionCard({
               <CalendarVisibilityBadge visibility={item.visibility} />
             </ReadOnlyField>
             <ReadOnlyField label="Owner" htmlFor="item-owner">
-              {ownerEmail(owners, item.owner_id)}
+              {ownerName(owners, item.owner_id)}
             </ReadOnlyField>
           </Field>
           <ReadOnlyField label="Categories" htmlFor="item-categories">
@@ -618,31 +619,13 @@ export function PlanningDecisionCard({
               </Field>
               <Field>
                 <FieldLabel htmlFor="edit-ownerId">Owner</FieldLabel>
-                <Select
-                  value={form.ownerId || "none"}
-                  onValueChange={(value) =>
-                    update("ownerId", value === "none" ? "" : (value ?? ""))
-                  }
-                >
-                  <SelectTrigger id="edit-ownerId" className="w-full">
-                    <SelectValue placeholder="No owner">
-                      {(value: string) =>
-                        value && value !== "none"
-                          ? (owners.find((owner) => owner.user_id === value)
-                              ?.email ?? "No owner")
-                          : "No owner"
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No owner</SelectItem>
-                    {owners.map((owner) => (
-                      <SelectItem key={owner.user_id} value={owner.user_id}>
-                        {owner.email}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <PersonSelect
+                  id="edit-ownerId"
+                  people={ownerOptions(owners)}
+                  value={form.ownerId || null}
+                  onChange={(personId) => update("ownerId", personId ?? "")}
+                  noneLabel="No owner"
+                />
               </Field>
             </Field>
 
@@ -787,7 +770,7 @@ export function SensitiveTopicCard({
   canManage: boolean;
 }) {
   const router = useRouter();
-  const card = useCalendarItemCardForm(item);
+  const card = useCalendarItemCardForm(item, "Sensitive topic");
   const { form, update } = card;
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [isReviewPending, startReviewTransition] = useTransition();
@@ -795,12 +778,11 @@ export function SensitiveTopicCard({
   function handleRecordSensitiveReview() {
     setReviewError(null);
     startReviewTransition(async () => {
-      const result = await recordSensitiveTopicReviewAction(item.id);
-      if ("error" in result) {
-        setReviewError(result.error);
-        return;
-      }
-      router.refresh();
+      await runAction(() => recordSensitiveTopicReviewAction(item.id), {
+        success: "Sensitive topic review recorded.",
+        onError: setReviewError,
+        onSuccess: () => router.refresh(),
+      });
     });
   }
 
@@ -829,9 +811,8 @@ export function SensitiveTopicCard({
               )}
               {item.sensitive_review_by ? (
                 <p className="app-muted text-xs">
-                  Reviewed{" "}
-                  {dateFormatter.format(new Date(item.sensitive_review_at!))} by{" "}
-                  {ownerEmail(owners, item.sensitive_review_by)}
+                  Reviewed {formatDateTime(item.sensitive_review_at)} by{" "}
+                  {calendarActorName(owners, item.sensitive_review_by)}
                 </p>
               ) : (
                 canManage && (

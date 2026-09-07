@@ -43,7 +43,8 @@ export async function listDiscountCodesAction(
       "id, event_id, code, description, source, registration_id, assigned_at, sent_at, sent_to_name, sent_to_email, notes, created_at, registration:event_registrations(id, name, email)",
     )
     .eq("event_id", eventId)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true });
 
   if (error) {
     return { error: "Could not load discount codes. Please try again." };

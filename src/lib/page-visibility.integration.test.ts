@@ -18,7 +18,7 @@ afterAll(async () => {
     .from("app_settings")
     .upsert(
       { key: pageVisibilitySettingKey("programs"), value: true },
-      { onConflict: "key" },
+      { onConflict: "tenant_id,key" },
     );
 });
 
@@ -62,7 +62,7 @@ describe("board-controlled toggles", () => {
       .from("app_settings")
       .upsert(
         { key: pageVisibilitySettingKey("programs"), value: false },
-        { onConflict: "key" },
+        { onConflict: "tenant_id,key" },
       );
     expect(error).toBeNull();
 
@@ -77,7 +77,7 @@ describe("board-controlled toggles", () => {
       .from("app_settings")
       .upsert(
         { key: pageVisibilitySettingKey("contact"), value: false },
-        { onConflict: "key" },
+        { onConflict: "tenant_id,key" },
       );
 
     expect(error).not.toBeNull();

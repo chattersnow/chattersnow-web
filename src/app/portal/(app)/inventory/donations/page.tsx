@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AddDonationModal } from "../../home/add-donation-modal";
 import { FiltersSheet } from "@/components/filters-sheet";
@@ -8,14 +9,20 @@ import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import {
   buildHref,
+  PAGE_SIZE,
   escapeLikePattern,
   pageRange,
   parsePage,
+  parsePerPage,
   totalPagesFor,
 } from "@/lib/pagination";
 import Link from "next/link";
 import { DonationsTable } from "./donations-table";
-import { SOURCE_TYPES, type DonationRow } from "./donation-shared";
+import {
+  SOURCE_TYPES,
+  withFlatItemCategories,
+  type DonationRow,
+} from "./donation-shared";
 
 type InventoryDonationsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -23,6 +30,10 @@ type InventoryDonationsPageProps = {
 
 const selectClassName =
   "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
+
+export const metadata: Metadata = {
+  title: "Gear Donations",
+};
 
 export default async function InventoryDonationsPage({
   searchParams,
@@ -38,7 +49,10 @@ export default async function InventoryDonationsPage({
   const search = raw("search") || "";
   const sourceTypeFilter = raw("sourceType") || "all";
   const eventFilter = raw("event") || "all";
+  // Only the date sorts -- see the note on DonationsTable.
+  const dir: "asc" | "desc" = raw("dir") === "asc" ? "asc" : "desc";
   const page = parsePage(raw("page"));
+  const perPage = parsePerPage(raw("perPage"));
 
   const { data: events } = await supabase
     .from("events")
@@ -50,10 +64,10 @@ export default async function InventoryDonationsPage({
   let query = supabase
     .from("donations")
     .select(
-      "id, donated_at, notes, event_id, donor:people!inner(id, name, is_anonymous, source_type), event:events(id, name), inventory_items(id, description, type, size, gender, condition, face_value, status, photo_url, notes)",
+      "id, donated_at, notes, event_id, donor:people!inner(id, name, is_anonymous, source_type), event:events(id, name), inventory_items(id, description, type, category_id, size, gender, condition, face_value, status, intended_use, photo_url, notes, inventory_categories(key, label))",
       { count: "exact" },
     )
-    .order("donated_at", { ascending: false })
+    .order("donated_at", { ascending: dir === "asc" })
     .order("id", { ascending: true });
 
   if (search) {
@@ -66,23 +80,43 @@ export default async function InventoryDonationsPage({
     query = query.eq("event_id", eventFilter);
   }
 
-  const { offset, to } = pageRange(page);
+  const { offset, to } = pageRange(page, perPage);
   const { data, count } = await query.range(offset, to);
-  const donations = (data ?? []) as unknown as DonationRow[];
+  const donations = ((data ?? []) as unknown as DonationRow[]).map(
+    withFlatItemCategories,
+  );
 
   const filterParams = new URLSearchParams();
   if (search) filterParams.set("search", search);
   if (sourceTypeFilter !== "all")
     filterParams.set("sourceType", sourceTypeFilter);
   if (eventFilter !== "all") filterParams.set("event", eventFilter);
+  // On filterParams rather than in each href, so sorting and paging both
+  // carry the reader's choice without either having to remember to.
+  if (perPage !== PAGE_SIZE) filterParams.set("perPage", String(perPage));
+
+  const sortHref = buildHref("/portal/inventory/donations", filterParams, {
+    dir: dir === "asc" ? "desc" : "asc",
+  });
 
   function pageHref(nextPage: number) {
     return buildHref("/portal/inventory/donations", filterParams, {
+      dir,
       page: nextPage,
     });
   }
 
-  const totalPages = totalPagesFor(count);
+  function perPageHref(nextPerPage: number) {
+    // Back to page one: a bigger page renumbers them all, and page 4 of 9 is
+    // nothing in particular once each page holds 25.
+    return buildHref("/portal/inventory/donations", filterParams, {
+      dir,
+      perPage: nextPerPage,
+      page: 1,
+    });
+  }
+
+  const totalPages = totalPagesFor(count, perPage);
   const hasActiveFilters =
     !!search || sourceTypeFilter !== "all" || eventFilter !== "all";
   const activeFilterCount = [
@@ -184,11 +218,20 @@ export default async function InventoryDonationsPage({
         <DonationsTable
           donations={donations}
           hasActiveFilters={hasActiveFilters}
+          dir={dir}
+          sortHref={sortHref}
         />
       </div>
 
       {donations.length > 0 && (
-        <Pagination page={page} totalPages={totalPages} hrefFor={pageHref} />
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          count={count}
+          pageSize={perPage}
+          hrefFor={pageHref}
+          perPageHrefFor={perPageHref}
+        />
       )}
     </>
   );

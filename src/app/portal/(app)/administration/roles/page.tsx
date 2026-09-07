@@ -1,7 +1,12 @@
+import type { Metadata } from "next";
 import { Card, CardContent } from "@/components/ui/card";
 import { NewRoleDialog } from "./new-role-dialog";
 import { RolesTable } from "./roles-table";
 import { listRolesAction } from "../users/actions";
+
+export const metadata: Metadata = {
+  title: "Portal Roles",
+};
 
 export default async function RolesPage() {
   const result = await listRolesAction();

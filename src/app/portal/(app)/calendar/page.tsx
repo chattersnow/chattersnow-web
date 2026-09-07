@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import {
-  getCurrentUserPermissions,
-  hasPermission,
-} from "@/lib/auth/permissions";
+import { hasPermission, requirePermission } from "@/lib/auth/permissions";
 import { listProgramsAction } from "../programs/actions";
 import { listCalendarOwnersAction } from "./actions";
 import { listActiveProgramSuggestionRulesAction } from "./program-suggestions/actions";
@@ -33,7 +30,12 @@ export default async function CalendarPage({
   searchParams,
 }: CalendarPageProps) {
   const supabase = await createSupabaseServerClient();
-  const permissions = await getCurrentUserPermissions(supabase);
+  const permissions = await requirePermission(
+    supabase,
+    "content_calendar",
+    "view",
+    "Calendar",
+  );
   const canManage = hasPermission(permissions, "content_calendar", "manage");
 
   const params = await searchParams;

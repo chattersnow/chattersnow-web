@@ -1,4 +1,5 @@
 import type { ParseResult } from "@/lib/forms";
+import { parsePronouns } from "@/lib/pronouns";
 
 const INSTAGRAM_HANDLE_PATTERN = /^[A-Za-z0-9._]{1,30}$/;
 
@@ -7,6 +8,7 @@ export type EventRegistrationFormData = {
   email: string;
   phone: string | null;
   instagram_handle: string | null;
+  pronouns: string | null;
   party_size: number;
   notes: string | null;
 };
@@ -20,12 +22,14 @@ export function parseEventRegistrationForm(
   const instagramHandle = String(formData.get("instagramHandle") ?? "")
     .trim()
     .replace(/^@/, "");
+  const pronouns = parsePronouns(formData.get("pronouns"));
   const notes = String(formData.get("notes") ?? "").trim();
   const partySizeRaw = String(formData.get("partySize") ?? "").trim();
 
   if (!name) return { error: "Name is required." };
   if (!email || !email.includes("@"))
     return { error: "A valid email is required." };
+  if ("error" in pronouns) return pronouns;
   if (instagramHandle && !INSTAGRAM_HANDLE_PATTERN.test(instagramHandle)) {
     return {
       error:
@@ -44,6 +48,7 @@ export function parseEventRegistrationForm(
       email,
       phone: phone || null,
       instagram_handle: instagramHandle || null,
+      pronouns: pronouns.pronouns,
       party_size,
       notes: notes || null,
     },

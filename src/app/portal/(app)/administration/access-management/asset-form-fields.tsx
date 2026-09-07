@@ -8,7 +8,7 @@ import {
   MFA_STATUS_OPTIONS,
   SENSITIVITY_OPTIONS,
 } from "./labels";
-import { PersonSelect } from "./person-select";
+import { PersonSelect } from "../../people/person-select";
 import { ServiceSelect } from "./service-select";
 import type { AssetFormData } from "./asset-form";
 import type { PersonListItem } from "../../people/actions";

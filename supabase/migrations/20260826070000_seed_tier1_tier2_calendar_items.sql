@@ -41,10 +41,27 @@ do $$
 declare
   v_owner_id uuid;
 begin
-  select id into v_owner_id from auth.users where email = 'ricardo.dev.js@gmail.com' limit 1;
+  -- These rows need a created_by, not a privileged account. Prefer the
+  -- configured bootstrap address if there is one, otherwise fall back to any
+  -- existing admin, so a fresh environment still gets the seed (#708).
+  select id into v_owner_id
+  from auth.users
+  where lower(email) = lower(
+    nullif(trim(coalesce(current_setting('app.bootstrap_admin_email', true), '')), '')
+  )
+  limit 1;
 
   if v_owner_id is null then
-    raise notice 'Skipping calendar seed: no user found for ricardo.dev.js@gmail.com in this environment.';
+    select ur.user_id into v_owner_id
+    from public.user_roles ur
+    join public.roles r on r.id = ur.role_id
+    where r.name = 'admin'
+    order by ur.created_at
+    limit 1;
+  end if;
+
+  if v_owner_id is null then
+    raise notice 'Skipping calendar seed: no admin account exists in this environment to own the rows.';
     return;
   end if;
 

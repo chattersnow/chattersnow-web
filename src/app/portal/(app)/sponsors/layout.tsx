@@ -7,6 +7,6 @@ export default async function SponsorsLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createSupabaseServerClient();
-  await requirePermission(supabase, "people", "view");
+  await requirePermission(supabase, "people", "view", "Sponsors");
   return children;
 }

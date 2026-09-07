@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,10 +18,12 @@ import {
   type DistributedMovementRow,
   type EventRow,
   type ImpactNoteRow,
+  type PersonEventRow,
   type ProgramImpactRollup,
   type RegistrationRow,
   type VolunteerHoursRow,
 } from "./impact-rollup";
+import { formatCurrency, formatNumber } from "@/lib/format";
 
 type RollupData = {
   event_ids: string[];
@@ -31,16 +34,18 @@ type RollupData = {
   registrations: RegistrationRow[];
   checkin_counts: CheckinCountRow[];
   discount_codes: DiscountCodeRow[];
+  event_volunteers: PersonEventRow[];
+  volunteer_hour_people: PersonEventRow[];
+  beginner_attendees: PersonEventRow[];
+  profiled_attendees: PersonEventRow[];
 };
-
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
-const numberFormatter = new Intl.NumberFormat("en-US");
 
 type ProgramImpactReportPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export const metadata: Metadata = {
+  title: "Impact Report",
 };
 
 export default async function ProgramImpactReportPage({
@@ -87,6 +92,10 @@ export default async function ProgramImpactReportPage({
         registrations: result.registrations ?? [],
         checkinCounts: result.checkin_counts ?? [],
         discountCodes: result.discount_codes ?? [],
+        eventVolunteers: result.event_volunteers ?? [],
+        volunteerHourPeople: result.volunteer_hour_people ?? [],
+        beginnerAttendees: result.beginner_attendees ?? [],
+        profiledAttendees: result.profiled_attendees ?? [],
       });
     }
   }
@@ -96,42 +105,49 @@ export default async function ProgramImpactReportPage({
 
   const metricRows = rollup
     ? [
-        { label: "Events", value: numberFormatter.format(rollup.eventCount) },
+        { label: "Events", value: formatNumber(rollup.eventCount) },
         {
           label: "Participants",
-          value: numberFormatter.format(rollup.participants),
+          value: formatNumber(rollup.participants),
         },
         {
           label: "First-time participants",
-          value: numberFormatter.format(rollup.firstTimeParticipants),
+          value: formatNumber(rollup.firstTimeParticipants),
         },
         {
           label: "Beginner participants",
-          value: numberFormatter.format(rollup.beginnerParticipants),
+          // Qualified only while rider-profile coverage is short of the
+          // checked-in headcount; at full coverage it is simply the number.
+          value:
+            rollup.profiledAttendees < rollup.checkedIn
+              ? `${formatNumber(rollup.beginnerParticipants)} of ${formatNumber(
+                  rollup.profiledAttendees,
+                )} with a rider profile`
+              : formatNumber(rollup.beginnerParticipants),
         },
         {
-          label: "Participants receiving financial assistance",
-          value: numberFormatter.format(rollup.assistedParticipants),
-        },
-        {
-          label: "Equipment loans",
-          value: numberFormatter.format(rollup.equipmentLoans),
+          label: "Participants with a discount code or rental subsidy",
+          value: formatNumber(rollup.assistedParticipants),
         },
         {
           label: "Equipment distributed",
-          value: numberFormatter.format(rollup.equipmentDistributed),
+          value: formatNumber(rollup.equipmentDistributed),
+        },
+        {
+          label: "Volunteers on site",
+          value: formatNumber(rollup.volunteerParticipants),
         },
         {
           label: "Volunteer hours",
-          value: numberFormatter.format(rollup.volunteerHours),
+          value: formatNumber(rollup.volunteerHours),
         },
         {
           label: "Participant assistance ($)",
-          value: currencyFormatter.format(rollup.participantAssistanceTotal),
+          value: formatCurrency(rollup.participantAssistanceTotal),
         },
         {
           label: "Repeat participants",
-          value: numberFormatter.format(rollup.repeatParticipants),
+          value: formatNumber(rollup.repeatParticipants),
         },
       ]
     : [];
@@ -145,13 +161,15 @@ export default async function ProgramImpactReportPage({
         <div className="rainbow-accent mt-3 w-full" />
       </div>
       <p className="app-muted mt-2 max-w-2xl text-sm">
-        Season/program rollup. Participants, first-time participants, and
-        subsidized tickets are computed live from attendance/check-ins and
-        discount codes; equipment distributed, volunteer hours, and repeat
-        participants are computed live from inventory and volunteer records.
-        Beginner participants, rental subsidies, equipment loans, and total
-        assistance dollars are still staff-entered per event, across every event
-        tagged to the selected program.
+        Season/program rollup across every event tagged to the selected program.
+        Every figure here is computed live from attendance, check-ins, discount
+        codes, rider profiles, inventory and volunteer records — only rental
+        subsidies and assistance dollars are still staff-entered per event,
+        because nothing in the system records them. Two caveats worth knowing
+        when quoting these numbers: internally-granted scholarships and fee
+        waivers aren&apos;t modelled anywhere, so assistance undercounts; and
+        &ldquo;Volunteers on site&rdquo; counts each person once per event, so
+        someone who volunteered three times counts three times.
       </p>
 
       <div className="rainbow-surface mt-6 flex flex-wrap items-end justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
@@ -212,7 +230,7 @@ export default async function ProgramImpactReportPage({
               </CardHeader>
               <CardContent>
                 <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
-                  {numberFormatter.format(rollup.eventCount)}
+                  {formatNumber(rollup.eventCount)}
                 </p>
               </CardContent>
             </Card>
@@ -224,7 +242,7 @@ export default async function ProgramImpactReportPage({
               </CardHeader>
               <CardContent>
                 <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
-                  {numberFormatter.format(rollup.participants)}
+                  {formatNumber(rollup.participants)}
                 </p>
               </CardContent>
             </Card>
@@ -236,7 +254,7 @@ export default async function ProgramImpactReportPage({
               </CardHeader>
               <CardContent>
                 <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
-                  {numberFormatter.format(rollup.volunteerHours)}
+                  {formatNumber(rollup.volunteerHours)}
                 </p>
               </CardContent>
             </Card>
@@ -248,7 +266,7 @@ export default async function ProgramImpactReportPage({
               </CardHeader>
               <CardContent>
                 <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
-                  {currencyFormatter.format(rollup.participantAssistanceTotal)}
+                  {formatCurrency(rollup.participantAssistanceTotal)}
                 </p>
               </CardContent>
             </Card>
@@ -259,7 +277,11 @@ export default async function ProgramImpactReportPage({
               <CardTitle>All metrics</CardTitle>
             </CardHeader>
             <CardContent className="px-0">
-              <Table>
+              {/* Not a PortalDataTable: a fixed list of metrics in the order
+                  they read in, where sorting would only scramble them and
+                  pagination would never appear. It takes the shared sticky
+                  header and stays server-rendered. */}
+              <Table stickyHeader="page">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Metric</TableHead>

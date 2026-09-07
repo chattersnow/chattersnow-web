@@ -12,7 +12,26 @@ import { checkUser } from "@/lib/auth/current-user";
 
 export type { CreateDonationInput, DonationItemInput };
 
-export type CreateDonationResult = { error: string } | { success: true };
+/** Per-colour ticket counts to hand to the donor, when the donation was
+ *  recorded against an event whose giveaway has tiers configured. */
+export type GiveawayTicketTotal = {
+  tier_id: string;
+  tier_key: string;
+  tier_label: string;
+  tier_rank: number;
+  quantity: number;
+};
+
+export type DonationGiveawayGrant = {
+  giveawayId: string;
+  totals: GiveawayTicketTotal[];
+  /** Items no tier could be resolved for. These earned nothing, so the UI asks
+   *  the staffer to classify them rather than quietly under-granting. */
+  untieredItemIds: string[];
+};
+
+export type CreateDonationResult =
+  { error: string } | { success: true; giveaway: DonationGiveawayGrant | null };
 
 export async function createDonationAction(
   input: CreateDonationInput,
@@ -32,7 +51,7 @@ export async function createDonationAction(
   const parsed = parseDonationInput(input);
   if ("error" in parsed) return parsed;
 
-  const { error } = await supabase.rpc(
+  const { data, error } = await supabase.rpc(
     "create_donation_with_items",
     parsed.data,
   );
@@ -44,7 +63,69 @@ export async function createDonationAction(
   revalidatePath("/portal/home");
   revalidatePath("/portal/inventory/items");
   revalidatePath("/portal/events");
-  return { success: true };
+
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | {
+        donation_id: string;
+        giveaway_id: string | null;
+        untiered_item_ids: string[] | null;
+      }
+    | undefined;
+
+  // The donation itself is saved either way, so a failure to read back the
+  // ticket totals must not read as a failed donation. Fall back to no grant
+  // and let the staffer check the giveaway tab.
+  if (!row?.giveaway_id) return { success: true, giveaway: null };
+
+  const { data: totals } = await supabase.rpc("giveaway_ticket_totals", {
+    p_giveaway_id: row.giveaway_id,
+    p_donation_id: row.donation_id,
+    p_sale_id: null,
+  });
+
+  return {
+    success: true,
+    giveaway: {
+      giveawayId: row.giveaway_id,
+      totals: (totals ?? []) as GiveawayTicketTotal[],
+      untieredItemIds: row.untiered_item_ids ?? [],
+    },
+  };
+}
+
+export type GiveawayTierOption = {
+  id: string;
+  key: string;
+  label: string;
+  rank: number;
+};
+
+/**
+ * Tiers for the giveaway attached to an event, if it has one that's been set
+ * up. Drives the optional per-item tier picker at intake: the server falls back
+ * to the giveaway's keyword hints when the staffer leaves it unset, so an empty
+ * list here just means "this event has no tiered giveaway" and the picker is
+ * hidden entirely.
+ */
+export async function listEventGiveawayTiersAction(
+  eventId: string,
+): Promise<{ data: GiveawayTierOption[] } | { error: string }> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "events", "view");
+  if (permissionError) return permissionError;
+
+  const { data, error } = await supabase
+    .from("giveaways")
+    .select("id, giveaway_tiers(id, key, label, rank)")
+    .eq("event_id", eventId)
+    .maybeSingle();
+
+  if (error) {
+    return { error: "Could not load giveaway tiers. Please try again." };
+  }
+
+  const tiers = (data?.giveaway_tiers ?? []) as GiveawayTierOption[];
+  return { data: [...tiers].sort((a, b) => a.rank - b.rank) };
 }
 
 export type EventDonationRow = {
@@ -55,11 +136,12 @@ export type EventDonationRow = {
   inventory_items: {
     id: string;
     description: string;
-    type: string;
+    type: string | null;
     size: string | null;
     condition: string;
     face_value: number | string | null;
     status: string;
+    inventory_categories?: { key: string; label: string } | null;
   }[];
 };
 
@@ -73,10 +155,12 @@ export async function listEventDonationsAction(
   const { data, error } = await supabase
     .from("donations")
     .select(
-      "id, donated_at, notes, donor:people(name, is_anonymous), inventory_items(id, description, type, size, condition, face_value, status)",
+      "id, donated_at, notes, donor:people(name, is_anonymous), inventory_items(id, description, type, size, condition, face_value, status, inventory_categories(key, label))",
     )
     .eq("event_id", eventId)
-    .order("donated_at", { ascending: false });
+    .order("donated_at", { ascending: false })
+    .order("id", { ascending: true })
+    .order("id", { referencedTable: "inventory_items", ascending: true });
 
   if (error) {
     return {
@@ -96,9 +180,11 @@ export async function listRecentDonationsAction(
   const { data, error } = await supabase
     .from("donations")
     .select(
-      "id, donated_at, notes, donor:people(name, is_anonymous), inventory_items(id, description, type, size, condition, face_value, status)",
+      "id, donated_at, notes, donor:people(name, is_anonymous), inventory_items(id, description, type, size, condition, face_value, status, inventory_categories(key, label))",
     )
     .order("donated_at", { ascending: false })
+    .order("id", { ascending: true })
+    .order("id", { referencedTable: "inventory_items", ascending: true })
     .limit(limit);
 
   if (error) {

@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/tooltip";
 import type { TemplateField } from "../../content-brief-template-shared";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 type DetailsFormState = {
   key: string;
@@ -156,6 +157,11 @@ export function EditTemplateSheet({
         setError(result.error);
         return;
       }
+      toast.success(
+        variant === "details"
+          ? "Template details saved."
+          : "New template version published.",
+      );
       router.refresh();
       setOpen(false);
     });

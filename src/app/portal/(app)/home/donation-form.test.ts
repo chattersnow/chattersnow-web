@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { parseDonationInput, type CreateDonationInput } from "./donation-form";
 
-const validItem = { description: "Jacket", type: "jacket", condition: "good" };
+const validItem = {
+  description: "Jacket",
+  categoryKey: "jacket",
+  condition: "good",
+};
 
 const validInput: CreateDonationInput = {
   isAnonymous: false,
@@ -49,13 +53,37 @@ describe("parseDonationInput", () => {
     ).toEqual({ error: "Item 1: description is required." });
   });
 
-  test("requires each item's type", () => {
+  test("requires each item's category", () => {
     expect(
       parseDonationInput({
         ...validInput,
-        items: [{ ...validItem, type: "" }],
+        items: [{ ...validItem, categoryKey: "" }],
       }),
-    ).toEqual({ error: "Item 1: type is required." });
+    ).toEqual({ error: "Item 1: category is required." });
+  });
+
+  test("requires the free-text detail when an item's category is Other", () => {
+    expect(
+      parseDonationInput({
+        ...validInput,
+        items: [{ ...validItem, categoryKey: "other" }],
+      }),
+    ).toEqual({
+      error: "Item 1: describe the item when the category is Other.",
+    });
+  });
+
+  test("accepts an Other item that carries a detail", () => {
+    const result = parseDonationInput({
+      ...validInput,
+      items: [
+        { ...validItem, categoryKey: "other", categoryDetail: "Ski poles" },
+      ],
+    });
+    expect("data" in result && result.data.p_items[0]).toMatchObject({
+      category_key: "other",
+      type: "Ski poles",
+    });
   });
 
   test("rejects an invalid item condition", () => {
@@ -74,6 +102,22 @@ describe("parseDonationInput", () => {
         items: [{ ...validItem, faceValue: -5 }],
       }),
     ).toEqual({ error: "Item 1: face value must be a positive number." });
+  });
+
+  test("rejects an invalid item intended use", () => {
+    expect(
+      parseDonationInput({
+        ...validInput,
+        items: [{ ...validItem, intendedUse: "sale" }],
+      }),
+    ).toEqual({ error: "Item 1: select a valid intended use." });
+  });
+
+  test("defaults an omitted intended use to the gear library", () => {
+    const result = parseDonationInput(validInput);
+    expect("data" in result && result.data.p_items[0].intended_use).toBe(
+      "gear_library",
+    );
   });
 
   test("labels the failing item by position for multi-item donations", () => {
@@ -104,11 +148,14 @@ describe("parseDonationInput", () => {
           {
             description: "Jacket",
             size: "M",
-            type: "jacket",
+            category_key: "jacket",
+            type: null,
             gender: null,
             condition: "good",
             face_value: 40,
+            intended_use: "gear_library",
             notes: null,
+            giveaway_tier: null,
           },
         ],
         p_event_id: "event-1",

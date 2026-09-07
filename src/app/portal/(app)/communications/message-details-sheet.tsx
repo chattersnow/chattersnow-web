@@ -6,10 +6,11 @@ import { ArrowLeft, Eye } from "lucide-react";
 import { updateContactMessageStatusAction } from "./actions";
 import {
   CONTACT_MESSAGE_STATUSES,
+  MESSAGE_PARAM,
   type ContactMessage,
   type ContactMessageStatus,
 } from "./message-types";
-import { CONTACT_TOPIC_LABELS } from "./message-badges";
+import { CONTACT_TOPIC_LABELS } from "@/lib/contact-topics";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
@@ -36,21 +37,25 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+import { toast } from "@/components/ui/toast";
+import { formatDateTime } from "@/lib/format";
+import { useDeepLinkedSheet } from "@/components/portal/use-deep-linked-sheet";
 
 export function MessageDetailsSheet({
   message,
   canManage,
+  defaultOpen = false,
 }: {
   message: ContactMessage;
   canManage: boolean;
+  /** True when `?message=` names this row. */
+  defaultOpen?: boolean;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  // Arriving on a deep link marks the message read through the effect below,
+  // exactly as clicking the row would -- which is the right reading: someone
+  // followed the notification and is looking at it.
+  const { open, onOpenChange } = useDeepLinkedSheet(MESSAGE_PARAM, defaultOpen);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -62,7 +67,12 @@ export function MessageDetailsSheet({
         if (refresh) setError(result.error);
         return;
       }
-      if (refresh) router.refresh();
+      // `refresh` is false only for the automatic mark-as-read on open, which
+      // isn't a user action and shouldn't be announced as one.
+      if (refresh) {
+        toast.success("Message status updated.");
+        router.refresh();
+      }
     });
   }
 
@@ -76,7 +86,7 @@ export function MessageDetailsSheet({
   }, [open]);
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <Tooltip>
         <SheetTrigger
           render={
@@ -120,7 +130,7 @@ export function MessageDetailsSheet({
           <div className="flex flex-1 flex-col gap-0.5">
             <SheetTitle>Contact message</SheetTitle>
             <SheetDescription>
-              Submitted {dateFormatter.format(new Date(message.created_at))}
+              Submitted {formatDateTime(message.created_at)}
             </SheetDescription>
           </div>
         </SheetHeader>

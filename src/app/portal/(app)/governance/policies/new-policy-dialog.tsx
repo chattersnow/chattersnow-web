@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { FieldGroup } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 export function NewPolicyDialog() {
   const router = useRouter();
@@ -56,6 +57,7 @@ export function NewPolicyDialog() {
         return;
       }
       setOpen(false);
+      toast.success("Policy added.");
       router.refresh();
     });
   }

@@ -37,6 +37,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 type FormState = { name: string; website: string; notes: string };
 
@@ -90,6 +91,7 @@ export function ServiceDetailsSheet({
         return;
       }
       setMode("view");
+      toast.success("Service deleted.");
       router.refresh();
     });
   }
@@ -105,6 +107,7 @@ export function ServiceDetailsSheet({
       }
       setDeleteConfirmOpen(false);
       setOpen(false);
+      toast.success("Service deleted.");
       router.refresh();
     });
   }

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 
@@ -21,17 +21,30 @@ test.describe("portal administration system settings", () => {
         exact: true,
       }),
     ).toBeVisible();
+
+    // The page opens on Organization (the fiscal year setting); the approval
+    // thresholds moved behind "Workflow settings" when that tab was added.
+    await expect(
+      page.getByRole("tab", { name: "Organization" }),
+    ).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByLabel("Fiscal year starts in")).toBeVisible();
+
+    await page.getByRole("tab", { name: "Workflow settings" }).click();
     await expect(page.getByText("Expense approval threshold")).toBeVisible();
     await expect(
       page.getByText("Reimbursement approval threshold"),
     ).toBeVisible();
+    await expect(page.locator("#expense-threshold")).toBeVisible();
 
     await page.getByRole("tab", { name: "Image settings" }).click();
     await expect(page.getByText("Edit image")).toBeVisible();
     await expect(page.getByLabel("Slot")).toBeVisible();
 
-    await page.getByRole("tab", { name: "Workflow settings" }).click();
-    await expect(page.locator("#expense-threshold")).toBeVisible();
+    await page.getByRole("tab", { name: "Branding" }).click();
+    await expect(page.getByLabel("Logo URL")).toBeVisible();
+
+    await page.getByRole("tab", { name: "Data" }).click();
+    await expect(page.getByText("Download export")).toBeVisible();
   });
 
   // app_settings rows are a global singleton -- unlike every other fixture in
@@ -57,6 +70,7 @@ test.describe("portal administration system settings", () => {
 
     try {
       await page.goto("/portal/administration/system-settings");
+      await page.getByRole("tab", { name: "Workflow settings" }).click();
 
       const expenseForm = page
         .locator("form")
@@ -64,11 +78,15 @@ test.describe("portal administration system settings", () => {
       await expenseForm.locator("#expense-threshold").fill("321.5");
       await expenseForm.getByRole("button", { name: "Save" }).click();
 
-      await expect(expenseForm.getByRole("alert")).toContainText(
-        "Threshold updated.",
-      );
+      // Saves confirm with a toast at the page root, not an inline alert
+      // in the form.
+      await expect(
+        page.getByRole("region", { name: "Notifications" }),
+      ).toContainText("Expense approval threshold updated.");
 
+      // Tab state is client-side, so the reload lands back on Organization.
       await page.reload();
+      await page.getByRole("tab", { name: "Workflow settings" }).click();
       await expect(page.locator("#expense-threshold")).toHaveValue("321.5");
     } finally {
       if (original) {

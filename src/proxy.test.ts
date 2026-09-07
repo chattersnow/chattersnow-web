@@ -55,8 +55,34 @@ describe("resolvePortalRoute on the portal host", () => {
     });
   });
 
+  test("leaves route handlers under /api at the app root", () => {
+    expect(resolvePortalRoute(PORTAL, "/api/cron/task-reminders")).toEqual({
+      kind: "pass",
+    });
+  });
+
   test("leaves public/ assets at the app root", () => {
     expect(resolvePortalRoute(PORTAL, "/chatter-logo-transparent.png")).toEqual(
+      { kind: "pass" },
+    );
+  });
+});
+
+describe("resolvePortalRoute on a tenant's portal host", () => {
+  test("rewrites a bare page path the same way the Chatter Snow portal host does", () => {
+    expect(resolvePortalRoute("portal.example-nonprofit.org", "/home")).toEqual(
+      { kind: "rewrite", pathname: "/portal/home" },
+    );
+  });
+
+  test("leaves the auth callback at the app root", () => {
+    expect(
+      resolvePortalRoute("portal.example-nonprofit.org", "/auth/callback"),
+    ).toEqual({ kind: "pass" });
+  });
+
+  test("does not redirect a tenant apex's /portal path, which has no promised subdomain", () => {
+    expect(resolvePortalRoute("example-nonprofit.org", "/portal/home")).toEqual(
       { kind: "pass" },
     );
   });

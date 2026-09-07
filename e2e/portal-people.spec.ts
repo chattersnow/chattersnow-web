@@ -1,5 +1,6 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
+import { modal } from "./helpers/dialog";
 
 // Seeded by supabase/seed.sql: Priya Natarajan (volunteer), Jamie Rivera
 // (donor), and Summit Outdoor Co. (sponsor) are always present after a
@@ -48,13 +49,34 @@ test.describe("portal people directory", () => {
     await expect(profile.getByText("Volunteer", { exact: true })).toBeVisible();
   });
 
+  test("shows only the history cards for the roles a person holds", async ({
+    page,
+  }) => {
+    // The detail page builds its cards from the aspect registry, keyed on the
+    // person's role flags -- which are derived from the records behind them
+    // (20260903010000). Before that, every card rendered for everybody, so a
+    // person who had never donated still got an empty Donations card.
+    const card = (name: string) =>
+      page.locator('[data-slot="card"]').filter({ hasText: name });
+
+    await page.goto("/portal/people?search=Priya");
+    await page.getByRole("button", { name: "View Priya Natarajan" }).click();
+    await expect(card("Volunteer activity")).toBeVisible();
+    await expect(card("Donations")).toHaveCount(0);
+
+    await page.goto("/portal/people?search=Jamie");
+    await page.getByRole("button", { name: "View Jamie Rivera" }).click();
+    await expect(card("Donations")).toBeVisible();
+    await expect(card("Volunteer activity")).toHaveCount(0);
+  });
+
   test("searches the directory by name", async ({ page }) => {
     await page.goto("/portal/people");
 
-    await page.getByRole("button", { name: "Filters" }).click();
-    const filters = page.getByRole("dialog");
-    await filters.getByLabel("Search").fill("Priya");
-    await filters.getByRole("button", { name: "Filter" }).click();
+    // Search sits in the toolbar rather than inside the Filters sheet, so
+    // this is one field and one submit with the table still on screen.
+    await page.getByRole("searchbox", { name: "Search" }).fill("Priya");
+    await page.getByRole("button", { name: "Search", exact: true }).click();
 
     await expect(page).toHaveURL(/search=Priya/);
     await expect(
@@ -71,17 +93,25 @@ test.describe("portal people directory", () => {
     // the form's native GET navigation can be swallowed while the portal
     // page re-hydrates. page.goto waits for the load event, after which
     // sheet triggers respond reliably (same pattern as the other specs).
-    await page.goto("/portal/people?role=is_sponsor");
-
+    // Both assertions are search-scoped so the directory's pagination can't
+    // decide them: at ten rows a page, a name being absent otherwise proves
+    // nothing about the filter -- it may just be on page 4. Searching a
+    // non-sponsor who *does* match the text is the stronger claim anyway:
+    // only the role filter can be what removes her.
+    await page.goto("/portal/people?role=is_sponsor&search=Summit");
     await expect(
       page.getByRole("row").filter({ hasText: "Summit Outdoor Co." }),
     ).toBeVisible();
+
+    await page.goto("/portal/people?role=is_sponsor&search=Priya");
     await expect(
       page.getByRole("row").filter({ hasText: "Priya Natarajan" }),
     ).toHaveCount(0);
 
+    await page.goto("/portal/people?role=is_sponsor");
+
     await page.getByRole("button", { name: "Filters" }).click();
-    const filters = page.getByRole("dialog");
+    const filters = modal(page);
     await expect(
       filters.getByRole("heading", { name: "Filters" }),
     ).toBeVisible();
@@ -111,14 +141,17 @@ test.describe("portal people directory", () => {
     const personEmail = `e2e.person.${Date.now()}@example.test`;
 
     await page.getByRole("button", { name: "New Person" }).click();
-    const addDialog = page.getByRole("dialog");
+    const addDialog = modal(page);
     await expect(
       addDialog.getByRole("heading", { name: "Add person" }),
     ).toBeVisible();
 
+    // Exact, because the dialog also holds a person picker whose search
+    // input labels itself "Search by name or email..." -- a substring match
+    // on "Name" or "Email" resolves to both.
     await addDialog.getByLabel("Name", { exact: true }).fill(personName);
-    await addDialog.getByLabel("Email").fill(personEmail);
-    await addDialog.getByLabel("Phone").fill("555-0142");
+    await addDialog.getByLabel("Email", { exact: true }).fill(personEmail);
+    await addDialog.getByLabel("Phone", { exact: true }).fill("555-0142");
     await addDialog
       .locator("label")
       .filter({ hasText: "Volunteer" })

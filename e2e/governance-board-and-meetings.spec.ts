@@ -1,7 +1,8 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { signIn, reloadStayingSignedIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
-import { seedPerson } from "./helpers/people";
+import { pickPerson, seedPerson } from "./helpers/people";
+import { modal } from "./helpers/dialog";
 
 // Governance routes that revolve around the board and its meeting record
 // (#442). The document-shaped routes -- bylaws, policies, conflict of
@@ -37,16 +38,18 @@ test.describe("portal governance board, meetings, and resolutions", () => {
       ).toBeVisible();
 
       await page.getByRole("button", { name: "Add board member" }).click();
-      const addDialog = page.getByRole("dialog");
+      const addDialog = modal(page);
       await expect(
         addDialog.getByRole("heading", { name: "Add board member" }),
       ).toBeVisible();
 
-      await addDialog
-        .getByPlaceholder("Search by name or email...")
-        .fill(person.name);
-      await addDialog.getByRole("button", { name: person.name }).click();
-      await expect(addDialog.getByText(person.name)).toBeVisible();
+      await pickPerson(addDialog, person.name);
+      // Exact, because the picker also announces the choice to screen
+      // readers as "<name> selected." in an sr-only live region, and a
+      // substring match resolves to both.
+      await expect(
+        addDialog.getByText(person.name, { exact: true }),
+      ).toBeVisible();
 
       await addDialog.getByLabel("Role / title").fill(roleTitle);
       await addDialog.getByLabel("Term start").fill("2026-01-05");
@@ -61,9 +64,12 @@ test.describe("portal governance board, meetings, and resolutions", () => {
       await expect(row).toContainText("Active");
 
       await row.getByRole("button", { name: "View board member" }).click();
-      const sheet = page.getByRole("dialog");
+      const sheet = modal(page);
       await expect(sheet.getByText(roleTitle)).toBeVisible();
-      await expect(sheet.getByText(person.name)).toBeVisible();
+      // Exact, because the picker also announces the choice to screen
+      // readers as "<name> selected." in an sr-only live region, and a
+      // substring match resolves to both.
+      await expect(sheet.getByText(person.name, { exact: true })).toBeVisible();
 
       await sheet.getByRole("button", { name: "Edit board member" }).click();
       await sheet.getByLabel("Role / title").fill(updatedRoleTitle);
@@ -105,7 +111,7 @@ test.describe("portal governance board, meetings, and resolutions", () => {
       ).toBeVisible();
 
       await page.getByRole("button", { name: "Schedule meeting" }).click();
-      const addDialog = page.getByRole("dialog");
+      const addDialog = modal(page);
       await expect(
         addDialog.getByRole("heading", { name: "Schedule meeting" }),
       ).toBeVisible();
@@ -117,7 +123,7 @@ test.describe("portal governance board, meetings, and resolutions", () => {
 
       const row = page.getByRole("row").filter({ hasText: location });
       await expect(row).toBeVisible({ timeout: 15_000 });
-      await expect(row).toContainText("scheduled");
+      await expect(row).toContainText("Scheduled");
 
       await row.getByRole("button", { name: "View meeting on" }).click();
       await expect(page).toHaveURL(/\/portal\/governance\/meetings\/[^/]+$/, {
@@ -136,10 +142,7 @@ test.describe("portal governance board, meetings, and resolutions", () => {
       const actionItemForm = page
         .locator("form")
         .filter({ hasText: "Add action item" });
-      await actionItemForm
-        .getByPlaceholder("Search by name or email...")
-        .fill(owner.name);
-      await actionItemForm.getByRole("button", { name: owner.name }).click();
+      await pickPerson(actionItemForm, owner.name);
       await actionItemForm.getByLabel("Description").fill(actionItem);
       await actionItemForm
         .getByRole("button", { name: "Add action item", exact: true })
@@ -184,7 +187,7 @@ test.describe("portal governance board, meetings, and resolutions", () => {
       // it) to prove the status update round-tripped to the database.
       await reloadStayingSignedIn(page);
       await expect(page.locator("#meeting-status-view")).toContainText(
-        "completed",
+        "Completed",
         { timeout: 15_000 },
       );
     } finally {
@@ -212,18 +215,14 @@ test.describe("portal governance board, meetings, and resolutions", () => {
       ).toBeVisible();
 
       await page.getByRole("button", { name: "Add resolution" }).click();
-      const addDialog = page.getByRole("dialog");
+      const addDialog = modal(page);
       await expect(
         addDialog.getByRole("heading", { name: "Add resolution" }),
       ).toBeVisible();
 
       // The dialog holds a mover picker and a seconder picker; the mover
       // comes first, and the seconder is optional.
-      await addDialog
-        .getByPlaceholder("Search by name or email...")
-        .first()
-        .fill(mover.name);
-      await addDialog.getByRole("button", { name: mover.name }).click();
+      await pickPerson(addDialog, mover.name);
 
       await addDialog.getByLabel("Motion text").fill(motionText);
       const newOutcome = addDialog.getByLabel("Vote outcome");
@@ -239,10 +238,10 @@ test.describe("portal governance board, meetings, and resolutions", () => {
       const row = page.getByRole("row").filter({ hasText: motionText });
       await expect(row).toBeVisible({ timeout: 15_000 });
       await expect(row).toContainText(mover.name);
-      await expect(row).toContainText("passed");
+      await expect(row).toContainText("Passed");
 
       await row.getByRole("button", { name: "View resolution" }).click();
-      const sheet = page.getByRole("dialog");
+      const sheet = modal(page);
       await expect(sheet.getByText(motionText)).toBeVisible();
 
       // The Save button only renders in edit mode, so it doubles as the
@@ -272,7 +271,7 @@ test.describe("portal governance board, meetings, and resolutions", () => {
       await reloadStayingSignedIn(page);
       await expect(
         page.getByRole("row").filter({ hasText: motionText }),
-      ).toContainText("tabled", { timeout: 15_000 });
+      ).toContainText("Tabled", { timeout: 15_000 });
     } finally {
       await admin.from("resolutions").delete().eq("mover_person_id", mover.id);
       await admin.from("people").delete().eq("id", mover.id);

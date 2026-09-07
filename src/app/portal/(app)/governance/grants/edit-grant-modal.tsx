@@ -42,26 +42,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
-
-function formatAmount(value: number | null) {
-  if (value === null) return "—";
-  return currencyFormatter.format(value);
-}
+import { toast } from "@/components/ui/toast";
+import {
+  formatCalendarDate,
+  formatCurrency,
+  personDisplayName,
+} from "@/lib/format";
 
 function formStateFor(grant: Grant): GrantFormState {
   return {
@@ -118,7 +104,7 @@ export function EditGrantModal({
   }
 
   function handlePersonCreated(person: PickedPerson) {
-    setAvailablePeople((prev) => [...prev, { ...person, is_sponsor: false }]);
+    setAvailablePeople((prev) => [...prev, person]);
   }
 
   function resetToBaseline() {
@@ -172,6 +158,7 @@ export function EditGrantModal({
         return;
       }
       setMode("view");
+      toast.success("Grant saved.");
       router.refresh();
     });
   }
@@ -265,19 +252,19 @@ export function EditGrantModal({
                   {grant.funder_name}
                 </ReadOnlyField>
                 <ReadOnlyField label="Amount" htmlFor="edit-grant-amount">
-                  {formatAmount(grant.amount)}
+                  {formatCurrency(grant.amount)}
                 </ReadOnlyField>
                 <ReadOnlyField
                   label="Application deadline"
                   htmlFor="edit-grant-application-deadline"
                 >
-                  {formatDate(grant.application_deadline)}
+                  {formatCalendarDate(grant.application_deadline)}
                 </ReadOnlyField>
                 <ReadOnlyField label="Status" htmlFor="edit-grant-status">
                   {GRANT_STATUS_LABELS[grant.status]}
                 </ReadOnlyField>
                 <ReadOnlyField label="Owner" htmlFor="edit-grant-owner">
-                  {grant.owner?.name || "—"}
+                  {personDisplayName(grant.owner)}
                 </ReadOnlyField>
                 <ReadOnlyField label="Notes" htmlFor="edit-grant-notes">
                   <span className="whitespace-pre-wrap">

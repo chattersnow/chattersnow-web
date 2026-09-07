@@ -1,8 +1,13 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
 import {
   deleteEventIncidentAction,
   listEventIncidentsAction,
@@ -12,30 +17,27 @@ import { SeverityBadge } from "./event-badges";
 import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
 import type { TabValue } from "./event-tabs-config";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Spinner } from "@/components/ui/spinner";
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
+import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
+import { formatDateTime } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+/**
+ * Severity worst-last, so sorting descending puts the serious ones on top.
+ * Alphabetical happens to agree today, but the order that matters here is the
+ * one `parseIncidentForm` accepts, not the one the words fall into.
+ */
+const SEVERITY_ORDER = ["minor", "moderate", "serious"];
 
 export function IncidentsTab({
   eventId,
-  active,
   mode,
 }: {
   eventId: string;
-  active: boolean;
   mode: "view" | "edit";
 }) {
   const router = useRouter();
@@ -43,7 +45,7 @@ export function IncidentsTab({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isDeleting, startDeleteTransition] = useTransition();
 
-  function load() {
+  const load = useCallback(() => {
     listEventIncidentsAction(eventId).then((result) => {
       if ("error" in result) setLoadError(result.error);
       else {
@@ -51,27 +53,77 @@ export function IncidentsTab({
         setIncidents(result.data);
       }
     });
-  }
+  }, [eventId]);
 
   useEffect(() => {
-    if (!active) return;
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, eventId]);
+  }, [load]);
 
-  function refresh() {
+  // Stable, so the column list below only rebuilds when something it renders
+  // differently changes.
+  const refresh = useCallback(() => {
     load();
     router.refresh();
-  }
+  }, [load, router]);
 
   useRegisterTabRefresh<TabValue>("incidents", refresh);
 
-  function handleDelete(id: string) {
-    startDeleteTransition(async () => {
-      await deleteEventIncidentAction(id);
-      refresh();
-    });
-  }
+  const handleDelete = useCallback(
+    (id: string) => {
+      startDeleteTransition(async () => {
+        await deleteEventIncidentAction(id);
+        refresh();
+      });
+    },
+    [refresh],
+  );
+
+  const columns = useMemo<PortalDataTableColumn<EventIncident>[]>(
+    () => [
+      {
+        key: "occurred_at",
+        label: "When",
+        sortValue: (incident) => incident.occurred_at,
+        cellClassName: "app-muted whitespace-nowrap",
+        render: (incident) => formatDateTime(incident.occurred_at),
+      },
+      {
+        key: "severity",
+        label: "Severity",
+        sortValue: (incident) => SEVERITY_ORDER.indexOf(incident.severity),
+        render: (incident) => <SeverityBadge severity={incident.severity} />,
+      },
+      {
+        key: "description",
+        label: "Description",
+        sortValue: (incident) => incident.description,
+        cellClassName: "whitespace-normal",
+        render: (incident) => incident.description,
+      },
+      ...(mode === "edit"
+        ? [
+            {
+              key: "actions",
+              label: "Actions",
+              srOnlyLabel: true,
+              headClassName: "w-0",
+              cellClassName: "text-right",
+              render: (incident: EventIncident) => (
+                <ConfirmDeleteButton
+                  label="Remove incident"
+                  title="Remove this incident?"
+                  description="This deletes the incident report, including its severity and description. Incident history is part of the record of how an event ran, and this can't be undone."
+                  confirmLabel="Remove"
+                  pending={isDeleting}
+                  onConfirm={() => handleDelete(incident.id)}
+                />
+              ),
+            } satisfies PortalDataTableColumn<EventIncident>,
+          ]
+        : []),
+    ],
+    [mode, isDeleting, handleDelete],
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -84,47 +136,21 @@ export function IncidentsTab({
       {incidents === null ? (
         <TabLoadingSkeleton />
       ) : incidents.length === 0 ? (
-        <p className="app-muted text-sm">No incidents recorded.</p>
+        <EmptyState
+          title="No incidents recorded"
+          description="If something happens during the event, log it with + Log incident above."
+        />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>When</TableHead>
-              <TableHead>Severity</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead className="w-px" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {incidents?.map((incident) => (
-              <TableRow key={incident.id}>
-                <TableCell className="app-muted whitespace-nowrap">
-                  {dateFormatter.format(new Date(incident.occurred_at))}
-                </TableCell>
-                <TableCell>
-                  <SeverityBadge severity={incident.severity} />
-                </TableCell>
-                <TableCell className="whitespace-normal">
-                  {incident.description}
-                </TableCell>
-                <TableCell className="text-right">
-                  {mode === "edit" && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Remove incident"
-                      disabled={isDeleting}
-                      onClick={() => handleDelete(incident.id)}
-                    >
-                      {isDeleting ? <Spinner /> : <Trash2 />}
-                    </Button>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <PortalDataTable
+          columns={columns}
+          rows={incidents}
+          getRowKey={(incident) => incident.id}
+          // listEventIncidentsAction returns newest first.
+          defaultSort={{ key: "occurred_at", dir: "desc" }}
+          emptyMessage="No incidents to show."
+          // The tab is already inside its own card on the phase grid.
+          shell="bare"
+        />
       )}
     </div>
   );

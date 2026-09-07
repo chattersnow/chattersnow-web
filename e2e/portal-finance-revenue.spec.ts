@@ -1,10 +1,25 @@
 // Issue #440: E2E coverage for /portal/finance/revenue.
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
+import { modal } from "./helpers/dialog";
+import { createAdminClient } from "./helpers/admin-client";
+
+/** Far enough out that it sorts above every seeded row, and stays that way. */
+const RECEIVED_DATE = "2099-12-31";
 
 test.describe("portal finance revenue", () => {
   test.beforeEach(async ({ page }) => {
     await signIn(page);
+  });
+
+  // The spec adds a row and has no other way to take it back, so every run
+  // used to leave one behind on the shared local instance.
+  test.afterEach(async () => {
+    const admin = createAdminClient();
+    await admin
+      .from("event_revenue")
+      .delete()
+      .eq("received_date", RECEIVED_DATE);
   });
 
   test("loads the Revenue page", async ({ page }) => {
@@ -18,7 +33,7 @@ test.describe("portal finance revenue", () => {
     await page.goto("/portal/finance/revenue");
 
     await page.getByRole("button", { name: "New Revenue" }).click();
-    const addDialog = page.getByRole("dialog");
+    const addDialog = modal(page);
     await expect(
       addDialog.getByRole("heading", { name: "Add revenue" }),
     ).toBeVisible();
@@ -34,6 +49,12 @@ test.describe("portal finance revenue", () => {
     // way to tell two Merchandise records apart.
     const amount = ((Date.now() % 100000) / 100).toFixed(2);
     await addDialog.getByLabel("Amount").fill(amount);
+    // Dated well past anything the seed seeds, because the list now shows ten
+    // rows at a time sorted by date descending. The form defaults to today,
+    // and the seeded revenue rows carry their event's date -- roughly eight
+    // of which are in the future -- so a today-dated row lands around the
+    // page boundary and the lookup below finds it or doesn't, run to run.
+    await addDialog.getByLabel("Date").fill(RECEIVED_DATE);
 
     const notes = `E2E revenue notes ${Date.now()}`;
     const notesField = addDialog.getByLabel("Notes");
@@ -53,7 +74,7 @@ test.describe("portal finance revenue", () => {
     await expect(row).toBeVisible();
 
     await row.getByRole("button", { name: "View revenue" }).click();
-    const viewSheet = page.getByRole("dialog");
+    const viewSheet = modal(page);
     await expect(
       viewSheet.getByRole("heading", { name: "Revenue", exact: true }),
     ).toBeVisible();

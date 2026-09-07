@@ -4,15 +4,54 @@ import userEvent from "@testing-library/user-event";
 import type { CreateDonationInput } from "./donation-form";
 import * as HomeActions from "./actions";
 
-type CreateDonationResult = { error: string } | { success: true };
+type CreateDonationResult =
+  | { error: string }
+  | { success: true; giveaway: HomeActions.DonationGiveawayGrant | null };
 
 const createDonationActionMock = mock<
   (input: CreateDonationInput) => Promise<CreateDonationResult>
->(async () => ({ success: true }));
+>(async () => ({ success: true, giveaway: null }));
+
+// Events without a tiered giveaway return no tiers, which is the default the
+// existing cases exercise -- the per-item tier picker stays hidden.
+const listEventGiveawayTiersActionMock = mock<
+  (eventId: string) => Promise<{ data: HomeActions.GiveawayTierOption[] }>
+>(async () => ({ data: [] }));
 
 mock.module("./actions", () => ({
   ...HomeActions,
   createDonationAction: createDonationActionMock,
+  listEventGiveawayTiersAction: listEventGiveawayTiersActionMock,
+}));
+
+// The sheet loads event options on open whenever a caller passes neither an
+// events list nor a fixed eventId.
+mock.module("../events/actions", () => ({
+  listEventOptionsAction: async () => ({ data: [] }),
+}));
+
+// The item category vocabulary (issue #667), also loaded on open.
+mock.module("../inventory/categories/actions", () => ({
+  listInventoryCategoriesAction: async () => ({
+    data: [
+      {
+        id: "category-jacket",
+        key: "jacket",
+        label: "Jacket",
+        groupKey: "outerwear",
+        groupLabel: "Outerwear",
+        isActive: true,
+      },
+      {
+        id: "category-other",
+        key: "other",
+        label: "Other",
+        groupKey: "other",
+        groupLabel: "Other",
+        isActive: true,
+      },
+    ],
+  }),
 }));
 
 const { AddDonationModal } = await import("./add-donation-modal");
@@ -20,6 +59,15 @@ const { AddDonationModal } = await import("./add-donation-modal");
 async function openModal(user: ReturnType<typeof userEvent.setup>) {
   render(<AddDonationModal />);
   await user.click(screen.getByRole("button", { name: "Record donation" }));
+}
+
+async function selectItemCategory(
+  user: ReturnType<typeof userEvent.setup>,
+  label: string,
+) {
+  await user.click(screen.getByLabelText("Item category"));
+  const listbox = await screen.findByRole("listbox");
+  await user.click(within(listbox).getByRole("option", { name: label }));
 }
 
 async function selectSourceType(
@@ -45,6 +93,11 @@ describe("AddDonationModal", () => {
     createDonationActionMock.mockClear();
     createDonationActionMock.mockImplementation(async () => ({
       success: true,
+      giveaway: null,
+    }));
+    listEventGiveawayTiersActionMock.mockClear();
+    listEventGiveawayTiersActionMock.mockImplementation(async () => ({
+      data: [],
     }));
   });
 
@@ -122,7 +175,7 @@ describe("AddDonationModal", () => {
     await fillDonorAndContinue(user, "Jane Donor");
 
     await user.type(screen.getByLabelText("Item description"), "Winter jacket");
-    await user.type(screen.getByLabelText("Item type"), "Jacket");
+    await selectItemCategory(user, "Jacket");
     await user.click(screen.getByRole("button", { name: "Save donation" }));
 
     await screen.findByRole("button", { name: "Record donation" });
@@ -135,11 +188,13 @@ describe("AddDonationModal", () => {
       {
         description: "Winter jacket",
         size: undefined,
-        type: "Jacket",
+        categoryKey: "jacket",
+        categoryDetail: undefined,
         gender: undefined,
         condition: "",
         faceValue: null,
         notes: undefined,
+        intendedUse: "gear_library",
       },
     ]);
   });
@@ -153,7 +208,7 @@ describe("AddDonationModal", () => {
     await fillDonorAndContinue(user, "Jane Donor");
 
     await user.type(screen.getByLabelText("Item description"), "Winter jacket");
-    await user.type(screen.getByLabelText("Item type"), "Jacket");
+    await selectItemCategory(user, "Jacket");
     await user.click(screen.getByRole("button", { name: "Save donation" }));
 
     expect(
@@ -202,7 +257,7 @@ describe("AddDonationModal", () => {
     await user.click(screen.getByRole("button", { name: "Continue" }));
 
     await user.type(screen.getByLabelText("Item description"), "Winter jacket");
-    await user.type(screen.getByLabelText("Item type"), "Jacket");
+    await selectItemCategory(user, "Jacket");
     await user.click(screen.getByRole("button", { name: "Save donation" }));
 
     await screen.findByRole("button", { name: "Record donation" });

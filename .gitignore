@@ -42,7 +42,13 @@ yarn-error.log*
 next-env.d.ts
 
 # scripts
-scripts
+#
+# Operator scripts are local by default. The demo reset (#604) is the
+# exception and has to be committed: .github/workflows/demo-reset.yml runs it
+# on a schedule, from a checkout that has only what is in the repository.
+scripts/*
+!scripts/demo/
+!scripts/demo-reset.ts
 
 # playwright
 /test-results/

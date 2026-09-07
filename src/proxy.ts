@@ -7,6 +7,18 @@ import {
   stripPortalPrefix,
 } from "@/lib/portal/paths";
 
+/**
+ * Any `portal.` subdomain is a portal host (#707 Phase 4). A tenant on its
+ * own domain points `portal.<domain>` at the same deployment and gets the
+ * same unprefixed portal the Chatter Snow host has; `public_tenant_id()`
+ * resolves it through the parent-domain match on `tenants.custom_domain`.
+ * The apex -> portal redirect above stays Chatter Snow's own: it assumes the
+ * subdomain exists, which only that tenant's DNS has promised.
+ */
+function isPortalHost(hostname: string): boolean {
+  return hostname === PORTAL_HOST || hostname.startsWith("portal.");
+}
+
 // Paths that live at the app root and must keep working unprefixed on the
 // portal host. `/portal` is a route-group prefix, not a mount point, so
 // blanket-rewriting every path into it makes these unreachable:
@@ -18,7 +30,21 @@ import {
 //     the matcher, but the optimizer re-fetches the source through this same
 //     host, so a rewritten /portal/<file>.png 404 turns into a 400
 //     INVALID_IMAGE_OPTIMIZE_REQUEST and the image never renders.
-const ROOT_PATH_PREFIXES = ["/auth/"];
+//   - /api/* are route handlers, which live at the app root. The task-reminder
+//     cron (#488) is called by Vercel with a bearer token and no browser
+//     involved, so a rewrite to /portal/api/... would 404 a job nobody is
+//     watching -- it would simply stop sending, silently.
+const ROOT_PATH_PREFIXES = ["/auth/", "/api/"];
+
+/**
+ * Header carrying the portal path the browser actually asked for.
+ *
+ * The portal layout redirects signed-out users to the login page, but a
+ * layout can't see the request path, so every shared portal link -- "look at
+ * this event", "here's the reimbursement" -- used to land the recipient on
+ * the dashboard with the original URL gone. The proxy does see it.
+ */
+export const PORTAL_PATH_HEADER = "x-portal-path";
 
 export type PortalRoute =
   | { kind: "pass" }
@@ -40,7 +66,7 @@ export function resolvePortalRoute(
 ): PortalRoute {
   const isPortalPath = isPortalPathname(pathname);
 
-  if (hostname === PORTAL_HOST) {
+  if (isPortalHost(hostname)) {
     const isRootPath =
       ROOT_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
       // Anything with a file extension is a public/ asset, never a page route.
@@ -97,8 +123,32 @@ export function resolvePortalRoute(
 // request, so that difference matters; the portal layout still calls
 // getUser() itself for the real authorization check, once the cookies here
 // are already current.
-async function refreshPortalSession(request: NextRequest) {
-  let refreshedResponse = NextResponse.next({ request });
+/**
+ * Clones the incoming headers and stamps the requested portal path on them.
+ * Cloned at call time, never snapshotted up front: `request.cookies.set` in
+ * the refresh path below writes through `request.headers`, so an early copy
+ * would forward a stale cookie header and undo the session refresh.
+ */
+function forwardHeaders(request: NextRequest, portalPath: string | null) {
+  const headers = new Headers(request.headers);
+  if (portalPath) {
+    headers.set(PORTAL_PATH_HEADER, portalPath);
+  } else {
+    // Never let a client-supplied value through: it decides a redirect target.
+    headers.delete(PORTAL_PATH_HEADER);
+  }
+  return headers;
+}
+
+async function refreshPortalSession(
+  request: NextRequest,
+  portalPath: string | null,
+) {
+  const forward = () =>
+    NextResponse.next({
+      request: { headers: forwardHeaders(request, portalPath) },
+    });
+  let refreshedResponse = forward();
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -112,7 +162,7 @@ async function refreshPortalSession(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value),
           );
-          refreshedResponse = NextResponse.next({ request });
+          refreshedResponse = forward();
           cookiesToSet.forEach(({ name, value, options }) =>
             refreshedResponse.cookies.set(name, value, options),
           );
@@ -136,12 +186,23 @@ export async function proxy(request: NextRequest) {
       request.headers.has("rsc") ||
       request.headers.has("next-action"),
   );
-  const isPortalRequest =
-    hostname === PORTAL_HOST || isPortalPathname(pathname);
+  // isPortalHost covers main's `hostname === PORTAL_HOST` and generalizes it to
+  // any `portal.` subdomain (#707 Phase 4); isPortalPathname is the helper form
+  // of the inline prefix check this used to carry.
+  const isPortalRequest = isPortalHost(hostname) || isPortalPathname(pathname);
+
+  // The path as the browser asked for it. On the portal host the route group
+  // is a rewrite target, so use the rewritten path -- that's what a login
+  // redirect has to send the user back to.
+  const portalPath = isPortalRequest
+    ? `${route.kind === "rewrite" ? route.pathname : pathname}${request.nextUrl.search}`
+    : null;
 
   const refreshedResponse = isPortalRequest
-    ? await refreshPortalSession(request)
-    : NextResponse.next({ request });
+    ? await refreshPortalSession(request, portalPath)
+    : NextResponse.next({
+        request: { headers: forwardHeaders(request, portalPath) },
+      });
 
   const withRefreshedCookies = (response: NextResponse) => {
     refreshedResponse.cookies.getAll().forEach((cookie) => {
@@ -153,7 +214,11 @@ export async function proxy(request: NextRequest) {
   if (route.kind === "rewrite") {
     const url = request.nextUrl.clone();
     url.pathname = route.pathname;
-    return withRefreshedCookies(NextResponse.rewrite(url, { request }));
+    return withRefreshedCookies(
+      NextResponse.rewrite(url, {
+        request: { headers: forwardHeaders(request, portalPath) },
+      }),
+    );
   }
 
   if (route.kind === "redirect") {

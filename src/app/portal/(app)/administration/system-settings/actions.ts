@@ -5,6 +5,21 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkPermission } from "@/lib/auth/permissions";
 import { siteImageSettingKey } from "@/lib/site-images";
 import { pageVisibilitySettingKey } from "@/lib/page-visibility";
+import {
+  BRAND_COLOR_TOKENS,
+  MAX_ACCENT_STOPS,
+  brandSettingKey,
+  normalizeHexColor,
+} from "@/lib/branding";
+import {
+  FISCAL_YEAR_SETTING_KEY,
+  isFiscalYearStartMonth,
+} from "@/lib/fiscal-year";
+import { EMAIL_ENABLED_SETTING_KEY } from "@/lib/notifications/kinds";
+import {
+  OPS_REPORT_RECIPIENTS_SETTING_KEY,
+  isEmailAddress,
+} from "@/lib/notifications/ops-report";
 
 export type SettingActionResult = { error: string } | { success: true };
 
@@ -23,7 +38,7 @@ export async function updateAppSettingAction(
 
   const { error } = await supabase
     .from("app_settings")
-    .upsert({ key, value }, { onConflict: "key" });
+    .upsert({ key, value }, { onConflict: "tenant_id,key" });
   if (error) {
     return { error: "Could not save this setting. Please try again." };
   }
@@ -59,6 +74,24 @@ export async function updateReimbursementApprovalThresholdAction(
   );
 }
 
+/**
+ * Sets the month the org's fiscal year starts in (issue: define fiscal year).
+ * Every annual figure in the portal reads this, so a bad value would quietly
+ * skew reports rather than fail loudly -- hence the range check here on top of
+ * the dropdown's own constraint.
+ */
+export async function updateFiscalYearStartMonthAction(
+  formData: FormData,
+): Promise<SettingActionResult> {
+  const raw = String(formData.get("startMonth") ?? "").trim();
+  const startMonth = Number(raw);
+  if (!isFiscalYearStartMonth(startMonth)) {
+    return { error: "Pick a month between January and December." };
+  }
+
+  return updateAppSettingAction(FISCAL_YEAR_SETTING_KEY, startMonth);
+}
+
 export async function updateSiteImageAction(
   slot: string,
   formData: FormData,
@@ -82,4 +115,122 @@ export async function updatePageVisibilityAction(
   visible: boolean,
 ): Promise<SettingActionResult> {
   return updateAppSettingAction(pageVisibilitySettingKey(slot), visible);
+}
+
+/**
+ * The organization's outbound email kill switch (#488). Off means this tenant
+ * sends nothing at all -- not the daily task digest, not anything a later
+ * ticket adds -- whatever any individual has turned on for themselves. Like
+ * every other setting here, the write is audit-logged by the app_settings
+ * trigger, which is what makes turning it off a record rather than a rumour.
+ */
+export async function updateEmailNotificationsEnabledAction(
+  enabled: boolean,
+): Promise<SettingActionResult> {
+  return updateAppSettingAction(EMAIL_ENABLED_SETTING_KEY, enabled);
+}
+
+/**
+ * Who receives the daily leadership ops report (#743).
+ *
+ * Stored as an array rather than the raw string so the job never has to guess
+ * at a separator, and validated here rather than only in the job: an address
+ * that is silently dropped at send time looks, from this page, exactly like
+ * one that was saved. Clearing the field switches the report off for this
+ * tenant -- app_settings has no delete grant, so an empty list is how "off"
+ * is written, the same constraint the image slots work under.
+ *
+ * The write is audit-logged by the app_settings trigger, which is the point:
+ * changing who sees the organization's daily operating picture is a
+ * governance act, not a preference.
+ */
+export async function updateOpsReportRecipientsAction(
+  formData: FormData,
+): Promise<SettingActionResult> {
+  const raw = String(formData.get("recipients") ?? "").trim();
+  const entries = raw ? raw.split(/[,;\s]+/).filter(Boolean) : [];
+
+  const invalid = entries.filter(
+    (entry) => !isEmailAddress(entry.toLowerCase()),
+  );
+  if (invalid.length > 0) {
+    return {
+      error: `Not an email address: ${invalid.slice(0, 3).join(", ")}.`,
+    };
+  }
+
+  const recipients = [
+    ...new Set(entries.map((entry) => entry.toLowerCase())),
+  ].sort();
+  return updateAppSettingAction(OPS_REPORT_RECIPIENTS_SETTING_KEY, recipients);
+}
+
+/**
+ * Saves the tenant's branding (#707 Phase 4): one app_settings row per
+ * colour token, the accent stops, and the logo. A blank field clears its row
+ * to an empty value, which the readers treat as unset -- app_settings has no
+ * delete grant, the same constraint the image slots work under.
+ */
+export async function updateBrandingAction(
+  formData: FormData,
+): Promise<SettingActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(
+    supabase,
+    "system_settings",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  const rows: { key: string; value: unknown }[] = [];
+  for (const token of BRAND_COLOR_TOKENS) {
+    const raw = String(formData.get(token.key) ?? "").trim();
+    if (!raw) {
+      rows.push({ key: brandSettingKey(token.key), value: "" });
+      continue;
+    }
+    const color = normalizeHexColor(raw);
+    if (!color) {
+      return {
+        error: `${token.label} must be a six-digit hex colour like ${token.defaultValue}.`,
+      };
+    }
+    rows.push({ key: brandSettingKey(token.key), value: color });
+  }
+
+  const stopsRaw = String(formData.get("accent_stops") ?? "").trim();
+  if (!stopsRaw) {
+    rows.push({ key: brandSettingKey("accent_stops"), value: "" });
+  } else {
+    const stops = stopsRaw
+      .split(",")
+      .map((stop) => normalizeHexColor(stop))
+      .filter((stop): stop is string => stop !== null);
+    if (stops.length === 0 || stops.length !== stopsRaw.split(",").length) {
+      return {
+        error:
+          "Accent colours must be six-digit hex colours separated by commas.",
+      };
+    }
+    if (stops.length > MAX_ACCENT_STOPS) {
+      return { error: `Use at most ${MAX_ACCENT_STOPS} accent colours.` };
+    }
+    rows.push({ key: brandSettingKey("accent_stops"), value: stops });
+  }
+
+  rows.push({
+    key: brandSettingKey("logo_url"),
+    value: String(formData.get("logo_url") ?? "").trim(),
+  });
+
+  const { error } = await supabase
+    .from("app_settings")
+    .upsert(rows, { onConflict: "tenant_id,key" });
+  if (error) {
+    return { error: "Could not save the branding. Please try again." };
+  }
+
+  revalidatePath("/portal/administration/system-settings");
+  revalidatePath("/", "layout");
+  return { success: true };
 }

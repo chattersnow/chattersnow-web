@@ -14,6 +14,7 @@ import { Spinner } from "@/components/ui/spinner";
 // createSupabaseServerClient, which must not reach the client bundle. The slot
 // list arrives as a prop from the server page, same as SiteImagesPanel.
 import type { PublicPageSlot } from "@/lib/page-visibility";
+import { runAction } from "@/components/portal/action-toast";
 
 function PageVisibilityRow({
   slot,
@@ -40,17 +41,18 @@ function PageVisibilityRow({
 
     startTransition(async () => {
       setChecked(next);
-      const result: SettingActionResult = await updatePageVisibilityAction(
-        slot.key,
-        next,
+      await runAction<SettingActionResult>(
+        () => updatePageVisibilityAction(slot.key, next),
+        {
+          success: `${slot.label} is now ${next ? "visible" : "hidden"}.`,
+          onError,
+          onSuccess: () => {
+            // Keeps the transition open until the server tree is refetched, so
+            // the optimistic value hands off directly to the re-read one.
+            router.refresh();
+          },
+        },
       );
-      if ("error" in result) {
-        onError(result.error);
-        return;
-      }
-      // Keeps the transition open until the server tree is refetched, so the
-      // optimistic value hands off directly to the re-read one.
-      router.refresh();
     });
   }
 

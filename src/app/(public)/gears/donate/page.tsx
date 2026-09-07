@@ -5,21 +5,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SiteImage } from "@/components/site-image";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSiteImageUrls } from "@/lib/site-images";
+import { getPublicSite, publicTitle } from "@/lib/public-site";
 
-export const metadata: Metadata = {
-  title: "Donate Gear | Chatter Snow",
-};
-
-const GEAR_EXAMPLES = [
-  "Skis & snowboards",
-  "Boots & bindings",
-  "Outerwear (jackets, pants)",
-  "Gloves & accessories",
-];
+export async function generateMetadata(): Promise<Metadata> {
+  const supabase = await createSupabaseServerClient();
+  return { title: publicTitle(await getPublicSite(supabase), "Donate Gear") };
+}
 
 export default async function DonateGearPage() {
   const supabase = await createSupabaseServerClient();
-  const siteImages = await getSiteImageUrls(supabase);
+  const [siteImages, { content }] = await Promise.all([
+    getSiteImageUrls(supabase),
+    getPublicSite(supabase),
+  ]);
 
   return (
     <div className="space-y-12">
@@ -27,24 +25,20 @@ export default async function DonateGearPage() {
         <div className="w-fit">
           <div className="rainbow-accent w-full" />
           <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-            How the gear program works
+            {content.text("gears.donate_heading")}
           </h1>
         </div>
         <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-          Chatter collects donated ski and snowboard gear and makes it available
-          to people in the community who need it. Browse the library, add what
-          you need to your cart, and submit one request for everything at once.
-          We&apos;ll help coordinate pickup or drop-off at an upcoming event.
+          {content.text("gears.donate_intro")}
         </p>
       </section>
 
       <section id="request">
         <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
-          Don&apos;t see what you need?
+          {content.text("gears.request_heading")}
         </h2>
         <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-          If your size or item isn&apos;t currently in the library, send us a
-          message and we&apos;ll do our best to match you with available gear.
+          {content.text("gears.request_body")}
         </p>
         <Button
           variant="secondary"
@@ -58,7 +52,7 @@ export default async function DonateGearPage() {
 
       <section id="donate">
         <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
-          Donate gear
+          {content.text("gears.accept_heading")}
         </h2>
         <div className="mt-6 grid gap-6 sm:grid-cols-3 sm:items-start">
           <SiteImage
@@ -68,17 +62,18 @@ export default async function DonateGearPage() {
           />
           <Card className="rainbow-surface sm:col-span-2">
             <CardHeader>
-              <CardTitle>We accept gently used gear</CardTitle>
+              <CardTitle>{content.text("gears.accept_title")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <ul className="app-muted list-disc space-y-1 pl-5 text-sm leading-relaxed">
-                {GEAR_EXAMPLES.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
+                {content
+                  .list<{ text: string }>("gears.accept_items")
+                  .map((item) => (
+                    <li key={item.text}>{item.text}</li>
+                  ))}
               </ul>
               <p className="app-muted text-sm leading-relaxed">
-                Drop items off in person at any Chatter event, or contact us to
-                arrange a drop-off, mail-in, or collection.
+                {content.text("gears.dropoff_body")}
               </p>
               <Button
                 nativeButton={false}
@@ -93,11 +88,10 @@ export default async function DonateGearPage() {
 
       <section id="gear-drives">
         <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
-          Gear drives
+          {content.text("gears.drives_heading")}
         </h2>
         <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-          We periodically run gear drives and swap events where the community
-          can donate, trade, and pick up gear in person. See{" "}
+          {content.text("gears.drives_body")}{" "}
           <Link
             href="/events"
             className="underline underline-offset-4 hover:text-foreground"
@@ -111,7 +105,7 @@ export default async function DonateGearPage() {
       <section>
         <SiteImage
           url={siteImages.gears_donate_bottom_photo ?? null}
-          alt="Chatter Snow community members"
+          alt={content.text("org.image_alt")}
           className="aspect-[16/9] rounded-2xl"
         />
       </section>

@@ -2,16 +2,19 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
+import { ActiveFilters, type ActiveFilter } from "@/components/active-filters";
 import { FiltersSheet } from "@/components/filters-sheet";
+import { SearchField } from "@/components/search-field";
 import { FilterSubmitButton } from "@/components/filter-submit-button";
 import { LinkPendingPulse } from "@/components/link-pending";
-import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import {
   buildHref,
+  PAGE_SIZE,
   escapeLikePattern,
   pageRange,
   parsePage,
+  parsePerPage,
   totalPagesFor,
 } from "@/lib/pagination";
 import { InventoryTable } from "./inventory-table";
@@ -19,11 +22,18 @@ import { InventoryViewProvider } from "./inventory-view-context";
 import { InventoryViewToggle } from "./inventory-view-toggle";
 import {
   CONDITIONS,
+  INTENDED_USES,
   STATUSES,
   isSortColumn,
   type InventoryItem,
   type SortColumn,
 } from "./inventory-shared";
+import {
+  groupInventoryCategories,
+  toInventoryCategories,
+  UNCATEGORIZED,
+  UNCATEGORIZED_LABEL,
+} from "@/lib/inventory";
 
 type InventoryPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -48,56 +58,83 @@ export default async function InventoryPage({
   };
 
   const search = raw("search") || "";
-  const typeFilter = raw("type") || "all";
+  const categoryFilter = raw("category") || "all";
   const conditionFilter = raw("condition") || "all";
   const statusFilter = raw("status") || "all";
+  const intendedUseFilter = raw("intendedUse") || "all";
 
   const sortParam = raw("sort");
   const sort: SortColumn = isSortColumn(sortParam) ? sortParam : "description";
   const dir: "asc" | "desc" = raw("dir") === "desc" ? "desc" : "asc";
 
   const page = parsePage(raw("page"));
+  const perPage = parsePerPage(raw("perPage"));
 
-  const { data: typeRows } = await supabase
-    .from("inventory_items")
-    .select("type")
-    .order("type", { ascending: true });
-  const typeOptions = Array.from(
-    new Set((typeRows ?? []).map((row) => row.type)),
-  );
-
-  let query = supabase
-    .from("inventory_items")
+  // The vocabulary itself, not a scan of every value ever typed: the old
+  // version selected the whole `type` column and de-duped it client-side, so
+  // every spelling variant became its own option (issue #667).
+  const { data: categoryRows } = await supabase
+    .from("inventory_categories")
     .select(
-      "id, description, type, size, gender, condition, face_value, status, photo_url, notes",
+      "id, key, label, is_active, sort_order, inventory_category_groups(key, label, sort_order)",
+    );
+  const categories = toInventoryCategories(categoryRows);
+  const categoryGroups = groupInventoryCategories(categories);
+  const activeCategories = categories.filter((category) => category.isActive);
+
+  // Reads from the view rather than the base table: "Category" is a sortable
+  // column, and PostgREST cannot order a row by an embedded resource's column.
+  let query = supabase
+    .from("inventory_items_with_category")
+    .select(
+      "id, description, type, size, gender, condition, face_value, status, intended_use, photo_url, notes, category_id, category_key, category_label, category_group_label, category_sort_key",
       { count: "exact" },
     )
-    .order(sort, { ascending: dir === "asc" })
+    .order(sort === "category" ? "category_sort_key" : sort, {
+      ascending: dir === "asc",
+    })
     .order("id", { ascending: true });
 
   if (search) {
     query = query.ilike("description", `%${escapeLikePattern(search)}%`);
   }
-  if (typeFilter !== "all") query = query.eq("type", typeFilter);
+  if (categoryFilter === UNCATEGORIZED) {
+    query = query.is("category_id", null);
+  } else if (categoryFilter.startsWith("group:")) {
+    // Selecting a whole group filters to its categories -- the roll-up the
+    // two-level vocabulary exists for.
+    const groupKey = categoryFilter.slice("group:".length);
+    query = query.in(
+      "category_id",
+      categories
+        .filter((category) => category.groupKey === groupKey)
+        .map((category) => category.id),
+    );
+  } else if (categoryFilter !== "all") {
+    query = query.eq("category_id", categoryFilter);
+  }
   if (conditionFilter !== "all") query = query.eq("condition", conditionFilter);
   if (statusFilter !== "all") query = query.eq("status", statusFilter);
+  if (intendedUseFilter !== "all")
+    query = query.eq("intended_use", intendedUseFilter);
 
-  const { offset, to } = pageRange(page);
+  const { offset, to } = pageRange(page, perPage);
   const { data: items, count } = await query.range(offset, to);
 
   const reservedIds = (items ?? [])
     .filter((item) => item.status === "reserved")
     .map((item) => item.id);
 
-  const holdByItemId = new Map<
-    string,
-    NonNullable<InventoryItem["holdRequester"]>
-  >();
+  type Hold = {
+    requester: NonNullable<InventoryItem["holdRequester"]>;
+    notes: string | null;
+  };
+  const holdByItemId = new Map<string, Hold>();
   if (reservedIds.length > 0) {
     const { data: movements } = await supabase
       .from("inventory_movements")
       .select(
-        "inventory_item_id, occurred_at, recipient:people(id, name, email, phone)",
+        "inventory_item_id, occurred_at, notes, recipient:people(id, name, email, phone)",
       )
       .eq("movement_type", "reserved")
       .in("inventory_item_id", reservedIds)
@@ -106,26 +143,40 @@ export default async function InventoryPage({
     type HoldMovement = {
       inventory_item_id: string;
       occurred_at: string;
+      notes: string | null;
       recipient: NonNullable<InventoryItem["holdRequester"]> | null;
     };
 
     for (const movement of (movements ?? []) as unknown as HoldMovement[]) {
       if (movement.recipient && !holdByItemId.has(movement.inventory_item_id)) {
-        holdByItemId.set(movement.inventory_item_id, movement.recipient);
+        holdByItemId.set(movement.inventory_item_id, {
+          requester: movement.recipient,
+          notes: movement.notes,
+        });
       }
     }
   }
 
-  const itemsWithHolds: InventoryItem[] = (items ?? []).map((item) => ({
-    ...item,
-    holdRequester: holdByItemId.get(item.id) ?? null,
-  }));
+  const itemsWithHolds: InventoryItem[] = (items ?? []).map((item) => {
+    const hold = holdByItemId.get(item.id);
+    return {
+      ...item,
+      holdRequester: hold?.requester ?? null,
+      holdNotes: hold?.notes ?? null,
+    };
+  });
 
   const filterParams = new URLSearchParams();
   if (search) filterParams.set("search", search);
-  if (typeFilter !== "all") filterParams.set("type", typeFilter);
+  if (categoryFilter !== "all") filterParams.set("category", categoryFilter);
   if (conditionFilter !== "all") filterParams.set("condition", conditionFilter);
   if (statusFilter !== "all") filterParams.set("status", statusFilter);
+  if (intendedUseFilter !== "all")
+    filterParams.set("intendedUse", intendedUseFilter);
+  // On filterParams rather than in each href, so sorting and paging both
+  // carry the reader's choice -- including the sort links the table builds
+  // from `filterQueryString` below.
+  if (perPage !== PAGE_SIZE) filterParams.set("perPage", String(perPage));
 
   function pageHref(nextPage: number) {
     return buildHref("/portal/inventory/items", filterParams, {
@@ -135,18 +186,84 @@ export default async function InventoryPage({
     });
   }
 
-  const totalPages = totalPagesFor(count);
+  function perPageHref(nextPerPage: number) {
+    // Back to page one: a bigger page renumbers them all, and page 4 of 9 is
+    // nothing in particular once each page holds 25.
+    return buildHref("/portal/inventory/items", filterParams, {
+      sort,
+      dir,
+      perPage: nextPerPage,
+      page: 1,
+    });
+  }
+
+  const totalPages = totalPagesFor(count, perPage);
   const hasActiveFilters =
     !!search ||
-    typeFilter !== "all" ||
+    categoryFilter !== "all" ||
     conditionFilter !== "all" ||
-    statusFilter !== "all";
+    statusFilter !== "all" ||
+    intendedUseFilter !== "all";
   const activeFilterCount = [
-    !!search,
-    typeFilter !== "all",
+    categoryFilter !== "all",
     conditionFilter !== "all",
     statusFilter !== "all",
+    intendedUseFilter !== "all",
   ].filter(Boolean).length;
+  // A filter value is an id, a "group:<key>" token or "uncategorized"; the chip
+  // has to show what a human picked, not the token.
+  function categoryFilterLabel(value: string) {
+    if (value === UNCATEGORIZED) return UNCATEGORIZED_LABEL;
+    if (value.startsWith("group:")) {
+      const groupKey = value.slice("group:".length);
+      return (
+        categoryGroups.find((group) => group.key === groupKey)?.label ??
+        groupKey
+      );
+    }
+    return categories.find((category) => category.id === value)?.label ?? value;
+  }
+
+  // Named in the toolbar rather than hidden behind the Filters count, so a
+  // partially filtered table says why it's short.
+  const appliedFilters: ActiveFilter[] = [];
+  if (search) {
+    appliedFilters.push({ param: "search", label: "Search", value: search });
+  }
+  if (categoryFilter !== "all") {
+    appliedFilters.push({
+      param: "category",
+      label: "Category",
+      value: categoryFilterLabel(categoryFilter),
+    });
+  }
+  if (conditionFilter !== "all") {
+    appliedFilters.push({
+      param: "condition",
+      label: "Condition",
+      value:
+        CONDITIONS.find((option) => option.value === conditionFilter)?.label ??
+        conditionFilter,
+    });
+  }
+  if (statusFilter !== "all") {
+    appliedFilters.push({
+      param: "status",
+      label: "Status",
+      value:
+        STATUSES.find((option) => option.value === statusFilter)?.label ??
+        statusFilter,
+    });
+  }
+  if (intendedUseFilter !== "all") {
+    appliedFilters.push({
+      param: "intendedUse",
+      label: "Intended use",
+      value:
+        INTENDED_USES.find((option) => option.value === intendedUseFilter)
+          ?.label ?? intendedUseFilter,
+    });
+  }
 
   return (
     <>
@@ -161,44 +278,54 @@ export default async function InventoryPage({
         <div className="rainbow-surface mt-6 flex flex-wrap items-end justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
           <InventoryViewToggle />
 
+          <SearchField
+            action="/portal/inventory/items"
+            defaultValue={search}
+            placeholder="Search description..."
+            preserve={{
+              category: categoryFilter,
+              condition: conditionFilter,
+              status: statusFilter,
+              intendedUse: intendedUseFilter,
+              sort,
+              dir,
+            }}
+          />
           <FiltersSheet activeCount={activeFilterCount}>
             <form method="get" className="flex flex-col gap-4">
               <input type="hidden" name="sort" value={sort} />
               <input type="hidden" name="dir" value={dir} />
 
-              <div className="flex flex-col gap-1">
-                <label
-                  htmlFor="search"
-                  className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-                >
-                  Search
-                </label>
-                <Input
-                  id="search"
-                  name="search"
-                  placeholder="Search description..."
-                  defaultValue={search}
-                />
-              </div>
+              {/* Search lives in the toolbar now; carry it through so
+                  applying a filter here doesn't drop the current query. */}
+              <input type="hidden" name="search" value={search} />
 
               <div className="flex flex-col gap-1">
                 <label
-                  htmlFor="type"
+                  htmlFor="category"
                   className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
                 >
-                  Type
+                  Category
                 </label>
                 <select
-                  id="type"
-                  name="type"
-                  defaultValue={typeFilter}
+                  id="category"
+                  name="category"
+                  defaultValue={categoryFilter}
                   className={selectClassName}
                 >
-                  <option value="all">All types</option>
-                  {typeOptions.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
+                  <option value="all">All categories</option>
+                  <option value={UNCATEGORIZED}>{UNCATEGORIZED_LABEL}</option>
+                  {categoryGroups.map((group) => (
+                    <optgroup key={group.key} label={group.label}>
+                      <option value={`group:${group.key}`}>
+                        All {group.label.toLowerCase()}
+                      </option>
+                      {group.categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.label}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
               </div>
@@ -247,6 +374,28 @@ export default async function InventoryPage({
                 </select>
               </div>
 
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor="intendedUse"
+                  className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+                >
+                  Intended use
+                </label>
+                <select
+                  id="intendedUse"
+                  name="intendedUse"
+                  defaultValue={intendedUseFilter}
+                  className={selectClassName}
+                >
+                  <option value="all">All intended uses</option>
+                  {INTENDED_USES.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="flex flex-wrap items-center gap-2">
                 <FilterSubmitButton />
                 {hasActiveFilters && (
@@ -263,9 +412,24 @@ export default async function InventoryPage({
           </FiltersSheet>
         </div>
 
+        <ActiveFilters
+          action="/portal/inventory/items"
+          filters={appliedFilters}
+          params={{
+            search,
+            category: categoryFilter,
+            condition: conditionFilter,
+            status: statusFilter,
+            intendedUse: intendedUseFilter,
+            sort,
+            dir,
+          }}
+        />
+
         <div className="mt-6">
           <InventoryTable
             items={itemsWithHolds}
+            categories={activeCategories}
             sort={sort}
             dir={dir}
             filterQueryString={filterParams.toString()}
@@ -275,7 +439,14 @@ export default async function InventoryPage({
       </InventoryViewProvider>
 
       {itemsWithHolds.length > 0 && (
-        <Pagination page={page} totalPages={totalPages} hrefFor={pageHref} />
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          count={count}
+          pageSize={perPage}
+          hrefFor={pageHref}
+          perPageHrefFor={perPageHref}
+        />
       )}
     </>
   );

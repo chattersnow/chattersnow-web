@@ -1,5 +1,6 @@
 "use client";
 
+import { categoryLabelFor } from "@/lib/inventory";
 import Image from "next/image";
 import { BrandImageFallback } from "@/components/brand-image-fallback";
 import {
@@ -17,10 +18,7 @@ import {
   resolveImageUrl,
 } from "@/lib/inventory";
 import type { GearItem } from "./gear-catalog";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-});
+import { formatInstantDate } from "@/lib/format";
 
 export function GearDetailSheet({
   item,
@@ -48,15 +46,14 @@ export function GearDetailSheet({
         {item && (
           <>
             <SheetHeader>
-              <p className="app-eyebrow">{item.type}</p>
+              <p className="app-eyebrow">{categoryLabelFor(item)}</p>
               <SheetTitle className="text-xl">{item.description}</SheetTitle>
               <SheetDescription>
                 {[item.size, genderLabel, labelFor(CONDITIONS, item.condition)]
                   .filter(Boolean)
                   .join(" · ")}
                 {" · "}
-                Available since{" "}
-                {dateFormatter.format(new Date(item.created_at))}
+                Available since {formatInstantDate(item.created_at)}
               </SheetDescription>
             </SheetHeader>
 

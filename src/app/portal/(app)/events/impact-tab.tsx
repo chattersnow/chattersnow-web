@@ -23,45 +23,23 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { StatTile } from "../home/stat-tile";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
+import { formatCurrency } from "@/lib/format";
+import type { EventImpactDerived } from "@/lib/portal/impact-metrics";
 
 type FormState = {
-  totalParticipants: string;
-  firstTimeParticipants: string;
   firstTimeRiders: string;
-  beginnerParticipants: string;
-  volunteerParticipants: string;
-  subsidizedTicketsCount: string;
   rentalSubsidiesCount: string;
-  equipmentLoansCount: string;
   assistanceTotal: string;
   beginnerPairingsCount: string;
-  surveyRespondentsCount: string;
-  surveyEasierToParticipateYesCount: string;
-  surveyWouldNotHaveParticipatedWithoutAssistanceYesCount: string;
-  surveyFirstTimeSkiingYesCount: string;
-  surveyFeltWelcomedYesCount: string;
-  surveyWouldAttendAgainYesCount: string;
   notes: string;
 };
 
 function emptyForm(): FormState {
   return {
-    totalParticipants: "",
-    firstTimeParticipants: "",
     firstTimeRiders: "",
-    beginnerParticipants: "",
-    volunteerParticipants: "",
-    subsidizedTicketsCount: "",
     rentalSubsidiesCount: "",
-    equipmentLoansCount: "",
     assistanceTotal: "",
     beginnerPairingsCount: "",
-    surveyRespondentsCount: "",
-    surveyEasierToParticipateYesCount: "",
-    surveyWouldNotHaveParticipatedWithoutAssistanceYesCount: "",
-    surveyFirstTimeSkiingYesCount: "",
-    surveyFeltWelcomedYesCount: "",
-    surveyWouldAttendAgainYesCount: "",
     notes: "",
   };
 }
@@ -73,30 +51,10 @@ function numToStr(value: number | string | null | undefined) {
 function formStateFor(note: EventImpactNote | null): FormState {
   if (!note) return emptyForm();
   return {
-    totalParticipants: numToStr(note.total_participants),
-    firstTimeParticipants: numToStr(note.first_time_participants),
     firstTimeRiders: numToStr(note.first_time_riders),
-    beginnerParticipants: numToStr(note.beginner_participants),
-    volunteerParticipants: numToStr(note.volunteer_participants),
-    subsidizedTicketsCount: numToStr(note.subsidized_tickets_count),
     rentalSubsidiesCount: numToStr(note.rental_subsidies_count),
-    equipmentLoansCount: numToStr(note.equipment_loans_count),
     assistanceTotal: numToStr(note.assistance_total),
     beginnerPairingsCount: numToStr(note.beginner_pairings_count),
-    surveyRespondentsCount: numToStr(note.survey_respondents_count),
-    surveyEasierToParticipateYesCount: numToStr(
-      note.survey_easier_to_participate_yes_count,
-    ),
-    surveyWouldNotHaveParticipatedWithoutAssistanceYesCount: numToStr(
-      note.survey_would_not_have_participated_without_assistance_yes_count,
-    ),
-    surveyFirstTimeSkiingYesCount: numToStr(
-      note.survey_first_time_skiing_yes_count,
-    ),
-    surveyFeltWelcomedYesCount: numToStr(note.survey_felt_welcomed_yes_count),
-    surveyWouldAttendAgainYesCount: numToStr(
-      note.survey_would_attend_again_yes_count,
-    ),
     notes: note.notes ?? "",
   };
 }
@@ -108,65 +66,85 @@ function isDirty(form: FormState, note: EventImpactNote | null) {
   );
 }
 
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
-
-function formatCurrency(value: number | string | null | undefined) {
-  if (value === null || value === undefined || value === "") return "—";
-  const numeric = typeof value === "string" ? Number(value) : value;
-  return Number.isFinite(numeric) ? currencyFormatter.format(numeric) : "—";
-}
-
 function statValue(value: number | null | undefined) {
   return value === null || value === undefined ? "—" : value;
 }
-
-function formatRatio(yesCount: number | null, respondents: number | null) {
-  if (yesCount === null || !respondents || respondents <= 0) return "—";
-  const percent = Math.round((yesCount / respondents) * 100);
-  return `${yesCount} of ${respondents} (${percent}%)`;
-}
-
-type SurveyYesField =
-  | "survey_easier_to_participate_yes_count"
-  | "survey_would_not_have_participated_without_assistance_yes_count"
-  | "survey_first_time_skiing_yes_count"
-  | "survey_felt_welcomed_yes_count"
-  | "survey_would_attend_again_yes_count";
-
-const SURVEY_QUESTIONS: { field: SurveyYesField; label: string }[] = [
-  {
-    field: "survey_easier_to_participate_yes_count",
-    label: "Made it easier to participate",
-  },
-  {
-    field: "survey_would_not_have_participated_without_assistance_yes_count",
-    label: "Would not have participated without assistance",
-  },
-  {
-    field: "survey_first_time_skiing_yes_count",
-    label: "First time skiing/snowboarding",
-  },
-  {
-    field: "survey_felt_welcomed_yes_count",
-    label: "Felt welcomed and included",
-  },
-  {
-    field: "survey_would_attend_again_yes_count",
-    label: "Would attend another event",
-  },
-];
 
 export type ImpactTabHandle = {
   discard: () => void;
 };
 
+/**
+ * The figures the system already holds, shown in place of the fields staff used
+ * to retype at report time. Rendered in both view and edit mode — they are never
+ * editable, so there is nothing to hide behind the pencil.
+ */
+function DerivedFigures({ derived }: { derived: EventImpactDerived | null }) {
+  if (!derived) return null;
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-3">
+        <h4 className="text-sm font-semibold">Participation</h4>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <StatTile label="Participants" value={derived.participants} />
+          <StatTile label="Checked in" value={derived.checkedIn} />
+          <StatTile
+            label="First-time participants"
+            value={derived.firstTimeParticipants}
+          />
+          <StatTile
+            label="Recurring participants"
+            value={derived.recurringParticipants}
+          />
+          <StatTile
+            label="Volunteers on site"
+            value={derived.volunteerParticipants}
+          />
+          {derived.beginnerParticipants !== null && (
+            <StatTile
+              label="Beginner participants"
+              value={derived.beginnerParticipants}
+            />
+          )}
+        </div>
+        <p className="app-muted text-xs">
+          Participants is the headcount from the Attendance card; checked in
+          counts registrants marked in at the door.
+          {/* The caveat is only true while coverage is short: once every
+              checked-in attendee has a profile, the beginner count is the
+              whole picture and hedging it just makes staff distrust it. */}
+          {derived.beginnerParticipants !== null &&
+            (derived.profiledAttendees ?? 0) < derived.checkedIn &&
+            ` Beginners are ${derived.beginnerParticipants} of ${derived.profiledAttendees ?? 0} attendees with a rider profile on file — add the missing ones from the Registrants tab.`}
+        </p>
+      </div>
+
+      {derived.discountCodesAssigned !== null && (
+        <div className="flex flex-col gap-3">
+          <h4 className="text-sm font-semibold">Discount codes</h4>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <StatTile
+              label="Codes assigned to a registrant"
+              value={derived.discountCodesAssigned}
+            />
+          </div>
+          {derived.autoAssignDiscountCodes && (
+            <p className="app-muted text-xs">
+              This event auto-assigns a code to every registrant, so this count
+              is not evidence of subsidy.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ImpactTab({
   eventId,
   formId,
-  active,
+  derived,
   mode,
   onSaved,
   onPendingChange,
@@ -175,7 +153,7 @@ export function ImpactTab({
 }: {
   eventId: string;
   formId: string;
-  active: boolean;
+  derived: EventImpactDerived | undefined;
   mode: "view" | "edit";
   onSaved: () => void;
   onPendingChange?: (pending: boolean) => void;
@@ -189,7 +167,6 @@ export function ImpactTab({
     refresh,
   } = useTabData<EventImpactNote | null>(
     () => getEventImpactAction(eventId),
-    active,
     [eventId],
   );
   const [form, setForm] = useState<FormState>(emptyForm());
@@ -258,97 +235,36 @@ export function ImpactTab({
           <InfoIcon />
           <AlertTitle>How these numbers are calculated</AlertTitle>
           <AlertDescription>
-            These figures are entered manually per event by staff. The Program
-            Impact Report now computes Participants, First-time participants,
-            and Subsidized tickets from attendance, check-ins, and discount
-            codes instead of the Total participants / First-time participants /
-            Subsidized tickets fields below — the rest of these figures
-            aren&apos;t derived automatically. Post-event survey percentages are
-            the yes-count divided by the number of survey respondents, rounded
-            to the nearest whole percent.
+            Participation and discount-code figures are computed live from
+            attendance, check-ins, volunteer records and rider profiles — there
+            is nothing to type. Only the figures below them have no system
+            source and are still entered by staff. Events that predate check-in
+            tracking will show low computed figures; their original hand-entered
+            numbers were archived, not discarded.
           </AlertDescription>
         </Alert>
+
+        <DerivedFigures derived={derived ?? null} />
+
         <div className="flex flex-col gap-3">
-          <h4 className="text-sm font-semibold">Participation</h4>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <StatTile
-              label="Total participants"
-              value={statValue(note?.total_participants)}
-            />
-            <StatTile
-              label="First-time participants"
-              value={statValue(note?.first_time_participants)}
-            />
+          <h4 className="text-sm font-semibold">Staff-entered figures</h4>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatTile
               label="First-time skiers/snowboarders"
               value={statValue(note?.first_time_riders)}
-            />
-            <StatTile
-              label="Beginner participants"
-              value={statValue(note?.beginner_participants)}
-            />
-            <StatTile
-              label="Volunteer participants"
-              value={statValue(note?.volunteer_participants)}
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-3">
-          <h4 className="text-sm font-semibold">Financial assistance</h4>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatTile
-              label="Subsidized tickets"
-              value={statValue(note?.subsidized_tickets_count)}
             />
             <StatTile
               label="Rental subsidies"
               value={statValue(note?.rental_subsidies_count)}
             />
             <StatTile
-              label="Equipment loans"
-              value={statValue(note?.equipment_loans_count)}
-            />
-            <StatTile
               label="Total participant assistance"
               value={formatCurrency(note?.assistance_total)}
             />
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-3">
-          <h4 className="text-sm font-semibold">Volunteer support</h4>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <StatTile
               label="Beginners paired with experienced riders"
               value={statValue(note?.beginner_pairings_count)}
             />
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-3">
-          <h4 className="text-sm font-semibold">Post-event outcomes survey</h4>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <StatTile
-              label="Survey respondents"
-              value={statValue(note?.survey_respondents_count)}
-            />
-          </div>
-          <div className="flex flex-col divide-y rounded-lg border">
-            {SURVEY_QUESTIONS.map((question) => (
-              <div
-                key={question.field}
-                className="flex items-center justify-between gap-4 px-4 py-3"
-              >
-                <p className="text-sm">{question.label}</p>
-                <p className="app-muted text-sm whitespace-nowrap">
-                  {formatRatio(
-                    note?.[question.field] ?? null,
-                    note?.survey_respondents_count ?? null,
-                  )}
-                </p>
-              </div>
-            ))}
           </div>
         </div>
 
@@ -368,41 +284,14 @@ export function ImpactTab({
           </Alert>
         )}
 
+        <DerivedFigures derived={derived ?? null} />
+
         <div className="flex flex-col gap-3">
-          <h4 className="text-sm font-semibold">Participation</h4>
+          <h4 className="text-sm font-semibold">Staff-entered figures</h4>
+          <p className="app-muted text-xs">
+            Nothing in the system records these, so they can only come from you.
+          </p>
           <FieldGroup>
-            <Field orientation="responsive">
-              <Field>
-                <FieldLabel htmlFor="impact-totalParticipants">
-                  Total participants
-                </FieldLabel>
-                <Input
-                  id="impact-totalParticipants"
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={form.totalParticipants}
-                  onChange={(event) =>
-                    update("totalParticipants", event.target.value)
-                  }
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="impact-firstTimeParticipants">
-                  First-time participants
-                </FieldLabel>
-                <Input
-                  id="impact-firstTimeParticipants"
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={form.firstTimeParticipants}
-                  onChange={(event) =>
-                    update("firstTimeParticipants", event.target.value)
-                  }
-                />
-              </Field>
-            </Field>
             <Field orientation="responsive">
               <Field>
                 <FieldLabel htmlFor="impact-firstTimeRiders">
@@ -416,59 +305,6 @@ export function ImpactTab({
                   value={form.firstTimeRiders}
                   onChange={(event) =>
                     update("firstTimeRiders", event.target.value)
-                  }
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="impact-beginnerParticipants">
-                  Beginner participants
-                </FieldLabel>
-                <Input
-                  id="impact-beginnerParticipants"
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={form.beginnerParticipants}
-                  onChange={(event) =>
-                    update("beginnerParticipants", event.target.value)
-                  }
-                />
-              </Field>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="impact-volunteerParticipants">
-                Volunteer participants
-              </FieldLabel>
-              <Input
-                id="impact-volunteerParticipants"
-                type="number"
-                min={0}
-                step={1}
-                value={form.volunteerParticipants}
-                onChange={(event) =>
-                  update("volunteerParticipants", event.target.value)
-                }
-              />
-            </Field>
-          </FieldGroup>
-        </div>
-
-        <div className="flex flex-col gap-3">
-          <h4 className="text-sm font-semibold">Financial assistance</h4>
-          <FieldGroup>
-            <Field orientation="responsive">
-              <Field>
-                <FieldLabel htmlFor="impact-subsidizedTicketsCount">
-                  Subsidized tickets
-                </FieldLabel>
-                <Input
-                  id="impact-subsidizedTicketsCount"
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={form.subsidizedTicketsCount}
-                  onChange={(event) =>
-                    update("subsidizedTicketsCount", event.target.value)
                   }
                 />
               </Field>
@@ -490,21 +326,6 @@ export function ImpactTab({
             </Field>
             <Field orientation="responsive">
               <Field>
-                <FieldLabel htmlFor="impact-equipmentLoansCount">
-                  Equipment loans
-                </FieldLabel>
-                <Input
-                  id="impact-equipmentLoansCount"
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={form.equipmentLoansCount}
-                  onChange={(event) =>
-                    update("equipmentLoansCount", event.target.value)
-                  }
-                />
-              </Field>
-              <Field>
                 <FieldLabel htmlFor="impact-assistanceTotal">
                   Total participant assistance ($)
                 </FieldLabel>
@@ -519,136 +340,21 @@ export function ImpactTab({
                   }
                 />
               </Field>
-            </Field>
-          </FieldGroup>
-        </div>
-
-        <div className="flex flex-col gap-3">
-          <h4 className="text-sm font-semibold">Volunteer support</h4>
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="impact-beginnerPairingsCount">
-                Beginners paired with experienced riders
-              </FieldLabel>
-              <Input
-                id="impact-beginnerPairingsCount"
-                type="number"
-                min={0}
-                step={1}
-                value={form.beginnerPairingsCount}
-                onChange={(event) =>
-                  update("beginnerPairingsCount", event.target.value)
-                }
-              />
-            </Field>
-          </FieldGroup>
-        </div>
-
-        <div className="flex flex-col gap-3">
-          <h4 className="text-sm font-semibold">Post-event outcomes survey</h4>
-          <p className="app-muted text-xs">
-            Enter the number of respondents and how many answered “yes” to each
-            question.
-          </p>
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="impact-surveyRespondentsCount">
-                Survey respondents
-              </FieldLabel>
-              <Input
-                id="impact-surveyRespondentsCount"
-                type="number"
-                min={0}
-                step={1}
-                value={form.surveyRespondentsCount}
-                onChange={(event) =>
-                  update("surveyRespondentsCount", event.target.value)
-                }
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="impact-surveyEasierToParticipateYesCount">
-                Did Chatter make it easier for you to participate? (yes)
-              </FieldLabel>
-              <Input
-                id="impact-surveyEasierToParticipateYesCount"
-                type="number"
-                min={0}
-                step={1}
-                value={form.surveyEasierToParticipateYesCount}
-                onChange={(event) =>
-                  update(
-                    "surveyEasierToParticipateYesCount",
-                    event.target.value,
-                  )
-                }
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="impact-surveyWouldNotHaveParticipatedWithoutAssistanceYesCount">
-                Would you have participated without the financial assistance?
-                (yes = would NOT have)
-              </FieldLabel>
-              <Input
-                id="impact-surveyWouldNotHaveParticipatedWithoutAssistanceYesCount"
-                type="number"
-                min={0}
-                step={1}
-                value={
-                  form.surveyWouldNotHaveParticipatedWithoutAssistanceYesCount
-                }
-                onChange={(event) =>
-                  update(
-                    "surveyWouldNotHaveParticipatedWithoutAssistanceYesCount",
-                    event.target.value,
-                  )
-                }
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="impact-surveyFirstTimeSkiingYesCount">
-                Was this your first time skiing/snowboarding? (yes)
-              </FieldLabel>
-              <Input
-                id="impact-surveyFirstTimeSkiingYesCount"
-                type="number"
-                min={0}
-                step={1}
-                value={form.surveyFirstTimeSkiingYesCount}
-                onChange={(event) =>
-                  update("surveyFirstTimeSkiingYesCount", event.target.value)
-                }
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="impact-surveyFeltWelcomedYesCount">
-                Did you feel welcomed and included? (yes)
-              </FieldLabel>
-              <Input
-                id="impact-surveyFeltWelcomedYesCount"
-                type="number"
-                min={0}
-                step={1}
-                value={form.surveyFeltWelcomedYesCount}
-                onChange={(event) =>
-                  update("surveyFeltWelcomedYesCount", event.target.value)
-                }
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="impact-surveyWouldAttendAgainYesCount">
-                Would you attend another Chatter event? (yes)
-              </FieldLabel>
-              <Input
-                id="impact-surveyWouldAttendAgainYesCount"
-                type="number"
-                min={0}
-                step={1}
-                value={form.surveyWouldAttendAgainYesCount}
-                onChange={(event) =>
-                  update("surveyWouldAttendAgainYesCount", event.target.value)
-                }
-              />
+              <Field>
+                <FieldLabel htmlFor="impact-beginnerPairingsCount">
+                  Beginners paired with experienced riders
+                </FieldLabel>
+                <Input
+                  id="impact-beginnerPairingsCount"
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={form.beginnerPairingsCount}
+                  onChange={(event) =>
+                    update("beginnerPairingsCount", event.target.value)
+                  }
+                />
+              </Field>
             </Field>
           </FieldGroup>
         </div>

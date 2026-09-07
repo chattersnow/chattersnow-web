@@ -63,7 +63,9 @@ describe("HelpButton", () => {
   });
 
   test("falls back to portal basics when no entry matches", async () => {
-    pathname = "/portal/programs";
+    // Donors is one of the few routes left with no entry of its own: it's a
+    // lens over the People directory, which #615's finding 26 folds back in.
+    pathname = "/portal/donors";
     const user = userEvent.setup();
     renderHelpButton();
 

@@ -42,6 +42,7 @@ import {
 import { formatRoleLabel } from "@/lib/format";
 import { updateRolePermissionsAction } from "./actions";
 import { Spinner } from "@/components/ui/spinner";
+import { runAction } from "@/components/portal/action-toast";
 
 type Role = { id: string; name: string; description: string | null };
 type Resource = {
@@ -184,21 +185,27 @@ export function PermissionsMatrix({
 
   function handleConfirmSave() {
     setError(null);
+    const count = changedCells.length;
     startSaveTransition(async () => {
-      const result = await updateRolePermissionsAction(
-        changedCells.map((c) => ({
-          role_id: c.roleId,
-          resource_id: c.resourceId,
-          level: c.to,
-        })),
+      await runAction(
+        () =>
+          updateRolePermissionsAction(
+            changedCells.map((c) => ({
+              role_id: c.roleId,
+              resource_id: c.resourceId,
+              level: c.to,
+            })),
+          ),
+        {
+          success: `${count} permission change${count === 1 ? "" : "s"} saved.`,
+          onError: setError,
+          onSuccess: () => {
+            setPendingEdits(new Map());
+            setSaveDialogOpen(false);
+            router.refresh();
+          },
+        },
       );
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      setPendingEdits(new Map());
-      setSaveDialogOpen(false);
-      router.refresh();
     });
   }
 

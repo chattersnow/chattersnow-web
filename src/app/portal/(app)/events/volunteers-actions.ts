@@ -21,7 +21,10 @@ export type EventVolunteer = {
   event_id: string;
   person_id: string;
   shift_id: string | null;
+  /** Legacy free text, still shown when no role type resolves. */
   role: string | null;
+  volunteer_role_type_id: string | null;
+  role_type: { name: string } | null;
   notes: string | null;
   person: EventVolunteerPerson;
 };
@@ -38,9 +41,11 @@ export async function listEventVolunteersAction(
   const { data, error } = await supabase
     .from("event_volunteers")
     .select(
-      "id, event_id, person_id, shift_id, role, notes, person:people(id, name, email, phone)",
+      "id, event_id, person_id, shift_id, role, volunteer_role_type_id, role_type:volunteer_role_types(name), notes, person:people!inner(id, name, email, phone)",
     )
-    .eq("event_id", eventId);
+    .eq("event_id", eventId)
+    .order("person(name)", { ascending: true, nullsFirst: false })
+    .order("id", { ascending: true });
 
   if (error) {
     return { error: "Could not load volunteers. Please try again." };
@@ -140,6 +145,12 @@ export async function deleteEventVolunteerAction(
   return { success: true };
 }
 
+// The event-scoped projection of the shared `volunteer_hours` ledger, not a
+// table shape: `event_volunteer_hours` was folded into it by
+// 20260904010000. Field names and types are unchanged from that table, so
+// the Volunteers tab renders it as before -- but the list now also includes
+// entries logged for this event from Volunteers > Participation, which has
+// no signup requirement, so a listed person may not appear in Signups above.
 export type EventVolunteerHours = {
   id: string;
   event_id: string;
@@ -147,6 +158,7 @@ export type EventVolunteerHours = {
   hours: number | string;
   logged_date: string;
   notes: string | null;
+  volunteer_role_type: { name: string } | null;
   person: EventVolunteerPerson;
 };
 
@@ -162,9 +174,9 @@ export async function listEventVolunteerHoursAction(
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase
-    .from("event_volunteer_hours")
+    .from("volunteer_hours")
     .select(
-      "id, event_id, person_id, hours, logged_date, notes, person:people(id, name, email, phone)",
+      "id, event_id, person_id, hours, logged_date, notes, volunteer_role_type:volunteer_role_types(name), person:people(id, name, email, phone)",
     )
     .eq("event_id", eventId)
     .order("logged_date", { ascending: false });
@@ -210,11 +222,12 @@ export async function createEventVolunteerHoursAction(
 
   const parsed = parseEventVolunteerHoursForm(formData);
   if ("error" in parsed) return parsed;
-  const { hours, loggedDate, notes } = parsed.data;
+  const { volunteerRoleTypeId, hours, loggedDate, notes } = parsed.data;
 
-  const { error } = await supabase.from("event_volunteer_hours").insert({
+  const { error } = await supabase.from("volunteer_hours").insert({
     event_id: eventId,
     person_id: personId,
+    volunteer_role_type_id: volunteerRoleTypeId,
     hours,
     logged_date: loggedDate,
     notes,
@@ -225,6 +238,8 @@ export async function createEventVolunteerHoursAction(
   }
 
   revalidatePath("/portal/events");
+  // Same table now backs Volunteers > Participation (20260904010000).
+  revalidatePath("/portal/volunteers/participation");
   return { success: true };
 }
 
@@ -245,7 +260,7 @@ export async function deleteEventVolunteerHoursAction(
   if (permissionError) return permissionError;
 
   const { error } = await supabase
-    .from("event_volunteer_hours")
+    .from("volunteer_hours")
     .delete()
     .eq("id", id);
   if (error) {
@@ -253,5 +268,7 @@ export async function deleteEventVolunteerHoursAction(
   }
 
   revalidatePath("/portal/events");
+  // Same table now backs Volunteers > Participation (20260904010000).
+  revalidatePath("/portal/volunteers/participation");
   return { success: true };
 }

@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useTransition } from "react";
+import { StatusBadge } from "@/components/portal/status-badge";
+
+import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -33,6 +35,9 @@ import {
 import type { MilestoneStatus } from "./nonprofit-status-form";
 import type { PersonListItem } from "../../people/actions";
 import { Spinner } from "@/components/ui/spinner";
+import { formatCalendarDate, personDisplayName } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
+import { useActionToast } from "@/components/portal/action-toast";
 
 // The Phase 1-5 checklist from supabase/migrations/20260824210000_create_nonprofit_status_milestones.sql,
 // in migration order. `milestones` already arrives sorted by `sort_order`
@@ -47,16 +52,6 @@ const PHASE_ORDER = [
   "Phase 4 — State fundraising registration (NY)",
   "Phase 5 — Fundraising infrastructure",
 ];
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
 
 function groupByPhase(milestones: Milestone[]) {
   const groups = new Map<string, Milestone[]>();
@@ -78,15 +73,23 @@ function groupByPhase(milestones: Milestone[]) {
   });
 }
 
+const STATUS_LABELS: Record<MilestoneStatus, string> = {
+  not_started: "Not started",
+  in_progress: "In progress",
+  done: "Done",
+  cancelled: "Cancelled",
+};
+
 function MilestoneStatusSelect({ milestone }: { milestone: Milestone }) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const { isPending, run } = useActionToast();
 
   function handleChange(value: MilestoneStatus | null) {
     if (!value) return;
-    startTransition(async () => {
-      await updateMilestoneStatusAction(milestone.id, value);
-      router.refresh();
+    run(() => updateMilestoneStatusAction(milestone.id, value), {
+      success: `${milestone.description} — ${STATUS_LABELS[value]}.`,
+      error: "Could not update the milestone. Please try again.",
+      onSuccess: () => router.refresh(),
     });
   }
 
@@ -152,9 +155,9 @@ export function NonprofitStatusChecklist({
             {completeCount} of {milestones.length} complete
           </p>
           {atRiskCount > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
+            <StatusBadge tone="warning" className="gap-1">
               {atRiskCount} due soon or overdue
-            </span>
+            </StatusBadge>
           )}
         </div>
         {canManage && (
@@ -165,9 +168,14 @@ export function NonprofitStatusChecklist({
       {phaseGroups.length === 0 ? (
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No milestones recorded yet.
-            </p>
+            <EmptyState
+              title="No milestones recorded yet"
+              description={
+                canManage
+                  ? "Add the first one with Add milestone above."
+                  : "Milestones appear here once a governance manager adds them."
+              }
+            />
           </CardContent>
         </Card>
       ) : (
@@ -184,7 +192,13 @@ export function NonprofitStatusChecklist({
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-0">
-                <Table>
+                {/*
+                  Sticky header only, and no PortalDataTable: `sort_order`
+                  pins the checklist's reading order within a phase, so
+                  sorting has nothing to offer, and paging a phase would
+                  split a checklist the reader is meant to see whole.
+                */}
+                <Table stickyHeader="page">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Status</TableHead>
@@ -210,11 +224,13 @@ export function NonprofitStatusChecklist({
                           {milestone.description}
                         </TableCell>
                         <TableCell className="app-muted">
-                          {milestone.owner?.name ?? "—"}
+                          {personDisplayName(milestone.owner)}
                         </TableCell>
                         <TableCell className="app-muted">
                           <div className="flex flex-wrap items-center gap-1.5">
-                            <span>{formatDate(milestone.due_date)}</span>
+                            <span>
+                              {formatCalendarDate(milestone.due_date)}
+                            </span>
                             <MilestoneDueFlag
                               dueDate={milestone.due_date}
                               status={milestone.status}

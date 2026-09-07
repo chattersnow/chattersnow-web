@@ -7,6 +7,6 @@ export default async function EventsLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createSupabaseServerClient();
-  await requirePermission(supabase, "events", "view");
+  await requirePermission(supabase, "events", "view", "Events");
   return children;
 }

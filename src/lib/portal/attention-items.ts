@@ -1,18 +1,32 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isEventActiveToday, type EventWindow } from "@/lib/time";
 import { getMissingCoverageSeriesForYear } from "@/app/portal/(app)/calendar/queries";
-import {
-  planningStatus,
-  duringStatus,
-  afterStatus,
-} from "@/app/portal/(app)/events/phase-status";
+import { deriveEventPhaseTasks } from "@/app/portal/(app)/events/phase-status";
+import type { EventTaskKind } from "@/app/portal/(app)/events/phase-status";
 import type { EventRow } from "@/app/portal/(app)/events/event-badges";
+
+/**
+ * How loudly an attention item should ask.
+ *
+ * Every count used to render in the same red destructive badge, so a pending
+ * expense approval, an unread contact message and a content-calendar coverage
+ * reminder were indistinguishable -- and red is the token still carrying an
+ * unresolved contrast finding (#436).
+ */
+export type AttentionSeverity =
+  /** A control gap or a missed deadline: act now. */
+  | "urgent"
+  /** Waiting on someone, with a deadline that hasn't passed. */
+  | "attention"
+  /** New work in the queue, no clock on it. */
+  | "info";
 
 export type PendingApprovalItem = {
   key: string;
   label: string;
   count: number;
   href: string;
+  severity: AttentionSeverity;
 };
 export type PendingApprovalsSummary = { items: PendingApprovalItem[] };
 
@@ -36,6 +50,7 @@ export async function getPendingApprovalsSummary(
         label: "Expense approvals",
         count,
         href: "/portal/finance/expenses?status=submitted",
+        severity: "attention",
       });
     }
   }
@@ -51,6 +66,7 @@ export async function getPendingApprovalsSummary(
         label: "Reimbursement approvals",
         count,
         href: "/portal/finance/reimbursements?status=submitted",
+        severity: "attention",
       });
     }
   }
@@ -85,6 +101,7 @@ export async function getCalendarCoverageReminderSummary(
         label: `${missing.length} recurring observance${missing.length === 1 ? "" : "s"} missing for ${targetYear}`,
         count: missing.length,
         href: "/portal/calendar/import",
+        severity: "attention",
       },
     ],
   };
@@ -131,6 +148,7 @@ export async function getOpsInboxSummary(
         label: "New volunteer applications",
         count: count ?? 0,
         href: "/portal/volunteers/applications?status=new",
+        severity: "info",
       });
     }
   }
@@ -146,6 +164,7 @@ export async function getOpsInboxSummary(
         label: "New messages",
         count: count ?? 0,
         href: "/portal/communications?status=new",
+        severity: "info",
       });
     }
   }
@@ -192,6 +211,8 @@ export async function getOpsInboxSummary(
             label: `${count} awaiting check-in · ${event.name}`,
             count,
             href: `/portal/events/${event.id}?tab=registrants`,
+            // People are standing at the door.
+            severity: "urgent",
           });
         }
       }
@@ -232,6 +253,7 @@ export async function getAccessManagementAttentionSummary(
       label: `${reviewsDueCount} asset review${reviewsDueCount === 1 ? "" : "s"} due`,
       count: reviewsDueCount ?? 0,
       href: "/portal/administration/access-management?filter=reviews_due",
+      severity: "attention",
     });
   }
 
@@ -247,6 +269,7 @@ export async function getAccessManagementAttentionSummary(
       label: `${criticalNoMfaCount} critical asset${criticalNoMfaCount === 1 ? "" : "s"} without MFA enabled`,
       count: criticalNoMfaCount ?? 0,
       href: "/portal/administration/access-management?filter=critical_no_mfa",
+      severity: "urgent",
     });
   }
 
@@ -281,6 +304,7 @@ export async function getAccessManagementAttentionSummary(
         label: `${singleAdministratorCount} asset${singleAdministratorCount === 1 ? "" : "s"} with only one administrator`,
         count: singleAdministratorCount,
         href: "/portal/administration/access-management?filter=single_administrator",
+        severity: "urgent",
       });
     }
   }
@@ -304,12 +328,87 @@ type OpenChecklistItemRow = {
   id: string;
   event_id: string;
   title: string;
-  events: { name: string };
+  events: { name: string; starts_at: string };
+};
+
+// Defined alongside the rules that produce them, in events/phase-status.ts, so
+// the dashboard and the event page's phase strip share one task vocabulary.
+export type { EventTaskKind };
+
+/**
+ * One open piece of event work. Unlike `PendingApprovalItem` (a flat,
+ * pre-formatted line for the portal shell's attention list), this keeps the
+ * event identity separate from the task text so callers can group by event --
+ * the events list sheet groups, the dashboard only counts.
+ */
+export type EventTaskItem = {
+  key: string;
+  eventId: string;
+  eventName: string;
+  eventStartsAt: string;
+  kind: EventTaskKind;
+  taskLabel: string;
+  href: string;
+};
+
+export type EventTaskSummary = { items: EventTaskItem[] };
+
+export type EventTaskGroup = {
+  eventId: string;
+  eventName: string;
+  eventStartsAt: string;
+  tasks: EventTaskItem[];
+};
+
+const TASK_KIND_ORDER: Record<EventTaskKind, number> = {
+  planning: 0,
+  attendance: 1,
+  report: 2,
+  impact: 3,
+  checklist: 4,
 };
 
 /**
- * Backs the dashboard's "Outstanding tasks" row (home/page.tsx). Combines
- * two sources of open work:
+ * Collapses the flat task list into one group per event, oldest start date
+ * first so the most overdue work sits at the top of the sheet. Within a group,
+ * tasks read in event-lifecycle order regardless of which query produced them
+ * (checklist items are appended after all phase tasks by `getEventTaskSummary`).
+ */
+export function groupEventTasksByEvent(
+  items: EventTaskItem[],
+): EventTaskGroup[] {
+  const groups = new Map<string, EventTaskGroup>();
+
+  for (const item of items) {
+    let group = groups.get(item.eventId);
+    if (!group) {
+      group = {
+        eventId: item.eventId,
+        eventName: item.eventName,
+        eventStartsAt: item.eventStartsAt,
+        tasks: [],
+      };
+      groups.set(item.eventId, group);
+    }
+    group.tasks.push(item);
+  }
+
+  for (const group of groups.values()) {
+    group.tasks.sort(
+      (a, b) => TASK_KIND_ORDER[a.kind] - TASK_KIND_ORDER[b.kind],
+    );
+  }
+
+  return [...groups.values()].sort(
+    (a, b) =>
+      new Date(a.eventStartsAt).getTime() - new Date(b.eventStartsAt).getTime(),
+  );
+}
+
+/**
+ * Backs the dashboard's "Outstanding tasks" count (home/page.tsx) and the
+ * events list's Outstanding tasks sheet (events/outstanding-tasks-sheet.tsx),
+ * which groups these items per event. Combines two sources of open work:
  *  - phase-derived tasks, using the same per-phase status logic that drives
  *    the event detail page's Planning/During/After badges (see
  *    events/phase-status.ts) -- an event whose phase isn't "done" yet is an
@@ -325,7 +424,7 @@ export async function getEventTaskSummary(
   supabase: SupabaseClient,
   options: { canManageEvents: boolean },
   nowIso: string = new Date().toISOString(),
-): Promise<PendingApprovalsSummary> {
+): Promise<EventTaskSummary> {
   if (!options.canManageEvents) return { items: [] };
 
   const { data: events } = await supabase
@@ -336,53 +435,50 @@ export async function getEventTaskSummary(
     .in("status", ["draft", "published"]);
 
   const now = new Date(nowIso);
-  const items: PendingApprovalItem[] = [];
+  const items: EventTaskItem[] = [];
 
   for (const row of (events ?? []) as EventTaskRow[]) {
     // planning/during/after only read the fields selected above, so this
     // narrower row can stand in for the full EventRow they're typed against.
     const event = row as unknown as EventRow;
-    const hasStarted = new Date(row.starts_at) <= now;
+    const base = {
+      eventId: row.id,
+      eventName: row.name,
+      eventStartsAt: row.starts_at,
+    };
 
-    if (!hasStarted && planningStatus(event) !== "done") {
+    // includeImpact is left off here: the "Impact not recorded" rule belongs on
+    // the event page's phase strip, but switching it on for the dashboard would
+    // add an outstanding task to every past event the day it ships.
+    for (const task of deriveEventPhaseTasks(
+      event,
+      { hasImpactNote: false },
+      now,
+    )) {
       items.push({
-        key: `event_planning_${row.id}`,
-        label: `Planning incomplete · ${row.name}`,
-        count: 1,
-        href: `/portal/events/${row.id}?tab=planning`,
-      });
-    }
-
-    if (duringStatus(event, now) === "in_progress") {
-      items.push({
-        key: `event_attendance_${row.id}`,
-        label: `Attendance not logged · ${row.name}`,
-        count: 1,
-        href: `/portal/events/${row.id}?tab=attendance`,
-      });
-    }
-
-    if (hasStarted && afterStatus(event) !== "done") {
-      items.push({
-        key: `event_report_${row.id}`,
-        label: `After-report not started · ${row.name}`,
-        count: 1,
-        href: `/portal/events/${row.id}?tab=report`,
+        ...base,
+        key: `event_${task.kind}_${row.id}`,
+        kind: task.kind,
+        taskLabel: task.taskLabel,
+        href: `/portal/events/${row.id}?tab=${task.tab}`,
       });
     }
   }
 
   const { data: checklistItems } = await supabase
     .from("event_checklist_items")
-    .select("id, event_id, title, events!inner(name)")
+    .select("id, event_id, title, events!inner(name, starts_at)")
     .eq("is_done", false);
 
   for (const row of (checklistItems ??
     []) as unknown as OpenChecklistItemRow[]) {
     items.push({
       key: `event_checklist_${row.id}`,
-      label: `${row.title} · ${row.events.name}`,
-      count: 1,
+      eventId: row.event_id,
+      eventName: row.events.name,
+      eventStartsAt: row.events.starts_at,
+      kind: "checklist",
+      taskLabel: row.title,
       href: `/portal/events/${row.event_id}?tab=checklist`,
     });
   }

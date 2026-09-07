@@ -8,22 +8,40 @@
 // Requires `bun run db:start && bun run db:reset` first; run via
 // `bun run test:integration`. Not picked up by `bun run test`.
 import { describe, expect, test } from "bun:test";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  SEEDED_USERS,
   adminClient,
   createMonetaryDonation,
+  signInAs,
+  unprivilegedActors,
 } from "../../../../../test/integration-setup";
 import { getFinancialSummary } from "./queries";
+import {
+  DEFAULT_FISCAL_YEAR_START_MONTH,
+  fiscalYearToDateRange,
+} from "@/lib/fiscal-year";
 
-function summary() {
+function summaryFor(client: SupabaseClient) {
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const startOfYear = new Date(now.getFullYear(), 0, 1);
+  // The dashboard's "this year" figures are fiscal-year-to-date, so mirror the
+  // page rather than reimplementing a calendar year here. seed.sql pins the
+  // start month to the default (July).
+  const { from: startOfYear } = fiscalYearToDateRange(
+    now,
+    DEFAULT_FISCAL_YEAR_START_MONTH,
+  );
   return getFinancialSummary(
-    adminClient,
+    client,
     startOfMonth.toISOString().slice(0, 10),
-    startOfYear.toISOString().slice(0, 10),
+    startOfYear,
     now.toISOString(),
   );
+}
+
+function summary() {
+  return summaryFor(adminClient);
 }
 
 describe("getFinancialSummary (integration)", () => {
@@ -43,7 +61,7 @@ describe("getFinancialSummary (integration)", () => {
     await donation.cleanup();
   });
 
-  test("does not count a monetary donation received last year toward this month's or this year's income", async () => {
+  test("does not count a monetary donation received a year ago toward this month's or this fiscal year's income", async () => {
     const before = await summary();
 
     const lastYear = new Date();
@@ -56,12 +74,70 @@ describe("getFinancialSummary (integration)", () => {
     const after = await summary();
     expect(after.incomeThisMonth).toBeCloseTo(before.incomeThisMonth, 5);
     expect(after.incomeThisYear).toBeCloseTo(before.incomeThisYear, 5);
-    // Cash position is all-time, so a prior-year gift still counts toward it.
+    // Cash position is all-time, so a prior-fiscal-year gift still counts.
     expect(after.cashPositionTotal).toBeCloseTo(
       before.cashPositionTotal + 60,
       5,
     );
 
     await donation.cleanup();
+  });
+});
+
+// getFinancialSummary carries no checkPermission of its own -- the dashboard
+// gates the whole Financial section on finance:manage/finance_reports:view
+// (home/page.tsx) and the query trusts RLS for everything below that. These
+// cases are the other half of that contract (#746): if RLS on event_expenses,
+// event_revenue, reimbursements or get_finance_report_data ever loosened, a
+// volunteer or a deactivated member would read real money figures and every
+// test above -- all of which run as admin -- would still pass.
+describe("getFinancialSummary for unprivileged actors (integration)", () => {
+  test("hands every money figure back as zero, not a privileged total", async () => {
+    // A gift of its own, so the privileged figures are provably non-zero and
+    // the zeros below can't be a vacuously empty database.
+    const donation = await createMonetaryDonation({ amount: 125 });
+    const privileged = await summary();
+    expect(privileged.cashPositionTotal).toBeGreaterThan(0);
+    expect(privileged.incomeThisYear).toBeGreaterThan(0);
+    expect(privileged.outstandingReimbursementTotal).toBeGreaterThan(0);
+    expect(privileged.expensesThisYear).toBeGreaterThan(0);
+    expect(privileged.revenueThisYear).toBeGreaterThan(0);
+
+    for (const { name, client } of await unprivilegedActors()) {
+      const { eventBudgetTotal, ...money } = await summaryFor(client);
+      // Compared as one object, with the actor folded in, so a failure names
+      // which session leaked rather than just which figure.
+      expect({ actor: name, ...money }).toEqual({
+        actor: name,
+        expensesThisMonth: 0,
+        expensesThisYear: 0,
+        revenueThisMonth: 0,
+        revenueThisYear: 0,
+        outstandingReimbursementTotal: 0,
+        cashPositionTotal: 0,
+        incomeThisMonth: 0,
+        incomeThisYear: 0,
+      });
+      // eventBudgetTotal is deliberately events:view-scoped, not finance-
+      // scoped -- covered on its own below.
+      expect(typeof eventBudgetTotal).toBe("number");
+    }
+
+    await donation.cleanup();
+  });
+
+  // The one figure in this summary that is deliberately not finance-scoped:
+  // the dashboard renders the event-budget tile behind canSeeEventBudgets,
+  // which is just events:view (home/page.tsx), and `events` RLS matches.
+  // Pinned rather than endorsed -- narrowing either side should fail here and
+  // be updated on purpose.
+  test("event budget total follows events:view, so volunteer sees it and a no-role account does not", async () => {
+    const volunteer = await summaryFor(await signInAs(SEEDED_USERS.volunteer));
+    expect(volunteer.eventBudgetTotal).toBe((await summary()).eventBudgetTotal);
+    // ...and it is still the only figure that crosses over.
+    expect(volunteer.cashPositionTotal).toBe(0);
+
+    const noRole = await summaryFor(await signInAs(SEEDED_USERS.noAccess));
+    expect(noRole.eventBudgetTotal).toBe(0);
   });
 });

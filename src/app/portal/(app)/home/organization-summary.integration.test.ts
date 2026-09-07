@@ -6,12 +6,18 @@
 // Requires `bun run db:start && bun run db:reset` first; run via
 // `bun run test:integration`. Not picked up by `bun run test`.
 import { describe, expect, test } from "bun:test";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   adminClient,
   createGovernanceMeeting,
   createPerson,
+  unprivilegedActors,
 } from "../../../../../test/integration-setup";
 import { getOrganizationSummary } from "./queries";
+import {
+  DEFAULT_FISCAL_YEAR_START_MONTH,
+  fiscalYearForDate,
+} from "@/lib/fiscal-year";
 
 const YESTERDAY = new Date(Date.now() - 24 * 60 * 60 * 1000)
   .toISOString()
@@ -20,9 +26,22 @@ const NEXT_WEEK = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
   .toISOString()
   .slice(0, 10);
 
+function summaryFor(client: SupabaseClient) {
+  const now = new Date();
+  const nowIso = now.toISOString();
+  // `disclosure_year` names the fiscal year, so the caller resolves it. The
+  // seeded start month is the default (July); the assertions below compare
+  // against the year this returns rather than hardcoding one.
+  return getOrganizationSummary(
+    client,
+    nowIso,
+    nowIso.slice(0, 10),
+    fiscalYearForDate(now, DEFAULT_FISCAL_YEAR_START_MONTH),
+  );
+}
+
 function summary() {
-  const nowIso = new Date().toISOString();
-  return getOrganizationSummary(adminClient, nowIso, nowIso.slice(0, 10));
+  return summaryFor(adminClient);
 }
 
 describe("getOrganizationSummary (integration)", () => {
@@ -179,7 +198,7 @@ describe("getOrganizationSummary (integration)", () => {
     await person.cleanup();
   });
 
-  test("counts active board members missing a current-year COI disclosure", async () => {
+  test("counts active board members missing a current-fiscal-year COI disclosure", async () => {
     const before = await summary();
 
     const person = await createPerson();
@@ -292,5 +311,47 @@ describe("getOrganizationSummary (integration)", () => {
         "id",
         (inserted ?? []).map((row) => row.id),
       );
+  });
+});
+
+// Like getFinancialSummary, this query has no checkPermission of its own: the
+// dashboard gates the whole Organization section on governance:view
+// (home/page.tsx) and every widget below trusts its table's RLS. None of the
+// cases above leave that trust tested, since they all run as admin (#746).
+// Governance rows are the meeting minutes, board-member disclosures and grant
+// pipeline of the organization -- not something a volunteer, a member who
+// never got a role, or one who was deactivated should be able to count.
+describe("getOrganizationSummary for unprivileged actors (integration)", () => {
+  test("returns a fully zeroed rollup with no next meeting or grant deadline", async () => {
+    const meeting = await createGovernanceMeeting({
+      meetingDate: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+    });
+    const privileged = await summary();
+    expect(privileged.nextMeeting).not.toBeNull();
+    expect(privileged.openActionItemCount).toBeGreaterThan(0);
+    expect(privileged.openRequirementCount).toBeGreaterThan(0);
+
+    for (const { name, client } of await unprivilegedActors()) {
+      const { disclosureYear, ...rollup } = await summaryFor(client);
+      expect({ actor: name, ...rollup }).toEqual({
+        actor: name,
+        nextMeeting: null,
+        openRequirementCount: 0,
+        overdueRequirementCount: 0,
+        openMilestoneCount: 0,
+        overdueMilestoneCount: 0,
+        openActionItemCount: 0,
+        overdueActionItemCount: 0,
+        missingDisclosureCount: 0,
+        openPartnershipCount: 0,
+        nextGrantDeadline: null,
+        overdueGrantCount: 0,
+      });
+      // The fiscal year is an argument, not a read, so it echoes back for
+      // everyone -- it says nothing about the org's data.
+      expect(disclosureYear).toBe(privileged.disclosureYear);
+    }
+
+    await meeting.cleanup();
   });
 });

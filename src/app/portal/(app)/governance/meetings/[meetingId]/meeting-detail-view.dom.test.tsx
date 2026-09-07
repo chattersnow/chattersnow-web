@@ -8,6 +8,9 @@ import * as MinutesApprovalActions from "../minutes-approval-actions";
 import * as ResolutionsActions from "../../resolutions/resolutions-actions";
 import * as PeopleActions from "../../../people/actions";
 import type { MeetingRow } from "../meeting-badges";
+import { mockUrlTabState } from "@/../test/url-tab-state-mock";
+
+mockUrlTabState();
 
 mock.module("../attendees-actions", () => ({
   ...AttendeesActions,

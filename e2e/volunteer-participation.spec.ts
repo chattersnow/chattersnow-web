@@ -8,10 +8,12 @@
 // seeded Priya Natarajan: test:e2e:pr runs the chromium and mobile-chromium
 // projects fully in parallel against one Supabase instance, and both would
 // otherwise write and delete hours on the same person's rows.
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { seedUserWithRole } from "./helpers/rbac";
+import { modal } from "./helpers/dialog";
+import { pickPerson } from "./helpers/people";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -25,11 +27,18 @@ async function seedVolunteer(admin: AdminClient) {
       name,
       email: `e2e-participation-${id}@example.test`,
       source_type: "individual",
-      is_volunteer: true,
     })
     .select("id")
     .single();
   if (error) throw error;
+
+  // The volunteer role is derived from records, and this person has none yet
+  // -- the test logs their first hours through the UI -- so the tag is what
+  // makes them a volunteer until then. It cascades with the person row.
+  const { error: tagError } = await admin
+    .from("person_role_tags")
+    .insert({ person_id: data.id, role: "volunteer" });
+  if (tagError) throw tagError;
 
   return {
     id: data.id as string,
@@ -63,10 +72,7 @@ test.describe("portal volunteer participation", () => {
       const dialog = page.getByRole("dialog", { name: "Log volunteer hours" });
       await expect(dialog).toBeVisible();
 
-      await dialog
-        .getByPlaceholder("Search by name or email...")
-        .fill(volunteer.name);
-      await dialog.getByRole("button", { name: volunteer.name }).click();
+      await pickPerson(dialog, volunteer.name);
       await dialog.getByLabel("Hours").fill("3.25");
 
       // Both selects render their popup outside the dialog, so the options
@@ -99,7 +105,7 @@ test.describe("portal volunteer participation", () => {
         .click();
       // Not matched by name: the sheet's title flips to "Edit hours" as
       // soon as edit mode is on.
-      const sheet = page.getByRole("dialog");
+      const sheet = modal(page);
       await expect(sheet.getByText("Logged by an e2e test.")).toBeVisible();
       await expect(sheet.getByText("Winter Gear Swap")).toBeVisible();
 
@@ -121,6 +127,13 @@ test.describe("portal volunteer participation", () => {
       await expect(row).toContainText("4.5");
 
       await row.getByRole("button", { name: "Remove hours entry" }).click();
+      // Logged hours feed grant reporting and there's no undo, so the delete
+      // confirms first.
+      const confirmDelete = page.getByRole("alertdialog");
+      await expect(confirmDelete).toContainText("logged hours?");
+      await confirmDelete
+        .getByRole("button", { name: "Remove", exact: true })
+        .click();
       await expect(row).toHaveCount(0);
     } finally {
       await volunteer.cleanup();
@@ -165,7 +178,7 @@ test.describe("portal volunteer participation", () => {
       await row
         .getByRole("button", { name: `View hours for ${volunteer.name}` })
         .click();
-      const sheet = page.getByRole("dialog");
+      const sheet = modal(page);
       await expect(sheet.getByText("Seeded by an e2e test.")).toBeVisible();
       await expect(
         sheet.getByRole("button", { name: "Edit hours entry" }),

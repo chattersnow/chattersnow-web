@@ -45,16 +45,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
+import { toast } from "@/components/ui/toast";
+import { formatCalendarDate, personDisplayName } from "@/lib/format";
 
 function formStateFor(
   opportunity: PartnershipOpportunity,
@@ -116,7 +108,7 @@ export function EditPartnershipModal({
   }
 
   function handlePersonCreated(person: PickedPerson) {
-    setAvailablePeople((prev) => [...prev, { ...person, is_sponsor: false }]);
+    setAvailablePeople((prev) => [...prev, person]);
   }
 
   function resetToBaseline() {
@@ -172,6 +164,7 @@ export function EditPartnershipModal({
         return;
       }
       setMode("view");
+      toast.success("Partnership saved.");
       router.refresh();
     });
   }
@@ -276,7 +269,7 @@ export function EditPartnershipModal({
                   label="Internal owner"
                   htmlFor="edit-partnership-owner"
                 >
-                  {opportunity.owner?.name || "—"}
+                  {personDisplayName(opportunity.owner)}
                 </ReadOnlyField>
                 <ReadOnlyField label="Stage" htmlFor="edit-partnership-stage">
                   {PARTNERSHIP_STAGE_LABELS[opportunity.stage]}
@@ -285,7 +278,7 @@ export function EditPartnershipModal({
                   label="Next step date"
                   htmlFor="edit-partnership-next-step-date"
                 >
-                  {formatDate(opportunity.next_step_date)}
+                  {formatCalendarDate(opportunity.next_step_date)}
                 </ReadOnlyField>
                 <ReadOnlyField label="Notes" htmlFor="edit-partnership-notes">
                   <span className="whitespace-pre-wrap">
@@ -309,7 +302,7 @@ export function EditPartnershipModal({
                       selected={organization}
                       onSelect={setOrganization}
                       onPersonCreated={handlePersonCreated}
-                      newPersonRole="is_sponsor"
+                      newPersonRole="is_partner"
                     />
                   </Field>
 

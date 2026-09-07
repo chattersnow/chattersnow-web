@@ -10,28 +10,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { EditPolicyModal } from "./edit-policy-modal";
 import type { Policy } from "./policies-actions";
+import { formatCalendarDate } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
+import {
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
 
 const FILTER_ALL = "all";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
 
 export function PoliciesTable({
   policies,
@@ -63,6 +51,48 @@ export function PoliciesTable({
       return policy.name.toLowerCase().includes(query);
     });
   }, [policies, search, categoryFilter]);
+
+  const columns = useMemo<PortalDataTableColumn<Policy>[]>(
+    () => [
+      {
+        key: "name",
+        label: "Name",
+        sortValue: (policy) => policy.name,
+        cellClassName: "font-medium",
+        render: (policy) => policy.name,
+      },
+      {
+        key: "category",
+        label: "Category",
+        sortValue: (policy) => policy.category,
+        cellClassName: "app-muted",
+        render: (policy) => policy.category || "—",
+      },
+      {
+        key: "version",
+        label: "Version",
+        sortValue: (policy) => policy.version,
+        cellClassName: "app-muted",
+        render: (policy) => policy.version,
+      },
+      {
+        key: "effective_date",
+        label: "Effective date",
+        sortValue: (policy) => policy.effective_date,
+        cellClassName: "app-muted",
+        render: (policy) => formatCalendarDate(policy.effective_date),
+      },
+      {
+        key: "actions",
+        label: "Actions",
+        srOnlyLabel: true,
+        headClassName: "w-0",
+        render: (policy) =>
+          canManage ? <EditPolicyModal policy={policy} /> : null,
+      },
+    ],
+    [canManage],
+  );
 
   return (
     <div className="space-y-4">
@@ -113,58 +143,26 @@ export function PoliciesTable({
       {policies.length === 0 ? (
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No policies recorded yet.
-            </p>
+            <EmptyState
+              title="No policies recorded yet"
+              description={
+                canManage
+                  ? "Add the first one with Add policy above."
+                  : "Policies appear here once a governance manager adds them."
+              }
+            />
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="px-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Version</TableHead>
-                  <TableHead>Effective date</TableHead>
-                  <TableHead className="w-0">
-                    <span className="sr-only">Actions</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visiblePolicies.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="app-muted text-center">
-                      No policies match your filters.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  visiblePolicies.map((policy) => (
-                    <TableRow key={policy.id}>
-                      <TableCell className="font-medium">
-                        {policy.name}
-                      </TableCell>
-                      <TableCell className="app-muted">
-                        {policy.category || "—"}
-                      </TableCell>
-                      <TableCell className="app-muted">
-                        {policy.version}
-                      </TableCell>
-                      <TableCell className="app-muted">
-                        {formatDate(policy.effective_date)}
-                      </TableCell>
-                      <TableCell>
-                        {canManage && <EditPolicyModal policy={policy} />}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <PortalDataTable
+          columns={columns}
+          rows={visiblePolicies}
+          getRowKey={(policy) => policy.id}
+          // The query orders by name, then by effective date within a name;
+          // this sort is stable, so opening on Name keeps that second key.
+          defaultSort={{ key: "name", dir: "asc" }}
+          emptyMessage="No policies match your filters."
+        />
       )}
     </div>
   );

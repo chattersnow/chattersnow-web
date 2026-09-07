@@ -45,26 +45,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
-
-function formatDateTime(value: string | null) {
-  if (!value) return "—";
-  return dateTimeFormatter.format(new Date(value));
-}
+import { toast } from "@/components/ui/toast";
+import {
+  formatCalendarDate,
+  formatDateTime,
+  personDisplayName,
+} from "@/lib/format";
 
 function formStateFor(
   requirement: AnnualRequirement,
@@ -126,7 +112,7 @@ export function EditRequirementModal({
   }
 
   function handlePersonCreated(person: PickedPerson) {
-    setAvailablePeople((prev) => [...prev, { ...person, is_sponsor: false }]);
+    setAvailablePeople((prev) => [...prev, person]);
   }
 
   function resetToBaseline() {
@@ -180,6 +166,7 @@ export function EditRequirementModal({
         return;
       }
       setMode("view");
+      toast.success("Requirement saved.");
       router.refresh();
     });
   }
@@ -276,7 +263,7 @@ export function EditRequirementModal({
                   label="Due date"
                   htmlFor="edit-requirement-due-date"
                 >
-                  {formatDate(requirement.due_date)}
+                  {formatCalendarDate(requirement.due_date)}
                 </ReadOnlyField>
                 <ReadOnlyField label="Status" htmlFor="edit-requirement-status">
                   <RequirementStatusBadge status={requirement.status} />
@@ -291,7 +278,7 @@ export function EditRequirementModal({
                   label="Responsible person"
                   htmlFor="edit-requirement-responsible"
                 >
-                  {requirement.responsible?.name || "—"}
+                  {personDisplayName(requirement.responsible)}
                 </ReadOnlyField>
                 <ReadOnlyField
                   label="External link"

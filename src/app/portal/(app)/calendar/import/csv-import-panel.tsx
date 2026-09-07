@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -8,19 +8,16 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
 import {
   parseCalendarImportCsv,
   type CalendarImportRow,
 } from "./calendar-import-row";
 import { bulkImportCalendarItemsAction } from "./actions";
 import { Spinner } from "@/components/ui/spinner";
+import { runAction } from "@/components/portal/action-toast";
 
 export function CsvImportPanel() {
   const router = useRouter();
@@ -31,7 +28,6 @@ export function CsvImportPanel() {
     ({ data: CalendarImportRow } | { error: string })[]
   >([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const validRows = rows.filter(
     (row): row is { data: CalendarImportRow } => "data" in row,
@@ -42,7 +38,6 @@ export function CsvImportPanel() {
 
   function handleParse() {
     setSubmitError(null);
-    setSuccessMessage(null);
     const { rows: parsedRows } = parseCalendarImportCsv(csvText);
     setRows(parsedRows);
   }
@@ -53,33 +48,90 @@ export function CsvImportPanel() {
     const text = await file.text();
     setCsvText(text);
     setSubmitError(null);
-    setSuccessMessage(null);
     const { rows: parsedRows } = parseCalendarImportCsv(text);
     setRows(parsedRows);
   }
 
   function handleSubmit() {
     setSubmitError(null);
+    const skipped = rows.length - validRows.length;
     startTransition(async () => {
-      const result = await bulkImportCalendarItemsAction(
-        source,
-        validRows.map((row) => row.data),
+      await runAction(
+        () =>
+          bulkImportCalendarItemsAction(
+            source,
+            validRows.map((row) => row.data),
+          ),
+        {
+          success: (result) =>
+            `Imported ${result.insertedCount} item${result.insertedCount === 1 ? "" : "s"} as drafts.`,
+          description:
+            skipped > 0
+              ? `${skipped} row${skipped === 1 ? "" : "s"} skipped for errors.`
+              : undefined,
+          onError: setSubmitError,
+          onSuccess: () => {
+            setRows([]);
+            setCsvText("");
+            router.refresh();
+          },
+        },
       );
-      if ("error" in result) {
-        setSubmitError(result.error);
-        return;
-      }
-      setSuccessMessage(
-        `Imported ${result.insertedCount} item${result.insertedCount === 1 ? "" : "s"} as drafts.`,
-      );
-      setRows([]);
-      setCsvText("");
-      router.refresh();
     });
   }
 
   const canSubmit =
     source.trim().length > 0 && validRows.length > 0 && !isPending;
+
+  // Nothing in a parsed CSV row is unique -- two rows may be identical --
+  // so the position in the file is the key. It stays put while the preview
+  // is sorted, since the list itself is only rebuilt by a fresh parse.
+  const previewRows = useMemo(
+    () =>
+      validRows.map((row, index) => ({ key: String(index), item: row.data })),
+    [validRows],
+  );
+
+  const columns = useMemo<
+    PortalDataTableColumn<{ key: string; item: CalendarImportRow }>[]
+  >(
+    () => [
+      {
+        key: "title",
+        label: "Title",
+        sortValue: (row) => row.item.title,
+        render: (row) => row.item.title,
+      },
+      {
+        key: "startsAt",
+        label: "Starts",
+        // ISO timestamps, so string order is chronological even though the
+        // cell shows only the date part.
+        sortValue: (row) => row.item.startsAt,
+        render: (row) => row.item.startsAt.slice(0, 10),
+      },
+      {
+        key: "priorityTier",
+        label: "Priority",
+        // Numeric, so tier 1 -- the most urgent -- leads an ascending sort.
+        sortValue: (row) => row.item.priorityTier,
+        render: (row) => `Tier ${row.item.priorityTier}`,
+      },
+      {
+        key: "category",
+        label: "Category",
+        sortValue: (row) => row.item.category,
+        render: (row) => row.item.category,
+      },
+      {
+        key: "region",
+        label: "Region",
+        sortValue: (row) => row.item.region,
+        render: (row) => row.item.region ?? "—",
+      },
+    ],
+    [],
+  );
 
   return (
     <FieldGroup>
@@ -146,29 +198,18 @@ export function CsvImportPanel() {
             </Alert>
           )}
 
-          {validRows.length > 0 && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Starts</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Region</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {validRows.map((row, i) => (
-                  <TableRow key={i}>
-                    <TableCell>{row.data.title}</TableCell>
-                    <TableCell>{row.data.startsAt.slice(0, 10)}</TableCell>
-                    <TableCell>Tier {row.data.priorityTier}</TableCell>
-                    <TableCell>{row.data.category}</TableCell>
-                    <TableCell>{row.data.region ?? "—"}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          {previewRows.length > 0 && (
+            <PortalDataTable
+              columns={columns}
+              rows={previewRows}
+              getRowKey={(row) => row.key}
+              // No default sort: the preview opens in the file's own order,
+              // which is how a reader checks it against the CSV they
+              // uploaded, and sorts from there.
+              emptyMessage="No rows to preview."
+              // This panel sits in a form, not on a card of its own.
+              shell="bare"
+            />
           )}
         </div>
       )}
@@ -176,11 +217,6 @@ export function CsvImportPanel() {
       {submitError && (
         <Alert variant="destructive">
           <AlertDescription>{submitError}</AlertDescription>
-        </Alert>
-      )}
-      {successMessage && (
-        <Alert>
-          <AlertDescription>{successMessage}</AlertDescription>
         </Alert>
       )}
 

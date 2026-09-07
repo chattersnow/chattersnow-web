@@ -1,7 +1,9 @@
-import { test, expect, type Locator } from "@playwright/test";
+import { test, expect } from "./helpers/test";
+import type { Locator } from "@playwright/test";
 import { reloadStayingSignedIn, signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { seedInviteEmail, seedPortalUser } from "./helpers/rbac";
+import { clickRowControl, pager, revealRow } from "./helpers/table";
 
 /**
  * Every mutation on this page reports a failure as an inline Alert and
@@ -29,8 +31,11 @@ test.describe("portal administration users", () => {
     await expect(
       page.getByRole("heading", { level: 1, name: "Users", exact: true }),
     ).toBeVisible();
-    // The Name column shows the account's full_name, not its email.
-    const adminRow = page.getByRole("row").filter({ hasText: "Avery Morgan" });
+    // The Name column shows a display name, never an email. seed.sql gives
+    // the admin account the preferred name "Ave", which wins over the
+    // account's full_name ("Avery Morgan").
+    const adminRow = page.getByRole("row").filter({ hasText: "Ave" });
+    await revealRow(adminRow, pager(page));
     await expect(adminRow).toContainText("Admin");
     await expect(adminRow).toContainText("Active");
     await expect(
@@ -56,15 +61,26 @@ test.describe("portal administration users", () => {
     try {
       await page.goto("/portal/administration/users");
       const row = page.getByRole("row").filter({ hasText: user.fullName });
+      await revealRow(row, pager(page));
       await expect(row).toBeVisible();
       await expect(row).toContainText("No access");
 
-      await row.getByRole("button", { name: "Add role", exact: true }).click();
-      await row.getByRole("combobox", { name: "Add role" }).click();
-      await page
-        .getByRole("option", { name: "Volunteer", exact: true })
-        .click();
-      await row.getByRole("button", { name: "Add", exact: true }).click();
+      await clickRowControl(
+        row.getByRole("button", { name: "Add role", exact: true }),
+      );
+      await clickRowControl(row.getByRole("combobox", { name: "Add role" }));
+      const option = page.getByRole("option", {
+        name: "Volunteer",
+        exact: true,
+      });
+      await option.click();
+      // The select's popup fades out. Clicking "Add" while it is still up
+      // lands on the backdrop, and the row then sits there with the role
+      // picked but never staged.
+      await expect(option).toBeHidden();
+      await clickRowControl(
+        row.getByRole("button", { name: "Add", exact: true }),
+      );
 
       // The badge's remove button only exists once the assignment has landed
       // and the list has refreshed -- unlike the row's text, which shows
@@ -73,6 +89,11 @@ test.describe("portal administration users", () => {
       await expect(removeRole).toBeVisible();
 
       await removeRole.click();
+      // Revoking a live role now confirms first: it's a security action that
+      // takes effect on the target's next request.
+      const confirmRevoke = page.getByRole("alertdialog");
+      await expect(confirmRevoke).toContainText("Remove the Volunteer role?");
+      await confirmRevoke.getByRole("button", { name: "Remove role" }).click();
       await expect(row).toContainText("No access");
     } finally {
       await user.cleanup();
@@ -86,9 +107,10 @@ test.describe("portal administration users", () => {
     try {
       await page.goto("/portal/administration/users");
       const row = page.getByRole("row").filter({ hasText: user.fullName });
+      await revealRow(row, pager(page));
       await expect(row).toContainText("Active");
 
-      await row.getByRole("button", { name: "Deactivate" }).click();
+      await clickRowControl(row.getByRole("button", { name: "Deactivate" }));
       const confirm = page.getByRole("alertdialog");
       await expect(confirm).toContainText(user.fullName);
       await confirm.getByRole("button", { name: "Deactivate" }).click();
@@ -96,7 +118,7 @@ test.describe("portal administration users", () => {
       await expect(confirm).not.toBeVisible();
       await expect(row).toContainText("Deactivated");
 
-      await row.getByRole("button", { name: "Reactivate" }).click();
+      await clickRowControl(row.getByRole("button", { name: "Reactivate" }));
       await expect(row).toContainText("Active");
     } finally {
       await user.cleanup();
@@ -220,10 +242,78 @@ test.describe("portal administration users", () => {
       }).toPass({ timeout: 60_000 });
 
       await reloadStayingSignedIn(page);
-      await expect(pendingCard).not.toContainText("No pending access staged.");
+      await expect(pendingCard).not.toContainText("No pending access staged");
       await expect(grantRow).toContainText("Revoked", { timeout: 30_000 });
     } finally {
       await invite.cleanup();
+    }
+  });
+  test("an admin can set and clear another account's preferred name", async ({
+    page,
+  }) => {
+    // The Preferred name column is `hideBelow: "lg"`, so on the mobile
+    // project the cell and its Edit button are not rendered at all -- the
+    // spec was written when the column was unconditional.
+    test.skip(
+      (page.viewportSize()?.width ?? 0) < 1024,
+      "The Preferred name column is hidden below lg (1024px).",
+    );
+
+    // The test clears the name itself at the end, but a failure in between
+    // used to leave the preferred name set on the shared local instance, and
+    // every later run then looked for a "Morgan Patel" that no longer
+    // existed.
+    const admin = createAdminClient();
+    const clearPreferredName = () =>
+      admin
+        .from("people")
+        .update({ preferred_name: null })
+        .eq("name", "Morgan Patel");
+    await clearPreferredName();
+
+    try {
+      await page.goto("/portal/administration/users");
+
+      // Two words rather than "Mo": the row is found by its text, and the
+      // seed has a Morgan Scott and a Morgan Nguyen that a bare "Mo" would
+      // match as well.
+      const preferred = "Mo Patel";
+      const row = page.getByRole("row").filter({ hasText: "Morgan Patel" });
+      await revealRow(row, pager(page));
+      await expect(row).toBeVisible();
+
+      await clickRowControl(
+        row.getByRole("button", { name: /^Edit preferred name for / }),
+      );
+      await row.getByLabel(/^Preferred name for /).fill(preferred);
+      await clickRowControl(
+        row.getByRole("button", { name: /^Save preferred name for / }),
+      );
+
+      // The save lands as a refresh of the whole list, and the renamed row
+      // re-sorts, so wait for the old name to go before paging around
+      // looking for the new one.
+      await expect(row).toHaveCount(0);
+
+      // The Name column now resolves to the preferred name.
+      const renamed = page.getByRole("row").filter({ hasText: preferred });
+      await revealRow(renamed, pager(page));
+      await expect(renamed).toBeVisible();
+
+      // Clearing it puts the account name back.
+      await clickRowControl(
+        renamed.getByRole("button", { name: /^Edit preferred name for / }),
+      );
+      await renamed.getByLabel(/^Preferred name for /).fill("");
+      await clickRowControl(
+        renamed.getByRole("button", { name: /^Save preferred name for / }),
+      );
+
+      await expect(renamed).toHaveCount(0);
+      await revealRow(row, pager(page));
+      await expect(row).toBeVisible();
+    } finally {
+      await clearPreferredName();
     }
   });
 });

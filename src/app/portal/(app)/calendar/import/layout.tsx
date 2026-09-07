@@ -7,6 +7,11 @@ export default async function CalendarImportLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createSupabaseServerClient();
-  await requirePermission(supabase, "content_calendar", "manage");
+  await requirePermission(
+    supabase,
+    "content_calendar",
+    "manage",
+    "Calendar Import",
+  );
   return children;
 }

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,14 +9,20 @@ import {
   type AnnualReviewOpportunityRow,
   type AnnualReviewPermissionRow,
 } from "./annual-review";
+import { formatNumber } from "@/lib/format";
+import {
+  fiscalYearForDate,
+  fiscalYearOptions,
+  fiscalYearRange,
+  formatFiscalYearLabel,
+  getFiscalYearStartMonth,
+} from "@/lib/fiscal-year";
 
 type AnnualReviewData = {
   items: AnnualReviewItemRow[];
   opportunities: AnnualReviewOpportunityRow[];
   permissions: AnnualReviewPermissionRow[];
 };
-
-const numberFormatter = new Intl.NumberFormat("en-US");
 
 function formatPercent(numerator: number, denominator: number): string {
   if (denominator === 0) return "—";
@@ -24,11 +31,15 @@ function formatPercent(numerator: number, denominator: number): string {
 
 function formatDays(days: number | null): string {
   if (days === null) return "—";
-  return `${numberFormatter.format(Math.round(days * 10) / 10)} days`;
+  return `${formatNumber(Math.round(days * 10) / 10)} days`;
 }
 
 type CalendarAnnualReviewPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export const metadata: Metadata = {
+  title: "Annual Review",
 };
 
 export default async function CalendarAnnualReviewPage({
@@ -41,16 +52,15 @@ export default async function CalendarAnnualReviewPage({
     return Array.isArray(value) ? value[0] : value;
   };
 
-  const currentYear = new Date().getFullYear();
-  const year = Number(raw("year") ?? currentYear);
-  const yearOptions = [
-    currentYear + 1,
-    currentYear,
-    currentYear - 1,
-    currentYear - 2,
-    currentYear - 3,
-    currentYear - 4,
-  ];
+  // The review is scoped to the org's fiscal year, not the calendar year, so
+  // a winter season's planning sits in one report. `year` in the URL is the
+  // fiscal year, named for the calendar year it ends in.
+  const startMonth = await getFiscalYearStartMonth(supabase);
+  const currentYear = fiscalYearForDate(new Date(), startMonth);
+  const requestedYear = Number(raw("year"));
+  const year = Number.isInteger(requestedYear) ? requestedYear : currentYear;
+  const yearOptions = fiscalYearOptions(new Date(), startMonth);
+  const range = fiscalYearRange(year, startMonth);
 
   let review: AnnualReview | null = null;
   let loadError: string | null = null;
@@ -58,7 +68,8 @@ export default async function CalendarAnnualReviewPage({
   const { data, error } = await supabase.rpc(
     "get_calendar_annual_review_data",
     {
-      p_year: year,
+      p_from: range.from,
+      p_to: range.to,
     },
   );
 
@@ -82,7 +93,7 @@ export default async function CalendarAnnualReviewPage({
         {
           label: "Tier 1 items with a decision",
           value: formatPercent(review.tier1Decided, review.tier1Total),
-          detail: `${numberFormatter.format(review.tier1Decided)} of ${numberFormatter.format(review.tier1Total)}`,
+          detail: `${formatNumber(review.tier1Decided)} of ${formatNumber(review.tier1Total)}`,
         },
         {
           label: "Planned opportunities completed on time",
@@ -90,11 +101,11 @@ export default async function CalendarAnnualReviewPage({
             review.plannedCompletedOnTime,
             review.plannedWithPublishTarget,
           ),
-          detail: `${numberFormatter.format(review.plannedCompletedOnTime)} of ${numberFormatter.format(review.plannedWithPublishTarget)}`,
+          detail: `${formatNumber(review.plannedCompletedOnTime)} of ${formatNumber(review.plannedWithPublishTarget)}`,
         },
         {
           label: "Overdue content tasks",
-          value: numberFormatter.format(review.overdueCount),
+          value: formatNumber(review.overdueCount),
         },
         {
           label: "Median time to first review",
@@ -104,11 +115,11 @@ export default async function CalendarAnnualReviewPage({
         },
         {
           label: "Public items with a clear Chatter connection",
-          value: numberFormatter.format(review.publicWithConnectionCount),
+          value: formatNumber(review.publicWithConnectionCount),
         },
         {
           label: "Publication permissions recorded",
-          value: numberFormatter.format(review.permissionsRecordedCount),
+          value: formatNumber(review.permissionsRecordedCount),
         },
       ]
     : [];
@@ -122,7 +133,7 @@ export default async function CalendarAnnualReviewPage({
         <div className="rainbow-accent mt-3 w-full" />
       </div>
       <p className="app-muted mt-2 max-w-2xl text-sm">
-        Year-scoped rollup of the content calendar&apos;s planning-cycle success
+        Fiscal-year rollup of the content calendar&apos;s planning-cycle success
         measures, computed live from calendar items, content-opportunity briefs,
         and recorded publication permissions.
       </p>
@@ -134,7 +145,7 @@ export default async function CalendarAnnualReviewPage({
               htmlFor="year"
               className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
             >
-              Year
+              Fiscal year
             </label>
             <select
               id="year"
@@ -144,7 +155,7 @@ export default async function CalendarAnnualReviewPage({
             >
               {yearOptions.map((option) => (
                 <option key={option} value={option}>
-                  {option}
+                  {formatFiscalYearLabel(option)}
                 </option>
               ))}
             </select>

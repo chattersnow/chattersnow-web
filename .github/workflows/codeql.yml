@@ -1,0 +1,45 @@
+name: CodeQL
+
+# Static application security testing. This is CodeQL's "advanced setup":
+# a committed workflow rather than the Settings toggle, so it needs no
+# repository configuration and works the same on every fork and branch.
+# CodeQL is free and unlimited on public repositories.
+
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+  schedule:
+    # Weekly re-scan so newly published queries reach existing code even
+    # when nothing has been pushed.
+    - cron: "27 4 * * 1"
+
+jobs:
+  analyze:
+    name: Analyze (javascript-typescript)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          # security-extended adds lower-severity security queries on top of
+          # the default set. Quality queries are deliberately left out — that
+          # ground is already covered by ESLint and tsc in the CI workflow.
+          queries: security-extended
+
+      # No build step: CodeQL analyzes JS/TS from source, and `next build`
+      # output would add nothing it can use.
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"

@@ -26,6 +26,31 @@ mock.module("../../items/actions", () => ({
   updateInventoryItemAction: updateInventoryItemActionMock,
 }));
 
+// The sheet loads the item category vocabulary on open (issue #667). Without
+// this the real Server Action runs and calls cookies() outside a request scope.
+mock.module("../../categories/actions", () => ({
+  listInventoryCategoriesAction: async () => ({
+    data: [
+      {
+        id: "category-jacket",
+        key: "jacket",
+        label: "Jacket",
+        groupKey: "outerwear",
+        groupLabel: "Outerwear",
+        isActive: true,
+      },
+      {
+        id: "category-beanie",
+        key: "beanie",
+        label: "Beanie",
+        groupKey: "accessories",
+        groupLabel: "Accessories",
+        isActive: true,
+      },
+    ],
+  }),
+}));
+
 const { EditDonationSheet } = await import("./edit-donation-sheet");
 
 // face_value is intentionally null here: happy-dom's numeric step-mismatch
@@ -49,12 +74,16 @@ function makeDonation(overrides: Partial<DonationRow> = {}): DonationRow {
       {
         id: "item-1",
         description: "Winter jacket",
-        type: "jacket",
+        type: null,
+        category_id: "category-jacket",
+        category_key: "jacket",
+        category_label: "Jacket",
         size: "M",
         gender: "unisex",
         condition: "good",
         face_value: null,
         status: "available",
+        intended_use: "gear_library",
         photo_url: null,
         notes: null,
       },
@@ -175,7 +204,10 @@ describe("EditDonationSheet", () => {
     // The role query must outwait Base UI's inert/aria-hidden transition on
     // the sheet portal: byText finds the error regardless of aria-hidden, but
     // byRole excludes inaccessible elements, and on contended CI runners the
-    // transition can outlast findByRole's default 1s timeout (#540).
+    // transition can outlast findByRole's default 1s timeout (#540). The test
+    // gets a budget of its own, because a waiter allowed to run as long as
+    // bun's default 5s per-test timeout can never actually reach it -- the
+    // test times out first, which is what CI kept seeing.
     await waitFor(
       () =>
         expect(
@@ -183,5 +215,5 @@ describe("EditDonationSheet", () => {
         ).toBeEnabled(),
       { timeout: 5000 },
     );
-  });
+  }, 15000);
 });

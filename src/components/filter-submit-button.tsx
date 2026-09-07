@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import type { ComponentProps, ReactNode } from "react";
 
 /**
  * Submit button for GET filter forms. Native GET submissions are full
@@ -9,7 +10,15 @@ import { Button } from "@/components/ui/button";
  * enclosing form's submit event and pulses/disables until the new page
  * arrives (#482).
  */
-export function FilterSubmitButton() {
+export function FilterSubmitButton({
+  children = "Filter",
+  variant = "secondary",
+  size,
+}: {
+  children?: ReactNode;
+  variant?: ComponentProps<typeof Button>["variant"];
+  size?: ComponentProps<typeof Button>["size"];
+}) {
   const [pending, setPending] = useState(false);
   const ref = useRef<HTMLButtonElement>(null);
 
@@ -31,12 +40,13 @@ export function FilterSubmitButton() {
     <Button
       ref={ref}
       type="submit"
-      variant="secondary"
+      variant={variant}
+      size={size}
       disabled={pending}
       aria-busy={pending || undefined}
       className={pending ? "animate-pulse" : undefined}
     >
-      Filter
+      {children}
     </Button>
   );
 }

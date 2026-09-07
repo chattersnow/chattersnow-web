@@ -22,6 +22,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 export function DeleteAssetButton({
   assetId,
@@ -53,6 +54,7 @@ export function DeleteAssetButton({
       if (redirectTo) {
         router.push(redirectTo);
       } else {
+        toast.success("Asset deleted.");
         router.refresh();
       }
     });

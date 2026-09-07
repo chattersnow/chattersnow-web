@@ -9,9 +9,13 @@
 // submitter who is NOT the approver, which the shared seeded accounts can't
 // safely provide without racing another run's sign-ins (see
 // volunteer-hours-self-log.spec.ts for the same reasoning).
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "./helpers/test";
+import type { Page } from "@playwright/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
+import { modal } from "./helpers/dialog";
+import { markOnboarded } from "./helpers/onboarding";
+import { pickPerson } from "./helpers/people";
 
 type RoleUser = {
   userId: string;
@@ -34,6 +38,7 @@ async function createRoleUser(
     throw userError ?? new Error("createUser returned no user");
   }
   const userId = userData.user.id;
+  await markOnboarded(admin, userId);
 
   const { data: role, error: roleError } = await admin
     .from("roles")
@@ -103,15 +108,12 @@ test.describe("portal finance reimbursements", () => {
       const description = `E2E Reimbursement ${Date.now()}`;
 
       await page.getByRole("button", { name: "New Reimbursement" }).click();
-      const addDialog = page.getByRole("dialog");
+      const addDialog = modal(page);
       await expect(
         addDialog.getByRole("heading", { name: "Add reimbursement" }),
       ).toBeVisible();
 
-      await addDialog
-        .getByPlaceholder("Search by name or email...")
-        .fill(requester.name);
-      await addDialog.getByRole("button", { name: requester.name }).click();
+      await pickPerson(addDialog, requester.name);
       await addDialog.getByLabel("Description").fill(description);
       // Reimbursement threshold defaults to $500 -- this stays under it so
       // the submitter (finance) is eligible to self-approve.
@@ -124,10 +126,10 @@ test.describe("portal finance reimbursements", () => {
 
       const row = page.getByRole("row").filter({ hasText: description });
       await expect(row).toBeVisible();
-      await expect(row).toContainText("submitted");
+      await expect(row).toContainText("Submitted");
 
       await row.getByRole("button", { name: "View reimbursement" }).click();
-      const viewSheet = page.getByRole("dialog");
+      const viewSheet = modal(page);
       await expect(
         viewSheet.getByText("you can self-approve this"),
       ).toBeVisible();
@@ -169,11 +171,8 @@ test.describe("portal finance reimbursements", () => {
       const description = `E2E Reimbursement ${Date.now()}`;
 
       await page.getByRole("button", { name: "New Reimbursement" }).click();
-      const addDialog = page.getByRole("dialog");
-      await addDialog
-        .getByPlaceholder("Search by name or email...")
-        .fill(requester.name);
-      await addDialog.getByRole("button", { name: requester.name }).click();
+      const addDialog = modal(page);
+      await pickPerson(addDialog, requester.name);
       await addDialog.getByLabel("Description").fill(description);
       // At or above the $500 threshold, the submitter can't self-approve --
       // it needs an admin or board member who isn't them.
@@ -189,7 +188,7 @@ test.describe("portal finance reimbursements", () => {
       await submitterRow
         .getByRole("button", { name: "View reimbursement" })
         .click();
-      const submitterSheet = page.getByRole("dialog");
+      const submitterSheet = modal(page);
       await expect(
         submitterSheet.getByText(
           "needs approval from another admin or board member",
@@ -216,7 +215,7 @@ test.describe("portal finance reimbursements", () => {
       await approverRow
         .getByRole("button", { name: "View reimbursement" })
         .click();
-      const approverSheet = page.getByRole("dialog");
+      const approverSheet = modal(page);
       await expect(
         approverSheet.getByRole("button", { name: "Reject" }),
       ).toBeVisible();

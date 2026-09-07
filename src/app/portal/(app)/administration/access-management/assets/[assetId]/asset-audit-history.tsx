@@ -2,11 +2,8 @@ import Link from "next/link";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ActionBadge } from "../../../audit-log/audit-log-badges";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+import { formatDateTime } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 type AuditEntry = { id: string; action: string; occurred_at: string };
 
@@ -36,7 +33,10 @@ export async function AssetAuditHistory({
       </CardHeader>
       <CardContent>
         {entries.length === 0 ? (
-          <p className="app-muted text-sm">No recorded changes yet.</p>
+          <EmptyState
+            title="No recorded changes yet"
+            description="Edits to this asset are recorded here automatically."
+          />
         ) : (
           <ul className="divide-border divide-y">
             {entries.map((entry) => (
@@ -46,7 +46,7 @@ export async function AssetAuditHistory({
               >
                 <ActionBadge action={entry.action} />
                 <span className="app-muted">
-                  {dateFormatter.format(new Date(entry.occurred_at))}
+                  {formatDateTime(entry.occurred_at)}
                 </span>
               </li>
             ))}

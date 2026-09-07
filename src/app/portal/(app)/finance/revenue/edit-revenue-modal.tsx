@@ -10,8 +10,6 @@ import {
   type RevenueFormState,
 } from "./revenue-form-fields";
 import {
-  formatAmount,
-  formatRevenueDate,
   revenueSourceLabel,
   type EventOption,
   type RevenueRow,
@@ -46,6 +44,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
+import { formatCalendarDate, formatCurrency } from "@/lib/format";
 
 function formStateFor(revenue: RevenueRow): RevenueFormState {
   return {
@@ -142,6 +142,7 @@ export function EditRevenueModal({
         return;
       }
       setMode("view");
+      toast.success("Revenue deleted.");
       router.refresh();
       onSaved?.();
     });
@@ -157,6 +158,7 @@ export function EditRevenueModal({
       }
       setDeleteDialogOpen(false);
       setOpen(false);
+      toast.success("Revenue deleted.");
       router.refresh();
       onSaved?.();
     });
@@ -258,10 +260,10 @@ export function EditRevenueModal({
                     label="Date"
                     htmlFor="edit-revenue-receivedDate"
                   >
-                    {formatRevenueDate(revenue.received_date)}
+                    {formatCalendarDate(revenue.received_date)}
                   </ReadOnlyField>
                   <ReadOnlyField label="Amount" htmlFor="edit-revenue-amount">
-                    {formatAmount(revenue.amount)}
+                    {formatCurrency(revenue.amount)}
                   </ReadOnlyField>
                 </Field>
                 <ReadOnlyField label="Notes" htmlFor="edit-revenue-notes">

@@ -1,10 +1,12 @@
 "use client";
 
+import { categoryLabelFor, flattenCategory } from "@/lib/inventory";
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   listAvailableInventoryItemsAction,
   recordEventDistributionAction,
+  type AvailableInventoryItem,
 } from "./distribution-actions";
 import { listPeopleAction, type PersonListItem } from "../people/actions";
 import { PersonPicker, type PickedPerson } from "../people/person-picker";
@@ -31,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 function nowLocalValue() {
   const date = new Date();
@@ -52,7 +55,7 @@ export function RecordDistributionModal({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [availableItems, setAvailableItems] = useState<
-    { id: string; description: string; type: string }[]
+    AvailableInventoryItem[]
   >([]);
   const [people, setPeople] = useState<PersonListItem[]>([]);
   const [recipient, setRecipient] = useState<PickedPerson | null>(null);
@@ -116,6 +119,7 @@ export function RecordDistributionModal({
         return;
       }
       handleOpenChange(false);
+      toast.success("Distribution recorded.");
       router.refresh();
       onSaved?.();
     });
@@ -157,7 +161,7 @@ export function RecordDistributionModal({
                         (candidate) => candidate.id === value,
                       );
                       return item
-                        ? `${item.description} (${item.type})`
+                        ? `${item.description} (${categoryLabelFor(flattenCategory(item))})`
                         : "Select an available item";
                     }}
                   </SelectValue>
@@ -165,7 +169,8 @@ export function RecordDistributionModal({
                 <SelectContent>
                   {availableItems.map((item) => (
                     <SelectItem key={item.id} value={item.id}>
-                      {item.description} ({item.type})
+                      {item.description} (
+                      {categoryLabelFor(flattenCategory(item))})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -205,10 +210,7 @@ export function RecordDistributionModal({
                   selected={recipient}
                   onSelect={setRecipient}
                   onPersonCreated={(person) =>
-                    setPeople((prev) => [
-                      ...prev,
-                      { ...person, is_sponsor: false },
-                    ])
+                    setPeople((prev) => [...prev, person])
                   }
                   placeholder="Search recipient by name or email..."
                 />

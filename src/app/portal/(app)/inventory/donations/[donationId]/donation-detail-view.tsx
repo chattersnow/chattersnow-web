@@ -1,17 +1,20 @@
+import { categoryLabelFor } from "@/lib/inventory";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FieldGroup, Field } from "@/components/ui/field";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import {
   CONDITIONS,
   GENDERS,
+  INTENDED_USES,
   SOURCE_TYPES,
-  dateFormatter,
   donorLabel,
   formatFaceValue,
   labelFor,
   type DonationRow,
 } from "../donation-shared";
 import { EditDonationSheet } from "./edit-donation-sheet";
+import { formatInstantDate } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 export function DonationDetailView({ donation }: { donation: DonationRow }) {
   return (
@@ -24,8 +27,7 @@ export function DonationDetailView({ donation }: { donation: DonationRow }) {
           <div className="rainbow-accent mt-3 w-full" />
         </div>
         <p className="app-muted mt-2 text-sm">
-          Donation received{" "}
-          {dateFormatter.format(new Date(donation.donated_at))}
+          Donation received {formatInstantDate(donation.donated_at)}
         </p>
       </div>
 
@@ -54,9 +56,7 @@ export function DonationDetailView({ donation }: { donation: DonationRow }) {
                 </ReadOnlyField>
               </Field>
               <ReadOnlyField label="Date received" htmlFor="donation-donatedAt">
-                {donation.donated_at
-                  ? dateFormatter.format(new Date(donation.donated_at))
-                  : "—"}
+                {formatInstantDate(donation.donated_at)}
               </ReadOnlyField>
               <ReadOnlyField label="Donation notes" htmlFor="donation-notes">
                 {donation.notes || "—"}
@@ -73,9 +73,11 @@ export function DonationDetailView({ donation }: { donation: DonationRow }) {
           </CardHeader>
           <CardContent>
             {donation.inventory_items.length === 0 ? (
-              <p className="app-muted text-sm">
-                No items recorded for this donation.
-              </p>
+              <EmptyState
+                className="py-4"
+                title="No items recorded for this donation"
+                description="Open Edit donation to add the items that came with it."
+              />
             ) : (
               <div className="flex flex-col gap-4">
                 {donation.inventory_items.map((item, index) => (
@@ -92,10 +94,10 @@ export function DonationDetailView({ donation }: { donation: DonationRow }) {
                     </ReadOnlyField>
                     <Field orientation="responsive">
                       <ReadOnlyField
-                        label="Item type"
-                        htmlFor={`item-type-${item.id}`}
+                        label="Item category"
+                        htmlFor={`item-category-${item.id}`}
                       >
-                        {item.type}
+                        {categoryLabelFor(item)}
                       </ReadOnlyField>
                       <ReadOnlyField
                         label="Size"
@@ -118,12 +120,20 @@ export function DonationDetailView({ donation }: { donation: DonationRow }) {
                         {labelFor(CONDITIONS, item.condition) || "—"}
                       </ReadOnlyField>
                     </Field>
-                    <ReadOnlyField
-                      label="Face value"
-                      htmlFor={`item-faceValue-${item.id}`}
-                    >
-                      {formatFaceValue(item.face_value)}
-                    </ReadOnlyField>
+                    <Field orientation="responsive">
+                      <ReadOnlyField
+                        label="Face value"
+                        htmlFor={`item-faceValue-${item.id}`}
+                      >
+                        {formatFaceValue(item.face_value)}
+                      </ReadOnlyField>
+                      <ReadOnlyField
+                        label="Intended use"
+                        htmlFor={`item-intendedUse-${item.id}`}
+                      >
+                        {labelFor(INTENDED_USES, item.intended_use) || "—"}
+                      </ReadOnlyField>
+                    </Field>
                     <ReadOnlyField
                       label="Item notes"
                       htmlFor={`item-notes-${item.id}`}

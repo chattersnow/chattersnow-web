@@ -8,21 +8,18 @@ const people: PersonListItem[] = [
     name: "Jane Doe",
     email: "jane@example.com",
     phone: null,
-    is_sponsor: false,
   },
   {
     id: "2",
     name: "John Smith",
     email: "john@acme.com",
     phone: null,
-    is_sponsor: true,
   },
   {
     id: "3",
     name: null,
     email: "anon@example.com",
     phone: null,
-    is_sponsor: false,
   },
 ];
 
@@ -53,5 +50,37 @@ describe("filterPeople", () => {
 
   test("returns an empty array when nothing matches", () => {
     expect(filterPeople(people, "nomatch")).toEqual([]);
+  });
+});
+
+describe("filterPeople preferred names", () => {
+  const withPreferred: PersonListItem[] = [
+    {
+      id: "p1",
+      name: "Rebecca Nolan",
+      preferred_name: "Bex",
+      email: "rebecca@example.test",
+      phone: null,
+    },
+  ];
+
+  test("matches on the preferred name", () => {
+    expect(filterPeople(withPreferred, "bex").map((p) => p.id)).toEqual(["p1"]);
+  });
+
+  test("still matches on the legal name", () => {
+    expect(filterPeople(withPreferred, "Nolan").map((p) => p.id)).toEqual([
+      "p1",
+    ]);
+  });
+
+  test("still matches on the email", () => {
+    expect(filterPeople(withPreferred, "rebecca@").map((p) => p.id)).toEqual([
+      "p1",
+    ]);
+  });
+
+  test("a non-matching query still returns nothing", () => {
+    expect(filterPeople(withPreferred, "zzz")).toEqual([]);
   });
 });

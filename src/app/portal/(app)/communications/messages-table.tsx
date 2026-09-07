@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useStickyStatusFilter } from "./use-sticky-status-filter";
 import { Card, CardContent } from "@/components/ui/card";
 import { FiltersSheet } from "@/components/filters-sheet";
@@ -13,38 +13,33 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
 import { MessageDetailsSheet } from "./message-details-sheet";
-import {
-  ContactMessageStatusBadge,
-  CONTACT_TOPIC_LABELS,
-} from "./message-badges";
+import { ContactMessageStatusBadge } from "./message-badges";
 import {
   CONTACT_MESSAGE_STATUSES,
   type ContactMessage,
   type ContactMessageStatus,
 } from "./message-types";
+import { CONTACT_TOPIC_LABELS } from "@/lib/contact-topics";
+import { formatInstantDate } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 const FILTER_ALL = "all";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-});
 
 export function MessagesTable({
   messages,
   canManage,
   initialStatusFilter = null,
+  linkedMessageId = null,
 }: {
   messages: ContactMessage[];
   canManage: boolean;
   initialStatusFilter?: ContactMessageStatus | null;
+  /** The `?message=` a notification email (#742) linked with, if any. */
+  linkedMessageId?: string | null;
 }) {
   const [search, setSearch] = useState("");
   const {
@@ -75,11 +70,74 @@ export function MessagesTable({
     statusFilter !== null,
   ].filter(Boolean).length;
 
+  const columns = useMemo<PortalDataTableColumn<ContactMessage>[]>(
+    () => [
+      {
+        key: "name",
+        label: "Name",
+        sortValue: (message) => message.name,
+        cellClassName: "font-medium",
+        render: (message) => message.name,
+      },
+      {
+        key: "email",
+        label: "Email",
+        sortValue: (message) => message.email,
+        cellClassName: "app-muted",
+        render: (message) => message.email,
+      },
+      {
+        key: "topic",
+        label: "Topic",
+        // On the label the cell shows, not the stored topic key.
+        sortValue: (message) =>
+          CONTACT_TOPIC_LABELS[message.topic] ?? message.topic,
+        cellClassName: "app-muted",
+        render: (message) =>
+          CONTACT_TOPIC_LABELS[message.topic] ?? message.topic,
+      },
+      {
+        key: "created_at",
+        label: "Submitted",
+        // The timestamp itself rather than the date the cell shows, so two
+        // messages from the same day keep their real order.
+        sortValue: (message) => message.created_at,
+        cellClassName: "app-muted",
+        render: (message) => formatInstantDate(message.created_at),
+      },
+      {
+        key: "status",
+        label: "Status",
+        sortValue: (message) => message.status,
+        render: (message) => (
+          <ContactMessageStatusBadge status={message.status} />
+        ),
+      },
+      {
+        key: "actions",
+        label: "Actions",
+        srOnlyLabel: true,
+        headClassName: "w-0",
+        render: (message) => (
+          <MessageDetailsSheet
+            message={message}
+            canManage={canManage}
+            defaultOpen={message.id === linkedMessageId}
+          />
+        ),
+      },
+    ],
+    [canManage, linkedMessageId],
+  );
+
   if (messages.length === 0) {
     return (
       <Card>
         <CardContent className="px-0">
-          <p className="app-muted px-4 py-6 text-sm">No messages yet.</p>
+          <EmptyState
+            title="No messages yet"
+            description="Messages appear here when someone submits the public contact form."
+          />
         </CardContent>
       </Card>
     );
@@ -140,57 +198,14 @@ export function MessagesTable({
         </FiltersSheet>
       </div>
 
-      <Card>
-        <CardContent className="px-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Topic</TableHead>
-                <TableHead>Submitted</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-0">
-                  <span className="sr-only">Actions</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {visibleMessages.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="app-muted text-center">
-                    No messages match your filters.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                visibleMessages.map((message) => (
-                  <TableRow key={message.id}>
-                    <TableCell className="font-medium">
-                      {message.name}
-                    </TableCell>
-                    <TableCell className="app-muted">{message.email}</TableCell>
-                    <TableCell className="app-muted">
-                      {CONTACT_TOPIC_LABELS[message.topic] ?? message.topic}
-                    </TableCell>
-                    <TableCell className="app-muted">
-                      {dateFormatter.format(new Date(message.created_at))}
-                    </TableCell>
-                    <TableCell>
-                      <ContactMessageStatusBadge status={message.status} />
-                    </TableCell>
-                    <TableCell>
-                      <MessageDetailsSheet
-                        message={message}
-                        canManage={canManage}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <PortalDataTable
+        columns={columns}
+        rows={visibleMessages}
+        getRowKey={(message) => message.id}
+        // The query returns newest first.
+        defaultSort={{ key: "created_at", dir: "desc" }}
+        emptyMessage="No messages match your filters."
+      />
     </div>
   );
 }

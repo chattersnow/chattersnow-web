@@ -1,0 +1,13 @@
+{
+  "admin|desktop|dark|/portal/administration": ["target-size"],
+  "admin|desktop|dark|/portal/administration/users": ["target-size"],
+  "admin|desktop|light|/portal/governance/meetings/[meetingId]": [
+    "aria-toggle-field-name"
+  ],
+  "admin|desktop|dark|/portal/governance/meetings/[meetingId]": [
+    "aria-toggle-field-name"
+  ],
+  "admin|mobile|light|/portal/governance/meetings/[meetingId]": [
+    "aria-toggle-field-name"
+  ]
+}

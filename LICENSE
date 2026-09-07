@@ -1,0 +1,64 @@
+Copyright (c) 2026 Rickie Cruz McDougal. All rights reserved.
+
+PROPRIETARY — NOT OPEN SOURCE
+
+This repository contains two categories of material with different owners. The
+boundary between them is defined in docs/licensing.md, and the reasoning behind
+it is recorded in the Chatter planning repository at
+decisions/2026-09-05-portal-ip-ownership.md.
+
+1. CORE
+
+   The generic nonprofit-operations platform: the database schema, migrations,
+   row-level security and permission model, application source code, and user
+   interface components implementing events, inventory, people and roles,
+   donations, volunteers, sponsors, programs, finance, governance,
+   communications, and impact reporting.
+
+   Copyright (c) 2026 Rickie Cruz McDougal. All rights reserved.
+
+   No license is granted to any person or entity except as set out below. You
+   may not use, copy, modify, merge, publish, distribute, sublicense, or sell
+   any part of the Core without prior written permission from the copyright
+   holder.
+
+2. ORGANIZATION MATERIAL
+
+   Everything specific to Chatter Snow: the "Chatter Snow" name, wordmark,
+   logo, and brand identity; all public-facing copy, program and Learn content,
+   photography, and media; the bylaws, policies, and governance documents; the
+   Chatter-specific configuration and seed data; and all operational data,
+   including every record concerning an identifiable person.
+
+   Owned by Chatter Snow, Inc. upon its incorporation. No license to
+   Organization Material is granted by this file. The "Chatter Snow" name and
+   marks may not be used to identify, endorse, or promote any product or
+   service.
+
+LICENSE TO CHATTER SNOW, INC.
+
+Chatter Snow, Inc. is granted a perpetual, irrevocable, worldwide,
+royalty-free, non-exclusive license to use, host, modify, and create derivative
+works of the Core for its own charitable operations, including the right to
+fork and continue the Core independently. That license is set out in full in a
+separate signed instrument and survives any change in the copyright holder's
+relationship with the organization. Chatter Snow, Inc. owes nothing for it.
+
+As of the date of this file, Chatter Snow, Inc. has not yet been incorporated
+and that instrument has not been executed. Until it is, this file records the
+intent, not a completed grant.
+
+THIRD-PARTY COMPONENTS
+
+This project depends on third-party open-source packages, each governed by its
+own license. Nothing here alters those terms.
+
+NO WARRANTY
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

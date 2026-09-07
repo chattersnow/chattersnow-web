@@ -10,9 +10,10 @@
 // post-login redirect, with the other project's identical run passing in
 // the same CI run, twice in a row). A unique account per run removes that
 // collision outright.
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
+import { markOnboarded } from "./helpers/onboarding";
 
 test("self-log-only volunteer sees their own name pre-filled and can log hours", async ({
   page,
@@ -33,6 +34,7 @@ test("self-log-only volunteer sees their own name pre-filled and can log hours",
     throw userError ?? new Error("createUser returned no user");
   }
   const userId = userData.user.id;
+  await markOnboarded(admin, userId);
 
   const { data: role, error: roleError } = await admin
     .from("roles")

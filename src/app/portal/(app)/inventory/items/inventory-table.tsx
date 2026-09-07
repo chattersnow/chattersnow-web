@@ -16,7 +16,9 @@ import { InventoryCard } from "./inventory-card";
 import { useInventoryView } from "./inventory-view-context";
 import {
   CONDITIONS,
+  categoryLabelFor,
   GENDERS,
+  IntendedUseBadge,
   SORT_COLUMNS,
   StatusBadge,
   formatFaceValue,
@@ -24,15 +26,19 @@ import {
   type InventoryItem,
   type SortColumn,
 } from "./inventory-shared";
+import { EmptyState } from "@/components/portal/empty-state";
+import type { InventoryCategory } from "@/lib/inventory";
 
 export function InventoryTable({
   items,
+  categories,
   sort,
   dir,
   filterQueryString,
   hasActiveFilters,
 }: {
   items: InventoryItem[];
+  categories: InventoryCategory[];
   sort: SortColumn;
   dir: "asc" | "desc";
   filterQueryString: string;
@@ -54,11 +60,17 @@ export function InventoryTable({
       <div className="space-y-4">
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              {hasActiveFilters
-                ? "No items match your filters."
-                : "No inventory items yet."}
-            </p>
+            {hasActiveFilters ? (
+              <EmptyState
+                title="No items match your filters"
+                description="Clear or loosen the filters to see more."
+              />
+            ) : (
+              <EmptyState
+                title="No inventory items yet"
+                description="Items are added by recording a donation under Inventory › Donations."
+              />
+            )}
           </CardContent>
         </Card>
       </div>
@@ -70,17 +82,20 @@ export function InventoryTable({
       {view === "gallery" ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {items.map((item) => (
-            <InventoryCard key={item.id} item={item} />
+            <InventoryCard key={item.id} item={item} categories={categories} />
           ))}
         </div>
       ) : (
         <Card>
           <CardContent className="px-0">
-            <Table>
+            <Table stickyHeader="page">
               <TableHeader>
                 <TableRow>
                   {SORT_COLUMNS.map((column) => (
-                    <TableHead key={column.key}>
+                    <TableHead
+                      key={column.key}
+                      sortDirection={sort === column.key ? dir : null}
+                    >
                       <SortHeaderLink
                         href={sortHref(column.key)}
                         label={column.label}
@@ -102,7 +117,7 @@ export function InventoryTable({
                     >
                       {item.description}
                     </TableCell>
-                    <TableCell>{item.type}</TableCell>
+                    <TableCell>{categoryLabelFor(item)}</TableCell>
                     <TableCell>{item.size ?? "—"}</TableCell>
                     <TableCell>
                       {labelFor(GENDERS, item.gender) ?? "—"}
@@ -115,7 +130,10 @@ export function InventoryTable({
                       <StatusBadge status={item.status} />
                     </TableCell>
                     <TableCell>
-                      <EditInventoryModal item={item} />
+                      <IntendedUseBadge intendedUse={item.intended_use} />
+                    </TableCell>
+                    <TableCell>
+                      <EditInventoryModal item={item} categories={categories} />
                     </TableCell>
                   </TableRow>
                 ))}

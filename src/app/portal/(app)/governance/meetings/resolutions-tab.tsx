@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil } from "lucide-react";
 import {
   createResolutionAction,
   deleteResolutionAction,
@@ -17,6 +17,7 @@ import {
   type ResolutionFormState,
 } from "../resolutions/resolution-form-fields";
 import { VoteOutcomeBadge } from "../resolutions/resolution-badges";
+import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { PersonPicker, type PickedPerson } from "../../people/person-picker";
 import { listPeopleAction, type PersonListItem } from "../../people/actions";
@@ -32,25 +33,14 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
 import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
+import { formatCalendarDate, personDisplayName } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
+import { runAction } from "@/components/portal/action-toast";
 
 function AddResolutionForm({
   people,
@@ -93,18 +83,24 @@ function AddResolutionForm({
       return;
     }
 
+    const mover = selectedMover;
     startTransition(async () => {
-      const result = await onSubmit(
-        selectedMover.id,
-        selectedSeconder?.id ?? null,
-        packResolutionFormData(form),
+      await runAction(
+        () =>
+          onSubmit(
+            mover.id,
+            selectedSeconder?.id ?? null,
+            packResolutionFormData(form),
+          ),
+        {
+          success: "Resolution added.",
+          onError: setError,
+          onSuccess: () => {
+            router.refresh();
+            onCancel();
+          },
+        },
       );
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
-      onCancel();
     });
   }
 
@@ -209,18 +205,22 @@ function EditResolutionDialog({
       return;
     }
 
+    const mover = selectedMover;
     startTransition(async () => {
-      const result = await updateResolutionAction(
-        resolution.id,
-        selectedMover.id,
-        selectedSeconder?.id ?? null,
-        packResolutionFormData(form),
+      await runAction(
+        () =>
+          updateResolutionAction(
+            resolution.id,
+            mover.id,
+            selectedSeconder?.id ?? null,
+            packResolutionFormData(form),
+          ),
+        {
+          success: "Resolution saved.",
+          onError: setError,
+          onSuccess: onSaved,
+        },
       );
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      onSaved();
     });
   }
 
@@ -288,11 +288,9 @@ function EditResolutionDialog({
 
 export function ResolutionsTab({
   meetingId,
-  active,
   mode,
 }: {
   meetingId: string;
-  active: boolean;
   mode: "view" | "edit";
 }) {
   const router = useRouter();
@@ -300,9 +298,10 @@ export function ResolutionsTab({
     data: resolutions,
     loadError,
     refresh: refreshResolutions,
-  } = useTabData<Resolution[]>(() => listResolutionsAction(meetingId), active, [
-    meetingId,
-  ]);
+  } = useTabData<Resolution[]>(
+    () => listResolutionsAction(meetingId),
+    [meetingId],
+  );
   const [people, setPeople] = useState<PersonListItem[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -314,11 +313,10 @@ export function ResolutionsTab({
   });
 
   useEffect(() => {
-    if (!active) return;
     listPeopleAction().then((result) => {
       if (!("error" in result)) setPeople(result.data);
     });
-  }, [active, meetingId]);
+  }, [meetingId]);
 
   function refresh() {
     refreshResolutions();
@@ -326,15 +324,88 @@ export function ResolutionsTab({
   }
 
   function handlePersonCreated(person: PickedPerson) {
-    setPeople((prev) => [...prev, { ...person, is_sponsor: false }]);
+    setPeople((prev) => [...prev, person]);
   }
 
   function handleDelete(id: string) {
     startMutation(async () => {
-      await deleteResolutionAction(id);
-      refresh();
+      await runAction(() => deleteResolutionAction(id), {
+        success: "Resolution deleted.",
+        error: "Could not delete the resolution. Please try again.",
+        onSuccess: refresh,
+      });
     });
   }
+
+  // Built on every render rather than memoized: the row actions close over
+  // `handleDelete` and `setEditingId`, so a `useMemo` here would only look
+  // stable. A meeting has a handful of resolutions.
+  const columns: PortalDataTableColumn<Resolution>[] = [
+    {
+      key: "motion_text",
+      // The motion is a sentence, wrapped rather than truncated: nothing a
+      // reader would look for in its alphabetical order.
+      label: "Motion",
+      cellClassName: "whitespace-normal font-medium",
+      render: (resolution) => resolution.motion_text,
+    },
+    {
+      key: "mover",
+      label: "Mover",
+      sortValue: (resolution) => personDisplayName(resolution.mover),
+      cellClassName: "app-muted",
+      render: (resolution) => personDisplayName(resolution.mover),
+    },
+    {
+      key: "vote_outcome",
+      label: "Vote outcome",
+      sortValue: (resolution) => resolution.vote_outcome,
+      render: (resolution) => (
+        <VoteOutcomeBadge outcome={resolution.vote_outcome} />
+      ),
+    },
+    {
+      key: "effective_date",
+      label: "Effective date",
+      sortValue: (resolution) => resolution.effective_date,
+      cellClassName: "app-muted",
+      render: (resolution) => formatCalendarDate(resolution.effective_date),
+    },
+    // Actions only while there is something in them: in view mode the column
+    // would be an empty strip with a name only a screen reader hears.
+    ...(mode === "edit"
+      ? [
+          {
+            key: "actions",
+            label: "Actions",
+            srOnlyLabel: true,
+            headClassName: "w-px",
+            cellClassName: "text-right whitespace-nowrap",
+            render: (resolution: Resolution) => (
+              <>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Edit resolution"
+                  onClick={() => setEditingId(resolution.id)}
+                >
+                  <Pencil />
+                </Button>
+                <ConfirmDeleteButton
+                  label="Remove resolution"
+                  title="Remove this resolution?"
+                  description="This deletes the motion, its mover and its vote outcome from the meeting record. It can't be undone."
+                  confirmLabel="Remove"
+                  pending={isMutating}
+                  onConfirm={() => handleDelete(resolution.id)}
+                />
+              </>
+            ),
+          },
+        ]
+      : []),
+  ];
 
   const editingResolution =
     resolutions?.find((resolution) => resolution.id === editingId) ?? null;
@@ -350,62 +421,25 @@ export function ResolutionsTab({
       {resolutions === undefined ? (
         <TabLoadingSkeleton />
       ) : resolutions.length === 0 && !showAdd ? (
-        <p className="app-muted text-sm">No resolutions recorded yet.</p>
+        <EmptyState
+          title="No resolutions recorded yet"
+          description={
+            mode === "edit"
+              ? "Record the first one with Add resolution below."
+              : "Resolutions appear here once a governance manager records them for this meeting."
+          }
+        />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Motion</TableHead>
-              <TableHead>Mover</TableHead>
-              <TableHead>Vote outcome</TableHead>
-              <TableHead>Effective date</TableHead>
-              <TableHead className="w-px" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {resolutions?.map((resolution) => (
-              <TableRow key={resolution.id}>
-                <TableCell className="whitespace-normal font-medium">
-                  {resolution.motion_text}
-                </TableCell>
-                <TableCell className="app-muted">
-                  {resolution.mover?.name ?? "—"}
-                </TableCell>
-                <TableCell>
-                  <VoteOutcomeBadge outcome={resolution.vote_outcome} />
-                </TableCell>
-                <TableCell className="app-muted">
-                  {formatDate(resolution.effective_date)}
-                </TableCell>
-                <TableCell className="text-right whitespace-nowrap">
-                  {mode === "edit" && (
-                    <>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Edit resolution"
-                        onClick={() => setEditingId(resolution.id)}
-                      >
-                        <Pencil />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Remove resolution"
-                        disabled={isMutating}
-                        onClick={() => handleDelete(resolution.id)}
-                      >
-                        {isMutating ? <Spinner /> : <Trash2 />}
-                      </Button>
-                    </>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        // `bare`: the section card around this tab is the surface already.
+        // No `defaultSort` -- resolutions arrive in the order the server sent
+        // them, and the arrows take over from there.
+        <PortalDataTable
+          columns={columns}
+          rows={resolutions}
+          getRowKey={(resolution) => resolution.id}
+          emptyMessage="No resolutions recorded yet."
+          shell="bare"
+        />
       )}
 
       {mode === "edit" &&

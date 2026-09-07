@@ -47,6 +47,58 @@ function personForm(overrides?: { name?: string }) {
 
 const DENIED = { error: "You don't have permission to perform this action." };
 
+describe("person email uniqueness (integration)", () => {
+  // The index (20260904190000) is enforced in Postgres, not in the action, so
+  // this covers the volunteer path too: a volunteer holds people_intake:manage
+  // and can insert a person, and the "people select" carve-out
+  // (20260823160000) is what lets the error name the record they collided with.
+  for (const account of [SEEDED_USERS.admin, SEEDED_USERS.volunteer] as const) {
+    test(`createPersonAction names the existing person for ${account}`, async () => {
+      const email = `it-conflict-${crypto.randomUUID()}@example.test`;
+      const { data: existing } = await adminClient
+        .from("people")
+        .insert({
+          name: "Already Here",
+          source_type: "individual",
+          email,
+        })
+        .select("id")
+        .single();
+
+      currentSupabase = await signIn(account);
+      const form = personForm({ name: "Second Record" });
+      form.set("email", email.toUpperCase());
+      const result = await createPersonAction(form);
+
+      expect("error" in result).toBe(true);
+      if ("error" in result) {
+        expect(result.error).toContain("Already Here");
+        expect(result.error).toContain(email);
+        expect(result.conflict?.id).toBe(existing!.id);
+      }
+
+      await adminClient.from("people").delete().eq("id", existing!.id);
+    });
+  }
+
+  test("updatePersonAction does not report a person as their own conflict", async () => {
+    const email = `it-self-${crypto.randomUUID()}@example.test`;
+    const { data: person } = await adminClient
+      .from("people")
+      .insert({ name: "Self Save", source_type: "individual", email })
+      .select("id")
+      .single();
+
+    currentSupabase = await signIn(SEEDED_USERS.admin);
+    const form = personForm({ name: "Self Save" });
+    form.set("email", email);
+    const result = await updatePersonAction(person!.id, form);
+    expect(result).toEqual({ success: true });
+
+    await adminClient.from("people").delete().eq("id", person!.id);
+  });
+});
+
 describe("createPersonAction (integration)", () => {
   test("requires a signed-in user", async () => {
     currentSupabase = anonClient();
@@ -211,5 +263,80 @@ describe("addOrganizationMembershipAction / removeOrganizationMembershipAction (
 
     await org.cleanup();
     await person.cleanup();
+  });
+});
+
+describe("people preferred_name and portal-account link (integration)", () => {
+  test("listPeopleAction returns preferred_name and auth_user_id", async () => {
+    currentSupabase = await signIn(SEEDED_USERS.finance);
+    const result = await listPeopleAction();
+    if ("error" in result) throw new Error(result.error);
+
+    // seed.sql links the admin account to a people row and gives it a
+    // preferred name, so this asserts real data, not just column presence.
+    const linkedAdmin = result.data.find(
+      (person) => person.email === SEEDED_USERS.admin,
+    );
+    expect(linkedAdmin?.preferred_name).toBe("Ave");
+    expect(linkedAdmin?.auth_user_id).toBeTruthy();
+  });
+
+  test("a directory-only person has no auth_user_id, so no Portal user badge", async () => {
+    const person = await createPerson();
+    currentSupabase = await signIn(SEEDED_USERS.finance);
+    const result = await listPeopleAction();
+    if ("error" in result) throw new Error(result.error);
+
+    const found = result.data.find((p) => p.id === person.id);
+    expect(found).toBeDefined();
+    expect(found?.auth_user_id ?? null).toBeNull();
+  });
+
+  test("createPersonAction round-trips a preferred name", async () => {
+    currentSupabase = await signIn(SEEDED_USERS.admin);
+    const form = personForm();
+    form.set("preferredName", "Nick");
+
+    const result = await createPersonAction(form);
+    if (!("success" in result) || !result.person) {
+      throw new Error("createPersonAction did not return a person");
+    }
+
+    try {
+      expect(result.person.preferred_name).toBe("Nick");
+      // A person created through the directory has no portal login.
+      expect(result.person.auth_user_id ?? null).toBeNull();
+    } finally {
+      await adminClient.from("people").delete().eq("id", result.person.id);
+    }
+  });
+});
+
+describe("ensure_current_person (integration)", () => {
+  test("creates a people row for a signed-in account that has none", async () => {
+    // volunteer@ is deliberately left unlinked by supabase/seed.sql so this
+    // provisioning path has something real to exercise.
+    const supabase = await signIn(SEEDED_USERS.volunteer);
+
+    const { data, error } = await supabase.rpc("ensure_current_person");
+    expect(error).toBeNull();
+
+    const row = (data ?? [])[0];
+    expect(row?.person_id).toBeTruthy();
+    expect(row?.email).toBe(SEEDED_USERS.volunteer);
+
+    try {
+      const { data: stored } = await adminClient
+        .from("people")
+        .select("id, auth_user_id")
+        .eq("id", row.person_id)
+        .single();
+      expect(stored?.auth_user_id).toBeTruthy();
+    } finally {
+      // seed.sql deliberately leaves volunteer@ unlinked so that
+      // src/lib/auth/current-person.integration.test.ts can exercise the
+      // link-by-email path -- put that back.
+      await adminClient.from("people").delete().eq("id", row.person_id);
+    }
   });
 });

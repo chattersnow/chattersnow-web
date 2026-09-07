@@ -5,10 +5,18 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { ArrowLeft, Eye, Pencil } from "lucide-react";
 import { BrandImageFallback } from "@/components/brand-image-fallback";
+import { CategorySelect } from "@/components/portal/category-select";
+import {
+  categoryLabelFor,
+  OTHER_CATEGORY_KEY,
+  type InventoryCategory,
+} from "@/lib/inventory";
 import { updateInventoryItemAction } from "./actions";
 import {
   CONDITIONS,
   GENDERS,
+  INTENDED_USES,
+  IntendedUseBadge,
   STATUSES,
   StatusBadge,
   formatFaceValue,
@@ -28,7 +36,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import {
@@ -55,15 +68,18 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 function formStateFor(item: InventoryItem) {
   return {
     description: item.description,
-    type: item.type,
+    categoryId: item.category_id ?? "",
+    categoryDetail: item.type ?? "",
     size: item.size ?? "",
     gender: item.gender ?? "",
     condition: item.condition,
     status: item.status,
+    intendedUse: item.intended_use,
     faceValue: item.face_value === null ? "" : String(item.face_value),
     photoUrl: item.photo_url ?? "",
     notes: item.notes ?? "",
@@ -79,7 +95,13 @@ function isDirty(form: InventoryFormState, item: InventoryItem) {
   );
 }
 
-export function EditInventoryModal({ item }: { item: InventoryItem }) {
+export function EditInventoryModal({
+  item,
+  categories,
+}: {
+  item: InventoryItem;
+  categories: InventoryCategory[];
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"view" | "edit">("view");
@@ -137,11 +159,20 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
 
     const formData = new FormData();
     formData.set("description", form.description);
-    formData.set("type", form.type);
+    formData.set("categoryId", form.categoryId);
+    formData.set("categoryDetail", form.categoryDetail);
+    formData.set(
+      "categoryIsOther",
+      String(
+        categories.find((category) => category.id === form.categoryId)?.key ===
+          OTHER_CATEGORY_KEY,
+      ),
+    );
     formData.set("size", form.size);
     formData.set("gender", form.gender);
     formData.set("condition", form.condition);
     formData.set("status", form.status);
+    formData.set("intendedUse", form.intendedUse);
     formData.set("faceValue", form.faceValue);
     formData.set("photoUrl", form.photoUrl);
     formData.set("notes", form.notes);
@@ -153,6 +184,7 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
         return;
       }
       setMode("view");
+      toast.success("Inventory item saved.");
       router.refresh();
     });
   }
@@ -260,8 +292,8 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
                   {item.description}
                 </ReadOnlyField>
                 <Field orientation="responsive">
-                  <ReadOnlyField label="Item type" htmlFor="edit-type">
-                    {item.type}
+                  <ReadOnlyField label="Item category" htmlFor="edit-category">
+                    {categoryLabelFor(item)}
                   </ReadOnlyField>
                   <ReadOnlyField label="Size" htmlFor="edit-size">
                     {item.size || "—"}
@@ -276,18 +308,33 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
                   </ReadOnlyField>
                 </Field>
                 {item.status === "reserved" && item.holdRequester && (
-                  <ReadOnlyField
-                    label="Requested by"
-                    htmlFor="edit-hold-requester"
-                  >
-                    {[
-                      item.holdRequester.name,
-                      item.holdRequester.email,
-                      item.holdRequester.phone,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ") || "—"}
-                  </ReadOnlyField>
+                  <>
+                    <ReadOnlyField
+                      label="Requested by"
+                      htmlFor="edit-hold-requester"
+                    >
+                      {[
+                        item.holdRequester.name,
+                        item.holdRequester.email,
+                        item.holdRequester.phone,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ") || "—"}
+                    </ReadOnlyField>
+                    {item.holdNotes && (
+                      <ReadOnlyField
+                        label="Request notes"
+                        htmlFor="edit-hold-notes"
+                      >
+                        {/* The public form's Notes is a textarea, and the RPC
+                            only trims, so the text arrives with the line
+                            breaks the requester typed. */}
+                        <span className="whitespace-pre-line">
+                          {item.holdNotes}
+                        </span>
+                      </ReadOnlyField>
+                    )}
+                  </>
                 )}
                 <Field orientation="responsive">
                   <Field>
@@ -296,10 +343,18 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
                       <StatusBadge status={item.status} />
                     </div>
                   </Field>
-                  <ReadOnlyField label="Face value" htmlFor="edit-faceValue">
-                    {formatFaceValue(item.face_value)}
-                  </ReadOnlyField>
+                  <Field>
+                    <FieldLabel htmlFor="edit-intendedUse">
+                      Intended use
+                    </FieldLabel>
+                    <div id="edit-intendedUse">
+                      <IntendedUseBadge intendedUse={item.intended_use} />
+                    </div>
+                  </Field>
                 </Field>
+                <ReadOnlyField label="Face value" htmlFor="edit-faceValue">
+                  {formatFaceValue(item.face_value)}
+                </ReadOnlyField>
                 <ReadOnlyField label="Photo URL" htmlFor="edit-photoUrl">
                   {item.photo_url || "—"}
                 </ReadOnlyField>
@@ -331,15 +386,16 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
                   </Field>
 
                   <Field orientation="responsive">
-                    <Field>
-                      <FieldLabel htmlFor="edit-type">Item type</FieldLabel>
-                      <Input
-                        id="edit-type"
-                        required
-                        value={form.type}
-                        onChange={(event) => update("type", event.target.value)}
-                      />
-                    </Field>
+                    <CategorySelect
+                      categories={categories}
+                      categoryId={form.categoryId}
+                      detail={form.categoryDetail}
+                      idPrefix="edit"
+                      onCategoryChange={(value) => update("categoryId", value)}
+                      onDetailChange={(value) =>
+                        update("categoryDetail", value)
+                      }
+                    />
                     <Field>
                       <FieldLabel htmlFor="edit-size">Size</FieldLabel>
                       <Input
@@ -440,6 +496,38 @@ export function EditInventoryModal({ item }: { item: InventoryItem }) {
                         }
                       />
                     </Field>
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor="edit-intendedUse">
+                      Intended use
+                    </FieldLabel>
+                    <Select
+                      value={form.intendedUse || null}
+                      onValueChange={(value) =>
+                        update("intendedUse", value ?? "")
+                      }
+                    >
+                      <SelectTrigger id="edit-intendedUse" className="w-full">
+                        <SelectValue placeholder="Select an intended use">
+                          {(value: string) =>
+                            labelFor(INTENDED_USES, value) ??
+                            "Select an intended use"
+                          }
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {INTENDED_USES.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FieldDescription>
+                      Only gear library items appear on the public gear library
+                      and can be requested or distributed to riders.
+                    </FieldDescription>
                   </Field>
 
                   <Field>

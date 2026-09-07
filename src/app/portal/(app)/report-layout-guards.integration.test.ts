@@ -16,6 +16,7 @@ import { afterEach, describe, expect, mock, test } from "bun:test";
 import type { ReactNode } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { SEEDED_USERS, signIn } from "../../../../test/integration-setup";
+import { DENIED_PARAM } from "@/lib/auth/permissions";
 
 // Next's real redirect() throws to unwind rendering, and requirePermission()
 // relies on that (it has no return after the call) -- so the mock throws too,
@@ -72,8 +73,15 @@ async function expectAllowed(layout: ReportLayout, email: string) {
 
 async function expectDenied(layout: ReportLayout, email: string) {
   const result = await renderAs(layout, email);
-  expect(result).toEqual({ redirected: true, path: "/portal/home" });
-  expect(redirectMock).toHaveBeenCalledWith("/portal/home");
+  // requirePermission() names the refused area (/portal/home?denied=...) so
+  // the dashboard can say what was refused; the area label is the layout's
+  // own business, so only the destination and the presence of the parameter
+  // are asserted here.
+  const deniedHref = expect.stringMatching(
+    new RegExp(`^/portal/home\\?${DENIED_PARAM}=.+`),
+  );
+  expect(result).toEqual({ redirected: true, path: deniedHref });
+  expect(redirectMock).toHaveBeenCalledWith(deniedHref);
 }
 
 // Per the entitlement matrix in

@@ -1,18 +1,27 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { InstagramLink } from "@/components/instagram-link";
 import { SiteImage } from "@/components/site-image";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSiteImageUrls } from "@/lib/site-images";
+import { getPublicSite, publicTitle } from "@/lib/public-site";
 import { ContactForm } from "./contact-form";
 
-export const metadata: Metadata = {
-  title: "Contact Us | Chatter Snow",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const supabase = await createSupabaseServerClient();
+  return { title: publicTitle(await getPublicSite(supabase), "Contact Us") };
+}
 
 export default async function ContactPage() {
   const supabase = await createSupabaseServerClient();
-  const siteImages = await getSiteImageUrls(supabase);
+  const [siteImages, { content, name }] = await Promise.all([
+    getSiteImageUrls(supabase),
+    getPublicSite(supabase),
+  ]);
+  const contactEmail = content.text("org.email_general");
+  const instagramHandle = content.text("org.instagram_handle");
+  const imageAlt = content.text("org.image_alt");
 
   return (
     <div className="space-y-12">
@@ -20,12 +29,11 @@ export default async function ContactPage() {
         <div className="w-fit">
           <div className="rainbow-accent w-full" />
           <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-            Get in touch
+            {content.text("contact.heading")}
           </h1>
         </div>
         <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-          Questions, ideas, or want to get involved? Send us a message and
-          we&apos;ll get back to you.
+          {content.text("contact.intro")}
         </p>
       </section>
 
@@ -44,48 +52,40 @@ export default async function ContactPage() {
             <div className="app-muted mt-3 space-y-1 text-sm leading-relaxed sm:text-base">
               <p>
                 <a
-                  href="mailto:info@chattersnow.org"
+                  href={`mailto:${contactEmail}`}
                   className="hover:text-foreground underline underline-offset-4"
                 >
-                  info@chattersnow.org
+                  {contactEmail}
                 </a>
               </p>
             </div>
           </div>
 
-          <div>
-            <span className="app-eyebrow">Follow us</span>
-            <div className="app-muted mt-3 text-sm leading-relaxed sm:text-base">
-              <p>
-                Instagram{" "}
-                <a
-                  href="https://www.instagram.com/chattersnow"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-foreground underline underline-offset-4"
-                >
-                  @chattersnow
-                </a>
-              </p>
+          {instagramHandle && (
+            <div>
+              <span className="app-eyebrow">Follow us</span>
+              <div className="app-muted mt-3 text-sm leading-relaxed sm:text-base">
+                <InstagramLink handle={instagramHandle} orgName={name} />
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </section>
 
       <section className="grid gap-6 sm:grid-cols-3">
         <SiteImage
           url={siteImages.contact_photo_1 ?? null}
-          alt="Chatter Snow community members"
+          alt={imageAlt}
           className="aspect-square rounded-2xl"
         />
         <SiteImage
           url={siteImages.contact_photo_2 ?? null}
-          alt="Chatter Snow community members"
+          alt={imageAlt}
           className="aspect-square rounded-2xl"
         />
         <SiteImage
           url={siteImages.contact_photo_3 ?? null}
-          alt="Chatter Snow community members"
+          alt={imageAlt}
           className="aspect-square rounded-2xl"
         />
       </section>

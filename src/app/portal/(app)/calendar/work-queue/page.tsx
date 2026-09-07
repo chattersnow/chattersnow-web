@@ -1,5 +1,8 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requirePermission } from "@/lib/auth/permissions";
+import { resolveCurrentPersonId } from "@/lib/auth/current-person";
 import { Button } from "@/components/ui/button";
 import { listCalendarOwnersAction } from "../actions";
 import { listWorkQueueItems } from "../queries";
@@ -16,10 +19,15 @@ type WorkQueuePageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
+export const metadata: Metadata = {
+  title: "Work Queue",
+};
+
 export default async function WorkQueuePage({
   searchParams,
 }: WorkQueuePageProps) {
   const supabase = await createSupabaseServerClient();
+  await requirePermission(supabase, "content_calendar", "view", "Work Queue");
 
   const params = await searchParams;
   const raw = (key: string) => {
@@ -30,21 +38,21 @@ export default async function WorkQueuePage({
   const tab: WorkQueueTab = raw("tab") === "queue" ? "queue" : "my-work";
   const overdueOnly = raw("filter") === "overdue";
 
-  const [{ data: userData }, items, ownersResult] = await Promise.all([
-    supabase.auth.getUser(),
+  // owner_id/reviewer_id are people ids, so "my work" has to match on the
+  // signed-in user's people row, not their auth id.
+  const [currentPersonId, items, ownersResult] = await Promise.all([
+    resolveCurrentPersonId(supabase),
     listWorkQueueItems(supabase),
     listCalendarOwnersAction(),
   ]);
-
-  const currentUserId = userData.user?.id ?? null;
   const owners = "data" in ownersResult ? ownersResult.data : [];
 
-  const myWorkItems = currentUserId
+  const myWorkItems = currentPersonId
     ? items
         .filter(
           (item) =>
             item.content_opportunity &&
-            isMyContentWork(item.content_opportunity, currentUserId),
+            isMyContentWork(item.content_opportunity, currentPersonId),
         )
         .sort((a, b) => {
           const aChanged = a.content_opportunity?.status_changed_at ?? "";
@@ -85,7 +93,7 @@ export default async function WorkQueuePage({
     <>
       <div className="w-fit">
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-          Work queue
+          Work Queue
         </h1>
         <div className="rainbow-accent mt-3 w-full" />
       </div>
@@ -139,18 +147,29 @@ export default async function WorkQueuePage({
         <WorkQueueTable
           items={myWorkItems}
           owners={owners}
-          currentUserId={currentUserId}
-          emptyMessage="Nothing is assigned to you as an owner or reviewer right now."
+          currentPersonId={currentPersonId}
+          // No default sort: this tab arrives ordered by whichever item
+          // changed hands most recently, which is not one of the columns, so
+          // the list keeps that order until the reader picks another.
+          emptyMessage="Nothing is assigned to you as an owner or reviewer right now"
+          emptyDescription="Items land here when you are set as owner or reviewer on a calendar item."
         />
       ) : (
         <WorkQueueTable
           items={queueItems}
           owners={owners}
-          currentUserId={currentUserId}
+          currentPersonId={currentPersonId}
+          // Matches the order the queue is built in above.
+          defaultSort={{ key: "due", dir: "asc" }}
           emptyMessage={
             overdueOnly
-              ? "Nothing is overdue right now."
-              : "No calendar items to show."
+              ? "Nothing is overdue right now"
+              : "No calendar items to show"
+          }
+          emptyDescription={
+            overdueOnly
+              ? "Turn off Overdue only above to see the whole queue."
+              : "Add items on the Calendar page with New calendar item, or import a batch from Calendar › Import."
           }
         />
       )}

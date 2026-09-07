@@ -1,12 +1,9 @@
+import type { Metadata } from "next";
+import { detailTitle } from "@/lib/portal/detail-title";
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import {
-  getCurrentUserPermissions,
-  hasPermission,
-} from "@/lib/auth/permissions";
-import { Button } from "@/components/ui/button";
+import { hasPermission, requirePermission } from "@/lib/auth/permissions";
+import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Card, CardContent } from "@/components/ui/card";
 import { listProgramsAction } from "../../programs/actions";
 import { listCalendarOwnersAction } from "../actions";
@@ -15,6 +12,22 @@ import { listActiveProgramSuggestionRulesAction } from "../program-suggestions/a
 import { getCalendarItem } from "../queries";
 import { CalendarItemDetailView } from "./calendar-item-detail-view";
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ itemId: string }>;
+}): Promise<Metadata> {
+  const { itemId } = await params;
+  return {
+    title: await detailTitle({
+      table: "calendar_items",
+      column: "title",
+      id: itemId,
+      fallback: "Calendar Item",
+    }),
+  };
+}
+
 export default async function CalendarItemDetailPage({
   params,
 }: {
@@ -22,7 +35,12 @@ export default async function CalendarItemDetailPage({
 }) {
   const { itemId } = await params;
   const supabase = await createSupabaseServerClient();
-  const permissions = await getCurrentUserPermissions(supabase);
+  const permissions = await requirePermission(
+    supabase,
+    "content_calendar",
+    "view",
+    "Calendar",
+  );
   const canManage = hasPermission(permissions, "content_calendar", "manage");
 
   const { item, error } = await getCalendarItem(supabase, itemId);
@@ -66,15 +84,7 @@ export default async function CalendarItemDetailPage({
 
   return (
     <>
-      <Button
-        variant="ghost"
-        size="sm"
-        nativeButton={false}
-        className="mb-2"
-        render={<Link href="/portal/calendar" />}
-      >
-        <ArrowLeft /> Calendar
-      </Button>
+      <PortalBreadcrumbs current={item.title} />
 
       <CalendarItemDetailView
         item={item}

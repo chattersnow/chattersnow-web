@@ -2,9 +2,12 @@ import Image from "next/image";
 import { BrandImageFallback } from "@/components/brand-image-fallback";
 import { Card, CardContent } from "@/components/ui/card";
 import { EditInventoryModal } from "./edit-inventory-modal";
+import type { InventoryCategory } from "@/lib/inventory";
 import {
   CONDITIONS,
+  categoryLabelFor,
   GENDERS,
+  IntendedUseBadge,
   StatusBadge,
   formatFaceValue,
   labelFor,
@@ -12,7 +15,13 @@ import {
   type InventoryItem,
 } from "./inventory-shared";
 
-export function InventoryCard({ item }: { item: InventoryItem }) {
+export function InventoryCard({
+  item,
+  categories,
+}: {
+  item: InventoryItem;
+  categories: InventoryCategory[];
+}) {
   const genderLabel = labelFor(GENDERS, item.gender);
   const imageUrl = resolveImageUrl(item.photo_url);
 
@@ -34,10 +43,12 @@ export function InventoryCard({ item }: { item: InventoryItem }) {
       <CardContent className="space-y-1.5 px-4 py-3">
         <div className="flex items-start justify-between gap-2">
           <p className="line-clamp-2 text-sm font-medium">{item.description}</p>
-          <EditInventoryModal item={item} />
+          <EditInventoryModal item={item} categories={categories} />
         </div>
         <p className="app-muted text-xs">
-          {[item.type, item.size, genderLabel].filter(Boolean).join(" · ")}
+          {[categoryLabelFor(item), item.size, genderLabel]
+            .filter(Boolean)
+            .join(" · ")}
         </p>
         <div className="flex items-center justify-between pt-1">
           <span className="text-xs text-muted-foreground">
@@ -47,7 +58,10 @@ export function InventoryCard({ item }: { item: InventoryItem }) {
             {formatFaceValue(item.face_value)}
           </span>
         </div>
-        <StatusBadge status={item.status} />
+        <div className="flex flex-wrap items-center gap-1.5">
+          <StatusBadge status={item.status} />
+          <IntendedUseBadge intendedUse={item.intended_use} />
+        </div>
       </CardContent>
     </Card>
   );

@@ -24,7 +24,7 @@ export function parseReimbursementForm(
   if (!personId) return { error: "Select who is requesting reimbursement." };
   if (!description) return { error: "Description is required." };
 
-  const amount = Number(amountRaw);
+  const amount = amountRaw ? Number(amountRaw) : Number.NaN;
   if (!Number.isFinite(amount) || amount < 0) {
     return { error: "Amount must be a positive number." };
   }

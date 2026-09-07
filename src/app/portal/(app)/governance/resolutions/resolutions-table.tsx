@@ -10,39 +10,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { EditResolutionModal } from "./edit-resolution-modal";
 import { VoteOutcomeBadge } from "./resolution-badges";
 import type { Resolution } from "./resolutions-actions";
 import type { ResolutionMeetingOption } from "./resolutions-shared";
 import type { PersonListItem } from "../../people/actions";
+import { formatCalendarDate, formatInstantDate } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
+import {
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
 
 const FILTER_ALL = "all";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
-
-function meetingDateFor(
+function meetingFor(
   meetingId: string | null,
   meetings: ResolutionMeetingOption[],
 ) {
-  if (!meetingId) return "—";
-  const meeting = meetings.find((m) => m.id === meetingId);
-  return meeting ? formatDate(meeting.meeting_date) : "—";
+  if (!meetingId) return null;
+  return meetings.find((m) => m.id === meetingId) ?? null;
 }
 
 export function ResolutionsTable({
@@ -77,6 +64,71 @@ export function ResolutionsTable({
       );
     });
   }, [resolutions, search, outcomeFilter]);
+
+  const columns = useMemo<PortalDataTableColumn<Resolution>[]>(
+    () => [
+      {
+        key: "motion_text",
+        // The motion is a sentence, truncated to fit: nothing a reader would
+        // look for in its alphabetical order, so it stays unsorted.
+        label: "Motion",
+        cellClassName: "max-w-xs truncate font-medium",
+        render: (resolution) => (
+          <span title={resolution.motion_text}>{resolution.motion_text}</span>
+        ),
+      },
+      {
+        key: "mover",
+        label: "Mover",
+        sortValue: (resolution) => resolution.mover.name,
+        cellClassName: "app-muted",
+        render: (resolution) => resolution.mover.name ?? "—",
+      },
+      {
+        key: "vote_outcome",
+        label: "Vote outcome",
+        sortValue: (resolution) => resolution.vote_outcome,
+        render: (resolution) => (
+          <VoteOutcomeBadge outcome={resolution.vote_outcome} />
+        ),
+      },
+      {
+        key: "effective_date",
+        label: "Effective date",
+        sortValue: (resolution) => resolution.effective_date,
+        cellClassName: "app-muted",
+        render: (resolution) => formatCalendarDate(resolution.effective_date),
+      },
+      {
+        key: "meeting",
+        // Sorted on the meeting's own timestamp rather than the formatted
+        // date, so the order is chronological rather than alphabetical.
+        label: "Meeting",
+        sortValue: (resolution) =>
+          meetingFor(resolution.meeting_id, meetings)?.meeting_date,
+        cellClassName: "app-muted",
+        render: (resolution) => {
+          const meeting = meetingFor(resolution.meeting_id, meetings);
+          return meeting ? formatInstantDate(meeting.meeting_date) : "—";
+        },
+      },
+      {
+        key: "actions",
+        label: "Actions",
+        srOnlyLabel: true,
+        headClassName: "w-0",
+        render: (resolution) =>
+          canManage ? (
+            <EditResolutionModal
+              resolution={resolution}
+              people={people}
+              meetings={meetings}
+            />
+          ) : null,
+      },
+    ],
+    [canManage, people, meetings],
+  );
 
   return (
     <div className="space-y-4">
@@ -126,71 +178,26 @@ export function ResolutionsTable({
       {resolutions.length === 0 ? (
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No resolutions recorded yet.
-            </p>
+            <EmptyState
+              title="No resolutions recorded yet"
+              description={
+                canManage
+                  ? "Add the first one with Add resolution above."
+                  : "Resolutions appear here once a governance manager adds them."
+              }
+            />
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="px-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Motion</TableHead>
-                  <TableHead>Mover</TableHead>
-                  <TableHead>Vote outcome</TableHead>
-                  <TableHead>Effective date</TableHead>
-                  <TableHead>Meeting</TableHead>
-                  <TableHead className="w-0">
-                    <span className="sr-only">Actions</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visibleResolutions.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="app-muted text-center">
-                      No resolutions match your filters.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  visibleResolutions.map((resolution) => (
-                    <TableRow key={resolution.id}>
-                      <TableCell
-                        className="max-w-xs truncate font-medium"
-                        title={resolution.motion_text}
-                      >
-                        {resolution.motion_text}
-                      </TableCell>
-                      <TableCell className="app-muted">
-                        {resolution.mover.name ?? "—"}
-                      </TableCell>
-                      <TableCell>
-                        <VoteOutcomeBadge outcome={resolution.vote_outcome} />
-                      </TableCell>
-                      <TableCell className="app-muted">
-                        {formatDate(resolution.effective_date)}
-                      </TableCell>
-                      <TableCell className="app-muted">
-                        {meetingDateFor(resolution.meeting_id, meetings)}
-                      </TableCell>
-                      <TableCell>
-                        {canManage && (
-                          <EditResolutionModal
-                            resolution={resolution}
-                            people={people}
-                            meetings={meetings}
-                          />
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        // No `defaultSort`: the query orders by creation time, which is not a
+        // column here, so the list opens newest-first as it always has and
+        // the arrows take over from there.
+        <PortalDataTable
+          columns={columns}
+          rows={visibleResolutions}
+          getRowKey={(resolution) => resolution.id}
+          emptyMessage="No resolutions match your filters."
+        />
       )}
     </div>
   );

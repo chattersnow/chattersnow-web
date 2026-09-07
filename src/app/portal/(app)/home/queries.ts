@@ -359,7 +359,7 @@ const CLOSED_PARTNERSHIP_STAGES = ["closed_won", "closed_lost"];
  * group): next scheduled governance meeting, open/overdue annual
  * requirements, nonprofit-status milestones, meeting action items, active
  * board members missing a conflict-of-interest disclosure for the current
- * year, open partnership opportunities, and the next (or overdue) grant
+ * fiscal year, open partnership opportunities, and the next (or overdue) grant
  * deadline (issue #498). Every backing table's select RLS is
  * governance:view, so a single section gate covers all widgets (unlike the
  * Financial section's per-widget resources).
@@ -368,9 +368,11 @@ export async function getOrganizationSummary(
   supabase: SupabaseClient,
   nowIso: string,
   todayDate: string,
+  // The fiscal year, passed in rather than derived from todayDate: since the
+  // fiscal year is a setting, `conflict_of_interest_disclosures.disclosure_year`
+  // names the fiscal year the disclosure covers, not the calendar year.
+  disclosureYear: number,
 ): Promise<OrganizationSummary> {
-  const disclosureYear = Number(todayDate.slice(0, 4));
-
   const [
     { data: nextMeetings },
     { data: requirements },
@@ -462,13 +464,17 @@ export async function getOrganizationSummary(
  * (unlike getPendingApprovalsSummary's RPC): content_calendar is granted
  * consistently across roles, so RLS already returns the right rows for
  * anyone who can see the counts.
+ *
+ * `personId` is a public.people id: content_opportunities.owner_id/reviewer_id
+ * reference people, not auth.users (20260902010000). Passing an auth id here
+ * compiles fine and silently counts zero.
  */
 export async function getContentWorkSummary(
   supabase: SupabaseClient,
-  options: { canSeeContentCalendar: boolean; userId: string | null },
+  options: { canSeeContentCalendar: boolean; personId: string | null },
 ): Promise<PendingApprovalsSummary> {
   const items: PendingApprovalItem[] = [];
-  if (!options.canSeeContentCalendar || !options.userId) return { items };
+  if (!options.canSeeContentCalendar || !options.personId) return { items };
 
   const [
     { count: myWorkCount },
@@ -480,7 +486,7 @@ export async function getContentWorkSummary(
       .select("id", { count: "exact", head: true })
       .neq("content_status", "published")
       .neq("content_status", "skipped")
-      .or(`owner_id.eq.${options.userId},reviewer_id.eq.${options.userId}`),
+      .or(`owner_id.eq.${options.personId},reviewer_id.eq.${options.personId}`),
     supabase
       .from("content_opportunities")
       .select("content_status, draft_due_at, review_due_at, publish_due_at")
@@ -500,6 +506,7 @@ export async function getContentWorkSummary(
       label: "My content work",
       count: myWorkCount ?? 0,
       href: "/portal/calendar/work-queue?tab=my-work",
+      severity: "info",
     });
   }
 
@@ -512,6 +519,7 @@ export async function getContentWorkSummary(
       label: "Overdue content work",
       count: overdueCount,
       href: "/portal/calendar/work-queue?tab=queue&filter=overdue",
+      severity: "urgent",
     });
   }
 
@@ -521,6 +529,7 @@ export async function getContentWorkSummary(
       label: "Tier 1 needs a decision",
       count: tier1Count ?? 0,
       href: "/portal/calendar?priority=1&decision=none",
+      severity: "info",
     });
   }
 

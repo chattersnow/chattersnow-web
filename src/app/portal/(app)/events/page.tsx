@@ -19,18 +19,25 @@ import {
 } from "@/components/ui/table";
 import {
   buildHref,
+  PAGE_SIZE,
   pageRange,
   parsePage,
+  parsePerPage,
   totalPagesFor,
 } from "@/lib/pagination";
 import { NewEventDialog } from "./new-event-dialog";
 import { StatusBadge, VisibilityBadge } from "./event-badges";
 import { FiltersSheet } from "@/components/filters-sheet";
+import { OutstandingTasksSheet } from "./outstanding-tasks-sheet";
 import { FilterSubmitButton } from "@/components/filter-submit-button";
 import { LinkPendingPulse } from "@/components/link-pending";
 import { SortHeaderLink } from "@/components/portal/sort-header-link";
 import { listProgramsAction } from "../programs/actions";
 import { formatDateTimeInZone } from "@/lib/time";
+import {
+  getEventTaskSummary,
+  groupEventTasksByEvent,
+} from "@/lib/portal/attention-items";
 
 const SORTABLE_COLUMNS = [
   "name",
@@ -113,12 +120,17 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
     : "all";
 
   const page = parsePage(raw("page"));
+  const perPage = parsePerPage(raw("perPage"));
+  // Deep link from the dashboard's "Outstanding tasks" count. Deliberately not
+  // part of `filterParams` below -- it isn't a filter on the table, and sort/
+  // page links shouldn't carry it and reopen the sheet on every navigation.
+  const tasksOpen = raw("tasks") === "open";
   const nowIso = new Date().toISOString();
 
   let query = supabase
     .from("events")
     .select(
-      "id, name, location, starts_at, ends_at, timezone, visibility, status, attendance_count, attendance_notes, description, event_type, venue, capacity, registration_enabled, registration_deadline, auto_assign_discount_codes, budget_amount, event_lead_id, report_status, report_summary, lessons_learned, feedback_notes, content_notes, report_submitted_at, report_submitted_by, program_id, flier_url",
+      "id, name, location, starts_at, ends_at, timezone, visibility, status, attendance_count, attendance_notes, description, capacity, registration_enabled, registration_deadline, auto_assign_discount_codes, budget_amount, event_lead_id, report_status, report_summary, lessons_learned, feedback_notes, content_notes, report_submitted_at, report_submitted_by, flier_url",
       { count: "exact" },
     )
     .order(sort, { ascending: dir === "asc" })
@@ -136,16 +148,23 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
     query = query.lt("starts_at", nowIso);
   }
 
-  const { offset, to } = pageRange(page);
+  const { offset, to } = pageRange(page, perPage);
   const { data: events, error, count } = await query.range(offset, to);
-  const programsResult = await listProgramsAction();
+  const [programsResult, eventTasks] = await Promise.all([
+    listProgramsAction(),
+    getEventTaskSummary(supabase, { canManageEvents: canManage }, nowIso),
+  ]);
   const programs = "data" in programsResult ? programsResult.data : [];
+  const taskGroups = groupEventTasksByEvent(eventTasks.items);
 
   const filterParams = new URLSearchParams();
   if (statusFilter !== "all") filterParams.set("status", statusFilter);
   if (visibilityFilter !== "all")
     filterParams.set("visibility", visibilityFilter);
   if (whenFilter !== "all") filterParams.set("when", whenFilter);
+  // On filterParams rather than in each href, so sorting and paging both
+  // carry the reader's choice without either having to remember to.
+  if (perPage !== PAGE_SIZE) filterParams.set("perPage", String(perPage));
 
   function sortHref(column: SortColumn) {
     const nextDir = sort === column && dir === "asc" ? "desc" : "asc";
@@ -163,7 +182,18 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
     });
   }
 
-  const totalPages = totalPagesFor(count);
+  function perPageHref(nextPerPage: number) {
+    // Back to page one: a bigger page renumbers them all, and page 4 of
+    // 9 is nothing in particular once each page holds 25.
+    return buildHref("/portal/events", filterParams, {
+      sort,
+      dir,
+      perPage: nextPerPage,
+      page: 1,
+    });
+  }
+
+  const totalPages = totalPagesFor(count, perPage);
 
   const hasActiveFilters =
     statusFilter !== "all" ||
@@ -188,6 +218,14 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
       </div>
 
       <div className="rainbow-surface mt-6 flex flex-wrap items-center justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+        {taskGroups.length > 0 && (
+          <OutstandingTasksSheet
+            groups={taskGroups}
+            totalCount={eventTasks.items.length}
+            defaultOpen={tasksOpen}
+          />
+        )}
+
         <FiltersSheet activeCount={activeFilterCount}>
           <form method="get" className="flex flex-col gap-4">
             <input type="hidden" name="sort" value={sort} />
@@ -282,11 +320,14 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
               No events match these filters.
             </p>
           ) : (
-            <Table>
+            <Table stickyHeader="page">
               <TableHeader>
                 <TableRow>
                   {COLUMNS.map((column) => (
-                    <TableHead key={column.key}>
+                    <TableHead
+                      key={column.key}
+                      sortDirection={sort === column.key ? dir : null}
+                    >
                       <SortHeaderLink
                         href={sortHref(column.key)}
                         label={column.label}
@@ -348,7 +389,14 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
       </Card>
 
       {events && events.length > 0 && (
-        <Pagination page={page} totalPages={totalPages} hrefFor={pageHref} />
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          count={count}
+          pageSize={perPage}
+          hrefFor={pageHref}
+          perPageHrefFor={perPageHref}
+        />
       )}
     </>
   );

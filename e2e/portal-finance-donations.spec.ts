@@ -4,8 +4,12 @@
 // tests lean on those instead of creating rows. Created rows use unique
 // cent amounts (the table shows no notes column) and non-seeded payment
 // methods so the method-filter test stays stable across parallel projects.
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "./helpers/test";
+import type { Page } from "@playwright/test";
 import { signIn } from "./helpers/auth";
+import { modal } from "./helpers/dialog";
+import { pickPerson } from "./helpers/people";
+import { pager, revealRow } from "./helpers/table";
 
 function uniqueAmount() {
   // Between $10.00 and $910.00 with non-round cents; below $1,000 so the
@@ -22,18 +26,15 @@ async function createDonation(
   options: { amount: number; method: string; donorQuery?: string },
 ) {
   await page.getByRole("button", { name: "New donation" }).click();
-  const dialog = page.getByRole("dialog");
+  const dialog = modal(page);
   await expect(
     dialog.getByRole("heading", { name: "Add donation" }),
   ).toBeVisible();
 
   if (options.donorQuery) {
-    await dialog
-      .getByPlaceholder("Search donors by name or email...")
-      .fill(options.donorQuery);
-    await dialog
-      .getByRole("button", { name: new RegExp(options.donorQuery) })
-      .click();
+    await pickPerson(dialog, new RegExp(options.donorQuery), {
+      placeholder: "Search donors by name or email...",
+    });
     await expect(dialog.getByRole("button", { name: "Change" })).toBeVisible();
   }
 
@@ -50,7 +51,7 @@ async function createDonation(
 async function deleteDonationRow(page: Page, rowText: string) {
   const row = page.getByRole("row").filter({ hasText: rowText });
   await row.getByRole("button", { name: "View donation" }).click();
-  const sheet = page.getByRole("dialog");
+  const sheet = modal(page);
   await sheet.getByRole("button", { name: "Delete" }).click();
   const confirm = page.getByRole("alertdialog");
   await expect(confirm.getByText("Delete this donation?")).toBeVisible();
@@ -78,6 +79,10 @@ test.describe("portal finance donations", () => {
       .getByRole("row")
       .filter({ hasText: "Jamie Rivera" })
       .filter({ hasText: "$100.00" });
+    // Newest first, and the list is well past one page now that every spec
+    // that records a donation leaves one behind -- so page to the seeded
+    // row rather than assume it is still on page one.
+    await revealRow(donorRow, pager(page));
     await expect(donorRow.first()).toBeVisible();
     await expect(donorRow.first()).toContainText("Check");
 
@@ -85,6 +90,7 @@ test.describe("portal finance donations", () => {
       .getByRole("row")
       .filter({ hasText: "Anonymous" })
       .filter({ hasText: "$25.00" });
+    await revealRow(anonymousRow, pager(page));
     await expect(anonymousRow.first()).toBeVisible();
     await expect(anonymousRow.first()).toContainText("Cash");
   });
@@ -101,7 +107,7 @@ test.describe("portal finance donations", () => {
     await expect(row).toContainText("Card");
 
     await row.getByRole("button", { name: "View donation" }).click();
-    const sheet = page.getByRole("dialog");
+    const sheet = modal(page);
     await expect(sheet.getByText(formatted(amount))).toBeVisible();
 
     await sheet.getByRole("button", { name: "Edit donation" }).click();
@@ -143,5 +149,48 @@ test.describe("portal finance donations", () => {
       page.getByRole("row").filter({ hasText: "Jamie Rivera" }).first(),
     ).toBeVisible();
     await expect(page.getByText("$25.00")).toHaveCount(0);
+  });
+
+  // Issue #567. The donor picker was an input followed by plain buttons: no
+  // arrow keys, no Escape, and focus dropped to <body> when the field swapped
+  // for the chip. Unit tests cover the ARIA wiring; this is here for the one
+  // thing happy-dom cannot model -- how a real focus trap and a real Escape
+  // interact inside a dialog.
+  test("the donor picker is fully operable from the keyboard", async ({
+    page,
+  }) => {
+    await page.goto("/portal/finance/donations");
+    await page.getByRole("button", { name: "New donation" }).click();
+    const dialog = modal(page);
+    await expect(
+      dialog.getByRole("heading", { name: "Add donation" }),
+    ).toBeVisible();
+
+    const search = dialog.getByRole("combobox", {
+      name: "Search donors by name or email...",
+    });
+    await search.fill("Jamie");
+    await expect(dialog.getByRole("option").first()).toBeVisible();
+
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("Enter");
+    await expect(dialog.getByRole("button", { name: "Change" })).toBeVisible();
+
+    // "Change" swaps the chip back for the field, so focus has somewhere to
+    // go in both directions.
+    await page.keyboard.press("Enter");
+    await expect(search).toBeFocused();
+
+    await search.fill("Jamie");
+    await expect(dialog.getByRole("option").first()).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    await expect(dialog.getByRole("option")).toHaveCount(0);
+    // The first Escape belongs to the list; the dialog outlives it.
+    await expect(dialog).toBeVisible();
+    await expect(search).toHaveValue("Jamie");
+
+    await page.keyboard.press("Escape");
+    await expect(dialog).not.toBeVisible();
   });
 });

@@ -3,6 +3,7 @@ import {
   checkRegistrationWindow,
   parseEventRegistrationForm,
 } from "./event-registration-form";
+import { PRONOUNS_TOO_LONG_ERROR } from "@/lib/pronouns";
 
 function formData(fields: Record<string, string>) {
   const fd = new FormData();
@@ -60,6 +61,7 @@ describe("parseEventRegistrationForm", () => {
         email: "jane@example.com",
         phone: "555-1234",
         instagramHandle: "@jane.doe",
+        pronouns: "  she/her  ",
         partySize: "3",
         notes: "Bringing kids",
       }),
@@ -70,10 +72,30 @@ describe("parseEventRegistrationForm", () => {
         email: "jane@example.com",
         phone: "555-1234",
         instagram_handle: "jane.doe",
+        pronouns: "she/her",
         party_size: 3,
         notes: "Bringing kids",
       },
     });
+  });
+
+  test("leaves pronouns null when the field is blank", () => {
+    const result = parseEventRegistrationForm(
+      formData({ name: "Jane", email: "jane@example.com", pronouns: "   " }),
+    );
+    expect("data" in result && result.data.pronouns).toBe(null);
+  });
+
+  test("rejects pronouns over the column length", () => {
+    expect(
+      parseEventRegistrationForm(
+        formData({
+          name: "Jane",
+          email: "jane@example.com",
+          pronouns: "x".repeat(41),
+        }),
+      ),
+    ).toEqual({ error: PRONOUNS_TOO_LONG_ERROR });
   });
 
   test("rejects an invalid Instagram handle", () => {

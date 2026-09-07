@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { runAction } from "@/components/portal/action-toast";
 
 export function ServiceSelect({
   id,
@@ -39,16 +40,17 @@ export function ServiceSelect({
   function handleCreate() {
     setError(null);
     startCreateTransition(async () => {
-      const result = await createServiceAction(name, website, "");
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      onServiceCreated(result.service);
-      onChange(result.service.id);
-      setShowCreate(false);
-      setName("");
-      setWebsite("");
+      await runAction(() => createServiceAction(name, website, ""), {
+        success: (result) => `${result.service.name} added to services.`,
+        onError: setError,
+        onSuccess: (result) => {
+          onServiceCreated(result.service);
+          onChange(result.service.id);
+          setShowCreate(false);
+          setName("");
+          setWebsite("");
+        },
+      });
     });
   }
 

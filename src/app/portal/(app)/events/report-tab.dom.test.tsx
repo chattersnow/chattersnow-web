@@ -33,8 +33,6 @@ function makeEvent(overrides: Partial<EventRow> = {}): EventRow {
     attendance_count: null,
     attendance_notes: null,
     description: null,
-    event_type: null,
-    venue: null,
     capacity: null,
     registration_enabled: false,
     registration_deadline: null,
@@ -49,7 +47,7 @@ function makeEvent(overrides: Partial<EventRow> = {}): EventRow {
     content_notes: null,
     report_submitted_at: null,
     report_submitted_by: null,
-    program_id: null,
+    program_ids: [],
     flier_url: null,
     ...overrides,
   };

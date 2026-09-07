@@ -1,11 +1,33 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { Button } from "@/components/ui/button";
+import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Card, CardContent } from "@/components/ui/card";
-import type { DonationRow } from "../donation-shared";
+import {
+  donorLabel,
+  withFlatItemCategories,
+  type DonationRow,
+} from "../donation-shared";
 import { DonationDetailView } from "./donation-detail-view";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ donationId: string }>;
+}): Promise<Metadata> {
+  const { donationId } = await params;
+  // Titled by donor, which is a joined relation rather than a plain column,
+  // so this can't use the shared detailTitle helper.
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("donations")
+    .select("donor:people!inner(name, is_anonymous)")
+    .eq("id", donationId)
+    .maybeSingle<{ donor: { name: string | null; is_anonymous: boolean } }>();
+  const donor = data?.donor;
+  const name = donor && (donor.is_anonymous ? "Anonymous" : donor.name?.trim());
+  return { title: name ? `Donation from ${name}` : "Gear Donation" };
+}
 
 export default async function DonationDetailPage({
   params,
@@ -18,9 +40,10 @@ export default async function DonationDetailPage({
   const { data: donation, error } = await supabase
     .from("donations")
     .select(
-      "id, donated_at, notes, event_id, donor:people!inner(id, name, is_anonymous, source_type), event:events(id, name), inventory_items(id, description, type, size, gender, condition, face_value, status, photo_url, notes)",
+      "id, donated_at, notes, event_id, donor:people!inner(id, name, is_anonymous, source_type), event:events(id, name), inventory_items(id, description, type, category_id, size, gender, condition, face_value, status, intended_use, photo_url, notes, inventory_categories(key, label))",
     )
     .eq("id", donationId)
+    .order("id", { referencedTable: "inventory_items", ascending: true })
     .maybeSingle();
 
   if (error) {
@@ -36,17 +59,13 @@ export default async function DonationDetailPage({
 
   return (
     <>
-      <Button
-        variant="ghost"
-        size="sm"
-        nativeButton={false}
-        className="mb-2"
-        render={<Link href="/portal/inventory/donations" />}
-      >
-        <ArrowLeft /> Donations
-      </Button>
+      <PortalBreadcrumbs
+        current={donorLabel((donation as unknown as DonationRow).donor)}
+      />
 
-      <DonationDetailView donation={donation as unknown as DonationRow} />
+      <DonationDetailView
+        donation={withFlatItemCategories(donation as unknown as DonationRow)}
+      />
     </>
   );
 }

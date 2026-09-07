@@ -14,10 +14,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { Spinner } from "@/components/ui/spinner";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-});
+import { formatInstantDate } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 export function RelatedItemsTab({
   itemId,
@@ -101,7 +99,15 @@ export function RelatedItemsTab({
       <div className="flex flex-col gap-2">
         <h3 className="text-sm font-semibold">Confirmed</h3>
         {confirmed.length === 0 ? (
-          <p className="app-muted text-sm">No related items linked yet.</p>
+          <EmptyState
+            className="py-4"
+            title="No related items linked yet"
+            description={
+              canManage
+                ? "Pick one from the Suggested list below and press Link."
+                : "Linked items appear here once a content manager connects them."
+            }
+          />
         ) : (
           <ul className="flex flex-col divide-y divide-border">
             {confirmed.map((related) => (
@@ -113,7 +119,7 @@ export function RelatedItemsTab({
                   <span className="text-sm font-medium">{related.title}</span>
                   <span className="app-muted text-xs">
                     {labelFor(ITEM_TYPES, related.item_type)} ·{" "}
-                    {dateFormatter.format(new Date(related.starts_at))}
+                    {formatInstantDate(related.starts_at)}
                   </span>
                 </div>
                 {canManage && (
@@ -138,9 +144,11 @@ export function RelatedItemsTab({
         <div className="flex flex-col gap-2">
           <h3 className="text-sm font-semibold">Suggested</h3>
           {suggested.length === 0 ? (
-            <p className="app-muted text-sm">
-              No related-item suggestions right now.
-            </p>
+            <EmptyState
+              className="py-4"
+              title="No related-item suggestions right now"
+              description="Suggestions appear as other calendar items share this one's program, category, or dates."
+            />
           ) : (
             <ul className="flex flex-col divide-y divide-border">
               {suggested.map((candidate) => (
@@ -154,7 +162,7 @@ export function RelatedItemsTab({
                     </span>
                     <span className="app-muted text-xs">
                       {labelFor(ITEM_TYPES, candidate.item_type)} ·{" "}
-                      {dateFormatter.format(new Date(candidate.starts_at))}
+                      {formatInstantDate(candidate.starts_at)}
                     </span>
                     {(candidate.shared_categories.length > 0 ||
                       candidate.shared_programs.length > 0) && (

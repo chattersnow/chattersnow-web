@@ -39,16 +39,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
+import { toast } from "@/components/ui/toast";
+import { formatCalendarDate } from "@/lib/format";
 
 function formStateFor(bylaws: Bylaws): BylawsFormState {
   return {
@@ -139,6 +131,7 @@ export function EditBylawsModal({ bylaws }: { bylaws: Bylaws }) {
         return;
       }
       setMode("view");
+      toast.success("Bylaws saved.");
       router.refresh();
     });
   }
@@ -235,7 +228,7 @@ export function EditBylawsModal({ bylaws }: { bylaws: Bylaws }) {
                   label="Effective date"
                   htmlFor="edit-bylaws-effective-date"
                 >
-                  {formatDate(bylaws.effective_date)}
+                  {formatCalendarDate(bylaws.effective_date)}
                 </ReadOnlyField>
                 <ReadOnlyField
                   label="What changed"

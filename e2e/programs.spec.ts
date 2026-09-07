@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 
 test.describe("public programs page", () => {
   test("programs page loads", async ({ page }) => {

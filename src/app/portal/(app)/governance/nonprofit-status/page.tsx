@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
@@ -8,7 +9,11 @@ import type { Milestone } from "./nonprofit-status-actions";
 import type { PersonListItem } from "../../people/actions";
 
 const MILESTONE_SELECT =
-  "id, description, phase, due_date, status, notes, owner:people!owner_person_id(id, name, email, phone)";
+  "id, description, phase, due_date, status, notes, owner:people!nonprofit_status_milestones_owner_person_id_fkey(id, name, preferred_name, email, phone)";
+
+export const metadata: Metadata = {
+  title: "Nonprofit Status",
+};
 
 export default async function NonprofitStatusPage() {
   const supabase = await createSupabaseServerClient();
@@ -23,7 +28,7 @@ export default async function NonprofitStatusPage() {
       .order("created_at", { ascending: true }),
     supabase
       .from("people")
-      .select("id, name, email, phone, is_sponsor")
+      .select("id, name, preferred_name, email, phone, auth_user_id")
       .order("name", { ascending: true }),
   ]);
 

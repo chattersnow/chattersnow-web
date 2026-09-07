@@ -22,8 +22,8 @@ import { useTabData } from "@/hooks/use-tab-data";
 import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
 import type { TabValue } from "./event-tabs-config";
 import { ShiftsSection } from "./volunteers/shifts";
-import { SignupsSection } from "./volunteers/signups";
-import { HoursSection } from "./volunteers/hours";
+import { buildRoster, RosterSection } from "./volunteers/roster";
+import { runAction } from "@/components/portal/action-toast";
 
 type VolunteersTabData = {
   volunteers: EventVolunteer[];
@@ -55,11 +55,9 @@ async function fetchVolunteersTabData(
 
 export function VolunteersTab({
   eventId,
-  active,
   mode,
 }: {
   eventId: string;
-  active: boolean;
   mode: "view" | "edit";
 }) {
   const router = useRouter();
@@ -69,7 +67,6 @@ export function VolunteersTab({
     refresh: refreshTabData,
   } = useTabData<VolunteersTabData>(
     () => fetchVolunteersTabData(eventId),
-    active,
     [eventId],
   );
   const volunteers = tabData?.volunteers ?? [];
@@ -86,36 +83,50 @@ export function VolunteersTab({
 
   function handleDeleteVolunteer(id: string) {
     startDeleteTransition(async () => {
-      await deleteEventVolunteerAction(id);
-      refresh();
+      await runAction(() => deleteEventVolunteerAction(id), {
+        success: "Volunteer removed.",
+        error: "Could not remove the volunteer. Please try again.",
+        onSuccess: refresh,
+      });
     });
   }
 
   function handleDeleteHours(id: string) {
     startDeleteTransition(async () => {
-      await deleteEventVolunteerHoursAction(id);
-      refresh();
+      await runAction(() => deleteEventVolunteerHoursAction(id), {
+        success: "Hours entry deleted.",
+        error: "Could not delete the hours entry. Please try again.",
+        onSuccess: refresh,
+      });
     });
   }
 
   function handleDeleteShift(id: string) {
     startDeleteTransition(async () => {
-      await deleteEventShiftAction(id);
-      refresh();
+      await runAction(() => deleteEventShiftAction(id), {
+        success: "Shift deleted.",
+        error: "Could not delete the shift. Please try again.",
+        onSuccess: refresh,
+      });
     });
   }
 
   function handleShiftReassign(volunteerId: string, shiftId: string | null) {
+    const shiftLabel = shifts.find((shift) => shift.id === shiftId)?.label;
     startDeleteTransition(async () => {
-      await updateEventVolunteerShiftAction(volunteerId, shiftId);
-      refresh();
+      await runAction(
+        () => updateEventVolunteerShiftAction(volunteerId, shiftId),
+        {
+          success: shiftLabel
+            ? `Volunteer moved to "${shiftLabel}".`
+            : "Volunteer removed from their shift.",
+          error: "Could not reassign the volunteer. Please try again.",
+          onSuccess: refresh,
+        },
+      );
     });
   }
 
-  const totalHours = (hours ?? []).reduce(
-    (sum, entry) => sum + Number(entry.hours),
-    0,
-  );
   const shiftHeadcounts = new Map<string, number>();
   for (const volunteer of volunteers ?? []) {
     if (!volunteer.shift_id) continue;
@@ -146,23 +157,17 @@ export function VolunteersTab({
         onDeleteShift={handleDeleteShift}
       />
 
-      <SignupsSection
-        volunteers={volunteers}
+      <RosterSection
+        eventId={eventId}
+        rows={buildRoster(volunteers, hours)}
         shifts={shifts}
         mode={mode}
         isDeleting={isDeleting}
         loading={tabData === undefined}
         onDeleteVolunteer={handleDeleteVolunteer}
-        onShiftReassign={handleShiftReassign}
-      />
-
-      <HoursSection
-        hours={hours}
-        mode={mode}
-        isDeleting={isDeleting}
-        loading={tabData === undefined}
-        totalHours={totalHours}
         onDeleteHours={handleDeleteHours}
+        onShiftReassign={handleShiftReassign}
+        onSaved={refresh}
       />
     </div>
   );

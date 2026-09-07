@@ -8,11 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { PronounsField } from "@/components/pronouns-field";
 
 export function VolunteerApplicationForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [pronouns, setPronouns] = useState("");
   const [roleInterest, setRoleInterest] = useState("");
   const [availability, setAvailability] = useState("");
   const [company, setCompany] = useState("");
@@ -28,6 +30,7 @@ export function VolunteerApplicationForm() {
     formData.set("name", name);
     formData.set("email", email);
     formData.set("phone", phone);
+    formData.set("pronouns", pronouns);
     formData.set("roleInterest", roleInterest);
     formData.set("availability", availability);
     formData.set("company", company);
@@ -101,6 +104,11 @@ export function VolunteerApplicationForm() {
             />
           </Field>
         </Field>
+        <PronounsField
+          id="volunteer-pronouns"
+          value={pronouns}
+          onChange={setPronouns}
+        />
         <Field>
           <FieldLabel htmlFor="volunteer-role-interest">
             What are you interested in helping with?

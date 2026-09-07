@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { parseVolunteerApplicationForm } from "./volunteer-application-form";
+import { PRONOUNS_TOO_LONG_ERROR } from "@/lib/pronouns";
 
 function formData(fields: Record<string, string>) {
   const fd = new FormData();
@@ -45,6 +46,18 @@ describe("parseVolunteerApplicationForm", () => {
     ).toEqual({ error: "Notes are too long." });
   });
 
+  test("rejects pronouns over the column length", () => {
+    expect(
+      parseVolunteerApplicationForm(
+        formData({
+          name: "Jane",
+          email: "jane@example.com",
+          pronouns: "x".repeat(41),
+        }),
+      ),
+    ).toEqual({ error: PRONOUNS_TOO_LONG_ERROR });
+  });
+
   test("trims fields and defaults empty optionals to null", () => {
     const result = parseVolunteerApplicationForm(
       formData({ name: "  Jane  ", email: "  jane@example.com  " }),
@@ -54,6 +67,7 @@ describe("parseVolunteerApplicationForm", () => {
         name: "Jane",
         email: "jane@example.com",
         phone: null,
+        pronouns: null,
         role_interest: null,
         availability: null,
       },
@@ -66,6 +80,7 @@ describe("parseVolunteerApplicationForm", () => {
         name: "Jane",
         email: "jane@example.com",
         phone: "555-1234",
+        pronouns: "  they/them  ",
         roleInterest: "On-Snow Mentor",
         availability: "Weekends",
       }),
@@ -75,6 +90,7 @@ describe("parseVolunteerApplicationForm", () => {
         name: "Jane",
         email: "jane@example.com",
         phone: "555-1234",
+        pronouns: "they/them",
         role_interest: "On-Snow Mentor",
         availability: "Weekends",
       },

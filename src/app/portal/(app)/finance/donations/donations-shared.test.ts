@@ -2,8 +2,6 @@ import { describe, expect, test } from "bun:test";
 import {
   ANONYMOUS_DONOR_LABEL,
   donorLabel,
-  formatAmount,
-  formatDonationDate,
   isPaymentMethod,
   paymentMethodLabel,
   type MonetaryDonationRow,
@@ -53,22 +51,5 @@ describe("donorLabel", () => {
   test("falls back to a dash when the linked person has no name", () => {
     expect(donorLabel(row({ people: { name: "  " } }))).toBe("—");
     expect(donorLabel(row({ people: null }))).toBe("—");
-  });
-});
-
-describe("formatAmount", () => {
-  test("formats numbers and numeric strings as USD", () => {
-    expect(formatAmount(25)).toBe("$25.00");
-    expect(formatAmount("214.5")).toBe("$214.50");
-  });
-
-  test("renders a dash for non-numeric input", () => {
-    expect(formatAmount("abc")).toBe("—");
-  });
-});
-
-describe("formatDonationDate", () => {
-  test("formats the stored date without a UTC day shift", () => {
-    expect(formatDonationDate("2026-08-15")).toBe("Aug 15, 2026");
   });
 });

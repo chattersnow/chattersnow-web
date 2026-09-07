@@ -1,15 +1,42 @@
+import type { Metadata } from "next";
+import { detailTitle } from "@/lib/portal/detail-title";
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
   hasPermission,
 } from "@/lib/auth/permissions";
-import { Button } from "@/components/ui/button";
+import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Card, CardContent } from "@/components/ui/card";
 import type { MeetingRow } from "../meeting-badges";
 import { MeetingDetailView } from "./meeting-detail-view";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ meetingId: string }>;
+}): Promise<Metadata> {
+  const { meetingId } = await params;
+  return {
+    title: await detailTitle({
+      table: "governance_meetings",
+      column: "meeting_date",
+      id: meetingId,
+      fallback: "Meeting",
+    }),
+  };
+}
+
+// Meetings have no name; the detail view heads the page with the date, so
+// the trail says the same thing. meeting_date is a timestamptz, so it is shown
+// in the viewer's zone: pinned to UTC, an evening meeting read as the next day.
+const meetingDateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "long",
+});
+
+function meetingDateLabel(meetingDate: string) {
+  return meetingDateFormatter.format(new Date(meetingDate));
+}
 
 export default async function MeetingDetailPage({
   params,
@@ -24,7 +51,7 @@ export default async function MeetingDetailPage({
   const { data: meeting, error } = await supabase
     .from("governance_meetings")
     .select(
-      "id, meeting_date, meeting_type, status, location, notes, minutes_approved_at, facilitator:people!facilitator_person_id(id, name, email, phone), notetaker:people!notetaker_person_id(id, name, email, phone)",
+      "id, meeting_date, meeting_type, status, location, notes, minutes_approved_at, facilitator:people!governance_meetings_facilitator_person_id_fkey(id, name, preferred_name, email, phone), notetaker:people!governance_meetings_notetaker_person_id_fkey(id, name, preferred_name, email, phone)",
     )
     .eq("id", meetingId)
     .maybeSingle();
@@ -42,15 +69,9 @@ export default async function MeetingDetailPage({
 
   return (
     <>
-      <Button
-        variant="ghost"
-        size="sm"
-        nativeButton={false}
-        className="mb-2"
-        render={<Link href="/portal/governance/meetings" />}
-      >
-        <ArrowLeft /> Meetings
-      </Button>
+      <PortalBreadcrumbs
+        current={meetingDateLabel(meeting.meeting_date as string)}
+      />
 
       <MeetingDetailView
         meeting={meeting as unknown as MeetingRow}

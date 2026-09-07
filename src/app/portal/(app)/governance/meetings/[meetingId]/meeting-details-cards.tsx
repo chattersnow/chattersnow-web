@@ -38,6 +38,8 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { formatDateTime, personDisplayName } from "@/lib/format";
+import { runAction } from "@/components/portal/action-toast";
 
 const MEETING_TYPES = [
   { value: "board", label: "Board" },
@@ -51,16 +53,6 @@ const STATUSES = [
   { value: "completed", label: "Completed" },
   { value: "cancelled", label: "Cancelled" },
 ];
-
-const viewDateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-
-export function formatDatetimeLocal(value: string) {
-  if (!value) return "—";
-  return viewDateFormatter.format(new Date(value));
-}
 
 function toDatetimeLocalValue(iso: string) {
   const date = new Date(iso);
@@ -99,7 +91,9 @@ function buildFormData(form: FormState) {
   return formData;
 }
 
-function useMeetingCardForm(meeting: MeetingRow) {
+// `subject` names the card in its own receipt -- "Meeting details saved."
+// reads as a confirmation where a bare "Saved." reads as noise.
+function useMeetingCardForm(meeting: MeetingRow, subject: string) {
   const router = useRouter();
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [form, setForm] = useState<FormState>(() => formStateFor(meeting));
@@ -128,13 +122,17 @@ function useMeetingCardForm(meeting: MeetingRow) {
     setError(null);
 
     startTransition(async () => {
-      const result = await updateMeetingAction(meeting.id, buildFormData(form));
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      setMode("view");
-      router.refresh();
+      await runAction(
+        () => updateMeetingAction(meeting.id, buildFormData(form)),
+        {
+          success: `${subject} saved.`,
+          onError: setError,
+          onSuccess: () => {
+            setMode("view");
+            router.refresh();
+          },
+        },
+      );
     });
   }
 
@@ -231,7 +229,7 @@ function MeetingDetailsCard({
   meeting: MeetingRow;
   canManage: boolean;
 }) {
-  const card = useMeetingCardForm(meeting);
+  const card = useMeetingCardForm(meeting, "Meeting details");
   const { form, update } = card;
 
   return (
@@ -246,7 +244,7 @@ function MeetingDetailsCard({
       {card.mode === "view" ? (
         <FieldGroup>
           <ReadOnlyField label="Date & time" htmlFor="meeting-date-view">
-            {formatDatetimeLocal(meeting.meeting_date)}
+            {formatDateTime(meeting.meeting_date)}
           </ReadOnlyField>
           <ReadOnlyField label="Type" htmlFor="meeting-type-view">
             <MeetingTypeBadge type={meeting.meeting_type} />
@@ -339,7 +337,7 @@ function PeopleNotesCard({
   meeting: MeetingRow;
   canManage: boolean;
 }) {
-  const card = useMeetingCardForm(meeting);
+  const card = useMeetingCardForm(meeting, "People & notes");
   const { form, update } = card;
   const [people, setPeople] = useState<PersonListItem[]>([]);
   const editing = card.mode === "edit";
@@ -352,7 +350,7 @@ function PeopleNotesCard({
   }, [editing]);
 
   function handlePersonCreated(person: PickedPerson) {
-    setPeople((prev) => [...prev, { ...person, is_sponsor: false }]);
+    setPeople((prev) => [...prev, person]);
   }
 
   return (
@@ -367,10 +365,10 @@ function PeopleNotesCard({
       {card.mode === "view" ? (
         <FieldGroup>
           <ReadOnlyField label="Facilitator" htmlFor="meeting-facilitator-view">
-            {meeting.facilitator?.name || "—"}
+            {personDisplayName(meeting.facilitator)}
           </ReadOnlyField>
           <ReadOnlyField label="Notes-taker" htmlFor="meeting-notetaker-view">
-            {meeting.notetaker?.name || "—"}
+            {personDisplayName(meeting.notetaker)}
           </ReadOnlyField>
           <ReadOnlyField label="Notes" htmlFor="meeting-notes-view">
             {meeting.notes || "—"}

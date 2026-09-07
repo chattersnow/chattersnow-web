@@ -5,16 +5,20 @@
 // supabase/seed.sql rather than creating its own:
 //
 //   - "Winter Gear Swap Promotion" -- a Tier 1 item whose content
-//     opportunity is in `draft` with admin@example.test as both owner and
-//     reviewer, which is what puts it in the My work tab.
+//     opportunity is in `draft` with the admin account's People row as both
+//     owner and reviewer, which is what puts it in the My work tab. Owners
+//     are people rows, not auth users (20260902010000), and render as a
+//     display name -- seed.sql gives the admin the preferred name "Ave".
 //   - "Sample Recurring Observance" -- a Tier 1 item with no content
 //     opportunity at all, so it only ever shows in the Upcoming queue.
 //
 // The seed never sets the opportunity's draft/review due columns, so
 // effectiveDueDate() is null and overdueStage() returns null for it. That
 // makes both rows reliable negative probes for the Overdue only filter.
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
+import { modal } from "./helpers/dialog";
+import { pager, revealRow } from "./helpers/table";
 
 const SEEDED_OPPORTUNITY = "Winter Gear Swap Promotion";
 const SEEDED_OBSERVANCE = "Sample Recurring Observance";
@@ -30,7 +34,7 @@ test.describe("portal calendar work queue", () => {
     await page.goto("/portal/calendar/work-queue");
 
     await expect(
-      page.getByRole("heading", { level: 1, name: "Work queue", exact: true }),
+      page.getByRole("heading", { level: 1, name: "Work Queue", exact: true }),
     ).toBeVisible();
 
     const row = page.getByRole("row").filter({ hasText: SEEDED_OPPORTUNITY });
@@ -38,9 +42,11 @@ test.describe("portal calendar work queue", () => {
     await expect(row).toContainText("Content opportunity");
     await expect(row).toContainText("Tier 1");
     await expect(row).toContainText("Draft");
-    // Owner and reviewer both resolve to the signed-in admin -- that pairing
-    // is exactly what isMyContentWork() keys off.
-    await expect(row).toContainText("admin@example.test");
+    // Owner and reviewer both resolve to the signed-in admin's People row --
+    // that pairing is exactly what isMyContentWork() keys off. Shown as the
+    // preferred name seed.sql sets, never as an email.
+    await expect(row).toContainText("Ave");
+    await expect(row).not.toContainText("admin@example.test");
     // No lead-time due dates are seeded, so the Due cell stays empty.
     await expect(row).toContainText("—");
 
@@ -60,22 +66,30 @@ test.describe("portal calendar work queue", () => {
     await page.getByRole("button", { name: "Upcoming queue" }).click();
     await expect(page).toHaveURL(/\/work-queue\?tab=queue$/);
 
-    await expect(
-      page.getByRole("row").filter({ hasText: SEEDED_OPPORTUNITY }),
-    ).toBeVisible();
+    // Ten rows to a page, and this queue holds every non-archived calendar
+    // item, so neither seeded row is reliably on the first one.
+    const opportunityRow = page
+      .getByRole("row")
+      .filter({ hasText: SEEDED_OPPORTUNITY });
+    await revealRow(opportunityRow, pager(page));
+    await expect(opportunityRow).toBeVisible();
     // Only shows up here: it has no content opportunity, so it can't be
     // anyone's My work item.
-    await expect(
-      page.getByRole("row").filter({ hasText: SEEDED_OBSERVANCE }),
-    ).toBeVisible();
+    const observanceRow = page
+      .getByRole("row")
+      .filter({ hasText: SEEDED_OBSERVANCE });
+    await revealRow(observanceRow, pager(page));
+    await expect(observanceRow).toBeVisible();
   });
 
   test("filters the upcoming queue down to overdue work", async ({ page }) => {
     await page.goto("/portal/calendar/work-queue?tab=queue");
 
-    await expect(
-      page.getByRole("row").filter({ hasText: SEEDED_OPPORTUNITY }),
-    ).toBeVisible();
+    const opportunityRow = page
+      .getByRole("row")
+      .filter({ hasText: SEEDED_OPPORTUNITY });
+    await revealRow(opportunityRow, pager(page));
+    await expect(opportunityRow).toBeVisible();
 
     await page.getByRole("button", { name: "Overdue only" }).click();
     await expect(page).toHaveURL(/\/work-queue\?tab=queue&filter=overdue$/);
@@ -93,9 +107,8 @@ test.describe("portal calendar work queue", () => {
     // Clearing the filter restores the unfiltered queue.
     await page.getByRole("button", { name: "Overdue only" }).click();
     await expect(page).toHaveURL(/\/work-queue\?tab=queue$/);
-    await expect(
-      page.getByRole("row").filter({ hasText: SEEDED_OPPORTUNITY }),
-    ).toBeVisible();
+    await revealRow(opportunityRow, pager(page));
+    await expect(opportunityRow).toBeVisible();
   });
 
   test("links a queued item to its detail page, content brief included", async ({
@@ -138,7 +151,7 @@ test.describe("portal calendar work queue", () => {
 
     await page.getByRole("button", { name: "Help for this page" }).click();
 
-    const sheet = page.getByRole("dialog");
+    const sheet = modal(page);
     await expect(
       sheet.getByRole("heading", { name: "How the work queue works" }),
     ).toBeVisible();

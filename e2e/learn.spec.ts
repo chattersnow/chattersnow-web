@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { clickNavLink } from "./helpers/nav";
 
 test.describe("public learn page", () => {

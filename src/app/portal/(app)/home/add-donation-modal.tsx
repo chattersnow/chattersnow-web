@@ -1,12 +1,25 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
+import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createDonationAction, type CreateDonationInput } from "./actions";
+import {
+  createDonationAction,
+  listEventGiveawayTiersAction,
+  type CreateDonationInput,
+  type DonationGiveawayGrant,
+  type GiveawayTierOption,
+} from "./actions";
+import { GiveawayTicketSummary } from "./giveaway-ticket-summary";
+import { listEventOptionsAction } from "../events/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -25,7 +38,11 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
+import { INTENDED_USES, type InventoryCategory } from "@/lib/inventory";
+import { CategorySelect } from "@/components/portal/category-select";
+import { listInventoryCategoriesAction } from "../inventory/categories/actions";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 const SOURCE_TYPES = [
   { value: "individual", label: "Individual" },
@@ -51,7 +68,9 @@ const CONDITIONS = [
   { value: "poor", label: "Poor" },
 ];
 
-type Step = "donor" | "items";
+// "tickets" is a terminal step, only reached when the donation was recorded
+// against an event whose giveaway has tiers configured (issue #5).
+type Step = "donor" | "items" | "tickets";
 
 const initialDonorState = {
   isAnonymous: false,
@@ -68,11 +87,14 @@ type ItemDraft = {
   key: string;
   description: string;
   size: string;
-  type: string;
+  categoryId: string;
+  categoryDetail: string;
   gender: string;
   condition: string;
   faceValue: string;
   notes: string;
+  intendedUse: string;
+  giveawayTier: string;
 };
 
 function createEmptyItem(): ItemDraft {
@@ -80,11 +102,14 @@ function createEmptyItem(): ItemDraft {
     key: crypto.randomUUID(),
     description: "",
     size: "",
-    type: "",
+    categoryId: "",
+    categoryDetail: "",
     gender: "",
     condition: "",
     faceValue: "",
     notes: "",
+    intendedUse: "gear_library",
+    giveawayTier: "",
   };
 }
 
@@ -107,7 +132,50 @@ export function AddDonationModal({
   const [sourceEventId, setSourceEventId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const showEventPicker = !eventId && !!events?.length;
+  const [giveawayTiers, setGiveawayTiers] = useState<GiveawayTierOption[]>([]);
+  const [categories, setCategories] = useState<InventoryCategory[]>([]);
+  const [grant, setGrant] = useState<DonationGiveawayGrant | null>(null);
+  // Callers on a page that already queried events pass them in; the sidebar
+  // quick action has none, so load them on open instead of silently dropping
+  // the event picker.
+  const [loadedEvents, setLoadedEvents] = useState<
+    { id: string; name: string }[]
+  >([]);
+  const eventOptions = events ?? loadedEvents;
+  const showEventPicker = !eventId && !!eventOptions.length;
+  const selectedEventId = eventId ?? sourceEventId;
+
+  useEffect(() => {
+    if (!open || eventId || events) return;
+    listEventOptionsAction().then((result) => {
+      if (!("error" in result)) setLoadedEvents(result.data);
+    });
+  }, [open, eventId, events]);
+
+  // This modal is opened from client components (the sidebar quick actions and
+  // the active-event card), so the vocabulary can't arrive as a server prop the
+  // way it does on the items page -- same reason the two lookups above are
+  // fetched here.
+  useEffect(() => {
+    if (!open) return;
+    listInventoryCategoriesAction().then((result) => {
+      if (!("error" in result)) setCategories(result.data);
+    });
+  }, [open]);
+
+  // An event with no giveaway, or a giveaway with no tiers, returns an empty
+  // list and the per-item tier picker stays hidden.
+  useEffect(() => {
+    if (!open || !selectedEventId) return;
+    let active = true;
+    listEventGiveawayTiersAction(selectedEventId).then((result) => {
+      if (!active) return;
+      setGiveawayTiers("error" in result ? [] : result.data);
+    });
+    return () => {
+      active = false;
+    };
+  }, [open, selectedEventId]);
 
   function updateDonor<K extends keyof DonorState>(
     key: K,
@@ -146,6 +214,8 @@ export function AddDonationModal({
       setItems([createEmptyItem()]);
       setSourceEventId("");
       setError(null);
+      setGiveawayTiers([]);
+      setGrant(null);
     }
   }
 
@@ -176,11 +246,16 @@ export function AddDonationModal({
       items: items.map((item) => ({
         description: item.description,
         size: item.size || undefined,
-        type: item.type,
+        categoryKey:
+          categories.find((category) => category.id === item.categoryId)?.key ??
+          "",
+        categoryDetail: item.categoryDetail || undefined,
         gender: item.gender || undefined,
         condition: item.condition,
         faceValue: item.faceValue ? Number(item.faceValue) : null,
         notes: item.notes || undefined,
+        intendedUse: item.intendedUse,
+        giveawayTier: item.giveawayTier || undefined,
       })),
       eventId: eventId ?? (sourceEventId || undefined),
     };
@@ -191,9 +266,19 @@ export function AddDonationModal({
         setError(result.error);
         return;
       }
-      handleOpenChange(false);
       router.refresh();
       onSaved?.();
+
+      // Tickets are a physical hand-over, so when there are any the sheet stays
+      // open on a summary rather than closing behind a toast.
+      if (result.giveaway) {
+        setGrant(result.giveaway);
+        setStep("tickets");
+        return;
+      }
+
+      handleOpenChange(false);
+      toast.success("Gear donation recorded.");
     });
   }
 
@@ -210,7 +295,9 @@ export function AddDonationModal({
           <SheetDescription>
             {step === "donor"
               ? "Capture who the donation is from."
-              : "Add each item being added to inventory."}
+              : step === "items"
+                ? "Add each item being added to inventory."
+                : "The donation is saved. Hand over the tickets below."}
           </SheetDescription>
         </SheetHeader>
 
@@ -218,10 +305,26 @@ export function AddDonationModal({
           <p className="app-muted text-sm">
             {step === "donor"
               ? "Step 1 of 2 · Donor details"
-              : "Step 2 of 2 · Donated items"}
+              : step === "items"
+                ? "Step 2 of 2 · Donated items"
+                : "Donation recorded"}
           </p>
 
-          <form id="add-donation-form" onSubmit={handleSubmit} className="mt-4">
+          {step === "tickets" && grant && (
+            <div className="mt-4">
+              <GiveawayTicketSummary
+                grant={grant}
+                untieredCount={grant.untieredItemIds.length}
+              />
+            </div>
+          )}
+
+          <form
+            id="add-donation-form"
+            onSubmit={handleSubmit}
+            className="mt-4"
+            hidden={step === "tickets"}
+          >
             {step === "donor" ? (
               <FieldGroup>
                 <Field orientation="horizontal">
@@ -308,18 +411,24 @@ export function AddDonationModal({
                     </FieldLabel>
                     <Select
                       value={sourceEventId || null}
-                      onValueChange={(value) => setSourceEventId(value ?? "")}
+                      onValueChange={(value) => {
+                        setSourceEventId(value ?? "");
+                        // Tiers belong to the previous event's giveaway; drop
+                        // them so the picker can't offer stale options while
+                        // the new event's tiers load.
+                        setGiveawayTiers([]);
+                      }}
                     >
                       <SelectTrigger id="sourceEventId" className="w-full">
                         <SelectValue placeholder="No event">
                           {(value: string) =>
-                            events?.find((event) => event.id === value)?.name ??
-                            "No event"
+                            eventOptions.find((event) => event.id === value)
+                              ?.name ?? "No event"
                           }
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        {events?.map((event) => (
+                        {eventOptions.map((event) => (
                           <SelectItem key={event.id} value={event.id}>
                             {event.name}
                           </SelectItem>
@@ -387,20 +496,18 @@ export function AddDonationModal({
                     </Field>
 
                     <Field orientation="responsive">
-                      <Field>
-                        <FieldLabel htmlFor={`itemType-${item.key}`}>
-                          Item type
-                        </FieldLabel>
-                        <Input
-                          id={`itemType-${item.key}`}
-                          required
-                          placeholder="e.g. Jacket"
-                          value={item.type}
-                          onChange={(event) =>
-                            updateItem(item.key, "type", event.target.value)
-                          }
-                        />
-                      </Field>
+                      <CategorySelect
+                        categories={categories}
+                        categoryId={item.categoryId}
+                        detail={item.categoryDetail}
+                        idPrefix={`item-${item.key}`}
+                        onCategoryChange={(value) =>
+                          updateItem(item.key, "categoryId", value)
+                        }
+                        onDetailChange={(value) =>
+                          updateItem(item.key, "categoryDetail", value)
+                        }
+                      />
                       <Field>
                         <FieldLabel htmlFor={`itemSize-${item.key}`}>
                           Size
@@ -502,6 +609,79 @@ export function AddDonationModal({
                     </Field>
 
                     <Field>
+                      <FieldLabel htmlFor={`intendedUse-${item.key}`}>
+                        Intended use
+                      </FieldLabel>
+                      <Select
+                        value={item.intendedUse || null}
+                        onValueChange={(value) =>
+                          updateItem(item.key, "intendedUse", value ?? "")
+                        }
+                      >
+                        <SelectTrigger
+                          id={`intendedUse-${item.key}`}
+                          className="w-full"
+                        >
+                          <SelectValue placeholder="Select an intended use">
+                            {(value: string) =>
+                              INTENDED_USES.find(
+                                (option) => option.value === value,
+                              )?.label ?? "Select an intended use"
+                            }
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {INTENDED_USES.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FieldDescription>
+                        Gear library items go on the public gear library. Choose
+                        giveaway for prize stock like vouchers or gift cards.
+                      </FieldDescription>
+                    </Field>
+
+                    {giveawayTiers.length > 0 && (
+                      <Field>
+                        <FieldLabel htmlFor={`giveawayTier-${item.key}`}>
+                          Giveaway tier
+                        </FieldLabel>
+                        <Select
+                          value={item.giveawayTier || null}
+                          onValueChange={(value) =>
+                            updateItem(item.key, "giveawayTier", value ?? "")
+                          }
+                        >
+                          <SelectTrigger
+                            id={`giveawayTier-${item.key}`}
+                            className="w-full"
+                          >
+                            <SelectValue placeholder="Match on item type">
+                              {(value: string) =>
+                                giveawayTiers.find((tier) => tier.key === value)
+                                  ?.label ?? "Match on item type"
+                              }
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {giveawayTiers.map((tier) => (
+                              <SelectItem key={tier.id} value={tier.key}>
+                                {tier.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FieldDescription>
+                          Sets how many tickets this item earns. Left unset, the
+                          tier is matched from the item type.
+                        </FieldDescription>
+                      </Field>
+                    )}
+
+                    <Field>
                       <FieldLabel htmlFor={`itemNotes-${item.key}`}>
                         Item notes
                       </FieldLabel>
@@ -531,7 +711,11 @@ export function AddDonationModal({
         </div>
 
         <SheetFooter className="flex-row justify-end border-t bg-muted/50">
-          {step === "donor" ? (
+          {step === "tickets" ? (
+            <Button type="button" onClick={() => handleOpenChange(false)}>
+              Done
+            </Button>
+          ) : step === "donor" ? (
             <Button type="button" onClick={handleContinue}>
               Continue
             </Button>

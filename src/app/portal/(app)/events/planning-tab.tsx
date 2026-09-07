@@ -11,39 +11,20 @@ import {
 import { useRouter } from "next/navigation";
 import { updateEventPlanningAction } from "./actions";
 import type { EventRow } from "./event-badges";
-import { PersonPicker, type PickedPerson } from "../people/person-picker";
-import { listPeopleAction, type PersonListItem } from "../people/actions";
+import { PersonPicker } from "../people/person-picker";
+import type { PersonListItem } from "../people/actions";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { useTabData } from "@/hooks/use-tab-data";
 import { datetimeLocalToUtcIso, utcIsoToDatetimeLocalInZone } from "@/lib/time";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
-
-function formatDatetimeLocal(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
+import { formatCurrency, formatDateTime } from "@/lib/format";
+import { runAction } from "@/components/portal/action-toast";
 
 function toDatetimeLocalValue(iso: string | null, timezone: string) {
   if (!iso) return "";
   return utcIsoToDatetimeLocalInZone(iso, timezone);
-}
-
-function formatCurrency(value: number | string | null) {
-  if (value === null || value === undefined) return "—";
-  const numeric = typeof value === "string" ? Number(value) : value;
-  return Number.isFinite(numeric) ? currencyFormatter.format(numeric) : "—";
 }
 
 function formStateFor(event: EventRow) {
@@ -80,6 +61,8 @@ export type PlanningTabHandle = {
 export function PlanningTab({
   event,
   formId,
+  people,
+  onPersonCreated,
   mode,
   onSaved,
   onPendingChange,
@@ -88,6 +71,8 @@ export function PlanningTab({
 }: {
   event: EventRow;
   formId: string;
+  people: PersonListItem[];
+  onPersonCreated: (person: PersonListItem) => void;
   mode: "view" | "edit";
   onSaved: () => void;
   onPendingChange?: (pending: boolean) => void;
@@ -96,18 +81,8 @@ export function PlanningTab({
 }) {
   const router = useRouter();
   const [form, setForm] = useState(() => formStateFor(event));
-  const { data: peopleData } = useTabData<PersonListItem[]>(
-    () => listPeopleAction(),
-    true,
-  );
-  const [newPeople, setNewPeople] = useState<PersonListItem[]>([]);
-  const people = [...(peopleData ?? []), ...newPeople];
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-
-  function handlePersonCreated(person: PickedPerson) {
-    setNewPeople((prev) => [...prev, { ...person, is_sponsor: false }]);
-  }
 
   useEffect(() => {
     onPendingChange?.(isPending);
@@ -153,14 +128,34 @@ export function PlanningTab({
     formData.set("budgetAmount", form.budgetAmount);
 
     startTransition(async () => {
-      const result = await updateEventPlanningAction(event.id, formData);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
-      onSaved();
+      await runAction(() => updateEventPlanningAction(event.id, formData), {
+        success: "Planning details saved.",
+        onError: setError,
+        onSuccess: () => {
+          router.refresh();
+          onSaved();
+        },
+      });
     });
+  }
+
+  // Registration can't run past the event itself; events without an end time
+  // are bounded by their start instead.
+  const registrationCutoff = toDatetimeLocalValue(
+    event.ends_at ?? event.starts_at,
+    event.timezone,
+  );
+
+  function toggleRegistration(enabled: boolean) {
+    setForm((prev) => ({
+      ...prev,
+      registrationEnabled: enabled,
+      // Default a blank deadline to the cutoff on enable, but never overwrite
+      // a date the user already picked.
+      registrationDeadline: enabled
+        ? prev.registrationDeadline || registrationCutoff
+        : "",
+    }));
   }
 
   const locked = event.report_status === "submitted";
@@ -190,7 +185,7 @@ export function PlanningTab({
             label="Registration deadline"
             htmlFor="planning-registrationDeadline"
           >
-            {formatDatetimeLocal(event.registration_deadline)}
+            {formatDateTime(event.registration_deadline)}
           </ReadOnlyField>
         </Field>
         <ReadOnlyField
@@ -212,7 +207,7 @@ export function PlanningTab({
             people={people}
             selected={form.eventLead}
             onSelect={(person) => update("eventLead", person)}
-            onPersonCreated={handlePersonCreated}
+            onPersonCreated={onPersonCreated}
           />
         </Field>
 
@@ -249,9 +244,7 @@ export function PlanningTab({
           <Checkbox
             id="planning-registrationEnabled"
             checked={form.registrationEnabled}
-            onCheckedChange={(checked) =>
-              update("registrationEnabled", Boolean(checked))
-            }
+            onCheckedChange={(checked) => toggleRegistration(Boolean(checked))}
           />
           <FieldLabel htmlFor="planning-registrationEnabled">
             Registration enabled
@@ -265,6 +258,8 @@ export function PlanningTab({
           <Input
             id="planning-registrationDeadline"
             type="datetime-local"
+            disabled={!form.registrationEnabled}
+            max={registrationCutoff || undefined}
             value={form.registrationDeadline}
             onChange={(changeEvent) =>
               update("registrationDeadline", changeEvent.target.value)

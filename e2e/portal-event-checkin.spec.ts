@@ -7,9 +7,11 @@
 // volunteer-hours-self-log.spec.ts: this file's tests may run fully in
 // parallel across Playwright projects, and each needs its own "today"
 // event + registrant without racing another run's fixtures.
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
+import { modal } from "./helpers/dialog";
+import { markOnboarded } from "./helpers/onboarding";
 
 async function seedCheckinFixture(admin: ReturnType<typeof createAdminClient>) {
   const suffix = crypto.randomUUID().slice(0, 8);
@@ -26,6 +28,7 @@ async function seedCheckinFixture(admin: ReturnType<typeof createAdminClient>) {
     throw userError ?? new Error("createUser returned no user");
   }
   const userId = userData.user.id;
+  await markOnboarded(admin, userId);
 
   const { data: role, error: roleError } = await admin
     .from("roles")
@@ -124,7 +127,7 @@ test("checks in a registrant from the Happening Now quick action", async ({
 
     await card.getByRole("button", { name: "Check in", exact: true }).click();
 
-    const sheet = page.getByRole("dialog");
+    const sheet = modal(page);
     await expect(
       sheet.getByText(`Check in · ${fixture.eventName}`),
     ).toBeVisible();

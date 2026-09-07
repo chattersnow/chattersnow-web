@@ -13,14 +13,54 @@ const LEVEL_RANK: Record<PermissionLevel, number> = {
 
 export type PermissionMap = Record<string, PermissionLevel>;
 
+/**
+ * Memoized per Supabase client rather than with React's `cache`, because this
+ * module is also pulled into client bundles (PortalNav, the command palette)
+ * and must stay free of server-only imports.
+ *
+ * `createSupabaseServerClient` hands out one client per request, so this keys
+ * cleanly to a request: /portal/finance/expenses resolves permissions in the
+ * root layout, finance/layout.tsx, finance/expenses/layout.tsx, the page, and
+ * inside any Server Action it fires -- six-plus identical pairs of RPCs, all
+ * on the critical path. A client is per-request and collectable, so the
+ * WeakMap holds nothing between requests.
+ */
+const permissionsByClient = new WeakMap<
+  SupabaseClient,
+  Promise<PermissionMap>
+>();
+
 export async function getCurrentUserPermissions(
   supabase: SupabaseClient,
 ): Promise<PermissionMap> {
-  // Best-effort: picks up a pending_role_grants row staged after this user's
-  // first login (e.g. while they were stuck with zero roles) without
-  // requiring a re-login. Unlike the same call in the OAuth callback, an
-  // error here must not block an already-working session on routine
-  // navigation, so it's swallowed rather than surfaced.
+  const cached = permissionsByClient.get(supabase);
+  if (cached) return cached;
+
+  const pending = resolvePermissions(supabase);
+  permissionsByClient.set(supabase, pending);
+  try {
+    return await pending;
+  } catch (error) {
+    // Don't pin a rejection to the client for the rest of the request.
+    permissionsByClient.delete(supabase);
+    throw error;
+  }
+}
+
+async function resolvePermissions(
+  supabase: SupabaseClient,
+): Promise<PermissionMap> {
+  // Best-effort, both of them. The membership first: from #707 Phase 2
+  // my_permissions() answers for current_tenant_id(), which is null for an
+  // account that has never been joined to a tenant -- and an account that
+  // first signed in with zero roles was redirected away before the portal
+  // layout ever got to join it. Then the grant claim, which picks up a
+  // pending_role_grants row staged after this user's first login (e.g. while
+  // they were stuck with zero roles) without requiring a re-login. Unlike the
+  // same calls in the OAuth callback, an error here must not block an
+  // already-working session on routine navigation, so it's swallowed rather
+  // than surfaced.
+  await supabase.rpc("ensure_tenant_membership");
   await supabase.rpc("claim_pending_role_grants");
 
   const { data } = await supabase.rpc("my_permissions");
@@ -53,17 +93,36 @@ export function hasAnyPermission(
   );
 }
 
+/** Query parameter the dashboard reads to explain a denied navigation. */
+export const DENIED_PARAM = "denied";
+
 /**
- * Redirects to /portal/home if the signed-in user (already verified by the
+ * Where a refused navigation lands. Carries the area name so the dashboard can
+ * say what was refused: a bare redirect makes every shared deep link to a
+ * gated section look like a broken link rather than a permissions gap.
+ */
+export function deniedRedirectHref(area?: string): string {
+  return area
+    ? `/portal/home?${DENIED_PARAM}=${encodeURIComponent(area)}`
+    : `/portal/home?${DENIED_PARAM}=1`;
+}
+
+/**
+ * Redirects to the dashboard if the signed-in user (already verified by the
  * portal layout) doesn't meet any of the given resource/level checks.
+ *
+ * `area` is the human name of what was refused ("Finance", "Audit log") and is
+ * passed through to the dashboard so the user is told, rather than silently
+ * relocated.
  */
 export async function requireAnyPermission(
   supabase: SupabaseClient,
   checks: readonly PermissionCheck[],
+  area?: string,
 ): Promise<PermissionMap> {
   const permissions = await getCurrentUserPermissions(supabase);
   if (!hasAnyPermission(permissions, checks)) {
-    redirect("/portal/home");
+    redirect(deniedRedirectHref(area));
   }
   return permissions;
 }
@@ -72,8 +131,9 @@ export async function requirePermission(
   supabase: SupabaseClient,
   resource: string,
   level: PermissionLevel = "view",
+  area?: string,
 ): Promise<PermissionMap> {
-  return requireAnyPermission(supabase, [{ resource, level }]);
+  return requireAnyPermission(supabase, [{ resource, level }], area);
 }
 
 export type PermissionDenied = { error: string };

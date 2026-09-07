@@ -37,6 +37,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 export type RoleTypeRow = {
   id: string;
@@ -134,6 +135,7 @@ export function RoleTypeDetailsSheet({
         return;
       }
       setMode("view");
+      toast.success("Volunteer role saved.");
       router.refresh();
     });
   }

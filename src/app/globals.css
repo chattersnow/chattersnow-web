@@ -43,13 +43,35 @@
   --muted-foreground: rgb(50 19 79 / 72%);
   --accent: var(--purple-soft);
   --accent-foreground: var(--purple-deep);
-  --destructive: #cc2936;
-  --warning: #b45309;
+  /* Status colours are measured as 12px text against their own 10% tint --
+     the shape `Badge` and the destructive icon button use -- over both the
+     card (#fff) and the page background (#f7f0ff). The tint over the page
+     background is the harder of the two and the one the earlier values
+     missed: success and warning landed at 3.96:1 and destructive at 4.13:1,
+     each a near miss of AA's 4.5 that no scan caught until the light theme
+     was measured at every route (#660). One step darker each clears it with
+     room to spare -- 5.14, 5.52 and 5.48 respectively -- and every solid use
+     (white on the colour) only gets safer.
+     Without success and warning at all, "approved" and "paid" would be
+     adjacent purples -- the two states a finance reviewer most needs to tell
+     apart -- and an overdue annual requirement would differ from a scheduled
+     one by label alone. */
+  --destructive: #b02330;
+  --success: #166534;
+  --success-foreground: #ffffff;
+  --warning: #92400e;
   --warning-foreground: #ffffff;
   --border: var(--line);
   --input: var(--line);
   --ring: var(--purple);
   --radius: 0.75rem;
+
+  /* The portal's sticky top bar is the only thing a sticky table header has
+     to clear, and nothing could read its height -- it was `py-4` around
+     whatever the tallest control happened to be. The header now takes its
+     height from this, so the two can't drift: a 2.5rem control, 2rem of
+     padding, and the 1px bottom border. */
+  --portal-header-height: calc(4.5rem + 1px);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -90,6 +112,8 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
   --color-brand-purple: var(--purple);
@@ -121,8 +145,19 @@ body {
 }
 
 @layer components {
+  /*
+   * The page's flex column lives on <body> (`min-h-full flex flex-col` in
+   * src/app/layout.tsx), so main takes whatever height is left over rather
+   * than claiming a viewport of its own.
+   *
+   * This was `min-height: 100vh`, which made every document at least
+   * `header + 100vh + footer` tall, since main is not the whole page. On a
+   * page shorter than the viewport -- /home zoomed out -- main padded itself
+   * out to a full viewport and left a band of dead background above the
+   * footer, pushing the footer off the bottom of the screen.
+   */
   .app-shell {
-    min-height: 100vh;
+    flex: 1;
     background: var(--background);
     color: var(--foreground);
   }
@@ -169,12 +204,6 @@ body {
     }
     75% {
       transform: rotate(2deg);
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .bell-ring {
-      animation: none;
     }
   }
 
@@ -276,6 +305,10 @@ body {
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
+  /* Lightened the same way --destructive is, so the tinted badges stay
+     readable against the dark card. */
+  --success: oklch(0.75 0.16 150);
+  --warning: oklch(0.78 0.15 75);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
@@ -303,6 +336,27 @@ body {
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* Reduced motion was honoured by exactly one animation -- the header bell --
+   while every dialog and sheet still zoomed and slid, every card and button
+   still ran `transition-all`, and the theme toggle still crossfaded the whole
+   palette. The preference is a request to stop moving things, not to stop one
+   of them.
+
+   Durations collapse rather than being set to `none`: Base UI waits for a
+   transition or animation to finish before unmounting an overlay, so removing
+   them outright would leave closed dialogs in the DOM. A near-zero duration
+   still fires the events it listens for. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

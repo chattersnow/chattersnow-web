@@ -7,6 +7,6 @@ export default async function AdministrationAuditLogLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createSupabaseServerClient();
-  await requirePermission(supabase, "administration", "manage");
+  await requirePermission(supabase, "administration", "manage", "Audit Log");
   return children;
 }

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { generateNextYearInstanceAction } from "../recurrence-actions";
 import { Spinner } from "@/components/ui/spinner";
+import { runAction } from "@/components/portal/action-toast";
 
 export function GenerateSeriesButton({ itemId }: { itemId: string }) {
   const router = useRouter();
@@ -14,12 +15,11 @@ export function GenerateSeriesButton({ itemId }: { itemId: string }) {
   function handleGenerate() {
     setError(null);
     startTransition(async () => {
-      const result = await generateNextYearInstanceAction(itemId);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
+      await runAction(() => generateNextYearInstanceAction(itemId), {
+        success: "Next year's instance generated.",
+        onError: setError,
+        onSuccess: () => router.refresh(),
+      });
     });
   }
 

@@ -10,41 +10,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { EditGrantModal } from "./edit-grant-modal";
 import { GrantStatusBadge } from "./grant-badges";
 import { GRANT_STATUS_LABELS } from "./grant-form-fields";
 import type { Grant } from "./grants-actions";
 import type { PersonListItem } from "../../people/actions";
+import {
+  formatCalendarDate,
+  formatCurrency,
+  personDisplayName,
+} from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
+import {
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
 
 const FILTER_ALL = "all";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
-
-function formatAmount(value: number | null) {
-  if (value === null) return "—";
-  return currencyFormatter.format(value);
-}
 
 export function GrantsTable({
   grants,
@@ -70,6 +52,60 @@ export function GrantsTable({
       return grant.funder_name.toLowerCase().includes(query);
     });
   }, [grants, search, statusFilter]);
+
+  const columns = useMemo<PortalDataTableColumn<Grant>[]>(
+    () => [
+      {
+        key: "funder_name",
+        label: "Funder",
+        sortValue: (grant) => grant.funder_name,
+        cellClassName: "max-w-xs truncate font-medium",
+        render: (grant) => (
+          <span title={grant.funder_name}>{grant.funder_name}</span>
+        ),
+      },
+      {
+        key: "amount",
+        // Sorted on the number, not the formatted currency, so $9,000 lands
+        // below $10,000 instead of after it.
+        label: "Amount",
+        sortValue: (grant) => grant.amount,
+        cellClassName: "app-muted",
+        render: (grant) => formatCurrency(grant.amount),
+      },
+      {
+        key: "application_deadline",
+        label: "Deadline",
+        sortValue: (grant) => grant.application_deadline,
+        cellClassName: "app-muted",
+        render: (grant) => formatCalendarDate(grant.application_deadline),
+      },
+      {
+        key: "status",
+        // The label a reader sees, so the alphabetical order is the one the
+        // badges spell out rather than the enum's underscored values.
+        label: "Status",
+        sortValue: (grant) => GRANT_STATUS_LABELS[grant.status] ?? grant.status,
+        render: (grant) => <GrantStatusBadge status={grant.status} />,
+      },
+      {
+        key: "owner",
+        label: "Owner",
+        sortValue: (grant) => personDisplayName(grant.owner),
+        cellClassName: "app-muted",
+        render: (grant) => personDisplayName(grant.owner),
+      },
+      {
+        key: "actions",
+        label: "Actions",
+        srOnlyLabel: true,
+        headClassName: "w-0",
+        render: (grant) =>
+          canManage ? <EditGrantModal grant={grant} people={people} /> : null,
+      },
+    ],
+    [canManage, people],
+  );
 
   return (
     <div className="space-y-4">
@@ -120,67 +156,25 @@ export function GrantsTable({
       {grants.length === 0 ? (
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No grants recorded yet.
-            </p>
+            <EmptyState
+              title="No grants recorded yet"
+              description={
+                canManage
+                  ? "Add the first one with Add grant above."
+                  : "Grants appear here once a governance manager adds them."
+              }
+            />
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="px-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Funder</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Deadline</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Owner</TableHead>
-                  <TableHead className="w-0">
-                    <span className="sr-only">Actions</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visibleGrants.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="app-muted text-center">
-                      No grants match your filters.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  visibleGrants.map((grant) => (
-                    <TableRow key={grant.id}>
-                      <TableCell
-                        className="max-w-xs truncate font-medium"
-                        title={grant.funder_name}
-                      >
-                        {grant.funder_name}
-                      </TableCell>
-                      <TableCell className="app-muted">
-                        {formatAmount(grant.amount)}
-                      </TableCell>
-                      <TableCell className="app-muted">
-                        {formatDate(grant.application_deadline)}
-                      </TableCell>
-                      <TableCell>
-                        <GrantStatusBadge status={grant.status} />
-                      </TableCell>
-                      <TableCell className="app-muted">
-                        {grant.owner?.name ?? "—"}
-                      </TableCell>
-                      <TableCell>
-                        {canManage && (
-                          <EditGrantModal grant={grant} people={people} />
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <PortalDataTable
+          columns={columns}
+          rows={visibleGrants}
+          getRowKey={(grant) => grant.id}
+          // The query orders by application deadline, soonest first.
+          defaultSort={{ key: "application_deadline", dir: "asc" }}
+          emptyMessage="No grants match your filters."
+        />
       )}
     </div>
   );

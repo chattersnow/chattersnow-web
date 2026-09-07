@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 export function AddChecklistItemDialog({
   eventId,
@@ -54,6 +55,7 @@ export function AddChecklistItemDialog({
         return;
       }
       handleOpenChange(false);
+      toast.success("Checklist item added.");
       router.refresh();
       onSaved?.();
     });

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 
 const SECTIONS = [
@@ -10,6 +10,9 @@ const SECTIONS = [
   { path: "/portal/governance", heading: "Board Members" },
   { path: "/portal/inventory", heading: "Inventory" },
   { path: "/portal/people", heading: "People" },
+  { path: "/portal/organizations", heading: "Organizations" },
+  { path: "/portal/partners", heading: "Partners" },
+  { path: "/portal/people/volunteers", heading: "Volunteers" },
   { path: "/portal/programs", heading: "Programs" },
   { path: "/portal/volunteers", heading: "Roles" },
 ];
@@ -21,9 +24,14 @@ test.beforeEach(async ({ page }) => {
 for (const { path, heading } of SECTIONS) {
   test(`${path} loads and shows "${heading}"`, async ({ page }) => {
     await page.goto(path);
+    // Well past the 5s default. Each of these is the run's first visit to
+    // its route, and the suite runs against `next dev` -- so whichever test
+    // gets there first waits for the route to be compiled on demand before
+    // anything renders. That is also why a retry of one of these passes:
+    // by then the route is warm, not because anything was flaky.
     await expect(
       page.getByRole("heading", { level: 1, name: heading, exact: true }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 30_000 });
   });
 }
 
@@ -44,8 +52,12 @@ test("sidebar navigation shows a skeleton, not a blocking overlay", async ({
     await route.continue();
   });
 
-  const peopleLink = page.getByRole("link", { name: "People" });
-  await peopleLink.click();
+  // People is a section with segments (Donors, Sponsors, ...), so the sidebar
+  // renders it as a collapsible button and the directory itself as a sub-link
+  // -- the same shape Calendar and Finance already have. Expand, then click
+  // the sub-link, which is the only "People" *link* in the tree.
+  await page.getByRole("button", { name: "People" }).click();
+  await page.getByRole("link", { name: "People", exact: true }).click();
 
   await expect(page.locator('[data-slot="skeleton"]').first()).toBeVisible();
   // The sidebar must stay visible and interactive while the route loads.

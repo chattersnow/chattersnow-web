@@ -5,5 +5,15 @@
       "main": true,
       "*": false
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/task-reminders",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/ops-report",
+      "schedule": "30 13 * * *"
+    }
+  ]
 }

@@ -3,7 +3,8 @@
 // this covers the page loading with its default (year-to-date) summary cards
 // and the date-range filter actually changing what's shown, rather than
 // asserting on specific seeded totals that could drift.
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "./helpers/test";
+import type { Page } from "@playwright/test";
 import { signIn } from "./helpers/auth";
 
 // hasText does substring matching, and "Income" is also a substring of the
@@ -70,7 +71,7 @@ test.describe("portal finance reports", () => {
     await expect(page).toHaveURL(/from=2000-01-01&to=2000-01-02/);
     await expect(summaryCard(page, "Income")).toContainText("$0.00");
     await expect(
-      page.getByText("No revenue recorded in this period."),
+      page.getByText("No revenue recorded in this period"),
     ).toBeVisible();
     await expect(
       page.getByText("Nothing recorded in this period."),
@@ -80,11 +81,14 @@ test.describe("portal finance reports", () => {
     // explicit role="button" whenever nativeButton={false} -- see
     // src/components/ui/button.tsx and node_modules/@base-ui/react's
     // useButton -- so this is exposed as "button", not "link".
-    await page.getByRole("button", { name: "Reset to this year" }).click();
+    // The label names the fiscal year the page defaults back to ("Reset to
+    // FY2027"), which moves with the clock and with the org's fiscal-year
+    // start month, so it is matched by shape rather than spelled out.
+    await page.getByRole("button", { name: /^Reset to FY\d{4}$/ }).click();
 
     await expect(page).toHaveURL(/\/portal\/finance\/reports$/);
     await expect(
-      page.getByText("No revenue recorded in this period."),
+      page.getByText("No revenue recorded in this period"),
     ).not.toBeVisible();
   });
 });

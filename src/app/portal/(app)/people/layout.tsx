@@ -7,6 +7,6 @@ export default async function PeopleLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createSupabaseServerClient();
-  await requirePermission(supabase, "people", "view");
+  await requirePermission(supabase, "people", "view", "People");
   return children;
 }

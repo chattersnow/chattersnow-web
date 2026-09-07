@@ -1,0 +1,212 @@
+import type { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { PersonType, RoleKey } from "./people-shared";
+
+type SupabaseServerClient = Awaited<
+  ReturnType<typeof createSupabaseServerClient>
+>;
+
+export type SegmentStat = {
+  label: string;
+  value: number;
+  caption: string;
+};
+
+/**
+ * One view of the shared `people` directory. Donors, Sponsors, and Attendees
+ * used to be near-identical copies of the People page -- donors/page.tsx and
+ * sponsors/page.tsx were byte-identical after substituting the word -- so the
+ * only things that actually varied are collected here and the page body is
+ * shared. Adding the specced Staff type is now a config entry rather than a
+ * fifth copy.
+ */
+export type PeopleSegment = {
+  /** Route this segment lives at, used for pagination and filter links. */
+  basePath: string;
+  title: string;
+  /**
+   * Column to restrict the directory to. Omitted for the full directory,
+   * which offers the role facet instead.
+   */
+  /** Narrows the segment to one role. Roles are additive, so this stacks. */
+  filterColumn?: RoleKey;
+  /** Narrows the segment to one entity type, which roles cannot express. */
+  personType?: PersonType;
+  /** The full directory offers a Role filter; a segment already is one. */
+  showRoleFilter?: boolean;
+  newPerson?: {
+    triggerLabel: string;
+    defaultRole?: RoleKey;
+    defaultPersonType?: PersonType;
+  };
+  /** Noun used in empty states and row action labels, e.g. "sponsor". */
+  noun: string;
+  emptyTitle: string;
+  /** Shown when the viewer can add records; the other when they cannot. */
+  emptyDescriptionManage: string;
+  emptyDescriptionView: string;
+  /** Optional tiles above the table. */
+  stats?: (supabase: SupabaseServerClient) => Promise<SegmentStat[]>;
+};
+
+/**
+ * Recurring vs first-time attendance, derived from check-ins rather than
+ * registrations: signing up and turning up are different things, and the
+ * distinction is the point of the tiles.
+ */
+async function attendeeStats(
+  supabase: SupabaseServerClient,
+): Promise<SegmentStat[]> {
+  const { data } = await supabase
+    .from("event_registrations")
+    .select("person_id, event_id")
+    .not("checked_in_at", "is", null)
+    .not("person_id", "is", null);
+
+  const eventsByPerson = new Map<string, Set<string>>();
+  for (const registration of data ?? []) {
+    const personId = registration.person_id as string;
+    const events = eventsByPerson.get(personId) ?? new Set<string>();
+    events.add(registration.event_id as string);
+    eventsByPerson.set(personId, events);
+  }
+
+  let recurring = 0;
+  let firstTime = 0;
+  for (const events of eventsByPerson.values()) {
+    if (events.size > 1) recurring += 1;
+    else firstTime += 1;
+  }
+
+  return [
+    {
+      label: "Recurring attendees",
+      value: recurring,
+      caption: "Checked in to more than one event",
+    },
+    {
+      label: "First-time attendees",
+      value: firstTime,
+      caption: "Checked in to exactly one event so far",
+    },
+  ];
+}
+
+export const PEOPLE_SEGMENT: PeopleSegment = {
+  basePath: "/portal/people",
+  title: "People",
+  showRoleFilter: true,
+  newPerson: { triggerLabel: "New Person" },
+  noun: "person",
+  emptyTitle: "No people added yet",
+  emptyDescriptionManage: "Add the first one with New Person above.",
+  emptyDescriptionView:
+    "People appear here once someone is added to the directory or registers for an event.",
+};
+
+export const DONORS_SEGMENT: PeopleSegment = {
+  basePath: "/portal/donors",
+  title: "Donors",
+  filterColumn: "is_donor",
+  newPerson: { triggerLabel: "New Donor", defaultRole: "is_donor" },
+  noun: "donor",
+  emptyTitle: "No donors added yet",
+  emptyDescriptionManage:
+    "Add the first one with New Donor above, or record a donation and its donor from Inventory › Donations.",
+  emptyDescriptionView:
+    "Donors appear here once someone is added with the donor role or recorded on a donation.",
+};
+
+export const SPONSORS_SEGMENT: PeopleSegment = {
+  basePath: "/portal/sponsors",
+  title: "Sponsors",
+  filterColumn: "is_sponsor",
+  newPerson: { triggerLabel: "New Sponsor", defaultRole: "is_sponsor" },
+  noun: "sponsor",
+  emptyTitle: "No sponsors added yet",
+  emptyDescriptionManage:
+    "Add the first one with New Sponsor above, or record a sponsor on an event's Sponsors tab.",
+  emptyDescriptionView:
+    "Sponsors appear here once someone is added with the sponsor role or recorded on an event's Sponsors tab.",
+};
+
+export const VOLUNTEERS_SEGMENT: PeopleSegment = {
+  // Not /portal/volunteers: that is the volunteer *programme* (role types,
+  // participation, applications). This is the directory filtered to people who
+  // volunteer, so it lives under People and inherits its people:view guard.
+  basePath: "/portal/people/volunteers",
+  title: "Volunteers",
+  filterColumn: "is_volunteer",
+  newPerson: { triggerLabel: "New Volunteer", defaultRole: "is_volunteer" },
+  noun: "volunteer",
+  emptyTitle: "No volunteers added yet",
+  emptyDescriptionManage:
+    "Add the first one with New Volunteer above, or approve an application from Volunteers › Applications.",
+  emptyDescriptionView:
+    "Volunteers appear here once someone applies, signs up for an event shift, or has hours logged.",
+};
+
+export const ATTENDEES_SEGMENT: PeopleSegment = {
+  basePath: "/portal/attendees",
+  title: "Attendees",
+  filterColumn: "is_attendee",
+  newPerson: { triggerLabel: "New Attendee", defaultRole: "is_attendee" },
+  noun: "attendee",
+  emptyTitle: "No event attendees yet",
+  emptyDescriptionManage:
+    "Attendees appear here once someone registers for an event, or add one with New Attendee above.",
+  emptyDescriptionView:
+    "Attendees appear here once someone registers for or is checked in at an event.",
+  stats: attendeeStats,
+};
+
+export const STAFF_SEGMENT: PeopleSegment = {
+  basePath: "/portal/staff",
+  title: "Staff",
+  filterColumn: "is_staff",
+  newPerson: { triggerLabel: "New Staff Member", defaultRole: "is_staff" },
+  noun: "staff member",
+  emptyTitle: "No staff added yet",
+  emptyDescriptionManage:
+    "Add the first one with New Staff Member above, or assign someone on an event's Staff tab.",
+  emptyDescriptionView:
+    "Staff appear here once someone is added with the staff role or assigned on an event's Staff tab.",
+};
+
+export const PARTNERS_SEGMENT: PeopleSegment = {
+  basePath: "/portal/partners",
+  title: "Partners",
+  filterColumn: "is_partner",
+  newPerson: {
+    // A partner is almost always an organization, and the form requires a
+    // role, so the dialog opens on the shape this segment is about.
+    triggerLabel: "New Partner",
+    defaultRole: "is_partner",
+    defaultPersonType: "organization",
+  },
+  noun: "partner",
+  emptyTitle: "No partners added yet",
+  emptyDescriptionManage:
+    "Add the first one with New Partner above, or close a partnership as won from Governance › Partnerships.",
+  emptyDescriptionView:
+    "Partners appear here once a partnership opportunity is closed as won, or someone is added with the partner role.",
+};
+
+export const ORGANIZATIONS_SEGMENT: PeopleSegment = {
+  basePath: "/portal/organizations",
+  title: "Organizations",
+  personType: "organization",
+  newPerson: {
+    triggerLabel: "New Organization",
+    // Organizations are most often entered as sponsors, and the person form
+    // requires at least one role, so the dialog opens with a workable default
+    // rather than an entity type and no role.
+    defaultRole: "is_sponsor",
+    defaultPersonType: "organization",
+  },
+  noun: "organization",
+  emptyTitle: "No organizations added yet",
+  emptyDescriptionManage:
+    "Add the first one with New Organization above, or tick “This is an organization” on any person record.",
+  emptyDescriptionView:
+    "Organizations appear here once a person record is marked as one.",
+};

@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 export function NewPartnershipDialog({ people }: { people: PersonListItem[] }) {
   const router = useRouter();
@@ -56,7 +57,7 @@ export function NewPartnershipDialog({ people }: { people: PersonListItem[] }) {
   }
 
   function handlePersonCreated(person: PickedPerson) {
-    setAvailablePeople((prev) => [...prev, { ...person, is_sponsor: false }]);
+    setAvailablePeople((prev) => [...prev, person]);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -74,6 +75,7 @@ export function NewPartnershipDialog({ people }: { people: PersonListItem[] }) {
         return;
       }
       setOpen(false);
+      toast.success("Partnership added.");
       router.refresh();
     });
   }
@@ -102,7 +104,7 @@ export function NewPartnershipDialog({ people }: { people: PersonListItem[] }) {
                 selected={organization}
                 onSelect={setOrganization}
                 onPersonCreated={handlePersonCreated}
-                newPersonRole="is_sponsor"
+                newPersonRole="is_partner"
               />
             </Field>
 

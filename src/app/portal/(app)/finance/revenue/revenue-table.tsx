@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { FiltersSheet } from "@/components/filters-sheet";
 import { Input } from "@/components/ui/input";
@@ -12,33 +11,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { EditRevenueModal } from "./edit-revenue-modal";
 import { RevenueSourceBadge } from "./revenue-badges";
 import {
   REVENUE_SOURCES,
-  formatAmount,
-  formatRevenueDate,
   revenueSourceLabel,
   type EventOption,
   type RevenueRow,
   type RevenueSource,
 } from "./revenue-shared";
-
-type SortKey = "received_date" | "source" | "amount";
-
-const SORT_COLUMNS: { key: SortKey; label: string }[] = [
-  { key: "source", label: "Source" },
-  { key: "received_date", label: "Date" },
-  { key: "amount", label: "Amount" },
-];
+import { formatCalendarDate, formatCurrency } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
+import {
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
 
 const FILTER_ALL = "all";
 
@@ -58,22 +45,11 @@ export function RevenueTable({
   const [sourceFilter, setSourceFilter] = useState<RevenueSource | null>(
     initialSourceFilter,
   );
-  const [sortKey, setSortKey] = useState<SortKey>("received_date");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-
-  function handleSort(key: SortKey) {
-    if (key === sortKey) {
-      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
-    } else {
-      setSortKey(key);
-      setSortDirection("asc");
-    }
-  }
 
   const visibleRevenue = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    const filtered = revenue.filter((row) => {
+    return revenue.filter((row) => {
       if (eventFilter === "none" && row.event_id) return false;
       if (eventFilter && eventFilter !== "none" && row.event_id !== eventFilter)
         return false;
@@ -85,16 +61,46 @@ export function RevenueTable({
         return false;
       return true;
     });
+  }, [revenue, search, eventFilter, sourceFilter]);
 
-    const direction = sortDirection === "asc" ? 1 : -1;
-
-    return [...filtered].sort((a, b) => {
-      if (sortKey === "amount") {
-        return (Number(a.amount) - Number(b.amount)) * direction;
-      }
-      return a[sortKey].localeCompare(b[sortKey]) * direction;
-    });
-  }, [revenue, search, eventFilter, sourceFilter, sortKey, sortDirection]);
+  const columns = useMemo<PortalDataTableColumn<RevenueRow>[]>(
+    () => [
+      {
+        key: "source",
+        label: "Source",
+        // Sorts on the label the cell actually shows. On the raw enum,
+        // "onsite_donations" ordered against "Registration fees".
+        sortValue: (row) => revenueSourceLabel(row.source),
+        render: (row) => <RevenueSourceBadge source={row.source} />,
+      },
+      {
+        key: "received_date",
+        label: "Date",
+        sortValue: (row) => row.received_date,
+        render: (row) => formatCalendarDate(row.received_date),
+      },
+      {
+        key: "amount",
+        label: "Amount",
+        sortValue: (row) => Number(row.amount),
+        render: (row) => formatCurrency(row.amount),
+      },
+      {
+        key: "event",
+        label: "Event",
+        cellClassName: "app-muted",
+        render: (row) => row.events?.name ?? "—",
+      },
+      {
+        key: "actions",
+        label: "Actions",
+        srOnlyLabel: true,
+        headClassName: "w-0",
+        render: (row) => <EditRevenueModal revenue={row} events={events} />,
+      },
+    ],
+    [events],
+  );
 
   const activeFilterCount = [
     search.trim() !== "",
@@ -112,9 +118,14 @@ export function RevenueTable({
         )}
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No revenue recorded yet.
-            </p>
+            <EmptyState
+              title="No revenue recorded yet"
+              description={
+                action
+                  ? "Record the first one with New Revenue above."
+                  : "Revenue appears here once someone records it."
+              }
+            />
           </CardContent>
         </Card>
       </div>
@@ -210,70 +221,13 @@ export function RevenueTable({
         {action}
       </div>
 
-      <Card>
-        <CardContent className="px-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {SORT_COLUMNS.map((column) => (
-                  <TableHead key={column.key}>
-                    <button
-                      type="button"
-                      onClick={() => handleSort(column.key)}
-                      className="inline-flex items-center gap-1 hover:text-foreground"
-                    >
-                      {column.label}
-                      {sortKey === column.key ? (
-                        sortDirection === "asc" ? (
-                          <ArrowUp className="size-3.5" />
-                        ) : (
-                          <ArrowDown className="size-3.5" />
-                        )
-                      ) : (
-                        <ArrowUpDown className="size-3.5 text-muted-foreground" />
-                      )}
-                    </button>
-                  </TableHead>
-                ))}
-                <TableHead>Event</TableHead>
-                <TableHead className="w-0">
-                  <span className="sr-only">Actions</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {visibleRevenue.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={SORT_COLUMNS.length + 2}
-                    className="app-muted text-center"
-                  >
-                    No revenue matches your filters.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                visibleRevenue.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell>
-                      <RevenueSourceBadge source={row.source} />
-                    </TableCell>
-                    <TableCell>
-                      {formatRevenueDate(row.received_date)}
-                    </TableCell>
-                    <TableCell>{formatAmount(row.amount)}</TableCell>
-                    <TableCell className="app-muted">
-                      {row.events?.name ?? "—"}
-                    </TableCell>
-                    <TableCell>
-                      <EditRevenueModal revenue={row} events={events} />
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <PortalDataTable
+        columns={columns}
+        rows={visibleRevenue}
+        getRowKey={(row) => row.id}
+        defaultSort={{ key: "received_date", dir: "desc" }}
+        emptyMessage="No revenue matches your filters."
+      />
     </div>
   );
 }

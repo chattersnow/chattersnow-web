@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getClientIp } from "@/lib/get-client-ip";
+import { PRONOUNS_TOO_LONG_ERROR } from "@/lib/pronouns";
 import { parseEventRegistrationForm } from "./event-registration-form";
 
 export type RegisterForEventResult =
@@ -16,6 +17,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   EVENT_AT_CAPACITY: "This event has reached capacity.",
   ALREADY_REGISTERED: "This email is already registered for this event.",
   INVALID_PARTY_SIZE: "Party size must be at least 1.",
+  PRONOUNS_TOO_LONG: PRONOUNS_TOO_LONG_ERROR,
   RATE_LIMITED: "Too many attempts — please try again in a few minutes.",
 };
 
@@ -47,6 +49,7 @@ export async function registerForEventAction(
     p_honeypot: honeypot,
     p_ip_address: ipAddress,
     p_instagram_handle: parsed.data.instagram_handle,
+    p_pronouns: parsed.data.pronouns,
   });
 
   if (error) {

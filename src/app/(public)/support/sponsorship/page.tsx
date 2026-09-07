@@ -5,14 +5,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SiteImage } from "@/components/site-image";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSiteImageUrls } from "@/lib/site-images";
+import { getPublicSite, publicTitle } from "@/lib/public-site";
 
-export const metadata: Metadata = {
-  title: "Sponsorship | Chatter Snow",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const supabase = await createSupabaseServerClient();
+  return { title: publicTitle(await getPublicSite(supabase), "Sponsorship") };
+}
 
 export default async function SponsorshipPage() {
   const supabase = await createSupabaseServerClient();
-  const siteImages = await getSiteImageUrls(supabase);
+  const [siteImages, { content }] = await Promise.all([
+    getSiteImageUrls(supabase),
+    getPublicSite(supabase),
+  ]);
+  const imageAlt = content.text("org.image_alt");
 
   return (
     <div className="space-y-12">
@@ -20,57 +26,31 @@ export default async function SponsorshipPage() {
         <div className="w-fit">
           <div className="rainbow-accent w-full" />
           <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-            Sponsorship
+            {content.text("support.sponsorship_heading")}
           </h1>
         </div>
         <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-          Sponsors help fund the core of what Chatter does: subsidizing mountain
-          days, keeping gear access programs running, and making events more
-          affordable for LGBTQ+ riders who might not otherwise be able to join.
-          In return, sponsors get real visibility with our community — event
-          branding, recognition in event materials and on our website, and a
-          direct line to a rider base that shows up for the brands that show up
-          for them.
+          {content.text("support.sponsorship_intro")}
         </p>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle>Cash sponsorship</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="app-muted text-sm leading-relaxed">
-              Underwrite an event, a season of mountain days, or a program like
-              our gear library. Cash sponsors are the easiest way to keep events
-              affordable and accessible.
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>In-kind sponsorship</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="app-muted text-sm leading-relaxed">
-              Contribute gear, lift tickets, venue space, or services. In-kind
-              support stretches directly into gear drives, event day logistics,
-              and giveaways.
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Both</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="app-muted text-sm leading-relaxed">
-              Many of our sponsors mix cash and in-kind support across a season.
-              We&apos;ll work with you to find a combination that fits your
-              organization.
-            </p>
-          </CardContent>
-        </Card>
+        {content
+          .list<{ name: string; description: string }>(
+            "support.sponsorship_tiers",
+          )
+          .map((tier) => (
+            <Card key={tier.name}>
+              <CardHeader>
+                <CardTitle>{tier.name}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="app-muted text-sm leading-relaxed">
+                  {tier.description}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
       </section>
 
       <Button
@@ -78,18 +58,18 @@ export default async function SponsorshipPage() {
         nativeButton={false}
         render={<Link href="/contact?topic=partnership" />}
       >
-        Talk to us about sponsoring
+        {content.text("support.sponsorship_cta")}
       </Button>
 
       <section className="grid gap-6 sm:grid-cols-2">
         <SiteImage
           url={siteImages.sponsorship_photo_1 ?? null}
-          alt="Chatter Snow community members"
+          alt={imageAlt}
           className="aspect-[4/3] rounded-2xl"
         />
         <SiteImage
           url={siteImages.sponsorship_photo_2 ?? null}
-          alt="Chatter Snow community members"
+          alt={imageAlt}
           className="aspect-[4/3] rounded-2xl"
         />
       </section>

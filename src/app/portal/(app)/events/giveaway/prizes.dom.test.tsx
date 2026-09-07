@@ -56,7 +56,6 @@ const people: PersonListItem[] = [
     name: "Jane Doe",
     email: "jane@example.com",
     phone: null,
-    is_sponsor: false,
   },
 ];
 
@@ -67,6 +66,7 @@ function makePrize(overrides: Partial<GiveawayPrize> = {}): GiveawayPrize {
     prize_name: "Season pass",
     donor_person_id: null,
     donor: null,
+    bucket_id: null,
     estimated_value: 250,
     notes: "Signed by the team",
     source_inventory_item_id: null,
@@ -113,6 +113,8 @@ function renderSection(prize: GiveawayPrize, editingPrizeId: string | null) {
       giveaway={makeGiveaway([prize])}
       people={people}
       canEdit
+      buckets={[]}
+      onBucketAssigned={noop}
       isDeleting={false}
       editingWinnerId={null}
       editingPrizeId={editingPrizeId}

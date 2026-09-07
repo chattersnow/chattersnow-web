@@ -1,6 +1,8 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { reloadStayingSignedIn, signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
+import { modal } from "./helpers/dialog";
+import { pickPerson } from "./helpers/people";
 
 // Pre-creates the person directly (rather than exercising PersonPicker's
 // inline "+ Create new person" flow, which isn't otherwise covered by any
@@ -54,7 +56,7 @@ test.describe("portal access management", () => {
       const serviceName = `E2E Service ${Date.now()}`;
 
       await page.getByRole("button", { name: "New asset" }).click();
-      const createDialog = page.getByRole("dialog");
+      const createDialog = modal(page);
       await expect(
         createDialog.getByRole("heading", { name: "Add asset" }),
       ).toBeVisible();
@@ -79,12 +81,14 @@ test.describe("portal access management", () => {
       ).toBeVisible();
 
       await page.getByRole("button", { name: "Add access grant" }).click();
-      const grantDialog = page.getByRole("dialog");
-      await grantDialog
-        .getByPlaceholder("Search by name or email...")
-        .fill(person.name);
-      await grantDialog.getByRole("button", { name: person.name }).click();
-      await expect(grantDialog.getByText(person.name)).toBeVisible();
+      const grantDialog = modal(page);
+      await pickPerson(grantDialog, person.name);
+      // Exact, because the picker also announces the choice to screen
+      // readers as "<name> selected." in an sr-only live region, and a
+      // substring match resolves to both.
+      await expect(
+        grantDialog.getByText(person.name, { exact: true }),
+      ).toBeVisible();
 
       await grantDialog
         .getByRole("button", { name: "Add access grant" })

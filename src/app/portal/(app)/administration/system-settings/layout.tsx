@@ -7,9 +7,13 @@ export default async function AdministrationSystemSettingsLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createSupabaseServerClient();
-  await requireAnyPermission(supabase, [
-    { resource: "administration", level: "manage" },
-    { resource: "system_settings", level: "manage" },
-  ]);
+  await requireAnyPermission(
+    supabase,
+    [
+      { resource: "administration", level: "manage" },
+      { resource: "system_settings", level: "manage" },
+    ],
+    "System Settings",
+  );
   return children;
 }

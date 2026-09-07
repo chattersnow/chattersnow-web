@@ -1,7 +1,10 @@
 "use server";
 
+import { after } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getClientIp } from "@/lib/get-client-ip";
+import { notifyNewContactMessage } from "@/lib/notifications/submission-notifications";
 import { parseContactForm } from "./contact-form-parser";
 
 export type SubmitContactMessageResult = { error: string } | { success: true };
@@ -29,7 +32,7 @@ export async function submitContactMessageAction(
 
   const supabase = await createSupabaseServerClient();
 
-  const { error } = await supabase.rpc("submit_contact_message", {
+  const { data, error } = await supabase.rpc("submit_contact_message", {
     p_name: parsed.data.name,
     p_email: parsed.data.email,
     p_topic: parsed.data.topic,
@@ -45,6 +48,22 @@ export async function submitContactMessageAction(
         "Could not send your message. Please try again.",
     };
   }
+
+  // After the response, never before it (#742). Telling the ops inbox about a
+  // message is the organization's business, not the visitor's: a slow provider
+  // or a missing key must not hold up "thanks, we got it", and a failed send
+  // must not turn a committed message into an error on screen.
+  //
+  // The first place the public surface uses the service-role client. Nothing
+  // user-controlled reaches it: the only input is the id the RPC just minted,
+  // and the notifier treats an id with no row behind it as a filled honeypot
+  // and returns silently.
+  after(async () => {
+    await notifyNewContactMessage(createSupabaseAdminClient(), {
+      messageId: data as string,
+      siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "",
+    });
+  });
 
   return { success: true };
 }

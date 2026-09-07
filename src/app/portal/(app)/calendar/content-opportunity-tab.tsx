@@ -33,17 +33,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { calendarActorName, ownerName, ownerOptions } from "./calendar-shared";
 import type { CalendarOwner } from "./calendar-shared";
+import { PersonSelect } from "../people/person-select";
 import type {
   ActiveContentBriefTemplate,
   TemplateField,
 } from "./content-brief-template-shared";
 import { Spinner } from "@/components/ui/spinner";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+import { formatDateTime } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
+import { runAction } from "@/components/portal/action-toast";
 
 function toDatetimeLocalValue(iso: string | null) {
   if (!iso) return "";
@@ -160,16 +160,17 @@ export function ContentOpportunityTab({
     formData.set("consentOnFileAt", consentForm.consentOnFileAt);
 
     startConsentTransition(async () => {
-      const result = await upsertContentPermissionAction(
-        opportunity.id,
-        formData,
+      await runAction(
+        () => upsertContentPermissionAction(opportunity.id, formData),
+        {
+          success: "Consent details saved.",
+          onError: setConsentError,
+          onSuccess: () => {
+            setConsentMode("view");
+            router.refresh();
+          },
+        },
       );
-      if ("error" in result) {
-        setConsentError(result.error);
-        return;
-      }
-      setConsentMode("view");
-      router.refresh();
     });
   }
 
@@ -274,15 +275,22 @@ export function ContentOpportunityTab({
     );
 
     startTransition(async () => {
-      const result = opportunity
-        ? await updateContentOpportunityAction(opportunity.id, formData)
-        : await createContentOpportunityAction(calendarItemId, formData);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      setMode("view");
-      router.refresh();
+      await runAction(
+        () =>
+          opportunity
+            ? updateContentOpportunityAction(opportunity.id, formData)
+            : createContentOpportunityAction(calendarItemId, formData),
+        {
+          success: opportunity
+            ? "Content brief saved."
+            : "Content brief created.",
+          onError: setError,
+          onSuccess: () => {
+            setMode("view");
+            router.refresh();
+          },
+        },
+      );
     });
   }
 
@@ -298,14 +306,24 @@ export function ContentOpportunityTab({
 
   if (!opportunity && mode === "view") {
     return (
-      <div className="flex flex-col items-start gap-3 py-2">
+      <div className="flex flex-col gap-3 py-2">
         {toneGuidanceBanner}
-        <p className="app-muted text-sm">No content brief yet for this item.</p>
-        {canManage && (
-          <Button type="button" variant="secondary" onClick={startEditing}>
-            Start content brief
-          </Button>
-        )}
+        <EmptyState
+          className="py-4"
+          title="No content brief yet for this item"
+          description={
+            canManage
+              ? "Start one to capture the angle, owner, and consent for this piece."
+              : "A brief appears here once a content manager starts one."
+          }
+          action={
+            canManage ? (
+              <Button type="button" variant="secondary" onClick={startEditing}>
+                Start content brief
+              </Button>
+            ) : undefined
+          }
+        />
       </div>
     );
   }
@@ -379,29 +397,21 @@ export function ContentOpportunityTab({
           </Field>
           <Field orientation="responsive">
             <ReadOnlyField label="Owner" htmlFor="brief-owner">
-              {owners.find((owner) => owner.user_id === opportunity.owner_id)
-                ?.email ?? "—"}
+              {ownerName(owners, opportunity.owner_id)}
             </ReadOnlyField>
             <ReadOnlyField label="Reviewer" htmlFor="brief-reviewer">
-              {owners.find((owner) => owner.user_id === opportunity.reviewer_id)
-                ?.email ?? "—"}
+              {ownerName(owners, opportunity.reviewer_id)}
             </ReadOnlyField>
           </Field>
           <Field orientation="responsive">
             <ReadOnlyField label="Draft due" htmlFor="brief-draft-due">
-              {opportunity.draft_due_at
-                ? dateFormatter.format(new Date(opportunity.draft_due_at))
-                : "—"}
+              {formatDateTime(opportunity.draft_due_at)}
             </ReadOnlyField>
             <ReadOnlyField label="Review due" htmlFor="brief-review-due">
-              {opportunity.review_due_at
-                ? dateFormatter.format(new Date(opportunity.review_due_at))
-                : "—"}
+              {formatDateTime(opportunity.review_due_at)}
             </ReadOnlyField>
             <ReadOnlyField label="Publish due" htmlFor="brief-publish-due">
-              {opportunity.publish_due_at
-                ? dateFormatter.format(new Date(opportunity.publish_due_at))
-                : "—"}
+              {formatDateTime(opportunity.publish_due_at)}
             </ReadOnlyField>
           </Field>
           <ReadOnlyField label="Lead time" htmlFor="brief-lead-time">
@@ -566,10 +576,12 @@ export function ContentOpportunityTab({
           {opportunity.status_changed_at && (
             <p className="app-muted text-xs">
               Status last changed{" "}
-              {dateFormatter.format(new Date(opportunity.status_changed_at))} by{" "}
-              {owners.find(
-                (owner) => owner.user_id === opportunity.status_changed_by,
-              )?.email ?? "someone no longer listed"}
+              {formatDateTime(opportunity.status_changed_at)} by{" "}
+              {calendarActorName(
+                owners,
+                opportunity.status_changed_by,
+                "someone no longer listed",
+              )}
             </p>
           )}
         </FieldGroup>
@@ -713,59 +725,23 @@ export function ContentOpportunityTab({
             <Field orientation="responsive">
               <Field>
                 <FieldLabel htmlFor="brief-ownerId">Owner</FieldLabel>
-                <Select
-                  value={form.ownerId || "none"}
-                  onValueChange={(value) =>
-                    update("ownerId", value === "none" ? "" : (value ?? ""))
-                  }
-                >
-                  <SelectTrigger id="brief-ownerId" className="w-full">
-                    <SelectValue placeholder="No owner">
-                      {(value: string) =>
-                        value && value !== "none"
-                          ? (owners.find((owner) => owner.user_id === value)
-                              ?.email ?? "No owner")
-                          : "No owner"
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No owner</SelectItem>
-                    {owners.map((owner) => (
-                      <SelectItem key={owner.user_id} value={owner.user_id}>
-                        {owner.email}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <PersonSelect
+                  id="brief-ownerId"
+                  people={ownerOptions(owners)}
+                  value={form.ownerId || null}
+                  onChange={(personId) => update("ownerId", personId ?? "")}
+                  noneLabel="No owner"
+                />
               </Field>
               <Field>
                 <FieldLabel htmlFor="brief-reviewerId">Reviewer</FieldLabel>
-                <Select
-                  value={form.reviewerId || "none"}
-                  onValueChange={(value) =>
-                    update("reviewerId", value === "none" ? "" : (value ?? ""))
-                  }
-                >
-                  <SelectTrigger id="brief-reviewerId" className="w-full">
-                    <SelectValue placeholder="No reviewer">
-                      {(value: string) =>
-                        value && value !== "none"
-                          ? (owners.find((owner) => owner.user_id === value)
-                              ?.email ?? "No reviewer")
-                          : "No reviewer"
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No reviewer</SelectItem>
-                    {owners.map((owner) => (
-                      <SelectItem key={owner.user_id} value={owner.user_id}>
-                        {owner.email}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <PersonSelect
+                  id="brief-reviewerId"
+                  people={ownerOptions(owners)}
+                  value={form.reviewerId || null}
+                  onChange={(personId) => update("reviewerId", personId ?? "")}
+                  noneLabel="No reviewer"
+                />
               </Field>
             </Field>
 

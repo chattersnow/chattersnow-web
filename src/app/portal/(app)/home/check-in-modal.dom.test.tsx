@@ -1,31 +1,35 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import * as RegistrantsActions from "../events/registrants-actions";
+import * as ImpactDerivedActions from "../events/impact-derived-actions";
 
 // CheckInModal is a thin Sheet wrapper around the real RegistrantsTab (the
-// same component the events list's edit-mode Registrants tab uses); its own
-// job is only wiring eventId/capacity/mode/active through and giving it a
-// header, so it's tested at that seam rather than re-covering
-// RegistrantsTab's own check-in behavior (see registrants-tab.dom.test.tsx).
-const registrantsTabPropsMock = mock(
-  (_props: {
-    eventId: string;
-    capacity: number | null;
-    active: boolean;
-    mode: "view" | "edit";
-  }) => null,
-);
+// same component the event detail page's Registrants card uses). On the event
+// page the phase provider feeds that card; here the modal does, because it
+// renders outside the event tabs -- so its job is wiring capacity/mode and the
+// two shared reads through, and holding those reads back until the sheet is
+// open (the portal home renders one of these per upcoming event). Check-in
+// behavior itself is covered in registrants-tab.dom.test.tsx.
+const registrantsTabPropsMock = mock((_props: unknown) => null);
 
 mock.module("../events/registrants-tab", () => ({
-  RegistrantsTab: (props: {
-    eventId: string;
-    capacity: number | null;
-    active: boolean;
-    mode: "view" | "edit";
-  }) => {
+  RegistrantsTab: (props: { capacity: number | null; mode: string }) => {
     registrantsTabPropsMock(props);
-    return <div data-testid="registrants-tab">{JSON.stringify(props)}</div>;
+    return <div data-testid="registrants-tab" />;
   },
+}));
+
+const listEventRegistrantsActionMock = mock(async () => ({ data: [] }));
+const getEventImpactDerivedActionMock = mock(async () => ({ data: null }));
+
+mock.module("../events/registrants-actions", () => ({
+  ...RegistrantsActions,
+  listEventRegistrantsAction: listEventRegistrantsActionMock,
+}));
+mock.module("../events/impact-derived-actions", () => ({
+  ...ImpactDerivedActions,
+  getEventImpactDerivedAction: getEventImpactDerivedActionMock,
 }));
 
 const { CheckInModal } = await import("./check-in-modal");
@@ -33,6 +37,8 @@ const { CheckInModal } = await import("./check-in-modal");
 describe("CheckInModal", () => {
   beforeEach(() => {
     registrantsTabPropsMock.mockClear();
+    listEventRegistrantsActionMock.mockClear();
+    getEventImpactDerivedActionMock.mockClear();
   });
 
   test("is closed by default and does not mount the registrants panel", () => {
@@ -50,7 +56,28 @@ describe("CheckInModal", () => {
     expect(screen.queryByTestId("registrants-tab")).toBeNull();
   });
 
-  test("opens to the event's registrants in edit mode, active only while open", async () => {
+  test("holds its reads back until the sheet is opened", async () => {
+    const user = userEvent.setup();
+    render(
+      <CheckInModal
+        eventId="event-42"
+        eventName="Spring Cleanup"
+        capacity={null}
+      />,
+    );
+
+    expect(listEventRegistrantsActionMock).not.toHaveBeenCalled();
+    expect(getEventImpactDerivedActionMock).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Check in" }));
+
+    await waitFor(() => {
+      expect(listEventRegistrantsActionMock).toHaveBeenCalledTimes(1);
+      expect(getEventImpactDerivedActionMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  test("opens to the event's registrants in edit mode", async () => {
     const user = userEvent.setup();
     render(
       <CheckInModal
@@ -65,12 +92,9 @@ describe("CheckInModal", () => {
     expect(
       screen.getByRole("heading", { name: "Check in · Spring Cleanup" }),
     ).toBeInTheDocument();
-    expect(registrantsTabPropsMock).toHaveBeenLastCalledWith({
-      eventId: "event-42",
-      capacity: null,
-      active: true,
-      mode: "edit",
-    });
+    expect(registrantsTabPropsMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ capacity: null, mode: "edit" }),
+    );
   });
 
   test("supports a custom trigger label", () => {

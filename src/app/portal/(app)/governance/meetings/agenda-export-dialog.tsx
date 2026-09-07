@@ -17,15 +17,12 @@ import {
   formatAgendaPlainText,
   type AgendaExportInput,
 } from "./agenda-export";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string) {
-  return dateFormatter.format(new Date(value));
-}
+import {
+  formatCalendarDate,
+  formatInstantDate,
+  personDisplayName,
+} from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 function CopyButton({
   label,
@@ -60,7 +57,7 @@ function AgendaPrintView({ input }: { input: AgendaExportInput }) {
   return (
     <div className="agenda-print-area max-h-[50vh] overflow-y-auto rounded-md border border-[var(--line)] p-4 text-sm">
       <h1 className="text-lg font-semibold">
-        Agenda — {formatDate(input.meetingDate)}
+        Agenda — {formatInstantDate(input.meetingDate)}
       </h1>
       {agenda.external_link && (
         <p className="mt-1">
@@ -85,7 +82,7 @@ function AgendaPrintView({ input }: { input: AgendaExportInput }) {
         <ul className="list-disc pl-5">
           {input.carriedOverItems.map((item) => (
             <li key={item.id}>
-              {item.description} — {item.owner?.name ?? "—"}
+              {item.description} — {personDisplayName(item.owner)}
             </li>
           ))}
         </ul>
@@ -93,7 +90,11 @@ function AgendaPrintView({ input }: { input: AgendaExportInput }) {
 
       <h2 className="mt-4 font-semibold">Ongoing board items</h2>
       {sections.length === 0 ? (
-        <p>No agenda template is configured.</p>
+        <EmptyState
+          className="py-4"
+          title="No agenda template is configured"
+          description="Agenda templates are managed outside the portal; ask an administrator to activate one."
+        />
       ) : (
         sections.map((section) => {
           const value = agenda.ongoing_items[section.key];
@@ -115,7 +116,11 @@ function AgendaPrintView({ input }: { input: AgendaExportInput }) {
 
       <h2 className="mt-4 font-semibold">Decisions &amp; votes</h2>
       {input.decisions.length === 0 ? (
-        <p>No decisions recorded yet.</p>
+        <EmptyState
+          className="py-4"
+          title="No decisions recorded yet"
+          description="Record them in the Decisions section of the Overview tab to include them here."
+        />
       ) : (
         <ul className="list-disc pl-5">
           {input.decisions.map((decision) => (
@@ -148,8 +153,8 @@ function AgendaPrintView({ input }: { input: AgendaExportInput }) {
         <ul className="list-disc pl-5">
           {agenda.upcoming_dates.map((item, index) => (
             <li key={index}>
-              {item.date ? formatDate(item.date) : "—"} —{" "}
-              {item.description || "—"} ({item.owner || "—"})
+              {formatCalendarDate(item.date)} — {item.description || "—"} (
+              {item.owner || "—"})
             </li>
           ))}
         </ul>
@@ -162,7 +167,7 @@ function AgendaPrintView({ input }: { input: AgendaExportInput }) {
         <ul className="list-disc pl-5">
           {input.createdItems.map((item) => (
             <li key={item.id}>
-              {item.description} — {item.owner?.name ?? "—"}
+              {item.description} — {personDisplayName(item.owner)}
             </li>
           ))}
         </ul>
@@ -181,7 +186,7 @@ function AgendaPrintView({ input }: { input: AgendaExportInput }) {
 
       <h2 className="mt-4 font-semibold">Next meeting</h2>
       <p>
-        {agenda.next_meeting_date ? formatDate(agenda.next_meeting_date) : "—"}
+        {formatCalendarDate(agenda.next_meeting_date)}
         {agenda.next_meeting_topics ? ` — ${agenda.next_meeting_topics}` : ""}
       </p>
 

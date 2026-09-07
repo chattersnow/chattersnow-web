@@ -7,6 +7,6 @@ export default async function GovernanceLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createSupabaseServerClient();
-  await requirePermission(supabase, "governance", "manage");
+  await requirePermission(supabase, "governance", "manage", "Governance");
   return children;
 }

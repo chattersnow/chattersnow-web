@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 const NONE_VALUE = "none";
 
@@ -49,9 +50,11 @@ function getInitialFormState() {
 export function LogHoursDialog({
   canManage,
   selfPerson,
+  triggerLabel = "Log hours",
 }: {
   canManage: boolean;
   selfPerson: PickedPerson | null;
+  triggerLabel?: string;
 }) {
   const router = useRouter();
   const lockedToSelf = !canManage && selfPerson !== null;
@@ -125,6 +128,7 @@ export function LogHoursDialog({
         return;
       }
       handleOpenChange(false);
+      toast.success("Volunteer hours logged.");
       router.refresh();
     });
   }
@@ -134,7 +138,7 @@ export function LogHoursDialog({
       <DialogTrigger
         render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
       >
-        Log hours
+        {triggerLabel}
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
@@ -159,10 +163,7 @@ export function LogHoursDialog({
                     selected={selectedPerson}
                     onSelect={setSelectedPerson}
                     onPersonCreated={(person) =>
-                      setPeople((prev) => [
-                        ...prev,
-                        { ...person, is_sponsor: false },
-                      ])
+                      setPeople((prev) => [...prev, person])
                     }
                     newPersonRole="is_volunteer"
                   />

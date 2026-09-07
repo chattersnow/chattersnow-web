@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 function getInitialFormState() {
   return { itemType: "any", category: "any", programId: "", note: "" };
@@ -71,6 +72,7 @@ export function NewSuggestionRuleDialog({ programs }: { programs: Program[] }) {
         return;
       }
       handleOpenChange(false);
+      toast.success("Suggestion rule created.");
       router.refresh();
     });
   }

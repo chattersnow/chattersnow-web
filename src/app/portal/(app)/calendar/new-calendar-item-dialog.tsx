@@ -3,7 +3,9 @@
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createCalendarItemAction } from "./actions";
+import { ownerOptions } from "./calendar-shared";
 import type { CalendarOwner, CalendarProgram } from "./calendar-shared";
+import { PersonSelect } from "../people/person-select";
 import {
   CATEGORIES,
   CALENDAR_STATUSES,
@@ -39,6 +41,7 @@ import {
   type ProgramSuggestionRule,
 } from "./program-suggestion-shared";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 function getInitialFormState() {
   return {
@@ -141,6 +144,7 @@ export function NewCalendarItemDialog({
         setWarning(result.warning);
       }
       handleOpenChange(false);
+      toast.success("Calendar item added.");
       router.refresh();
     });
   }
@@ -351,31 +355,13 @@ export function NewCalendarItemDialog({
               </Field>
               <Field>
                 <FieldLabel htmlFor="ownerId">Owner</FieldLabel>
-                <Select
-                  value={form.ownerId || "none"}
-                  onValueChange={(value) =>
-                    update("ownerId", value === "none" ? "" : (value ?? ""))
-                  }
-                >
-                  <SelectTrigger id="ownerId" className="w-full">
-                    <SelectValue placeholder="No owner">
-                      {(value: string) =>
-                        value && value !== "none"
-                          ? (owners.find((owner) => owner.user_id === value)
-                              ?.email ?? "No owner")
-                          : "No owner"
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No owner</SelectItem>
-                    {owners.map((owner) => (
-                      <SelectItem key={owner.user_id} value={owner.user_id}>
-                        {owner.email}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <PersonSelect
+                  id="ownerId"
+                  people={ownerOptions(owners)}
+                  value={form.ownerId || null}
+                  onChange={(personId) => update("ownerId", personId ?? "")}
+                  noneLabel="No owner"
+                />
               </Field>
             </Field>
 

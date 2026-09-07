@@ -8,22 +8,27 @@ import {
 } from "@/components/ui/card";
 import { LEARN_CATEGORIES } from "./learn-data";
 
-export const metadata: Metadata = {
-  title: "Learn | Chatter Snow",
-};
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getPublicSite, publicTitle } from "@/lib/public-site";
 
-export default function LearnPage() {
+export async function generateMetadata(): Promise<Metadata> {
+  const supabase = await createSupabaseServerClient();
+  return { title: publicTitle(await getPublicSite(supabase), "Learn") };
+}
+
+export default async function LearnPage() {
+  const supabase = await createSupabaseServerClient();
+  const { content } = await getPublicSite(supabase);
   return (
     <div>
       <div className="w-fit">
         <div className="rainbow-accent w-full" />
         <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-          Learn
+          {content.text("learn.heading")}
         </h1>
       </div>
       <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-        Snow sports 101 — orientation basics for anyone new to skiing or riding.
-        Looking for equipment size charts specifically? Check the{" "}
+        {content.text("learn.intro")}{" "}
         <Link
           href="/gears/sizing"
           className="underline underline-offset-4 hover:text-foreground"

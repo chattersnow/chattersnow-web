@@ -51,10 +51,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
+import { formatCalendarDate, personDisplayName } from "@/lib/format";
 
 const NONE_VALUE = "none";
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
-
 type FormState = {
   eventId: string;
   volunteerRoleTypeId: string;
@@ -198,6 +198,7 @@ export function VolunteerHoursDetailsSheet({
         return;
       }
       setMode("view");
+      toast.success("Volunteer hours saved.");
       router.refresh();
     });
   }
@@ -289,7 +290,7 @@ export function VolunteerHoursDetailsSheet({
             <div className="flex-1 overflow-y-auto px-4 pb-4">
               <FieldGroup>
                 <ReadOnlyField label="Volunteer" htmlFor="hours-view-volunteer">
-                  {entry.person?.name ?? "—"}
+                  {personDisplayName(entry.person)}
                 </ReadOnlyField>
                 <ReadOnlyField label="Event" htmlFor="hours-view-event">
                   {entry.event?.name ?? "—"}
@@ -301,7 +302,7 @@ export function VolunteerHoursDetailsSheet({
                   {entry.hours}
                 </ReadOnlyField>
                 <ReadOnlyField label="Date" htmlFor="hours-view-date">
-                  {dateFormatter.format(new Date(entry.logged_date))}
+                  {formatCalendarDate(entry.logged_date)}
                 </ReadOnlyField>
                 <ReadOnlyField label="Notes" htmlFor="hours-view-notes">
                   {entry.notes || "—"}
@@ -323,10 +324,7 @@ export function VolunteerHoursDetailsSheet({
                       selected={selectedPerson}
                       onSelect={setSelectedPerson}
                       onPersonCreated={(person) =>
-                        setPeople((prev) => [
-                          ...prev,
-                          { ...person, is_sponsor: false },
-                        ])
+                        setPeople((prev) => [...prev, person])
                       }
                       newPersonRole="is_volunteer"
                     />

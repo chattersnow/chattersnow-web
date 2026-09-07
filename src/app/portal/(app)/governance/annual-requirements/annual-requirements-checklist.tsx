@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useTransition } from "react";
+import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -10,14 +10,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { EditRequirementModal } from "./edit-requirement-modal";
 import { NewRequirementDialog } from "./new-requirement-dialog";
 import { RequirementStatusBadge } from "./annual-requirements-badges";
@@ -28,16 +20,31 @@ import {
 } from "./annual-requirements-actions";
 import type { PersonListItem } from "../../people/actions";
 import { Spinner } from "@/components/ui/spinner";
+import { formatCalendarDate, personDisplayName } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
+import { useActionToast } from "@/components/portal/action-toast";
+import {
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
+const STATUS_LABELS: Record<RequirementStatus, string> = {
+  not_started: "Not started",
+  in_progress: "In progress",
+  done: "Done",
+};
 
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
+/**
+ * Where each status sits in the work, not in the alphabet: sorting a
+ * checklist on Status is a way of asking what is still outstanding, so
+ * ascending has to put the untouched requirements first and the finished ones
+ * last.
+ */
+const STATUS_RANK: Record<RequirementStatus, number> = {
+  not_started: 0,
+  in_progress: 1,
+  done: 2,
+};
 
 function RequirementStatusSelect({
   requirement,
@@ -45,13 +52,14 @@ function RequirementStatusSelect({
   requirement: AnnualRequirement;
 }) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const { isPending, run } = useActionToast();
 
   function handleChange(value: RequirementStatus | null) {
     if (!value) return;
-    startTransition(async () => {
-      await updateAnnualRequirementStatusAction(requirement.id, value);
-      router.refresh();
+    run(() => updateAnnualRequirementStatusAction(requirement.id, value), {
+      success: `${requirement.name} — ${STATUS_LABELS[value]}.`,
+      error: "Could not update the requirement. Please try again.",
+      onSuccess: () => router.refresh(),
     });
   }
 
@@ -91,6 +99,54 @@ export function AnnualRequirementsChecklist({
     [requirements],
   );
 
+  const columns = useMemo<PortalDataTableColumn<AnnualRequirement>[]>(
+    () => [
+      {
+        key: "status",
+        label: "Status",
+        sortValue: (requirement) => STATUS_RANK[requirement.status],
+        render: (requirement) =>
+          canManage ? (
+            <RequirementStatusSelect requirement={requirement} />
+          ) : (
+            <RequirementStatusBadge status={requirement.status} />
+          ),
+      },
+      {
+        key: "name",
+        label: "Name",
+        sortValue: (requirement) => requirement.name,
+        cellClassName: "max-w-md font-medium",
+        render: (requirement) => requirement.name,
+      },
+      {
+        key: "due_date",
+        label: "Due date",
+        sortValue: (requirement) => requirement.due_date,
+        cellClassName: "app-muted",
+        render: (requirement) => formatCalendarDate(requirement.due_date),
+      },
+      {
+        key: "responsible",
+        label: "Responsible",
+        sortValue: (requirement) => personDisplayName(requirement.responsible),
+        cellClassName: "app-muted",
+        render: (requirement) => personDisplayName(requirement.responsible),
+      },
+      {
+        key: "actions",
+        label: "Actions",
+        srOnlyLabel: true,
+        headClassName: "w-0",
+        render: (requirement) =>
+          canManage ? (
+            <EditRequirementModal requirement={requirement} people={people} />
+          ) : null,
+      },
+    ],
+    [canManage, people],
+  );
+
   return (
     <div className="space-y-4">
       <div className="rainbow-surface flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
@@ -103,59 +159,29 @@ export function AnnualRequirementsChecklist({
       {requirements.length === 0 ? (
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No annual requirements recorded yet.
-            </p>
+            <EmptyState
+              title="No annual requirements recorded yet"
+              description={
+                canManage
+                  ? "Add the first one with Add requirement above."
+                  : "Requirements appear here once a governance manager adds them."
+              }
+            />
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="px-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Due date</TableHead>
-                  <TableHead>Responsible</TableHead>
-                  <TableHead className="w-0">
-                    <span className="sr-only">Actions</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {requirements.map((requirement) => (
-                  <TableRow key={requirement.id}>
-                    <TableCell>
-                      {canManage ? (
-                        <RequirementStatusSelect requirement={requirement} />
-                      ) : (
-                        <RequirementStatusBadge status={requirement.status} />
-                      )}
-                    </TableCell>
-                    <TableCell className="max-w-md font-medium">
-                      {requirement.name}
-                    </TableCell>
-                    <TableCell className="app-muted">
-                      {formatDate(requirement.due_date)}
-                    </TableCell>
-                    <TableCell className="app-muted">
-                      {requirement.responsible?.name ?? "—"}
-                    </TableCell>
-                    <TableCell>
-                      {canManage && (
-                        <EditRequirementModal
-                          requirement={requirement}
-                          people={people}
-                        />
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        // A checklist, but not an order-intrinsic one: nothing about a
+        // requirement's position carries meaning, and "what is due next" and
+        // "what is still not started" are exactly the questions a reader
+        // brings to it -- so it sorts and pages like every other list.
+        <PortalDataTable
+          columns={columns}
+          rows={requirements}
+          getRowKey={(requirement) => requirement.id}
+          // The query orders by due date, soonest first.
+          defaultSort={{ key: "due_date", dir: "asc" }}
+          emptyMessage="No annual requirements to show."
+        />
       )}
     </div>
   );

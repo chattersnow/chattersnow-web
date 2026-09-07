@@ -7,9 +7,13 @@ export default async function FinanceReimbursementsLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createSupabaseServerClient();
-  await requireAnyPermission(supabase, [
-    { resource: "reimbursements", level: "manage" },
-    { resource: "reimbursement_approvals", level: "manage" },
-  ]);
+  await requireAnyPermission(
+    supabase,
+    [
+      { resource: "reimbursements", level: "manage" },
+      { resource: "reimbursement_approvals", level: "manage" },
+    ],
+    "Reimbursements",
+  );
   return children;
 }

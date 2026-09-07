@@ -17,7 +17,6 @@ import {
 } from "./reimbursement-form-fields";
 import {
   formatAmount,
-  formatReimbursementDate,
   getReimbursementNextStepMessage,
   isSelfApprovalEligible,
   type EventOption,
@@ -65,11 +64,12 @@ import {
 } from "@/components/ui/tooltip";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
-
-const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+import { toast } from "@/components/ui/toast";
+import {
+  formatDateTime,
+  formatInstantDate,
+  personDisplayName,
+} from "@/lib/format";
 
 function formStateFor(reimbursement: ReimbursementRow): ReimbursementFormState {
   return {
@@ -160,7 +160,7 @@ export function EditReimbursementModal({
   }
 
   function handlePersonCreated(person: PickedPerson) {
-    setAvailablePeople((prev) => [...prev, { ...person, is_sponsor: false }]);
+    setAvailablePeople((prev) => [...prev, person]);
   }
 
   function resetToBaseline() {
@@ -218,6 +218,7 @@ export function EditReimbursementModal({
         return;
       }
       setMode("view");
+      toast.success("Reimbursement marked paid.");
       router.refresh();
     });
   }
@@ -230,6 +231,7 @@ export function EditReimbursementModal({
         setError(result.error);
         return;
       }
+      toast.success("Reimbursement approved.");
       router.refresh();
     });
   }
@@ -248,6 +250,7 @@ export function EditReimbursementModal({
       }
       setRejectDialogOpen(false);
       setRejectReason("");
+      toast.success("Reimbursement rejected.");
       router.refresh();
     });
   }
@@ -260,6 +263,7 @@ export function EditReimbursementModal({
         setError(result.error);
         return;
       }
+      toast.success("Reimbursement marked paid.");
       router.refresh();
     });
   }
@@ -365,7 +369,7 @@ export function EditReimbursementModal({
                   label="Requester"
                   htmlFor="edit-reimbursement-requester"
                 >
-                  {reimbursement.people?.name ?? "—"}
+                  {personDisplayName(reimbursement.people)}
                   {reimbursement.people?.email
                     ? ` (${reimbursement.people.email})`
                     : ""}
@@ -384,7 +388,7 @@ export function EditReimbursementModal({
                     label="Submitted"
                     htmlFor="edit-reimbursement-created"
                   >
-                    {formatReimbursementDate(reimbursement.created_at)}
+                    {formatInstantDate(reimbursement.created_at)}
                   </ReadOnlyField>
                   <ReadOnlyField
                     label="Amount"
@@ -418,9 +422,7 @@ export function EditReimbursementModal({
                       label="Approved"
                       htmlFor="edit-reimbursement-approved"
                     >
-                      {dateTimeFormatter.format(
-                        new Date(reimbursement.approved_at),
-                      )}
+                      {formatDateTime(reimbursement.approved_at)}
                     </ReadOnlyField>
                   )}
                 {reimbursement.status === "rejected" && (
@@ -430,9 +432,7 @@ export function EditReimbursementModal({
                         label="Rejected"
                         htmlFor="edit-reimbursement-rejected"
                       >
-                        {dateTimeFormatter.format(
-                          new Date(reimbursement.rejected_at),
-                        )}
+                        {formatDateTime(reimbursement.rejected_at)}
                       </ReadOnlyField>
                     )}
                     <ReadOnlyField
@@ -445,7 +445,7 @@ export function EditReimbursementModal({
                 )}
                 {reimbursement.status === "paid" && reimbursement.paid_at && (
                   <ReadOnlyField label="Paid" htmlFor="edit-reimbursement-paid">
-                    {dateTimeFormatter.format(new Date(reimbursement.paid_at))}
+                    {formatDateTime(reimbursement.paid_at)}
                   </ReadOnlyField>
                 )}
 

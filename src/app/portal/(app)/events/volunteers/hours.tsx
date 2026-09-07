@@ -2,12 +2,12 @@
 
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
 import {
   type EventVolunteer,
-  type EventVolunteerHours,
+  type EventVolunteerPerson,
 } from "../volunteers-actions";
 import { type EventShift } from "../shifts-actions";
+import { type RoleType } from "../../volunteers/roles/actions";
 import { PersonPicker, type PickedPerson } from "../../people/person-picker";
 import { type PersonListItem } from "../../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -15,18 +15,17 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
-import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
+import { personDisplayName } from "@/lib/format";
+import { runAction } from "@/components/portal/action-toast";
+import { NONE_VALUE } from "./shifts";
 
 function shiftHoursAndDate(shift: EventShift) {
   const durationHours =
@@ -39,14 +38,49 @@ function shiftHoursAndDate(shift: EventShift) {
   };
 }
 
+/**
+ * The hours, date and role a volunteer's own signup implies, so the common
+ * case -- "they worked the shift they signed up for" -- is one confirm rather
+ * than three lookups. Falls back to a blank entry dated today.
+ */
+function defaultsForPerson(
+  person: PickedPerson | null,
+  volunteers: EventVolunteer[],
+  shifts: EventShift[],
+) {
+  const volunteer = person
+    ? volunteers.find((v) => v.person_id === person.id)
+    : undefined;
+  const shift = volunteer?.shift_id
+    ? shifts.find((s) => s.id === volunteer.shift_id)
+    : undefined;
+  const roleTypeId =
+    shift?.volunteer_role_type_id ?? volunteer?.volunteer_role_type_id ?? null;
+  return {
+    ...(shift
+      ? shiftHoursAndDate(shift)
+      : { hours: "", loggedDate: new Date().toISOString().slice(0, 10) }),
+    roleTypeId,
+  };
+}
+
 export function AddHoursForm({
   volunteers,
   shifts,
+  roleTypes,
+  lockedPerson,
   onSubmit,
   onCancel,
 }: {
   volunteers: EventVolunteer[];
   shifts: EventShift[];
+  roleTypes: RoleType[];
+  /**
+   * Set when the form is opened from a specific roster row. The volunteer is
+   * then fixed and shown read-only instead of offering a picker that could
+   * only ever be re-set to the person it already names.
+   */
+  lockedPerson?: EventVolunteerPerson;
   onSubmit: (
     personId: string,
     formData: FormData,
@@ -56,14 +90,24 @@ export function AddHoursForm({
   const router = useRouter();
   const people: PersonListItem[] = volunteers.map((volunteer) => ({
     ...volunteer.person,
-    is_sponsor: false,
   }));
   const [selectedPerson, setSelectedPerson] = useState<PickedPerson | null>(
-    null,
+    lockedPerson ?? null,
   );
-  const [hours, setHours] = useState("");
-  const [loggedDate, setLoggedDate] = useState(() =>
-    new Date().toISOString().slice(0, 10),
+  // Seeded lazily rather than in an effect: the compiler lint that ships with
+  // eslint-config-next fails on setting state from an effect body, and the
+  // dialog only mounts this form once its volunteers have loaded, so the
+  // locked person's shift is already known on the first render.
+  const [hours, setHours] = useState(
+    () => defaultsForPerson(lockedPerson ?? null, volunteers, shifts).hours,
+  );
+  const [loggedDate, setLoggedDate] = useState(
+    () =>
+      defaultsForPerson(lockedPerson ?? null, volunteers, shifts).loggedDate,
+  );
+  const [roleTypeId, setRoleTypeId] = useState<string | null>(
+    () =>
+      defaultsForPerson(lockedPerson ?? null, volunteers, shifts).roleTypeId,
   );
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -71,14 +115,11 @@ export function AddHoursForm({
 
   function handleSelectPerson(person: PickedPerson | null) {
     setSelectedPerson(person);
-    const volunteer = person
-      ? volunteers.find((v) => v.person_id === person.id)
-      : undefined;
-    const shift = volunteer?.shift_id
-      ? shifts.find((s) => s.id === volunteer.shift_id)
-      : undefined;
-    if (!shift) return;
-    const defaults = shiftHoursAndDate(shift);
+    const defaults = defaultsForPerson(person, volunteers, shifts);
+    // The role comes from the signup itself, so it is known even for a
+    // volunteer with no shift to imply hours and a date.
+    setRoleTypeId(defaults.roleTypeId);
+    if (!defaults.hours) return;
     setHours(defaults.hours);
     setLoggedDate(defaults.loggedDate);
   }
@@ -92,18 +133,21 @@ export function AddHoursForm({
     }
 
     const formData = new FormData();
+    formData.set("volunteerRoleTypeId", roleTypeId ?? "");
     formData.set("hours", hours);
     formData.set("loggedDate", loggedDate);
     formData.set("notes", notes);
 
+    const person = selectedPerson;
     startTransition(async () => {
-      const result = await onSubmit(selectedPerson.id, formData);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
-      onCancel();
+      await runAction(() => onSubmit(person.id, formData), {
+        success: `${hours} hours logged for ${personDisplayName(person)}.`,
+        onError: setError,
+        onSuccess: () => {
+          router.refresh();
+          onCancel();
+        },
+      });
     });
   }
 
@@ -115,14 +159,20 @@ export function AddHoursForm({
       <FieldGroup>
         <Field>
           <FieldLabel>Volunteer</FieldLabel>
-          <PersonPicker
-            people={people}
-            selected={selectedPerson}
-            onSelect={handleSelectPerson}
-            onPersonCreated={() => {}}
-            allowCreate={false}
-            placeholder="Search signed-up volunteers..."
-          />
+          {lockedPerson ? (
+            <p className="app-muted rounded-md border border-[var(--line)] px-3 py-2 text-sm">
+              {personDisplayName(lockedPerson)}
+            </p>
+          ) : (
+            <PersonPicker
+              people={people}
+              selected={selectedPerson}
+              onSelect={handleSelectPerson}
+              onPersonCreated={() => {}}
+              allowCreate={false}
+              placeholder="Search signed-up volunteers..."
+            />
+          )}
         </Field>
 
         <Field orientation="responsive">
@@ -146,6 +196,35 @@ export function AddHoursForm({
               onChange={(event) => setLoggedDate(event.target.value)}
             />
           </Field>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="hours-role-type">Role</FieldLabel>
+          <Select
+            value={roleTypeId ?? NONE_VALUE}
+            onValueChange={(value) =>
+              setRoleTypeId(value === NONE_VALUE ? null : value)
+            }
+          >
+            <SelectTrigger id="hours-role-type" className="w-full">
+              <SelectValue placeholder="No role">
+                {(value: string) =>
+                  value === NONE_VALUE
+                    ? "No role"
+                    : (roleTypes.find((option) => option.id === value)?.name ??
+                      "No role")
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NONE_VALUE}>No role</SelectItem>
+              {roleTypes.map((option) => (
+                <SelectItem key={option.id} value={option.id}>
+                  {option.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </Field>
 
         <Field>
@@ -179,76 +258,5 @@ export function AddHoursForm({
         </div>
       </FieldGroup>
     </form>
-  );
-}
-
-export function HoursSection({
-  hours,
-  mode,
-  isDeleting,
-  loading,
-  totalHours,
-  onDeleteHours,
-}: {
-  hours: EventVolunteerHours[];
-  mode: "view" | "edit";
-  isDeleting: boolean;
-  loading: boolean;
-  totalHours: number;
-  onDeleteHours: (id: string) => void;
-}) {
-  return (
-    <div className="flex flex-col gap-3 border-t border-[var(--line)] pt-4">
-      <h3 className="text-sm font-semibold">
-        Hours logged
-        {hours && hours.length > 0 ? ` (${totalHours} total)` : ""}
-      </h3>
-      {loading ? (
-        <TabLoadingSkeleton />
-      ) : hours.length === 0 ? (
-        <p className="app-muted text-sm">No hours logged yet.</p>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Volunteer</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Hours</TableHead>
-              <TableHead className="w-px" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {hours.map((entry) => (
-              <TableRow key={entry.id}>
-                <TableCell
-                  className="max-w-xs truncate font-medium"
-                  title={entry.person?.name ?? undefined}
-                >
-                  {entry.person?.name ?? "—"}
-                </TableCell>
-                <TableCell className="app-muted">
-                  {dateFormatter.format(new Date(entry.logged_date))}
-                </TableCell>
-                <TableCell>{entry.hours}</TableCell>
-                <TableCell className="text-right">
-                  {mode === "edit" && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Remove hours entry"
-                      disabled={isDeleting}
-                      onClick={() => onDeleteHours(entry.id)}
-                    >
-                      {isDeleting ? <Spinner /> : <Trash2 />}
-                    </Button>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-    </div>
   );
 }

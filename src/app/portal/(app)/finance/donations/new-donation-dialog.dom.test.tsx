@@ -4,6 +4,8 @@ import userEvent from "@testing-library/user-event";
 import type { DonationActionResult } from "./actions";
 import type { PersonListItem } from "../../people/actions";
 import * as DonationActions from "./actions";
+import * as EventActions from "../../events/actions";
+import * as PeopleActions from "../../people/actions";
 
 const createDonationActionMock = mock<
   (formData: FormData) => Promise<DonationActionResult>
@@ -12,6 +14,24 @@ const createDonationActionMock = mock<
 mock.module("./actions", () => ({
   ...DonationActions,
   createDonationAction: createDonationActionMock,
+}));
+
+// Callers that pass neither list -- the sidebar quick action -- make the
+// dialog load its own options on open.
+const listEventOptionsActionMock = mock(async () => ({
+  data: [{ id: "event-2", name: "Sidebar Loaded Event" }],
+}));
+const listPeopleActionMock = mock(async () => ({
+  data: [] as PersonListItem[],
+}));
+
+mock.module("../../events/actions", () => ({
+  ...EventActions,
+  listEventOptionsAction: listEventOptionsActionMock,
+}));
+mock.module("../../people/actions", () => ({
+  ...PeopleActions,
+  listPeopleAction: listPeopleActionMock,
 }));
 
 const { NewDonationDialog } = await import("./new-donation-dialog");
@@ -23,7 +43,6 @@ const people: PersonListItem[] = [
     name: "Jamie Rivera",
     email: "jamie.rivera@example.test",
     phone: null,
-    is_sponsor: false,
   },
 ];
 
@@ -88,7 +107,9 @@ describe("NewDonationDialog", () => {
       screen.getByPlaceholderText("Search donors by name or email..."),
       "Jamie",
     );
-    await user.click(screen.getByRole("button", { name: /Jamie Rivera/ }));
+    await user.click(
+      await screen.findByRole("option", { name: /Jamie Rivera/ }),
+    );
 
     // The picker collapses to the selected person with a "Change" affordance.
     expect(screen.getByRole("button", { name: "Change" })).toBeInTheDocument();
@@ -118,5 +139,16 @@ describe("NewDonationDialog", () => {
       await screen.findByText("Could not save the donation. Please try again."),
     ).toBeInTheDocument();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  test("loads its own event and person options when given none", async () => {
+    listEventOptionsActionMock.mockClear();
+    listPeopleActionMock.mockClear();
+    const user = userEvent.setup();
+    render(<NewDonationDialog />);
+    await user.click(screen.getByRole("button", { name: "New donation" }));
+
+    expect(listEventOptionsActionMock).toHaveBeenCalled();
+    expect(listPeopleActionMock).toHaveBeenCalled();
   });
 });

@@ -43,16 +43,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
+import { toast } from "@/components/ui/toast";
+import {
+  formatCalendarDate,
+  formatInstantDate,
+  personDisplayName,
+} from "@/lib/format";
 
 function meetingLabel(
   meetingId: string | null,
@@ -61,7 +57,7 @@ function meetingLabel(
   if (!meetingId) return "—";
   const meeting = meetings.find((m) => m.id === meetingId);
   if (!meeting) return "—";
-  return `${dateFormatter.format(new Date(meeting.meeting_date))} — ${meeting.meeting_type}`;
+  return `${formatInstantDate(meeting.meeting_date)} — ${meeting.meeting_type}`;
 }
 
 function formStateFor(resolution: Resolution): ResolutionFormState {
@@ -130,7 +126,7 @@ export function EditResolutionModal({
   }
 
   function handlePersonCreated(person: PickedPerson) {
-    setAvailablePeople((prev) => [...prev, { ...person, is_sponsor: false }]);
+    setAvailablePeople((prev) => [...prev, person]);
   }
 
   function resetToBaseline() {
@@ -191,6 +187,7 @@ export function EditResolutionModal({
         return;
       }
       setMode("view");
+      toast.success("Resolution saved.");
       router.refresh();
     });
   }
@@ -301,7 +298,7 @@ export function EditResolutionModal({
                   label="Seconder"
                   htmlFor="edit-resolution-seconder"
                 >
-                  {resolution.seconder?.name || "—"}
+                  {personDisplayName(resolution.seconder)}
                 </ReadOnlyField>
                 <ReadOnlyField
                   label="Vote outcome"
@@ -313,7 +310,7 @@ export function EditResolutionModal({
                   label="Effective date"
                   htmlFor="edit-resolution-effective-date"
                 >
-                  {formatDate(resolution.effective_date)}
+                  {formatCalendarDate(resolution.effective_date)}
                 </ReadOnlyField>
                 <ReadOnlyField
                   label="External link"

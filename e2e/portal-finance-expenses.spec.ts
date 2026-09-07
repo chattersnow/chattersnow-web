@@ -1,8 +1,9 @@
 // Issue #440: E2E coverage for /portal/finance/expenses. Only smoke-level
 // coverage of the Finance section existed before this (portal-sections.spec.ts,
 // #234), so this exercises the actual create-then-view workflow.
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
+import { modal } from "./helpers/dialog";
 
 test.describe("portal finance expenses", () => {
   test.beforeEach(async ({ page }) => {
@@ -22,7 +23,7 @@ test.describe("portal finance expenses", () => {
     const description = `E2E Expense ${Date.now()}`;
 
     await page.getByRole("button", { name: "New Expense" }).click();
-    const addDialog = page.getByRole("dialog");
+    const addDialog = modal(page);
     await expect(
       addDialog.getByRole("heading", { name: "Add expense" }),
     ).toBeVisible();
@@ -33,13 +34,20 @@ test.describe("portal finance expenses", () => {
 
     await expect(addDialog).not.toBeVisible();
 
+    // The list is server-paginated at ten rows, and it carries whatever the
+    // seed created plus whatever the other project is mid-run on, so a new
+    // expense is not on page one. Reload searched down to it.
+    await page.goto(
+      `/portal/finance/expenses?search=${encodeURIComponent(description)}`,
+    );
+
     const row = page.getByRole("row").filter({ hasText: description });
     await expect(row).toBeVisible();
     await expect(row).toContainText("$123.45");
-    await expect(row).toContainText("submitted");
+    await expect(row).toContainText("Submitted");
 
     await row.getByRole("button", { name: "View expense" }).click();
-    const viewSheet = page.getByRole("dialog");
+    const viewSheet = modal(page);
     await expect(
       viewSheet.getByRole("heading", { name: "Expense", exact: true }),
     ).toBeVisible();

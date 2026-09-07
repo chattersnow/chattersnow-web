@@ -61,6 +61,7 @@ describe("resolveCurrentPerson", () => {
     const personRow = {
       id: "person-1",
       name: "Casey Rivera",
+      preferred_name: null,
       email: "volunteer@example.test",
       phone: null,
     };

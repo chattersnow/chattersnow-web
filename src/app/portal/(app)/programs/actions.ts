@@ -119,14 +119,22 @@ export async function listProgramEventsAction(
   const permissionError = await checkPermission(supabase, "events", "view");
   if (permissionError) return permissionError;
 
+  // Filtered through the join table with an inner join rather than ordering a
+  // query rooted at event_programs: PostgREST's `order` on an embedded table
+  // sorts within the embed, not the parent rows, so events has to stay the top
+  // level for `starts_at` ordering to mean anything.
   const { data, error } = await supabase
     .from("events")
-    .select("id, name, starts_at, status, visibility")
-    .eq("program_id", programId)
+    .select(
+      "id, name, starts_at, status, visibility, event_programs!inner(program_id)",
+    )
+    .eq("event_programs.program_id", programId)
     .order("starts_at", { ascending: false });
 
   if (error) {
     return { error: "Could not load this program's events. Please try again." };
   }
-  return { data: (data ?? []) as ProgramEvent[] };
+  return {
+    data: (data ?? []).map(({ event_programs: _links, ...event }) => event),
+  };
 }

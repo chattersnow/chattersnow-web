@@ -23,6 +23,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 export function NewAssetDialog({
   services,
@@ -63,6 +64,7 @@ export function NewAssetDialog({
         return;
       }
       handleOpenChange(false);
+      toast.success("Asset added.");
       router.refresh();
     });
   }

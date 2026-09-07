@@ -2,12 +2,13 @@
 
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { type EventShift } from "../shifts-actions";
 import {
   listRoleTypesAction,
   type RoleType,
 } from "../../volunteers/roles/actions";
+import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -29,16 +30,13 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
+import { formatDateTime } from "@/lib/format";
+import { runAction } from "@/components/portal/action-toast";
 
 export const NONE_VALUE = "none";
 
-const shiftTimeFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-
 export function formatShiftRange(shift: EventShift) {
-  return `${shiftTimeFormatter.format(new Date(shift.starts_at))} – ${shiftTimeFormatter.format(new Date(shift.ends_at))}`;
+  return `${formatDateTime(shift.starts_at)} – ${formatDateTime(shift.ends_at)}`;
 }
 
 function toDatetimeLocal(iso: string) {
@@ -98,13 +96,17 @@ export function ShiftForm({
     );
 
     startTransition(async () => {
-      const result = await onSubmit(formData);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
-      onCancel();
+      await runAction(() => onSubmit(formData), {
+        // The same form creates and edits; `initialShift` says which.
+        success: initialShift
+          ? `Shift "${label}" updated.`
+          : `Shift "${label}" added.`,
+        onError: setError,
+        onSuccess: () => {
+          router.refresh();
+          onCancel();
+        },
+      });
     });
   }
 
@@ -273,7 +275,10 @@ export function ShiftsSection({
           event.
         </p>
       ) : (
-        <Table>
+        // Not a PortalDataTable: editing a shift swaps its row for a
+        // full-width form, and a flat row list has nowhere to put that. It
+        // takes the sticky header and leaves the rest.
+        <Table stickyHeader="page">
           <TableHeader>
             <TableRow>
               <TableHead>Duty / location</TableHead>
@@ -343,16 +348,14 @@ export function ShiftsSection({
                         >
                           <Pencil />
                         </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label="Remove shift"
-                          disabled={isDeleting}
-                          onClick={() => onDeleteShift(shift.id)}
-                        >
-                          {isDeleting ? <Spinner /> : <Trash2 />}
-                        </Button>
+                        <ConfirmDeleteButton
+                          label="Remove shift"
+                          title={`Remove the "${shift.label}" shift?`}
+                          description="This deletes the shift and unassigns every volunteer signed up for it. It can't be undone."
+                          confirmLabel="Remove"
+                          pending={isDeleting}
+                          onConfirm={() => onDeleteShift(shift.id)}
+                        />
                       </>
                     )}
                   </TableCell>

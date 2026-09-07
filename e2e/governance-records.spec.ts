@@ -1,7 +1,8 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test";
 import { signIn, reloadStayingSignedIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
-import { seedPerson } from "./helpers/people";
+import { pickPerson, seedPerson } from "./helpers/people";
+import { modal } from "./helpers/dialog";
 
 // The document-shaped governance routes (#442): bylaws, policies, conflict
 // of interest, and annual requirements. Board members, meetings, and
@@ -30,7 +31,7 @@ test.describe("portal governance records", () => {
       ).toBeVisible();
 
       await page.getByRole("button", { name: "Add bylaws version" }).click();
-      const addDialog = page.getByRole("dialog");
+      const addDialog = modal(page);
       await expect(
         addDialog.getByRole("heading", { name: "Add bylaws version" }),
       ).toBeVisible();
@@ -54,7 +55,7 @@ test.describe("portal governance records", () => {
       await expect(entry).toBeVisible({ timeout: 15_000 });
 
       await entry.getByRole("button", { name: "View bylaws version" }).click();
-      const sheet = page.getByRole("dialog");
+      const sheet = modal(page);
       await expect(sheet.getByText(version)).toBeVisible();
 
       await sheet.getByRole("button", { name: "Edit bylaws version" }).click();
@@ -85,7 +86,7 @@ test.describe("portal governance records", () => {
       ).toBeVisible();
 
       await page.getByRole("button", { name: "Add policy" }).click();
-      const addDialog = page.getByRole("dialog");
+      const addDialog = modal(page);
       await expect(
         addDialog.getByRole("heading", { name: "Add policy" }),
       ).toBeVisible();
@@ -103,7 +104,9 @@ test.describe("portal governance records", () => {
 
       // Filters are inline on the page now rather than inside a sheet, so the
       // table stays visible while the search box is edited.
-      const search = page.getByLabel("Search");
+      // Exact: the header's command palette trigger is labelled "Search the
+      // portal", which a substring match would also pick up.
+      const search = page.getByLabel("Search", { exact: true });
       await search.fill(`no-such-policy-${policyName}`);
       await expect(
         page.getByText("No policies match your filters."),
@@ -113,7 +116,7 @@ test.describe("portal governance records", () => {
       await expect(row).toBeVisible();
 
       await row.getByRole("button", { name: "View policy" }).click();
-      const sheet = page.getByRole("dialog");
+      const sheet = modal(page);
       await expect(sheet.getByText(policyName)).toBeVisible();
 
       await sheet.getByRole("button", { name: "Edit policy" }).click();
@@ -154,15 +157,12 @@ test.describe("portal governance records", () => {
       ).toBeVisible();
 
       await page.getByRole("button", { name: "Add disclosure" }).click();
-      const addDialog = page.getByRole("dialog");
+      const addDialog = modal(page);
       await expect(
         addDialog.getByRole("heading", { name: "Add disclosure" }),
       ).toBeVisible();
 
-      await addDialog
-        .getByPlaceholder("Search by name or email...")
-        .fill(person.name);
-      await addDialog.getByRole("button", { name: person.name }).click();
+      await pickPerson(addDialog, person.name);
 
       // Disclosure year defaults to the current year, and the table is
       // unique per (person, year) -- the freshly seeded person keeps this
@@ -177,8 +177,11 @@ test.describe("portal governance records", () => {
       await expect(row).toContainText(notes);
 
       await row.getByRole("button", { name: "View disclosure" }).click();
-      const sheet = page.getByRole("dialog");
-      await expect(sheet.getByText(person.name)).toBeVisible();
+      const sheet = modal(page);
+      // Exact, because the picker also announces the choice to screen
+      // readers as "<name> selected." in an sr-only live region, and a
+      // substring match resolves to both.
+      await expect(sheet.getByText(person.name, { exact: true })).toBeVisible();
       await expect(sheet.getByText(notes)).toBeVisible();
 
       await sheet.getByRole("button", { name: "Edit disclosure" }).click();
@@ -213,17 +216,17 @@ test.describe("portal governance records", () => {
       ).toBeVisible();
 
       await page.getByRole("button", { name: "Add requirement" }).click();
-      const addDialog = page.getByRole("dialog");
+      const addDialog = modal(page);
       await expect(
         addDialog.getByRole("heading", { name: "Add annual requirement" }),
       ).toBeVisible();
 
-      await addDialog.getByLabel("Name").fill(requirementName);
+      // Exact, because the dialog also holds a person picker whose search
+      // input labels itself "Search by name or email..." -- a substring match
+      // on "Name" or "Email" resolves to both.
+      await addDialog.getByLabel("Name", { exact: true }).fill(requirementName);
       await addDialog.getByLabel("Due date").fill("2026-05-15");
-      await addDialog
-        .getByPlaceholder("Search by name or email...")
-        .fill(person.name);
-      await addDialog.getByRole("button", { name: person.name }).click();
+      await pickPerson(addDialog, person.name);
       await addDialog
         .getByRole("button", { name: "Add requirement", exact: true })
         .click();
@@ -244,7 +247,7 @@ test.describe("portal governance records", () => {
       await expect(row).toContainText("Done", { timeout: 15_000 });
 
       await row.getByRole("button", { name: "View requirement" }).click();
-      const sheet = page.getByRole("dialog");
+      const sheet = modal(page);
       await expect(sheet.getByText(requirementName)).toBeVisible();
       await expect(sheet.getByText("Done", { exact: true })).toBeVisible();
     } finally {

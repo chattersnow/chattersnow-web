@@ -18,16 +18,26 @@
 --   noaccess@example.test      signed in, no role assigned (access-denied path)
 --   former@example.test        event_coordinator role, but deactivated (revoked-access path)
 
-with new_users(email, full_name) as (
+-- Fixture ids below are written out rather than generated, so a record a test
+-- or a scan asserts on keeps the same id across resets (#665). gen_random_uuid()
+-- draws from pgcrypto's CSPRNG, which setseed() further down does not reach, so
+-- literals are the only way to pin them. The first group names the kind:
+--
+--   aaaaaaaa-* auth accounts    bbbbbbbb-* people      cccccccc-* events
+--   dddddddd-* donations        eeeeeeee-* inventory   ffffffff-* calendar items
+--   abababab-* governance       babababa-* programs, giveaways
+--
+-- These are mirrored in test/seed-fixtures.ts -- change one, change both.
+with new_users(id, email, full_name) as (
   values
-    ('admin@example.test', 'Avery Morgan'),
-    ('coordinator@example.test', 'Jordan Lee'),
-    ('finance@example.test', 'Morgan Patel'),
-    ('board@example.test', 'Taylor Brooks'),
-    ('volunteer@example.test', 'Casey Rivera'),
-    ('multi@example.test', 'Riley Chen'),
-    ('noaccess@example.test', 'Sam Ellis'),
-    ('former@example.test', 'Drew Kowalski')
+    ('aaaaaaaa-0000-4000-8000-000000000001'::uuid, 'admin@example.test', 'Avery Morgan'),
+    ('aaaaaaaa-0000-4000-8000-000000000002'::uuid, 'coordinator@example.test', 'Jordan Lee'),
+    ('aaaaaaaa-0000-4000-8000-000000000003'::uuid, 'finance@example.test', 'Morgan Patel'),
+    ('aaaaaaaa-0000-4000-8000-000000000004'::uuid, 'board@example.test', 'Taylor Brooks'),
+    ('aaaaaaaa-0000-4000-8000-000000000005'::uuid, 'volunteer@example.test', 'Casey Rivera'),
+    ('aaaaaaaa-0000-4000-8000-000000000006'::uuid, 'multi@example.test', 'Riley Chen'),
+    ('aaaaaaaa-0000-4000-8000-000000000007'::uuid, 'noaccess@example.test', 'Sam Ellis'),
+    ('aaaaaaaa-0000-4000-8000-000000000008'::uuid, 'former@example.test', 'Drew Kowalski')
 ),
 inserted_users as (
   insert into auth.users (
@@ -37,7 +47,7 @@ inserted_users as (
     confirmation_token, recovery_token, email_change_token_new, email_change
   )
   select
-    '00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated',
+    '00000000-0000-0000-0000-000000000000', id, 'authenticated', 'authenticated',
     email, extensions.crypt('password123', extensions.gen_salt('bf')),
     now(), '{"provider":"email","providers":["email"]}'::jsonb,
     jsonb_build_object('full_name', full_name),
@@ -52,6 +62,43 @@ select
   jsonb_build_object('sub', inserted_users.id::text, 'email', inserted_users.email, 'email_verified', true),
   'email', now(), now(), now()
 from inserted_users;
+
+-- Every portal account needs a linked people row: every owner/assignee column
+-- in the portal references public.people, so an account without one can't be
+-- assigned anything and won't appear in the calendar owner picker.
+--
+-- ensure_current_person() (20260902040000) does this at login and
+-- 20260902050000 backfills existing accounts, but migrations run *before*
+-- this file on `db reset` -- so the seeded accounts have to be linked here or
+-- list_calendar_owners() comes back empty locally.
+--
+-- Two accounts get a preferred_name so the override is exercisable locally
+-- and in e2e without having to set one first.
+--
+-- volunteer@example.test and noaccess@example.test are deliberately left
+-- WITHOUT a people row: ensure_current_person() only runs at login, so an
+-- account that has never signed in legitimately has none, and these two are
+-- the local fixtures for that state (see
+-- src/lib/auth/current-person.integration.test.ts, which exercises the
+-- link-by-email and no-row paths against them).
+insert into public.people (name, is_anonymous, source_type, email, auth_user_id, created_by, preferred_name)
+select
+  coalesce(u.raw_user_meta_data ->> 'full_name', u.email),
+  false,
+  'other',
+  u.email,
+  u.id,
+  u.id,
+  case u.email
+    when 'admin@example.test' then 'Ave'
+    when 'coordinator@example.test' then 'Jordy'
+  end
+from auth.users u
+where u.email in (
+  'admin@example.test', 'coordinator@example.test', 'finance@example.test',
+  'board@example.test', 'multi@example.test', 'former@example.test'
+)
+and not exists (select 1 from public.people p where p.auth_user_id = u.id);
 
 insert into public.user_roles (user_id, role_id, created_by)
 select u.id, r.id, u.id
@@ -71,33 +118,72 @@ where u.email in (
 );
 -- noaccess@example.test intentionally gets no user_roles row.
 
+-- Tenant membership (#707 Phase 1). 20260905190000 creates the initial tenant
+-- and backfills memberships for the accounts that exist at migration time --
+-- but migrations run *before* this file on `db reset`, so the seeded accounts
+-- are created after that backfill and have to be joined here, the same way
+-- their people rows are above.
+--
+-- Every account gets one, including noaccess@ and former@: tenancy says which
+-- organisation's data you are looking at, and is orthogonal to whether you may
+-- do anything with it. Those two accounts exercise the no-role and deactivated
+-- paths, which have to keep behaving that way *inside* a tenant.
+--
+-- Matched on "the tenant that exists" rather than on the slug: 20260905190000
+-- takes the slug from app.initial_tenant_slug, so hardcoding 'chatter-snow'
+-- here would seed zero memberships for anyone who has set it.
+--
+-- Phase 2 (20260906010000) gave every tenant table a tenant_id defaulting to
+-- default_tenant_id(). This file runs as postgres with no session, and that
+-- default falls back to the sole active tenant -- which is exactly the state
+-- of a freshly reset database -- so none of the inserts below name a tenant.
+-- Seeding a second tenant here would break that: add its rows with an
+-- explicit tenant_id, or it will stop every unscoped insert cold.
+insert into public.tenant_memberships (user_id, tenant_id, kind, created_by)
+select u.id, t.id, 'member', u.id
+from auth.users u
+cross join (select id from public.tenants order by created_at limit 1) t
+on conflict (user_id, tenant_id) do nothing;
+
 -- Sample operational data, owned by the seeded admin account.
 do $$
 declare
   v_admin_id uuid;
-  v_person_donor1 uuid;
-  v_person_donor2 uuid;
-  v_person_sponsor uuid;
-  v_person_volunteer uuid;
-  v_person_local_roasters uuid;
-  v_event_upcoming uuid;
-  v_event_past uuid;
-  v_event_draft uuid;
-  v_donation1 uuid;
-  v_donation2 uuid;
-  v_item1 uuid;
-  v_item2 uuid;
-  v_item3 uuid;
-  v_item4 uuid;
-  v_giveaway_id uuid;
+  -- Calendar owner/reviewer reference public.people (20260902010000), not
+  -- auth.users -- created_by still takes the auth id.
+  v_admin_person_id uuid;
+  -- Literal ids for the records tests and scans assert on, so a reset does not
+  -- move them (#665). See the comment above the auth accounts at the top of the
+  -- file for the prefix scheme, and mirror any change into test/seed-fixtures.ts.
+  v_person_donor1 constant uuid := 'bbbbbbbb-0000-4000-8000-000000000001';
+  v_person_donor2 constant uuid := 'bbbbbbbb-0000-4000-8000-000000000002';
+  v_person_sponsor constant uuid := 'bbbbbbbb-0000-4000-8000-000000000003';
+  v_person_volunteer constant uuid := 'bbbbbbbb-0000-4000-8000-000000000004';
+  v_person_local_roasters constant uuid := 'bbbbbbbb-0000-4000-8000-000000000005';
+  v_event_upcoming constant uuid := 'cccccccc-0000-4000-8000-000000000001';
+  v_event_past constant uuid := 'cccccccc-0000-4000-8000-000000000002';
+  v_event_draft constant uuid := 'cccccccc-0000-4000-8000-000000000003';
+  v_donation1 constant uuid := 'dddddddd-0000-4000-8000-000000000001';
+  v_donation2 constant uuid := 'dddddddd-0000-4000-8000-000000000002';
+  v_item1 constant uuid := 'eeeeeeee-0000-4000-8000-000000000001';
+  v_item2 constant uuid := 'eeeeeeee-0000-4000-8000-000000000002';
+  v_item3 constant uuid := 'eeeeeeee-0000-4000-8000-000000000003';
+  v_item4 constant uuid := 'eeeeeeee-0000-4000-8000-000000000004';
+  -- The one distributed movement, which is what /portal/inventory/distribution
+  -- lists and links to.
+  v_movement_distributed constant uuid := 'eeeeeeee-0000-4000-8000-000000001001';
+  v_giveaway_id constant uuid := 'babababa-0000-4000-8000-000000000002';
   v_prize1 uuid;
   v_prize2 uuid;
-  v_program_id uuid;
+  v_program_id constant uuid := 'babababa-0000-4000-8000-000000000001';
   v_shift_id uuid;
   v_registration_id uuid;
-  v_calendar_item_id uuid;
+  v_calendar_promo_id constant uuid := 'ffffffff-0000-4000-8000-000000000001';
+  v_calendar_recurring_id constant uuid := 'ffffffff-0000-4000-8000-000000000002';
+  -- The series the "generate next year's instance" flow keys on.
+  v_calendar_recurring_series_key constant uuid := 'ffffffff-0000-4000-8000-000000002001';
   v_recurring_local_date date;
-  v_meeting_id uuid;
+  v_meeting_id constant uuid := 'abababab-0000-4000-8000-000000000001';
   v_role_type_id uuid;
   v_template_id uuid;
   v_template_version_id uuid;
@@ -105,61 +191,77 @@ declare
   v_agenda_template_version_id uuid;
   v_former_id uuid;
   v_person_applicant uuid;
-  v_item5 uuid;
+  v_item5 constant uuid := 'eeeeeeee-0000-4000-8000-000000000005';
 begin
   select id into v_admin_id from auth.users where email = 'admin@example.test';
+  select id into v_admin_person_id from public.people where auth_user_id = v_admin_id;
   select id into v_former_id from auth.users where email = 'former@example.test';
 
-  -- People: donors, a sponsor org, and a volunteer.
-  insert into public.people (name, is_anonymous, source_type, email, phone, notes, is_donor, created_by)
-  values ('Jamie Rivera', false, 'individual', 'jamie.rivera@example.test', '555-0101', null, true, v_admin_id)
-  returning id into v_person_donor1;
+  -- People: donors, a sponsor org, and a volunteer. Roles are derived from the
+  -- records below (#624), so each of these gets a person_role_tags row instead
+  -- of a column write -- the tag is what carries a role until its first
+  -- donation, sponsorship, or signup exists.
+  insert into public.people (id, name, is_anonymous, source_type, email, phone, notes, created_by)
+  values (v_person_donor1, 'Jamie Rivera', false, 'individual', 'jamie.rivera@example.test', '555-0101', null, v_admin_id);
 
-  insert into public.people (name, is_anonymous, source_type, email, phone, notes, is_donor, created_by)
-  values ('Alex Chen', false, 'individual', 'alex.chen@example.test', '555-0102', null, true, v_admin_id)
-  returning id into v_person_donor2;
+  insert into public.people (id, name, is_anonymous, source_type, email, phone, notes, created_by)
+  values (v_person_donor2, 'Alex Chen', false, 'individual', 'alex.chen@example.test', '555-0102', null, v_admin_id);
 
-  insert into public.people (name, is_anonymous, source_type, email, phone, notes, is_sponsor, logo_url, website, created_by)
-  values ('Summit Outdoor Co.', false, 'brand', 'partnerships@summitoutdoor.example.test', '555-0103', 'Local gear retailer, annual sponsor.', true, 'https://example.test/logos/summit-outdoor.png', 'https://summitoutdoor.example.test', v_admin_id)
-  returning id into v_person_sponsor;
+  insert into public.people (id, name, is_anonymous, source_type, person_type, email, phone, notes, logo_url, website, created_by)
+  values (v_person_sponsor, 'Summit Outdoor Co.', false, 'brand', 'organization', 'partnerships@summitoutdoor.example.test', '555-0103', 'Local gear retailer, annual sponsor.', 'https://example.test/logos/summit-outdoor.png', 'https://summitoutdoor.example.test', v_admin_id);
 
-  insert into public.people (name, is_anonymous, source_type, email, phone, notes, is_volunteer, created_by)
-  values ('Priya Natarajan', false, 'individual', 'priya.n@example.test', '555-0104', null, true, v_admin_id)
-  returning id into v_person_volunteer;
+  insert into public.people (id, name, is_anonymous, source_type, email, phone, notes, created_by)
+  values (v_person_volunteer, 'Priya Natarajan', false, 'individual', 'priya.n@example.test', '555-0104', null, v_admin_id);
 
-  insert into public.people (name, is_anonymous, source_type, is_donor, created_by)
-  values ('Local Roasters Coffee', false, 'brand', true, v_admin_id)
-  returning id into v_person_local_roasters;
+  insert into public.people (id, name, is_anonymous, source_type, person_type, created_by)
+  values (v_person_local_roasters, 'Local Roasters Coffee', false, 'brand', 'organization', v_admin_id);
+
+  insert into public.person_role_tags (person_id, role) values
+    (v_person_donor1, 'donor'),
+    (v_person_donor2, 'donor'),
+    (v_person_sponsor, 'sponsor'),
+    (v_person_volunteer, 'volunteer'),
+    (v_person_local_roasters, 'donor');
+
+  -- Partnerships. Two rows so the partner derivation is exercised both ways:
+  -- the won one makes Summit Outdoor Co. a partner, the prospecting one leaves
+  -- Local Roasters a lead and nothing more. owner_person_id is the internal
+  -- person driving the opportunity and derives no role at all.
+  insert into public.partnership_opportunities
+    (organization_person_id, stage, next_step_date, owner_person_id, notes,
+     created_by)
+  values
+    (v_person_sponsor, 'closed_won', null, v_admin_person_id,
+     'Season gear partnership, renewed annually.', v_admin_id),
+    (v_person_local_roasters, 'prospecting', current_date + 14,
+     v_admin_person_id, 'Intro call scheduled.', v_admin_id);
 
   -- Events: one upcoming/published/public, one past/published/public with
   -- attendance recorded, one draft/private.
-  insert into public.events (name, location, starts_at, ends_at, timezone, visibility, status, created_by)
+  insert into public.events (id, name, location, starts_at, ends_at, timezone, visibility, status, created_by)
   values (
-    'Winter Gear Swap', 'Community Center, Denver CO',
+    v_event_upcoming, 'Winter Gear Swap', 'Community Center, Denver CO',
     now() + interval '21 days', now() + interval '21 days' + interval '4 hours',
     'America/Denver', 'public', 'published', v_admin_id
-  )
-  returning id into v_event_upcoming;
+  );
 
   insert into public.events (
-    name, location, starts_at, ends_at, timezone, visibility, status,
+    id, name, location, starts_at, ends_at, timezone, visibility, status,
     attendance_count, attendance_notes, created_by
   )
   values (
-    'Fall Trailhead Cleanup & Giveaway', 'Bear Creek Trailhead',
+    v_event_past, 'Fall Trailhead Cleanup & Giveaway', 'Bear Creek Trailhead',
     now() - interval '40 days', now() - interval '40 days' + interval '5 hours',
     'America/Denver', 'public', 'published',
     68, 'Strong turnout despite cold weather.', v_admin_id
-  )
-  returning id into v_event_past;
+  );
 
-  insert into public.events (name, location, starts_at, ends_at, timezone, visibility, status, created_by)
+  insert into public.events (id, name, location, starts_at, ends_at, timezone, visibility, status, created_by)
   values (
-    'Spring Board Planning Session', 'Chatter Snow Office',
+    v_event_draft, 'Spring Board Planning Session', 'Chatter Snow Office',
     now() + interval '10 days', now() + interval '10 days' + interval '2 hours',
     'America/Denver', 'private', 'draft', v_admin_id
-  )
-  returning id into v_event_draft;
+  );
 
   -- Event sponsor link (public, cash + in-kind support).
   insert into public.event_sponsors (
@@ -196,57 +298,50 @@ begin
   values (v_person_volunteer, v_event_past, 'Gas for hauling donated gear to the trailhead.', 32.75, 'Receipt on file at the office.', v_admin_id, v_admin_id);
 
   -- Donations with items, plus receipt movements, tied to the upcoming event.
-  insert into public.donations (donor_id, event_id, notes, created_by)
-  values (v_person_donor1, v_event_upcoming, null, v_admin_id)
-  returning id into v_donation1;
+  insert into public.donations (id, donor_id, event_id, notes, created_by)
+  values (v_donation1, v_person_donor1, v_event_upcoming, null, v_admin_id);
 
-  insert into public.inventory_items (donation_id, description, size, type, gender, condition, face_value, status, created_by)
-  values (v_donation1, 'Insulated winter jacket', 'M', 'jacket', 'unisex', 'good', 45.00, 'available', v_admin_id)
-  returning id into v_item1;
+  insert into public.inventory_items (id, donation_id, description, size, type, gender, condition, face_value, status, created_by)
+  values (v_item1, v_donation1, 'Insulated winter jacket', 'M', 'jacket', 'unisex', 'good', 45.00, 'available', v_admin_id);
 
-  insert into public.inventory_items (donation_id, description, size, type, gender, condition, face_value, status, created_by)
-  values (v_donation1, 'Snow boots', '9', 'boots', 'women', 'like_new', 30.00, 'available', v_admin_id)
-  returning id into v_item2;
+  insert into public.inventory_items (id, donation_id, description, size, type, gender, condition, face_value, status, created_by)
+  values (v_item2, v_donation1, 'Snow boots', '9', 'boots', 'women', 'like_new', 30.00, 'available', v_admin_id);
 
   insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, event_id, created_by)
   values (v_item1, 'received', 1, 'Donation intake', v_event_upcoming, v_admin_id);
   insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, event_id, created_by)
   values (v_item2, 'received', 1, 'Donation intake', v_event_upcoming, v_admin_id);
 
-  insert into public.donations (donor_id, notes, created_by)
-  values (v_person_donor2, 'Dropped off at office', v_admin_id)
-  returning id into v_donation2;
+  insert into public.donations (id, donor_id, notes, created_by)
+  values (v_donation2, v_person_donor2, 'Dropped off at office', v_admin_id);
 
-  insert into public.inventory_items (donation_id, description, size, type, gender, condition, face_value, status, created_by)
-  values (v_donation2, 'Fleece pullover', 'L', 'jacket', 'men', 'fair', 15.00, 'distributed', v_admin_id)
-  returning id into v_item3;
+  insert into public.inventory_items (id, donation_id, description, size, type, gender, condition, face_value, status, created_by)
+  values (v_item3, v_donation2, 'Fleece pullover', 'L', 'jacket', 'men', 'fair', 15.00, 'distributed', v_admin_id);
 
-  insert into public.inventory_items (donation_id, description, size, type, gender, condition, face_value, status, created_by)
-  values (v_donation2, 'Snow pants', '10-12', 'pants', 'kids', 'good', 20.00, 'available', v_admin_id)
-  returning id into v_item4;
+  insert into public.inventory_items (id, donation_id, description, size, type, gender, condition, face_value, status, created_by)
+  values (v_item4, v_donation2, 'Snow pants', '10-12', 'pants', 'kids', 'good', 20.00, 'available', v_admin_id);
 
   insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, created_by)
   values (v_item3, 'received', 1, 'Donation intake', v_admin_id);
-  insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, event_id, created_by)
-  values (v_item3, 'distributed', 1, 'Given out at trailhead cleanup', v_event_past, v_admin_id);
+  insert into public.inventory_movements (id, inventory_item_id, movement_type, quantity, reason, event_id, created_by)
+  values (v_movement_distributed, v_item3, 'distributed', 1, 'Given out at trailhead cleanup', v_event_past, v_admin_id);
   insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, created_by)
   values (v_item4, 'received', 1, 'Donation intake', v_admin_id);
 
   -- Fifth item, held on the public gear library: requested and reserved via
   -- the request_gear_item() flow (recipient is a person, not an event).
-  insert into public.inventory_items (donation_id, description, size, type, gender, condition, face_value, status, created_by)
-  values (v_donation2, 'Wool beanie', 'One size', 'accessory', 'unisex', 'good', 8.00, 'reserved', v_admin_id)
-  returning id into v_item5;
+  insert into public.inventory_items (id, donation_id, description, size, type, gender, condition, face_value, status, created_by)
+  values (v_item5, v_donation2, 'Wool beanie', 'One size', 'accessory', 'unisex', 'good', 8.00, 'reserved', v_admin_id);
 
   insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, created_by)
   values (v_item5, 'received', 1, 'Donation intake', v_admin_id);
-  insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, recipient_person_id, created_by)
-  values (v_item5, 'reserved', 1, 'Public gear library request', v_person_volunteer, v_admin_id);
+  insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, recipient_person_id, notes, created_by)
+  values (v_item5, 'reserved', 1, 'Public gear library request', v_person_volunteer,
+          'Picking up Saturday morning before the shuttle -- happy to take a smaller size if this one is spoken for.', v_admin_id);
 
   -- Giveaway for the past event: two prizes, one claimed winner.
-  insert into public.giveaways (event_id, name, tickets_sold, ticket_price, revenue_amount, drawing_date, created_by)
-  values (v_event_past, 'Trailhead Cleanup Giveaway', 142, 5.00, 710.00, now() - interval '40 days', v_admin_id)
-  returning id into v_giveaway_id;
+  insert into public.giveaways (id, event_id, name, tickets_sold, ticket_price, revenue_amount, drawing_date, created_by)
+  values (v_giveaway_id, v_event_past, 'Trailhead Cleanup Giveaway', 142, 5.00, 710.00, now() - interval '40 days', v_admin_id);
 
   insert into public.giveaway_prizes (giveaway_id, prize_name, donor_person_id, estimated_value, created_by)
   values (v_giveaway_id, 'Weekend cabin stay', v_person_sponsor, 400.00, v_admin_id)
@@ -263,22 +358,33 @@ begin
   values (v_prize2, 'T. Nguyen', 'pending', v_admin_id);
 
   -- Programs, event planning, volunteers, and attendance.
-  insert into public.programs (name, description, status, created_by)
-  values ('Winter Access Program', 'Gear access and low-cost outdoor events for local participants.', 'active', v_admin_id)
-  returning id into v_program_id;
+  insert into public.programs (id, name, description, status, created_by)
+  values (v_program_id, 'Winter Access Program', 'Gear access and low-cost outdoor events for local participants.', 'active', v_admin_id);
 
   update public.events
-  set program_id = v_program_id, description = 'A community gear exchange and winter access event.',
-      event_type = 'gear_swap', venue = 'Community Center', capacity = 100,
+  set description = 'A community gear exchange and winter access event.',
+      capacity = 100,
       registration_enabled = true, registration_deadline = now() + interval '14 days',
       budget_amount = 2500.00, event_lead_id = v_person_volunteer
   where id = v_event_upcoming;
+
+  insert into public.event_programs (event_id, program_id)
+  values (v_event_upcoming, v_program_id);
 
   insert into public.event_logistics (event_id, meeting_point, gear_requirements, transportation, food, supplies, created_by)
   values (v_event_upcoming, 'Community Center front entrance', 'Bring clean winter gear to exchange.', 'RTD bus route 15', 'Coffee and snacks', 'Racks, hangers, intake forms', v_admin_id);
 
   insert into public.event_volunteers (event_id, person_id, role, notes, created_by)
   values (v_event_upcoming, v_person_volunteer, 'Intake lead', 'Welcomes donors and checks item condition.', v_admin_id);
+
+  -- Staff, distinct from the volunteer above: the same person works this one
+  -- in a scheduled capacity, which is exactly the both-at-once case #626
+  -- exists to model.
+  insert into public.event_staff (event_id, person_id, role, notes, created_by)
+  values (v_event_upcoming, v_person_donor2, 'Basecamp lead', 'Runs the floor for the day.', v_admin_id);
+
+  insert into public.event_staff (event_id, person_id, role, notes, created_by)
+  values (v_event_past, v_person_volunteer, 'Guide', 'Paid guide for the day trip.', v_admin_id);
 
   insert into public.event_shifts (event_id, label, starts_at, ends_at, target_headcount, notes, created_by)
   values (v_event_upcoming, 'Morning setup', now() + interval '20 days' + interval '8 hours', now() + interval '20 days' + interval '10 hours', 3, 'Set up racks and intake tables.', v_admin_id)
@@ -287,7 +393,11 @@ begin
   update public.event_volunteers set shift_id = v_shift_id
   where event_id = v_event_upcoming and person_id = v_person_volunteer;
 
-  insert into public.event_volunteer_hours (event_id, person_id, hours, logged_date, notes, logged_by)
+  -- Logged from the event editor's Volunteers tab. Since 20260904010000 that
+  -- writes the shared volunteer_hours ledger too, with no role type -- the tab
+  -- has no role picker. Kept distinct from the 3.00-hour entry below (same
+  -- person and event, different work) so the rollup exercises multi-row summing.
+  insert into public.volunteer_hours (event_id, person_id, hours, logged_date, notes, logged_by)
   values (v_event_past, v_person_volunteer, 4.50, current_date - 40, 'Cleanup and distribution support.', v_admin_id);
 
   insert into public.volunteer_role_types (name, description, is_public, created_by)
@@ -300,15 +410,17 @@ begin
   -- Public volunteer applications, submitted via the /get-involved intake
   -- flow: one not yet followed up on, one an admin has picked up but not
   -- yet contacted.
-  insert into public.people (name, is_anonymous, source_type, email, phone, is_volunteer, created_by)
-  values ('Morgan Ellis', false, 'individual', 'morgan.ellis@example.test', '555-0105', true, v_admin_id)
+  -- No role tag: the volunteer_applications row inserted right after is what
+  -- derives the volunteer role (#624).
+  insert into public.people (name, is_anonymous, source_type, email, phone, created_by)
+  values ('Morgan Ellis', false, 'individual', 'morgan.ellis@example.test', '555-0105', v_admin_id)
   returning id into v_person_applicant;
 
   insert into public.volunteer_applications (person_id, name, email, phone, role_interest, availability, status, reference_code)
   values (v_person_applicant, 'Morgan Ellis', 'morgan.ellis@example.test', '555-0105', 'Ride Buddy', 'Weekend mornings', 'new', 'MRGNELLS');
 
-  insert into public.people (name, is_anonymous, source_type, email, phone, is_volunteer, created_by)
-  values ('Taylor Kim', false, 'individual', 'taylor.kim@example.test', '555-0106', true, v_admin_id)
+  insert into public.people (name, is_anonymous, source_type, email, phone, created_by)
+  values ('Taylor Kim', false, 'individual', 'taylor.kim@example.test', '555-0106', v_admin_id)
   returning id into v_person_applicant;
 
   insert into public.volunteer_applications (person_id, name, email, phone, role_interest, availability, status, reference_code)
@@ -330,31 +442,31 @@ begin
   insert into public.discount_codes (event_id, code, description, source, registration_id, assigned_at, created_by)
   values (v_event_upcoming, 'SUMMIT-20', 'Twenty percent off partner gear', 'Summit Outdoor Co.', v_registration_id, now(), v_admin_id);
 
+  -- Only the figures with no system source are stored here now; participants,
+  -- first-time, beginner, volunteer and discount-code counts are derived
+  -- (20260904020000).
   insert into public.event_impact_notes (
-    event_id, total_participants, first_time_participants, beginner_participants,
-    volunteer_participants, equipment_loans_count, beginner_pairings_count,
-    survey_respondents_count, survey_felt_welcomed_yes_count,
-    survey_would_attend_again_yes_count, notes, created_by
+    event_id, first_time_riders, rental_subsidies_count, assistance_total,
+    beginner_pairings_count, notes, created_by
   )
-  values (v_event_past, 68, 24, 18, 11, 16, 9, 31, 30, 29, 'Participants especially valued loaner gear and peer support.', v_admin_id);
+  values (v_event_past, 14, 7, 480.00, 9, 'Participants especially valued loaner gear and peer support.', v_admin_id);
 
   -- Content and community calendar, including a pinned brief template version.
   insert into public.calendar_items (
-    title, item_type, starts_at, ends_at, time_zone, summary, priority_tier,
+    id, title, item_type, starts_at, ends_at, time_zone, summary, priority_tier,
     priority_rationale, calendar_status, visibility, owner_id, public_url, created_by
   )
   values (
-    'Winter Gear Swap Promotion', 'content_opportunity', now() + interval '12 days', now() + interval '12 days' + interval '1 hour',
+    v_calendar_promo_id, 'Winter Gear Swap Promotion', 'content_opportunity', now() + interval '12 days', now() + interval '12 days' + interval '1 hour',
     'America/Denver', 'Promote the upcoming gear swap and registration link.', 1, 'Directly supports participant access and event turnout.',
-    'active', 'public', v_admin_id, 'https://example.test/events/winter-gear-swap', v_admin_id
-  )
-  returning id into v_calendar_item_id;
+    'active', 'public', v_admin_person_id, 'https://example.test/events/winter-gear-swap', v_admin_id
+  );
 
   insert into public.calendar_item_categories (item_id, category)
-  values (v_calendar_item_id, 'chatter_events'), (v_calendar_item_id, 'campaigns_fundraising');
+  values (v_calendar_promo_id, 'chatter_events'), (v_calendar_promo_id, 'campaigns_fundraising');
 
   insert into public.calendar_item_programs (item_id, program_id)
-  values (v_calendar_item_id, v_program_id);
+  values (v_calendar_promo_id, v_program_id);
 
   select id into v_template_id from public.content_brief_templates where key = 'community_spotlight';
   select current_version_id into v_template_version_id from public.content_brief_templates where id = v_template_id;
@@ -365,9 +477,9 @@ begin
     publish_due_at, template_id, template_version_id, template_field_values, created_by
   )
   values (
-    v_calendar_item_id, 'draft', 'Show how shared gear helps neighbors participate outdoors.',
+    v_calendar_promo_id, 'draft', 'Show how shared gear helps neighbors participate outdoors.',
     'Instagram post; email; event page', 'Publish a participant-centered event announcement.',
-    'Confirm final registration link and accessibility details.', v_admin_id, v_admin_id, 14,
+    'Confirm final registration link and accessibility details.', v_admin_person_id, v_admin_person_id, 14,
     now() + interval '7 days', v_template_id, v_template_version_id,
     '{"subject_name":"Chatter Snow community","setting":"Local winter trail","publish_permission":"Internal demo content only"}'::jsonb,
     v_admin_id
@@ -388,35 +500,33 @@ begin
   v_recurring_local_date := (now() at time zone 'America/Denver')::date;
 
   insert into public.calendar_items (
-    title, item_type, starts_at, ends_at, time_zone, recurrence_rule,
+    id, title, item_type, starts_at, ends_at, time_zone, recurrence_rule,
     summary, priority_tier, calendar_status, visibility, source, region,
     series_key, recurrence_start_month, recurrence_start_day,
     recurrence_end_month, recurrence_end_day, recurrence_end_is_month_end,
     created_by
   )
   values (
-    'Sample Recurring Observance', 'community_observance',
+    v_calendar_recurring_id, 'Sample Recurring Observance', 'community_observance',
     (v_recurring_local_date::text || ' 00:00:00 America/Denver')::timestamptz,
     (v_recurring_local_date::text || ' 23:59:59 America/Denver')::timestamptz,
     'America/Denver', 'Annually on ' || to_char(v_recurring_local_date, 'FMMonth FMDD'),
     'Seed-only stand-in recurring observance for exercising the coverage reminder and bulk-import/generate flow locally.',
     1, 'idea', 'internal', 'Seed data', 'us',
-    gen_random_uuid(), extract(month from v_recurring_local_date)::smallint, extract(day from v_recurring_local_date)::smallint,
+    v_calendar_recurring_series_key, extract(month from v_recurring_local_date)::smallint, extract(day from v_recurring_local_date)::smallint,
     extract(month from v_recurring_local_date)::smallint, extract(day from v_recurring_local_date)::smallint, false,
     v_admin_id
-  )
-  returning id into v_calendar_item_id;
+  );
 
   insert into public.calendar_item_categories (item_id, category)
-  values (v_calendar_item_id, 'lgbtq_community');
+  values (v_calendar_recurring_id, 'lgbtq_community');
 
   -- Governance records and nonprofit tracking are separate from event data.
   insert into public.board_members (person_id, role_title, term_start, term_end, notes, created_by)
   values (v_person_sponsor, 'Community advisor', current_date - 120, current_date + 245, 'Seeded governance example.', v_admin_id);
 
-  insert into public.governance_meetings (meeting_date, meeting_type, status, location, notes, facilitator_person_id, notetaker_person_id, created_by)
-  values (now() - interval '14 days', 'board', 'completed', 'Video conference', 'Reviewed winter access program launch.', v_person_sponsor, v_person_volunteer, v_admin_id)
-  returning id into v_meeting_id;
+  insert into public.governance_meetings (id, meeting_date, meeting_type, status, location, notes, facilitator_person_id, notetaker_person_id, created_by)
+  values (v_meeting_id, now() - interval '14 days', 'board', 'completed', 'Video conference', 'Reviewed winter access program launch.', v_person_sponsor, v_person_volunteer, v_admin_id);
 
   insert into public.governance_meeting_attendees (meeting_id, person_id, attended, created_by)
   values (v_meeting_id, v_person_sponsor, true, v_admin_id);
@@ -460,6 +570,9 @@ end $$;
 do $$
 declare
   v_admin_id uuid;
+  -- Calendar owner/reviewer reference public.people (20260902010000), not
+  -- auth.users -- created_by still takes the auth id.
+  v_admin_person_id uuid;
   v_finance_id uuid;
   v_board_id uuid;
 
@@ -472,7 +585,7 @@ declare
   brand_names text[] := array['Peak Outfitters','Alpine Gear Co.','Trailhead Supply','Frostline Apparel','Timberline Goods',
     'Ridgeline Outdoors','Summit Threads','Basecamp Provisions','Northface Neighbors Co-op','Powder Day Gear',
     'Evergreen Mercantile','Highline Sports'];
-  event_type_names text[] := array['gear_swap','trail_cleanup','fundraiser','community_meetup','skills_clinic','holiday_drive'];
+  event_kind_names text[] := array['gear swap','trail cleanup','fundraiser','community meetup','skills clinic','holiday drive'];
   item_types text[] := array['jacket','boots','pants','gloves','hat','scarf','socks','base_layer','goggles','backpack'];
   item_descs text[] := array['Insulated jacket','Waterproof boots','Snow pants','Fleece-lined gloves','Wool hat','Neck gaiter','Wool socks','Thermal base layer','Ski goggles','Daypack'];
   genders text[] := array['unisex','men','women','kids','other'];
@@ -509,54 +622,95 @@ declare
   v_last text;
   v_starts_at timestamptz;
   v_status text;
+  v_registration_enabled boolean;
   v_item_type text;
   v_visibility text;
   v_expense_status text;
+  v_is_donor boolean;
+  v_is_volunteer boolean;
+  v_is_sponsor boolean;
 begin
+  -- Everything below draws from random(), so without a fixed PRNG seed every
+  -- `supabase db reset` produced a differently shaped database -- different row
+  -- counts on every list page, and therefore no measurement taken against a
+  -- seeded stack was comparable between runs (#665). Seeding it here makes a
+  -- reset reproducible.
+  --
+  -- This couples the whole draw stream: adding or removing a random() call
+  -- anywhere in this block reshuffles every row after it. The data stays
+  -- deterministic, but any baseline that counts rows or nodes has to be
+  -- re-recorded when you edit this block.
+  --
+  -- `perform` inside the block rather than a top-level `select setseed(...)` so
+  -- it holds however the CLI feeds this file to Postgres. It does not affect
+  -- gen_random_uuid() or gen_salt(), which draw from pgcrypto's CSPRNG -- which
+  -- is why the records tests and scans assert on carry literal uuids in the
+  -- hand-authored block above.
+  perform setseed(0.42);
+
   select id into v_admin_id from auth.users where email = 'admin@example.test';
+  select id into v_admin_person_id from public.people where auth_user_id = v_admin_id;
   select id into v_finance_id from auth.users where email = 'finance@example.test';
   select id into v_board_id from auth.users where email = 'board@example.test';
 
-  -- ~65 individual people, mixed donor/volunteer flags.
+  -- ~65 individual people, mixed donor/volunteer roles. The two draws are
+  -- taken once and reused for both the role tag and the pool this person is
+  -- eligible for: they used to be drawn twice, so the flag on the row and the
+  -- records behind it disagreed -- harmless while the flags were stored, and
+  -- visibly wrong now that the roles are derived from those records (#624).
   for i in 1..65 loop
     v_first := first_names[1 + floor(random() * array_length(first_names, 1))::int];
     v_last := last_names[1 + floor(random() * array_length(last_names, 1))::int];
+    v_is_donor := random() < 0.6;
+    v_is_volunteer := random() < 0.35;
     insert into public.people (
-      name, is_anonymous, source_type, email, phone, is_donor, is_volunteer, created_by
+      name, is_anonymous, source_type, email, phone, created_by
     )
     values (
       v_first || ' ' || v_last, false, 'individual',
       lower(v_first || '.' || v_last || i || '@example.test'),
       '555-' || lpad((1000 + i)::text, 4, '0'),
-      random() < 0.6, random() < 0.35, v_admin_id
+      v_admin_id
     )
     returning id into v_person_id;
 
     v_people_ids := array_append(v_people_ids, v_person_id);
-    if random() < 0.6 then
+    if v_is_donor then
       v_donor_ids := array_append(v_donor_ids, v_person_id);
+      insert into public.person_role_tags (person_id, role) values (v_person_id, 'donor');
     end if;
-    if random() < 0.35 then
+    if v_is_volunteer then
       v_volunteer_ids := array_append(v_volunteer_ids, v_person_id);
+      insert into public.person_role_tags (person_id, role) values (v_person_id, 'volunteer');
     end if;
   end loop;
 
-  -- ~12 brand/org sponsors and donors.
+  -- ~12 brand/org sponsors and donors. Every brand joins both pools, so some
+  -- of them earn a role from an event_sponsors or donations row below even
+  -- without the tag drawn here.
   for i in 1..array_length(brand_names, 1) loop
+    v_is_sponsor := random() < 0.7;
+    v_is_donor := random() < 0.5;
     insert into public.people (
-      name, is_anonymous, source_type, email, phone, is_sponsor, is_donor,
+      name, is_anonymous, source_type, person_type, email, phone,
       logo_url, website, notes, created_by
     )
     values (
-      brand_names[i], false, 'brand',
+      brand_names[i], false, 'brand', 'organization',
       lower(replace(brand_names[i], ' ', '')) || '@example.test',
       '555-' || lpad((2000 + i)::text, 4, '0'),
-      random() < 0.7, random() < 0.5,
       'https://example.test/logos/' || i || '.png',
       'https://' || lower(replace(replace(brand_names[i], ' ', ''), '.', '')) || '.example.test',
       'Seed bulk-data sponsor/donor org.', v_admin_id
     )
     returning id into v_person_id;
+
+    if v_is_sponsor then
+      insert into public.person_role_tags (person_id, role) values (v_person_id, 'sponsor');
+    end if;
+    if v_is_donor then
+      insert into public.person_role_tags (person_id, role) values (v_person_id, 'donor');
+    end if;
 
     v_people_ids := array_append(v_people_ids, v_person_id);
     v_sponsor_ids := array_append(v_sponsor_ids, v_person_id);
@@ -589,32 +743,46 @@ begin
   for i in 1..55 loop
     v_starts_at := now() + ((floor(random() * 500)::int - 250) || ' days')::interval + ((floor(random() * 12)::int) || ' hours')::interval;
     v_status := (array['draft','published','published','published','completed','completed','cancelled','archived'])[1 + floor(random() * 8)::int];
+    v_registration_enabled := random() < 0.5;
     v_visibility := case when v_status in ('draft', 'archived') and random() < 0.5 then 'private' else (array['public','private'])[1 + floor(random() * 2)::int] end;
 
     insert into public.events (
       name, location, starts_at, ends_at, timezone, visibility, status,
-      description, event_type, venue, capacity, registration_enabled,
-      registration_deadline, budget_amount, event_lead_id, program_id,
+      description, capacity, registration_enabled,
+      registration_deadline, budget_amount, event_lead_id,
       created_by
     )
     values (
       initcap((array['Spring','Summer','Fall','Winter','Neighborhood','Downtown','Riverside','Mountain'])[1 + floor(random()*8)::int]) || ' ' ||
-        initcap((event_type_names[1 + floor(random() * array_length(event_type_names,1))::int])) || ' #' || i,
+        initcap((event_kind_names[1 + floor(random() * array_length(event_kind_names,1))::int])) || ' #' || i,
       (array['Community Center, Denver CO','Bear Creek Trailhead','Chatter Snow Office','Riverside Park','Downtown Rec Center'])[1 + floor(random()*5)::int],
       v_starts_at, v_starts_at + ((2 + floor(random()*5)::int) || ' hours')::interval,
       'America/Denver', v_visibility, v_status,
       'Seed bulk-data event for volume testing.',
-      event_type_names[1 + floor(random() * array_length(event_type_names,1))::int],
-      'Main hall', 20 + floor(random()*180)::int,
-      random() < 0.5, v_starts_at - interval '7 days',
+      20 + floor(random()*180)::int,
+      v_registration_enabled, case when v_registration_enabled then v_starts_at - interval '7 days' end,
       round((200 + random() * 4800)::numeric, 2),
       v_people_ids[1 + floor(random()*array_length(v_people_ids,1))::int],
-      case when random() < 0.4 and array_length(v_program_ids,1) is not null then v_program_ids[1 + floor(random()*array_length(v_program_ids,1))::int] else null end,
       v_admin_id
     )
     returning id into v_event_id;
 
     v_event_ids := array_append(v_event_ids, v_event_id);
+
+    -- Programs for about 40%, and a second program for half of those, so the
+    -- Program Impact Report has events that count toward two programs.
+    --
+    -- Which programs get picked rotates with the event index rather than
+    -- `order by random()`: the draws inside an insert-select happen in whatever
+    -- order the planner produces rows, so setseed alone would not pin it (#665).
+    if random() < 0.4 and array_length(v_program_ids, 1) is not null then
+      insert into public.event_programs (event_id, program_id)
+      select v_event_id, t.program_id
+      from unnest(v_program_ids) with ordinality as t(program_id, ord)
+      order by (t.ord + i) % array_length(v_program_ids, 1)
+      limit case when random() < 0.5 then 2 else 1 end
+      on conflict do nothing;
+    end if;
 
     -- Logistics for about a third.
     if random() < 0.35 then
@@ -689,7 +857,10 @@ begin
         insert into public.event_registrations (event_id, name, email, phone, party_size, notes, checked_in_at)
         values (
           v_event_id, v_first || ' ' || v_last,
-          lower(v_first || '.' || v_last || '.' || j || '.' || left(v_event_id::text, 8) || '@example.test'),
+          -- Keyed on the two loop indices, not on left(v_event_id::text, 8):
+          -- the event's uuid is fresh every reset, so the address was different
+          -- each time even though the registrant was the same row (#665).
+          lower(v_first || '.' || v_last || '.' || j || '.e' || i || '@example.test'),
           '555-' || lpad((3000 + j)::text, 4, '0'),
           1 + floor(random()*4)::int, null,
           case when v_starts_at < now() and random() < 0.7 then v_starts_at end
@@ -721,7 +892,7 @@ begin
 
     -- Volunteer hours logged for past events, about half.
     if v_starts_at < now() and random() < 0.5 and array_length(v_volunteer_ids, 1) is not null then
-      insert into public.event_volunteer_hours (event_id, person_id, hours, logged_date, notes, logged_by)
+      insert into public.volunteer_hours (event_id, person_id, hours, logged_date, notes, logged_by)
       values (
         v_event_id, v_volunteer_ids[1 + floor(random()*array_length(v_volunteer_ids,1))::int],
         round((1 + random()*7)::numeric, 2), v_starts_at::date, null, v_admin_id
@@ -731,15 +902,12 @@ begin
     -- Impact notes for completed/past published events, about a third.
     if v_starts_at < now() and random() < 0.3 then
       insert into public.event_impact_notes (
-        event_id, total_participants, first_time_participants, beginner_participants,
-        volunteer_participants, equipment_loans_count, beginner_pairings_count,
-        survey_respondents_count, survey_felt_welcomed_yes_count,
-        survey_would_attend_again_yes_count, notes, created_by
+        event_id, first_time_riders, rental_subsidies_count, assistance_total,
+        beginner_pairings_count, notes, created_by
       )
       values (
-        v_event_id, 10 + floor(random()*90)::int, floor(random()*30)::int, floor(random()*20)::int,
-        floor(random()*15)::int, floor(random()*25)::int, floor(random()*10)::int,
-        floor(random()*40)::int, floor(random()*35)::int, floor(random()*35)::int,
+        v_event_id, floor(random()*20)::int, floor(random()*15)::int,
+        round((random()*600)::numeric, 2), floor(random()*10)::int,
         'Seed bulk-data impact notes.', v_admin_id
       );
     end if;
@@ -776,7 +944,11 @@ begin
       update public.events set auto_assign_discount_codes = true where id = v_event_id;
       for j in 1..(5 + floor(random()*10)::int) loop
         insert into public.discount_codes (event_id, code, description, source, created_by)
-        values (v_event_id, 'SEED-' || upper(left(v_event_id::text, 4)) || '-' || j, 'Partner discount', 'Seed partner', v_admin_id);
+        -- Event index rather than a slice of the event's uuid, for the same
+        -- reason as the registrant addresses above (#665). discount_codes_unique_code
+        -- is global, and i is unique per event, so these can't collide with each
+        -- other or with the hand-authored SUMMIT-20.
+        values (v_event_id, 'SEED-' || lpad(i::text, 3, '0') || '-' || j, 'Partner discount', 'Seed partner', v_admin_id);
       end loop;
     end if;
   end loop;
@@ -861,8 +1033,9 @@ begin
   for i in 1..45 loop
     v_first := first_names[1 + floor(random() * array_length(first_names, 1))::int];
     v_last := last_names[1 + floor(random() * array_length(last_names, 1))::int];
-    insert into public.people (name, is_anonymous, source_type, email, phone, is_volunteer, created_by)
-    values (v_first || ' ' || v_last, false, 'individual', lower(v_first || '.' || v_last || '.app' || i || '@example.test'), '555-' || lpad((4000+i)::text,4,'0'), true, v_admin_id)
+    -- No role tag: the volunteer_applications row below derives it (#624).
+    insert into public.people (name, is_anonymous, source_type, email, phone, created_by)
+    values (v_first || ' ' || v_last, false, 'individual', lower(v_first || '.' || v_last || '.app' || i || '@example.test'), '555-' || lpad((4000+i)::text,4,'0'), v_admin_id)
     returning id into v_person_id;
 
     insert into public.volunteer_applications (person_id, name, email, phone, role_interest, availability, status, reference_code)
@@ -906,7 +1079,7 @@ begin
       1 + floor(random()*3)::int,
       (array['idea','active','complete','archived'])[1 + floor(random()*4)::int],
       (array['public','internal','unlisted_draft'])[1 + floor(random()*3)::int],
-      v_admin_id, v_admin_id
+      v_admin_person_id, v_admin_id
     )
     returning id into v_calendar_item_id;
 
@@ -933,7 +1106,7 @@ begin
         v_calendar_item_id,
         (array['not_planned','idea','draft','in_review','changes_requested','approved','scheduled','published'])[1 + floor(random()*8)::int],
         'Seed bulk-data content connection note.', 'Instagram post; email',
-        'Seed recommended action.', v_admin_id, v_admin_id,
+        'Seed recommended action.', v_admin_person_id, v_admin_person_id,
         7 + floor(random()*21)::int, v_starts_at - interval '7 days', v_admin_id
       );
     end if;
@@ -1053,4 +1226,56 @@ insert into public.app_settings (key, value) values
   ('page_visibility.programs', to_jsonb(true)),
   ('page_visibility.learn', to_jsonb(true)),
   ('page_visibility.support', to_jsonb(true))
-on conflict (key) do update set value = excluded.value;
+on conflict (tenant_id, key) do update set value = excluded.value;
+
+-- Fiscal year (20260905030000). The migration already seeds July as a
+-- placeholder pending the Board resolution, so this only pins it explicitly for
+-- local development and CI: the finance and calendar-report specs assert
+-- against a known year boundary, and inheriting whatever production happens to
+-- be set to would make them drift.
+insert into public.app_settings (key, value) values
+  ('org.fiscal_year_start_month', to_jsonb(7))
+on conflict (tenant_id, key) do update set value = excluded.value;
+
+-- Outbound email (#488). The admin account opts in to the daily task digest and
+-- has one delivery already recorded, so both tables have a row locally: the
+-- account page shows a toggle in its on state, and the tenant-isolation suite
+-- (src/lib/portal/tenant-isolation.integration.test.ts) has something to assert
+-- about -- its per-table checks are vacuous on an empty table.
+--
+-- No `notifications.email_enabled` row on purpose: an unset switch means on,
+-- and leaving it unset is what production looks like on the day this ships.
+insert into public.person_notification_preferences (person_id, kind, enabled)
+select p.id, 'task_digest', true
+from public.people p
+join auth.users u on u.id = p.auth_user_id
+where u.email = 'admin@example.test'
+on conflict (tenant_id, person_id, kind) do update set enabled = excluded.enabled;
+
+insert into public.notification_deliveries (person_id, kind, dedupe_key, status, sent_at)
+select p.id, 'task_digest', 'task-digest:' || to_char(current_date - 1, 'YYYY-MM-DD'),
+       'sent', now() - interval '1 day'
+from public.people p
+join auth.users u on u.id = p.auth_user_id
+where u.email = 'admin@example.test'
+on conflict (tenant_id, person_id, kind, dedupe_key) do nothing;
+
+-- The first-login welcome tour (20260902060000) opens a modal over the portal
+-- shell for any account whose welcome_completed_at is null. Every e2e spec
+-- signs in as one of these accounts and drives portal pages, so leaving them
+-- un-toured would put a dialog in front of all of them. Mark them done here;
+-- the tour itself is covered by welcome-dialog.dom.test.tsx and
+-- welcome/actions.integration.test.ts, and can be replayed locally from
+-- /portal/account.
+-- last_release_seen gets a key no CURRENT_RELEASE will ever exceed, for the
+-- same reason: the "what's new" dialog (20260902070000) would otherwise sit
+-- over the e2e suite every time someone bumps the release, and seed.sql has no
+-- way to read that constant out of the TypeScript that owns it. To see the
+-- release notes locally, clear it for your account:
+--   update public.user_onboarding set last_release_seen = null;
+insert into public.user_onboarding (user_id, first_seen_at, welcome_completed_at, last_release_seen)
+select u.id, u.created_at, now(), '9999-12-31'
+from auth.users u
+on conflict (user_id) do update
+  set welcome_completed_at = now(),
+      last_release_seen = '9999-12-31';

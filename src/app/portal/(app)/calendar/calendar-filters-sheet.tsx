@@ -31,7 +31,9 @@ import {
   VISIBILITIES,
   type CalendarOwner,
   type CalendarProgram,
+  ownerName,
 } from "./calendar-shared";
+import { personDisplayName } from "@/lib/format";
 import type { CalendarView } from "./view-toggle";
 import type { ListSortColumn } from "./list-view";
 
@@ -322,17 +324,15 @@ export function CalendarFiltersSheet({
               <SelectTrigger id="filter-owner">
                 <SelectValue placeholder="All owners">
                   {(value: string) =>
-                    value === "all"
-                      ? "All owners"
-                      : owners.find((option) => option.user_id === value)?.email
+                    value === "all" ? "All owners" : ownerName(owners, value)
                   }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All owners</SelectItem>
                 {owners.map((option) => (
-                  <SelectItem key={option.user_id} value={option.user_id}>
-                    {option.email}
+                  <SelectItem key={option.person_id} value={option.person_id}>
+                    {personDisplayName(option)}
                   </SelectItem>
                 ))}
               </SelectContent>

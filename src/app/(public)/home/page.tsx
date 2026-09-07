@@ -10,8 +10,10 @@ import {
 import { SiteImage } from "@/components/site-image";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSiteImageUrls } from "@/lib/site-images";
+import { getPublicSite } from "@/lib/public-site";
 import { isPageVisible } from "@/lib/page-visibility";
 import { nowMs } from "@/lib/time";
+import { formatDateTime } from "@/lib/format";
 
 const CAROUSEL_SLOTS = [
   "home_carousel_1",
@@ -19,21 +21,18 @@ const CAROUSEL_SLOTS = [
   "home_carousel_3",
 ] as const;
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-
 export default async function Home() {
   const supabase = await createSupabaseServerClient();
 
-  const [{ data: events }, siteImages] = await Promise.all([
+  const [{ data: events }, siteImages, site] = await Promise.all([
     supabase
       .from("public_events")
       .select("id, name, location, starts_at, ends_at")
       .order("starts_at", { ascending: true }),
     getSiteImageUrls(supabase),
+    getPublicSite(supabase),
   ]);
+  const { content } = site;
 
   const supportVisible = await isPageVisible("support");
 
@@ -43,7 +42,13 @@ export default async function Home() {
   );
 
   return (
-    <main className="app-shell px-6 py-8 sm:px-10">
+    // /home has no layout.tsx, so it has no PageShell ancestor -- it has to
+    // carry the skip link target itself.
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className="app-shell px-6 py-8 outline-none sm:px-10"
+    >
       <div className="mx-auto max-w-6xl">
         <section className="flex flex-col items-center text-center">
           <Carousel className="w-full max-w-5xl" opts={{ loop: true }}>
@@ -52,7 +57,7 @@ export default async function Home() {
                 <CarouselItem key={slot}>
                   <SiteImage
                     url={siteImages[slot] ?? null}
-                    alt="Chatter Snow community"
+                    alt={content.text("org.image_alt")}
                     className="aspect-[21/9] rounded-2xl"
                     sizes="(min-width: 1024px) 1024px, 100vw"
                     priority={index === 0}
@@ -67,13 +72,11 @@ export default async function Home() {
           <div className="mt-5 w-fit">
             <div className="rainbow-accent w-full" />
             <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-              A queer ski &amp; snowboard community
+              {content.text("home.heading")}
             </h1>
           </div>
           <p className="app-muted mt-3 max-w-xl text-sm leading-relaxed sm:text-base">
-            Chatter brings LGBTQ+ skiers and snowboarders together on and off
-            the East Coast mountains, and works to make snow sports more
-            accessible through gear, mentorship, and community.
+            {content.text("home.intro")}
           </p>
 
           <div className="mt-6 flex flex-wrap justify-center gap-3">
@@ -82,14 +85,14 @@ export default async function Home() {
               nativeButton={false}
               render={<Link href="/events" />}
             >
-              Join an event
+              {content.text("home.cta_events")}
             </Button>
             <Button
               variant="secondary"
               nativeButton={false}
               render={<Link href="/get-involved" />}
             >
-              Get involved
+              {content.text("home.cta_get_involved")}
             </Button>
             {supportVisible ? (
               <Button
@@ -97,7 +100,7 @@ export default async function Home() {
                 nativeButton={false}
                 render={<Link href="/support" />}
               >
-                Donate
+                {content.text("home.cta_donate")}
               </Button>
             ) : null}
           </div>
@@ -105,12 +108,14 @@ export default async function Home() {
 
         {nextEvent && (
           <section className="rainbow-surface mt-16 rounded-xl border border-[var(--line)] p-6 text-center shadow-md sm:p-8">
-            <span className="app-eyebrow">Next up</span>
+            <span className="app-eyebrow">
+              {content.text("home.next_event_eyebrow")}
+            </span>
             <h2 className="brand-display mt-2 text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
               {nextEvent.name}
             </h2>
             <p className="app-muted mt-2 text-sm">
-              {dateFormatter.format(new Date(nextEvent.starts_at))}
+              {formatDateTime(nextEvent.starts_at)}
               {nextEvent.location && ` · ${nextEvent.location}`}
             </p>
             <Button

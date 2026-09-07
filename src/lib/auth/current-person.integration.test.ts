@@ -48,6 +48,7 @@ describe("resolveCurrentPerson / resolveCurrentPersonId (integration)", () => {
     expect(await resolveCurrentPerson(supabase)).toEqual({
       id: person.id,
       name: "Casey Rivera",
+      preferred_name: null,
       email: SEEDED_USERS.volunteer,
       phone: null,
     });

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Eye } from "lucide-react";
 import { updateVolunteerApplicationStatusAction } from "./actions";
 import {
+  APPLICATION_PARAM,
   VOLUNTEER_APPLICATION_STATUSES,
   type VolunteerApplication,
   type VolunteerApplicationStatus,
@@ -35,21 +36,41 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
+import { humanizeStatus } from "@/components/portal/status-badge";
+import { formatDateTime } from "@/lib/format";
+import { useDeepLinkedSheet } from "@/components/portal/use-deep-linked-sheet";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+// Base UI's Select.Value shows the raw value unless Root is told the labels,
+// so the trigger reads "Placed" like the option (and the badge) rather than
+// "placed".
+const APPLICATION_STATUS_ITEMS = VOLUNTEER_APPLICATION_STATUSES.map(
+  (status) => ({ value: status, label: humanizeStatus(status) }),
+);
 
 export function VolunteerApplicationDetailsSheet({
   application,
   canManage,
+  defaultOpen = false,
+  withTrigger = true,
 }: {
   application: VolunteerApplication;
   canManage: boolean;
+  /** True when `?application=` names this row. */
+  defaultOpen?: boolean;
+  /**
+   * False for the sheet the page renders when the linked application is not
+   * on the current page of the list -- there is no row to hang an eye icon
+   * off, and a second stray trigger above the table would be a control that
+   * means nothing to anyone who did not arrive from the email.
+   */
+  withTrigger?: boolean;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const { open, onOpenChange } = useDeepLinkedSheet(
+    APPLICATION_PARAM,
+    defaultOpen,
+  );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -65,31 +86,34 @@ export function VolunteerApplicationDetailsSheet({
         setError(result.error);
         return;
       }
+      toast.success("Application updated.");
       router.refresh();
     });
   }
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <Tooltip>
-        <SheetTrigger
-          render={
-            <TooltipTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={`View application from ${application.name}`}
-                />
-              }
-            />
-          }
-        >
-          <Eye />
-        </SheetTrigger>
-        <TooltipContent>{`View application from ${application.name}`}</TooltipContent>
-      </Tooltip>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      {withTrigger ? (
+        <Tooltip>
+          <SheetTrigger
+            render={
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`View application from ${application.name}`}
+                  />
+                }
+              />
+            }
+          >
+            <Eye />
+          </SheetTrigger>
+          <TooltipContent>{`View application from ${application.name}`}</TooltipContent>
+        </Tooltip>
+      ) : null}
       <SheetContent side="right" showCloseButton={false}>
         <SheetHeader className="flex-row items-start gap-2 space-y-0">
           <Tooltip>
@@ -114,7 +138,7 @@ export function VolunteerApplicationDetailsSheet({
           <div className="flex flex-1 flex-col gap-0.5">
             <SheetTitle>Volunteer application</SheetTitle>
             <SheetDescription>
-              Submitted {dateFormatter.format(new Date(application.created_at))}
+              Submitted {formatDateTime(application.created_at)}
             </SheetDescription>
           </div>
         </SheetHeader>
@@ -129,6 +153,9 @@ export function VolunteerApplicationDetailsSheet({
             </ReadOnlyField>
             <ReadOnlyField label="Phone" htmlFor="application-phone">
               {application.phone || "—"}
+            </ReadOnlyField>
+            <ReadOnlyField label="Pronouns" htmlFor="application-pronouns">
+              {application.pronouns || "—"}
             </ReadOnlyField>
             <ReadOnlyField
               label="Role interest"
@@ -148,6 +175,7 @@ export function VolunteerApplicationDetailsSheet({
                 <span className="text-sm font-medium">Status</span>
                 <Select
                   value={application.status}
+                  items={APPLICATION_STATUS_ITEMS}
                   onValueChange={handleStatusChange}
                   disabled={isPending}
                 >
@@ -156,13 +184,9 @@ export function VolunteerApplicationDetailsSheet({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {VOLUNTEER_APPLICATION_STATUSES.map((status) => (
-                      <SelectItem
-                        key={status}
-                        value={status}
-                        className="capitalize"
-                      >
-                        {status}
+                    {APPLICATION_STATUS_ITEMS.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -170,7 +194,7 @@ export function VolunteerApplicationDetailsSheet({
               </div>
             ) : (
               <ReadOnlyField label="Status" htmlFor="application-status">
-                {application.status}
+                {humanizeStatus(application.status)}
               </ReadOnlyField>
             )}
 

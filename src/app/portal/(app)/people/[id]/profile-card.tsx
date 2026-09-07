@@ -1,16 +1,28 @@
 "use client";
 
 import { FormEvent, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
-import { updatePersonAction, type PersonListItem } from "../actions";
+import {
+  deleteRiderProfileAction,
+  updatePersonAction,
+  type PersonListItem,
+} from "../actions";
 import {
   PersonFormFields,
   packPersonFormData,
   type PersonFormState,
 } from "../person-form-fields";
 import { PersonPicker, type PickedPerson } from "../person-picker";
-import { rolesFor, type PersonRow } from "../people-shared";
+import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
+import { runAction } from "@/components/portal/action-toast";
+import {
+  PortalUserBadge,
+  isOrganization,
+  rolesFor,
+  type PersonRow,
+} from "../people-shared";
 import {
   experienceLevelLabel,
   ridesSki,
@@ -20,6 +32,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 import {
   Card,
   CardAction,
@@ -34,8 +47,10 @@ import { Spinner } from "@/components/ui/spinner";
 function formStateFor(person: PersonRow): PersonFormState {
   return {
     name: person.name ?? "",
+    preferredName: person.preferred_name ?? "",
     email: person.email ?? "",
     phone: person.phone ?? "",
+    pronouns: person.pronouns ?? "",
     instagramHandle: person.instagram_handle ?? "",
     notes: person.notes ?? "",
     logoUrl: person.logo_url ?? "",
@@ -45,8 +60,10 @@ function formStateFor(person: PersonRow): PersonFormState {
       is_sponsor: person.is_sponsor,
       is_volunteer: person.is_volunteer,
       is_attendee: person.is_attendee,
+      is_staff: person.is_staff,
+      is_partner: person.is_partner,
     },
-    isOrganization: person.is_organization,
+    personType: person.person_type,
     ridingDiscipline: person.riding_discipline ?? "",
     skiExperienceLevel: person.ski_experience_level ?? "",
     snowboardExperienceLevel: person.snowboard_experience_level ?? "",
@@ -58,10 +75,12 @@ export function ProfileCard({
   person,
   people,
   canManage,
+  canDeleteRiderProfile = false,
 }: {
   person: PersonRow;
   people: PersonListItem[];
   canManage: boolean;
+  canDeleteRiderProfile?: boolean;
 }) {
   const router = useRouter();
   const formId = `person-profile-form-${person.id}`;
@@ -72,7 +91,25 @@ export function ProfileCard({
   );
   const [newPeople, setNewPeople] = useState<PersonListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // See emailConflictError in ../actions.ts: set when the save collided on
+  // the person email uniqueness index.
+  const [conflict, setConflict] = useState<{
+    id: string;
+    name: string | null;
+  } | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isDeletingRiderProfile, startRiderProfileTransition] = useTransition();
+
+  function deleteRiderProfile() {
+    startRiderProfileTransition(async () => {
+      await runAction(() => deleteRiderProfileAction(person.id), {
+        success: "Rider profile deleted.",
+        description: "The deletion is recorded under Data Retention.",
+        onError: setError,
+        onSuccess: () => router.refresh(),
+      });
+    });
+  }
 
   const availablePeople = [...people, ...newPeople];
 
@@ -93,8 +130,12 @@ export function ProfileCard({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    setConflict(null);
 
     startTransition(async () => {
+      // Called directly rather than through runAction: runAction reduces a
+      // failure to a bare string, which would drop the `conflict` that lets
+      // the error link to the person already using this email.
       const result = await updatePersonAction(
         person.id,
         packPersonFormData(form),
@@ -102,8 +143,10 @@ export function ProfileCard({
       );
       if ("error" in result) {
         setError(result.error);
+        setConflict(result.conflict ?? null);
         return;
       }
+      toast.success("Profile saved.");
       setMode("view");
       router.refresh();
     });
@@ -138,15 +181,20 @@ export function ProfileCard({
                   {role}
                 </Badge>
               ))}
-              {person.is_organization && (
+              {isOrganization(person) && (
                 <Badge variant="outline">Organization</Badge>
               )}
+              <PortalUserBadge person={person} />
             </div>
             <p>
               <span className="app-muted">Email:</span> {person.email ?? "—"}
             </p>
             <p>
               <span className="app-muted">Phone:</span> {person.phone ?? "—"}
+            </p>
+            <p>
+              <span className="app-muted">Pronouns:</span>{" "}
+              {person.pronouns ?? "—"}
             </p>
             <p>
               <span className="app-muted">Instagram:</span>{" "}
@@ -182,6 +230,24 @@ export function ProfileCard({
               <span className="app-muted">Preferred mountain:</span>{" "}
               {person.preferred_mountain ?? "—"}
             </p>
+            {/* /privacy keeps a rider profile "until you ask us to delete your
+                profile", so somebody has to be able to action that request
+                (#602). Only offered when there is a profile to delete. */}
+            {canDeleteRiderProfile && person.riding_discipline && (
+              <div className="flex items-center gap-1">
+                <span className="app-muted text-sm">
+                  Rider profile requested for deletion?
+                </span>
+                <ConfirmDeleteButton
+                  label="Delete rider profile"
+                  title={`Delete ${person.name ?? "this person"}'s rider profile?`}
+                  description="Clears their riding discipline, experience levels and preferred mountain. Events they were checked in to keep the level recorded on the day, so past impact figures don't change. The rest of their record is untouched. This can't be undone."
+                  confirmLabel="Delete rider profile"
+                  pending={isDeletingRiderProfile}
+                  onConfirm={deleteRiderProfile}
+                />
+              </div>
+            )}
             <p>
               <span className="app-muted">Notes:</span> {person.notes ?? "—"}
             </p>
@@ -204,17 +270,27 @@ export function ProfileCard({
                   selected={contact}
                   onSelect={setContact}
                   onPersonCreated={(created) =>
-                    setNewPeople((prev) => [
-                      ...prev,
-                      { ...created, is_sponsor: false },
-                    ])
+                    setNewPeople((prev) => [...prev, created])
                   }
                 />
               </Field>
 
               {error && (
                 <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
+                  <AlertDescription>
+                    {error}
+                    {conflict && (
+                      <>
+                        {" "}
+                        <Link
+                          href={`/portal/people/${conflict.id}`}
+                          className="underline underline-offset-4"
+                        >
+                          Open their record
+                        </Link>
+                      </>
+                    )}
+                  </AlertDescription>
                 </Alert>
               )}
             </FieldGroup>

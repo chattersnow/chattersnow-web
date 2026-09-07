@@ -10,30 +10,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { EditBoardMemberModal } from "./edit-board-member-modal";
 import type { BoardMemberRow } from "./board-members-shared";
+import { formatCalendarDate } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
+import {
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
 
 const FILTER_ALL = "all";
 const FILTER_ACTIVE = "active";
 const FILTER_PAST = "past";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
 
 export function BoardMembersTable({
   boardMembers,
@@ -63,6 +51,61 @@ export function BoardMembersTable({
       );
     });
   }, [boardMembers, search, statusFilter]);
+
+  const columns = useMemo<PortalDataTableColumn<BoardMemberRow>[]>(
+    () => [
+      {
+        key: "name",
+        label: "Name",
+        sortValue: (boardMember) => boardMember.person.name,
+        cellClassName: "max-w-xs truncate font-medium",
+        render: (boardMember) => (
+          <span title={boardMember.person.name ?? undefined}>
+            {boardMember.person.name ?? "—"}
+          </span>
+        ),
+      },
+      {
+        key: "role_title",
+        label: "Role / title",
+        sortValue: (boardMember) => boardMember.role_title,
+        cellClassName: "app-muted",
+        render: (boardMember) => boardMember.role_title,
+      },
+      {
+        key: "term_start",
+        label: "Term start",
+        sortValue: (boardMember) => boardMember.term_start,
+        cellClassName: "app-muted",
+        render: (boardMember) => formatCalendarDate(boardMember.term_start),
+      },
+      {
+        key: "term_end",
+        label: "Term end",
+        sortValue: (boardMember) => boardMember.term_end,
+        cellClassName: "app-muted",
+        render: (boardMember) => formatCalendarDate(boardMember.term_end),
+      },
+      {
+        key: "status",
+        // Sorted on the word the cell shows rather than on the boolean behind
+        // it, so "Active" before "Past" is what ascending visibly means.
+        label: "Status",
+        sortValue: (boardMember) => (boardMember.is_active ? "Active" : "Past"),
+        cellClassName: "app-muted",
+        render: (boardMember) => (boardMember.is_active ? "Active" : "Past"),
+      },
+      {
+        key: "actions",
+        label: "Actions",
+        srOnlyLabel: true,
+        headClassName: "w-0",
+        render: (boardMember) =>
+          canManage ? <EditBoardMemberModal boardMember={boardMember} /> : null,
+      },
+    ],
+    [canManage],
+  );
 
   return (
     <div className="space-y-4">
@@ -117,67 +160,26 @@ export function BoardMembersTable({
       {boardMembers.length === 0 ? (
         <Card>
           <CardContent className="px-0">
-            <p className="app-muted px-4 py-6 text-sm">
-              No board members added yet.
-            </p>
+            <EmptyState
+              title="No board members added yet"
+              description={
+                canManage
+                  ? "Add the first one with Add board member above."
+                  : "Board members appear here once a governance manager adds them."
+              }
+            />
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="px-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Role / title</TableHead>
-                  <TableHead>Term start</TableHead>
-                  <TableHead>Term end</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-0">
-                    <span className="sr-only">Actions</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visibleBoardMembers.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="app-muted text-center">
-                      No board members match your filters.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  visibleBoardMembers.map((boardMember) => (
-                    <TableRow key={boardMember.id}>
-                      <TableCell
-                        className="max-w-xs truncate font-medium"
-                        title={boardMember.person.name ?? undefined}
-                      >
-                        {boardMember.person.name ?? "—"}
-                      </TableCell>
-                      <TableCell className="app-muted">
-                        {boardMember.role_title}
-                      </TableCell>
-                      <TableCell className="app-muted">
-                        {formatDate(boardMember.term_start)}
-                      </TableCell>
-                      <TableCell className="app-muted">
-                        {formatDate(boardMember.term_end)}
-                      </TableCell>
-                      <TableCell className="app-muted">
-                        {boardMember.is_active ? "Active" : "Past"}
-                      </TableCell>
-                      <TableCell>
-                        {canManage && (
-                          <EditBoardMemberModal boardMember={boardMember} />
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        // No `defaultSort`: the query orders on is_active then term_start, and
+        // a single sort key cannot say that, so the list opens in the order
+        // the server sent and the arrows take over from there.
+        <PortalDataTable
+          columns={columns}
+          rows={visibleBoardMembers}
+          getRowKey={(boardMember) => boardMember.id}
+          emptyMessage="No board members match your filters."
+        />
       )}
     </div>
   );

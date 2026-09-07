@@ -20,12 +20,16 @@ function makeDonation(overrides: Partial<DonationRow> = {}): DonationRow {
       {
         id: "item-1",
         description: "Winter jacket",
-        type: "jacket",
+        type: null,
+        category_id: "category-jacket",
+        category_key: "jacket",
+        category_label: "Jacket",
         size: "M",
         gender: "unisex",
         condition: "good",
         face_value: null,
         status: "available",
+        intended_use: "gear_library",
         photo_url: null,
         notes: null,
       },
@@ -34,16 +38,21 @@ function makeDonation(overrides: Partial<DonationRow> = {}): DonationRow {
   };
 }
 
+/** Date is the only sortable column; the rest read through embeds. */
+const SORT = { dir: "desc", sortHref: "?dir=asc" } as const;
+
 describe("DonationsTable", () => {
   test("shows an empty state when there are no donations", () => {
-    render(<DonationsTable donations={[]} hasActiveFilters={false} />);
-    expect(screen.getByText("No donations recorded yet.")).toBeInTheDocument();
+    render(
+      <DonationsTable donations={[]} hasActiveFilters={false} {...SORT} />,
+    );
+    expect(screen.getByText("No donations recorded yet")).toBeInTheDocument();
   });
 
   test("shows a filtered empty state when filters are active", () => {
-    render(<DonationsTable donations={[]} hasActiveFilters={true} />);
+    render(<DonationsTable donations={[]} hasActiveFilters={true} {...SORT} />);
     expect(
-      screen.getByText("No donations match your filters."),
+      screen.getByText("No donations match your filters"),
     ).toBeInTheDocument();
   });
 
@@ -56,6 +65,7 @@ describe("DonationsTable", () => {
           }),
         ]}
         hasActiveFilters={false}
+        {...SORT}
       />,
     );
 
@@ -83,6 +93,7 @@ describe("DonationsTable", () => {
           }),
         ]}
         hasActiveFilters={false}
+        {...SORT}
       />,
     );
 

@@ -11,6 +11,32 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
+import { EmptyState } from "@/components/portal/empty-state";
+import { runAction } from "@/components/portal/action-toast";
+import { StatTile } from "../home/stat-tile";
+import type { EventImpactDerived } from "@/lib/portal/impact-metrics";
+
+/**
+ * Check-in figures shown beside the typed headcount, as reference.
+ *
+ * The headcount stays the authoritative participant number — these are here so
+ * whoever types it can see what the door already recorded, and so the Impact
+ * card's computed participation figures are traceable to something on screen.
+ */
+function CheckInReference({ derived }: { derived: EventImpactDerived | null }) {
+  if (!derived) return null;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <h4 className="text-sm font-semibold">From check-ins</h4>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatTile label="Checked in" value={derived.checkedIn} />
+        <StatTile label="First-time" value={derived.firstTimeParticipants} />
+        <StatTile label="Recurring" value={derived.recurringParticipants} />
+      </div>
+    </div>
+  );
+}
 
 function AttendanceForm({
   event,
@@ -36,13 +62,14 @@ function AttendanceForm({
     formData.set("attendanceNotes", notes);
 
     startTransition(async () => {
-      const result = await updateEventAttendanceAction(event.id, formData);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
-      onSaved();
+      await runAction(() => updateEventAttendanceAction(event.id, formData), {
+        success: "Attendance saved.",
+        onError: setError,
+        onSuccess: () => {
+          router.refresh();
+          onSaved();
+        },
+      });
     });
   }
 
@@ -105,11 +132,12 @@ function AttendanceForm({
 export function AttendanceTab({
   event,
   mode,
+  derived,
   onExitEdit,
 }: {
   event: EventRow;
   mode: "view" | "edit";
-  active: boolean;
+  derived: EventImpactDerived | undefined;
   onExitEdit: () => void;
 }) {
   const hasAttendance =
@@ -117,26 +145,38 @@ export function AttendanceTab({
 
   if (mode === "edit") {
     return (
-      <AttendanceForm
-        event={event}
-        onSaved={onExitEdit}
-        onCancel={onExitEdit}
-      />
+      <div className="flex flex-col gap-6">
+        <CheckInReference derived={derived ?? null} />
+        <AttendanceForm
+          event={event}
+          onSaved={onExitEdit}
+          onCancel={onExitEdit}
+        />
+      </div>
     );
   }
 
-  if (!hasAttendance) {
-    return <p className="app-muted text-sm">No attendance recorded yet.</p>;
-  }
-
   return (
-    <FieldGroup>
-      <ReadOnlyField label="Attendance headcount" htmlFor="attendance-count">
-        {event.attendance_count ?? "—"}
-      </ReadOnlyField>
-      <ReadOnlyField label="Notes" htmlFor="attendance-notes">
-        {event.attendance_notes || "—"}
-      </ReadOnlyField>
-    </FieldGroup>
+    <div className="flex flex-col gap-6">
+      {hasAttendance ? (
+        <FieldGroup>
+          <ReadOnlyField
+            label="Attendance headcount"
+            htmlFor="attendance-count"
+          >
+            {event.attendance_count ?? "—"}
+          </ReadOnlyField>
+          <ReadOnlyField label="Notes" htmlFor="attendance-notes">
+            {event.attendance_notes || "—"}
+          </ReadOnlyField>
+        </FieldGroup>
+      ) : (
+        <EmptyState
+          title="No attendance recorded yet"
+          description="Use Edit attendance (the pencil above) to record the headcount and notes after the event."
+        />
+      )}
+      <CheckInReference derived={derived ?? null} />
+    </div>
   );
 }

@@ -13,14 +13,30 @@ export type PublicEvent = {
   ends_at: string | null;
   timezone: string;
   description: string | null;
-  event_type: string | null;
-  venue: string | null;
   capacity: number | null;
   registration_enabled: boolean;
   registration_deadline: string | null;
   flier_url: string | null;
+  /** The programs this event counts toward, from public_event_programs. */
+  programs: PublicEventProgram[];
   sponsors: PublicEventSponsor[];
 };
+
+export type PublicEventProgram = {
+  program_id: string;
+  name: string;
+};
+
+/**
+ * The eyebrow above an event's title. Events aren't required to belong to a
+ * program, so this falls back to plain "Event" the way the event-type label it
+ * replaced did.
+ */
+export function eventProgramsLabel(programs: PublicEventProgram[]) {
+  return programs.length > 0
+    ? programs.map((program) => program.name).join(" \u00b7 ")
+    : "Event";
+}
 
 const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
   dateStyle: "medium",

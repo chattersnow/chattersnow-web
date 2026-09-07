@@ -11,6 +11,7 @@ import {
   adminClient,
   anonClient,
   createPerson,
+  signIn,
   signInAs,
 } from "../../../../../../test/integration-setup";
 import { getAccessManagementAttentionSummary } from "@/lib/portal/attention-items";
@@ -299,7 +300,11 @@ describe("access-management assets actions (integration)", () => {
     if (grantError) throw grantError;
 
     try {
-      currentSupabase = await signInAs(SEEDED_USERS.board);
+      // A fresh sign-in rather than the memoised signInAs() client: permissions
+      // are resolved once per Supabase client (getCurrentUserPermissions), so
+      // the shared board client would still answer with the matrix it saw
+      // before the grant above. A new client is what a new request gets.
+      currentSupabase = await signIn(SEEDED_USERS.board);
       expect(await reviewAssetAction(asset.id, "medium")).toEqual({
         success: true,
         nextReview: computeNextReviewDate("medium"),

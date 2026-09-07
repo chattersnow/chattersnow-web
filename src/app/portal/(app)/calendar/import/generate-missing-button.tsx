@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { generateMissingCalendarSeriesInstancesAction } from "../recurrence-actions";
 import { Spinner } from "@/components/ui/spinner";
+import { runAction } from "@/components/portal/action-toast";
 
 export function GenerateMissingButton({ targetYear }: { targetYear: number }) {
   const router = useRouter();
@@ -15,13 +16,20 @@ export function GenerateMissingButton({ targetYear }: { targetYear: number }) {
   function handleGenerateAll() {
     setError(null);
     startTransition(async () => {
-      const result =
-        await generateMissingCalendarSeriesInstancesAction(targetYear);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
+      await runAction(
+        () => generateMissingCalendarSeriesInstancesAction(targetYear),
+        {
+          success: ({ generatedCount: count }) => {
+            if (count === undefined)
+              return `Missing ${targetYear} items generated.`;
+            return count === 0
+              ? `Nothing to generate — ${targetYear} is already complete.`
+              : `${count} item${count === 1 ? "" : "s"} generated for ${targetYear}.`;
+          },
+          onError: setError,
+          onSuccess: () => router.refresh(),
+        },
+      );
     });
   }
 

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
@@ -10,20 +11,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  formatAmount,
-  isRevenueSource,
-  revenueSourceLabel,
-} from "../revenue/revenue-shared";
+import { EventTotalsTable, RevenueBySourceTable } from "./report-tables";
 import {
   computeFinanceSummary,
   SPEND_STATUSES,
   summarizeByEvent,
   summarizeRevenueBySource,
   summarizeSpendByStatus,
-  yearToDateRange,
   type FinanceReportData,
 } from "./summary";
+import {
+  fiscalYearForDate,
+  fiscalYearToDateRange,
+  formatFiscalYearLabel,
+  getFiscalYearStartMonth,
+} from "@/lib/fiscal-year";
+import { formatCurrency, formatNumber } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 type FinanceReportsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -40,10 +44,12 @@ function isDateInput(value: string | undefined): value is string {
 const selectClassName =
   "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
-const numberFormatter = new Intl.NumberFormat("en-US");
-
 // event_revenue has no currency column and CURRENCIES is USD-only across
 // Finance today, so every figure on this page is formatted as USD.
+export const metadata: Metadata = {
+  title: "Financial Reports",
+};
+
 export default async function FinancialReportsPage({
   searchParams,
 }: FinanceReportsPageProps) {
@@ -55,7 +61,16 @@ export default async function FinancialReportsPage({
     return Array.isArray(value) ? value[0] : value;
   };
 
-  const defaults = yearToDateRange(new Date());
+  // Financial reporting is annual, so the page opens on fiscal-year-to-date
+  // rather than the current month the inventory report defaults to. The
+  // boundary is the org's fiscal year (July by default), not January -- a
+  // winter season would otherwise be split across two reports.
+  const now = new Date();
+  const fiscalYearStartMonth = await getFiscalYearStartMonth(supabase);
+  const fiscalYearLabel = formatFiscalYearLabel(
+    fiscalYearForDate(now, fiscalYearStartMonth),
+  );
+  const defaults = fiscalYearToDateRange(now, fiscalYearStartMonth);
   const fromParam = raw("from");
   const toParam = raw("to");
   const fromDate = isDateInput(fromParam) ? fromParam : defaults.from;
@@ -108,30 +123,30 @@ export default async function FinancialReportsPage({
     ? [
         {
           label: "Income",
-          value: formatAmount(summary.income),
+          value: formatCurrency(summary.income),
           caption: "Event revenue received",
         },
         {
           label: "Monetary donations",
-          value: formatAmount(summary.cashDonations),
-          caption: `${numberFormatter.format(summary.cashDonationCount)} gift${
+          value: formatCurrency(summary.cashDonations),
+          caption: `${formatNumber(summary.cashDonationCount)} gift${
             summary.cashDonationCount === 1 ? "" : "s"
           } received`,
         },
         {
           label: "Expenses paid",
-          value: formatAmount(summary.paidSpend),
+          value: formatCurrency(summary.paidSpend),
           caption: "Expenses and reimbursements marked paid",
         },
         {
           label: "Net",
-          value: formatAmount(summary.net),
+          value: formatCurrency(summary.net),
           caption: "Income and monetary donations, less expenses paid",
         },
         {
           label: "In-kind donations",
-          value: formatAmount(summary.inKindValue),
-          caption: `${numberFormatter.format(summary.inKindItemCount)} item${
+          value: formatCurrency(summary.inKindValue),
+          caption: `${formatNumber(summary.inKindItemCount)} item${
             summary.inKindItemCount === 1 ? "" : "s"
           } donated, at face value`,
         },
@@ -238,7 +253,7 @@ export default async function FinancialReportsPage({
                 nativeButton={false}
                 render={<Link href="/portal/finance/reports" />}
               >
-                Reset to this year
+                Reset to {fiscalYearLabel}
               </Button>
             )}
           </div>
@@ -254,34 +269,13 @@ export default async function FinancialReportsPage({
               </CardHeader>
               <CardContent className="px-0">
                 {revenueBySource.length === 0 ? (
-                  <p className="app-muted px-4 text-sm">
-                    No revenue recorded in this period.
-                  </p>
+                  <EmptyState
+                    className="py-4"
+                    title="No revenue recorded in this period"
+                    description="Widen the date range above, or record income under Finance › Revenue."
+                  />
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Source</TableHead>
-                        <TableHead>Records</TableHead>
-                        <TableHead>Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {revenueBySource.map((row) => (
-                        <TableRow key={row.source}>
-                          <TableCell>
-                            {isRevenueSource(row.source)
-                              ? revenueSourceLabel(row.source)
-                              : row.source}
-                          </TableCell>
-                          <TableCell>
-                            {numberFormatter.format(row.count)}
-                          </TableCell>
-                          <TableCell>{formatAmount(row.total)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  <RevenueBySourceTable rows={revenueBySource} />
                 )}
               </CardContent>
             </Card>
@@ -291,7 +285,11 @@ export default async function FinancialReportsPage({
                 <CardTitle>Spend by status</CardTitle>
               </CardHeader>
               <CardContent className="px-0">
-                <Table>
+                {/* Not a PortalDataTable: four rows in the workflow's own
+                    order, where sorting has nothing to offer and pagination
+                    would never appear. It takes the shared sticky header and
+                    stays server-rendered. */}
+                <Table stickyHeader="page">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Status</TableHead>
@@ -304,14 +302,14 @@ export default async function FinancialReportsPage({
                       <TableRow key={status}>
                         <TableCell className="capitalize">{status}</TableCell>
                         <TableCell>
-                          {formatAmount(
+                          {formatCurrency(
                             expensesByStatus.find(
                               (row) => row.status === status,
                             )?.total ?? 0,
                           )}
                         </TableCell>
                         <TableCell>
-                          {formatAmount(
+                          {formatCurrency(
                             reimbursementsByStatus.find(
                               (row) => row.status === status,
                             )?.total ?? 0,
@@ -330,34 +328,7 @@ export default async function FinancialReportsPage({
               <CardTitle>Income and paid spend by event</CardTitle>
             </CardHeader>
             <CardContent className="px-0">
-              {byEvent.length === 0 ? (
-                <p className="app-muted px-4 text-sm">
-                  Nothing recorded in this period.
-                </p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Event</TableHead>
-                      <TableHead>Income</TableHead>
-                      <TableHead>Paid spend</TableHead>
-                      <TableHead>Net</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {byEvent.map((row) => (
-                      <TableRow key={row.eventId ?? "no-event"}>
-                        <TableCell className="whitespace-normal">
-                          {row.eventName}
-                        </TableCell>
-                        <TableCell>{formatAmount(row.income)}</TableCell>
-                        <TableCell>{formatAmount(row.paidSpend)}</TableCell>
-                        <TableCell>{formatAmount(row.net)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
+              <EventTotalsTable rows={byEvent} />
             </CardContent>
           </Card>
         </div>

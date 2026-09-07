@@ -2,15 +2,13 @@
 
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
-import { type EventVolunteer } from "../volunteers-actions";
 import { type EventShift } from "../shifts-actions";
+import { type RoleType } from "../../volunteers/roles/actions";
 import { PersonPicker, type PickedPerson } from "../../people/person-picker";
 import { type PersonListItem } from "../../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -18,28 +16,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { formatShiftRange, NONE_VALUE } from "./shifts";
 import { Spinner } from "@/components/ui/spinner";
-import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
+import { personDisplayName } from "@/lib/format";
+import { runAction } from "@/components/portal/action-toast";
 
 export function AddVolunteerForm({
   people,
   shifts,
+  roleTypes,
   onPersonCreated,
   onSubmit,
   onCancel,
 }: {
   people: PersonListItem[];
   shifts: EventShift[];
+  roleTypes: RoleType[];
   onPersonCreated: (person: PickedPerson) => void;
   onSubmit: (
     personId: string,
@@ -52,7 +45,7 @@ export function AddVolunteerForm({
     null,
   );
   const [shiftId, setShiftId] = useState<string | null>(null);
-  const [role, setRole] = useState("");
+  const [roleTypeId, setRoleTypeId] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -66,18 +59,20 @@ export function AddVolunteerForm({
     }
 
     const formData = new FormData();
-    formData.set("role", shiftId ? "" : role);
+    formData.set("volunteerRoleTypeId", shiftId ? "" : (roleTypeId ?? ""));
     formData.set("notes", notes);
     formData.set("shiftId", shiftId ?? "");
 
+    const person = selectedPerson;
     startTransition(async () => {
-      const result = await onSubmit(selectedPerson.id, formData);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
-      onCancel();
+      await runAction(() => onSubmit(person.id, formData), {
+        success: `${personDisplayName(person)} signed up.`,
+        onError: setError,
+        onSuccess: () => {
+          router.refresh();
+          onCancel();
+        },
+      });
     });
   }
 
@@ -140,12 +135,36 @@ export function AddVolunteerForm({
         ) : (
           <Field>
             <FieldLabel htmlFor="volunteer-role">Role</FieldLabel>
-            <Input
-              id="volunteer-role"
-              placeholder="e.g. Ride Buddy, Event Setup, Basecamp Staffing"
-              value={role}
-              onChange={(event) => setRole(event.target.value)}
-            />
+            <Select
+              value={roleTypeId ?? NONE_VALUE}
+              onValueChange={(value) =>
+                setRoleTypeId(value === NONE_VALUE ? null : value)
+              }
+            >
+              <SelectTrigger id="volunteer-role" className="w-full">
+                <SelectValue placeholder="No role">
+                  {(value: string) =>
+                    value === NONE_VALUE
+                      ? "No role"
+                      : (roleTypes.find((option) => option.id === value)
+                          ?.name ?? "No role")
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE_VALUE}>No role</SelectItem>
+                {roleTypes.map((option) => (
+                  <SelectItem key={option.id} value={option.id}>
+                    {option.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {roleTypes.length === 0 && (
+              <p className="app-muted text-xs">
+                No role types defined yet. Add them under Volunteers &gt; Roles.
+              </p>
+            )}
           </Field>
         )}
 
@@ -180,117 +199,5 @@ export function AddVolunteerForm({
         </div>
       </FieldGroup>
     </form>
-  );
-}
-
-export function SignupsSection({
-  volunteers,
-  shifts,
-  mode,
-  isDeleting,
-  loading,
-  onDeleteVolunteer,
-  onShiftReassign,
-}: {
-  volunteers: EventVolunteer[];
-  shifts: EventShift[];
-  mode: "view" | "edit";
-  isDeleting: boolean;
-  loading: boolean;
-  onDeleteVolunteer: (id: string) => void;
-  onShiftReassign: (volunteerId: string, shiftId: string | null) => void;
-}) {
-  return (
-    <div className="flex flex-col gap-3 border-t border-[var(--line)] pt-4">
-      <h3 className="text-sm font-semibold">Volunteers signed up</h3>
-      {loading ? (
-        <TabLoadingSkeleton />
-      ) : volunteers.length === 0 ? (
-        <p className="app-muted text-sm">No volunteers recorded yet.</p>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Volunteer</TableHead>
-              <TableHead>Shift</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead className="w-px" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {volunteers.map((volunteer) => {
-              const assignedShift = shifts.find(
-                (s) => s.id === volunteer.shift_id,
-              );
-              const roleLabel = assignedShift
-                ? (assignedShift.role_type?.name ?? "No role")
-                : volunteer.role || "—";
-              return (
-                <TableRow key={volunteer.id}>
-                  <TableCell
-                    className="max-w-xs truncate font-medium"
-                    title={volunteer.person?.name ?? undefined}
-                  >
-                    {volunteer.person?.name ?? "—"}
-                  </TableCell>
-                  <TableCell className="app-muted">
-                    {mode === "edit" && shifts.length > 0 ? (
-                      <Select
-                        value={volunteer.shift_id ?? NONE_VALUE}
-                        onValueChange={(value) =>
-                          onShiftReassign(
-                            volunteer.id,
-                            value === NONE_VALUE ? null : value,
-                          )
-                        }
-                      >
-                        <SelectTrigger
-                          className="w-full"
-                          size="sm"
-                          aria-label={`Shift for ${volunteer.person?.name ?? "volunteer"}`}
-                        >
-                          <SelectValue placeholder="No shift">
-                            {(value: string) =>
-                              shifts.find((s) => s.id === value)?.label ??
-                              "No shift"
-                            }
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={NONE_VALUE}>No shift</SelectItem>
-                          {shifts.map((shift) => (
-                            <SelectItem key={shift.id} value={shift.id}>
-                              {shift.label} ({formatShiftRange(shift)})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      (shifts.find((s) => s.id === volunteer.shift_id)?.label ??
-                      "—")
-                    )}
-                  </TableCell>
-                  <TableCell className="app-muted">{roleLabel}</TableCell>
-                  <TableCell className="text-right">
-                    {mode === "edit" && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Remove volunteer"
-                        disabled={isDeleting}
-                        onClick={() => onDeleteVolunteer(volunteer.id)}
-                      >
-                        {isDeleting ? <Spinner /> : <Trash2 />}
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      )}
-    </div>
   );
 }

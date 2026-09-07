@@ -39,6 +39,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 function toDatetimeLocalValue(iso: string) {
   const date = new Date(iso);
@@ -132,6 +133,7 @@ export function EditDistributionSheet({
         setError(result.error);
         return;
       }
+      toast.success("Distribution saved.");
       router.refresh();
       setOpen(false);
     });
@@ -226,10 +228,7 @@ export function EditDistributionSheet({
                     selected={form.recipient}
                     onSelect={(person) => update("recipient", person)}
                     onPersonCreated={(person) =>
-                      setPeople((prev) => [
-                        ...prev,
-                        { ...person, is_sponsor: false },
-                      ])
+                      setPeople((prev) => [...prev, person])
                     }
                     placeholder="Search recipient by name or email..."
                   />

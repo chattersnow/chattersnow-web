@@ -56,6 +56,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
 import { AgendaExportDialog } from "./agenda-export-dialog";
+import { formatCalendarDate, personDisplayName } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
 
 const APPROVE_MINUTES_ITEM = "Approve previous meeting minutes";
 
@@ -89,15 +91,6 @@ function OngoingTopicsTooltip({ topics }: { topics: string[] }) {
       </TooltipContent>
     </Tooltip>
   );
-}
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string) {
-  return dateFormatter.format(new Date(value));
 }
 
 function ReadOnlySection({
@@ -295,9 +288,11 @@ function AgendaForm({
           <p className="text-sm font-semibold">Ongoing board items</p>
           <div className="mt-2 flex flex-col gap-3">
             {sections.length === 0 ? (
-              <p className="app-muted text-sm">
-                No agenda template is configured.
-              </p>
+              <EmptyState
+                className="py-4"
+                title="No agenda template is configured"
+                description="Agenda templates are managed outside the portal; ask an administrator to activate one."
+              />
             ) : (
               sections.map((section) => (
                 <div
@@ -420,7 +415,6 @@ function AgendaForm({
 export function AgendaTab({
   meetingId,
   meetingDate,
-  active,
   mode,
   canManage,
   minutesApprovedAt,
@@ -431,7 +425,6 @@ export function AgendaTab({
 }: {
   meetingId: string;
   meetingDate: string;
-  active: boolean;
   mode: "view" | "edit";
   canManage: boolean;
   minutesApprovedAt: string | null;
@@ -445,32 +438,25 @@ export function AgendaTab({
     data: agenda,
     loadError,
     refresh: refreshAgenda,
-  } = useTabData<Agenda | null>(() => getAgendaAction(meetingId), active, [
-    meetingId,
-  ]);
+  } = useTabData<Agenda | null>(() => getAgendaAction(meetingId), [meetingId]);
   const { data: templates } = useTabData<ActiveAgendaTemplate[]>(
     () => listActiveAgendaTemplatesAction(),
-    active,
     [meetingId],
   );
   const { data: carriedOverItems } = useTabData<ActionItem[]>(
     () => listCarriedOverActionItemsAction(meetingId, meetingDate),
-    active,
     [meetingId, meetingDate],
   );
   const { data: createdItems } = useTabData<ActionItem[]>(
     () => listActionItemsAction(meetingId),
-    active,
     [meetingId],
   );
   const { data: decisions } = useTabData<Decision[]>(
     () => listDecisionsAction(meetingId),
-    active,
     [meetingId],
   );
   const { data: previousMinutes } = useTabData<PreviousMeetingMinutes | null>(
     () => getPreviousMeetingMinutesAction(meetingId, meetingDate),
-    active,
     [meetingId, meetingDate],
   );
 
@@ -513,7 +499,14 @@ export function AgendaTab({
       )}
 
       {!agenda ? (
-        <p className="app-muted text-sm">No agenda added yet.</p>
+        <EmptyState
+          title="No agenda added yet"
+          description={
+            canManage
+              ? "Write it with the Edit agenda (pencil) button above; it starts from the active agenda template."
+              : "The agenda appears here once a governance manager writes it."
+          }
+        />
       ) : (
         <>
           <div className="flex justify-end">
@@ -581,7 +574,7 @@ export function AgendaTab({
                     {item.description}
                     <span className="app-muted">
                       {" "}
-                      — {item.owner?.name ?? "—"}
+                      — {personDisplayName(item.owner)}
                     </span>
                   </li>
                 ))}
@@ -593,9 +586,11 @@ export function AgendaTab({
             <p className="text-sm font-semibold">Ongoing board items</p>
             <div className="mt-2 flex flex-col gap-3">
               {sections.length === 0 ? (
-                <p className="app-muted text-sm">
-                  No agenda template is configured.
-                </p>
+                <EmptyState
+                  className="py-4"
+                  title="No agenda template is configured"
+                  description="Agenda templates are managed outside the portal; ask an administrator to activate one."
+                />
               ) : (
                 sections.map((section) => {
                   const value = agenda.ongoing_items[section.key];
@@ -636,7 +631,11 @@ export function AgendaTab({
             onViewAll={onViewDecisions}
           >
             {(decisions ?? []).length === 0 ? (
-              <p className="app-muted text-sm">No decisions recorded yet.</p>
+              <EmptyState
+                className="py-4"
+                title="No decisions recorded yet"
+                description="Record them in the Decisions section of the Overview tab and they will be listed here."
+              />
             ) : (
               <ul className="flex flex-col gap-1 text-sm">
                 {(decisions ?? []).map((decision) => (
@@ -667,7 +666,9 @@ export function AgendaTab({
             {agenda.upcoming_dates.length === 0 ? (
               <p className="app-muted text-sm">None scheduled.</p>
             ) : (
-              <Table>
+              // Sticky header only: the agenda's upcoming dates read in
+              // the order the minute-taker entered them.
+              <Table stickyHeader="page">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Date</TableHead>
@@ -679,7 +680,7 @@ export function AgendaTab({
                   {agenda.upcoming_dates.map((item, index) => (
                     <TableRow key={index}>
                       <TableCell className="app-muted">
-                        {item.date ? formatDate(item.date) : "—"}
+                        {formatCalendarDate(item.date)}
                       </TableCell>
                       <TableCell>{item.description || "—"}</TableCell>
                       <TableCell className="app-muted">
@@ -705,7 +706,7 @@ export function AgendaTab({
                     {item.description}
                     <span className="app-muted">
                       {" "}
-                      — {item.owner?.name ?? "—"}
+                      — {personDisplayName(item.owner)}
                     </span>
                   </li>
                 ))}
@@ -718,9 +719,7 @@ export function AgendaTab({
           <div>
             <p className="text-sm font-semibold">Next meeting</p>
             <p className="app-muted text-sm">
-              {agenda.next_meeting_date
-                ? formatDate(agenda.next_meeting_date)
-                : "—"}
+              {formatCalendarDate(agenda.next_meeting_date)}
               {agenda.next_meeting_topics
                 ? ` — ${agenda.next_meeting_topics}`
                 : ""}

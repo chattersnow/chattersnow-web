@@ -7,6 +7,7 @@ import {
   adminClient,
   anonClient,
   countEventRegistrations,
+  createPerson,
   createPublishedEvent,
   uniqueEmail,
   uniqueIp,
@@ -68,6 +69,27 @@ async function assignedRegistrationIds(eventId: string) {
   return (data ?? []).map((row) => row.registration_id as string);
 }
 
+async function registrationFor(eventId: string, email: string) {
+  const { data, error } = await adminClient
+    .from("event_registrations")
+    .select("id, person_id, pronouns")
+    .eq("event_id", eventId)
+    .ilike("email", email)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+async function personPronouns(personId: string) {
+  const { data, error } = await adminClient
+    .from("people")
+    .select("pronouns")
+    .eq("id", personId)
+    .single();
+  if (error) throw error;
+  return data.pronouns as string | null;
+}
+
 describe("registerForEventAction (integration)", () => {
   test("registers for a published, open event", async () => {
     currentIp = uniqueIp();
@@ -88,6 +110,65 @@ describe("registerForEventAction (integration)", () => {
     expect(await countEventRegistrations(id, email)).toBe(1);
     expect(revalidatePathMock).toHaveBeenCalledWith(`/events/${id}`);
     expect(revalidatePathMock).toHaveBeenCalledWith("/portal/events");
+  });
+
+  test("stores pronouns on the registration and on the new person record", async () => {
+    currentIp = uniqueIp();
+    const { id } = await event();
+    const email = uniqueEmail("pronouns-new");
+
+    const result = await registerForEventAction(
+      id,
+      formData({ name: "Jamie Rivera", email, pronouns: "  they/them  " }),
+    );
+    expect(result).toMatchObject({ success: true });
+
+    const registration = await registrationFor(id, email);
+    // Runs before the event's own cleanup pops, so the registration has to go
+    // first -- event_registrations.person_id still references this row.
+    cleanups.push(async () => {
+      const personId = registration.person_id as string;
+      await adminClient
+        .from("event_registrations")
+        .delete()
+        .eq("person_id", personId);
+      await adminClient.from("people").delete().eq("id", personId);
+    });
+
+    expect(registration.pronouns).toBe("they/them");
+    expect(await personPronouns(registration.person_id as string)).toBe(
+      "they/them",
+    );
+  });
+
+  test("fills a blank on an existing person but never overwrites one", async () => {
+    currentIp = uniqueIp();
+    const email = uniqueEmail("pronouns-existing");
+    const person = await createPerson({ email });
+    cleanups.push(person.cleanup);
+
+    const first = await event();
+    expect(
+      await registerForEventAction(
+        first.id,
+        formData({ name: "Jamie Rivera", email, pronouns: "she/her" }),
+      ),
+    ).toMatchObject({ success: true });
+    expect(await personPronouns(person.id)).toBe("she/her");
+
+    // A second registration carrying something else -- a stale autofill, or a
+    // different person sharing the address -- must not rewrite the record.
+    const second = await event();
+    expect(
+      await registerForEventAction(
+        second.id,
+        formData({ name: "Jamie Rivera", email, pronouns: "he/him" }),
+      ),
+    ).toMatchObject({ success: true });
+
+    expect(await personPronouns(person.id)).toBe("she/her");
+    // The registration still snapshots what was submitted on the day.
+    expect((await registrationFor(second.id, email)).pronouns).toBe("he/him");
   });
 
   test("rejects when registration is closed", async () => {

@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { checkRegistrationWindow } from "./event-registration-form";
-import type { PublicEvent } from "./event-card";
+import { eventProgramsLabel, type PublicEvent } from "./event-card";
 import { EventSponsors } from "./event-sponsors";
 import { formatDateTimeInZone } from "@/lib/time";
 import { resolveImageUrl } from "@/lib/inventory";
@@ -40,7 +40,9 @@ export function EventDetailSheet({
         {event && (
           <>
             <SheetHeader>
-              <p className="app-eyebrow">{event.event_type ?? "Event"}</p>
+              <p className="app-eyebrow">
+                {eventProgramsLabel(event.programs)}
+              </p>
               <SheetTitle className="text-xl">{event.name}</SheetTitle>
               <SheetDescription>
                 {formatDateTimeInZone(
@@ -66,10 +68,8 @@ export function EventDetailSheet({
                   />
                 </div>
               )}
-              {(event.venue || event.location) && (
-                <p className="app-muted text-sm">
-                  {event.venue ?? event.location}
-                </p>
+              {event.location && (
+                <p className="app-muted text-sm">{event.location}</p>
               )}
               {event.description && (
                 <p className="mt-4 text-sm leading-relaxed">

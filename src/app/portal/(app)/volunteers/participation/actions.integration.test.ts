@@ -1,11 +1,18 @@
 // Integration test: exercises the real volunteer-hours Server Actions
 // against a real local Supabase stack (checkUser/checkPermission/
-// checkAnyPermission, then real `volunteer_hours` RLS). This is the
-// standalone participation ledger (distinct from the per-event
-// event_volunteer_hours table): reads gate on volunteers:view, writes on
-// volunteers:manage, and insert alone also accepts the
-// volunteer_hours_logging:manage "log own hours" carve-out -- so a
-// volunteer can log hours but not edit or delete an entry. A wrong key or
+// checkAnyPermission, then real `volunteer_hours` RLS). Since 20260904010000
+// there is one hours ledger with two entry points -- this page and the event
+// editor's Volunteers tab -- and this file covers the org-wide half: reads
+// gate on volunteers:view, writes on volunteers:manage, and insert alone also
+// accepts the volunteer_hours_logging:manage "log own hours" carve-out -- so a
+// volunteer can log hours but not edit or delete an entry.
+//
+// The consolidated RLS also admits event_volunteer_hours:manage on rows where
+// event_id is not null, but these actions deliberately keep the narrower
+// volunteers:manage gate (see updateVolunteerHoursAction), so event_coordinator
+// is still denied below. Every fixture here leaves event_id null, i.e. exactly
+// the org-wide path the merge left untouched; the event-scoped branch is
+// covered in events/volunteers-actions.integration.test.ts. A wrong key or
 // level in any of these actions would not be caught anywhere else.
 // Requires `bun run db:start && bun run db:reset` first; run via
 // `bun run test:integration`. Not picked up by `bun run test`.

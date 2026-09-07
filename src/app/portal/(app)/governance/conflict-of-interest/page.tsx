@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
@@ -7,9 +8,14 @@ import { DisclosuresTable } from "./disclosures-table";
 import { NewDisclosureDialog } from "./new-disclosure-dialog";
 import type { Disclosure } from "./disclosures-actions";
 import type { PersonListItem } from "../../people/actions";
+import { fiscalYearForDate, getFiscalYearStartMonth } from "@/lib/fiscal-year";
 
 const DISCLOSURE_SELECT =
-  "id, disclosure_year, on_file_date, notes, external_link, body_text, person:people!person_id(id, name, email, phone)";
+  "id, disclosure_year, on_file_date, notes, external_link, body_text, person:people!conflict_of_interest_disclosures_person_id_fkey(id, name, preferred_name, email, phone)";
+
+export const metadata: Metadata = {
+  title: "Conflict of Interest",
+};
 
 export default async function ConflictOfInterestPage() {
   const supabase = await createSupabaseServerClient();
@@ -23,11 +29,19 @@ export default async function ConflictOfInterestPage() {
       .order("disclosure_year", { ascending: false }),
     supabase
       .from("people")
-      .select("id, name, email, phone, is_sponsor")
+      .select("id, name, preferred_name, email, phone, auth_user_id")
       .order("name", { ascending: true }),
   ]);
 
   const peopleOptions = (people ?? []) as PersonListItem[];
+
+  // `disclosure_year` names the fiscal year the disclosure covers, so the new
+  // disclosure form has to default to the current fiscal year -- which only the
+  // server can work out, since the start month is a setting.
+  const currentFiscalYear = fiscalYearForDate(
+    new Date(),
+    await getFiscalYearStartMonth(supabase),
+  );
 
   return (
     <>
@@ -45,7 +59,10 @@ export default async function ConflictOfInterestPage() {
           canManage={canManage}
           newAction={
             canManage ? (
-              <NewDisclosureDialog people={peopleOptions} />
+              <NewDisclosureDialog
+                people={peopleOptions}
+                currentFiscalYear={currentFiscalYear}
+              />
             ) : undefined
           }
         />

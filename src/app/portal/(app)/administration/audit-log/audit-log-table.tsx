@@ -16,11 +16,7 @@ import {
 } from "./audit-log-detail-sheet";
 import type { AuditLogEntry } from "./audit-log-query";
 import type { SortColumn } from "./audit-log-params";
-
-const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+import { formatDateTime } from "@/lib/format";
 
 const COLUMNS: { key: SortColumn; label: string }[] = [
   { key: "occurred_at", label: "Occurred at" },
@@ -37,7 +33,10 @@ export function AuditLogTable({
   actorEmailById,
   page,
   totalPages,
+  count,
+  perPage,
   pageHref,
+  perPageHref,
 }: {
   entries: AuditLogEntry[] | null;
   error: unknown;
@@ -47,7 +46,10 @@ export function AuditLogTable({
   actorEmailById: Map<string, string>;
   page: number;
   totalPages: number;
+  perPage: number;
+  count: number | null;
   pageHref: (nextPage: number) => string;
+  perPageHref: (nextPerPage: number) => string;
 }) {
   return (
     <>
@@ -62,11 +64,14 @@ export function AuditLogTable({
               No entries match these filters.
             </p>
           ) : (
-            <Table>
+            <Table stickyHeader="page">
               <TableHeader>
                 <TableRow>
                   {COLUMNS.map((column) => (
-                    <TableHead key={column.key}>
+                    <TableHead
+                      key={column.key}
+                      sortDirection={sort === column.key ? dir : null}
+                    >
                       <SortHeaderLink
                         href={sortHref(column.key)}
                         label={column.label}
@@ -95,9 +100,7 @@ export function AuditLogTable({
                   };
                   return (
                     <TableRow key={entry.id}>
-                      <TableCell>
-                        {dateTimeFormatter.format(new Date(entry.occurred_at))}
-                      </TableCell>
+                      <TableCell>{formatDateTime(entry.occurred_at)}</TableCell>
                       <TableCell>
                         {TABLE_LABELS[entry.table_name] ?? entry.table_name}
                       </TableCell>
@@ -123,7 +126,14 @@ export function AuditLogTable({
       </Card>
 
       {entries && entries.length > 0 && (
-        <Pagination page={page} totalPages={totalPages} hrefFor={pageHref} />
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          count={count}
+          pageSize={perPage}
+          hrefFor={pageHref}
+          perPageHrefFor={perPageHref}
+        />
       )}
     </>
   );

@@ -11,18 +11,35 @@ const SUPABASE_PUBLISHABLE_KEY =
 // default storage adapter keys sessions by URL, not by client instance, so
 // without this every createClient() call against the same local stack
 // would share (and leak) whichever session was signed in most recently.
-export function anonClient() {
+export type ClientOptions = {
+  /**
+   * Host to present as `x-tenant-host`, the header `createSupabaseServerClient`
+   * stamps from the request Host. A sessionless call resolves its tenant from
+   * it (`public_tenant_id()`, #707 Phase 3); without one, and with more than
+   * one active tenant, the public views and intake RPCs resolve nothing.
+   */
+  host?: string;
+};
+
+export function anonClient(options: ClientOptions = {}) {
   return createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
       detectSessionInUrl: false,
     },
+    global: options.host
+      ? { headers: { "x-tenant-host": options.host } }
+      : undefined,
   });
 }
 
-export async function signIn(email: string, password = "password123") {
-  const client = anonClient();
+export async function signIn(
+  email: string,
+  password = "password123",
+  options: ClientOptions = {},
+) {
+  const client = anonClient(options);
   const { error } = await client.auth.signInWithPassword({ email, password });
   if (error) throw error;
   return client;
@@ -65,6 +82,25 @@ export const SEEDED_USERS = {
 // exercises the same authenticated+RLS path the app actually uses and has
 // access to everything fixtures need.
 export const adminClient = await signIn(SEEDED_USERS.admin);
+
+// The four sessions a dashboard/report read must never hand privileged
+// figures to (#746): signed out, the narrow-carve-out `volunteer` role, a
+// signed-in account holding no role at all, and a deactivated member who
+// still holds one. `volunteer` is listed here because it is unprivileged for
+// finance/governance/inventory/audit purposes, not because it sees nothing --
+// it does hold events/volunteers/programs/content_calendar at `view`, so
+// files asserting on a resource it legitimately reads spell that case out
+// separately rather than looping over this list.
+export async function unprivilegedActors(): Promise<
+  { name: string; client: SupabaseClient }[]
+> {
+  return [
+    { name: "anonymous", client: anonClient() },
+    { name: "volunteer", client: await signInAs(SEEDED_USERS.volunteer) },
+    { name: "no-role", client: await signInAs(SEEDED_USERS.noAccess) },
+    { name: "deactivated", client: await signInAs(SEEDED_USERS.former) },
+  ];
+}
 
 // Random, not sequential: the rate limiter keys on (route, ip) over a
 // 15-minute window, so a counter that restarts at 1 on every process would
@@ -118,12 +154,52 @@ export async function createPublishedEvent(overrides: EventOverrides = {}) {
   return {
     id,
     name,
-    // event_registrations references events with `on delete cascade`, so
-    // deleting the event is sufficient cleanup for its registrations too.
-    async cleanup() {
-      await adminClient.from("events").delete().eq("id", id);
-    },
+    cleanup: () => deleteEvent(id),
   };
+}
+
+// The event's own child rows, from the blocker registry in
+// event_linked_record_labels (20260903060000) -- specifically its `on delete
+// cascade` half, which has no meaning apart from the event. The registry's
+// other half (donations, expenses, revenue, reimbursements) are independent
+// records that merely reference the event, so a fixture cleanup must not
+// delete them; a test that creates one cleans it up itself, and until it
+// does, deleteEvent() below fails loudly rather than leaking.
+const EVENT_CHILD_TABLES = [
+  "event_registrations",
+  "event_sponsors",
+  "event_staff",
+  "event_volunteers",
+  "event_shifts",
+  "event_incidents",
+  "discount_codes",
+  "giveaways",
+  "volunteer_hours",
+] as const;
+
+/**
+ * Deletes a fixture event, detaching its children first.
+ *
+ * 20260903060000 keeps an event deletable only while nothing is attached to
+ * it, so `delete from events` alone is refused for any fixture that
+ * registered someone, rostered a volunteer or added a sponsor. That refusal
+ * used to pass silently, stranding the event -- and every `people` row it
+ * referenced -- in the shared local stack for every later run, which is what
+ * makes test/seed-shape.integration.test.ts's absolute row counts drift.
+ * Both halves matter: detach what belongs to the event, then throw if the
+ * delete is still refused, so the next fixture to attach something the
+ * registry blocks on finds out immediately instead of leaking.
+ */
+export async function deleteEvent(eventId: string) {
+  for (const table of EVENT_CHILD_TABLES) {
+    const { error } = await adminClient
+      .from(table)
+      .delete()
+      .eq("event_id", eventId);
+    if (error) throw error;
+  }
+  const { error } = await adminClient.from("events").delete().eq("id", eventId);
+  if (error) throw error;
 }
 
 export async function countEventRegistrations(eventId: string, email: string) {
@@ -172,12 +248,17 @@ export async function cleanupDonation(donationId: string) {
 // for tests exercising the public gear request/cart flows.
 export async function createAvailableGearItems(
   count: number,
-  overrides: { type?: string; condition?: string } = {},
+  overrides: {
+    categoryKey?: string;
+    condition?: string;
+    intendedUse?: string;
+  } = {},
 ) {
   const items = Array.from({ length: count }, () => ({
     description: `Integration test item ${crypto.randomUUID()}`,
-    type: overrides.type ?? "snowboard",
+    category_key: overrides.categoryKey ?? "snowboard",
     condition: overrides.condition ?? "good",
+    intended_use: overrides.intendedUse ?? "gear_library",
   }));
 
   const { data, error } = await adminClient.rpc("create_donation_with_items", {
@@ -215,7 +296,7 @@ export async function createDonation() {
     p_items: [
       {
         description: `Integration test item ${crypto.randomUUID()}`,
-        type: "coat",
+        category_key: "jacket",
         condition: "good",
       },
     ],
@@ -399,12 +480,18 @@ export async function getInventoryItemStatus(itemId: string) {
 // resolution's mover/seconder, a distribution's recipient, a reimbursement's
 // payee) without the donor-specific fields `createAvailableGearItems` sets up
 // via `create_donation_with_items`.
-export async function createPerson(overrides: { name?: string } = {}) {
+export async function createPerson(
+  overrides: { name?: string; email?: string; person_type?: string } = {},
+) {
   const { data, error } = await adminClient
     .from("people")
     .insert({
       name: overrides.name ?? `Integration Test Person ${crypto.randomUUID()}`,
       source_type: "individual",
+      // Only set when a test cares: people.email is unique, so a default here
+      // would make two fixtures in one test collide.
+      ...(overrides.email ? { email: overrides.email } : {}),
+      ...(overrides.person_type ? { person_type: overrides.person_type } : {}),
     })
     .select("id")
     .single();
@@ -455,8 +542,13 @@ export async function createGovernanceMeeting(
 // the service-role key instead, which bypasses RLS and holds every table
 // grant since #221's migration (20260826320000). Created lazily so files
 // that never touch contact_messages don't need SUPABASE_SECRET_KEY set.
+//
+// Exported for the same reason the helpers below use it: some fixtures cannot
+// be created through a signed-in client at all. Provisioning a tenant
+// (#707, 20260905180000) is one -- `tenants` deliberately has no insert
+// policy for authenticated, because creating one is a platform operation.
 let serviceRoleClientInstance: SupabaseClient | null = null;
-function serviceRoleClient() {
+export function serviceRoleClient() {
   serviceRoleClientInstance ??= createClient(
     SUPABASE_URL,
     process.env.SUPABASE_SECRET_KEY!,
@@ -485,6 +577,37 @@ export async function deleteContactMessages(email: string) {
     .from("contact_messages")
     .delete()
     .ilike("email", email);
+  if (error) throw error;
+}
+
+// public.user_onboarding (20260902060000) grants select/insert/update to
+// authenticated and no delete, and every policy on it is self-scoped -- that
+// is the whole point of the table, so a fixture genuinely cannot reach another
+// account's row, or remove its own, through a signed-in client. Same situation
+// as contact_messages above: these go through the service-role key instead.
+// supabase/seed.sql gives every seeded account a completed tour and a
+// far-future release pointer, so tests that need a different starting state
+// have to set it explicitly.
+export async function setOnboarding(
+  userId: string,
+  fields: {
+    first_seen_at?: string;
+    welcome_completed_at?: string | null;
+    last_release_seen?: string | null;
+  },
+) {
+  const { error } = await serviceRoleClient()
+    .from("user_onboarding")
+    .update(fields)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
+export async function deleteOnboarding(userId: string) {
+  const { error } = await serviceRoleClient()
+    .from("user_onboarding")
+    .delete()
+    .eq("user_id", userId);
   if (error) throw error;
 }
 
@@ -557,7 +680,7 @@ export async function findVolunteerApplications(email: string) {
   const { data, error } = await adminClient
     .from("volunteer_applications")
     .select(
-      "id, person_id, name, email, phone, role_interest, availability, reference_code, status",
+      "id, person_id, name, email, phone, pronouns, role_interest, availability, reference_code, status",
     )
     .ilike("email", email);
   if (error) throw error;

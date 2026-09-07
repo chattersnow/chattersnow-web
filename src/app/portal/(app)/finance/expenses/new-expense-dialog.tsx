@@ -12,6 +12,11 @@ import {
 import type { EventOption } from "./expenses-shared";
 import { PersonPicker, type PickedPerson } from "../../people/person-picker";
 import { listPeopleAction, type PersonListItem } from "../../people/actions";
+import { listEventOptionsAction } from "../../events/actions";
+import {
+  DiscardChangesDialog,
+  useUnsavedChangesGuard,
+} from "@/components/portal/unsaved-changes-guard";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 export function NewExpenseDialog({
   events,
@@ -33,7 +39,7 @@ export function NewExpenseDialog({
   triggerLabel = "New Expense",
   onSaved,
 }: {
-  events: EventOption[];
+  events?: EventOption[];
   defaultEventId?: string;
   lockEventSelection?: boolean;
   triggerLabel?: string;
@@ -45,6 +51,10 @@ export function NewExpenseDialog({
     emptyExpenseForm(defaultEventId),
   );
   const [people, setPeople] = useState<PersonListItem[]>([]);
+  // The finance page passes events down from its own query; the sidebar quick
+  // action has no such query, so load them on open instead.
+  const [loadedEvents, setLoadedEvents] = useState<EventOption[]>([]);
+  const eventOptions = events ?? loadedEvents;
   const [selectedPayer, setSelectedPayer] = useState<PickedPerson | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -56,6 +66,13 @@ export function NewExpenseDialog({
     });
   }, [open]);
 
+  useEffect(() => {
+    if (!open || events) return;
+    listEventOptionsAction().then((result) => {
+      if (!("error" in result)) setLoadedEvents(result.data);
+    });
+  }, [open, events]);
+
   function update<K extends keyof ExpenseFormState>(
     key: K,
     value: ExpenseFormState[K],
@@ -64,16 +81,29 @@ export function NewExpenseDialog({
   }
 
   function handlePersonCreated(person: PickedPerson) {
-    setPeople((prev) => [...prev, { ...person, is_sponsor: false }]);
+    setPeople((prev) => [...prev, person]);
+  }
+
+  // Compared against a fresh empty form rather than tracked with a flag, so
+  // typing and then clearing a field doesn't count as unsaved work.
+  const baseline = emptyExpenseForm(defaultEventId);
+  const dirty =
+    selectedPayer !== null ||
+    (Object.keys(baseline) as (keyof ExpenseFormState)[]).some(
+      (key) => form[key] !== baseline[key],
+    );
+  const guard = useUnsavedChangesGuard(dirty);
+
+  function resetForm() {
+    setForm(emptyExpenseForm(defaultEventId));
+    setSelectedPayer(null);
+    setError(null);
   }
 
   function handleOpenChange(nextOpen: boolean) {
+    if (!guard.allowOpenChange(nextOpen)) return;
     setOpen(nextOpen);
-    if (nextOpen) {
-      setForm(emptyExpenseForm(defaultEventId));
-      setSelectedPayer(null);
-      setError(null);
-    }
+    if (nextOpen) resetForm();
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -88,66 +118,80 @@ export function NewExpenseDialog({
         setError(result.error);
         return;
       }
+      resetForm();
       setOpen(false);
+      toast.success("Expense added.");
       router.refresh();
       onSaved?.();
     });
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
-      >
-        {triggerLabel}
-      </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Add expense</DialogTitle>
-          <DialogDescription>Record a new expense.</DialogDescription>
-        </DialogHeader>
+    <>
+      <DiscardChangesDialog
+        guard={guard}
+        subject="this expense"
+        onDiscard={() => {
+          resetForm();
+          setOpen(false);
+        }}
+      />
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogTrigger
+          render={
+            <Button type="button" className="shrink-0 whitespace-nowrap" />
+          }
+        >
+          {triggerLabel}
+        </DialogTrigger>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add expense</DialogTitle>
+            <DialogDescription>Record a new expense.</DialogDescription>
+          </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
-          <FieldGroup>
-            <Field>
-              <FieldLabel>Paid by (optional)</FieldLabel>
-              <PersonPicker
-                people={people}
-                selected={selectedPayer}
-                onSelect={setSelectedPayer}
-                onPersonCreated={handlePersonCreated}
-                placeholder="Search if someone personally fronted this..."
+          <form onSubmit={handleSubmit}>
+            <FieldGroup>
+              <Field>
+                <FieldLabel>Paid by (optional)</FieldLabel>
+                <PersonPicker
+                  people={people}
+                  selected={selectedPayer}
+                  onSelect={setSelectedPayer}
+                  onPersonCreated={handlePersonCreated}
+                  placeholder="Search if someone personally fronted this..."
+                />
+              </Field>
+
+              <ExpenseFormFields
+                form={form}
+                update={update}
+                events={eventOptions}
+                lockEventSelection={lockEventSelection}
+                idPrefix="new-expense"
               />
-            </Field>
 
-            <ExpenseFormFields
-              form={form}
-              update={update}
-              events={events}
-              lockEventSelection={lockEventSelection}
-              idPrefix="new-expense"
-            />
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-          </FieldGroup>
-
-          <DialogFooter>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? (
-                <>
-                  <Spinner /> Saving...
-                </>
-              ) : (
-                "Add expense"
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
               )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+            </FieldGroup>
+
+            <DialogFooter>
+              <Button type="submit" disabled={isPending}>
+                {isPending ? (
+                  <>
+                    <Spinner /> Saving...
+                  </>
+                ) : (
+                  "Add expense"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

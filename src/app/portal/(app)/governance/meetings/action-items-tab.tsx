@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil } from "lucide-react";
 import {
   createActionItemAction,
   deleteActionItemAction,
@@ -17,6 +17,7 @@ import {
   packActionItemFormData,
   type ActionItemFormState,
 } from "./action-item-form-fields";
+import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { PersonPicker, type PickedPerson } from "../../people/person-picker";
 import { listPeopleAction, type PersonListItem } from "../../people/actions";
@@ -33,25 +34,14 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
 import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return dateFormatter.format(new Date(value));
-}
+import { formatCalendarDate, personDisplayName } from "@/lib/format";
+import { EmptyState } from "@/components/portal/empty-state";
+import { runAction } from "@/components/portal/action-toast";
 
 function ownerFrom(actionItem: ActionItem): PickedPerson {
   return actionItem.owner;
@@ -94,17 +84,16 @@ function AddActionItemForm({
       return;
     }
 
+    const owner = selectedOwner;
     startTransition(async () => {
-      const result = await onSubmit(
-        selectedOwner.id,
-        packActionItemFormData(form),
-      );
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
-      onCancel();
+      await runAction(() => onSubmit(owner.id, packActionItemFormData(form)), {
+        success: "Action item added.",
+        onError: setError,
+        onSuccess: () => {
+          router.refresh();
+          onCancel();
+        },
+      });
     });
   }
 
@@ -194,17 +183,21 @@ function EditActionItemDialog({
       return;
     }
 
+    const owner = selectedOwner;
     startTransition(async () => {
-      const result = await updateActionItemAction(
-        actionItem.id,
-        selectedOwner.id,
-        packActionItemFormData(form),
+      await runAction(
+        () =>
+          updateActionItemAction(
+            actionItem.id,
+            owner.id,
+            packActionItemFormData(form),
+          ),
+        {
+          success: "Action item saved.",
+          onError: setError,
+          onSuccess: onSaved,
+        },
       );
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      onSaved();
     });
   }
 
@@ -262,11 +255,9 @@ function EditActionItemDialog({
 
 export function ActionItemsTab({
   meetingId,
-  active,
   mode,
 }: {
   meetingId: string;
-  active: boolean;
   mode: "view" | "edit";
 }) {
   const router = useRouter();
@@ -274,9 +265,10 @@ export function ActionItemsTab({
     data: actionItems,
     loadError,
     refresh: refreshActionItems,
-  } = useTabData<ActionItem[]>(() => listActionItemsAction(meetingId), active, [
-    meetingId,
-  ]);
+  } = useTabData<ActionItem[]>(
+    () => listActionItemsAction(meetingId),
+    [meetingId],
+  );
   const [people, setPeople] = useState<PersonListItem[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -288,11 +280,10 @@ export function ActionItemsTab({
   });
 
   useEffect(() => {
-    if (!active) return;
     listPeopleAction().then((result) => {
       if (!("error" in result)) setPeople(result.data);
     });
-  }, [active, meetingId]);
+  }, [meetingId]);
 
   function refresh() {
     refreshActionItems();
@@ -300,25 +291,112 @@ export function ActionItemsTab({
   }
 
   function handlePersonCreated(person: PickedPerson) {
-    setPeople((prev) => [...prev, { ...person, is_sponsor: false }]);
+    setPeople((prev) => [...prev, person]);
   }
 
   function handleToggleStatus(actionItem: ActionItem) {
+    const nextStatus = actionItem.status === "done" ? "open" : "done";
     startMutation(async () => {
-      await updateActionItemStatusAction(
-        actionItem.id,
-        actionItem.status === "done" ? "open" : "done",
+      await runAction(
+        () => updateActionItemStatusAction(actionItem.id, nextStatus),
+        {
+          success:
+            nextStatus === "done"
+              ? "Action item marked done."
+              : "Action item reopened.",
+          error: "Could not update the action item. Please try again.",
+          onSuccess: refresh,
+        },
       );
-      refresh();
     });
   }
 
   function handleDelete(id: string) {
     startMutation(async () => {
-      await deleteActionItemAction(id);
-      refresh();
+      await runAction(() => deleteActionItemAction(id), {
+        success: "Action item deleted.",
+        error: "Could not delete the action item. Please try again.",
+        onSuccess: refresh,
+      });
     });
   }
+
+  // Built on every render rather than memoized: the row actions close over
+  // `handleToggleStatus` and `handleDelete`, which are redefined each render
+  // anyway, so a `useMemo` here would only look stable. A meeting has a
+  // handful of action items.
+  const columns: PortalDataTableColumn<ActionItem>[] = [
+    {
+      key: "description",
+      // The description is a sentence, wrapped rather than truncated: nothing
+      // a reader would look for in its alphabetical order.
+      label: "Description",
+      cellClassName: "whitespace-normal font-medium",
+      render: (actionItem) => actionItem.description,
+    },
+    {
+      key: "owner",
+      label: "Owner",
+      sortValue: (actionItem) => personDisplayName(actionItem.owner),
+      cellClassName: "app-muted",
+      render: (actionItem) => personDisplayName(actionItem.owner),
+    },
+    {
+      key: "due_date",
+      label: "Due date",
+      sortValue: (actionItem) => actionItem.due_date,
+      cellClassName: "app-muted",
+      render: (actionItem) => formatCalendarDate(actionItem.due_date),
+    },
+    {
+      key: "status",
+      // Open first while ascending: sorting a list of action items on Done is
+      // a way of asking what is still outstanding.
+      label: "Done",
+      sortValue: (actionItem) => (actionItem.status === "done" ? 1 : 0),
+      render: (actionItem) => (
+        <Checkbox
+          checked={actionItem.status === "done"}
+          disabled={mode !== "edit" || isMutating}
+          onCheckedChange={() => handleToggleStatus(actionItem)}
+        />
+      ),
+    },
+    // Actions only while there is something in them: in view mode the column
+    // would be an empty strip with a name only a screen reader hears.
+    ...(mode === "edit"
+      ? [
+          {
+            key: "actions",
+            label: "Actions",
+            srOnlyLabel: true,
+            headClassName: "w-px",
+            cellClassName: "text-right whitespace-nowrap",
+            render: (actionItem: ActionItem) => (
+              <>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Edit action item"
+                  onClick={() => setEditingId(actionItem.id)}
+                >
+                  <Pencil />
+                </Button>
+                <ConfirmDeleteButton
+                  label="Remove action item"
+                  title="Remove this action item?"
+                  description="This deletes the item, its owner and its due date from the meeting record. It can't be undone."
+                  confirmLabel="Remove"
+                  pending={isMutating}
+                  onConfirm={() => handleDelete(actionItem.id)}
+                />
+              </>
+            ),
+          },
+        ]
+      : []),
+  ];
 
   const editingItem =
     actionItems?.find((item) => item.id === editingId) ?? null;
@@ -334,66 +412,25 @@ export function ActionItemsTab({
       {actionItems === undefined ? (
         <TabLoadingSkeleton />
       ) : actionItems.length === 0 && !showAdd ? (
-        <p className="app-muted text-sm">No action items recorded yet.</p>
+        <EmptyState
+          title="No action items recorded yet"
+          description={
+            mode === "edit"
+              ? "Add the first one with Add action item below."
+              : "Action items appear here once a governance manager records them for this meeting."
+          }
+        />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Description</TableHead>
-              <TableHead>Owner</TableHead>
-              <TableHead>Due date</TableHead>
-              <TableHead>Done</TableHead>
-              <TableHead className="w-px" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {actionItems?.map((actionItem) => (
-              <TableRow key={actionItem.id}>
-                <TableCell className="whitespace-normal font-medium">
-                  {actionItem.description}
-                </TableCell>
-                <TableCell className="app-muted">
-                  {actionItem.owner?.name ?? "—"}
-                </TableCell>
-                <TableCell className="app-muted">
-                  {formatDate(actionItem.due_date)}
-                </TableCell>
-                <TableCell>
-                  <Checkbox
-                    checked={actionItem.status === "done"}
-                    disabled={mode !== "edit" || isMutating}
-                    onCheckedChange={() => handleToggleStatus(actionItem)}
-                  />
-                </TableCell>
-                <TableCell className="text-right whitespace-nowrap">
-                  {mode === "edit" && (
-                    <>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Edit action item"
-                        onClick={() => setEditingId(actionItem.id)}
-                      >
-                        <Pencil />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Remove action item"
-                        disabled={isMutating}
-                        onClick={() => handleDelete(actionItem.id)}
-                      >
-                        {isMutating ? <Spinner /> : <Trash2 />}
-                      </Button>
-                    </>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        // `bare`: the section card around this tab is the surface already.
+        // No `defaultSort` -- action items arrive in the order the server sent
+        // them, and the arrows take over from there.
+        <PortalDataTable
+          columns={columns}
+          rows={actionItems}
+          getRowKey={(actionItem) => actionItem.id}
+          emptyMessage="No action items recorded yet."
+          shell="bare"
+        />
       )}
 
       {mode === "edit" &&

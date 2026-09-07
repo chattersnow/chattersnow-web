@@ -1,9 +1,9 @@
+import type { Metadata } from "next";
+import { detailTitle } from "@/lib/portal/detail-title";
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Card, CardContent } from "@/components/ui/card";
 import { humanize } from "../../labels";
 import {
@@ -18,6 +18,22 @@ import { AssetDetailsCard, AssetSecurityCard } from "./asset-details-cards";
 import { NewAccessGrantDialog } from "./new-access-grant-dialog";
 import { ReviewAssetButton } from "./review-asset-button";
 import { DeleteAssetButton } from "../../delete-asset-button";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ assetId: string }>;
+}): Promise<Metadata> {
+  const { assetId } = await params;
+  return {
+    title: await detailTitle({
+      table: "access_assets",
+      column: "name",
+      id: assetId,
+      fallback: "Asset",
+    }),
+  };
+}
 
 export default async function AssetDetailPage({
   params,
@@ -53,15 +69,7 @@ export default async function AssetDetailPage({
 
   return (
     <>
-      <Button
-        variant="ghost"
-        size="sm"
-        nativeButton={false}
-        className="mb-2"
-        render={<Link href="/portal/administration/access-management" />}
-      >
-        <ArrowLeft /> Access management
-      </Button>
+      <PortalBreadcrumbs current={asset.name} />
       <div>
         <div className="w-fit">
           <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">

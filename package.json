@@ -2,6 +2,7 @@
   "name": "chattersnow-web",
   "version": "0.1.0",
   "private": true,
+  "license": "SEE LICENSE IN LICENSE",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -10,8 +11,11 @@
     "test": "bun test --isolate --path-ignore-patterns=\"e2e/**\" --path-ignore-patterns=\"**/*.integration.test.ts\"",
     "test:integration": "bun --env-file=.env.local test integration.test.ts",
     "test:e2e": "playwright test",
-    "test:e2e:pr": "playwright test --project=chromium --project=mobile-chromium",
+    "test:e2e:pr": "E2E_BROWSERS=chromium,mobile-chromium playwright test",
+    "test:e2e:ci": "playwright test --reporter=blob",
     "test:a11y": "bun run e2e/a11y-scan.ts",
+    "test:a11y:check": "bun run e2e/a11y-scan.ts --check",
+    "a11y:baseline": "bun run e2e/a11y-scan.ts --update-baseline",
     "verify": "bun run e2e/verify-page.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -20,7 +24,15 @@
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:status": "supabase status",
-    "db:reset": "supabase db reset"
+    "db:reset": "supabase db reset",
+    "tenant:provision": "bun --env-file=.env.local scripts/tenant-cli.ts provision",
+    "tenant:list": "bun --env-file=.env.local scripts/tenant-cli.ts list",
+    "tenant:export": "bun --env-file=.env.local scripts/tenant-cli.ts export",
+    "tenant:archive": "bun --env-file=.env.local scripts/tenant-cli.ts archive",
+    "tenant:delete": "bun --env-file=.env.local scripts/tenant-cli.ts delete",
+    "tenant:support": "bun --env-file=.env.local scripts/tenant-cli.ts support",
+    "demo:reset": "bun --env-file=.env.local scripts/demo-reset.ts",
+    "demo:teardown": "bun --env-file=.env.local scripts/demo-reset.ts --teardown"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
@@ -32,6 +44,9 @@
     "*.{ts,tsx}": [
       "bash -c 'next typegen && tsc --noEmit'"
     ]
+  },
+  "overrides": {
+    "fast-uri": "^3.1.6"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

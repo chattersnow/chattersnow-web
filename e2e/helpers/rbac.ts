@@ -1,5 +1,6 @@
 import { createAdminClient } from "./admin-client";
 import { SEEDED_PASSWORD } from "./auth";
+import { markOnboarded } from "./onboarding";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -13,6 +14,43 @@ function suffix() {
 export function roleLabel(name: string) {
   const spaced = name.replace(/_/g, " ");
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+/**
+ * Puts an account in the tenant every spec runs against.
+ *
+ * Tenancy says which organisation's data you are looking at and is
+ * orthogonal to what you may do with it, so `supabase/seed.sql` gives every
+ * seeded account a membership -- including the no-role and deactivated ones.
+ * `list_portal_users` (#707) joins `tenant_memberships`, so an account
+ * created at runtime without one is invisible on every Administration
+ * screen, and a spec that stages a role for it has nothing to click. Phase 4
+ * adds a second reason: an admin may only deactivate an account whose sole
+ * membership is their own tenant.
+ *
+ * Matched on "the tenant that exists" for the same reason seed.sql does:
+ * the initial tenant's slug comes from `app.initial_tenant_slug`.
+ */
+export async function joinTenant(admin: AdminClient, userId: string) {
+  const { data: tenant, error: lookupError } = await admin
+    .from("tenants")
+    .select("id")
+    .order("created_at")
+    .limit(1)
+    .single();
+  if (lookupError || !tenant) {
+    throw new Error(`Could not find a tenant to join: ${lookupError?.message}`);
+  }
+
+  const { error } = await admin
+    .from("tenant_memberships")
+    .upsert(
+      { user_id: userId, tenant_id: tenant.id, kind: "member" },
+      { onConflict: "user_id,tenant_id" },
+    );
+  if (error) {
+    throw new Error(`Could not add ${userId} to the tenant: ${error.message}`);
+  }
 }
 
 export type SeededUser = Awaited<ReturnType<typeof seedPortalUser>>;
@@ -41,6 +79,8 @@ export async function seedPortalUser(admin: AdminClient) {
     throw new Error(`Could not create ${email}: ${error?.message}`);
   }
   const userId = data.user.id;
+  await joinTenant(admin, userId);
+  await markOnboarded(admin, userId);
 
   return {
     userId,
@@ -50,6 +90,7 @@ export async function seedPortalUser(admin: AdminClient) {
     async cleanup() {
       await admin.from("deactivated_users").delete().eq("user_id", userId);
       await admin.from("user_roles").delete().eq("user_id", userId);
+      await admin.from("tenant_memberships").delete().eq("user_id", userId);
       await admin.from("pending_role_grants").delete().eq("email", email);
       await admin.auth.admin.deleteUser(userId);
     },

@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 export function NewAccessGrantDialog({
   assetId,
@@ -88,6 +89,7 @@ export function NewAccessGrantDialog({
         return;
       }
       handleOpenChange(false);
+      toast.success("Access grant recorded.");
       router.refresh();
     });
   }

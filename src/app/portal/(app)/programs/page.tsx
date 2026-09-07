@@ -4,18 +4,11 @@ import {
   getCurrentUserPermissions,
   hasPermission,
 } from "@/lib/auth/permissions";
+import { EmptyState } from "@/components/portal/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { NewProgramDialog } from "./new-program-dialog";
-import { ProgramDetailsDialog } from "./program-details-dialog";
-import { ProgramStatusBadge, type ProgramRow } from "./program-badges";
+import { ProgramsTable } from "./programs-table";
+import type { ProgramRow } from "./program-badges";
 
 export const metadata: Metadata = {
   title: "Programs",
@@ -50,49 +43,35 @@ export default async function ProgramsPage() {
         </div>
       ) : null}
 
-      <Card className="mt-6">
-        <CardContent className="px-0">
-          {error ? (
-            <p className="app-muted px-4 py-6 text-sm">
-              Could not load programs. Please try again.
-            </p>
-          ) : !programs || programs.length === 0 ? (
-            <p className="app-muted px-4 py-6 text-sm">No programs yet.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Program</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-px" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(programs as ProgramRow[]).map((program) => (
-                  <TableRow key={program.id}>
-                    <TableCell className="font-medium">
-                      {program.name}
-                    </TableCell>
-                    <TableCell className="app-muted max-w-sm truncate">
-                      {program.description || "—"}
-                    </TableCell>
-                    <TableCell>
-                      <ProgramStatusBadge status={program.status} />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <ProgramDetailsDialog
-                        program={program}
-                        canManage={canManage}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      {error || !programs || programs.length === 0 ? (
+        <Card className="mt-6">
+          <CardContent className="px-0">
+            {error ? (
+              <p className="app-muted px-4 py-6 text-sm">
+                Could not load programs. Please try again.
+              </p>
+            ) : (
+              <EmptyState
+                title="No programs yet"
+                description={
+                  canManage
+                    ? "Add the first one with New program above."
+                    : "Programs appear here once someone with programs access creates one."
+                }
+              />
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        // PortalDataTable brings the card with it, so the page only wraps the
+        // states it renders instead of a table.
+        <div className="mt-6">
+          <ProgramsTable
+            programs={programs as ProgramRow[]}
+            canManage={canManage}
+          />
+        </div>
+      )}
     </>
   );
 }

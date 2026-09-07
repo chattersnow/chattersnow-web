@@ -13,30 +13,28 @@ const STATUSES = [
 export type EventFormData = {
   name: string;
   description: string | null;
-  eventType: string | null;
   location: string | null;
-  venue: string | null;
   startsAt: string;
   endsAt: string | null;
   timezone: string;
   visibility: (typeof VISIBILITIES)[number];
   status: (typeof STATUSES)[number];
-  programId: string | null;
+  programIds: string[];
   flierUrl: string | null;
 };
 
 export function parseEventForm(formData: FormData): ParseResult<EventFormData> {
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
-  const eventType = String(formData.get("eventType") ?? "").trim();
   const location = String(formData.get("location") ?? "").trim();
-  const venue = String(formData.get("venue") ?? "").trim();
   const startsAt = String(formData.get("startsAt") ?? "");
   const endsAt = String(formData.get("endsAt") ?? "");
   const timezone = String(formData.get("timezone") ?? "").trim();
   const visibility = String(formData.get("visibility") ?? "");
   const status = String(formData.get("status") ?? "");
-  const programId = String(formData.get("programId") ?? "").trim();
+  // An event may count toward any number of programs, including none, so the
+  // empty list is valid and there is nothing to validate here.
+  const programIds = formData.getAll("programIds").map(String);
   const flierUrl = String(formData.get("flierUrl") ?? "").trim();
 
   if (!name) return { error: "Event name is required." };
@@ -64,15 +62,13 @@ export function parseEventForm(formData: FormData): ParseResult<EventFormData> {
     data: {
       name,
       description: description || null,
-      eventType: eventType || null,
       location: location || null,
-      venue: venue || null,
       startsAt: startsAtIso,
       endsAt: endsAtIso,
       timezone,
       visibility: visibility as (typeof VISIBILITIES)[number],
       status: status as (typeof STATUSES)[number],
-      programId: programId || null,
+      programIds,
       flierUrl: flierUrl || null,
     },
   };
@@ -89,6 +85,7 @@ export type EventPlanningFormData = {
 
 export function parseEventPlanningForm(
   formData: FormData,
+  event: { startsAt: string; endsAt: string | null },
 ): ParseResult<EventPlanningFormData> {
   const eventLeadId = String(formData.get("eventLeadId") ?? "").trim();
   const capacityRaw = String(formData.get("capacity") ?? "").trim();
@@ -121,14 +118,37 @@ export function parseEventPlanningForm(
     budgetAmount = parsed;
   }
 
+  // A deadline only means something while registration is open, so drop any
+  // value submitted with registration turned off rather than storing a stale
+  // cutoff that `register_for_event` would still read.
+  let registrationDeadlineIso: string | null = null;
+  if (registrationEnabled && registrationDeadline) {
+    const parsedDeadline = Date.parse(registrationDeadline);
+    if (Number.isNaN(parsedDeadline)) {
+      return { error: "Enter a valid registration deadline." };
+    }
+    registrationDeadlineIso = new Date(parsedDeadline).toISOString();
+
+    // Registration can't stay open past the event itself; events without an
+    // end time are bounded by their start instead. Compared as timestamps
+    // because the event's dates come straight from Postgres
+    // ("...+00:00") and won't string-compare against `toISOString()`.
+    const cutoff = Date.parse(event.endsAt ?? event.startsAt);
+    if (!Number.isNaN(cutoff) && parsedDeadline > cutoff) {
+      return {
+        error: event.endsAt
+          ? "Registration deadline must be on or before the event's end date."
+          : "Registration deadline must be on or before the event's start date.",
+      };
+    }
+  }
+
   return {
     data: {
       eventLeadId: eventLeadId || null,
       capacity,
       registrationEnabled,
-      registrationDeadline: registrationDeadline
-        ? new Date(registrationDeadline).toISOString()
-        : null,
+      registrationDeadline: registrationDeadlineIso,
       autoAssignDiscountCodes,
       budgetAmount,
     },

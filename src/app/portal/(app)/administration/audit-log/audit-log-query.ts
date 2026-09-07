@@ -34,7 +34,7 @@ export async function fetchAuditLogEntries(
   if (filters.to)
     query = query.lte("occurred_at", `${filters.to}T23:59:59.999Z`);
 
-  const { offset, to } = pageRange(filters.page);
+  const { offset, to } = pageRange(filters.page, filters.perPage);
   const { data: entries, error, count } = await query.range(offset, to);
 
   return { entries: entries as AuditLogEntry[] | null, error, count };

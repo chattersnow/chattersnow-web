@@ -28,7 +28,7 @@ export type Disclosure = {
 export type DisclosureActionResult = { error: string } | { success: true };
 
 const DISCLOSURE_SELECT =
-  "id, disclosure_year, on_file_date, notes, external_link, body_text, person:people!person_id(id, name, email, phone)";
+  "id, disclosure_year, on_file_date, notes, external_link, body_text, person:people!conflict_of_interest_disclosures_person_id_fkey(id, name, preferred_name, email, phone)";
 
 const DUPLICATE_MESSAGE =
   "This person already has a disclosure recorded for this year. Edit their existing entry instead.";
@@ -47,7 +47,8 @@ export async function listDisclosuresAction(): Promise<
   const { data, error } = await supabase
     .from("conflict_of_interest_disclosures")
     .select(DISCLOSURE_SELECT)
-    .order("disclosure_year", { ascending: false });
+    .order("disclosure_year", { ascending: false })
+    .order("id", { ascending: true });
 
   if (error) {
     return { error: "Could not load disclosures. Please try again." };

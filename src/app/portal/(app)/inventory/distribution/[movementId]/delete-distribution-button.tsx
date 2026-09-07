@@ -17,6 +17,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 export function DeleteDistributionButton({
   movementId,
@@ -40,6 +41,7 @@ export function DeleteDistributionButton({
       }
       setOpen(false);
       router.push("/portal/inventory/distribution");
+      toast.success("Distribution deleted.");
       router.refresh();
     });
   }

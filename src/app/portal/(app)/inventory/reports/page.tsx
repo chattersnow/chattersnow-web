@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import { Fragment } from "react";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
@@ -17,10 +19,13 @@ import {
 } from "../items/inventory-shared";
 import {
   summarizeByStatus,
-  summarizeByType,
+  summarizeByCategory,
+  summarizeByCategoryGroup,
+  summarizeReceivedByDonorBucket,
   sumMovementValue,
   type ValuationMovement,
 } from "./valuation";
+import { EmptyState } from "@/components/portal/empty-state";
 
 type InventoryReportsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -29,6 +34,10 @@ type InventoryReportsPageProps = {
 function toDateInput(date: Date) {
   return date.toISOString().slice(0, 10);
 }
+
+export const metadata: Metadata = {
+  title: "Inventory Reports",
+};
 
 export default async function InventoryReportsPage({
   searchParams,
@@ -52,18 +61,23 @@ export default async function InventoryReportsPage({
   const toDate = raw("to") || defaultTo;
 
   const [{ data: items }, { data: movements }] = await Promise.all([
-    supabase.from("inventory_items").select("type, status, face_value"),
+    supabase
+      .from("inventory_items_with_category")
+      .select(
+        "type, category_key, category_label, category_group_label, status, face_value",
+      ),
     supabase
       .from("inventory_movements")
       .select(
-        "movement_type, quantity, occurred_at, inventory_items(face_value)",
+        "movement_type, quantity, occurred_at, inventory_items(face_value, donations(people(source_type)))",
       )
       .in("movement_type", ["received", "distributed"])
       .gte("occurred_at", `${fromDate}T00:00:00.000Z`)
       .lte("occurred_at", `${toDate}T23:59:59.999Z`),
   ]);
 
-  const byType = summarizeByType(items ?? []);
+  const byCategory = summarizeByCategory(items ?? []);
+  const byCategoryGroup = summarizeByCategoryGroup(items ?? []);
   const byStatus = summarizeByStatus(
     items ?? [],
     STATUSES.map((status) => status.value),
@@ -73,6 +87,16 @@ export default async function InventoryReportsPage({
     []) as unknown as ValuationMovement[];
   const valueDonated = sumMovementValue(valuationMovements, "received");
   const valueDistributed = sumMovementValue(valuationMovements, "distributed");
+  const donatedByBucket = summarizeReceivedByDonorBucket(valuationMovements);
+  const donatedRows = donatedByBucket.filter(
+    (row) => row.bucket !== "unattributed" || row.count > 0,
+  );
+  const sponsorDonated = donatedByBucket.find(
+    (row) => row.bucket === "sponsor",
+  )!;
+  const individualDonated = donatedByBucket.find(
+    (row) => row.bucket === "individual",
+  )!;
 
   const hasCustomRange = fromDate !== defaultFrom || toDate !== defaultTo;
 
@@ -127,6 +151,16 @@ export default async function InventoryReportsPage({
             <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
               {formatFaceValue(valueDonated)}
             </p>
+            <dl className="app-muted mt-2 space-y-0.5 text-sm">
+              <div className="flex items-baseline justify-between gap-2">
+                <dt>{sponsorDonated.label}</dt>
+                <dd>{formatFaceValue(sponsorDonated.totalValue)}</dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-2">
+                <dt>{individualDonated.label}</dt>
+                <dd>{formatFaceValue(individualDonated.totalValue)}</dd>
+              </div>
+            </dl>
             <p className="app-muted mt-2 text-sm">
               {fromDate} – {toDate}
             </p>
@@ -201,30 +235,56 @@ export default async function InventoryReportsPage({
         </form>
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+      <div className="mt-6 grid gap-4 lg:grid-cols-3">
         <Card>
           <CardHeader>
-            <CardTitle>On-hand value by type</CardTitle>
+            <CardTitle>On-hand value by category</CardTitle>
           </CardHeader>
           <CardContent className="px-0">
-            {byType.length === 0 ? (
-              <p className="app-muted px-4 text-sm">No available inventory.</p>
+            {byCategory.length === 0 ? (
+              <EmptyState
+                className="py-4"
+                title="No available inventory"
+                description="On-hand value appears here once a donation is recorded under Inventory › Donations."
+              />
             ) : (
-              <Table>
+              // Not a PortalDataTable: the group subtotal rows between the
+              // category rows are the point of this table, and a flat row
+              // list can neither carry them nor be sorted without scattering
+              // the categories out of their groups. It takes the shared
+              // sticky header and keeps its grouping.
+              <Table stickyHeader="page">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Type</TableHead>
+                    <TableHead>Group</TableHead>
+                    <TableHead>Category</TableHead>
                     <TableHead>Items</TableHead>
                     <TableHead>Total value</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {byType.map((row) => (
-                    <TableRow key={row.type}>
-                      <TableCell>{row.type}</TableCell>
-                      <TableCell>{row.count}</TableCell>
-                      <TableCell>{formatFaceValue(row.totalValue)}</TableCell>
-                    </TableRow>
+                  {byCategoryGroup.map((group) => (
+                    <Fragment key={group.group}>
+                      <TableRow className="bg-muted/40 font-medium">
+                        <TableCell colSpan={2}>{group.group}</TableCell>
+                        <TableCell>{group.count}</TableCell>
+                        <TableCell>
+                          {formatFaceValue(group.totalValue)}
+                        </TableCell>
+                      </TableRow>
+                      {byCategory
+                        .filter((row) => row.group === group.group)
+                        .map((row) => (
+                          <TableRow key={`${row.group}-${row.category}`}>
+                            <TableCell />
+                            <TableCell>{row.category}</TableCell>
+                            <TableCell>{row.count}</TableCell>
+                            <TableCell>
+                              {formatFaceValue(row.totalValue)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </Fragment>
                   ))}
                 </TableBody>
               </Table>
@@ -237,7 +297,9 @@ export default async function InventoryReportsPage({
             <CardTitle>Inventory value by status</CardTitle>
           </CardHeader>
           <CardContent className="px-0">
-            <Table>
+            {/* One row per inventory status, in STATUSES order: nothing to
+                sort, and never enough rows to page. Sticky header only. */}
+            <Table stickyHeader="page">
               <TableHeader>
                 <TableRow>
                   <TableHead>Status</TableHead>
@@ -257,6 +319,37 @@ export default async function InventoryReportsPage({
                 ))}
               </TableBody>
             </Table>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Donated value by donor type</CardTitle>
+          </CardHeader>
+          <CardContent className="px-0">
+            {/* Three donor buckets in a fixed order -- same reasoning as
+                the status table above. */}
+            <Table stickyHeader="page">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Donor type</TableHead>
+                  <TableHead>Items</TableHead>
+                  <TableHead>Total value</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {donatedRows.map((row) => (
+                  <TableRow key={row.bucket}>
+                    <TableCell>{row.label}</TableCell>
+                    <TableCell>{row.count}</TableCell>
+                    <TableCell>{formatFaceValue(row.totalValue)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <p className="app-muted mt-3 px-4 text-sm">
+              Received in {fromDate} – {toDate}
+            </p>
           </CardContent>
         </Card>
       </div>

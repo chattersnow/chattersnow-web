@@ -28,7 +28,12 @@ export async function signIn(
     opts?.password ?? SEEDED_PASSWORD,
   );
 
-  await expect(page).toHaveURL(/\/portal\/home$/);
+  // Well past the 5s default: the suite runs against `next dev`, so the
+  // first test to reach /portal/home pays for compiling it on demand, and
+  // the sign-in button was still showing "Signing in..." when the default
+  // budget ran out. This is the gate every portal spec passes through, so a
+  // cold compile here failed whole files at a time.
+  await expect(page).toHaveURL(/\/portal\/home$/, { timeout: 30_000 });
 }
 
 /**

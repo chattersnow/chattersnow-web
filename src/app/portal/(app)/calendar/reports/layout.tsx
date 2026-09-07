@@ -7,6 +7,11 @@ export default async function CalendarAnnualReviewLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createSupabaseServerClient();
-  await requirePermission(supabase, "content_calendar_reports", "view");
+  await requirePermission(
+    supabase,
+    "content_calendar_reports",
+    "view",
+    "Annual Review",
+  );
   return children;
 }

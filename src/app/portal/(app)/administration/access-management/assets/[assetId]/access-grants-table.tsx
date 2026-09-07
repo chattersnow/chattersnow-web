@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import {
@@ -23,14 +23,11 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/portal/empty-state";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
 import {
   Tooltip,
   TooltipContent,
@@ -38,6 +35,8 @@ import {
 } from "@/components/ui/tooltip";
 import { AccessGrantDetailsSheet } from "./access-grant-details-sheet";
 import { Spinner } from "@/components/ui/spinner";
+import { personDisplayName } from "@/lib/format";
+import { runAction } from "@/components/portal/action-toast";
 
 const STATUS_BADGE_VARIANT: Record<
   string,
@@ -66,8 +65,11 @@ function VerifyButton({
       disabled={isPending}
       onClick={() =>
         startTransition(async () => {
-          await verifyAccessGrantAction(grantId, assetId);
-          router.refresh();
+          await runAction(() => verifyAccessGrantAction(grantId, assetId), {
+            success: "Access grant verified.",
+            error: "Could not verify the access grant. Please try again.",
+            onSuccess: () => router.refresh(),
+          });
         })
       }
     >
@@ -99,13 +101,14 @@ function DeleteGrantButton({
   function handleDelete() {
     setError(null);
     startTransition(async () => {
-      const result = await deleteAccessGrantAction(grantId, assetId);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      setOpen(false);
-      router.refresh();
+      await runAction(() => deleteAccessGrantAction(grantId, assetId), {
+        success: `Access for ${personName} revoked.`,
+        onError: setError,
+        onSuccess: () => {
+          setOpen(false);
+          router.refresh();
+        },
+      });
     });
   }
 
@@ -172,69 +175,101 @@ export function AccessGrantsTable({
   grants: AccessGrantRow[];
   assetId: string;
 }) {
+  const columns = useMemo<PortalDataTableColumn<AccessGrantRow>[]>(
+    () => [
+      {
+        key: "person",
+        label: "Person",
+        // On the name the cell shows, placeholder included, rather than on a
+        // null the reader never sees.
+        sortValue: (grant) => personDisplayName(grant.person),
+        cellClassName: "font-medium",
+        render: (grant) => personDisplayName(grant.person),
+      },
+      {
+        key: "access_level",
+        label: "Access level",
+        // On the humanized label, which is what the cell shows.
+        sortValue: (grant) => humanize(grant.access_level),
+        cellClassName: "app-muted",
+        render: (grant) => humanize(grant.access_level),
+      },
+      {
+        key: "status",
+        label: "Status",
+        sortValue: (grant) => grant.status,
+        render: (grant) => (
+          <Badge
+            variant={STATUS_BADGE_VARIANT[grant.status] ?? "outline"}
+            className="capitalize"
+          >
+            {grant.status}
+          </Badge>
+        ),
+      },
+      {
+        key: "granted_at",
+        // ISO dates here and below, so string order is date order.
+        label: "Granted",
+        sortValue: (grant) => grant.granted_at,
+        cellClassName: "app-muted",
+        render: (grant) => grant.granted_at,
+      },
+      {
+        key: "last_verified",
+        label: "Last verified",
+        sortValue: (grant) => grant.last_verified,
+        cellClassName: "app-muted",
+        render: (grant) => grant.last_verified || "—",
+      },
+      {
+        key: "actions",
+        label: "Actions",
+        srOnlyLabel: true,
+        headClassName: "w-0",
+        render: (grant) => (
+          <div className="flex items-center justify-end gap-1">
+            {grant.status === "active" && (
+              <VerifyButton grantId={grant.id} assetId={assetId} />
+            )}
+            <AccessGrantDetailsSheet grant={grant} assetId={assetId} />
+            <DeleteGrantButton
+              grantId={grant.id}
+              assetId={assetId}
+              personName={grant.person?.name ?? "this person"}
+            />
+          </div>
+        ),
+      },
+    ],
+    [assetId],
+  );
+
+  // Distinct from the table's own empty row: nothing has been recorded for
+  // this asset yet, which is a different sentence and points at Add access
+  // grant.
   if (grants.length === 0) {
     return (
       <Card>
-        <CardContent className="app-muted px-4 py-6 text-sm">
-          No access grants recorded for this asset yet.
+        <CardContent>
+          <EmptyState
+            title="No access grants recorded for this asset yet"
+            description="Record who has access with Add access grant above."
+          />
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card>
-      <CardContent className="px-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Person</TableHead>
-              <TableHead>Access level</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Granted</TableHead>
-              <TableHead>Last verified</TableHead>
-              <TableHead className="w-px" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {grants.map((grant) => (
-              <TableRow key={grant.id}>
-                <TableCell className="font-medium">
-                  {grant.person?.name ?? "—"}
-                </TableCell>
-                <TableCell className="app-muted">
-                  {humanize(grant.access_level)}
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant={STATUS_BADGE_VARIANT[grant.status] ?? "outline"}
-                    className="capitalize"
-                  >
-                    {grant.status}
-                  </Badge>
-                </TableCell>
-                <TableCell className="app-muted">{grant.granted_at}</TableCell>
-                <TableCell className="app-muted">
-                  {grant.last_verified || "—"}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-1">
-                    {grant.status === "active" && (
-                      <VerifyButton grantId={grant.id} assetId={assetId} />
-                    )}
-                    <AccessGrantDetailsSheet grant={grant} assetId={assetId} />
-                    <DeleteGrantButton
-                      grantId={grant.id}
-                      assetId={assetId}
-                      personName={grant.person?.name ?? "this person"}
-                    />
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+    <PortalDataTable
+      columns={columns}
+      rows={grants}
+      getRowKey={(grant) => grant.id}
+      // The query orders by status first, so the arrow starts where the list
+      // already sits; ties keep the newest-granted-first order underneath it.
+      defaultSort={{ key: "status", dir: "asc" }}
+      emptyMessage="No access grants to show."
+    />
   );
 }

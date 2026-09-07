@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createPersonAction, type PersonListItem } from "./actions";
 import {
@@ -10,7 +11,11 @@ import {
   type PersonFormState,
 } from "./person-form-fields";
 import { PersonPicker, type PickedPerson } from "./person-picker";
-import type { RoleKey } from "./people-shared";
+import type { PersonType, RoleKey } from "./people-shared";
+import {
+  DiscardChangesDialog,
+  useUnsavedChangesGuard,
+} from "@/components/portal/unsaved-changes-guard";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,24 +29,34 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 export function NewPersonDialog({
   people,
   defaultRole,
+  defaultPersonType = "individual",
   triggerLabel = "New Person",
 }: {
   people: PersonListItem[];
   defaultRole?: RoleKey;
+  /** Opens the form with "This is an organization" already ticked. */
+  defaultPersonType?: PersonType;
   triggerLabel?: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [availablePeople, setAvailablePeople] = useState(people);
   const [form, setForm] = useState<PersonFormState>(() =>
-    emptyPersonForm(defaultRole),
+    emptyPersonForm(defaultRole, defaultPersonType),
   );
   const [contact, setContact] = useState<PickedPerson | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Set when the save collided with an existing person on email, so the
+  // message can offer their record instead of leaving staff to search.
+  const [conflict, setConflict] = useState<{
+    id: string;
+    name: string | null;
+  } | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function update<K extends keyof PersonFormState>(
@@ -51,23 +66,34 @@ export function NewPersonDialog({
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  // Compared against a fresh empty form rather than tracked with a flag, so
+  // typing and then clearing a field doesn't count as unsaved work.
+  const baseline = emptyPersonForm(defaultRole, defaultPersonType);
+  const dirty = (Object.keys(baseline) as (keyof PersonFormState)[]).some(
+    (key) => form[key] !== baseline[key],
+  );
+  const guard = useUnsavedChangesGuard(dirty);
+
+  function resetForm() {
+    setForm(emptyPersonForm(defaultRole, defaultPersonType));
+    setError(null);
+  }
+
   function handleOpenChange(nextOpen: boolean) {
+    if (!guard.allowOpenChange(nextOpen)) return;
     setOpen(nextOpen);
-    if (nextOpen) {
-      setAvailablePeople(people);
-      setForm(emptyPersonForm(defaultRole));
-      setContact(null);
-      setError(null);
-    }
+    if (nextOpen) resetForm();
+    if (!nextOpen) setConflict(null);
   }
 
   function handlePersonCreated(person: PickedPerson) {
-    setAvailablePeople((prev) => [...prev, { ...person, is_sponsor: false }]);
+    setAvailablePeople((prev) => [...prev, person]);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    setConflict(null);
 
     startTransition(async () => {
       const result = await createPersonAction(
@@ -76,69 +102,97 @@ export function NewPersonDialog({
       );
       if ("error" in result) {
         setError(result.error);
+        setConflict(result.conflict ?? null);
         return;
       }
+      resetForm();
       setOpen(false);
+      toast.success("Person added.");
       router.refresh();
     });
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
-      >
-        {triggerLabel}
-      </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Add person</DialogTitle>
-          <DialogDescription>
-            Add a donor, sponsor, or volunteer to the directory.
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <DiscardChangesDialog
+        guard={guard}
+        subject="this person"
+        onDiscard={() => {
+          resetForm();
+          setOpen(false);
+        }}
+      />
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogTrigger
+          render={
+            <Button type="button" className="shrink-0 whitespace-nowrap" />
+          }
+        >
+          {triggerLabel}
+        </DialogTrigger>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add person</DialogTitle>
+            <DialogDescription>
+              Add a donor, sponsor, or volunteer to the directory.
+            </DialogDescription>
+          </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
-          <FieldGroup>
-            <PersonFormFields
-              form={form}
-              update={update}
-              idPrefix="new-person"
-            />
-
-            <Field>
-              <FieldLabel>
-                Primary contact person (for an organization)
-              </FieldLabel>
-              <PersonPicker
-                people={availablePeople}
-                selected={contact}
-                onSelect={setContact}
-                onPersonCreated={handlePersonCreated}
-                placeholder="Search by name or email..."
+          <form onSubmit={handleSubmit}>
+            <FieldGroup>
+              <PersonFormFields
+                form={form}
+                update={update}
+                idPrefix="new-person"
               />
-            </Field>
 
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-          </FieldGroup>
+              <Field>
+                <FieldLabel>
+                  Primary contact person (for an organization)
+                </FieldLabel>
+                <PersonPicker
+                  people={availablePeople}
+                  selected={contact}
+                  onSelect={setContact}
+                  onPersonCreated={handlePersonCreated}
+                  placeholder="Search by name or email..."
+                />
+              </Field>
 
-          <DialogFooter>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? (
-                <>
-                  <Spinner /> Saving...
-                </>
-              ) : (
-                "Add person"
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>
+                    {error}
+                    {conflict && (
+                      <>
+                        {" "}
+                        <Link
+                          href={`/portal/people/${conflict.id}`}
+                          className="underline underline-offset-4"
+                        >
+                          Open their record
+                        </Link>
+                      </>
+                    )}
+                  </AlertDescription>
+                </Alert>
               )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+            </FieldGroup>
+
+            <DialogFooter>
+              <Button type="submit" disabled={isPending}>
+                {isPending ? (
+                  <>
+                    <Spinner /> Saving...
+                  </>
+                ) : (
+                  "Add person"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

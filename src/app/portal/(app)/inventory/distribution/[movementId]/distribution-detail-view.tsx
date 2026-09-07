@@ -1,8 +1,10 @@
+import { categoryLabelFor, flattenCategory } from "@/lib/inventory";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FieldGroup } from "@/components/ui/field";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { EditDistributionSheet } from "./edit-distribution-sheet";
 import { DeleteDistributionButton } from "./delete-distribution-button";
+import { formatDateTime, personDisplayName } from "@/lib/format";
 
 export type DistributionDetailRow = {
   id: string;
@@ -12,8 +14,9 @@ export type DistributionDetailRow = {
   inventory_item: {
     id: string;
     description: string;
-    type: string;
+    type: string | null;
     size: string | null;
+    inventory_categories?: { key: string; label: string } | null;
   } | null;
   event: { id: string; name: string } | null;
   recipient: {
@@ -23,11 +26,6 @@ export type DistributionDetailRow = {
     phone: string | null;
   } | null;
 };
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
 
 export function DistributionDetailView({
   movement,
@@ -46,7 +44,7 @@ export function DistributionDetailView({
           <div className="rainbow-accent mt-3 w-full" />
         </div>
         <p className="app-muted mt-2 text-sm">
-          Distributed {dateFormatter.format(new Date(movement.occurred_at))}
+          Distributed {formatDateTime(movement.occurred_at)}
         </p>
       </div>
 
@@ -75,10 +73,12 @@ export function DistributionDetailView({
                 {movement.inventory_item?.description ?? "—"}
               </ReadOnlyField>
               <ReadOnlyField
-                label="Item type"
-                htmlFor="distribution-item-type-view"
+                label="Item category"
+                htmlFor="distribution-item-category-view"
               >
-                {movement.inventory_item?.type ?? "—"}
+                {movement.inventory_item
+                  ? categoryLabelFor(flattenCategory(movement.inventory_item))
+                  : "—"}
               </ReadOnlyField>
               <ReadOnlyField label="Size" htmlFor="distribution-size-view">
                 {movement.inventory_item?.size || "—"}
@@ -93,7 +93,7 @@ export function DistributionDetailView({
                 label="Date & time"
                 htmlFor="distribution-occurred-at-view"
               >
-                {dateFormatter.format(new Date(movement.occurred_at))}
+                {formatDateTime(movement.occurred_at)}
               </ReadOnlyField>
             </FieldGroup>
           </CardContent>
@@ -114,7 +114,7 @@ export function DistributionDetailView({
                 label="Recipient"
                 htmlFor="distribution-recipient-view"
               >
-                {movement.recipient?.name || "—"}
+                {personDisplayName(movement.recipient)}
               </ReadOnlyField>
               <ReadOnlyField
                 label="Reason / notes"

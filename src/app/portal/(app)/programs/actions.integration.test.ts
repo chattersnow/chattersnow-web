@@ -14,6 +14,7 @@ import {
   adminClient,
   anonClient,
   createProgram,
+  createPublishedEvent,
   signInAs,
 } from "../../../../../test/integration-setup";
 
@@ -200,5 +201,46 @@ describe("programs actions (integration)", () => {
     expect(await listProgramEventsAction(program.id)).toEqual(DENIED);
 
     await program.cleanup();
+  });
+
+  // The action reads through the event_programs join table now, so the same
+  // event legitimately shows up under every program it counts toward.
+  test("listProgramEventsAction returns events linked through the join table", async () => {
+    const programA = await createProgram();
+    const programB = await createProgram();
+    const shared = await createPublishedEvent();
+    const onlyA = await createPublishedEvent();
+
+    const linked = await adminClient.from("event_programs").insert([
+      { event_id: shared.id, program_id: programA.id },
+      { event_id: shared.id, program_id: programB.id },
+      { event_id: onlyA.id, program_id: programA.id },
+    ]);
+    if (linked.error) throw linked.error;
+
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+    const forA = await listProgramEventsAction(programA.id);
+    expect("data" in forA && forA.data.map((event) => event.id).sort()).toEqual(
+      [shared.id, onlyA.id].sort(),
+    );
+
+    const forB = await listProgramEventsAction(programB.id);
+    expect("data" in forB && forB.data.map((event) => event.id)).toEqual([
+      shared.id,
+    ]);
+    // The join column is stripped, so callers still get a plain ProgramEvent.
+    expect("data" in forB && Object.keys(forB.data[0]).sort()).toEqual([
+      "id",
+      "name",
+      "starts_at",
+      "status",
+      "visibility",
+    ]);
+
+    await shared.cleanup();
+    await onlyA.cleanup();
+    await programA.cleanup();
+    await programB.cleanup();
   });
 });

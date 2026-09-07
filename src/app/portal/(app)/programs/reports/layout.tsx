@@ -7,6 +7,11 @@ export default async function ProgramImpactReportsLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createSupabaseServerClient();
-  await requirePermission(supabase, "programs_reports", "view");
+  await requirePermission(
+    supabase,
+    "programs_reports",
+    "view",
+    "Impact Report",
+  );
   return children;
 }

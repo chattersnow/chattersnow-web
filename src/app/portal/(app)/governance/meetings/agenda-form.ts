@@ -20,6 +20,34 @@ export type AgendaFormData = {
   next_meeting_topics: string | null;
 };
 
+/**
+ * `JSON.parse` only tells us the text was well-formed, not that it holds what
+ * the client is supposed to send. Without these guards a hand-built POST of
+ * `newBusiness=null` threw a TypeError out of the parser and out of the server
+ * action -- an unhandled rejection instead of the friendly `{ error }` every
+ * other branch here returns -- and `ongoingItems="hi"` wrote a bare string into
+ * the jsonb column.
+ */
+function isStringArray(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) && value.every((item) => typeof item === "string")
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isOngoingItems(
+  value: unknown,
+): value is Record<string, AgendaOngoingItem> {
+  return isRecord(value) && Object.values(value).every(isRecord);
+}
+
+function isUpcomingDates(value: unknown): value is AgendaUpcomingDate[] {
+  return Array.isArray(value) && value.every(isRecord);
+}
+
 export function parseAgendaForm(
   formData: FormData,
 ): ParseResult<AgendaFormData> {
@@ -34,33 +62,45 @@ export function parseAgendaForm(
     formData.get("nextMeetingTopics") ?? "",
   ).trim();
 
-  let ongoingItems: Record<string, AgendaOngoingItem>;
+  let ongoingItems: unknown;
   try {
     ongoingItems = JSON.parse(String(formData.get("ongoingItems") ?? "{}"));
   } catch {
+    ongoingItems = undefined;
+  }
+  if (!isOngoingItems(ongoingItems)) {
     return {
       error: "Could not read the ongoing board items. Please try again.",
     };
   }
 
-  let newBusiness: string[];
+  let newBusiness: unknown;
   try {
     newBusiness = JSON.parse(String(formData.get("newBusiness") ?? "[]"));
   } catch {
+    newBusiness = undefined;
+  }
+  if (!isStringArray(newBusiness)) {
     return { error: "Could not read the new business list. Please try again." };
   }
 
-  let parkingLot: string[];
+  let parkingLot: unknown;
   try {
     parkingLot = JSON.parse(String(formData.get("parkingLot") ?? "[]"));
   } catch {
+    parkingLot = undefined;
+  }
+  if (!isStringArray(parkingLot)) {
     return { error: "Could not read the parking lot list. Please try again." };
   }
 
-  let upcomingDates: AgendaUpcomingDate[];
+  let upcomingDates: unknown;
   try {
     upcomingDates = JSON.parse(String(formData.get("upcomingDates") ?? "[]"));
   } catch {
+    upcomingDates = undefined;
+  }
+  if (!isUpcomingDates(upcomingDates)) {
     return {
       error: "Could not read the upcoming dates list. Please try again.",
     };

@@ -17,7 +17,7 @@ describe("parsePersonForm", () => {
   test("requires at least one role, and names the field in the error", () => {
     expect(parsePersonForm(formData({ name: "Jane" }))).toEqual({
       error:
-        "Select at least one role for this person — Donor, Sponsor, Volunteer, or Attendee.",
+        "Select at least one role for this person — Donor, Sponsor, Volunteer, Attendee, Staff, or Partner.",
     });
   });
 
@@ -25,14 +25,37 @@ describe("parsePersonForm", () => {
     const result = parsePersonForm(
       formData({ name: "Jane", isVolunteer: "true" }),
     );
-    expect("data" in result && result.data.is_volunteer).toBe(true);
+    expect("roles" in result && result.roles).toEqual(["volunteer"]);
+  });
+
+  test("partner alone satisfies the role requirement", () => {
+    // A partner organization often holds no other role: it has never donated,
+    // sponsored an event, or turned up to one.
+    const result = parsePersonForm(
+      formData({ name: "Summit Outdoor Co.", isPartner: "true" }),
+    );
+    expect("roles" in result && result.roles).toEqual(["partner"]);
   });
 
   test('accepts a native checkbox value of "on"', () => {
     const result = parsePersonForm(
       formData({ name: "Jane", isVolunteer: "on" }),
     );
-    expect("data" in result && result.data.is_volunteer).toBe(true);
+    expect("roles" in result && result.roles).toEqual(["volunteer"]);
+  });
+
+  test("canonicalizes email to lowercase and trims it", () => {
+    const result = parsePersonForm(
+      formData({ name: "Jane", isDonor: "true", email: "  Jane@Example.COM " }),
+    );
+    expect("data" in result && result.data.email).toBe("jane@example.com");
+  });
+
+  test("stores a blank email as null, not an empty string", () => {
+    const result = parsePersonForm(
+      formData({ name: "Jane", isDonor: "true", email: "   " }),
+    );
+    expect("data" in result && result.data.email).toBeNull();
   });
 
   test("parses valid input", () => {
@@ -50,19 +73,18 @@ describe("parsePersonForm", () => {
       }),
     );
     expect(result).toEqual({
+      roles: ["donor", "sponsor"],
       data: {
         name: "Jane",
+        preferred_name: null,
         email: "jane@example.com",
         phone: "555-1234",
+        pronouns: null,
         instagram_handle: "jane.doe",
         notes: "VIP",
         logo_url: "https://example.com/logo.png",
         website: "https://example.com",
-        is_donor: true,
-        is_sponsor: true,
-        is_volunteer: false,
-        is_organization: false,
-        is_attendee: false,
+        person_type: "individual",
         riding_discipline: null,
         ski_experience_level: null,
         snowboard_experience_level: null,
@@ -71,11 +93,22 @@ describe("parsePersonForm", () => {
     });
   });
 
-  test("parses the organization checkbox", () => {
+  test("parses the person type", () => {
     const result = parsePersonForm(
-      formData({ name: "Acme Co", isDonor: "true", isOrganization: "true" }),
+      formData({
+        name: "Acme Co",
+        isDonor: "true",
+        personType: "organization",
+      }),
     );
-    expect("data" in result && result.data.is_organization).toBe(true);
+    expect("data" in result && result.data.person_type).toBe("organization");
+  });
+
+  test("rejects an unknown person type", () => {
+    const result = parsePersonForm(
+      formData({ name: "Acme Co", isDonor: "true", personType: "household" }),
+    );
+    expect("error" in result).toBe(true);
   });
 
   test("rejects an invalid Instagram handle", () => {

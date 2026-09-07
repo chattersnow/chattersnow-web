@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
@@ -8,7 +9,11 @@ import type { AnnualRequirement } from "./annual-requirements-actions";
 import type { PersonListItem } from "../../people/actions";
 
 const REQUIREMENT_SELECT =
-  "id, name, due_date, status, completed_at, external_link, body_text, responsible:people!responsible_person_id(id, name, email, phone)";
+  "id, name, due_date, status, completed_at, external_link, body_text, responsible:people!annual_requirements_responsible_person_id_fkey(id, name, preferred_name, email, phone)";
+
+export const metadata: Metadata = {
+  title: "Annual Requirements",
+};
 
 export default async function AnnualRequirementsPage() {
   const supabase = await createSupabaseServerClient();
@@ -19,10 +24,11 @@ export default async function AnnualRequirementsPage() {
     supabase
       .from("annual_requirements")
       .select(REQUIREMENT_SELECT)
-      .order("due_date", { ascending: true }),
+      .order("due_date", { ascending: true })
+      .order("id", { ascending: true }),
     supabase
       .from("people")
-      .select("id, name, email, phone, is_sponsor")
+      .select("id, name, preferred_name, email, phone, auth_user_id")
       .order("name", { ascending: true }),
   ]);
 

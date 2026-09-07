@@ -1,0 +1,41 @@
+version: 2
+
+updates:
+  # Application dependencies. Dependabot reads bun.lock directly under the
+  # npm ecosystem, so no separate Bun configuration is needed.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    target-branch: "development"
+    open-pull-requests-limit: 5
+    # Routine version bumps are grouped into one PR per class so they don't
+    # crowd out real work. Security updates ignore grouping and always open
+    # their own PR.
+    groups:
+      production-dependencies:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+      development-dependencies:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+    ignore:
+      # Next.js and React majors are coordinated upgrades, not drive-by bumps.
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    target-branch: "development"
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns: ["*"]

@@ -16,11 +16,11 @@ import { Spinner } from "@/components/ui/spinner";
 import type { Program } from "../../programs/actions";
 import type { EventRow } from "../event-badges";
 import {
-  PhaseStatusBadge,
+  PhaseOutstandingBadge,
   StatusBadge,
   VisibilityBadge,
 } from "../event-badges";
-import { phaseStatus, type PhaseKey } from "../phase-status";
+import { isPhaseKey, type PhaseKey } from "../phase-status";
 import {
   FORM_ID_PREFIX,
   LOCKED_ON_REPORT_SUBMIT_TABS,
@@ -33,6 +33,9 @@ import {
 } from "../event-tabs-config";
 import { useFormTabState, type FormTabCallbacks } from "../use-form-tab-state";
 import { TabRefreshProvider, useTabRefresh } from "@/hooks/use-tab-refresh";
+import { EventPhaseDataProvider, useEventPhaseData } from "../event-phase-data";
+import { useUrlTabState } from "@/components/portal/use-url-tab-state";
+import { DeleteEventButton } from "./delete-event-button";
 
 const NOOP_CALLBACKS: FormTabCallbacks = {
   onPendingChange: () => {},
@@ -92,12 +95,14 @@ function EditableTabCard({
   const formTabState = useFormTabState(formTabs);
   const pending = formTabState.pending[entry.value] ?? false;
 
+  const shared = useEventPhaseData();
+
   const formId = `${FORM_ID_PREFIX}-${entry.value}-${event.id}`;
   const ctx: TabRenderContext = {
     event,
     programs,
     mode,
-    activeTab: entry.value,
+    shared,
     formId: (tabValue) => `${FORM_ID_PREFIX}-${tabValue}-${event.id}`,
     onSaved: () => setMode("view"),
     formCallbacks: { ...NOOP_FORM_CALLBACKS, ...formTabState.callbacks },
@@ -156,6 +161,42 @@ function EditableTabCard({
 }
 
 /**
+ * A plain tab's create actions, in its own card header.
+ *
+ * These used to be merged into one strip beside the phase tabs, which put
+ * every card's actions in a single row -- seven of them on "During" -- with
+ * nothing tying a button to the card it belonged to, and left the operator
+ * scrolling back to the top of a long phase to reach any of them.
+ *
+ * Returns `CardAction` as its root so the div stays a direct grid child of
+ * `CardHeader`, which is what positions it. `EditableTabCard` spends its one
+ * `CardAction` on the edit pencil, so no `kind: "form"` tab may define
+ * `toolbarActions`.
+ */
+function TabCardActions({
+  entry,
+  event,
+  canManage,
+}: {
+  entry: TabConfigEntry;
+  event: EventRow;
+  canManage: boolean;
+}) {
+  const { notify } = useTabRefresh<TabValue>();
+  if (!canManage || !entry.toolbarActions) return null;
+
+  return (
+    <CardAction className="flex flex-wrap items-center justify-end gap-2">
+      {entry.toolbarActions({
+        eventId: event.id,
+        eventName: event.name,
+        onSaved: () => notify(entry.value),
+      })}
+    </CardAction>
+  );
+}
+
+/**
  * Card wrapper for list-style tabs whose add/manage controls are shown
  * based on the user's events permission rather than an edit toggle.
  */
@@ -172,11 +213,13 @@ function PlainTabCard({
   programs: Program[];
   canManage: boolean;
 }) {
+  const shared = useEventPhaseData();
+
   const ctx: TabRenderContext = {
     event,
     programs,
     mode: canManage ? "edit" : "view",
-    activeTab: entry.value,
+    shared,
     formId: (tabValue) => `${FORM_ID_PREFIX}-${tabValue}-${event.id}`,
     onSaved: () => {},
     formCallbacks: NOOP_FORM_CALLBACKS,
@@ -188,6 +231,7 @@ function PlainTabCard({
         <CardTitle className="app-muted text-sm font-semibold">
           {title}
         </CardTitle>
+        <TabCardActions entry={entry} event={event} canManage={canManage} />
       </CardHeader>
       <CardContent>{entry.render(ctx)}</CardContent>
     </Card>
@@ -198,7 +242,9 @@ export function EventDetailView(props: {
   event: EventRow;
   programs: Program[];
   canManage: boolean;
+  deleteBlockers: string[];
   initialTab?: TabValue;
+  phaseTasks?: Record<PhaseKey, string[]>;
 }) {
   return (
     <TabRefreshProvider>
@@ -211,32 +257,47 @@ function EventDetailContent({
   event,
   programs,
   canManage,
+  deleteBlockers,
   initialTab,
+  phaseTasks,
 }: {
   event: EventRow;
   programs: Program[];
   canManage: boolean;
+  deleteBlockers: string[];
   initialTab?: TabValue;
+  phaseTasks?: Record<PhaseKey, string[]>;
 }) {
-  const [phaseKey, setPhaseKey] = useState<PhaseKey>(
-    initialTab ? phaseForTab(initialTab) : "basic",
-  );
-  const { notify } = useTabRefresh<TabValue>();
-  const currentPhase = PHASES.find((phase) => phase.key === phaseKey)!;
-
+  // ?tab= stays the deep-link entry point (the notification bell and the
+  // outstanding-tasks sheet both link with it), but the phase is what the
+  // page actually shows, so that's what round-trips through the URL.
+  const [phaseKey, setPhaseKey] = useUrlTabState<PhaseKey>({
+    param: "phase",
+    fallback: initialTab ? phaseForTab(initialTab) : "basic",
+    isValid: isPhaseKey,
+  });
   return (
     <>
-      <div>
-        <div className="w-fit">
-          <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-            {event.name}
-          </h1>
-          <div className="rainbow-accent mt-3 w-full" />
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="w-fit">
+            <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+              {event.name}
+            </h1>
+            <div className="rainbow-accent mt-3 w-full" />
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <StatusBadge status={event.status} />
+            <VisibilityBadge visibility={event.visibility} />
+          </div>
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <StatusBadge status={event.status} />
-          <VisibilityBadge visibility={event.visibility} />
-        </div>
+        {canManage && (
+          <DeleteEventButton
+            eventId={event.id}
+            eventName={event.name}
+            blockers={deleteBlockers}
+          />
+        )}
       </div>
 
       <Tabs
@@ -244,66 +305,54 @@ function EventDetailContent({
         onValueChange={(value) => setPhaseKey(value as PhaseKey)}
         className="mt-6"
       >
-        <div className="rainbow-surface flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+        <div className="rainbow-surface rounded-xl border border-[var(--line)] p-4 shadow-md">
           <TabsList variant="line" className="flex-wrap">
-            {PHASES.map((phase) => {
-              const status = phaseStatus(phase.key, event);
-              return (
-                <TabsTrigger key={phase.key} value={phase.key}>
-                  {phase.key === "basic" ? "Overview" : phase.label}
-                  {status && <PhaseStatusBadge status={status} />}
-                </TabsTrigger>
-              );
-            })}
+            {PHASES.map((phase) => (
+              <TabsTrigger key={phase.key} value={phase.key}>
+                {phase.key === "basic" ? "Overview" : phase.label}
+                <PhaseOutstandingBadge tasks={phaseTasks?.[phase.key] ?? []} />
+              </TabsTrigger>
+            ))}
           </TabsList>
-          {canManage && (
-            <div className="flex flex-wrap items-center gap-2">
-              {currentPhase.tabs.map((t) => {
-                const entry = entryFor(t.value);
-                if (!entry.toolbarActions) return null;
-                return (
-                  <div
-                    key={t.value}
-                    className="flex flex-wrap items-center gap-2"
-                  >
-                    {entry.toolbarActions({
-                      eventId: event.id,
-                      eventName: event.name,
-                      onSaved: () => notify(t.value),
-                    })}
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
 
         {PHASES.map((phase) => (
           <TabsContent key={phase.key} value={phase.key} className="mt-4">
-            <div className="grid items-start gap-6 lg:grid-cols-2">
-              {phase.tabs.map((t) => {
-                const entry = entryFor(t.value);
-                const editToggle =
-                  entry.kind === "form" || SELF_MANAGED_EDIT_TABS.has(t.value);
-                const TabCard = editToggle ? EditableTabCard : PlainTabCard;
-                return (
-                  <div
-                    key={t.value}
-                    className={
-                      HALF_WIDTH_TABS.has(t.value) ? undefined : "lg:col-span-2"
-                    }
-                  >
-                    <TabCard
-                      entry={entry}
-                      title={CARD_TITLES[t.value] ?? t.label}
-                      event={event}
-                      programs={programs}
-                      canManage={canManage}
-                    />
-                  </div>
-                );
-              })}
-            </div>
+            {/* Base UI unmounts the phases you aren't looking at, so exactly
+                one provider is live and each shared read runs once per phase
+                rather than once per card. */}
+            <EventPhaseDataProvider
+              eventId={event.id}
+              resources={phase.sharedData}
+            >
+              <div className="grid items-start gap-6 lg:grid-cols-2">
+                {phase.tabs.map((t) => {
+                  const entry = entryFor(t.value);
+                  const editToggle =
+                    entry.kind === "form" ||
+                    SELF_MANAGED_EDIT_TABS.has(t.value);
+                  const TabCard = editToggle ? EditableTabCard : PlainTabCard;
+                  return (
+                    <div
+                      key={t.value}
+                      className={
+                        HALF_WIDTH_TABS.has(t.value)
+                          ? undefined
+                          : "lg:col-span-2"
+                      }
+                    >
+                      <TabCard
+                        entry={entry}
+                        title={CARD_TITLES[t.value] ?? t.label}
+                        event={event}
+                        programs={programs}
+                        canManage={canManage}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </EventPhaseDataProvider>
           </TabsContent>
         ))}
       </Tabs>

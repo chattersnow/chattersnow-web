@@ -19,6 +19,7 @@ import {
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 
 export function CheckInWalkInDialog({
   eventId,
@@ -47,7 +48,7 @@ export function CheckInWalkInDialog({
   }, [open]);
 
   function handlePersonCreated(person: PickedPerson) {
-    setPeople((prev) => [...prev, { ...person, is_sponsor: false }]);
+    setPeople((prev) => [...prev, person]);
   }
 
   function reset() {
@@ -86,6 +87,7 @@ export function CheckInWalkInDialog({
         return;
       }
       handleOpenChange(false);
+      toast.success("Walk-in checked in.");
       router.refresh();
       onSaved?.();
     });
