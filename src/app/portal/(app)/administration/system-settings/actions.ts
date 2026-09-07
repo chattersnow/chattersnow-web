@@ -16,6 +16,10 @@ import {
   isFiscalYearStartMonth,
 } from "@/lib/fiscal-year";
 import { EMAIL_ENABLED_SETTING_KEY } from "@/lib/notifications/kinds";
+import {
+  OPS_REPORT_RECIPIENTS_SETTING_KEY,
+  isEmailAddress,
+} from "@/lib/notifications/ops-report";
 
 export type SettingActionResult = { error: string } | { success: true };
 
@@ -124,6 +128,41 @@ export async function updateEmailNotificationsEnabledAction(
   enabled: boolean,
 ): Promise<SettingActionResult> {
   return updateAppSettingAction(EMAIL_ENABLED_SETTING_KEY, enabled);
+}
+
+/**
+ * Who receives the daily leadership ops report (#743).
+ *
+ * Stored as an array rather than the raw string so the job never has to guess
+ * at a separator, and validated here rather than only in the job: an address
+ * that is silently dropped at send time looks, from this page, exactly like
+ * one that was saved. Clearing the field switches the report off for this
+ * tenant -- app_settings has no delete grant, so an empty list is how "off"
+ * is written, the same constraint the image slots work under.
+ *
+ * The write is audit-logged by the app_settings trigger, which is the point:
+ * changing who sees the organization's daily operating picture is a
+ * governance act, not a preference.
+ */
+export async function updateOpsReportRecipientsAction(
+  formData: FormData,
+): Promise<SettingActionResult> {
+  const raw = String(formData.get("recipients") ?? "").trim();
+  const entries = raw ? raw.split(/[,;\s]+/).filter(Boolean) : [];
+
+  const invalid = entries.filter(
+    (entry) => !isEmailAddress(entry.toLowerCase()),
+  );
+  if (invalid.length > 0) {
+    return {
+      error: `Not an email address: ${invalid.slice(0, 3).join(", ")}.`,
+    };
+  }
+
+  const recipients = [
+    ...new Set(entries.map((entry) => entry.toLowerCase())),
+  ].sort();
+  return updateAppSettingAction(OPS_REPORT_RECIPIENTS_SETTING_KEY, recipients);
 }
 
 /**
