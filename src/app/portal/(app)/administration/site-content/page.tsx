@@ -3,14 +3,17 @@ import {
   getCurrentUserPermissions,
   hasPermission,
 } from "@/lib/auth/permissions";
+import { getPageVisibility } from "@/lib/page-visibility";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   CONTENT_PAGES,
   resolveSiteContent,
+  sectionsForPage,
   slotsForPage,
   type SiteContentRow,
 } from "@/lib/site-content";
-import { ContentEditor, type EditorSlot } from "./content-editor";
+import { ContentEditor } from "./content-editor";
+import { buildOutline, type EditorSlot } from "./content-shared";
 
 export const metadata: Metadata = {
   title: "Site Content",
@@ -28,9 +31,10 @@ export default async function SiteContentPage({
     CONTENT_PAGES[0];
 
   const supabase = await createSupabaseServerClient();
-  const [permissions, { data: rows }] = await Promise.all([
+  const [permissions, { data: rows }, visibility] = await Promise.all([
     getCurrentUserPermissions(supabase),
     supabase.from("site_content").select("key, value"),
+    getPageVisibility(supabase),
   ]);
   const content = resolveSiteContent((rows ?? []) as SiteContentRow[]);
   const canEdit = hasPermission(permissions, "site_content", "manage");
@@ -50,6 +54,13 @@ export default async function SiteContentPage({
             : content.document(slot.key),
     overridden: content.overrides.has(slot.key),
   }));
+
+  // Writing copy for a page nobody can reach is possible and used to give no
+  // hint of it; page visibility lives one page over in System Settings (#792).
+  const hiddenPages = CONTENT_PAGES.filter(
+    (candidate) =>
+      candidate.visibilityKey && visibility[candidate.visibilityKey] === false,
+  ).map((candidate) => candidate.key);
 
   return (
     <>
@@ -71,7 +82,12 @@ export default async function SiteContentPage({
           key={page.key}
           page={page}
           pages={CONTENT_PAGES}
+          sections={sectionsForPage(page.key)}
           slots={slots}
+          // Every page's copy, so the rail can answer "where does this
+          // sentence live?" without thirteen round trips.
+          outline={buildOutline(content)}
+          hiddenPages={hiddenPages}
           canEdit={canEdit}
         />
       </div>

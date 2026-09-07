@@ -1992,15 +1992,25 @@ export const helpContent: Record<string, HelpEntry> = {
         <HowToSection heading="Steps">
           <ol className="list-decimal space-y-2 pl-4">
             <li>
-              Pick a page from the row of buttons, edit the slots on it, and
-              save. Each slot is one piece of copy — a heading, a run of
-              paragraphs, a list, or a whole document.
+              Pick a page from the rail on the left, edit the slots on it, and
+              save from the bar at the foot of the form. Each slot is one piece
+              of copy — a heading, a run of paragraphs, a list, or a whole
+              document — and slots are grouped into the sections they make up on
+              the page.
             </li>
             <li>
-              A slot marked <strong className="text-foreground">Default</strong>{" "}
-              is rendering the platform&apos;s text; one marked{" "}
+              Search covers every page at once, not just the one you are on, so
+              you can find a sentence without knowing which page carries it.
+            </li>
+            <li>
+              A slot marked{" "}
               <strong className="text-foreground">Your text</strong> is yours
-              and can be put back to the default.
+              and can be put back to the default; a slot with no marker is
+              rendering the platform&apos;s text.{" "}
+              <strong className="text-foreground">Unsaved</strong> marks what
+              you have changed and not yet saved — the rail marks the same
+              slots, and <strong className="text-foreground">Discard</strong>{" "}
+              puts all of them back.
             </li>
           </ol>
         </HowToSection>
