@@ -1,22 +1,87 @@
 import {
+  resolveSiteContent,
   SITE_CONTENT_SLOTS,
   type ContentSlot,
   type LegalDocumentContent,
   type ListItem,
   type SiteContent,
+  type SiteContentRow,
 } from "@/lib/site-content";
 
+/** One `site_content` row as the editor's page reads it (#793). */
+export type SiteContentDraftRow = {
+  key: string;
+  value: unknown;
+  draft_value: unknown;
+  has_draft: boolean;
+  draft_updated_at: string | null;
+  draft_updated_by: string | null;
+  published_at: string | null;
+  published_by: string | null;
+};
+
 /**
- * One slot as the editor gets it: the registry entry, the value in effect --
- * the tenant's own where set, the registry default otherwise -- and which of
- * the two it is, so "back to default" is offered only where it means
- * something.
+ * One slot as the editor gets it.
+ *
+ * `value` is what the editor edits -- the pending draft where there is one,
+ * otherwise what is published, otherwise the registry default. `published` is
+ * what the public site is serving right now, which is what the publish diff
+ * compares against and what makes "this is not live yet" sayable (#793).
  */
 export type EditorSlot = {
   slot: ContentSlot;
   value: unknown;
+  published: unknown;
+  /** Whether the tenant has a published override rather than the default. */
   overridden: boolean;
+  /** Whether a draft is waiting to be published. */
+  hasDraft: boolean;
+  draftUpdatedAt: string | null;
+  draftUpdatedBy: string | null;
+  publishedAt: string | null;
+  publishedBy: string | null;
 };
+
+/**
+ * The rows folded two ways: what the public sees, and what the editor edits.
+ *
+ * A draft whose `draft_value` is null reverts the slot to the registry
+ * default, so it contributes no row to the draft fold -- the same shape as a
+ * slot nobody has ever touched.
+ */
+export function resolveDraftAndPublished(
+  rows: readonly SiteContentDraftRow[],
+): { published: SiteContent; draft: SiteContent } {
+  const publishedRows: SiteContentRow[] = [];
+  const draftRows: SiteContentRow[] = [];
+  for (const row of rows) {
+    if (row.value != null) {
+      publishedRows.push({ key: row.key, value: row.value });
+    }
+    const effective = row.has_draft ? row.draft_value : row.value;
+    if (effective != null) {
+      draftRows.push({ key: row.key, value: effective });
+    }
+  }
+  return {
+    published: resolveSiteContent(publishedRows),
+    draft: resolveSiteContent(draftRows),
+  };
+}
+
+/** A slot's value out of a resolved `SiteContent`, whatever shape it is in. */
+export function readSlot(slot: ContentSlot, content: SiteContent): unknown {
+  switch (slot.type) {
+    case "text":
+      return content.text(slot.key);
+    case "paragraphs":
+      return content.paragraphs(slot.key);
+    case "list":
+      return content.list(slot.key);
+    case "document":
+      return content.document(slot.key);
+  }
+}
 
 /**
  * One searchable line per slot, for every page at once.
@@ -37,6 +102,8 @@ export type OutlineEntry = {
   label: string;
   /** Whether the tenant has set this slot, rather than taking the default. */
   overridden: boolean;
+  /** Whether the slot carries a draft the public site has not seen yet. */
+  hasDraft: boolean;
   text: string;
 };
 
@@ -73,13 +140,20 @@ export function slotText(slot: ContentSlot, content: SiteContent): string {
   }
 }
 
-export function buildOutline(content: SiteContent): OutlineEntry[] {
+export function buildOutline(
+  draft: SiteContent,
+  published: SiteContent,
+  draftKeys: ReadonlySet<string>,
+): OutlineEntry[] {
   return SITE_CONTENT_SLOTS.map((slot) => ({
     page: slot.page,
     section: slot.section,
     key: slot.key,
     label: slot.label,
-    overridden: content.overrides.has(slot.key),
-    text: slotText(slot, content),
+    overridden: published.overrides.has(slot.key),
+    hasDraft: draftKeys.has(slot.key),
+    // Search runs over the copy being edited rather than the published copy:
+    // the rail exists to find the sentence you are working on.
+    text: slotText(slot, draft),
   }));
 }

@@ -33,6 +33,7 @@ export function ContentSectionCard({
   resetToken,
   onChange,
   onReset,
+  onPublish,
 }: {
   page: ContentPage;
   section: ContentSection;
@@ -46,6 +47,8 @@ export function ContentSectionCard({
   resetToken: number;
   onChange: (key: string, value: unknown) => void;
   onReset: (slotKey: string) => void;
+  /** Publish this slot alone, rather than everything pending on the page. */
+  onPublish: (slotKey: string) => void;
 }) {
   // A section whose every slot links to a page of its own -- the legal
   // documents -- leaves nothing for a section-wide link to point at.
@@ -78,21 +81,30 @@ export function ContentSectionCard({
       <CardContent>
         <fieldset disabled={!canEdit || isPending}>
           <FieldGroup>
-            {slots.map(({ slot, overridden }) => (
-              <ContentSlotField
-                // Remounted when a value is replaced from outside, so the
-                // keyed list and document editors reseed from it.
-                key={`${slot.key}-${resetToken}`}
-                slot={slot}
-                value={values[slot.key]}
-                initialValue={initial.get(slot.key)}
-                overridden={overridden}
-                dirty={dirtyKeys.has(slot.key)}
-                canEdit={canEdit}
-                onChange={(value) => onChange(slot.key, value)}
-                onReset={() => onReset(slot.key)}
-              />
-            ))}
+            {slots.map((entry) => {
+              const { slot } = entry;
+              return (
+                <ContentSlotField
+                  // Remounted when a value is replaced from outside, so the
+                  // keyed list and document editors reseed from it.
+                  key={`${slot.key}-${resetToken}`}
+                  slot={slot}
+                  value={values[slot.key]}
+                  initialValue={initial.get(slot.key)}
+                  overridden={entry.overridden}
+                  hasDraft={entry.hasDraft}
+                  publishedAt={entry.publishedAt}
+                  publishedBy={entry.publishedBy}
+                  draftUpdatedAt={entry.draftUpdatedAt}
+                  draftUpdatedBy={entry.draftUpdatedBy}
+                  dirty={dirtyKeys.has(slot.key)}
+                  canEdit={canEdit}
+                  onChange={(value) => onChange(slot.key, value)}
+                  onReset={() => onReset(slot.key)}
+                  onPublish={() => onPublish(slot.key)}
+                />
+              );
+            })}
           </FieldGroup>
         </fieldset>
       </CardContent>

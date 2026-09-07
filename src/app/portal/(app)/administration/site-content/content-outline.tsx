@@ -45,6 +45,7 @@ export function ContentOutline({
   outline,
   hiddenPages,
   dirtyKeys,
+  unpublishedKeys,
   onJump,
   onPageLink,
 }: {
@@ -55,6 +56,8 @@ export function ContentOutline({
   /** Page keys whose section is currently hidden from the public site. */
   hiddenPages: readonly string[];
   dirtyKeys: ReadonlySet<string>;
+  /** Slots on this page whose copy the public site is not serving yet. */
+  unpublishedKeys: ReadonlySet<string>;
   onJump: (slotKey: string) => void;
   onPageLink: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
 }) {
@@ -70,6 +73,16 @@ export function ContentOutline({
     const counts = new Map<string, number>();
     for (const entry of outline) {
       if (!entry.overridden) continue;
+      counts.set(entry.page, (counts.get(entry.page) ?? 0) + 1);
+    }
+    return counts;
+  }, [outline]);
+  // Drafts left on another page are the easiest thing to forget, since the
+  // page they belong to is one click away and looks finished from here (#793).
+  const draftsPerPage = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const entry of outline) {
+      if (!entry.hasDraft) continue;
       counts.set(entry.page, (counts.get(entry.page) ?? 0) + 1);
     }
     return counts;
@@ -187,6 +200,9 @@ export function ContentOutline({
                   const href = `/portal/administration/site-content?page=${candidate.key}`;
                   const current = candidate.key === page.key;
                   const customized = overriddenPerPage.get(candidate.key) ?? 0;
+                  const drafts = current
+                    ? unpublishedKeys.size
+                    : (draftsPerPage.get(candidate.key) ?? 0);
                   return (
                     <li key={candidate.key}>
                       <Link
@@ -209,6 +225,14 @@ export function ContentOutline({
                             aria-label="Hidden on the public site"
                           />
                         )}
+                        {drafts > 0 && (
+                          <span
+                            className="bg-[var(--purple-soft)] text-[var(--purple-deep)] shrink-0 rounded-full px-1.5 text-xs font-medium tabular-nums"
+                            title="Not published yet"
+                          >
+                            {drafts}
+                          </span>
+                        )}
                         {customized > 0 && (
                           <span className="app-muted shrink-0 text-xs tabular-nums">
                             {customized}
@@ -220,8 +244,8 @@ export function ContentOutline({
                 })}
               </ul>
               <p className="app-muted mt-2 px-2 text-xs">
-                The number is how many slots on that page you have written
-                yourself.
+                The grey number is how many slots on that page you have written
+                yourself; a highlighted number is changes not published yet.
               </p>
             </nav>
 
@@ -249,6 +273,10 @@ export function ContentOutline({
                               {dirtyKeys.has(entry.key) ? (
                                 <span className="text-[var(--purple)] shrink-0 text-xs">
                                   Unsaved
+                                </span>
+                              ) : unpublishedKeys.has(entry.key) ? (
+                                <span className="text-[var(--purple)] shrink-0 text-xs">
+                                  Not published
                                 </span>
                               ) : (
                                 entry.overridden && (
