@@ -18,6 +18,10 @@ const ACTION_LABEL: Record<string, string> = {
   anonymized: "anonymized",
   cleared: "cleared",
   backfilled: "backfilled",
+  // #720. Distinct from "anonymized" on purpose: the audit entry and the merge
+  // record are kept in full, and only the personal values inside their row
+  // snapshots are cleared.
+  redacted: "redacted",
   skipped: "skipped",
 };
 

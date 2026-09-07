@@ -25,6 +25,7 @@ export type AuditLogRow = {
   actor_label: string;
   old_data: Record<string, unknown> | null;
   new_data: Record<string, unknown> | null;
+  redacted_at: string | null;
 };
 
 function formatValue(value: unknown): string {
@@ -67,6 +68,16 @@ export function AuditLogDetailSheet({ row }: { row: AuditLogRow }) {
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto px-4 pb-4">
+          {/* #720. Without this, a scrubbed field and a field that was empty at
+              the time read identically, and a reader would draw the wrong
+              conclusion from the same em dash. */}
+          {row.redacted_at ? (
+            <p className="app-muted mb-3 text-sm leading-relaxed">
+              Personal details in this entry were cleared on{" "}
+              {formatDateTime(row.redacted_at)} under the data retention policy.
+              Everything else is as it was recorded.
+            </p>
+          ) : null}
           {entries.length === 0 ? (
             <EmptyState
               className="py-4"
