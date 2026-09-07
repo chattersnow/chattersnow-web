@@ -28,6 +28,7 @@
     "tenant:provision": "bun --env-file=.env.local scripts/tenant-cli.ts provision",
     "tenant:list": "bun --env-file=.env.local scripts/tenant-cli.ts list",
     "tenant:export": "bun --env-file=.env.local scripts/tenant-cli.ts export",
+    "tenant:plan": "bun --env-file=.env.local scripts/tenant-cli.ts plan",
     "tenant:archive": "bun --env-file=.env.local scripts/tenant-cli.ts archive",
     "tenant:delete": "bun --env-file=.env.local scripts/tenant-cli.ts delete",
     "tenant:support": "bun --env-file=.env.local scripts/tenant-cli.ts support",
