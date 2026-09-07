@@ -5,12 +5,16 @@ import { TermsDocument } from "@/app/(public)/terms/document";
 import { CodeOfConductDocument } from "@/app/(public)/code-of-conduct/document";
 import { LegalDocument } from "@/components/legal-document";
 
-// The section nav beside each legal document is driven by a hand-written
-// SECTIONS array, while the anchors it points at live on <section> elements
-// further down the same file. Nothing links the two, so a renamed or dropped
-// section leaves a nav entry that scrolls nowhere -- silently, since a bad
-// fragment is not an error. These pages are long enough that nobody would
-// notice by scrolling.
+// The section nav beside each legal document is driven by that document's
+// entry in LEGAL_DOCUMENT_OUTLINES, while the anchors it points at live on
+// <section> elements in the document itself. Nothing links the two, so a
+// renamed or dropped section leaves a nav entry that scrolls nowhere --
+// silently, since a bad fragment is not an error. These pages are long enough
+// that nobody would notice by scrolling.
+//
+// Since #792 the same outline is what the Site Content editor offers a tenant
+// as the starting point for their own document, so this also guards the seed
+// against drifting from the published page.
 const PAGES = [
   { name: "privacy policy", Page: PrivacyDocument },
   { name: "terms of use", Page: TermsDocument },

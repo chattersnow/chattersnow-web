@@ -40,6 +40,7 @@ const LONG = "x".repeat(120);
 const HEADING: ContentSlot = {
   key: "home.heading",
   page: "home",
+  section: "home:hero",
   label: "Heading",
   type: "text",
   default: DEFAULT_HEADING,
