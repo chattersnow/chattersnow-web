@@ -11,7 +11,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { needsDecision, type CalendarItemRow } from "./calendar-shared";
+import { needsDecision } from "./calendar-shared";
+import type { CalendarEntry } from "./calendar-entries";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MAX_CHIPS_PER_DAY = 3;
@@ -27,11 +28,11 @@ function ymd(date: Date): string {
 
 export function MonthView({
   month,
-  items,
+  entries,
   monthHref,
 }: {
   month: string;
-  items: CalendarItemRow[];
+  entries: CalendarEntry[];
   monthHref: (month: string) => string;
 }) {
   const monthStart = parseMonthParam(month);
@@ -48,12 +49,12 @@ export function MonthView({
     days.push(new Date(day));
   }
 
-  const itemsByDay = new Map<string, CalendarItemRow[]>();
-  for (const item of items) {
-    const key = ymd(new Date(item.starts_at));
-    const list = itemsByDay.get(key);
-    if (list) list.push(item);
-    else itemsByDay.set(key, [item]);
+  const entriesByDay = new Map<string, CalendarEntry[]>();
+  for (const entry of entries) {
+    const key = ymd(new Date(entry.starts_at));
+    const list = entriesByDay.get(key);
+    if (list) list.push(entry);
+    else entriesByDay.set(key, [entry]);
   }
 
   const prevMonth = ymd(addDays(monthStart, -1)).slice(0, 7);
@@ -101,7 +102,7 @@ export function MonthView({
           ))}
           {days.map((day) => {
             const key = ymd(day);
-            const dayItems = itemsByDay.get(key) ?? [];
+            const dayEntries = entriesByDay.get(key) ?? [];
             const inMonth = day.getMonth() === monthStart.getMonth();
             return (
               <div
@@ -112,28 +113,38 @@ export function MonthView({
                   {day.getDate()}
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  {dayItems.slice(0, MAX_CHIPS_PER_DAY).map((item) => (
-                    <Tooltip key={item.id}>
+                  {dayEntries.slice(0, MAX_CHIPS_PER_DAY).map((entry) => (
+                    <Tooltip key={entry.id}>
                       <TooltipTrigger
                         render={
                           <Link
-                            href={`/portal/calendar/${item.id}`}
+                            href={entry.href}
                             className={cn(
                               "w-full truncate rounded px-1 py-0.5 text-left text-[0.7rem] hover:bg-muted",
-                              needsDecision(item) &&
+                              // Events read as their own kind of chip: they are
+                              // managed elsewhere and carry none of the
+                              // editorial flags the tint below signals.
+                              entry.kind === "event" &&
+                                "bg-primary/10 text-primary",
+                              entry.kind === "calendar_item" &&
+                                needsDecision(entry.item) &&
                                 "bg-destructive/10 text-destructive",
                             )}
                           />
                         }
                       >
-                        {item.title}
+                        {entry.title}
                       </TooltipTrigger>
-                      <TooltipContent>{`View ${item.title}`}</TooltipContent>
+                      <TooltipContent>
+                        {entry.kind === "event"
+                          ? `View event ${entry.title}`
+                          : `View ${entry.title}`}
+                      </TooltipContent>
                     </Tooltip>
                   ))}
-                  {dayItems.length > MAX_CHIPS_PER_DAY && (
+                  {dayEntries.length > MAX_CHIPS_PER_DAY && (
                     <span className="app-muted px-1 text-[0.7rem]">
-                      +{dayItems.length - MAX_CHIPS_PER_DAY} more
+                      +{dayEntries.length - MAX_CHIPS_PER_DAY} more
                     </span>
                   )}
                 </div>

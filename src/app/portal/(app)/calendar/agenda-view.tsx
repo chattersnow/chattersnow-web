@@ -7,6 +7,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { formatDateInZone } from "@/lib/time";
 import {
   CalendarStatusBadge,
+  EventEntryBadge,
+  EventStatusBadge,
   NeedsDecisionFlag,
   PastUndecidedFlag,
   PriorityTierBadge,
@@ -16,8 +18,8 @@ import {
   labelFor,
   needsDecision,
   ITEM_TYPES,
-  type CalendarItemRow,
 } from "./calendar-shared";
+import { EVENT_ITEM_TYPE, type CalendarEntry } from "./calendar-entries";
 
 const dayHeadingFormatter = new Intl.DateTimeFormat("en-US", {
   weekday: "long",
@@ -28,25 +30,25 @@ const dayHeadingFormatter = new Intl.DateTimeFormat("en-US", {
 const timeFormatter = new Intl.DateTimeFormat("en-US", { timeStyle: "short" });
 
 function groupByDay(
-  items: CalendarItemRow[],
-): { dayKey: string; items: CalendarItemRow[] }[] {
-  const groups = new Map<string, CalendarItemRow[]>();
-  for (const item of items) {
+  entries: CalendarEntry[],
+): { dayKey: string; entries: CalendarEntry[] }[] {
+  const groups = new Map<string, CalendarEntry[]>();
+  for (const entry of entries) {
     const dayKey = formatDateInZone(
-      new Date(item.starts_at),
-      item.time_zone || "UTC",
+      new Date(entry.starts_at),
+      entry.time_zone || "UTC",
     );
     const existing = groups.get(dayKey);
-    if (existing) existing.push(item);
-    else groups.set(dayKey, [item]);
+    if (existing) existing.push(entry);
+    else groups.set(dayKey, [entry]);
   }
   return Array.from(groups.entries())
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([dayKey, dayItems]) => ({ dayKey, items: dayItems }));
+    .map(([dayKey, dayEntries]) => ({ dayKey, entries: dayEntries }));
 }
 
-export function AgendaView({ items }: { items: CalendarItemRow[] }) {
-  const groups = groupByDay(items);
+export function AgendaView({ entries }: { entries: CalendarEntry[] }) {
+  const groups = groupByDay(entries);
 
   if (groups.length === 0) {
     return (
@@ -62,39 +64,57 @@ export function AgendaView({ items }: { items: CalendarItemRow[] }) {
 
   return (
     <div className="mt-6 flex flex-col gap-4">
-      {groups.map(({ dayKey, items: dayItems }) => (
+      {groups.map(({ dayKey, entries: dayEntries }) => (
         <Card key={dayKey}>
           <CardContent className="flex flex-col gap-3">
             <h2 className="text-sm font-semibold">
               {dayHeadingFormatter.format(new Date(`${dayKey}T00:00:00`))}
             </h2>
             <div className="flex flex-col divide-y divide-border">
-              {dayItems.map((item) => (
+              {dayEntries.map((entry) => (
                 <div
-                  key={item.id}
+                  key={entry.id}
                   className="flex items-center justify-between gap-3 py-2"
                 >
                   <div className="flex flex-col gap-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-medium">{item.title}</span>
-                      <PriorityTierBadge tier={item.priority_tier} />
-                      <CalendarStatusBadge status={item.calendar_status} />
+                      <span className="font-medium">{entry.title}</span>
+                      {entry.kind === "event" ? (
+                        <>
+                          <EventEntryBadge />
+                          <EventStatusBadge status={entry.event.status} />
+                        </>
+                      ) : (
+                        <>
+                          <PriorityTierBadge tier={entry.item.priority_tier} />
+                          <CalendarStatusBadge
+                            status={entry.item.calendar_status}
+                          />
+                        </>
+                      )}
                     </div>
                     <p className="app-muted text-xs">
-                      {timeFormatter.format(new Date(item.starts_at))} ·{" "}
-                      {labelFor(ITEM_TYPES, item.item_type)}
+                      {timeFormatter.format(new Date(entry.starts_at))} ·{" "}
+                      {labelFor(
+                        ITEM_TYPES,
+                        entry.kind === "event"
+                          ? EVENT_ITEM_TYPE
+                          : entry.item.item_type,
+                      )}
                     </p>
-                    <div className="flex flex-wrap gap-1">
-                      {needsDecision(item) && <NeedsDecisionFlag />}
-                      {isPastUndecided(item) && <PastUndecidedFlag />}
-                    </div>
+                    {entry.kind === "calendar_item" && (
+                      <div className="flex flex-wrap gap-1">
+                        {needsDecision(entry.item) && <NeedsDecisionFlag />}
+                        {isPastUndecided(entry.item) && <PastUndecidedFlag />}
+                      </div>
+                    )}
                   </div>
                   <Button
                     variant="ghost"
                     size="icon-sm"
                     nativeButton={false}
-                    aria-label={`View ${item.title}`}
-                    render={<Link href={`/portal/calendar/${item.id}`} />}
+                    aria-label={`View ${entry.title}`}
+                    render={<Link href={entry.href} />}
                   >
                     <Eye />
                   </Button>

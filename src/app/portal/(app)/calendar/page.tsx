@@ -8,7 +8,14 @@ import { CalendarWorkspace } from "./calendar-workspace";
 import type { CalendarView } from "./view-toggle";
 import type { ListSortColumn } from "./list-view";
 import { type CalendarItemRow } from "./calendar-shared";
-import { mapCalendarItemRow } from "./queries";
+import {
+  calendarItemEntry,
+  eventEntry,
+  filtersExcludeEvents,
+  sortCalendarEntries,
+  type CalendarEntry,
+} from "./calendar-entries";
+import { listCalendarEvents, mapCalendarItemRow } from "./queries";
 
 const VIEW_VALUES: CalendarView[] = ["list", "agenda", "month"];
 const SORT_VALUES: ListSortColumn[] = ["title", "starts_at", "calendar_status"];
@@ -101,6 +108,36 @@ export default async function CalendarPage({
 
   const items: CalendarItemRow[] = (rows ?? []).map(mapCalendarItemRow);
 
+  // Portal events, drawn read-only alongside the editorial items (#530). Gated
+  // on the `events` resource rather than `content_calendar` -- RLS would return
+  // nothing anyway, this just skips the round trip. Filters an event can't
+  // answer (priority, owner, decision, calendar status) drop them entirely; see
+  // filtersExcludeEvents.
+  const filters = {
+    type: typeFilter,
+    category: categoryFilter,
+    priority: priorityFilter,
+    program: programFilter,
+    owner: ownerFilter,
+    visibility: visibilityFilter,
+    status: statusFilter,
+    decision: decisionFilter,
+  };
+  const eventsHidden = filtersExcludeEvents(filters);
+  const canViewEvents = hasPermission(permissions, "events", "view");
+  const { events, error: eventsError } =
+    canViewEvents && !eventsHidden
+      ? await listCalendarEvents(supabase, {
+          programId: programFilter !== "all" ? programFilter : undefined,
+        })
+      : { events: [], error: false };
+
+  const entries: CalendarEntry[] = sortCalendarEntries(
+    [...items.map(calendarItemEntry), ...events.map(eventEntry)],
+    sort,
+    dir,
+  );
+
   const ownersResult = await listCalendarOwnersAction();
   const owners = "data" in ownersResult ? ownersResult.data : [];
   const programsResult = await listProgramsAction();
@@ -138,7 +175,9 @@ export default async function CalendarPage({
           <CalendarWorkspace
             view={view}
             month={month}
-            items={items}
+            entries={entries}
+            eventsHidden={canViewEvents && eventsHidden}
+            eventsError={eventsError}
             owners={owners}
             programs={programs}
             programSuggestionRules={programSuggestionRules}
