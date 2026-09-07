@@ -81,6 +81,17 @@ describe("resolvePortalRoute on a tenant's portal host", () => {
     ).toEqual({ kind: "pass" });
   });
 
+  test("strips the internal /portal prefix without leaving the tenant's own host", () => {
+    expect(
+      resolvePortalRoute("portal.example-nonprofit.org", "/portal/home"),
+    ).toEqual({
+      kind: "redirect",
+      host: "portal.example-nonprofit.org",
+      pathname: "/home",
+      status: 307,
+    });
+  });
+
   test("does not redirect a tenant apex's /portal path, which has no promised subdomain", () => {
     expect(resolvePortalRoute("example-nonprofit.org", "/portal/home")).toEqual(
       { kind: "pass" },
