@@ -18,6 +18,8 @@ import { BulkActionsToolbar } from "./bulk-actions-toolbar";
 import {
   CalendarStatusBadge,
   CalendarVisibilityBadge,
+  EventEntryBadge,
+  EventStatusBadge,
   NeedsDecisionFlag,
   PastUndecidedFlag,
 } from "./calendar-badges";
@@ -25,9 +27,9 @@ import {
   isPastUndecided,
   needsDecision,
   ownerName,
-  type CalendarItemRow,
   type CalendarOwner,
 } from "./calendar-shared";
+import type { CalendarEntry } from "./calendar-entries";
 import { formatDateTime } from "@/lib/format";
 
 export type ListSortColumn = "title" | "starts_at" | "calendar_status";
@@ -39,14 +41,14 @@ const SORT_COLUMNS: { key: ListSortColumn; label: string }[] = [
 ];
 
 export function ListView({
-  items,
+  entries,
   owners,
   canManage,
   sort,
   dir,
   sortHref,
 }: {
-  items: CalendarItemRow[];
+  entries: CalendarEntry[];
   owners: CalendarOwner[];
   canManage: boolean;
   sort: ListSortColumn;
@@ -65,18 +67,23 @@ export function ListView({
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  // Stale ids can linger in `selectedIds` after a filter/sort narrows `items`
+  // Only calendar items are selectable: every bulk action writes to
+  // `calendar_items`, and an event row has no such row to write (#530).
+  const selectableIds = entries
+    .filter((entry) => entry.kind === "calendar_item")
+    .map((entry) => entry.id);
+
+  // Stale ids can linger in `selectedIds` after a filter/sort narrows `entries`
   // (e.g. a selected row scrolls out of the current filters); intersect with
   // the currently visible rows here rather than syncing state in an effect.
-  const visibleSelectedIds = items
-    .map((item) => item.id)
-    .filter((id) => selectedIds.has(id));
+  const visibleSelectedIds = selectableIds.filter((id) => selectedIds.has(id));
   const allSelected =
-    items.length > 0 && visibleSelectedIds.length === items.length;
+    selectableIds.length > 0 &&
+    visibleSelectedIds.length === selectableIds.length;
   const someSelected = visibleSelectedIds.length > 0 && !allSelected;
 
   function toggleAll(checked: boolean) {
-    setSelectedIds(checked ? new Set(items.map((item) => item.id)) : new Set());
+    setSelectedIds(checked ? new Set(selectableIds) : new Set());
   }
 
   function toggleRow(id: string, checked: boolean) {
@@ -97,7 +104,7 @@ export function ListView({
             onDone={() => setSelectedIds(new Set())}
           />
         )}
-        {items.length === 0 ? (
+        {entries.length === 0 ? (
           <p className="app-muted px-4 py-6 text-sm">
             No calendar items match these filters.
           </p>
@@ -132,47 +139,71 @@ export function ListView({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {items.map((item) => (
-                <TableRow key={item.id}>
+              {entries.map((entry) => (
+                <TableRow key={entry.id}>
                   {canManage && (
                     <TableCell className="w-px">
-                      <Checkbox
-                        checked={selectedIds.has(item.id)}
-                        onCheckedChange={(checked) =>
-                          toggleRow(item.id, checked)
-                        }
-                        aria-label={`Select ${item.title}`}
-                      />
+                      {entry.kind === "calendar_item" && (
+                        <Checkbox
+                          checked={selectedIds.has(entry.id)}
+                          onCheckedChange={(checked) =>
+                            toggleRow(entry.id, checked)
+                          }
+                          aria-label={`Select ${entry.title}`}
+                        />
+                      )}
                     </TableCell>
                   )}
                   <TableCell className="max-w-xs font-medium">
                     <div className="flex flex-col gap-1">
-                      <span className="block truncate" title={item.title}>
-                        {item.title}
+                      <span className="block truncate" title={entry.title}>
+                        {entry.title}
                       </span>
                       <div className="flex flex-wrap gap-1">
-                        {needsDecision(item) && <NeedsDecisionFlag />}
-                        {isPastUndecided(item) && <PastUndecidedFlag />}
+                        {entry.kind === "event" ? (
+                          <EventEntryBadge />
+                        ) : (
+                          <>
+                            {needsDecision(entry.item) && <NeedsDecisionFlag />}
+                            {isPastUndecided(entry.item) && (
+                              <PastUndecidedFlag />
+                            )}
+                          </>
+                        )}
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>{formatDateTime(item.starts_at)}</TableCell>
+                  <TableCell>{formatDateTime(entry.starts_at)}</TableCell>
                   <TableCell>
-                    <CalendarStatusBadge status={item.calendar_status} />
+                    {entry.kind === "event" ? (
+                      <EventStatusBadge status={entry.event.status} />
+                    ) : (
+                      <CalendarStatusBadge
+                        status={entry.item.calendar_status}
+                      />
+                    )}
                   </TableCell>
                   <TableCell>
-                    <CalendarVisibilityBadge visibility={item.visibility} />
+                    <CalendarVisibilityBadge
+                      visibility={
+                        entry.kind === "event"
+                          ? entry.event.visibility
+                          : entry.item.visibility
+                      }
+                    />
                   </TableCell>
                   <TableCell className="app-muted">
-                    {ownerName(owners, item.owner_id)}
+                    {entry.kind === "event"
+                      ? "—"
+                      : ownerName(owners, entry.item.owner_id)}
                   </TableCell>
                   <TableCell className="text-right">
                     <Button
                       variant="ghost"
                       size="icon-sm"
                       nativeButton={false}
-                      aria-label={`View ${item.title}`}
-                      render={<Link href={`/portal/calendar/${item.id}`} />}
+                      aria-label={`View ${entry.title}`}
+                      render={<Link href={entry.href} />}
                     >
                       <Eye />
                     </Button>

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CalendarItemRow } from "./calendar-shared";
+import type { CalendarEventRow } from "./calendar-entries";
 import {
   findMissingCoverageSeries,
   type MissingCoverageSeries,
@@ -200,6 +201,20 @@ export async function listWorkQueueItems(
   };
 }
 
+/** `public.events` as PostgREST returns it for the calendar, before shaping. */
+type RawCalendarEventRow = {
+  id: string;
+  name: string;
+  starts_at: string;
+  ends_at: string | null;
+  timezone: string;
+  description: string | null;
+  location: string | null;
+  status: string;
+  visibility: string;
+  event_programs: { program_id: string }[] | null;
+};
+
 /** A calendar_items row shaped for series generation: enough to both detect a coverage gap and act as the copy-from template for the next instance. */
 export type SeriesCandidateItem = Pick<
   CalendarItemRow,
@@ -263,4 +278,59 @@ export async function getMissingCoverageSeriesForYear(
 ): Promise<MissingCoverageSeries<SeriesCandidateItem>[]> {
   const candidates = await listSeriesCandidates(supabase);
   return findMissingCoverageSeries(candidates, targetYear);
+}
+
+/**
+ * Portal events for the calendar views (#530).
+ *
+ * Read-only, and deliberately wider than the public Community Calendar's union
+ * (which shows published/public events only): this is an internal planning
+ * surface, so drafts and private events count -- they are exactly what staff
+ * need to see alongside content moments. Archived events are left out for the
+ * same reason the work queue drops archived calendar items.
+ *
+ * Authorization is the `events` resource, not `content_calendar`: the select
+ * runs under the caller's own RLS (`events select` -> `has_permission('events',
+ * 'view')`), so a content-calendar-only account gets zero rows here rather than
+ * a view onto event titles and dates it can't otherwise reach.
+ */
+export async function listCalendarEvents(
+  supabase: SupabaseClient,
+  options: { programId?: string } = {},
+): Promise<{ events: CalendarEventRow[]; error: boolean }> {
+  const programSelect = options.programId
+    ? "event_programs!inner(program_id)"
+    : "event_programs(program_id)";
+
+  let query = supabase
+    .from("events")
+    .select(
+      `id, name, starts_at, ends_at, timezone, description, location, status, visibility, ${programSelect}`,
+    )
+    .neq("status", "archived")
+    .order("starts_at", { ascending: true })
+    .order("id", { ascending: true });
+
+  if (options.programId)
+    query = query.eq("event_programs.program_id", options.programId);
+
+  const { data, error } = await query;
+  if (error) return { events: [], error: true };
+
+  const rows = (data ?? []) as unknown as RawCalendarEventRow[];
+  return {
+    events: rows.map((row) => ({
+      id: row.id,
+      title: row.name,
+      starts_at: row.starts_at,
+      ends_at: row.ends_at,
+      time_zone: row.timezone,
+      summary: row.description,
+      location: row.location,
+      status: row.status,
+      visibility: row.visibility,
+      program_ids: (row.event_programs ?? []).map((p) => p.program_id),
+    })),
+    error: false,
+  };
 }

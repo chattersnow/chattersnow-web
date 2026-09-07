@@ -2,11 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { CalendarFiltersSheet } from "./calendar-filters-sheet";
-import {
-  type CalendarItemRow,
-  type CalendarOwner,
-  type CalendarProgram,
-} from "./calendar-shared";
+import { type CalendarOwner, type CalendarProgram } from "./calendar-shared";
+import type { CalendarEntry } from "./calendar-entries";
 import type { ProgramSuggestionRule } from "./program-suggestion-shared";
 import { ListView, type ListSortColumn } from "./list-view";
 import { AgendaView } from "./agenda-view";
@@ -17,7 +14,9 @@ import { ViewToggle, type CalendarView } from "./view-toggle";
 export function CalendarWorkspace({
   view,
   month,
-  items,
+  entries,
+  eventsHidden,
+  eventsError,
   owners,
   programs,
   programSuggestionRules,
@@ -36,7 +35,11 @@ export function CalendarWorkspace({
 }: {
   view: CalendarView;
   month: string;
-  items: CalendarItemRow[];
+  entries: CalendarEntry[];
+  /** Events exist for this viewer but the active filters can't express them -- see filtersExcludeEvents. */
+  eventsHidden: boolean;
+  /** The events read failed, so the grid is calendar items only for a reason the reader must not mistake for an empty schedule. */
+  eventsError: boolean;
   owners: CalendarOwner[];
   programs: CalendarProgram[];
   programSuggestionRules: ProgramSuggestionRule[];
@@ -83,22 +86,22 @@ export function CalendarWorkspace({
     const now = new Date();
     const query = search.trim().toLowerCase();
 
-    return items.filter((item) => {
+    return entries.filter((entry) => {
       if (query) {
-        const haystack = `${item.title} ${item.summary ?? ""}`.toLowerCase();
+        const haystack = `${entry.title} ${entry.summary ?? ""}`.toLowerCase();
         if (!haystack.includes(query)) return false;
       }
       if (range !== "all") {
         const windowEnd = new Date(
           now.getTime() + Number(range) * 24 * 60 * 60 * 1000,
         );
-        const startsAt = new Date(item.starts_at);
-        const endsAt = item.ends_at ? new Date(item.ends_at) : startsAt;
+        const startsAt = new Date(entry.starts_at);
+        const endsAt = entry.ends_at ? new Date(entry.ends_at) : startsAt;
         if (!(startsAt <= windowEnd && endsAt >= now)) return false;
       }
       return true;
     });
-  }, [items, search, range]);
+  }, [entries, search, range]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -125,6 +128,7 @@ export function CalendarWorkspace({
             onSearchChange={setSearch}
             range={range}
             onRangeChange={setRange}
+            eventsHidden={eventsHidden}
           />
 
           {canManage && (
@@ -137,9 +141,16 @@ export function CalendarWorkspace({
         </div>
       </div>
 
+      {eventsError && (
+        <p className="app-muted text-sm" role="status">
+          Chatter events could not be loaded, so this calendar is showing
+          content items only.
+        </p>
+      )}
+
       {view === "list" && (
         <ListView
-          items={filtered}
+          entries={filtered}
           owners={owners}
           canManage={canManage}
           sort={sort}
@@ -147,9 +158,9 @@ export function CalendarWorkspace({
           sortHref={sortHref}
         />
       )}
-      {view === "agenda" && <AgendaView items={filtered} />}
+      {view === "agenda" && <AgendaView entries={filtered} />}
       {view === "month" && (
-        <MonthView month={month} items={filtered} monthHref={monthHref} />
+        <MonthView month={month} entries={filtered} monthHref={monthHref} />
       )}
     </div>
   );

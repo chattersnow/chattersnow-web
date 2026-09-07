@@ -59,6 +59,8 @@ type CalendarFiltersSheetProps = {
   onSearchChange: (value: string) => void;
   range: string;
   onRangeChange: (value: string) => void;
+  /** Events exist for this viewer but the active filters can't express them -- see filtersExcludeEvents. */
+  eventsHidden: boolean;
 };
 
 export function CalendarFiltersSheet({
@@ -80,6 +82,7 @@ export function CalendarFiltersSheet({
   onSearchChange,
   range,
   onRangeChange,
+  eventsHidden,
 }: CalendarFiltersSheetProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -167,6 +170,14 @@ export function CalendarFiltersSheet({
         </SheetHeader>
 
         <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4">
+          {eventsHidden && (
+            <p className="app-muted text-xs">
+              Chatter events are hidden while these filters are active.
+              Priority, owner, decision and status are content-calendar fields
+              an event has no value for.
+            </p>
+          )}
+
           <div className="flex flex-col gap-1">
             <label htmlFor="calendar-search" className={fieldLabelClassName}>
               Search
