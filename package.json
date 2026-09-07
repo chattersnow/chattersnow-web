@@ -12,6 +12,7 @@
     "test:integration": "bun --env-file=.env.local test integration.test.ts",
     "test:e2e": "playwright test",
     "test:e2e:pr": "E2E_BROWSERS=chromium,mobile-chromium playwright test",
+    "test:e2e:ci": "playwright test --reporter=blob",
     "test:a11y": "bun run e2e/a11y-scan.ts",
     "test:a11y:check": "bun run e2e/a11y-scan.ts --check",
     "a11y:baseline": "bun run e2e/a11y-scan.ts --update-baseline",

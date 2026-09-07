@@ -22,6 +22,9 @@ const baseURL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://127.0.0.1:3000";
  * filter, so run one of these on its own with --no-deps:
  *   bunx playwright test e2e/page-visibility.spec.ts --no-deps
  * Filters that don't select this project don't pull the browsers in at all.
+ *
+ * That same rule is why E2E_MUTATING exists (see below): --shard is one more
+ * filter a dependency project ignores.
  */
 const MUTATING_SPECS = /page-visibility\.spec\.ts/;
 
@@ -58,6 +61,32 @@ const browserProjects = requestedBrowsers.length
       requestedBrowsers.includes(project.name),
     )
   : ALL_BROWSER_PROJECTS;
+
+/**
+ * Which half of the suite to build, so that CI can shard the browser half
+ * across a matrix (#753). Unset -- the local default -- builds both halves and
+ * changes nothing.
+ *
+ *   skip   only the browser projects; page-visibility is left out entirely
+ *   only   only page-visibility, with no dependency edge, alone on its own stack
+ *
+ * `--shard` splits top-level projects only. Playwright detaches dependency
+ * project suites before applying the shard filter and re-adds them in full
+ * afterwards, and a project that is both selected *and* depended on counts as a
+ * dependency. So with page-visibility in the run, chromium and mobile-chromium
+ * are dependency projects, and `--shard=1/4` gives shard 1 all 354 tests and
+ * shards 2-4 none of them. The two halves therefore have to be separate
+ * processes, which on CI means separate jobs -- and separate jobs mean separate
+ * Supabase stacks and servers, which isolates page-visibility more thoroughly
+ * than the dependency edge ever did.
+ */
+const mutatingMode = process.env.E2E_MUTATING?.trim() ?? "";
+
+if (mutatingMode && mutatingMode !== "skip" && mutatingMode !== "only") {
+  throw new Error(
+    `E2E_MUTATING must be "skip", "only" or unset, not "${mutatingMode}".`,
+  );
+}
 
 export default defineConfig({
   testDir: "./e2e",
@@ -114,18 +143,29 @@ export default defineConfig({
     actionTimeout: 15_000,
   },
   projects: [
-    ...browserProjects.map((project) => ({
-      ...project,
-      testIgnore: MUTATING_SPECS,
-    })),
-    {
-      // Runs after every browser project, on its own, because it mutates
-      // global state -- see MUTATING_SPECS above.
-      name: "page-visibility",
-      use: { ...devices["Desktop Chrome"] },
-      testMatch: MUTATING_SPECS,
-      dependencies: browserProjects.map((project) => project.name),
-    },
+    ...(mutatingMode === "only"
+      ? []
+      : browserProjects.map((project) => ({
+          ...project,
+          testIgnore: MUTATING_SPECS,
+        }))),
+    ...(mutatingMode === "skip"
+      ? []
+      : [
+          {
+            // Runs after every browser project, on its own, because it mutates
+            // global state -- see MUTATING_SPECS above. Under E2E_MUTATING=only
+            // it is the whole run, so there is nothing to order it after and
+            // the dependency edge would only drag the browsers back in.
+            name: "page-visibility",
+            use: { ...devices["Desktop Chrome"] },
+            testMatch: MUTATING_SPECS,
+            dependencies:
+              mutatingMode === "only"
+                ? []
+                : browserProjects.map((project) => project.name),
+          },
+        ]),
   ],
   webServer: {
     // Build once, then serve, rather than `bun run dev` (#744). Under the dev
