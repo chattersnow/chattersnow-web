@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
+import { FormEvent, MouseEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ExternalLink, Plus, Trash2 } from "lucide-react";
@@ -18,6 +18,10 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { runAction } from "@/components/portal/action-toast";
+import {
+  DiscardChangesDialog,
+  useUnsavedChangesGuard,
+} from "@/components/portal/unsaved-changes-guard";
 import type {
   ContentPage,
   ContentSlot,
@@ -32,6 +36,34 @@ export type EditorSlot = {
   value: unknown;
   overridden: boolean;
 };
+
+/**
+ * Where this slot renders on the public site, for slots that own a page of
+ * their own. Only the legal documents do: the `legal` tab holds three of
+ * them, so a single link for the whole tab was right for one document and
+ * wrong for the other two (#791).
+ */
+function slotRoute(slot: ContentSlot): string | undefined {
+  return slot.type === "document" ? slot.route : undefined;
+}
+
+/**
+ * Whether a text slot needs more than one line. Decided from the longer of
+ * the registry default and the value the server sent, never from what is
+ * being typed -- swapping the control mid-edit would drop the caret. Looking
+ * at the default alone left a tenant whose own copy is long editing it in a
+ * single-line input forever (#791).
+ */
+function isMultiline(
+  slot: Extract<ContentSlot, { type: "text" }>,
+  initialValue: unknown,
+): boolean {
+  const longest = Math.max(
+    slot.default.length,
+    typeof initialValue === "string" ? initialValue.length : 0,
+  );
+  return longest > 90;
+}
 
 /** Paragraphs travel through a textarea as blank-line-separated blocks. */
 function paragraphsToText(paragraphs: string[]): string {
@@ -342,10 +374,12 @@ function DocumentEditor({
  */
 export function ContentEditor({
   page,
+  pages,
   slots,
   canEdit,
 }: {
   page: ContentPage;
+  pages: readonly ContentPage[];
   slots: EditorSlot[];
   canEdit: boolean;
 }) {
@@ -354,6 +388,7 @@ export function ContentEditor({
     Object.fromEntries(slots.map(({ slot, value }) => [slot.key, value])),
   );
   const [error, setError] = useState<string | null>(null);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const initial = new Map(slots.map(({ slot, value }) => [slot.key, value]));
@@ -363,8 +398,34 @@ export function ContentEditor({
       (key) => JSON.stringify(values[key]) !== JSON.stringify(initial.get(key)),
     );
 
+  // Switching page unmounts this form, so an unsaved edit used to disappear
+  // with no prompt and no way back. The guard also covers a refresh or a tab
+  // close, neither of which asked before (#791).
+  const guard = useUnsavedChangesGuard(canEdit && changed.length > 0);
+
   function setValue(key: string, value: unknown) {
     setValues((current) => ({ ...current, [key]: value }));
+  }
+
+  function handlePageLink(
+    event: MouseEvent<HTMLAnchorElement>,
+    href: string,
+  ): void {
+    // A modified click opens a new tab and leaves this form alone, so only a
+    // plain left click is worth interrupting.
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+    if (guard.allowOpenChange(false)) return;
+    event.preventDefault();
+    setPendingHref(href);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -396,155 +457,225 @@ export function ContentEditor({
     });
   }
 
-  function handleReset(key: string, label: string) {
+  function handleReset(slot: ContentSlot) {
     setError(null);
     startTransition(async () => {
-      await runAction(() => resetSiteContentAction(key), {
-        success: `${label} is back to the default.`,
+      await runAction(() => resetSiteContentAction(slot.key), {
+        success: `${slot.label} is back to the default.`,
         onError: setError,
-        onSuccess: () => router.refresh(),
+        onSuccess: () => {
+          // The row is gone, so the site serves the registry default again.
+          // Leaving the old text in the field showed words that were no
+          // longer published and armed Save to write them straight back
+          // (#791).
+          setValue(slot.key, slot.default);
+          router.refresh();
+        },
       });
     });
   }
 
+  // Every slot on the legal tab links to its own page, which leaves nothing
+  // for a single page-wide link to point at.
+  const showPageLink = slots.some(({ slot }) => !slotRoute(slot));
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link
-          href={page.route}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="app-muted inline-flex items-center gap-1.5 text-sm underline-offset-4 hover:underline"
-        >
-          View {page.label} on the site
-          <ExternalLink className="size-3.5" aria-hidden />
-        </Link>
-        {canEdit && (
-          <Button type="submit" disabled={isPending || changed.length === 0}>
-            {isPending ? (
-              <>
-                <Spinner /> Saving...
-              </>
-            ) : changed.length > 0 ? (
-              `Save ${changed.length} change${changed.length === 1 ? "" : "s"}`
-            ) : (
-              "Saved"
-            )}
-          </Button>
+    <>
+      <nav aria-label="Pages" className="mb-6 flex flex-wrap gap-2">
+        {pages.map((candidate) => {
+          const href = `/portal/administration/site-content?page=${candidate.key}`;
+          return (
+            <Button
+              key={candidate.key}
+              size="sm"
+              variant={candidate.key === page.key ? "default" : "secondary"}
+              nativeButton={false}
+              render={
+                <Link
+                  href={href}
+                  aria-current={candidate.key === page.key ? "page" : undefined}
+                  onClick={(event) => handlePageLink(event, href)}
+                />
+              }
+            >
+              {candidate.label}
+            </Button>
+          );
+        })}
+      </nav>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {showPageLink ? (
+            <Link
+              href={page.route}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="app-muted inline-flex items-center gap-1.5 text-sm underline-offset-4 hover:underline"
+            >
+              View {page.label} on the site
+              <ExternalLink className="size-3.5" aria-hidden />
+            </Link>
+          ) : (
+            <span />
+          )}
+          {canEdit && (
+            <Button type="submit" disabled={isPending || changed.length === 0}>
+              {isPending ? (
+                <>
+                  <Spinner /> Saving...
+                </>
+              ) : changed.length > 0 ? (
+                `Save ${changed.length} change${changed.length === 1 ? "" : "s"}`
+              ) : (
+                "Saved"
+              )}
+            </Button>
+          )}
+        </div>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         )}
-      </div>
 
-      {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      {slots.map(({ slot, overridden }) => {
-        const value = values[slot.key];
-        const id = `content-${slot.key}`;
-        return (
-          <Card key={slot.key}>
-            <CardHeader>
-              <CardTitle className="flex flex-wrap items-center gap-2">
-                {slot.label}
-                {overridden ? (
-                  <Badge variant="secondary">Your text</Badge>
-                ) : (
-                  <Badge variant="outline">Default</Badge>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <fieldset disabled={!canEdit || isPending} className="space-y-3">
-                {slot.type === "text" && (
-                  <Field>
-                    <FieldLabel htmlFor={id} className="sr-only">
-                      {slot.label}
-                    </FieldLabel>
-                    {slot.default.length > 90 ? (
+        {slots.map(({ slot, overridden }) => {
+          const value = values[slot.key];
+          const initialValue = initial.get(slot.key);
+          const route = slotRoute(slot);
+          const id = `content-${slot.key}`;
+          return (
+            <Card key={slot.key}>
+              <CardHeader>
+                <CardTitle className="flex flex-wrap items-center gap-2">
+                  {slot.label}
+                  {overridden ? (
+                    <Badge variant="secondary">Your text</Badge>
+                  ) : (
+                    <Badge variant="outline">Default</Badge>
+                  )}
+                  {route && (
+                    <Link
+                      href={route}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="app-muted inline-flex items-center gap-1.5 text-sm font-normal underline-offset-4 hover:underline"
+                    >
+                      View on the site
+                      <ExternalLink className="size-3.5" aria-hidden />
+                    </Link>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <fieldset
+                  disabled={!canEdit || isPending}
+                  className="space-y-3"
+                >
+                  {slot.type === "text" && (
+                    <Field>
+                      <FieldLabel htmlFor={id} className="sr-only">
+                        {slot.label}
+                      </FieldLabel>
+                      {isMultiline(slot, initialValue) ? (
+                        <Textarea
+                          id={id}
+                          value={typeof value === "string" ? value : ""}
+                          onChange={(event) =>
+                            setValue(slot.key, event.target.value)
+                          }
+                          rows={3}
+                        />
+                      ) : (
+                        <Input
+                          id={id}
+                          value={typeof value === "string" ? value : ""}
+                          onChange={(event) =>
+                            setValue(slot.key, event.target.value)
+                          }
+                        />
+                      )}
+                      {slot.description && (
+                        <FieldDescription>{slot.description}</FieldDescription>
+                      )}
+                    </Field>
+                  )}
+                  {slot.type === "paragraphs" && (
+                    <Field>
+                      <FieldLabel htmlFor={id} className="sr-only">
+                        {slot.label}
+                      </FieldLabel>
                       <Textarea
                         id={id}
-                        value={typeof value === "string" ? value : ""}
+                        value={paragraphsToText(
+                          Array.isArray(value) ? (value as string[]) : [],
+                        )}
                         onChange={(event) =>
-                          setValue(slot.key, event.target.value)
+                          setValue(
+                            slot.key,
+                            textToParagraphs(event.target.value),
+                          )
                         }
-                        rows={3}
+                        rows={8}
                       />
-                    ) : (
-                      <Input
-                        id={id}
-                        value={typeof value === "string" ? value : ""}
-                        onChange={(event) =>
-                          setValue(slot.key, event.target.value)
-                        }
-                      />
-                    )}
-                    {slot.description && (
-                      <FieldDescription>{slot.description}</FieldDescription>
-                    )}
-                  </Field>
-                )}
-                {slot.type === "paragraphs" && (
-                  <Field>
-                    <FieldLabel htmlFor={id} className="sr-only">
-                      {slot.label}
-                    </FieldLabel>
-                    <Textarea
-                      id={id}
-                      value={paragraphsToText(
-                        Array.isArray(value) ? (value as string[]) : [],
+                      <FieldDescription>
+                        {slot.description ??
+                          "Separate paragraphs with a blank line."}
+                      </FieldDescription>
+                    </Field>
+                  )}
+                  {slot.type === "list" && (
+                    <>
+                      {slot.description && (
+                        <p className="app-muted text-sm">{slot.description}</p>
                       )}
-                      onChange={(event) =>
-                        setValue(slot.key, textToParagraphs(event.target.value))
-                      }
-                      rows={8}
-                    />
-                    <FieldDescription>
-                      {slot.description ??
-                        "Separate paragraphs with a blank line."}
-                    </FieldDescription>
-                  </Field>
-                )}
-                {slot.type === "list" && (
-                  <>
-                    {slot.description && (
-                      <p className="app-muted text-sm">{slot.description}</p>
-                    )}
-                    <ListEditor
-                      slot={slot}
-                      items={Array.isArray(value) ? (value as ListItem[]) : []}
-                      onChange={(items) => setValue(slot.key, items)}
-                    />
-                  </>
-                )}
-                {slot.type === "document" && (
-                  <>
-                    {slot.description && (
-                      <p className="app-muted text-sm">{slot.description}</p>
-                    )}
-                    <DocumentEditor
-                      slot={slot}
-                      doc={(value as LegalDocumentContent | null) ?? null}
-                      onChange={(doc) => setValue(slot.key, doc)}
-                    />
-                  </>
-                )}
-                {canEdit && overridden && slot.type !== "document" && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleReset(slot.key, slot.label)}
-                  >
-                    Back to default
-                  </Button>
-                )}
-              </fieldset>
-            </CardContent>
-          </Card>
-        );
-      })}
-    </form>
+                      <ListEditor
+                        slot={slot}
+                        items={
+                          Array.isArray(value) ? (value as ListItem[]) : []
+                        }
+                        onChange={(items) => setValue(slot.key, items)}
+                      />
+                    </>
+                  )}
+                  {slot.type === "document" && (
+                    <>
+                      {slot.description && (
+                        <p className="app-muted text-sm">{slot.description}</p>
+                      )}
+                      <DocumentEditor
+                        slot={slot}
+                        doc={(value as LegalDocumentContent | null) ?? null}
+                        onChange={(doc) => setValue(slot.key, doc)}
+                      />
+                    </>
+                  )}
+                  {canEdit && overridden && slot.type !== "document" && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleReset(slot)}
+                    >
+                      Back to default
+                    </Button>
+                  )}
+                </fieldset>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </form>
+
+      <DiscardChangesDialog
+        guard={guard}
+        subject={`the ${page.label} content`}
+        onDiscard={() => {
+          if (pendingHref) router.push(pendingHref);
+          setPendingHref(null);
+        }}
+      />
+    </>
   );
 }

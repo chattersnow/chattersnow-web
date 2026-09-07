@@ -89,7 +89,7 @@ export type ContentSlot = SlotBase &
     | { type: "text"; default: string }
     | { type: "paragraphs"; default: string[] }
     | { type: "list"; fields: readonly ListField[]; default: ListItem[] }
-    | { type: "document"; default: null }
+    | { type: "document"; default: null; route: string }
   );
 
 const BULLET: readonly ListField[] = [
@@ -931,6 +931,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
       "Replaces the whole privacy page. Leave unset to publish the platform's document.",
     type: "document",
     default: null,
+    route: "/privacy",
   },
   {
     key: "legal.terms",
@@ -940,6 +941,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
       "Replaces the whole terms page. Leave unset to publish the platform's document.",
     type: "document",
     default: null,
+    route: "/terms",
   },
   {
     key: "legal.code_of_conduct",
@@ -949,6 +951,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
       "Replaces the whole code of conduct page. Leave unset to publish the platform's document.",
     type: "document",
     default: null,
+    route: "/code-of-conduct",
   },
 ] as const;
 
