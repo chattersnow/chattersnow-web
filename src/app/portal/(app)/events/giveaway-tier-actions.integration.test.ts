@@ -296,3 +296,110 @@ describe("sold-ticket path (integration)", () => {
     expect(error).not.toBeNull();
   });
 });
+
+// #748. The pool is what the odds are computed from, so a sale that grants
+// its tickets twice, or loses them, changes every entrant's chances. The
+// serial test above records one sale at a time and can only prove the matrix
+// expands correctly; it says nothing about six tellers at a table on event
+// night, which is how tickets are actually sold.
+//
+// A package has no stock count today (giveaway_ticket_packages, 20260904100000
+// -- price, tier, bundle, is_active and nothing else), so "sold out" is not a
+// state two sales can race into. If a cap is ever added, this is the block
+// that has to grow a case for it.
+describe("giveaway ticket sales under concurrency", () => {
+  const CONCURRENT_SALES = 6;
+
+  async function saleRows(packageId: string) {
+    const { data, error } = await adminClient
+      .from("giveaway_ticket_sales")
+      .select("id")
+      .eq("package_id", packageId);
+    if (error) throw error;
+    return data;
+  }
+
+  async function grantRows(saleIds: string[]) {
+    const { data, error } = await adminClient
+      .from("giveaway_ticket_grants")
+      .select("sale_id, ticket_tier_id")
+      .in("sale_id", saleIds);
+    if (error) throw error;
+    return data;
+  }
+
+  test("grants every simultaneous sale its tickets exactly once", async () => {
+    currentSupabase = await signIn(SEEDED_USERS.admin);
+    // seed_giveaway_tiers is idempotent, so calling it here rather than
+    // leaning on the setup test above keeps this case runnable on its own.
+    expect(await seedGiveawayTiersAction(giveawayId)).toEqual({
+      success: true,
+    });
+    const bronze = await tierIdFor("bronze");
+
+    expect(
+      await upsertGiveawayPackageAction(giveawayId, {
+        name: "Bronze concurrency package",
+        price: 5,
+        tierId: bronze,
+        bundleQuantity: 1,
+        rank: 9,
+        isActive: true,
+      }),
+    ).toEqual({ success: true });
+
+    const config = await getGiveawayTierConfigAction(giveawayId);
+    if (!("data" in config)) throw new Error("expected config");
+    const packageId = config.data.packages.find(
+      (pkg) => pkg.name === "Bronze concurrency package",
+    )!.id;
+    const poolBefore = config.data.totals;
+
+    const results = await Promise.all(
+      Array.from({ length: CONCURRENT_SALES }, () =>
+        recordGiveawayTicketSaleAction(giveawayId, { packageId, quantity: 1 }),
+      ),
+    );
+    for (const result of results) {
+      expect(result).toMatchObject({ success: true });
+    }
+
+    // One sale row per call: no lost write, and no retry duplicating one.
+    const sales = await saleRows(packageId);
+    expect(sales).toHaveLength(CONCURRENT_SALES);
+
+    // The bronze row of the seeded matrix is 0 gold / 1 silver / 3 bronze, so
+    // only the two non-zero cells become grant rows -- for every sale, once.
+    const grants = await grantRows(sales.map((sale) => sale.id as string));
+    expect(grants).toHaveLength(CONCURRENT_SALES * 2);
+    for (const sale of sales) {
+      const forSale = grants.filter((grant) => grant.sale_id === sale.id);
+      expect(forSale).toHaveLength(2);
+      expect(new Set(forSale.map((grant) => grant.ticket_tier_id)).size).toBe(
+        2,
+      );
+    }
+
+    // And the pool -- the odds denominator -- moved by exactly that much.
+    const after = await getGiveawayTierConfigAction(giveawayId);
+    if (!("data" in after)) throw new Error("expected config");
+    expect(totalFor(after.data.totals, "gold")).toBe(
+      totalFor(poolBefore, "gold"),
+    );
+    expect(totalFor(after.data.totals, "silver")).toBe(
+      totalFor(poolBefore, "silver") + CONCURRENT_SALES,
+    );
+    expect(totalFor(after.data.totals, "bronze")).toBe(
+      totalFor(poolBefore, "bronze") + CONCURRENT_SALES * 3,
+    );
+
+    await adminClient
+      .from("giveaway_ticket_sales")
+      .delete()
+      .eq("package_id", packageId);
+    await adminClient
+      .from("giveaway_ticket_packages")
+      .delete()
+      .eq("id", packageId);
+  });
+});

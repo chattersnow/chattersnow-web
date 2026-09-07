@@ -9,6 +9,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   SEEDED_USERS,
   adminClient,
+  serviceRoleClient,
   signIn,
   uniqueEmail,
 } from "../../../../../../test/integration-setup";
@@ -281,5 +282,162 @@ describe("merge_people (integration)", () => {
       "00000000-0000-0000-0000-000000000002",
     );
     expect("error" in merged).toBe(true);
+  });
+});
+
+// #748. A merge is destructive and unrepeatable: it repoints every FK onto
+// the survivor and then deletes the duplicate. Two of them overlapping is the
+// case where half the records could follow one survivor and half another, and
+// no test above fires two at once -- so the `for update` pair at the top of
+// merge_people has never actually been exercised.
+describe("merge_people under concurrency", () => {
+  async function mergeRecords(duplicateIds: string[]) {
+    const { data, error } = await serviceRoleClient()
+      .from("person_merges")
+      .select("id, survivor_person_id, merged_person_id")
+      .in("merged_person_id", duplicateIds);
+    if (error) throw error;
+    return data;
+  }
+
+  async function forgetMerges(duplicateIds: string[]) {
+    // person_merges is append-only for authenticated (20260904180000), so the
+    // audit rows these tests write can only be cleaned up service-side.
+    await serviceRoleClient()
+      .from("person_merges")
+      .delete()
+      .in("merged_person_id", duplicateIds);
+  }
+
+  async function survivingIds(ids: string[]) {
+    const { data, error } = await adminClient
+      .from("people")
+      .select("id")
+      .in("id", ids);
+    if (error) throw error;
+    return (data ?? []).map((row) => row.id as string);
+  }
+
+  test("merging the same pair twice at once absorbs the duplicate once", async () => {
+    const survivor = await makePerson({
+      name: "Race Survivor",
+      email: uniqueEmail("race-s"),
+    });
+    const duplicate = await makePerson({
+      name: "Race Duplicate",
+      email: uniqueEmail("race-d"),
+      notes: "carried over",
+    });
+    const { error: donationError } = await adminClient
+      .from("donations")
+      .insert({ donor_id: duplicate });
+    expect(donationError).toBeNull();
+
+    currentSupabase = await signIn(SEEDED_USERS.admin);
+    const results = await Promise.all([
+      mergePeopleAction(survivor, duplicate),
+      mergePeopleAction(survivor, duplicate),
+    ]);
+
+    expect(results.filter((result) => "success" in result)).toHaveLength(1);
+    expect(await survivingIds([survivor, duplicate])).toEqual([survivor]);
+
+    // One audit row, and the duplicate's donation moved exactly once -- a
+    // second pass would have found nothing to repoint and recorded a merge
+    // that did not happen.
+    const merges = await mergeRecords([duplicate]);
+    expect(merges).toHaveLength(1);
+    expect(merges[0].survivor_person_id).toBe(survivor);
+
+    const { data: donations } = await adminClient
+      .from("donations")
+      .select("id")
+      .eq("donor_id", survivor);
+    expect(donations).toHaveLength(1);
+
+    await forgetMerges([duplicate]);
+  });
+
+  // Two staff each merging the same duplicate into a different survivor. The
+  // duplicate can only be absorbed by one of them; the other must be told so
+  // rather than repointing a share of the records at a second survivor.
+  test("a duplicate claimed by two survivors at once goes to exactly one", async () => {
+    const firstSurvivor = await makePerson({
+      name: "First Survivor",
+      email: uniqueEmail("claim-1"),
+    });
+    const secondSurvivor = await makePerson({
+      name: "Second Survivor",
+      email: uniqueEmail("claim-2"),
+    });
+    const duplicate = await makePerson({
+      name: "Contested Duplicate",
+      email: uniqueEmail("claim-d"),
+    });
+    await adminClient
+      .from("donations")
+      .insert([{ donor_id: duplicate }, { donor_id: duplicate }]);
+
+    currentSupabase = await signIn(SEEDED_USERS.admin);
+    const results = await Promise.all([
+      mergePeopleAction(firstSurvivor, duplicate),
+      mergePeopleAction(secondSurvivor, duplicate),
+    ]);
+
+    expect(results.filter((result) => "success" in result)).toHaveLength(1);
+
+    const merges = await mergeRecords([duplicate]);
+    expect(merges).toHaveLength(1);
+    const winner = merges[0].survivor_person_id as string;
+    expect([firstSurvivor, secondSurvivor]).toContain(winner);
+
+    // Both donations followed the same survivor. A split here is the exact
+    // corruption this case exists to catch.
+    const { data: donations } = await adminClient
+      .from("donations")
+      .select("donor_id")
+      .in("donor_id", [firstSurvivor, secondSurvivor]);
+    expect(donations).toHaveLength(2);
+    expect(new Set(donations!.map((row) => row.donor_id)).size).toBe(1);
+    expect(donations![0].donor_id).toBe(winner);
+
+    await forgetMerges([duplicate]);
+  });
+
+  // The same pair in opposite directions -- two staff who disagree about which
+  // record is the keeper. Whichever way the two transactions take their locks,
+  // one person must survive holding everything.
+  test("opposing merges of one pair still leave one record holding everything", async () => {
+    const left = await makePerson({
+      name: "Left Record",
+      email: uniqueEmail("opposed-l"),
+    });
+    const right = await makePerson({
+      name: "Right Record",
+      email: uniqueEmail("opposed-r"),
+    });
+    await adminClient
+      .from("donations")
+      .insert([{ donor_id: left }, { donor_id: right }]);
+
+    currentSupabase = await signIn(SEEDED_USERS.admin);
+    const results = await Promise.all([
+      mergePeopleAction(left, right),
+      mergePeopleAction(right, left),
+    ]);
+
+    expect(results.filter((result) => "success" in result)).toHaveLength(1);
+
+    const survivors = await survivingIds([left, right]);
+    expect(survivors).toHaveLength(1);
+
+    const { data: donations } = await adminClient
+      .from("donations")
+      .select("donor_id")
+      .in("donor_id", [left, right]);
+    expect(donations).toHaveLength(2);
+    expect(donations!.every((row) => row.donor_id === survivors[0])).toBe(true);
+
+    await forgetMerges([left, right]);
   });
 });

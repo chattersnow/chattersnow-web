@@ -402,3 +402,96 @@ describe("createReimbursementFromExpenseAction (integration)", () => {
     await person.cleanup();
   });
 });
+
+// #748. "An already-approved reimbursement cannot be approved again" above
+// awaits the first approval before attempting the second, so it exercises the
+// guard against a status already committed. Two approvers working the same
+// queue read `submitted` simultaneously instead, and only the row lock inside
+// approve_reimbursement separates them.
+describe("reimbursement approval under concurrency", () => {
+  // The createSupabaseServerClient mock reads `currentSupabase` synchronously
+  // and every action captures its client in the first statement, so setting
+  // the variable immediately before each call pins that call to that session --
+  // which is what lets two different approvers race through the real action.
+  function as<T>(client: SupabaseClient, call: () => Promise<T>): Promise<T> {
+    currentSupabase = client;
+    return call();
+  }
+
+  test("two approvers acting at once produce one approval", async () => {
+    const person = await createPerson();
+    const financeId = await userId(SEEDED_USERS.finance);
+    const reimbursement = await createReimbursement({
+      personId: person.id,
+      submittedBy: financeId,
+      amount: 30,
+    });
+    const [adminSession, boardSession] = await Promise.all([
+      signIn(SEEDED_USERS.admin),
+      signIn(SEEDED_USERS.board),
+    ]);
+
+    const results = await Promise.all([
+      as(adminSession, () => approveReimbursementAction(reimbursement.id)),
+      as(boardSession, () => approveReimbursementAction(reimbursement.id)),
+    ]);
+
+    expect(results.filter((result) => "success" in result)).toHaveLength(1);
+    for (const result of results.filter((result) => "error" in result)) {
+      expect(result).toEqual({
+        error: "Only submitted reimbursements can be approved",
+      });
+    }
+
+    const row = await getReimbursement(reimbursement.id);
+    expect(row.status).toBe("approved");
+    expect([
+      await userId(SEEDED_USERS.admin),
+      await userId(SEEDED_USERS.board),
+    ]).toContain(row.approved_by);
+
+    await reimbursement.cleanup();
+    await person.cleanup();
+  });
+
+  // The same double-submit as "cannot create a second reimbursement from the
+  // same expense", but overlapping -- the case the partial unique index on
+  // source_expense_id (20260831010000) exists for, since the action's own
+  // pre-check is a read the other call has not committed past yet.
+  test("one expense yields one reimbursement even when raised twice at once", async () => {
+    const person = await createPerson();
+    const financeId = await userId(SEEDED_USERS.finance);
+    const expense = await createExpense({
+      submittedBy: financeId,
+      amount: 55,
+      paidByPersonId: person.id,
+    });
+    const [firstSession, secondSession] = await Promise.all([
+      signIn(SEEDED_USERS.finance),
+      signIn(SEEDED_USERS.finance),
+    ]);
+
+    const results = await Promise.all([
+      as(firstSession, () => createReimbursementFromExpenseAction(expense.id)),
+      as(secondSession, () => createReimbursementFromExpenseAction(expense.id)),
+    ]);
+
+    expect(results.filter((result) => "success" in result)).toHaveLength(1);
+    expect(results.filter((result) => "error" in result)).toEqual([
+      { error: "A reimbursement has already been created from this expense." },
+    ]);
+
+    const { data: rows } = await adminClient
+      .from("reimbursements")
+      .select("id")
+      .eq("source_expense_id", expense.id);
+    expect(rows).toHaveLength(1);
+
+    await serviceRoleClient
+      .from("reimbursements")
+      .delete()
+      .eq("source_expense_id", expense.id);
+    await expense.cleanup();
+    await person.cleanup();
+  });
+});
