@@ -90,6 +90,82 @@ async function createThrowawayUser() {
   };
 }
 
+/** The tenant every fixture here belongs to; the seeded one. */
+let seededTenantCache: string | undefined;
+async function seededTenantId(): Promise<string> {
+  if (seededTenantCache) return seededTenantCache;
+  const { data, error } = await serviceRoleClient
+    .from("tenants")
+    .select("id")
+    .order("created_at")
+    .limit(1)
+    .single();
+  if (error) throw error;
+  seededTenantCache = data.id as string;
+  return seededTenantCache;
+}
+
+/**
+ * An account that exists and belongs to a *different* organization -- the
+ * shape #759 is about.
+ *
+ * The tenant is created `archived` on purpose, the way
+ * `notifications/preferences.integration.test.ts` does it: this file needs a
+ * second tenant only to *exist*, and a second **active** one would knock
+ * default_tenant_id() off its sole-tenant fallback for every other integration
+ * file sharing this database.
+ */
+async function createOutsiderInAnotherTenant() {
+  const email = uniqueEmail("outsider");
+  const { data: user, error: userError } =
+    await serviceRoleClient.auth.admin.createUser({
+      email,
+      password: "password123",
+      email_confirm: true,
+    });
+  if (userError || !user.user) {
+    throw userError ?? new Error("createUser failed");
+  }
+
+  const { data: tenant, error: tenantError } = await serviceRoleClient
+    .from("tenants")
+    .insert({
+      name: "Outsider Org",
+      slug: `outsider-${crypto.randomUUID().slice(0, 8)}`,
+      status: "archived",
+    })
+    .select("id")
+    .single();
+  if (tenantError) throw tenantError;
+
+  const { error: membershipError } = await serviceRoleClient
+    .from("tenant_memberships")
+    .insert({
+      user_id: user.user.id,
+      tenant_id: tenant.id,
+      kind: "member",
+    });
+  if (membershipError) throw membershipError;
+
+  return {
+    email,
+    homeTenantId: tenant.id as string,
+    async cleanup() {
+      await serviceRoleClient.auth.admin.deleteUser(user.user!.id);
+      // delete_tenant() rather than a bare delete on `tenants`: every foreign
+      // key to tenants is `no action`, so a bare delete only works while
+      // nothing has been seeded into the tenant -- and what gets seeded grows
+      // (#707 Phase 5b adds retention rules by trigger). The RPC walks the
+      // catalog, so it stays right as tables are added, and it requires the
+      // tenant to be archived, which this one already is.
+      const { error } = await serviceRoleClient.rpc("delete_tenant", {
+        p_tenant_id: tenant.id,
+      });
+      if (error) throw error;
+    },
+  };
+}
+
 let adminUserIdCache: string | undefined;
 async function adminUserId(): Promise<string> {
   if (adminUserIdCache) return adminUserIdCache;
@@ -314,6 +390,104 @@ describe("administration/users actions (integration)", () => {
     expect(data?.invited_at).not.toBeNull();
 
     await adminClient.from("pending_role_grants").delete().eq("id", grant.id);
+  });
+
+  // #759. The magic-link fallback in mintInviteLink turns "this address already
+  // has an account" into a token that /auth/confirm verifies into a *session*
+  // as that account, landing on /portal/set-password. Staging a grant is not
+  // restricted by address, so before this an admin could take over any account
+  // whose email they knew. These two cases are the whole fix: the address that
+  // is not theirs is refused, and the ordinary re-invite still works.
+  describe("an address that is not this organization's to invite (#759)", () => {
+    test("staging a grant for it is refused by the database", async () => {
+      const outsider = await createOutsiderInAnotherTenant();
+      try {
+        currentSupabase = await signInAs(SEEDED_USERS.admin);
+        const result = await createPendingGrantAction(
+          outsider.email,
+          "volunteer",
+          "Takeover",
+        );
+        expect("error" in result).toBe(true);
+
+        const { data } = await serviceRoleClient
+          .from("pending_role_grants")
+          .select("id")
+          .eq("email", outsider.email);
+        expect(data ?? []).toHaveLength(0);
+      } finally {
+        await outsider.cleanup();
+      }
+    });
+
+    test("a grant staged before the policy existed still mints no link", async () => {
+      // Staged as service_role, which is exactly the pre-migration state: the
+      // row is already in the table, so the policy cannot help and the action's
+      // own check is the only thing standing between an admin and a session as
+      // somebody else.
+      const outsider = await createOutsiderInAnotherTenant();
+      let grantId: string | null = null;
+      try {
+        const { data: role } = await serviceRoleClient
+          .from("roles")
+          .select("id")
+          .eq("tenant_id", await seededTenantId())
+          .eq("name", "volunteer")
+          .single();
+        const { data: staged, error: stageError } = await serviceRoleClient
+          .from("pending_role_grants")
+          .insert({
+            email: outsider.email,
+            role_id: role!.id,
+            tenant_id: await seededTenantId(),
+          })
+          .select("id")
+          .single();
+        if (stageError) throw stageError;
+        grantId = staged!.id as string;
+
+        currentSupabase = await signInAs(SEEDED_USERS.admin);
+        const result = await createInviteLinkAction(grantId);
+        expect(result).toEqual({
+          error:
+            "That address already has an account that is not this organization's, so a link cannot be sent to it. Ask them to sign in with the account they have — their access here is waiting for them.",
+        });
+      } finally {
+        if (grantId) {
+          await serviceRoleClient
+            .from("pending_role_grants")
+            .delete()
+            .eq("id", grantId);
+        }
+        await outsider.cleanup();
+      }
+    });
+
+    test("an address whose only account is in this organization still gets a link", async () => {
+      // The case the fallback was written for, and the reason this is a
+      // targeted check rather than "refuse every existing account".
+      const insider = await createThrowawayUser();
+      const grant = await createPendingGrant();
+      try {
+        await serviceRoleClient
+          .from("pending_role_grants")
+          .update({ email: insider.email })
+          .eq("id", grant.id);
+
+        currentSupabase = await signInAs(SEEDED_USERS.admin);
+        const result = await createInviteLinkAction(grant.id);
+        if (!("success" in result)) {
+          throw new Error(`expected a link, got ${JSON.stringify(result)}`);
+        }
+        expect(result.link).toContain("type=magiclink");
+      } finally {
+        await serviceRoleClient
+          .from("pending_role_grants")
+          .delete()
+          .eq("id", grant.id);
+        await insider.cleanup();
+      }
+    });
   });
 
   test("createInviteLinkAction rejects a missing or already-resolved grant", async () => {

@@ -397,6 +397,50 @@ describe("what the operator can do", () => {
   });
 });
 
+describe("provisioning does not mint a link to an existing account (#759)", () => {
+  test("an address that already has an account gets a tenant but no link", async () => {
+    // The takeover primitive, and this page is what would make it reachable
+    // from a browser rather than a shell. They sign in with the account they
+    // have; claim_pending_role_grants() is what gives them the new tenant.
+    const existing = uniqueEmail("plat-existing");
+    await createUser(existing);
+
+    const slug = `plat-existing-${run}`;
+    const id = await must(
+      seededAdmin.rpc("platform_provision_tenant", {
+        p_name: "Has An Account",
+        p_slug: slug,
+        p_admin_email: existing,
+      }),
+      "provision for an existing account",
+    );
+
+    // The grant is staged either way -- that is what makes the link
+    // unnecessary rather than merely withheld.
+    const staged = await must(
+      service.from("pending_role_grants").select("email").eq("tenant_id", id),
+      "staged grant",
+    );
+    expect(staged.map((g: { email: string }) => g.email)).toContain(existing);
+
+    // An account with no membership anywhere is still somebody's account --
+    // signed in once, waiting on a grant -- so a link to it is a session as
+    // them. That is the case this check exists for, as much as the
+    // belongs-to-another-organization one.
+    expect(
+      await must(
+        seededAdmin.rpc("email_is_this_tenants_to_invite", {
+          p_email: existing,
+        }),
+        "claimable check",
+      ),
+    ).toBe(false);
+
+    await service.from("tenants").update({ status: "archived" }).eq("id", id);
+    await must(service.rpc("delete_tenant", { p_tenant_id: id }), "cleanup");
+  });
+});
+
 describe("the catalog", () => {
   test("adding the platform resource left no isolation gap", async () => {
     const gaps = await must(seededAdmin.rpc("tenant_isolation_gaps"), "gaps");
