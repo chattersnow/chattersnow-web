@@ -145,7 +145,8 @@ export const CONTENT_SECTIONS: readonly ContentSection[] = [
     key: "home:next_event",
     page: "home",
     label: "Next event",
-    description: "The label above the next upcoming event on the homepage.",
+    description:
+      "The label above the next upcoming event -- or, when nothing is on the events calendar, the next community calendar item -- on the homepage.",
   },
 
   { key: "about_story:opening", page: "about_story", label: "Opening" },
@@ -872,7 +873,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "Community calendar introduction",
     type: "text",
     default:
-      "Chatter-hosted events are marked as such. Other entries are community observances, seasonal moments, and campaigns Chatter is highlighting — not events Chatter hosts or organizes.",
+      "Community observances, seasonal moments, campaigns, and Chatter's own events, all in one place. Not everything listed here is hosted or organized by Chatter.",
   },
 
   // Programs --------------------------------------------------------------------

@@ -2,7 +2,6 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDateInZone } from "@/lib/time";
-import { ItemTypeBadge } from "./calendar-item-badge";
 import type { PublicCalendarItem } from "./calendar-shared";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -123,29 +122,28 @@ export function CalendarMonthView({
                 <time dateTime={key} className="text-xs font-medium">
                   {day.getDate()}
                 </time>
-                {dayItems.slice(0, MAX_CHIPS_PER_DAY).map((item) => (
-                  <div key={item.id} className="space-y-0.5">
-                    <ItemTypeBadge itemType={item.item_type} />
-                    {item.public_url ? (
-                      <a
-                        href={item.public_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block truncate text-[11px] font-medium hover:underline"
-                        title={item.title}
-                      >
-                        {item.title}
-                      </a>
-                    ) : (
-                      <p
-                        className="truncate text-[11px] font-medium"
-                        title={item.title}
-                      >
-                        {item.title}
-                      </p>
-                    )}
-                  </div>
-                ))}
+                {dayItems.slice(0, MAX_CHIPS_PER_DAY).map((item) =>
+                  item.public_url ? (
+                    <a
+                      key={item.id}
+                      href={item.public_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block truncate text-[11px] font-medium hover:underline"
+                      title={item.title}
+                    >
+                      {item.title}
+                    </a>
+                  ) : (
+                    <p
+                      key={item.id}
+                      className="truncate text-[11px] font-medium"
+                      title={item.title}
+                    >
+                      {item.title}
+                    </p>
+                  ),
+                )}
                 {dayItems.length > MAX_CHIPS_PER_DAY && (
                   <p className="text-[11px] text-muted-foreground">
                     +{dayItems.length - MAX_CHIPS_PER_DAY} more
