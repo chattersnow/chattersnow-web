@@ -1217,6 +1217,49 @@ begin
   end loop;
 end $$;
 
+-- Site content for the initial tenant (#795 Phase 3). Since
+-- 20260905190000 stopped defaulting to Chatter Snow, a fresh database
+-- bootstraps as "Example Nonprofit" -- and the migrations that write Chatter
+-- Snow's own copy (20260908040000/50000/60000/70000) are scoped
+-- `where slug = 'chatter-snow'`, so they correctly no-op here. Without this
+-- block the local public site renders the registry's placeholder prompts
+-- ("Your headline goes here") and the e2e specs have no stable copy to assert.
+--
+-- Only the slots whose defaults are *prompts* are filled. The ones that are
+-- product chrome -- "Gear library", "Our Mission", "Get in touch", "Donations"
+-- -- are already the right words for any organization and are left to the
+-- registry, so local keeps exercising the defaults rather than shadowing them.
+-- The list slots are left alone for the same reason: their prompts are what an
+-- unconfigured tenant sees, and it is useful to see it.
+--
+-- tenant_id is omitted deliberately: site_content defaults it to
+-- default_tenant_id(), so this stays correct whatever the initial tenant is
+-- called, including under an app.initial_tenant_slug override.
+--
+-- Local and CI only -- seed.sql never runs against a hosted project.
+insert into public.site_content (key, value, published_at) values
+  ('org.short_name', '"Example Nonprofit"', now()),
+  ('org.tagline', '"Example Nonprofit is the sample organization the local stack and CI run against."', now()),
+  ('org.image_alt', '"Example Nonprofit community members"', now()),
+  ('home.heading', '"A sample organization for local development"', now()),
+  ('home.intro', '"Everything on this site is seed data. Example Nonprofit exists so the local stack and CI have a realistic tenant to render, without borrowing a real organization''s words."', now()),
+  ('about_story.intro', '["Example Nonprofit is not a real organization. It is the tenant a fresh database bootstraps as, so that every public page has something to show before anyone has written a word.","Any copy you see here comes from supabase/seed.sql. Editing it in Administration > Site Content writes a row exactly as it would for a real tenant."]', now()),
+  ('about_story.body', '["This story slot is seeded so the About page renders as a real page rather than a form of prompts.","A tenant that has written nothing sees the registry placeholders instead, which is what a newly provisioned organization gets on its first day."]', now()),
+  ('about_mission.statement', '"To give the local stack and CI a realistic organization to render."', now()),
+  ('about_mission.lead_in', '"Example Nonprofit exists to exercise the product:"', now()),
+  ('about_mission.closing', '"None of this describes a real organization, and it is not meant to."', now()),
+  ('about_mission.why_body', '["A platform that ships with no content at all is hard to develop against, and one that ships with a client''s content is worse. Example Nonprofit is the third option."]', now()),
+  ('programs.intro', '"Sample programs, seeded locally so the Programs page has something to lay out."', now()),
+  ('gears.donate_intro', '"Sample gear-program copy. Example Nonprofit collects gently used equipment, lends it out, and takes it back at the end of the season."', now()),
+  ('get_involved.intro', '"Sample copy for the ways someone could get involved with a fictional organization."', now()),
+  ('get_involved.partner_body', '"Example Nonprofit has no real partners. This slot is seeded so the page renders."', now()),
+  ('support.intro', '"Sample support copy. No donation on this site goes anywhere -- it is a development environment."', now()),
+  ('support.donations_intro', '"Explaining what donations would pay for, if Example Nonprofit were real."', now()),
+  ('support.monetary_body', '"Online giving is not wired up in local development."', now()),
+  ('support.sponsorship_intro', '"Sample sponsorship copy, seeded so the page has a body."', now())
+on conflict (tenant_id, key) do update
+  set value = excluded.value, published_at = excluded.published_at;
+
 -- Page visibility (issue #584). Production deliberately has no
 -- `page_visibility.*` rows, so the sections still awaiting board approval fall
 -- back to `defaultVisible: false` in src/lib/page-visibility.ts and stay dark.
@@ -1225,7 +1268,12 @@ end $$;
 insert into public.app_settings (key, value) values
   ('page_visibility.programs', to_jsonb(true)),
   ('page_visibility.learn', to_jsonb(true)),
-  ('page_visibility.support', to_jsonb(true))
+  ('page_visibility.support', to_jsonb(true)),
+  -- The sizing guide is off by default for the same reason the sections above
+  -- are: it is one organization's snow-sports content, not platform chrome
+  -- (#795 Phase 3). e2e/gears.spec.ts, e2e/skip-link.spec.ts and the a11y
+  -- route sweep all visit /gears/sizing, so local and CI turn it on.
+  ('page_visibility.gears-sizing', to_jsonb(true))
 on conflict (tenant_id, key) do update set value = excluded.value;
 
 -- Fiscal year (20260905030000). The migration already seeds July as a

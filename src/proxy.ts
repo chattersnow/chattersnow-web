@@ -1,10 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import {
-  PORTAL_HOST,
-  PUBLIC_HOSTS,
   isPortalHost,
   isPortalPathname,
+  portalRedirectTarget,
   stripPortalPrefix,
 } from "@/lib/portal/paths";
 
@@ -72,9 +71,9 @@ export function resolvePortalRoute(
     // 307 rather than 308: nothing about the split is settled enough to want
     // it burned into browser caches.
     //
-    // The redirect stays on the host it arrived at, not PORTAL_HOST: a tenant
-    // reaching its own portal.<domain> has to stay there. Sending it to Chatter
-    // Snow's host would drop the tenant `public_tenant_id()` resolves from the
+    // The redirect stays on the host it arrived at: a tenant reaching its own
+    // portal.<domain> has to stay there. Sending it to another tenant's portal
+    // host would drop the tenant `public_tenant_id()` resolves from the
     // hostname, and strand the session cookie on a domain the visitor never
     // asked for.
     if (isPortalPath) {
@@ -91,10 +90,14 @@ export function resolvePortalRoute(
     return { kind: "rewrite", pathname: `/portal${pathname}` };
   }
 
-  if (PUBLIC_HOSTS.has(hostname) && isPortalPath) {
+  // The apex -> portal 308, for the hosts that have said they have a portal
+  // subdomain (PORTAL_REDIRECT_HOSTS). A host that has not is left alone and
+  // serves /portal/... as a path, which is what a preview and a local run do.
+  const portalHost = isPortalPath ? portalRedirectTarget(hostname) : null;
+  if (portalHost) {
     return {
       kind: "redirect",
-      host: PORTAL_HOST,
+      host: portalHost,
       pathname: stripPortalPrefix(pathname),
       status: 308,
     };

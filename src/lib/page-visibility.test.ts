@@ -71,21 +71,37 @@ describe("PUBLIC_PAGE_SLOTS", () => {
     const publicDir = join(import.meta.dirname, "..", "app", "(public)");
 
     for (const slot of PUBLIC_PAGE_SLOTS) {
-      const layout = join(publicDir, slot.key, "layout.tsx");
+      const gate = slot.gate ?? join(slot.key, "layout.tsx");
       let source: string;
       try {
-        source = readFileSync(layout, "utf8");
+        source = readFileSync(join(publicDir, gate), "utf8");
       } catch {
         throw new Error(
-          `${slot.key} is registered in PUBLIC_PAGE_SLOTS but has no ${slot.key}/layout.tsx to gate it.`,
+          `${slot.key} is registered in PUBLIC_PAGE_SLOTS but has no ${gate} to gate it.`,
         );
       }
 
       expect(
         source.includes(`requireVisiblePage("${slot.key}")`),
-        `${slot.key}/layout.tsx must call requireVisiblePage("${slot.key}")`,
+        `${gate} must call requireVisiblePage("${slot.key}")`,
       ).toBe(true);
     }
+  });
+
+  // The sizing guide is not awaiting board approval -- it is one tenant's
+  // snow-sports content sitting under a section every tenant gets. Provisioning
+  // copies no site content, so this default is the only thing standing between
+  // a new customer and a ski-length chart on their own domain (#795 Phase 3).
+  test("keeps the sizing guide hidden until a tenant claims it", () => {
+    const slot = PUBLIC_PAGE_SLOTS.find(
+      (entry) => entry.key === "gears-sizing",
+    );
+
+    expect(slot?.defaultVisible).toBe(false);
+    // Its parent stays on: a gear library is chrome, the charts are content.
+    expect(
+      PUBLIC_PAGE_SLOTS.find((entry) => entry.key === "gears")?.defaultVisible,
+    ).toBe(true);
   });
 });
 
@@ -165,6 +181,10 @@ describe("hiddenSlots", () => {
       clientReturning([{ slot: "learn", value: true }]),
     );
 
-    expect(hiddenSlots(visibility).sort()).toEqual(["programs", "support"]);
+    expect(hiddenSlots(visibility).sort()).toEqual([
+      "gears-sizing",
+      "programs",
+      "support",
+    ]);
   });
 });

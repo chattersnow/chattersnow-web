@@ -2,7 +2,9 @@ import { describe, expect, test } from "bun:test";
 import {
   LEGAL_LINKS,
   NAV_GROUPS,
+  isHrefVisible,
   isSlotVisible,
+  slotsForHref,
   visibleGroups,
 } from "./public-nav";
 import { PUBLIC_PAGE_SLOTS } from "./page-visibility";
@@ -27,14 +29,35 @@ describe("NAV_GROUPS", () => {
   // is missing from both. The old footer had its own list and had already
   // drifted -- it was missing About and Learn.
   test("every registered slot appears in the nav", () => {
+    // Sub-links carry slots too since the sizing guide got its own, so a slot
+    // counts as present whether it gates a group or one item inside one.
     const inNav = new Set(
-      NAV_GROUPS.map((group) => group.slot).filter(Boolean),
+      [
+        ...NAV_GROUPS.map((group) => group.slot),
+        ...NAV_GROUPS.flatMap((group) =>
+          (group.links ?? []).map((link) => link.slot),
+        ),
+      ].filter(Boolean),
     );
 
     for (const slot of PUBLIC_PAGE_SLOTS) {
       expect(inNav.has(slot.key), `${slot.key} missing from NAV_GROUPS`).toBe(
         true,
       );
+    }
+  });
+
+  test("every sub-link slot is a registered page-visibility slot", () => {
+    const registered = new Set(PUBLIC_PAGE_SLOTS.map((slot) => slot.key));
+
+    for (const group of NAV_GROUPS) {
+      for (const link of group.links ?? []) {
+        if (!link.slot) continue;
+        expect(
+          registered.has(link.slot),
+          `${group.label} > ${link.label} -> ${link.slot}`,
+        ).toBe(true);
+      }
     }
   });
 
@@ -149,6 +172,58 @@ describe("LEGAL_LINKS", () => {
         `${link.label} is already in the nav`,
       ).toBe(false);
     }
+  });
+});
+
+describe("slotsForHref", () => {
+  test("resolves a section landing page and its children to that slot", () => {
+    expect(slotsForHref("/programs")).toEqual(["programs"]);
+    expect(slotsForHref("/learn/getting-started")).toEqual(["learn"]);
+    expect(slotsForHref("/gears/library")).toEqual(["gears"]);
+  });
+
+  // The sizing guide lives under Gear and has its own slot, so it depends on
+  // both -- hiding either has to take the link with it.
+  test("returns a nested slot alongside its parent", () => {
+    expect(slotsForHref("/gears/sizing").sort()).toEqual([
+      "gears",
+      "gears-sizing",
+    ]);
+  });
+
+  // A prefix match on the raw string would put /gears-something under /gears.
+  test("matches on path segments, not on string prefixes", () => {
+    expect(slotsForHref("/gears-and-more")).toEqual([]);
+  });
+
+  test("an in-page anchor and an ungated route belong to no slot", () => {
+    expect(slotsForHref("#buying-vs-renting")).toEqual([]);
+    expect(slotsForHref("/privacy")).toEqual([]);
+  });
+});
+
+describe("isHrefVisible", () => {
+  test("keeps a link into a live section", () => {
+    expect(isHrefVisible(HIDDEN, "/gears/sizing")).toBe(true);
+  });
+
+  test("drops a link into a hidden section", () => {
+    expect(isHrefVisible(HIDDEN, "/programs")).toBe(false);
+    expect(isHrefVisible(HIDDEN, "/learn/gear-care")).toBe(false);
+  });
+
+  test("drops a link whose own slot is hidden even though its parent is live", () => {
+    expect(isHrefVisible(["gears-sizing"], "/gears/sizing")).toBe(false);
+    expect(isHrefVisible(["gears-sizing"], "/gears/library")).toBe(true);
+  });
+
+  test("drops a link whose parent section is hidden even though its own slot is live", () => {
+    expect(isHrefVisible(["gears"], "/gears/sizing")).toBe(false);
+  });
+
+  test("never drops an anchor or an ungated route", () => {
+    expect(isHrefVisible(HIDDEN, "#used-and-secondhand-gear")).toBe(true);
+    expect(isHrefVisible(HIDDEN, "/privacy")).toBe(true);
   });
 });
 

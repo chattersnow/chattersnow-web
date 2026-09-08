@@ -116,17 +116,73 @@ To put a tenant on its domain:
    been told about. The auth/API hostname itself stays the shared Supabase
    one; a Supabase custom domain is Pro-only and not needed.
 
-`portal.<anything>` is a portal host: `src/proxy.ts` rewrites bare paths on
-it into the `/portal` route group, exactly as it does for
-`portal.chattersnow.org`. The apex → `portal.` redirect for `/portal/*` paths
-is Chatter Snow's own, because it assumes the subdomain exists; on another
-tenant's apex, `/portal/...` simply works as a path.
+4. **Add the apex to `PORTAL_REDIRECT_HOSTS`** (Vercel → Settings →
+   Environment Variables), a comma-separated list of apex domains:
+   `chattersnow.org,example.org`. This is what makes
+   `example.org/portal/home` 308 to `portal.example.org/home`. Listing the
+   apex alone is enough — `www.example.org` matches without being named, and
+   the target is always `portal.<apex>`. Next inlines the value into the proxy
+   bundle at build time, so **a change here needs a redeploy**, not a restart.
 
-Locally there is no custom domain on the Chatter Snow tenant, so everything
-resolves through the sole-active-tenant fallback. A second _active_ tenant on
-the local stack switches that fallback off: sessionless reads then need a
-host (the integration suites pass `x-tenant-host`), which is why the tests
-that provision one delete it again when they finish.
+`portal.<anything>` is a portal host: `src/proxy.ts` rewrites bare paths on
+it into the `/portal` route group, for every tenant alike.
+
+The apex → `portal.` redirect is the one part that is not automatic, because
+it is a promise only the owner of a domain can make: it assumes
+`portal.<domain>` resolves, and redirecting into a subdomain nobody has
+pointed here would turn a working page into a dead one. Step 4 is where a
+tenant says they have made it. Until then — and on every preview and local
+run, where the variable is unset — `/portal/...` simply works as a path. The
+redirect is cosmetic, never a gate.
+
+This used to be two literals in `src/lib/portal/paths.ts`, `PORTAL_HOST =
+"portal.chattersnow.org"` and `PUBLIC_HOSTS = {chattersnow.org,
+www.chattersnow.org}`, which made one tenant's DNS the platform's routing
+table and sent _every_ public host to that tenant's subdomain (#795 Phase 2).
+
+## The tenant a fresh database bootstraps as
+
+`20260905190000_seed_initial_tenant.sql` creates one tenant, because a database
+with none is unusable: `ensure_tenant_membership()` only auto-joins when exactly
+one active tenant exists, and `default current_tenant_id()` needs something to
+resolve to.
+
+Its name and slug come from `app.initial_tenant_name` / `app.initial_tenant_slug`
+when set, and otherwise fall back to **Example Nonprofit** / `example-nonprofit`
+(#795 Phase 3). They used to fall back to Chatter Snow, which made one client the
+platform's bootstrap identity. A white-label deployment overrides them before
+`supabase db push`:
+
+```sql
+alter database postgres set app.initial_tenant_name = 'Riverside Trails';
+alter database postgres set app.initial_tenant_slug = 'riverside-trails';
+```
+
+The settings cannot be made _required_: `supabase db reset` drops and recreates
+the database, so an `alter database ... set` is wiped before migrations run and
+there is no hook to set one first.
+
+Chatter Snow's production tenant is untouched — that migration ran there long
+ago and migrations do not re-run, so its row still says `chatter-snow`. This is
+why the migrations that write Chatter Snow's own copy, palette and page
+visibility (`20260908040000`, `20260908050000`, `20260908060000`,
+`20260908070000`) are all scoped `where slug = 'chatter-snow'`: on a hosted
+project they find their tenant, and on a fresh local or CI database they
+correctly find nothing.
+
+`supabase/seed.sql` then gives local and CI their own copy — generic Example
+Nonprofit text for the slots whose registry defaults are prompts, so the public
+site renders as a real site and the e2e specs have stable words to assert.
+Slots that are already right for any organization ("Gear library", "Our
+Mission", "Get in touch") are left to the registry, and the list slots are left
+as prompts on purpose: that is what a newly provisioned tenant sees, and it is
+worth seeing.
+
+Locally there is no custom domain on that tenant, so everything resolves through
+the sole-active-tenant fallback. A second _active_ tenant on the local stack
+switches that fallback off: sessionless reads then need a host (the integration
+suites pass `x-tenant-host`), which is why the tests that provision one delete
+it again when they finish.
 
 ## Branding and content
 

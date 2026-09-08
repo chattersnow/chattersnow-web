@@ -22,7 +22,7 @@ export const WELCOME_STEPS: DialogStep[] = [
     body: (
       <>
         <p>
-          This is where Chatter Snow&apos;s work gets tracked — events,
+          This is where your organization&apos;s work gets tracked — events,
           donations, inventory, finances, governance, volunteers, and the
           content calendar.
         </p>
@@ -47,8 +47,8 @@ export const WELCOME_STEPS: DialogStep[] = [
           donation — sit at the top of it.
         </p>
         <p>
-          Use the toggle beside the Chatter Snow logo to collapse the sidebar to
-          icons. <strong>My Account</strong> at the bottom is where you set the
+          Use the toggle beside the logo to collapse the sidebar to icons.{" "}
+          <strong>My Account</strong> at the bottom is where you set the
           preferred name that shows up wherever the portal names you.
         </p>
       </>
