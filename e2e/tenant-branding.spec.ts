@@ -112,8 +112,38 @@ async function palette(page: Page, theme: "light" | "dark") {
 // one database, where each sees the other's palette.
 test.describe.configure({ mode: "serial" });
 
+/**
+ * What the tenant had before this file ran, so it can be given back. Since
+ * #795 rollout step 3 that is Chatter Snow's real palette rather than nothing,
+ * and clearing it would leave every later run measuring a site the seed no
+ * longer describes.
+ */
+let originalBranding: Record<string, unknown> | null = null;
+
+test.beforeAll(async () => {
+  const admin = createAdminClient();
+  const { data: tenant, error: lookup } = await admin
+    .from("tenants")
+    .select("id")
+    .eq("slug", "chatter-snow")
+    .single();
+  if (lookup) throw new Error(`Could not find the tenant: ${lookup.message}`);
+
+  const { data, error } = await admin
+    .from("app_settings")
+    .select("key, value")
+    .eq("tenant_id", tenant.id)
+    .like("key", "brand.%");
+  if (error) throw new Error(`Could not read branding: ${error.message}`);
+
+  const rows = (data ?? []) as { key: string; value: unknown }[];
+  originalBranding = rows.length
+    ? Object.fromEntries(rows.map((row) => [row.key, row.value]))
+    : null;
+});
+
 test.afterAll(async () => {
-  await setBranding(null);
+  await setBranding(originalBranding);
 });
 
 test("a tenant's own palette renders the same site in both themes", async ({

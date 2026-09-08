@@ -480,9 +480,16 @@ describe("site content and branding", () => {
       { token: "accent_stops", value: ["#111111", "#222222"] },
       { token: "primary", value: "#123456" },
     ]);
+    // A has branding of its own since #795 rollout step 3, so "A has none" is
+    // no longer the claim -- what must not cross is B's. Asserting on the
+    // values is the isolation; asserting the list was empty only ever tested
+    // that the seed had no palette.
     expect(
-      await must(a.from("public_branding").select("token"), "a branding"),
-    ).toEqual([]);
+      await must(
+        a.from("public_branding").select("token, value"),
+        "a branding",
+      ),
+    ).not.toContainEqual({ token: "primary", value: "#123456" });
   });
 
   test("the tenant's own copy is invisible to another tenant's admin and to anon without a host", async () => {
