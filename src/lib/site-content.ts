@@ -2,11 +2,25 @@
  * The content model for the public site (#707 Phase 4).
  *
  * Every piece of organization-specific copy on the public site is a *slot*:
- * a key, a page it belongs to, a type, and a default. The defaults are
- * Chatter Snow's copy, exactly as the pages carried it before this existed,
- * so a tenant with no `site_content` rows renders the site that shipped --
- * and a provisioned tenant starts from a complete site it rewrites slot by
- * slot from Administration > Site Content rather than from a blank page.
+ * a key, a page it belongs to, a type, and a default. A tenant with no
+ * `site_content` rows renders those defaults, and a provisioned tenant starts
+ * from a complete site it rewrites slot by slot from Administration > Site
+ * Content rather than from a blank page.
+ *
+ * The defaults used to be Chatter Snow's copy, because this registry was
+ * extracted from its pages. That made a newly provisioned nonprofit's public
+ * site another organization's -- its headline, its mission, and, in
+ * `about_team.members`, real people's names and biographies. Provisioning
+ * deliberately copies no site content, and `org`, `home`, `contact` and
+ * `events` carry no visibility gate, so that was public from the moment the
+ * tenant existed. Chatter Snow now holds its copy in its own rows (#795
+ * rollout step 3) and the defaults are prompts: they read as unwritten, which
+ * is the honest thing for a site nobody has written yet to look like.
+ *
+ * Only the slots that *named or described* an organization were rewritten.
+ * "Gear library", "Get in touch" and "Meet the team" are product chrome that
+ * happens to live in a slot, and replacing them with prompts would make an
+ * unwritten site worse rather than more neutral.
  *
  * What is deliberately *not* a slot: the Learn guides and the sizing tables
  * (generic snow-sports material any organization can publish as-is), the
@@ -416,7 +430,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     description:
       "How the organization refers to itself mid-sentence. The full name comes from the organization's record.",
     type: "text",
-    default: "Chatter",
+    default: "Your organization",
   },
   {
     key: "org.tagline",
@@ -426,8 +440,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     description:
       "The one-sentence description search engines and link previews show.",
     type: "text",
-    default:
-      "Chatter Snow is a queer ski and snowboard community bringing LGBTQ+ skiers and snowboarders together on and off the East Coast mountains.",
+    default: "A short line describing what your organization does",
   },
   {
     key: "org.image_alt",
@@ -437,7 +450,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     description:
       "The text a screen reader announces for the community photos across the site.",
     type: "text",
-    default: "Chatter Snow community members",
+    default: "Community members",
   },
   {
     key: "org.email_general",
@@ -446,7 +459,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "General email",
     description: "Where the contact page and the footer point.",
     type: "text",
-    default: "info@chattersnow.org",
+    default: "hello@example.org",
   },
   {
     key: "org.email_privacy",
@@ -455,7 +468,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "Privacy email",
     description: "Access, correction and deletion requests.",
     type: "text",
-    default: "privacy@chattersnow.org",
+    default: "privacy@example.org",
   },
   {
     key: "org.email_conduct",
@@ -464,7 +477,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "Conduct email",
     description: "Code of conduct reports.",
     type: "text",
-    default: "conduct@chattersnow.org",
+    default: "conduct@example.org",
   },
   {
     key: "org.instagram_handle",
@@ -473,7 +486,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "Instagram handle",
     description: "Without the @. Leave blank to hide the Instagram links.",
     type: "text",
-    default: "chattersnow",
+    default: "",
   },
   {
     key: "org.footer_contact_eyebrow",
@@ -491,7 +504,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "home:hero",
     label: "Heading",
     type: "text",
-    default: "A queer ski & snowboard community",
+    default: "Your headline goes here",
   },
   {
     key: "home.intro",
@@ -500,7 +513,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "Introduction",
     type: "text",
     default:
-      "Chatter brings LGBTQ+ skiers and snowboarders together on and off the East Coast mountains, and works to make snow sports more accessible through gear, mentorship, and community.",
+      "A sentence or two introducing your organization and what it does.",
   },
   {
     key: "home.cta_events",
@@ -564,7 +577,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "about_story:opening",
     label: "Heading",
     type: "text",
-    default: "About Chatter",
+    default: "About us",
   },
   {
     key: "about_story.intro",
@@ -573,8 +586,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "Introduction",
     type: "paragraphs",
     default: [
-      "Chatter is a queer ski and snowboard community on the East Coast that brings LGBTQ+ riders together both on and off the mountain. What started as a small group of friends has grown into a community hosting indoor and mountain meetups, collaborating with other organizations, and creating opportunities for queer skiers and snowboarders to get involved regardless of experience or budget.",
-      "At its core, Chatter is about making snow sports more accessible and building community around them. That means more than just organizing group rides. Chatter provides gear through donations and drives, facilitates gear swaps, connects newer riders with on-snow mentorship, and works with mountains and partners to make events more affordable.",
+      "Introduce your organization here — this is the first thing visitors read on your About page.",
     ],
   },
   {
@@ -592,11 +604,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "Story",
     type: "paragraphs",
     default: [
-      "Chatter started three summers ago when a group of friends wanted to create a space where queer skiers and snowboarders could find each other, ride together, and feel like they belonged on the mountain.",
-      "Since then, that idea has grown into an East Coast community. We've brought people together through indoor snow sessions, mountain meetups, park days, collaborations, and events with partner organizations. Our community is largely centered around the NYC area, but we're continuing to grow our reach across the East Coast.",
-      "As we've grown, we've realized that simply creating opportunities to ride together isn't enough. Snow sports can be expensive and intimidating to get into, especially for someone who doesn't already have the equipment, knowledge, or community around them.",
-      "That's where Chatter's bigger purpose comes in.",
-      "We're working to make skiing and snowboarding more accessible to LGBTQ+ people by helping remove some of the financial and social barriers that keep people off the mountain. Through gear donations and swaps, beginner mentorship, affordable group events, and partnerships with mountains and other organizations, we're building a community where people can get into snow sports, improve their skills, and find people to ride with.",
+      "Tell your organization's story: how it started, who it is for, and where it is going.",
     ],
   },
   image(
@@ -623,8 +631,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "Mission statement",
     description: "Shown in quotation marks.",
     type: "text",
-    default:
-      "Bringing together LGBTQ+ boarders and skiers on and off the mountain. Creating inclusive safe spaces for everyone on the East Coast.",
+    default: "Your mission statement goes here.",
   },
   {
     key: "about_mission.lead_in",
@@ -632,8 +639,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "about_mission:mission",
     label: "Lead-in to the list",
     type: "text",
-    default:
-      "We believe snow sports should be something people can participate in regardless of their experience, background, or budget. Chatter works to make that possible by:",
+    default: "Introduce the list of what your organization does.",
   },
   {
     key: "about_mission.points",
@@ -642,15 +648,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "How we do it",
     type: "list",
     fields: BULLET,
-    default: [
-      { text: "Building community through inclusive ski and snowboard events" },
-      { text: "Improving access through gear donations, drives, and swaps" },
-      { text: "Supporting new riders through mentorship and on-snow guidance" },
-      {
-        text: "Making riding more affordable through mountain and community partnerships",
-      },
-      { text: "Creating connection both on the mountain and beyond it" },
-    ],
+    default: [{ text: "Something your organization does" }],
   },
   {
     key: "about_mission.closing",
@@ -658,8 +656,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "about_mission:mission",
     label: "Closing line",
     type: "text",
-    default:
-      "We're not just creating a place to ride. We're building a community that makes it easier for queer people to get there in the first place.",
+    default: "A closing line for your mission page.",
   },
   {
     key: "about_mission.values_heading",
@@ -681,24 +678,8 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     ],
     default: [
       {
-        name: "Inclusion",
-        description:
-          "Every rider is welcome regardless of experience, background, or budget.",
-      },
-      {
-        name: "Access",
-        description:
-          "We work to remove the financial and social barriers that keep people off the mountain.",
-      },
-      {
-        name: "Community",
-        description:
-          "We're building relationships that last beyond a single event or season.",
-      },
-      {
-        name: "Mentorship",
-        description:
-          "Experienced riders show up for newer ones so no one has to figure it out alone.",
+        name: "Value name",
+        description: "What this value means in your organization's work.",
       },
     ],
   },
@@ -708,7 +689,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "about_mission:why",
     label: "Why heading",
     type: "text",
-    default: "Why LGBTQ+ snow sports",
+    default: "Why this work matters",
   },
   {
     key: "about_mission.why_body",
@@ -716,10 +697,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "about_mission:why",
     label: "Why",
     type: "paragraphs",
-    default: [
-      "Ski towns and mountain culture haven't always felt welcoming to queer and trans people, and the cost of entry, gear, lift tickets, lessons, travel can make snow sports feel out of reach before someone even gets to the mountain.",
-      "A dedicated LGBTQ+ space changes that. It gives people a lower-pressure way to try skiing or snowboarding for the first time, surrounded by others who understand what it's like to walk into a lodge or a lift line without knowing if they'll be accepted. It also means there's a community to come back to season after season, not just a single event.",
-    ],
+    default: ["Explain why your organization exists, and who it is for."],
   },
   image(
     "about_mission_photo",
@@ -766,34 +744,10 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     ],
     default: [
       {
-        name: "Cass Lainez",
+        name: "Team member name",
         photo_url: "",
-        photo_slot: "about_team_photo_cass",
-        bio: [],
-      },
-      {
-        name: "Rickie Cruz",
-        photo_url: "",
-        photo_slot: "about_team_photo_rickie",
-        bio: [
-          "Hi, I’m Rickie—a skier, software engineer, and one of Chatter’s token skiers, as Sofie likes to say. ⛷️",
-          "Chatter and I have grown alongside each other. We both got serious about the sport and the LGBTQ+ ski and snowboard community around the same time. When Chatter held its first event, I had no gear of my own and knew very few queer people in the ski and snowboard community. By the end of that event, I had made connections and friendships that helped me become a better skier—and somehow walked away with a brand-new Burton jacket.",
-          "I got involved with Chatter in late 2025, initially helping with social media and eventually supporting event planning. Today, I focus on building the technology and operational infrastructure behind Chatter—from our website and internal systems to an operations portal that helps us stay organized, manage our programs, and scale as the organization grows.",
-          "For me, Chatter is about more than just getting on the mountain. It’s about the people you meet, the friendships you make, and finding a community that makes you want to keep showing up—on and off the mountain.",
-          "And yes, I’m still one of the token skiers… for now. 🏳️‍🌈⛷️",
-        ],
-      },
-      {
-        name: "Sofie Chavez",
-        photo_url: "",
-        photo_slot: "about_team_photo_sofie",
-        bio: [
-          "I'm Sofie, but most friends call me Sof. I've been in the snowboarding world for 5 years and riding for 4. Learning to ride as an adult has been hard work that I enjoy every second of. I fell in love quickly when I linked my first turns at Big Snow, my home mountain/mall.",
-          "Chatter was born from my frustration with the homophobia I kept seeing on many mountain pride posts, and the homophobic slurs I'd heard on hill. So in 2024 with the help of my friends and Park Affair, we brought the idea to life. The goal was simple: bring together the queer community and ease the barrier of entry.",
-          "When I'm not putting on Chatter events you can usually find me volunteering on snow with Hoods to Wood, We're All Mental, and Black Boarders of CT. Or helping coach beginner park with Park Affair and East Coast Lady Boarders.",
-          "When I'm off snow, you can find me playing saxophone, surfing, drawing, rock climbing, playing d&d or reading a comic. And that's the beauty of Chatter! I've made friends on snow that I can share my off snow hobbies with too.",
-          "I hope if you're reading this and you're not sure what to do or where to start, just show up to an event. I promise you won't walk away without a new friend and maybe a new to you item!",
-        ],
+        photo_slot: "",
+        bio: ["A short biography."],
       },
     ],
   },
@@ -856,7 +810,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "events:listing",
     label: "Events introduction",
     type: "text",
-    default: "Browse Chatter Snow events happening on and off the mountain.",
+    default: "Browse upcoming and past events.",
   },
   {
     key: "events.community_heading",
@@ -873,7 +827,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "Community calendar introduction",
     type: "text",
     default:
-      "Community observances, seasonal moments, campaigns, and Chatter's own events, all in one place. Not everything listed here is hosted or organized by Chatter.",
+      "Community observances, seasonal moments, campaigns, and our own events, all in one place. Not everything listed here is hosted or organized by us.",
   },
 
   // Programs --------------------------------------------------------------------
@@ -891,7 +845,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "programs:opening",
     label: "Introduction",
     type: "text",
-    default: "Get access. Find your people. Learn and progress. Keep riding.",
+    default: "A line introducing your programs.",
   },
   {
     key: "programs.pillars",
@@ -905,12 +859,10 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
       { key: "description", label: "Tagline", kind: "text" },
     ],
     default: [
-      { label: "Access", description: "Get on the mountain." },
       {
-        label: "Progression",
-        description: "Find your people, build your skills.",
+        label: "Pillar name",
+        description: "What this group of programs is for.",
       },
-      { label: "Community", description: "Keep riding, keep connecting." },
     ],
   },
   {
@@ -928,46 +880,10 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     ],
     default: [
       {
-        pillar: "Access",
-        emoji: "🎿",
-        name: "Learn to Ride",
-        description:
-          "Beginner-friendly sessions to make getting started in skiing and snowboarding less intimidating — orientation to gear, lifts, and mountain basics in a welcoming LGBTQ+ group setting.",
-      },
-      {
-        pillar: "Access",
-        emoji: "🧤",
-        name: "Gear Access",
-        description:
-          "We collect and redistribute donated ski and snowboard equipment to help make snow sports more accessible. See what's currently available on our Gear page.",
-      },
-      {
-        pillar: "Progression",
-        emoji: "🤝",
-        name: "Ride Buddy",
-        description:
-          "Paired for the day with an experienced rider — not formal instruction, just someone to answer questions and ride alongside.",
-      },
-      {
-        pillar: "Progression",
-        emoji: "🏂",
-        name: "Progression & Park Riding",
-        description:
-          "Skill-focused sessions for riders looking to push themselves. From building confidence on the mountain to learning park fundamentals, we create supportive environments to progress alongside other riders.",
-      },
-      {
-        pillar: "Community",
-        emoji: "🏔️",
-        name: "Mountain Meetups",
-        description:
-          "Group days at mountains across the East Coast where the focus is community as much as riding. Chatter provides a central gathering point, organized groups, and opportunities to meet other LGBTQ+ skiers and snowboarders.",
-      },
-      {
-        pillar: "Community",
-        emoji: "🌈",
-        name: "Community Events",
-        description:
-          "Off-snow gatherings that keep the community connected year-round, including Pride events, social meetups, outdoor activities, gear swaps, and collaborations with LGBTQ+ and outdoor organizations.",
+        pillar: "Pillar name",
+        emoji: "",
+        name: "Program name",
+        description: "What this program offers, and who it is for.",
       },
     ],
   },
@@ -1031,7 +947,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "How it works",
     type: "text",
     default:
-      "Chatter collects donated ski and snowboard gear and makes it available to people in the community who need it. Browse the library, add what you need to your cart, and submit one request for everything at once. We'll help coordinate pickup or drop-off at an upcoming event.",
+      "Describe how your gear program works: what you collect, who can borrow it, and how a request is fulfilled.",
   },
   {
     key: "gears.request_heading",
@@ -1087,7 +1003,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "How to drop off",
     type: "text",
     default:
-      "Drop items off in person at any Chatter event, or contact us to arrange a drop-off, mail-in, or collection.",
+      "Drop items off in person at any event, or contact us to arrange a drop-off, mail-in, or collection.",
   },
   {
     key: "gears.drives_heading",
@@ -1144,8 +1060,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "get_involved:opening",
     label: "Introduction",
     type: "text",
-    default:
-      "Chatter runs on people showing up in whatever way works for them — on the mountain, behind the scenes, or by helping us grow.",
+    default: "A line introducing the ways people can get involved.",
   },
   {
     key: "get_involved.sponsor_heading",
@@ -1153,7 +1068,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "get_involved:sponsor",
     label: "Sponsor heading",
     type: "text",
-    default: "Sponsor Chatter",
+    default: "Sponsor us",
   },
   {
     key: "get_involved.sponsor_body",
@@ -1231,7 +1146,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "Partner",
     type: "text",
     default:
-      "We work with mountains, gear brands, and other organizations to make events more affordable and accessible for our community. Partnership can look like a lift ticket discount with a resort, a gear brand supplying demo equipment for an event, a co-hosted meetup with another LGBTQ+ or outdoor organization, or a venue donating space for a gear drive. If your organization wants to collaborate with Chatter in any of these ways, we'd love to hear from you.",
+      "Describe the organizations you work with and what a partnership can look like.",
   },
   {
     key: "get_involved.volunteer_heading",
@@ -1248,7 +1163,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "Volunteer introduction",
     type: "text",
     default:
-      "Chatter runs on volunteers. Here are some of the ways you can get involved.",
+      "We run on volunteers. Here are some of the ways you can get involved.",
   },
   {
     key: "get_involved.volunteer_empty",
@@ -1315,7 +1230,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "support:opening",
     label: "Heading",
     type: "text",
-    default: "Support Chatter",
+    default: "Support us",
   },
   {
     key: "support.intro",
@@ -1324,7 +1239,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "Introduction",
     type: "text",
     default:
-      "Chatter relies on donations, sponsorships, and gear to keep our programs running and accessible.",
+      "Describe what donations, sponsorships, and in-kind support make possible.",
   },
   {
     key: "support.donations_card",
@@ -1332,8 +1247,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "support:opening",
     label: "Donations card",
     type: "text",
-    default:
-      "Support Chatter with a monetary or in-kind donation. Learn what we accept and how your contribution helps make snow sports more accessible.",
+    default: "Support us with a monetary or in-kind donation.",
   },
   {
     key: "support.sponsorship_card",
@@ -1341,8 +1255,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "support:opening",
     label: "Sponsorship card",
     type: "text",
-    default:
-      "Partner with Chatter through cash, in-kind, or combined support for events, mountain days, and access programs.",
+    default: "Partner with us through cash, in-kind, or combined support.",
   },
   {
     key: "support.donations_heading",
@@ -1358,8 +1271,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "support:donations",
     label: "Donations introduction",
     type: "text",
-    default:
-      "Donations help Chatter keep programs running and make skiing and snowboarding more accessible to LGBTQ+ riders.",
+    default: "Explain what donations pay for.",
   },
   {
     key: "support.monetary_title",
@@ -1376,7 +1288,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "Monetary donations",
     type: "text",
     default:
-      "Online monetary donations are coming soon. Contributions will help fund accessible events, mountain days, and community programs.",
+      "Describe how people can give money, or say that online giving is coming soon.",
   },
   {
     key: "support.inkind_title",
@@ -1411,7 +1323,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "Sponsorship introduction",
     type: "text",
     default:
-      "Sponsors help fund the core of what Chatter does: subsidizing mountain days, keeping gear access programs running, and making events more affordable for LGBTQ+ riders who might not otherwise be able to join. In return, sponsors get real visibility with our community — event branding, recognition in event materials and on our website, and a direct line to a rider base that shows up for the brands that show up for them.",
+      "Explain what sponsorship funds, and what a sponsor gets in return.",
   },
   {
     key: "support.sponsorship_tiers",
@@ -1425,19 +1337,8 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     ],
     default: [
       {
-        name: "Cash sponsorship",
-        description:
-          "Underwrite an event, a season of mountain days, or a program like our gear library. Cash sponsors are the easiest way to keep events affordable and accessible.",
-      },
-      {
-        name: "In-kind sponsorship",
-        description:
-          "Contribute gear, lift tickets, venue space, or services. In-kind support stretches directly into gear drives, event day logistics, and giveaways.",
-      },
-      {
-        name: "Both",
-        description:
-          "Many of our sponsors mix cash and in-kind support across a season. We'll work with you to find a combination that fits your organization.",
+        name: "Sponsorship option",
+        description: "What this option involves, and what it supports.",
       },
     ],
   },

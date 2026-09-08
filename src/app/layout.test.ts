@@ -39,14 +39,15 @@ describe("root layout metadata", () => {
     expect(String(metadata.title).trim().length).toBeGreaterThan(0);
   });
 
-  // Unchanged by the above: the default copy is still what the public layout
-  // renders for a tenant that has set nothing of its own.
-  test("the default description describes the live site", () => {
-    expect(DEFAULT_SITE_CONTENT.text("org.tagline")).toContain(
-      "queer ski and snowboard community",
-    );
-    expect(DEFAULT_SITE_CONTENT.text("org.tagline")).not.toContain(
-      "work in progress",
-    );
+  // The public layout still renders this for a tenant that has set nothing of
+  // its own -- but since #795 Phase 3 what it renders is a prompt rather than
+  // one organization's description. It has to stay a usable sentence either
+  // way: it is the meta description, so an empty one is a real defect and a
+  // long one is truncated in search results.
+  test("the default description is a usable sentence that names nobody", () => {
+    const tagline = DEFAULT_SITE_CONTENT.text("org.tagline");
+    expect(tagline.trim().length).toBeGreaterThan(20);
+    expect(tagline.length).toBeLessThan(160);
+    expect(tagline).not.toMatch(/chatter/i);
   });
 });
