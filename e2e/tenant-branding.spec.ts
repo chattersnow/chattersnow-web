@@ -14,6 +14,7 @@
 // with no branding at all, in both themes.
 import { test, expect } from "./helpers/test";
 import { createAdminClient } from "./helpers/admin-client";
+import { initialTenantId } from "./helpers/tenant";
 import type { Page } from "@playwright/test";
 
 /**
@@ -45,24 +46,19 @@ const TOKENS = [
 
 async function setBranding(rows: Record<string, unknown> | null) {
   const admin = createAdminClient();
-  const { data: tenant, error: lookup } = await admin
-    .from("tenants")
-    .select("id")
-    .eq("slug", "chatter-snow")
-    .single();
-  if (lookup) throw new Error(`Could not find the tenant: ${lookup.message}`);
+  const tenantId = await initialTenantId();
 
   const { error: cleared } = await admin
     .from("app_settings")
     .delete()
-    .eq("tenant_id", tenant.id)
+    .eq("tenant_id", tenantId)
     .like("key", "brand.%");
   if (cleared) throw new Error(`Could not clear branding: ${cleared.message}`);
   if (!rows) return;
 
   const { error } = await admin.from("app_settings").insert(
     Object.entries(rows).map(([key, value]) => ({
-      tenant_id: tenant.id,
+      tenant_id: tenantId,
       key,
       value,
     })),
@@ -114,26 +110,24 @@ async function palette(page: Page, theme: "light" | "dark") {
 test.describe.configure({ mode: "serial" });
 
 /**
- * What the tenant had before this file ran, so it can be given back. Since
- * #795 rollout step 3 that is Chatter Snow's real palette rather than nothing,
- * and clearing it would leave every later run measuring a site the seed no
- * longer describes.
+ * What the tenant had before this file ran, so it can be given back.
+ *
+ * Locally and in CI that is nothing: 20260908060000 writes Chatter Snow's
+ * palette and is scoped to their slug, so it no-ops on a database that
+ * bootstraps as the neutral initial tenant (#795 Phase 3). Captured and
+ * restored anyway rather than assumed empty -- a developer who has set a
+ * palette from Administration must get it back.
  */
 let originalBranding: Record<string, unknown> | null = null;
 
 test.beforeAll(async () => {
   const admin = createAdminClient();
-  const { data: tenant, error: lookup } = await admin
-    .from("tenants")
-    .select("id")
-    .eq("slug", "chatter-snow")
-    .single();
-  if (lookup) throw new Error(`Could not find the tenant: ${lookup.message}`);
+  const tenantId = await initialTenantId();
 
   const { data, error } = await admin
     .from("app_settings")
     .select("key, value")
-    .eq("tenant_id", tenant.id)
+    .eq("tenant_id", tenantId)
     .like("key", "brand.%");
   if (error) throw new Error(`Could not read branding: ${error.message}`);
 

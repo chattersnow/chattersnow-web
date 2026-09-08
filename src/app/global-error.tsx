@@ -23,8 +23,12 @@ export default function GlobalError({
   return (
     <html lang="en" className="h-full antialiased">
       <body className="flex min-h-full flex-col items-center justify-center gap-4 bg-[var(--background)] p-8 text-center text-[var(--foreground)]">
+        {/* Names no organization (#795 Phase 3). This boundary replaces the
+            whole document and is a client component, so it cannot read the
+            tenant -- and it fires on exactly the failure where a tenant read
+            is what went wrong. One client's name here reached every tenant. */}
         <h1 className="text-3xl font-semibold tracking-[-0.04em]">
-          Chatter Snow is having a moment
+          This page is having a moment
         </h1>
         <p className="max-w-md text-sm leading-relaxed opacity-80">
           Something went wrong while loading the page. Try again — if it keeps

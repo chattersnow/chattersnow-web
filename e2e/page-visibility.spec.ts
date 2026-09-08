@@ -40,7 +40,7 @@ test.describe("board-controlled page visibility", () => {
     await page.goto("/support");
 
     await expect(
-      page.getByRole("heading", { level: 1, name: "Support Chatter" }),
+      page.getByRole("heading", { level: 1, name: "Support us" }),
     ).toBeVisible();
     await expect(
       page
