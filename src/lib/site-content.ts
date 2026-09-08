@@ -14,6 +14,14 @@
  * the pages themselves. The legal documents are a special case -- see
  * `document` below.
  *
+ * The photos are slots too (#812): an `image` slot is the picture that sits
+ * beside a section's copy, keyed `site_images.<slot>` and stored in the same
+ * table, so it is drafted, published and reverted exactly as the words are.
+ * Its default is always null -- the placeholder icon -- and the public site
+ * reads them through `getSiteImageUrls()` in `src/lib/site-images.ts`, which
+ * strips the prefix; `about_team.members`' `photo_slot` field names the short
+ * form for the same reason.
+ *
  * This module is imported by the editor, a client component, so it stays
  * free of server-only imports; the database read lives in
  * `src/lib/public-site.ts`.
@@ -361,11 +369,41 @@ export type ContentSlot = SlotBase &
     | { type: "paragraphs"; default: string[] }
     | { type: "list"; fields: readonly ListField[]; default: ListItem[] }
     | { type: "document"; default: null; route: string }
+    /** A Google Drive share link or image URL; null is the placeholder icon. */
+    | { type: "image"; default: null }
   );
 
 const BULLET: readonly ListField[] = [
   { key: "text", label: "Item", kind: "text" },
 ];
+
+/** The `app_settings`-era prefix every image slot key still carries, so `public_site_images` can strip it. */
+export const IMAGE_SLOT_KEY_PREFIX = "site_images.";
+
+/** The short name a page looks an image up by: `site_images.learn_photo` -> `learn_photo`. */
+export function imageSlotName(key: string): string {
+  return key.startsWith(IMAGE_SLOT_KEY_PREFIX)
+    ? key.slice(IMAGE_SLOT_KEY_PREFIX.length)
+    : key;
+}
+
+function image(
+  name: string,
+  page: string,
+  section: string,
+  label: string,
+  description: string,
+): ContentSlot {
+  return {
+    key: `${IMAGE_SLOT_KEY_PREFIX}${name}`,
+    page,
+    section,
+    label,
+    description,
+    type: "image",
+    default: null,
+  };
+}
 
 export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   // Organization --------------------------------------------------------------
@@ -496,6 +534,27 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     type: "text",
     default: "Next up",
   },
+  image(
+    "home_carousel_1",
+    "home",
+    "home:hero",
+    "Homepage carousel — slide 1",
+    "First slide of the homepage image carousel.",
+  ),
+  image(
+    "home_carousel_2",
+    "home",
+    "home:hero",
+    "Homepage carousel — slide 2",
+    "Second slide of the homepage image carousel.",
+  ),
+  image(
+    "home_carousel_3",
+    "home",
+    "home:hero",
+    "Homepage carousel — slide 3",
+    "Third slide of the homepage image carousel.",
+  ),
 
   // About: Our Story ------------------------------------------------------------
   {
@@ -539,6 +598,13 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
       "We're working to make skiing and snowboarding more accessible to LGBTQ+ people by helping remove some of the financial and social barriers that keep people off the mountain. Through gear donations and swaps, beginner mentorship, affordable group events, and partnerships with mountains and other organizations, we're building a community where people can get into snow sports, improve their skills, and find people to ride with.",
     ],
   },
+  image(
+    "about_story_photo",
+    "about_story",
+    "about_story:story",
+    "Our Story photo",
+    "Photo alongside the Our Story section on the About page.",
+  ),
 
   // About: Mission & Values ------------------------------------------------------
   {
@@ -654,6 +720,20 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
       "A dedicated LGBTQ+ space changes that. It gives people a lower-pressure way to try skiing or snowboarding for the first time, surrounded by others who understand what it's like to walk into a lodge or a lift line without knowing if they'll be accepted. It also means there's a community to come back to season after season, not just a single event.",
     ],
   },
+  image(
+    "about_mission_photo",
+    "about_mission",
+    "about_mission:values",
+    "Our Mission photo",
+    "Photo alongside the Our Values section on the Mission page.",
+  ),
+  image(
+    "about_mission_bottom_photo",
+    "about_mission",
+    "about_mission:why",
+    "Mission page — bottom photo",
+    "Photo shown at the bottom of the Mission page, below the Why LGBTQ+ Snow Sports section.",
+  ),
 
   // About: Meet the Team ---------------------------------------------------------
   {
@@ -724,6 +804,41 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     type: "text",
     default: "Bio coming soon.",
   },
+  image(
+    "about_team_hero_photo",
+    "about_team",
+    "about_team:team",
+    "Meet the Team — top photo",
+    "Photo between the Meet the Team heading and the team member cards.",
+  ),
+  image(
+    "about_team_photo_cass",
+    "about_team",
+    "about_team:team",
+    "Team photo — Cass Lainez",
+    "Cass Lainez's photo on the Meet the Team page. A team member's Image slot field names it as about_team_photo_cass.",
+  ),
+  image(
+    "about_team_photo_rickie",
+    "about_team",
+    "about_team:team",
+    "Team photo — Rickie Cruz",
+    "Rickie Cruz's photo on the Meet the Team page. A team member's Image slot field names it as about_team_photo_rickie.",
+  ),
+  image(
+    "about_team_photo_sofie",
+    "about_team",
+    "about_team:team",
+    "Team photo — Sofie Chavez",
+    "Sofie Chavez's photo on the Meet the Team page. A team member's Image slot field names it as about_team_photo_sofie.",
+  ),
+  image(
+    "about_team_photo",
+    "about_team",
+    "about_team:team",
+    "Team member photo",
+    "Shown for any team member who doesn't have their own photo.",
+  ),
 
   // Events ----------------------------------------------------------------------
   {
@@ -875,6 +990,13 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     default:
       "Snow sports 101 — orientation basics for anyone new to skiing or riding. Looking for equipment size charts specifically? Check the",
   },
+  image(
+    "learn_photo",
+    "learn",
+    "learn:opening",
+    "Learn section photo",
+    "Photo shown at the bottom of every Learn page (the Learn index and each category page).",
+  ),
 
   // Gear ------------------------------------------------------------------------
   {
@@ -984,6 +1106,27 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     default:
       "We periodically run gear drives and swap events where the community can donate, trade, and pick up gear in person. See",
   },
+  image(
+    "gear_placeholder",
+    "gears",
+    "gears:library",
+    "Gear placeholder",
+    "Shown in the gear library for any gear item that doesn't have its own photo.",
+  ),
+  image(
+    "gears_donate_photo",
+    "gears",
+    "gears:donate",
+    "Donate gear page photo",
+    "Photo on the Donate Gear page.",
+  ),
+  image(
+    "gears_donate_bottom_photo",
+    "gears",
+    "gears:drives",
+    "Donate gear page — bottom photo",
+    "Photo at the bottom of the Donate Gear page, below Gear drives.",
+  ),
 
   // Get involved ----------------------------------------------------------------
   {
@@ -1114,6 +1257,55 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     type: "text",
     default: "Check back soon for open volunteer roles.",
   },
+  image(
+    "get_involved_hero_1",
+    "get_involved",
+    "get_involved:opening",
+    "Get Involved — hero image 1",
+    "Large hero image at the top of the Get Involved page.",
+  ),
+  image(
+    "get_involved_hero_2",
+    "get_involved",
+    "get_involved:opening",
+    "Get Involved — hero image 2",
+    "Small hero image at the top of the Get Involved page.",
+  ),
+  image(
+    "get_involved_hero_3",
+    "get_involved",
+    "get_involved:opening",
+    "Get Involved — hero image 3",
+    "Small hero image at the top of the Get Involved page.",
+  ),
+  image(
+    "get_involved_attend_photo",
+    "get_involved",
+    "get_involved:attend",
+    "Attend page photo",
+    "Photo on the Attend page.",
+  ),
+  image(
+    "get_involved_community_photo",
+    "get_involved",
+    "get_involved:community",
+    "Attend page — community photo",
+    "Photo alongside the Join the Community section on the Attend page.",
+  ),
+  image(
+    "get_involved_partner_photo",
+    "get_involved",
+    "get_involved:partner",
+    "Partner page photo",
+    "Photo on the Become a Partner page.",
+  ),
+  image(
+    "get_involved_volunteer_photo",
+    "get_involved",
+    "get_involved:volunteer",
+    "Volunteer page photo",
+    "Photo on the Volunteer page.",
+  ),
 
   // Support ---------------------------------------------------------------------
   {
@@ -1256,6 +1448,27 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     type: "text",
     default: "Talk to us about sponsoring",
   },
+  image(
+    "donations_photo",
+    "support",
+    "support:donations",
+    "Donations page photo",
+    "Photo at the bottom of the Donations page.",
+  ),
+  image(
+    "sponsorship_photo_1",
+    "support",
+    "support:sponsorship",
+    "Sponsorship page — photo 1",
+    "First of two small photos at the bottom of the Sponsorship page.",
+  ),
+  image(
+    "sponsorship_photo_2",
+    "support",
+    "support:sponsorship",
+    "Sponsorship page — photo 2",
+    "Second of two small photos at the bottom of the Sponsorship page.",
+  ),
 
   // Contact ---------------------------------------------------------------------
   {
@@ -1275,6 +1488,27 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     default:
       "Questions, ideas, or want to get involved? Send us a message and we'll get back to you.",
   },
+  image(
+    "contact_photo_1",
+    "contact",
+    "contact:opening",
+    "Contact page — photo 1",
+    "First of three photos at the bottom of the Contact page.",
+  ),
+  image(
+    "contact_photo_2",
+    "contact",
+    "contact:opening",
+    "Contact page — photo 2",
+    "Second of three photos at the bottom of the Contact page.",
+  ),
+  image(
+    "contact_photo_3",
+    "contact",
+    "contact:opening",
+    "Contact page — photo 3",
+    "Third of three photos at the bottom of the Contact page.",
+  ),
 
   // Legal -----------------------------------------------------------------------
   {
@@ -1383,6 +1617,8 @@ export function isValidSlotValue(slot: ContentSlot, value: unknown): boolean {
       );
     case "document":
       return isLegalDocument(value);
+    case "image":
+      return typeof value === "string" && value.trim() !== "";
   }
 }
 
@@ -1392,6 +1628,8 @@ export type SiteContent = {
   paragraphs(key: string): string[];
   list<T extends ListItem = ListItem>(key: string): T[];
   document(key: string): LegalDocumentContent | null;
+  /** The stored URL, unresolved; the public site reads images through `getSiteImageUrls()` instead. */
+  image(key: string): string | null;
   /** Which slots are set for this tenant, for the editor. */
   overrides: ReadonlySet<string>;
 };
@@ -1423,6 +1661,7 @@ export function resolveSiteContent(
     paragraphs: (key) => read<string[]>(key, "paragraphs"),
     list: <T extends ListItem>(key: string) => read<T[]>(key, "list"),
     document: (key) => read<LegalDocumentContent | null>(key, "document"),
+    image: (key) => read<string | null>(key, "image"),
     overrides: new Set(values.keys()),
   };
 }

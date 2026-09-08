@@ -355,7 +355,13 @@ beforeAll(async () => {
       // `service` has no session, so `default_tenant_id()` resolves nothing
       // and the tenant has to be named.
       tenant_id: tenantA,
-      key: "home.heading",
+      // A key outside the slot registry, and unique per run. Since #795
+      // rollout step 3 the seeded tenant owns its copy, so every registry key
+      // already has a row in A and a fixture on one would collide on
+      // (tenant_id, key). What this fixture is for is a row in A that B must
+      // not be able to read, and any key does that. The first eight characters
+      // of a UUID are hex, so the key still satisfies the table's format check.
+      key: `home.isolation_probe_${run}`,
       value: `Isolation heading ${run}`,
     },
     service,

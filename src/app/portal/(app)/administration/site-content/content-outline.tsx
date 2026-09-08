@@ -282,7 +282,9 @@ export function ContentOutline({
                                 entry.overridden && (
                                   <span
                                     className="size-1.5 shrink-0 rounded-full bg-[var(--purple)]"
-                                    aria-label="Your text"
+                                    aria-label={
+                                      entry.image ? "Your image" : "Your text"
+                                    }
                                   />
                                 )
                               )}

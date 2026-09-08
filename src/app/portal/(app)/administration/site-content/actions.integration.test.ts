@@ -35,6 +35,14 @@ afterEach(async () => {
 
 describe("saving a draft", () => {
   test("stages the copy without changing what the public site serves", async () => {
+    // Read what is published first rather than assuming nothing is: since #795
+    // rollout step 3 the seeded tenant owns its copy, so this slot arrives with
+    // a published value. "Unchanged" is the claim either way, and asserting it
+    // that way is what makes the test true of a published slot and an unwritten
+    // one alike.
+    const before = await currentRow();
+    const publishedBefore = before?.value ?? null;
+
     const { error } = await adminClient.rpc("save_site_content_drafts", {
       p_entries: [{ key: KEY, value: "A draft heading" }],
     });
@@ -43,13 +51,15 @@ describe("saving a draft", () => {
     const row = await currentRow();
     expect(row?.has_draft).toBe(true);
     expect(row?.draft_value).toBe("A draft heading");
-    expect(row?.value).toBeNull();
+    expect(row?.value ?? null).toEqual(publishedBefore);
 
     const { data: publicRows } = await anonClient()
       .from("public_site_content")
-      .select("key")
+      .select("key, value")
       .eq("key", KEY);
-    expect(publicRows).toEqual([]);
+    expect(publicRows).toEqual(
+      publishedBefore === null ? [] : [{ key: KEY, value: publishedBefore }],
+    );
   });
 
   test("stamps who drafted it, whatever the caller sends", async () => {
@@ -178,6 +188,56 @@ describe("permissions", () => {
       p_keys: [KEY],
     });
     expect(error).not.toBeNull();
+  });
+});
+
+// The photos are slots in this table since #812, and the public pages read
+// them through `public_site_images` -- so a photo, like a sentence, must be
+// invisible to the site while it is only a draft and gone again when the slot
+// is published back to its default.
+describe("image slots", () => {
+  const IMAGE_KEY = "site_images.gear_placeholder";
+  const URL = "https://example.test/gear.jpg";
+
+  async function publicImage() {
+    const { data, error } = await anonClient()
+      .from("public_site_images")
+      .select("slot, value")
+      .eq("slot", "gear_placeholder");
+    if (error) throw error;
+    return data;
+  }
+
+  afterEach(async () => {
+    await service.from("site_content").delete().eq("key", IMAGE_KEY);
+  });
+
+  test("a drafted photo is not on the site until it is published", async () => {
+    const { error } = await adminClient.rpc("save_site_content_drafts", {
+      p_entries: [{ key: IMAGE_KEY, value: URL }],
+    });
+    expect(error).toBeNull();
+    expect(await publicImage()).toEqual([]);
+
+    await adminClient.rpc("publish_site_content", { p_keys: [IMAGE_KEY] });
+    expect(await publicImage()).toEqual([
+      { slot: "gear_placeholder", value: URL },
+    ]);
+
+    await adminClient.rpc("save_site_content_drafts", {
+      p_entries: [{ key: IMAGE_KEY, value: null }],
+    });
+    await adminClient.rpc("publish_site_content", { p_keys: [IMAGE_KEY] });
+    expect(await publicImage()).toEqual([]);
+  });
+
+  test("nothing is left in app_settings, where the photos used to live", async () => {
+    const { data, error } = await service
+      .from("app_settings")
+      .select("key")
+      .like("key", "site_images.%");
+    expect(error).toBeNull();
+    expect(data).toEqual([]);
   });
 });
 

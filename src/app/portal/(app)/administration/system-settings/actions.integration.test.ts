@@ -26,7 +26,7 @@ mock.module("@/lib/supabase/server", () => ({
 // admin.ts imports "server-only" -- stub it so this plain `bun test` run can
 // import the real module. Needed here because app_settings grants
 // authenticated only insert/update, never delete (see the comment on
-// updateSiteImageAction) -- the service-role client is the only way to clean
+// updateBrandingAction) -- the service-role client is the only way to clean
 // up a test-only key or restore a shared one to its original value.
 mock.module("server-only", () => ({}));
 const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
@@ -36,7 +36,6 @@ const {
   updateAppSettingAction,
   updateExpenseApprovalThresholdAction,
   updateReimbursementApprovalThresholdAction,
-  updateSiteImageAction,
   updateEmailNotificationsEnabledAction,
 } = await import("./actions");
 
@@ -63,12 +62,6 @@ async function deleteSetting(key: string) {
 function thresholdForm(value: string) {
   const fd = new FormData();
   fd.set("threshold", value);
-  return fd;
-}
-
-function siteImageForm(url: string) {
-  const fd = new FormData();
-  fd.set("url", url);
   return fd;
 }
 
@@ -122,7 +115,7 @@ describe("administration/system-settings actions (integration)", () => {
     ).toEqual(DENIED);
   });
 
-  test("admin can update a generic setting, both thresholds and a site image", async () => {
+  test("admin can update a generic setting and both thresholds", async () => {
     currentSupabase = await signInAs(SEEDED_USERS.admin);
 
     expect(
@@ -168,17 +161,6 @@ describe("administration/system-settings actions (integration)", () => {
         ).toBe(600);
       },
     );
-
-    expect(
-      await updateSiteImageAction(
-        "gear_placeholder",
-        siteImageForm("https://example.test/gear.jpg"),
-      ),
-    ).toEqual({ success: true });
-    expect(await settingValue("site_images.gear_placeholder")).toBe(
-      "https://example.test/gear.jpg",
-    );
-    await deleteSetting("site_images.gear_placeholder");
   });
 
   // system_settings is admin AND board (both 'manage') -- unlike every other
@@ -217,12 +199,9 @@ describe("administration/system-settings actions (integration)", () => {
       expect(
         await updateReimbursementApprovalThresholdAction(thresholdForm("600")),
       ).toEqual(DENIED);
-      expect(
-        await updateSiteImageAction(
-          "gear_placeholder",
-          siteImageForm("https://example.test/denied.jpg"),
-        ),
-      ).toEqual(DENIED);
+      expect(await updateEmailNotificationsEnabledAction(false)).toEqual(
+        DENIED,
+      );
 
       expect(await settingValue(key)).toBeUndefined();
     });

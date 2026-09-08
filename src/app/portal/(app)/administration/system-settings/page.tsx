@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { SITE_IMAGE_SLOTS, siteImageSettingKey } from "@/lib/site-images";
 import { PUBLIC_PAGE_SLOTS, getPageVisibility } from "@/lib/page-visibility";
 import { SystemSettingsForm } from "./system-settings-form";
-import { SiteImagesPanel } from "./site-images-panel";
 import { PageVisibilityPanel } from "./page-visibility-panel";
 import { NotificationsPanel } from "./notifications-panel";
 import { OrganizationSettingsPanel } from "./organization-settings-panel";
@@ -34,7 +32,6 @@ export default async function SystemSettingsPage() {
   const [
     { data: expenseSetting },
     { data: reimbursementSetting },
-    { data: siteImageSettings },
     { data: opsReportSetting },
   ] = await Promise.all([
     supabase
@@ -47,10 +44,6 @@ export default async function SystemSettingsPage() {
       .select("value")
       .eq("key", "finance.reimbursement_approval_threshold")
       .maybeSingle(),
-    supabase
-      .from("app_settings")
-      .select("key, value")
-      .like("key", "site_images.%"),
     supabase
       .from("app_settings")
       .select("value")
@@ -73,14 +66,6 @@ export default async function SystemSettingsPage() {
   ]);
   const orgName = currentTenant(tenantContext)?.name ?? "this organization";
 
-  const siteImageUrls: Record<string, string | null> = {};
-  for (const slot of SITE_IMAGE_SLOTS) {
-    const row = siteImageSettings?.find(
-      (setting) => setting.key === siteImageSettingKey(slot.key),
-    );
-    siteImageUrls[slot.key] = typeof row?.value === "string" ? row.value : null;
-  }
-
   return (
     <>
       <div className="w-fit">
@@ -99,7 +84,6 @@ export default async function SystemSettingsPage() {
             <TabsTrigger value="organization">Organization</TabsTrigger>
             <TabsTrigger value="workflow">Workflow settings</TabsTrigger>
             <TabsTrigger value="branding">Branding</TabsTrigger>
-            <TabsTrigger value="images">Image settings</TabsTrigger>
             <TabsTrigger value="visibility">Page visibility</TabsTrigger>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="data">Data</TabsTrigger>
@@ -140,15 +124,6 @@ export default async function SystemSettingsPage() {
             is recorded in the audit log.
           </p>
           <BrandingPanel branding={branding} />
-        </TabsContent>
-
-        <TabsContent value="images" className="mt-6 space-y-4">
-          <p className="app-muted max-w-3xl text-sm leading-relaxed">
-            Set a Google Drive image for each placeholder slot on the public
-            site. Leave a slot blank to fall back to the default icon
-            placeholder.
-          </p>
-          <SiteImagesPanel slots={SITE_IMAGE_SLOTS} urls={siteImageUrls} />
         </TabsContent>
 
         <TabsContent value="visibility" className="mt-6 space-y-4">

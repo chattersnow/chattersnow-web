@@ -51,8 +51,8 @@ into:
   category vocabulary, the agenda templates and the content brief templates,
   current versions included;
 - the platform-default settings (`finance.*`, `content.*`, `org.*`), and
-  nothing else from the template's `app_settings` -- not its images, page
-  visibility, branding or site content;
+  nothing else from the template's `app_settings` -- not its page visibility
+  or branding, and nothing from `site_content` (copy or photos);
 - a staged `pending_role_grants` row for `--admin`, which
   `claim_pending_role_grants()` turns into the admin role and the membership
   the first time that address signs in.
@@ -141,7 +141,10 @@ Both are the tenant admin's, not the operator's:
   slots and Chatter Snow's copy as each default is `src/lib/site-content.ts`;
   a new tenant renders that until it rewrites a slot. The three legal pages
   are published whole as structured documents under `legal.*` -- a tenant
-  either publishes its own or the platform's renders.
+  either publishes its own or the platform's renders. The site's photos are
+  slots here too (`site_images.*`, a Google Drive link each, blank for the
+  placeholder icon), edited beside the copy they sit next to and published
+  the same way; a new tenant starts with placeholders everywhere.
 
 The `site_content` resource is separate from `administration`, so writing
 for the site can be granted to a role without handing it the rest.

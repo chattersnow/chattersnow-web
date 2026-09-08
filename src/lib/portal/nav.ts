@@ -412,9 +412,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
         access: [{ resource: "site_content", level: "view" }],
       },
       // Gated on its own resource, which the platform RPCs only honour inside
-      // a tenant on the internal plan (#707 Phase 5c) -- so the entry simply
-      // does not resolve for a customer's admin, and needs no nav logic of its
-      // own to stay hidden.
+      // a tenant on the internal plan (#707 Phase 5c). The plan half of that
+      // gate is enforced in my_permissions(), which reports `platform_tenants`
+      // as `none` unless is_platform_operator() holds -- so this needs no nav
+      // logic of its own to stay hidden. It did until #795: the resource was
+      // granted to every tenant's `admin` role as an inert grant, and the nav
+      // dutifully showed a link to a page that then refused to load.
       {
         value: "platform",
         label: "Platform",

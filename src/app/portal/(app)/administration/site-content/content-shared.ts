@@ -80,6 +80,8 @@ export function readSlot(slot: ContentSlot, content: SiteContent): unknown {
       return content.list(slot.key);
     case "document":
       return content.document(slot.key);
+    case "image":
+      return content.image(slot.key);
   }
 }
 
@@ -100,6 +102,8 @@ export type OutlineEntry = {
   section: string;
   key: string;
   label: string;
+  /** Whether the slot is a photo rather than copy, for the rail's wording. */
+  image: boolean;
   /** Whether the tenant has set this slot, rather than taking the default. */
   overridden: boolean;
   /** Whether the slot carries a draft the public site has not seen yet. */
@@ -137,6 +141,9 @@ export function slotText(slot: ContentSlot, content: SiteContent): string {
       return listText(content.list(slot.key));
     case "document":
       return documentText(content.document(slot.key));
+    case "image":
+      // The label is what a photo is found by; the URL lets a Drive id match.
+      return content.image(slot.key) ?? "";
   }
 }
 
@@ -150,6 +157,7 @@ export function buildOutline(
     section: slot.section,
     key: slot.key,
     label: slot.label,
+    image: slot.type === "image",
     overridden: published.overrides.has(slot.key),
     hasDraft: draftKeys.has(slot.key),
     // Search runs over the copy being edited rather than the published copy:
