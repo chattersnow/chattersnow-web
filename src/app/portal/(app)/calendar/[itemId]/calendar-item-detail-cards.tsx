@@ -9,7 +9,6 @@ import {
   updateCalendarItemAction,
 } from "../actions";
 import {
-  CATEGORIES,
   CALENDAR_STATUSES,
   DECISIONS,
   ITEM_TYPES,
@@ -24,6 +23,7 @@ import {
   type CalendarOwner,
   type CalendarProgram,
 } from "../calendar-shared";
+import type { CalendarCategory } from "../calendar-shared";
 import { PersonSelect } from "../../people/person-select";
 import {
   CalendarStatusBadge,
@@ -451,12 +451,15 @@ export function PlanningDecisionCard({
   programs,
   programSuggestionRules,
   canManage,
+  categoryVocabulary,
 }: {
   item: CalendarItemRow;
   owners: CalendarOwner[];
   programs: CalendarProgram[];
   programSuggestionRules: ProgramSuggestionRule[];
   canManage: boolean;
+  /** The tenant's category vocabulary (#834). */
+  categoryVocabulary: CalendarCategory[];
 }) {
   const card = useCalendarItemCardForm(item, "Planning & decision");
   const { form, update, toggleListValue } = card;
@@ -500,7 +503,10 @@ export function PlanningDecisionCard({
             </ReadOnlyField>
           </Field>
           <ReadOnlyField label="Categories" htmlFor="item-categories">
-            <CategoryBadges categories={item.categories} />
+            <CategoryBadges
+              categories={item.categories}
+              vocabulary={categoryVocabulary}
+            />
           </ReadOnlyField>
           <ReadOnlyField
             label="Related programs"
@@ -634,7 +640,7 @@ export function PlanningDecisionCard({
                 Categories
               </FieldLabel>
               <div id="edit-categories-group" className="flex flex-col gap-2">
-                {CATEGORIES.map((category) => (
+                {categoryVocabulary.map((category) => (
                   <label
                     key={category.value}
                     className="flex items-center gap-2 text-sm"

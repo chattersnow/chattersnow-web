@@ -55,6 +55,7 @@ function renderView(
 ) {
   return render(
     <CalendarItemDetailView
+      categoryVocabulary={[]}
       item={item}
       owners={[]}
       programs={[]}

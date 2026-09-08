@@ -4,7 +4,8 @@ import {
   type StatusTone,
 } from "@/components/portal/status-badge";
 import { AlertTriangle, CalendarDays, Clock, ShieldAlert } from "lucide-react";
-import { CATEGORIES, DECISIONS, labelFor } from "./calendar-shared";
+import { DECISIONS, labelFor } from "./calendar-shared";
+import type { CalendarCategory } from "./calendar-shared";
 
 const CALENDAR_STATUS_STYLES: Record<string, StatusTone> = {
   idea: "neutral",
@@ -88,14 +89,25 @@ export function DecisionBadge({ decision }: { decision: string | null }) {
   );
 }
 
-export function CategoryBadges({ categories }: { categories: string[] }) {
+export function CategoryBadges({
+  categories,
+  vocabulary,
+}: {
+  categories: string[];
+  /**
+   * The tenant's category rows (#834). `labelFor` falls back to the raw key, so
+   * an item tagged with a category that has since been deactivated still
+   * renders something rather than disappearing.
+   */
+  vocabulary: CalendarCategory[];
+}) {
   if (categories.length === 0)
     return <span className="app-muted text-sm">—</span>;
   return (
     <div className="flex flex-wrap gap-1">
       {categories.map((category) => (
         <StatusBadge key={category} tone="neutral">
-          {labelFor(CATEGORIES, category)}
+          {labelFor(vocabulary, category)}
         </StatusBadge>
       ))}
     </div>

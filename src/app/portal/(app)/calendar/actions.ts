@@ -4,9 +4,19 @@ import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseCalendarItemForm } from "./calendar-item-form";
+import { listCalendarCategories } from "./queries";
 import { checkPermission } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
 import type { CalendarOwner } from "./calendar-shared";
+
+/**
+ * The tenant's category keys, for the form parsers. Read on every submit rather
+ * than cached: the vocabulary is editable (#834), and validating against a
+ * stale list would reject a category someone had just added.
+ */
+async function validCategoryKeys(supabase: SupabaseClient): Promise<string[]> {
+  return (await listCalendarCategories(supabase)).map((c) => c.value);
+}
 
 export type CalendarActionResult =
   { error: string } | { success: true; warning?: string };
@@ -116,7 +126,10 @@ export async function createCalendarItemAction(
   );
   if (permissionError) return permissionError;
 
-  const parsed = parseCalendarItemForm(formData);
+  const parsed = parseCalendarItemForm(
+    formData,
+    await validCategoryKeys(supabase),
+  );
   if ("error" in parsed) return parsed;
   const {
     title,
@@ -204,7 +217,10 @@ export async function updateCalendarItemAction(
   );
   if (permissionError) return permissionError;
 
-  const parsed = parseCalendarItemForm(formData);
+  const parsed = parseCalendarItemForm(
+    formData,
+    await validCategoryKeys(supabase),
+  );
   if ("error" in parsed) return parsed;
   const {
     title,

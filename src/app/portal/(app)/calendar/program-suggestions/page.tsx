@@ -6,6 +6,7 @@ import { NewSuggestionRuleDialog } from "./new-suggestion-rule-dialog";
 import type { SuggestionRuleListRow } from "./suggestion-rule-details-sheet";
 import { SuggestionRulesTable } from "./suggestion-rules-table";
 import { listProgramsAction } from "../../programs/actions";
+import { listCalendarCategories } from "../queries";
 
 export const metadata: Metadata = {
   title: "Program Suggestions",
@@ -13,6 +14,7 @@ export const metadata: Metadata = {
 
 export default async function ProgramSuggestionRulesPage() {
   const supabase = await createSupabaseServerClient();
+  const categoryVocabulary = await listCalendarCategories(supabase);
   const permissions = await requirePermission(
     supabase,
     "content_calendar",
@@ -57,12 +59,16 @@ export default async function ProgramSuggestionRulesPage() {
           </Card>
         ) : (
           <SuggestionRulesTable
+            categoryVocabulary={categoryVocabulary}
             rules={rules}
             programs={programs}
             canManage={canManage}
             newAction={
               canManage ? (
-                <NewSuggestionRuleDialog programs={programs} />
+                <NewSuggestionRuleDialog
+                  categoryVocabulary={categoryVocabulary}
+                  programs={programs}
+                />
               ) : undefined
             }
           />

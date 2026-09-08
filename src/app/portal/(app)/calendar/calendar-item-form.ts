@@ -1,5 +1,4 @@
 import {
-  CATEGORIES,
   CALENDAR_STATUSES,
   DECISIONS,
   ITEM_TYPES,
@@ -9,7 +8,6 @@ import type { ParseResult } from "@/lib/forms";
 import { datetimeLocalToUtcIso } from "@/lib/time";
 
 const ITEM_TYPE_VALUES = ITEM_TYPES.map((option) => option.value);
-const CATEGORY_VALUES = CATEGORIES.map((option) => option.value);
 const CALENDAR_STATUS_VALUES = CALENDAR_STATUSES.map((option) => option.value);
 const VISIBILITY_VALUES = VISIBILITIES.map((option) => option.value);
 const DECISION_VALUES = DECISIONS.map((option) => option.value);
@@ -35,8 +33,16 @@ export type CalendarItemFormData = {
   toneGuidance: string | null;
 };
 
+/**
+ * `validCategories` is the tenant's own category keys, passed in rather than
+ * imported: since #834 the vocabulary is per-tenant, so there is no constant to
+ * validate against and this function stays pure and testable. The database FK
+ * is the real authority; this is the check that produces a readable error
+ * instead of a constraint violation.
+ */
 export function parseCalendarItemForm(
   formData: FormData,
+  validCategories: readonly string[],
 ): ParseResult<CalendarItemFormData> {
   const title = String(formData.get("title") ?? "").trim();
   const itemType = String(formData.get("itemType") ?? "");
@@ -86,9 +92,7 @@ export function parseCalendarItemForm(
     return { error: "Select a valid visibility." };
   }
   for (const category of categories) {
-    if (
-      !CATEGORY_VALUES.includes(category as (typeof CATEGORY_VALUES)[number])
-    ) {
+    if (!validCategories.includes(category)) {
       return { error: "Select valid categories." };
     }
   }

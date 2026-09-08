@@ -19,7 +19,16 @@ import { bulkImportCalendarItemsAction } from "./actions";
 import { Spinner } from "@/components/ui/spinner";
 import { runAction } from "@/components/portal/action-toast";
 
-export function CsvImportPanel() {
+export function CsvImportPanel({
+  categoryKeys,
+}: {
+  /**
+   * The tenant's category keys, for validating the pasted CSV before it is
+   * submitted (#834). The server re-validates against the same list -- this is
+   * the preview step, not the gate.
+   */
+  categoryKeys: string[];
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [source, setSource] = useState("");
@@ -38,7 +47,7 @@ export function CsvImportPanel() {
 
   function handleParse() {
     setSubmitError(null);
-    const { rows: parsedRows } = parseCalendarImportCsv(csvText);
+    const { rows: parsedRows } = parseCalendarImportCsv(csvText, categoryKeys);
     setRows(parsedRows);
   }
 
@@ -48,7 +57,7 @@ export function CsvImportPanel() {
     const text = await file.text();
     setCsvText(text);
     setSubmitError(null);
-    const { rows: parsedRows } = parseCalendarImportCsv(text);
+    const { rows: parsedRows } = parseCalendarImportCsv(text, categoryKeys);
     setRows(parsedRows);
   }
 

@@ -4,10 +4,10 @@ import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createCalendarItemAction } from "./actions";
 import { ownerOptions } from "./calendar-shared";
+import type { CalendarCategory } from "./calendar-shared";
 import type { CalendarOwner, CalendarProgram } from "./calendar-shared";
 import { PersonSelect } from "../people/person-select";
 import {
-  CATEGORIES,
   CALENDAR_STATUSES,
   DECISIONS,
   ITEM_TYPES,
@@ -72,10 +72,13 @@ export function NewCalendarItemDialog({
   owners,
   programs,
   programSuggestionRules,
+  categoryVocabulary,
 }: {
   owners: CalendarOwner[];
   programs: CalendarProgram[];
   programSuggestionRules: ProgramSuggestionRule[];
+  /** The tenant's category vocabulary (#834). */
+  categoryVocabulary: CalendarCategory[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -368,7 +371,7 @@ export function NewCalendarItemDialog({
             <Field>
               <FieldLabel htmlFor="categories-group">Categories</FieldLabel>
               <div id="categories-group" className="flex flex-col gap-2">
-                {CATEGORIES.map((category) => (
+                {categoryVocabulary.map((category) => (
                   <label
                     key={category.value}
                     className="flex items-center gap-2 text-sm"

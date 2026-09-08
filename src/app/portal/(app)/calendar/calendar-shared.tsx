@@ -20,14 +20,16 @@ export const ITEM_TYPES = [
   { value: "content_opportunity", label: "Content opportunity" },
 ] as const;
 
-export const CATEGORIES = [
-  { value: "lgbtq_community", label: "LGBTQ+ community" },
-  { value: "winter_outdoor_sports", label: "Winter & outdoor sports" },
-  { value: "community_social_justice", label: "Community & social justice" },
-  { value: "own_events", label: "Our events" },
-  { value: "campaigns_fundraising", label: "Campaigns & fundraising" },
-  { value: "partner_opportunities", label: "Partner opportunities" },
-] as const;
+/**
+ * A category as this tenant words it, read from `calendar_categories` (#834).
+ *
+ * This was a six-entry constant, which meant every tenant's portal offered one
+ * organization's vocabulary. It carries `value`/`label` rather than
+ * `key`/`label` so it drops straight into `labelFor()` and the option lists
+ * beside ITEM_TYPES, PRIORITY_TIERS and the rest, which are still the
+ * platform's to define and stay constants.
+ */
+export type CalendarCategory = { value: string; label: string };
 
 export const PRIORITY_TIERS = [
   { value: "1", label: "Tier 1" },

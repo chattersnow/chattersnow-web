@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { CalendarItemRow } from "./calendar-shared";
+import type { CalendarCategory, CalendarItemRow } from "./calendar-shared";
 import type { CalendarEventRow } from "./calendar-entries";
 import {
   findMissingCoverageSeries,
@@ -333,4 +333,28 @@ export async function listCalendarEvents(
     })),
     error: false,
   };
+}
+
+/**
+ * The current tenant's active calendar categories, in their order (#834).
+ *
+ * RLS scopes this to the caller's tenant, so there is no tenant filter here --
+ * the same shape every other portal query has. Inactive rows are left out:
+ * a deactivated category must stop being offered as a choice, while items
+ * already tagged with it keep rendering through `labelFor()`.
+ */
+export async function listCalendarCategories(
+  supabase: SupabaseClient,
+): Promise<CalendarCategory[]> {
+  const { data, error } = await supabase
+    .from("calendar_categories")
+    .select("key, label")
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true });
+
+  if (error) {
+    console.error("[calendar] could not read calendar_categories", error);
+    return [];
+  }
+  return (data ?? []).map((row) => ({ value: row.key, label: row.label }));
 }

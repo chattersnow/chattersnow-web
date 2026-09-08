@@ -8,6 +8,7 @@ import {
   parseCalendarImportRow,
   type CalendarImportRow,
 } from "./calendar-import-row";
+import { listCalendarCategories } from "../queries";
 
 export type BulkImportResult =
   { error: string } | { success: true; insertedCount: number };
@@ -43,7 +44,13 @@ export async function bulkImportCalendarItemsAction(
   if (rows.length === 0) return { error: "No rows to import." };
 
   // Never trust client-only validation -- re-validate every row against the
-  // same rules the preview step used before it's allowed to reach the DB.
+  // same rules the preview step used before it's allowed to reach the DB. The
+  // vocabulary is read here rather than taken from the client for the same
+  // reason (#834): the browser's copy is whatever it was sent, and a category
+  // may have been deactivated since.
+  const categoryKeys = (await listCalendarCategories(supabase)).map(
+    (category) => category.value,
+  );
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     const revalidated = parseCalendarImportRow(
@@ -59,6 +66,7 @@ export async function bulkImportCalendarItemsAction(
         region: row.region ?? undefined,
       },
       i + 1,
+      categoryKeys,
     );
     if ("error" in revalidated) return { error: revalidated.error };
   }
