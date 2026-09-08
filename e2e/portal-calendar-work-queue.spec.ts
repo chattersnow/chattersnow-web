@@ -19,6 +19,7 @@ import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { modal } from "./helpers/dialog";
 import { pager, revealRow } from "./helpers/table";
+import { portalMain } from "./helpers/regions";
 
 const SEEDED_OPPORTUNITY = "Winter Gear Swap Promotion";
 const SEEDED_OBSERVANCE = "Sample Recurring Observance";
@@ -139,7 +140,7 @@ test.describe("portal calendar work queue", () => {
     ).toBeVisible();
     // ReadOnlyField renders a labelled <div>, not a form control, so this
     // reads the value by its id rather than by label.
-    await expect(page.locator("#brief-outstanding")).toContainText(
+    await expect(portalMain(page).locator("#brief-outstanding")).toContainText(
       "Confirm final registration link and accessibility details.",
     );
   });

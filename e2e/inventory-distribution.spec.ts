@@ -8,6 +8,7 @@
 import { test, expect } from "./helpers/test";
 import { reloadStayingSignedIn, signIn } from "./helpers/auth";
 import { modal } from "./helpers/dialog";
+import { portalMain } from "./helpers/regions";
 
 test.describe("portal inventory distribution", () => {
   test.beforeEach(async ({ page }) => {
@@ -113,7 +114,9 @@ test.describe("portal inventory distribution", () => {
     await expect(editSheet).not.toBeVisible();
 
     await expect(page.getByText("E2E updated reason")).toBeVisible();
-    await expect(page.locator("#distribution-quantity-view")).toHaveText("3");
+    await expect(
+      portalMain(page).locator("#distribution-quantity-view"),
+    ).toHaveText("3");
 
     // The breadcrumb trail returns to the list. Scoped to the breadcrumb nav:
     // the sidebar has its own "Distribution" nav entry.

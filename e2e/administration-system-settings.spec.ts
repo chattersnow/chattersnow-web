@@ -1,6 +1,7 @@
 import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
+import { portalMain } from "./helpers/regions";
 
 const EXPENSE_THRESHOLD_KEY = "finance.expense_approval_threshold";
 
@@ -34,7 +35,7 @@ test.describe("portal administration system settings", () => {
     await expect(
       page.getByText("Reimbursement approval threshold"),
     ).toBeVisible();
-    await expect(page.locator("#expense-threshold")).toBeVisible();
+    await expect(portalMain(page).locator("#expense-threshold")).toBeVisible();
 
     await page.getByRole("tab", { name: "Image settings" }).click();
     await expect(page.getByText("Edit image")).toBeVisible();
@@ -72,7 +73,10 @@ test.describe("portal administration system settings", () => {
       await page.goto("/portal/administration/system-settings");
       await page.getByRole("tab", { name: "Workflow settings" }).click();
 
-      const expenseForm = page
+      // `has:` is matched relative to each candidate form, so its locator
+      // stays page-rooted; scoping the forms themselves is what keeps the
+      // streamed copy of the page out (see portalMain).
+      const expenseForm = portalMain(page)
         .locator("form")
         .filter({ has: page.locator("#expense-threshold") });
       await expenseForm.locator("#expense-threshold").fill("321.5");
@@ -87,7 +91,9 @@ test.describe("portal administration system settings", () => {
       // Tab state is client-side, so the reload lands back on Organization.
       await page.reload();
       await page.getByRole("tab", { name: "Workflow settings" }).click();
-      await expect(page.locator("#expense-threshold")).toHaveValue("321.5");
+      await expect(portalMain(page).locator("#expense-threshold")).toHaveValue(
+        "321.5",
+      );
     } finally {
       if (original) {
         await admin

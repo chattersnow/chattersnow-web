@@ -9,6 +9,7 @@
 import { test, expect } from "./helpers/test";
 import { reloadStayingSignedIn, signIn } from "./helpers/auth";
 import { modal } from "./helpers/dialog";
+import { portalMain } from "./helpers/regions";
 
 function uniqueSuffix() {
   return `${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
@@ -68,21 +69,23 @@ test.describe("portal calendar brief templates", () => {
     ).toBeVisible();
     // ReadOnlyField renders a labelled <div> rather than a form control, so
     // these read by id instead of by label.
-    await expect(page.locator("#template-view-key")).toHaveText(
+    await expect(portalMain(page).locator("#template-view-key")).toHaveText(
       "community_spotlight",
     );
-    await expect(page.locator("#template-view-active")).toHaveText("Yes");
-    await expect(page.locator("#template-view-requires-consent")).toHaveText(
+    await expect(portalMain(page).locator("#template-view-active")).toHaveText(
       "Yes",
     );
+    await expect(
+      portalMain(page).locator("#template-view-requires-consent"),
+    ).toHaveText("Yes");
 
     await expect(page.getByText("Current fields (v1)")).toBeVisible();
-    await expect(page.locator("#template-view-fields")).toContainText(
-      "Person or group",
-    );
-    await expect(page.locator("#template-view-fields")).toContainText(
-      "Permission to publish + usage limits",
-    );
+    await expect(
+      portalMain(page).locator("#template-view-fields"),
+    ).toContainText("Person or group");
+    await expect(
+      portalMain(page).locator("#template-view-fields"),
+    ).toContainText("Permission to publish + usage limits");
 
     // The breadcrumb trail returns to the list.
     await page
@@ -133,13 +136,13 @@ test.describe("portal calendar brief templates", () => {
       /\/portal\/calendar\/templates\/[0-9a-f-]{36}$/,
       { timeout: 15_000 },
     );
-    await expect(page.locator("#template-view-fields")).toContainText(
-      "Headline",
-    );
+    await expect(
+      portalMain(page).locator("#template-view-fields"),
+    ).toContainText("Headline");
     // Not opted into the consent gate on create.
-    await expect(page.locator("#template-view-requires-consent")).toHaveText(
-      "No",
-    );
+    await expect(
+      portalMain(page).locator("#template-view-requires-consent"),
+    ).toHaveText("No");
 
     // Editing metadata leaves the pinned version alone.
     await page.getByRole("button", { name: "Edit details" }).click();
@@ -149,9 +152,9 @@ test.describe("portal calendar brief templates", () => {
     await detailsSheet.getByRole("button", { name: "Save changes" }).click();
     await expect(detailsSheet).not.toBeVisible();
 
-    await expect(page.locator("#template-view-description")).toHaveText(
-      updatedDescription,
-    );
+    await expect(
+      portalMain(page).locator("#template-view-description"),
+    ).toHaveText(updatedDescription);
     await expect(page.getByText("Current fields (v1)")).toBeVisible();
 
     // Revising the field list publishes v2 instead of mutating v1.
@@ -164,9 +167,9 @@ test.describe("portal calendar brief templates", () => {
     await expect(fieldsSheet).not.toBeVisible();
 
     await expect(page.getByText("Current fields (v2)")).toBeVisible();
-    await expect(page.locator("#template-view-fields")).toContainText(
-      "Call to action",
-    );
+    await expect(
+      portalMain(page).locator("#template-view-fields"),
+    ).toContainText("Call to action");
 
     // Back on the list, the row picked up the new version.
     await page
