@@ -1,4 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
+import { DEFAULT_SITE_CONTENT } from "@/lib/site-content";
 import { render } from "@testing-library/react";
 import { fakePublicSiteClient } from "../../../../../test/fake-public-site-client";
 
@@ -62,7 +63,13 @@ describe("MissionPage", () => {
 
     const list = valuesSection!.querySelector("ul");
     expect(list).not.toBeNull();
-    expect(list!.textContent).toContain("Inclusion");
+    // Whatever the slot says, not a value name from one organization's copy:
+    // the defaults became prompts in #795 Phase 3, and this test is about the
+    // layout the list is given, not the words in it.
+    expect(list!.textContent).toContain(
+      DEFAULT_SITE_CONTENT.list<{ name: string }>("about_mission.values")[0]
+        .name,
+    );
   });
 
   test("keeps Why LGBTQ+ immediately after Values in document order", async () => {
