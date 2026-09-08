@@ -1,25 +1,12 @@
 export type PublicCalendarItem = {
   id: string;
   title: string;
-  item_type: string;
   starts_at: string;
   ends_at: string | null;
   time_zone: string;
   summary: string | null;
   categories: string[] | null;
   public_url: string | null;
-};
-
-export const ITEM_TYPE_LABELS: Record<string, string> = {
-  chatter_event: "Chatter event",
-  partner_event: "Partner event",
-  community_observance: "Community observance",
-  heritage_social_justice_moment: "Heritage & social justice",
-  winter_outdoor_sports_moment: "Winter & outdoor sports",
-  content_campaign: "Campaign",
-  fundraiser: "Fundraiser",
-  partner_opportunity: "Partner opportunity",
-  content_opportunity: "Opportunity",
 };
 
 export const CATEGORIES = [

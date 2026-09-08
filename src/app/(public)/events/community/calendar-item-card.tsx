@@ -1,9 +1,7 @@
 import { ExternalLink } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDateTimeInZone } from "@/lib/time";
-import { ItemTypeBadge } from "./calendar-item-badge";
-import { categoryLabel, type PublicCalendarItem } from "./calendar-shared";
+import { type PublicCalendarItem } from "./calendar-shared";
 
 const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
   dateStyle: "medium",
@@ -15,20 +13,9 @@ function formatInZone(iso: string, timeZone: string) {
 }
 
 export function CalendarItemCard({ item }: { item: PublicCalendarItem }) {
-  const categories = item.categories ?? [];
-
   return (
     <Card>
       <CardContent className="space-y-2">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <ItemTypeBadge itemType={item.item_type} />
-          {categories.map((category) => (
-            <Badge key={category} variant="outline">
-              {categoryLabel(category)}
-            </Badge>
-          ))}
-        </div>
-
         <p className="text-sm font-medium">{item.title}</p>
 
         <p className="app-muted text-xs">

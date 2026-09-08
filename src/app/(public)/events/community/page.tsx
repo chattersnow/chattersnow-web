@@ -20,7 +20,7 @@ export default async function CommunityCalendarPage() {
   const { data: items } = await supabase
     .from("public_calendar_items")
     .select(
-      "id, title, item_type, starts_at, ends_at, time_zone, summary, categories, public_url",
+      "id, title, starts_at, ends_at, time_zone, summary, categories, public_url",
     )
     .order("starts_at", { ascending: true });
 
