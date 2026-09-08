@@ -116,11 +116,29 @@ To put a tenant on its domain:
    been told about. The auth/API hostname itself stays the shared Supabase
    one; a Supabase custom domain is Pro-only and not needed.
 
+4. **Add the apex to `PORTAL_REDIRECT_HOSTS`** (Vercel → Settings →
+   Environment Variables), a comma-separated list of apex domains:
+   `chattersnow.org,example.org`. This is what makes
+   `example.org/portal/home` 308 to `portal.example.org/home`. Listing the
+   apex alone is enough — `www.example.org` matches without being named, and
+   the target is always `portal.<apex>`. Next inlines the value into the proxy
+   bundle at build time, so **a change here needs a redeploy**, not a restart.
+
 `portal.<anything>` is a portal host: `src/proxy.ts` rewrites bare paths on
-it into the `/portal` route group, exactly as it does for
-`portal.chattersnow.org`. The apex → `portal.` redirect for `/portal/*` paths
-is Chatter Snow's own, because it assumes the subdomain exists; on another
-tenant's apex, `/portal/...` simply works as a path.
+it into the `/portal` route group, for every tenant alike.
+
+The apex → `portal.` redirect is the one part that is not automatic, because
+it is a promise only the owner of a domain can make: it assumes
+`portal.<domain>` resolves, and redirecting into a subdomain nobody has
+pointed here would turn a working page into a dead one. Step 4 is where a
+tenant says they have made it. Until then — and on every preview and local
+run, where the variable is unset — `/portal/...` simply works as a path. The
+redirect is cosmetic, never a gate.
+
+This used to be two literals in `src/lib/portal/paths.ts`, `PORTAL_HOST =
+"portal.chattersnow.org"` and `PUBLIC_HOSTS = {chattersnow.org,
+www.chattersnow.org}`, which made one tenant's DNS the platform's routing
+table and sent _every_ public host to that tenant's subdomain (#795 Phase 2).
 
 Locally there is no custom domain on the Chatter Snow tenant, so everything
 resolves through the sole-active-tenant fallback. A second _active_ tenant on

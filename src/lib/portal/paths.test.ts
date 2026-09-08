@@ -1,7 +1,9 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import {
   isPortalHost,
   isPortalPathname,
+  portalRedirectHosts,
+  portalRedirectTarget,
   publicSiteLink,
   stripPortalPrefix,
   toPortalPathname,
@@ -21,6 +23,69 @@ describe("portal host recognition", () => {
     expect(isPortalHost("www.chattersnow.org")).toBe(false);
     expect(isPortalHost("portalx.example.org")).toBe(false);
     expect(isPortalHost("localhost")).toBe(false);
+  });
+});
+
+describe("portalRedirectTarget", () => {
+  const original = process.env.PORTAL_REDIRECT_HOSTS;
+
+  afterEach(() => {
+    if (original === undefined) delete process.env.PORTAL_REDIRECT_HOSTS;
+    else process.env.PORTAL_REDIRECT_HOSTS = original;
+  });
+
+  test("sends a configured apex to its own portal subdomain", () => {
+    process.env.PORTAL_REDIRECT_HOSTS = "example.org";
+
+    expect(portalRedirectTarget("example.org")).toBe("portal.example.org");
+  });
+
+  // One entry covers a tenant's three names: the www alias is derived rather
+  // than listed, which is what the old PUBLIC_HOSTS set spelled out by hand.
+  test("matches the www alias without it being listed", () => {
+    process.env.PORTAL_REDIRECT_HOSTS = "example.org";
+
+    expect(portalRedirectTarget("www.example.org")).toBe("portal.example.org");
+  });
+
+  test("does not redirect a host that has not been configured", () => {
+    process.env.PORTAL_REDIRECT_HOSTS = "example.org";
+
+    expect(portalRedirectTarget("other.org")).toBeNull();
+    expect(portalRedirectTarget("localhost:3000")).toBeNull();
+  });
+
+  // demo.example.org is its own tenant, not the apex's www alias. Redirecting
+  // it would send a visitor to a portal belonging to somebody else.
+  test("does not treat an unrelated subdomain as the apex", () => {
+    process.env.PORTAL_REDIRECT_HOSTS = "example.org";
+
+    expect(portalRedirectTarget("demo.example.org")).toBeNull();
+    expect(portalRedirectTarget("uat.example.org")).toBeNull();
+  });
+
+  test("reads several tenants from one comma-separated list", () => {
+    process.env.PORTAL_REDIRECT_HOSTS = " example.org , second.org ";
+
+    expect(portalRedirectHosts()).toEqual(["example.org", "second.org"]);
+    expect(portalRedirectTarget("second.org")).toBe("portal.second.org");
+  });
+
+  // Unset is the preview and local case. The redirect is cosmetic, so nothing
+  // is gated by its absence -- /portal/... still resolves as a path.
+  test("redirects nothing when unset or empty", () => {
+    delete process.env.PORTAL_REDIRECT_HOSTS;
+    expect(portalRedirectHosts()).toEqual([]);
+    expect(portalRedirectTarget("example.org")).toBeNull();
+
+    process.env.PORTAL_REDIRECT_HOSTS = "  ,  ";
+    expect(portalRedirectHosts()).toEqual([]);
+  });
+
+  test("is case-insensitive on both sides", () => {
+    process.env.PORTAL_REDIRECT_HOSTS = "Example.ORG";
+
+    expect(portalRedirectTarget("WWW.example.org")).toBe("portal.example.org");
   });
 });
 
