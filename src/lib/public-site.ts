@@ -28,13 +28,19 @@ export type PublicSite = {
   status: PublicTenantResult["status"];
   /** Null unless `status` is `resolved`; the site then renders the defaults. */
   tenant: PublicTenant | null;
-  /** The organization's name for headings, titles and the copyright line. */
-  name: string;
+  /**
+   * The organization's name for headings, titles and the copyright line, or
+   * null when there is no organization to name -- an unresolved host, or a
+   * tenant read that failed. Nullable rather than defaulted (#795 Phase 3):
+   * the fallback used to be Chatter Snow's name, which meant a database blip
+   * on a customer's domain briefly published a different nonprofit's name in
+   * their header and their tab. There is no honest substitute for a name we
+   * could not read, so nothing is named.
+   */
+  name: string | null;
   branding: Branding;
   content: SiteContent;
 };
-
-export const DEFAULT_SITE_NAME = "Chatter Snow";
 
 /**
  * Title for a page that belongs to no organization (#795 Phase 4).
@@ -80,7 +86,7 @@ export const getPublicSite = cache(
     return {
       status: tenantResult.status,
       tenant,
-      name: tenant?.name ?? DEFAULT_SITE_NAME,
+      name: tenant?.name ?? null,
       branding,
       content: resolveSiteContent(
         (contentResult.data ?? []) as SiteContentRow[],
@@ -101,5 +107,7 @@ export const getPublicSite = cache(
  */
 export function publicTitle(site: PublicSite, page: string): string {
   if (site.status === "unresolved") return NOT_FOUND_TITLE;
-  return `${page} | ${site.name}`;
+  // Just the page when there is no organization to name -- "Gear" rather than
+  // "Gear | " or, as it was, "Gear | <somebody else's nonprofit>".
+  return site.name ? `${page} | ${site.name}` : page;
 }

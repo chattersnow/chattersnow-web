@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useTransition } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
@@ -13,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/components/ui/toast";
-import { DEFAULT_LOGO } from "@/components/brand-logo";
+import { BrandLogo } from "@/components/brand-logo";
 import type { Tenant } from "@/lib/portal/tenants";
 import { switchTenantAction } from "./tenant-switcher-actions";
 
@@ -21,14 +20,7 @@ import { switchTenantAction } from "./tenant-switcher-actions";
 // default mark. Decorative either way: the adjacent text names the link.
 function Logo({ logoUrl }: { logoUrl: string | null }) {
   return (
-    <Image
-      src={logoUrl ?? DEFAULT_LOGO}
-      alt=""
-      width={32}
-      height={32}
-      className="size-8 shrink-0 object-contain"
-      priority
-    />
+    <BrandLogo logoUrl={logoUrl} alt="" className="size-8 shrink-0" priority />
   );
 }
 

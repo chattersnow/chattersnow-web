@@ -24,6 +24,11 @@ const baseURL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://127.0.0.1:3000";
  * page depends on. For as long as it holds that tenant, the whole public site
  * 404s for everyone.
  *
+ * tenant-branding.spec.ts writes `brand.*` rows for the seeded tenant (#819),
+ * which repaints the public site for every other spec running at the same
+ * time. It gives them back in afterAll, but only serialising it makes that
+ * safe.
+ *
  * Playwright runs a dependency project in full, ignoring any file or --grep
  * filter, so run one of these on its own with --no-deps:
  *   bunx playwright test e2e/page-visibility.spec.ts --no-deps
@@ -32,7 +37,8 @@ const baseURL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://127.0.0.1:3000";
  * That same rule is why E2E_MUTATING exists (see below): --shard is one more
  * filter a dependency project ignores.
  */
-const MUTATING_SPECS = /(page-visibility|unresolved-host)\.spec\.ts/;
+const MUTATING_SPECS =
+  /(page-visibility|unresolved-host|tenant-branding)\.spec\.ts/;
 
 const ALL_BROWSER_PROJECTS = [
   { name: "chromium", use: { ...devices["Desktop Chrome"] } },

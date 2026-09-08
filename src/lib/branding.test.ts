@@ -61,6 +61,64 @@ describe("brandingCss", () => {
     expect(css).toContain(".dark {");
   });
 
+  // #819. Both selectors are specificity (0,1,0) and this block is injected
+  // after the stylesheet, so a bare `:root` wins the tie against globals.css's
+  // `.dark` for every token the dark half does not restate -- `--background`
+  // among them, which turned dark mode light for any tenant that set one.
+  test("the light palette cannot reach a dark page", () => {
+    const css = brandingCss({
+      colors: {
+        primary: "#112233",
+        primary_deep: "#001122",
+        background: "#ffeeff",
+      },
+      accentStops: null,
+      logoUrl: null,
+    });
+    expect(css).toContain(":root:not(.dark) {");
+    expect(css).not.toContain(":root {");
+    const dark = css.slice(css.indexOf(".dark {"));
+    expect(dark).not.toContain("--background:");
+    expect(dark).not.toContain("--foreground:");
+  });
+
+  // The dark accent keeps the brand's hue, takes globals.css's own dark
+  // lightness, and caps the chroma, so a tenant setting Chatter Snow's palette
+  // reproduces Chatter Snow's dark mode. A white mix could not: it drops
+  // chroma as it raises lightness, and missed `#c8a8ea` at every percentage.
+  // The cap is a `min()` rather than a flat value so that the platform's own
+  // near-neutral palette is not pushed *up* into a colour it never had.
+  test("derives the dark accent from the brand's hue, not from white", () => {
+    const css = brandingCss({
+      colors: { primary: "#70419a", primary_deep: "#32134f" },
+      accentStops: null,
+      logoUrl: null,
+    });
+    expect(css).toContain(
+      "--purple: oklch(from #70419a 0.783 min(c, 0.098) h);",
+    );
+    expect(css).toContain(
+      "--purple-deep: oklch(from #32134f 0.884 min(c, 0.055) h);",
+    );
+    expect(css).not.toContain("white");
+  });
+
+  // `--rainbow` is the one brand token globals.css does not restate under
+  // `.dark`, so with the light block scoped away from dark pages the dark
+  // block has to carry it or the tenant's accent reverts to the stylesheet's.
+  test("carries the accent gradient into dark mode", () => {
+    const css = brandingCss({
+      colors: {},
+      accentStops: ["#aabbcc", "#ddeeff"],
+      logoUrl: null,
+    });
+    const dark = css.slice(css.indexOf(".dark {"));
+    expect(dark).toContain(
+      "--rainbow: linear-gradient(90deg, #aabbcc 0%, #ddeeff 100%);",
+    );
+    expect(dark).toContain("--rainbow-soft:");
+  });
+
   test("a single accent colour still paints as a gradient", () => {
     const css = brandingCss({
       colors: {},

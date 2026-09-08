@@ -153,6 +153,48 @@ function gradient(stops: readonly string[], alpha: number | null): string {
  * re-tints the two accents, lightened the way the stylesheet lightens its
  * own so text stays readable on the dark card.
  */
+/**
+ * The dark-mode form of a brand colour: its own hue, at a fixed lightness and
+ * chroma chosen for a dark background.
+ *
+ * A brand colour is picked to read on white and is far too dark to read on
+ * `oklch(0.145 0 0)`, so dark mode needs a lighter relative of it. What it must
+ * *not* be is a white mix, which is what this used to do -- mixing toward white
+ * in oklch drops chroma as it raises lightness, and no percentage reaches the
+ * saturation a hand-picked dark accent has. Sweeping the old
+ * `color-mix(... N%, white)` against globals.css's `#c8a8ea` never got closer
+ * than 21 in RGB distance, at any N.
+ *
+ * Setting the lightness and capping the chroma, keeping only the hue, reaches it.
+ * The constants below are globals.css's own dark values read back as oklch, so
+ * a tenant that sets Chatter Snow's palette reproduces Chatter Snow's dark mode
+ * exactly: `--purple` lands on `rgb(200, 168, 234)`, which is the stylesheet's
+ * `#c8a8ea` to the byte. `--purple-deep` came out two units off, because the
+ * stylesheet's two dark literals carried slightly different hues between them;
+ * that one was nudged in globals.css to this derivation's output rather than
+ * bent here, so there is one rule and not a rule plus an exception.
+ *
+ * Relative colour syntax is the mechanism (`oklch(from <colour> L C h)`). A
+ * browser without it drops the declaration and falls back to the stylesheet's
+ * own `.dark` literals, which is the behaviour every tenant has today anyway.
+ */
+const DARK_ACCENT = { lightness: 0.783, maxChroma: 0.098 };
+const DARK_DEEP = { lightness: 0.884, maxChroma: 0.055 };
+
+function darkVariant(
+  color: string,
+  { lightness, maxChroma }: { lightness: number; maxChroma: number },
+): string {
+  // `min(c, ...)` rather than a flat chroma (#795 Phase 3). Setting it outright
+  // reproduced Chatter Snow's dark palette exactly, because a brand colour is
+  // saturated by definition and the cap was always the smaller number. It is
+  // wrong for the platform's own neutral default, which is barely chromatic at
+  // all: forcing #475569 to 0.098 turns a slate grey into #90bbf7, a blue.
+  // Clamping keeps both -- a saturated brand comes down to the cap, a neutral
+  // one keeps its own chroma and stays neutral.
+  return `oklch(from ${color} ${lightness} min(c, ${maxChroma}) h)`;
+}
+
 export function brandingCss(branding: Branding): string {
   const light: string[] = [];
   const dark: string[] = [];
@@ -168,20 +210,40 @@ export function brandingCss(branding: Branding): string {
     light.push(
       `--muted-foreground: color-mix(in srgb, ${deep} 72%, transparent);`,
     );
-    dark.push(`--purple-deep: color-mix(in oklch, ${deep} 30%, white);`);
+    dark.push(`--purple-deep: ${darkVariant(deep, DARK_DEEP)};`);
   }
   const primary = branding.colors.primary;
   if (primary) {
-    dark.push(`--purple: color-mix(in oklch, ${primary} 55%, white);`);
+    dark.push(`--purple: ${darkVariant(primary, DARK_ACCENT)};`);
   }
   if (branding.accentStops) {
     light.push(`--rainbow: ${gradient(branding.accentStops, null)};`);
     light.push(`--rainbow-soft: ${gradient(branding.accentStops, 12)};`);
+    // `--rainbow` is repeated rather than inherited: it is the one brand token
+    // globals.css does *not* restate under `.dark`, so with the light block
+    // scoped away from dark pages there would be nothing left to override the
+    // stylesheet's own gradient, and a tenant's accent would revert to Chatter
+    // Snow's colours in dark mode.
+    dark.push(`--rainbow: ${gradient(branding.accentStops, null)};`);
     dark.push(`--rainbow-soft: ${gradient(branding.accentStops, 10)};`);
   }
 
   const blocks: string[] = [];
-  if (light.length > 0) blocks.push(`:root { ${light.join(" ")} }`);
+  // `:root:not(.dark)`, never a bare `:root` (#819). Both are specificity
+  // (0,1,0), and this block is injected into the document after the
+  // stylesheet, so a bare `:root` outranks globals.css's `.dark` on the tie --
+  // for every token the dark half below does not restate. `--background` is
+  // one of those, so a tenant that set a page background got it on dark pages
+  // too: measured `rgb(247, 240, 255)` where the stylesheet says
+  // `oklch(0.145 0 0)`. Dark mode went light.
+  //
+  // Scoping it also states the right rule rather than patching the symptom.
+  // A tenant's palette is a *light* palette -- `background`, `foreground`,
+  // `line` and `muted-foreground` are all neutral in dark mode by design --
+  // so the light block has no business applying to a dark page at all. What a
+  // dark page needs from the brand is the accent, which is what the dark block
+  // carries.
+  if (light.length > 0) blocks.push(`:root:not(.dark) { ${light.join(" ")} }`);
   if (dark.length > 0) blocks.push(`.dark { ${dark.join(" ")} }`);
   return blocks.join("\n");
 }

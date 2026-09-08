@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Toaster } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { BrandStyle } from "@/components/brand-style";
 import { SkipLink } from "@/components/skip-link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CommandPalette } from "./command-palette";
@@ -237,6 +238,14 @@ export default async function PortalAppLayout({
 
   return (
     <TooltipProvider>
+      {/* The tenant's palette, not just its logo. getTenantBranding()'s own
+          comment has said "the outer portal layout applies it" since #707
+          Phase 4, but only the logo was ever read here -- so a tenant's portal
+          rendered in the stylesheet's colours while its public site rendered
+          in its own. Harmless while the stylesheet's colours *were* Chatter
+          Snow's; not once they are the platform's neutral default (#795 Phase
+          3), which would leave every tenant a grey portal. */}
+      <BrandStyle branding={branding} />
       <PortalHelpProvider>
         <SidebarProvider defaultOpen={sidebarOpen}>
           {/* Before <Sidebar>, not inside <SidebarInset>. Reaching the page

@@ -1,11 +1,6 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import {
-  DEFAULT_SITE_NAME,
-  NOT_FOUND_TITLE,
-  getPublicSite,
-  publicTitle,
-} from "./public-site";
+import { NOT_FOUND_TITLE, getPublicSite, publicTitle } from "./public-site";
 
 type Result = { data: unknown; error: unknown };
 
@@ -75,13 +70,15 @@ describe("getPublicSite host resolution", () => {
     }
   });
 
-  test("an unresolved host still falls back to a usable name", async () => {
+  test("an unresolved host names no organization", async () => {
     // It never reaches a browser -- the public layout 404s first -- but the
     // metadata read runs either way and must not blow up on a null tenant.
+    // The name used to fall back to Chatter Snow's; since #795 Phase 3 there
+    // is no platform name to fall back to, and nothing is named.
     const site = await getPublicSite(
       fakeClient({ public_tenant: NO_ROWS, public_site_content: NO_ROWS }),
     );
-    expect(site.name).toBe(DEFAULT_SITE_NAME);
+    expect(site.name).toBeNull();
   });
 });
 
@@ -103,7 +100,7 @@ describe("publicTitle", () => {
       fakeClient({ public_tenant: NO_ROWS, public_site_content: NO_ROWS }),
     );
     expect(publicTitle(site, "Gear")).toBe(NOT_FOUND_TITLE);
-    expect(publicTitle(site, "Gear")).not.toContain(DEFAULT_SITE_NAME);
+    expect(publicTitle(site, "Gear")).not.toMatch(/chatter/i);
   });
 
   // A blip is not an unknown host: the page still belongs to whoever the
@@ -117,7 +114,9 @@ describe("publicTitle", () => {
           public_site_content: NO_ROWS,
         }),
       );
-      expect(publicTitle(site, "Gear")).toBe(`Gear | ${DEFAULT_SITE_NAME}`);
+      // No organization to name, so the page names itself and nobody else --
+      // not "Gear | " and not another tenant's name (#795 Phase 3).
+      expect(publicTitle(site, "Gear")).toBe("Gear");
     } finally {
       error.mockRestore();
     }

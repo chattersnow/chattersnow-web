@@ -44,11 +44,33 @@ describe("the site content registry", () => {
     }
   });
 
-  test("the defaults are Chatter Snow's copy", () => {
+  // The inverse of what this asserted until #795 Phase 3, which was that the
+  // defaults *were* Chatter Snow's copy. They were, because the registry was
+  // extracted from its pages -- so a newly provisioned nonprofit's public site
+  // was another organization's, down to real people's names in
+  // `about_team.members`. Provisioning copies no site content and `org`,
+  // `home`, `contact` and `events` carry no visibility gate, so that was
+  // public from the moment the tenant existed.
+  //
+  // Sweeping every default rather than spot-checking a few: the failure mode
+  // is one slot added later carrying the copy it was lifted from, and a
+  // spot-check would not see it.
+  test("no default names the organization the registry came from", () => {
+    for (const slot of SITE_CONTENT_SLOTS) {
+      if (slot.type === "document" || slot.type === "image") continue;
+      expect(JSON.stringify(slot.default), slot.key).not.toMatch(/chatter/i);
+    }
+  });
+
+  test("the defaults read as unwritten", () => {
     expect(DEFAULT_SITE_CONTENT.text("home.heading")).toBe(
-      "A queer ski & snowboard community",
+      "Your headline goes here",
     );
-    expect(DEFAULT_SITE_CONTENT.text("org.short_name")).toBe("Chatter");
+    expect(DEFAULT_SITE_CONTENT.text("org.short_name")).toBe(
+      "Your organization",
+    );
+    // Still unset: the legal pages render their own document until a tenant
+    // publishes one deliberately.
     expect(DEFAULT_SITE_CONTENT.document("legal.privacy")).toBeNull();
   });
 
