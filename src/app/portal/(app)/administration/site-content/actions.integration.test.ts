@@ -35,6 +35,14 @@ afterEach(async () => {
 
 describe("saving a draft", () => {
   test("stages the copy without changing what the public site serves", async () => {
+    // Read what is published first rather than assuming nothing is: since #795
+    // rollout step 3 the seeded tenant owns its copy, so this slot arrives with
+    // a published value. "Unchanged" is the claim either way, and asserting it
+    // that way is what makes the test true of a published slot and an unwritten
+    // one alike.
+    const before = await currentRow();
+    const publishedBefore = before?.value ?? null;
+
     const { error } = await adminClient.rpc("save_site_content_drafts", {
       p_entries: [{ key: KEY, value: "A draft heading" }],
     });
@@ -43,13 +51,15 @@ describe("saving a draft", () => {
     const row = await currentRow();
     expect(row?.has_draft).toBe(true);
     expect(row?.draft_value).toBe("A draft heading");
-    expect(row?.value).toBeNull();
+    expect(row?.value ?? null).toEqual(publishedBefore);
 
     const { data: publicRows } = await anonClient()
       .from("public_site_content")
-      .select("key")
+      .select("key, value")
       .eq("key", KEY);
-    expect(publicRows).toEqual([]);
+    expect(publicRows).toEqual(
+      publishedBefore === null ? [] : [{ key: KEY, value: publishedBefore }],
+    );
   });
 
   test("stamps who drafted it, whatever the caller sends", async () => {
