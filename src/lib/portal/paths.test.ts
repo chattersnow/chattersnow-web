@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   isPortalHost,
   isPortalPathname,
+  publicSiteLink,
   stripPortalPrefix,
   toPortalPathname,
 } from "./paths";
@@ -54,5 +55,62 @@ describe("portal path translation", () => {
     ]) {
       expect(toPortalPathname(stripPortalPrefix(path))).toBe(path);
     }
+  });
+});
+
+describe("the login page's link back to the public site", () => {
+  const chatterSnow = {
+    name: "Chatter Snow",
+    custom_domain: "chattersnow.org",
+  };
+  const platform = {
+    name: "Platform",
+    custom_domain: "portal.rickiecruz.com",
+  };
+
+  test("leaves the deployment for the tenant's own domain, from a portal host", () => {
+    expect(publicSiteLink("portal.chattersnow.org", chatterSnow)).toEqual({
+      href: "https://chattersnow.org/home",
+      label: "chattersnow.org",
+    });
+  });
+
+  test("is not offered at all when the tenant has no public site", () => {
+    // The platform tenant's domain is the portal host itself: the
+    // rickiecruz.com apex is the consulting site and is not served here, so
+    // there is nowhere to go back to.
+    expect(publicSiteLink("portal.rickiecruz.com", platform)).toBeNull();
+  });
+
+  test("stays relative off a portal host, so a preview stays on the preview", () => {
+    expect(publicSiteLink("uat.chattersnow.org", chatterSnow)).toEqual({
+      href: "/home",
+      label: "chattersnow.org",
+    });
+  });
+
+  test("falls back to the organization's name when no domain is set", () => {
+    // The local stack and preview, where the tenant resolves through
+    // TENANT_HOST_OVERRIDE rather than by domain.
+    expect(
+      publicSiteLink("127.0.0.1:3000", {
+        name: "Chatter Snow",
+        custom_domain: null,
+      }),
+    ).toEqual({ href: "/home", label: "Chatter Snow" });
+  });
+
+  test("is not offered on a portal host with no domain to link to", () => {
+    expect(
+      publicSiteLink("portal.example.test", {
+        name: "Example",
+        custom_domain: null,
+      }),
+    ).toBeNull();
+  });
+
+  test("is not offered when no tenant resolved", () => {
+    expect(publicSiteLink("portal.chattersnow.org", null)).toBeNull();
+    expect(publicSiteLink("someone-elses-domain.test", null)).toBeNull();
   });
 });

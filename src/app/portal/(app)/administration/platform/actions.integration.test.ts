@@ -32,6 +32,7 @@ let tenantB: string;
 let seededAdmin: SupabaseClient;
 let bAdmin: SupabaseClient;
 let internalSupport: SupabaseClient;
+let platformResourceId: string;
 
 const bAdminEmail = uniqueEmail("plat-b-admin");
 const supportEmail = uniqueEmail("plat-support");
@@ -100,21 +101,23 @@ beforeAll(async () => {
       .single(),
     "B admin role",
   );
-  const resource = await must(
-    service
-      .from("resources")
-      .select("id")
-      .eq("key", "platform_tenants")
-      .single(),
-    "platform resource",
-  );
+  platformResourceId = (
+    await must(
+      service
+        .from("resources")
+        .select("id")
+        .eq("key", "platform_tenants")
+        .single(),
+      "platform resource",
+    )
+  ).id as string;
   await must(
     service
       .from("role_permissions")
       .upsert(
         {
           role_id: bAdminRole.id,
-          resource_id: resource.id,
+          resource_id: platformResourceId,
           level: "manage",
         },
         { onConflict: "role_id,resource_id" },
@@ -172,17 +175,62 @@ describe("the gate", () => {
   });
 
   test("a customer's admin does not, even holding the resource", async () => {
-    // They really do hold it -- this is not a test of the permission check.
+    // They really do hold it -- beforeAll granted it to their role the way
+    // Administration > Permissions would, and the row is still there. This is
+    // not a test of the permission check.
+    const granted = await must(
+      service
+        .from("role_permissions")
+        .select("level, roles!inner(tenant_id, name)")
+        .eq("roles.tenant_id", tenantB)
+        .eq("roles.name", "admin")
+        .eq("resource_id", platformResourceId)
+        .single(),
+      "B raw grant",
+    );
+    expect(granted.level).toBe("manage");
+
+    expect(await must(bAdmin.rpc("is_platform_operator"), "B operator")).toBe(
+      false,
+    );
+  });
+
+  // #795: the grant above is inert, but my_permissions() used to report it
+  // anyway, and the nav is built from my_permissions(). So a customer's admin
+  // got an Administration > Platform entry that rendered "Could not load
+  // tenants" -- which is exactly what Chatter Snow's own admins saw the moment
+  // it moved to the white_label plan.
+  test("and my_permissions() does not offer it to them", async () => {
     const permissions = await must(bAdmin.rpc("my_permissions"), "B perms");
     expect(
       permissions.find(
         (p: { resource_key: string }) => p.resource_key === "platform_tenants",
       )?.level,
-    ).toBe("manage");
+    ).toBe("none");
+  });
 
-    expect(await must(bAdmin.rpc("is_platform_operator"), "B operator")).toBe(
-      false,
+  test("my_permissions() still offers it to the platform's own admin", async () => {
+    const permissions = await must(
+      seededAdmin.rpc("my_permissions"),
+      "seeded perms",
     );
+    expect(
+      permissions.find(
+        (p: { resource_key: string }) => p.resource_key === "platform_tenants",
+      )?.level,
+    ).toBe("manage");
+  });
+
+  test("nor to a support member of the platform tenant", async () => {
+    const permissions = await must(
+      internalSupport.rpc("my_permissions"),
+      "support perms",
+    );
+    expect(
+      permissions.find(
+        (p: { resource_key: string }) => p.resource_key === "platform_tenants",
+      )?.level,
+    ).toBe("none");
   });
 
   test("a support member of the platform tenant does not", async () => {

@@ -1,6 +1,22 @@
 import { headers } from "next/headers";
 
 /**
+ * The host the browser asked for, or "" when there is no request. Split out of
+ * getRequestOrigin() because the portal login needs the host itself, not an
+ * origin, to decide whether it is on a portal host (#795 Phase 2).
+ */
+export async function getRequestHost(): Promise<string> {
+  try {
+    const requestHeaders = await headers();
+    return (
+      requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host") ?? ""
+    );
+  } catch {
+    return "";
+  }
+}
+
+/**
  * The origin the browser is talking to, for links a Server Action has to
  * build (there is no `window.location` on the server).
  *

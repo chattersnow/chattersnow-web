@@ -36,7 +36,11 @@ test("the login page offers a way back to the public site", async ({
   await expect(
     page.getByRole("heading", { level: 1, name: "Operations Portal" }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "Back to chattersnow.org" }).click();
+  // Named after the organization the host resolved to, not a literal (#795
+  // Phase 2). The local tenant sets no custom_domain, so the label falls back
+  // to its name; on a portal host with a domain set it becomes the domain, and
+  // the link is dropped entirely for a tenant whose only host is its portal.
+  await page.getByRole("link", { name: "Back to Chatter Snow" }).click();
   await expect(page).toHaveURL(/\/home$/);
 });
 
