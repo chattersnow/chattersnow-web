@@ -93,6 +93,17 @@ const PRIVACY: ContentSlot = {
   route: "/privacy",
 };
 
+const CAROUSEL: ContentSlot = {
+  key: "site_images.home_carousel_1",
+  page: "home",
+  section: "home:hero",
+  label: "Homepage carousel — slide 1",
+  type: "image",
+  default: null,
+};
+
+const PHOTO_URL = "https://example.test/carousel-1.jpg";
+
 function editorSlot(
   slot: ContentSlot,
   value: unknown,
@@ -120,6 +131,7 @@ const OTHER_PAGE: OutlineEntry = {
   section: "contact:opening",
   key: "contact.intro",
   label: "Introduction",
+  image: false,
   overridden: false,
   hasDraft: false,
   text: "Ask us anything about a rutabaga.",
@@ -132,6 +144,7 @@ function outlineFor(slots: EditorSlot[]): OutlineEntry[] {
       section: slot.section,
       key: slot.key,
       label: slot.label,
+      image: slot.type === "image",
       overridden,
       hasDraft,
       text: "",
@@ -397,6 +410,77 @@ describe("the save bar", () => {
 
     const rail = screen.getByRole("navigation", { name: "On this page" });
     expect(within(rail).getByText("Unsaved")).toBeInTheDocument();
+  });
+});
+
+// A photo is a slot like any other since #812: it sits in its section beside
+// the copy, previews what the link points at, and clears back to the
+// placeholder through the same draft as a sentence does.
+describe("image slots", () => {
+  test("shows the photo the link points at, and clears it as a draft", async () => {
+    renderEditor([editorSlot(CAROUSEL, PHOTO_URL, true)]);
+
+    const box = screen.getByRole("textbox", { name: /Homepage carousel/ });
+    expect(box).toHaveValue(PHOTO_URL);
+    expect(
+      screen.getByRole("img", { name: "Homepage carousel — slide 1" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Your image")).toBeInTheDocument();
+
+    await userEvent.clear(box);
+
+    expect(
+      screen.queryByRole("img", { name: "Homepage carousel — slide 1" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("1 change not published yet.")).toBeInTheDocument();
+
+    await userEvent.click(saveBar());
+    // Blank is the placeholder icon, which is the slot's default: stored as a
+    // null draft so publishing reverts the row rather than saving "".
+    await waitFor(() =>
+      expect(saveMock).toHaveBeenCalledWith([
+        { key: "site_images.home_carousel_1", value: null },
+      ]),
+    );
+  });
+
+  test("Back to default empties the link box", async () => {
+    renderEditor([editorSlot(CAROUSEL, PHOTO_URL, true)]);
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Back to default" }),
+    );
+
+    expect(
+      screen.getByRole("textbox", { name: /Homepage carousel/ }),
+    ).toHaveValue("");
+  });
+
+  test("a photo that is not set offers nothing to revert", () => {
+    renderEditor([editorSlot(CAROUSEL, null)]);
+
+    expect(
+      screen.queryByRole("button", { name: "Back to default" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  });
+
+  test("is found by its label from the search rail", async () => {
+    renderEditor([
+      editorSlot(HEADING, DEFAULT_HEADING),
+      editorSlot(CAROUSEL, null),
+    ]);
+
+    await userEvent.type(
+      screen.getByRole("searchbox", { name: "Search all site content" }),
+      "carousel",
+    );
+
+    // On the page being edited a hit is a jump, not a navigation.
+    const results = screen.getByRole("navigation", { name: "Search results" });
+    expect(
+      within(results).getByRole("button", { name: /Homepage carousel/ }),
+    ).toBeInTheDocument();
   });
 });
 

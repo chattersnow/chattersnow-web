@@ -37,10 +37,6 @@ test.describe("portal administration system settings", () => {
     ).toBeVisible();
     await expect(portalMain(page).locator("#expense-threshold")).toBeVisible();
 
-    await page.getByRole("tab", { name: "Image settings" }).click();
-    await expect(page.getByText("Edit image")).toBeVisible();
-    await expect(page.getByLabel("Slot")).toBeVisible();
-
     await page.getByRole("tab", { name: "Branding" }).click();
     await expect(page.getByLabel("Logo URL")).toBeVisible();
 

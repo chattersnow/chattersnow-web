@@ -4,9 +4,11 @@ import {
   CONTENT_PAGES,
   CONTENT_SECTIONS,
   DEFAULT_SITE_CONTENT,
+  IMAGE_SLOT_KEY_PREFIX,
   LEGAL_DOCUMENT_OUTLINES,
   SITE_CONTENT_SLOTS,
   contentSlot,
+  imageSlotName,
   isValidSlotValue,
   resolveSiteContent,
   sectionsForPage,
@@ -33,7 +35,8 @@ describe("the site content registry", () => {
 
   test("every default has the shape its slot declares", () => {
     for (const slot of SITE_CONTENT_SLOTS) {
-      if (slot.type === "document") {
+      // Unset is the default for both: the platform's document, the placeholder icon.
+      if (slot.type === "document" || slot.type === "image") {
         expect(slot.default).toBeNull();
         continue;
       }
@@ -47,6 +50,42 @@ describe("the site content registry", () => {
     );
     expect(DEFAULT_SITE_CONTENT.text("org.short_name")).toBe("Chatter");
     expect(DEFAULT_SITE_CONTENT.document("legal.privacy")).toBeNull();
+  });
+
+  // The public pages look a photo up by its short name (`urls.learn_photo`),
+  // which `public_site_images` derives by stripping the prefix -- so every
+  // image slot must carry it, and nothing else may (#812).
+  test("image slots are the site_images.* keys, and only they are", () => {
+    const images = SITE_CONTENT_SLOTS.filter((slot) => slot.type === "image");
+    expect(images).toHaveLength(28);
+    for (const slot of SITE_CONTENT_SLOTS) {
+      expect(slot.key.startsWith(IMAGE_SLOT_KEY_PREFIX), slot.key).toBe(
+        slot.type === "image",
+      );
+    }
+    const names = images.map((slot) => imageSlotName(slot.key));
+    expect(new Set(names).size).toBe(names.length);
+    expect(names).toContain("gear_placeholder");
+    expect(names).toContain("about_story_photo");
+  });
+
+  // `about_team.members` names a photo slot per person, in the short form the
+  // team page reads; a name that matches no slot renders the placeholder with
+  // no hint of why.
+  test("the default team members point at real image slots", () => {
+    const names = new Set(
+      SITE_CONTENT_SLOTS.filter((slot) => slot.type === "image").map((slot) =>
+        imageSlotName(slot.key),
+      ),
+    );
+    const members = DEFAULT_SITE_CONTENT.list<{ photo_slot?: string }>(
+      "about_team.members",
+    );
+    expect(members.length).toBeGreaterThan(0);
+    for (const member of members) {
+      if (!member.photo_slot) continue;
+      expect(names.has(member.photo_slot), member.photo_slot).toBe(true);
+    }
   });
 
   test("a page's visibility key names a real page-visibility slot", () => {
@@ -217,6 +256,19 @@ describe("resolveSiteContent", () => {
         "legal.terms",
       ),
     ).toEqual(doc);
+  });
+
+  test("an image slot holds a URL, and anything else is the placeholder", () => {
+    const key = "site_images.learn_photo";
+    expect(
+      resolveSiteContent([{ key, value: "https://example.test/a.jpg" }]).image(
+        key,
+      ),
+    ).toBe("https://example.test/a.jpg");
+    // The old panel stored a cleared slot as "": still "unset" here.
+    expect(resolveSiteContent([{ key, value: "" }]).image(key)).toBeNull();
+    expect(resolveSiteContent([{ key, value: 42 }]).image(key)).toBeNull();
+    expect(DEFAULT_SITE_CONTENT.image(key)).toBeNull();
   });
 
   test("reading a key as the wrong type is a programming error", () => {
