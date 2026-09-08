@@ -6,7 +6,7 @@ test.describe("public about pages", () => {
     await page.goto("/about");
     await expect(page).toHaveURL(/\/about\/story$/);
     await expect(
-      page.getByRole("heading", { level: 1, name: "About Chatter" }),
+      page.getByRole("heading", { level: 1, name: "About us" }),
     ).toBeVisible();
   });
 
@@ -16,7 +16,7 @@ test.describe("public about pages", () => {
 
     await expect(page).toHaveURL(/\/about\/story$/);
     await expect(
-      page.getByRole("heading", { level: 1, name: "About Chatter" }),
+      page.getByRole("heading", { level: 1, name: "About us" }),
     ).toBeVisible();
   });
 
@@ -44,7 +44,12 @@ test.describe("public about pages", () => {
     ).toBeVisible();
   });
 
-  test("Our Values and Why LGBTQ+ snow sports both render on the Mission page", async ({
+  // Both headings come from slots. "Why LGBTQ+ snow sports" was Chatter Snow's
+  // wording, which local and CI only saw because the database bootstrapped as
+  // their tenant; since #795 Phase 3 it bootstraps as the neutral one and these
+  // resolve to the registry defaults. The claim -- that the Mission page renders
+  // both of its sections -- is unchanged.
+  test("Our Values and Why this work matters both render on the Mission page", async ({
     page,
   }) => {
     await page.goto("/about/mission");
@@ -53,7 +58,7 @@ test.describe("public about pages", () => {
       page.getByRole("heading", { level: 2, name: "Our Values" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", { level: 2, name: "Why LGBTQ+ snow sports" }),
+      page.getByRole("heading", { level: 2, name: "Why this work matters" }),
     ).toBeVisible();
   });
 

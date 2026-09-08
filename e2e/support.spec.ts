@@ -5,7 +5,7 @@ test.describe("public support pages", () => {
   test("support index page loads", async ({ page }) => {
     await page.goto("/support");
     await expect(
-      page.getByRole("heading", { level: 1, name: "Support Chatter" }),
+      page.getByRole("heading", { level: 1, name: "Support us" }),
     ).toBeVisible();
   });
 

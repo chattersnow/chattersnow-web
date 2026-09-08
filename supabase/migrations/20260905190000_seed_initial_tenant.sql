@@ -12,13 +12,31 @@
 -- defaults rather than literals. A white-label deployment overrides them
 -- before `supabase db push`, the same way #708's admin bootstrap works:
 --
---   alter database postgres set app.initial_tenant_name = 'Example Nonprofit';
---   alter database postgres set app.initial_tenant_slug = 'example-nonprofit';
+--   alter database postgres set app.initial_tenant_name = 'Riverside Trails';
+--   alter database postgres set app.initial_tenant_slug = 'riverside-trails';
 --
--- The defaults below are the one remaining Chatter-specific literal in this
--- migration set. When the Core/Organization split is executed, dropping them
--- and requiring the settings is a one-line change -- which is the point of
--- routing through a setting at all.
+-- The defaults are deliberately nobody's organization (#795 Phase 3). They used
+-- to be 'Chatter Snow' / 'chatter-snow', which made one client the platform's
+-- bootstrap identity: a fresh database anywhere -- a white-label deployment, a
+-- contributor's laptop, a CI run -- came up named after them.
+--
+-- They cannot simply be dropped in favour of *requiring* the settings, which is
+-- what the ticket first asked for. `supabase db reset` drops and recreates the
+-- database, so an `alter database postgres set ...` is wiped before migrations
+-- run and there is no hook to set one first. Nor can this migration skip when
+-- unset, the way #708's admin bootstrap does: ensure_tenant_membership() only
+-- auto-joins when exactly one active tenant exists and Phase 2's
+-- `default current_tenant_id()` needs one to resolve to, so a database with no
+-- tenant is unusable rather than merely un-bootstrapped. A fallback is the only
+-- shape that works; making it neutral is the part that matters.
+--
+-- Chatter Snow's production tenant is unaffected: this migration ran there long
+-- ago and migrations do not re-run, so its row still says 'chatter-snow'. What
+-- changes is what a *new* database bootstraps as -- local, CI, and any future
+-- deployment -- which is why the seeding migrations that write Chatter Snow's
+-- own copy (20260908040000, 20260908050000, 20260908060000, 20260908070000)
+-- are scoped `where slug = 'chatter-snow'` and now correctly no-op locally.
+-- supabase/seed.sql gives local and CI their own copy instead.
 --
 -- Idempotent, so it is safe on a fresh database and on one that has already
 -- run it.
@@ -31,11 +49,11 @@ declare
 begin
   v_name := coalesce(
     nullif(btrim(coalesce(current_setting('app.initial_tenant_name', true), '')), ''),
-    'Chatter Snow'
+    'Example Nonprofit'
   );
   v_slug := coalesce(
     nullif(btrim(coalesce(current_setting('app.initial_tenant_slug', true), '')), ''),
-    'chatter-snow'
+    'example-nonprofit'
   );
 
   insert into public.tenants (name, slug, plan, status)

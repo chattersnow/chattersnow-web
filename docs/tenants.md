@@ -140,11 +140,49 @@ This used to be two literals in `src/lib/portal/paths.ts`, `PORTAL_HOST =
 www.chattersnow.org}`, which made one tenant's DNS the platform's routing
 table and sent _every_ public host to that tenant's subdomain (#795 Phase 2).
 
-Locally there is no custom domain on the Chatter Snow tenant, so everything
-resolves through the sole-active-tenant fallback. A second _active_ tenant on
-the local stack switches that fallback off: sessionless reads then need a
-host (the integration suites pass `x-tenant-host`), which is why the tests
-that provision one delete it again when they finish.
+## The tenant a fresh database bootstraps as
+
+`20260905190000_seed_initial_tenant.sql` creates one tenant, because a database
+with none is unusable: `ensure_tenant_membership()` only auto-joins when exactly
+one active tenant exists, and `default current_tenant_id()` needs something to
+resolve to.
+
+Its name and slug come from `app.initial_tenant_name` / `app.initial_tenant_slug`
+when set, and otherwise fall back to **Example Nonprofit** / `example-nonprofit`
+(#795 Phase 3). They used to fall back to Chatter Snow, which made one client the
+platform's bootstrap identity. A white-label deployment overrides them before
+`supabase db push`:
+
+```sql
+alter database postgres set app.initial_tenant_name = 'Riverside Trails';
+alter database postgres set app.initial_tenant_slug = 'riverside-trails';
+```
+
+The settings cannot be made _required_: `supabase db reset` drops and recreates
+the database, so an `alter database ... set` is wiped before migrations run and
+there is no hook to set one first.
+
+Chatter Snow's production tenant is untouched — that migration ran there long
+ago and migrations do not re-run, so its row still says `chatter-snow`. This is
+why the migrations that write Chatter Snow's own copy, palette and page
+visibility (`20260908040000`, `20260908050000`, `20260908060000`,
+`20260908070000`) are all scoped `where slug = 'chatter-snow'`: on a hosted
+project they find their tenant, and on a fresh local or CI database they
+correctly find nothing.
+
+`supabase/seed.sql` then gives local and CI their own copy — generic Example
+Nonprofit text for the slots whose registry defaults are prompts, so the public
+site renders as a real site and the e2e specs have stable words to assert.
+Slots that are already right for any organization ("Gear library", "Our
+Mission", "Get in touch") are left to the registry, and the list slots are left
+as prompts on purpose: that is what a newly provisioned tenant sees, and it is
+worth seeing.
+
+Locally there is no custom domain on that tenant, so everything resolves through
+the sole-active-tenant fallback. A second _active_ tenant on the local stack
+switches that fallback off: sessionless reads then need a host (the integration
+suites pass `x-tenant-host`), which is why the tests that provision one delete
+it again when they finish.
 
 ## Branding and content
 

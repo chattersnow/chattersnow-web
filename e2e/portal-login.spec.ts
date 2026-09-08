@@ -38,9 +38,11 @@ test("the login page offers a way back to the public site", async ({
   ).toBeVisible();
   // Named after the organization the host resolved to, not a literal (#795
   // Phase 2). The local tenant sets no custom_domain, so the label falls back
-  // to its name; on a portal host with a domain set it becomes the domain, and
-  // the link is dropped entirely for a tenant whose only host is its portal.
-  await page.getByRole("link", { name: "Back to Chatter Snow" }).click();
+  // to its name -- "Example Nonprofit" since 20260905190000 stopped
+  // bootstrapping a fresh database as Chatter Snow. On a portal host with a
+  // domain set the label becomes the domain, and the link is dropped entirely
+  // for a tenant whose only host is its portal.
+  await page.getByRole("link", { name: "Back to Example Nonprofit" }).click();
   await expect(page).toHaveURL(/\/home$/);
 });
 
