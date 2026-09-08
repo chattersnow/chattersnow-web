@@ -10,6 +10,7 @@ import { LEARN_CATEGORIES } from "./learn-data";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPublicSite, publicTitle } from "@/lib/public-site";
+import { isPageVisible } from "@/lib/page-visibility";
 
 export async function generateMetadata(): Promise<Metadata> {
   const supabase = await createSupabaseServerClient();
@@ -18,7 +19,10 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function LearnPage() {
   const supabase = await createSupabaseServerClient();
-  const { content } = await getPublicSite(supabase);
+  const [{ content }, sizingVisible] = await Promise.all([
+    getPublicSite(supabase),
+    isPageVisible("gears-sizing"),
+  ]);
   return (
     <div>
       <div className="w-fit">
@@ -29,12 +33,19 @@ export default async function LearnPage() {
       </div>
       <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
         {content.text("learn.intro")}{" "}
-        <Link
-          href="/gears/sizing"
-          className="underline underline-offset-4 hover:text-foreground"
-        >
-          sizing guide
-        </Link>
+        {/* The copy runs into the link mid-sentence ("... Check the" + "sizing
+            guide."), so a tenant with the guide hidden gets the same sentence
+            with the words unlinked rather than a dangling clause. */}
+        {sizingVisible ? (
+          <Link
+            href="/gears/sizing"
+            className="underline underline-offset-4 hover:text-foreground"
+          >
+            sizing guide
+          </Link>
+        ) : (
+          "sizing guide"
+        )}
         .
       </p>
 

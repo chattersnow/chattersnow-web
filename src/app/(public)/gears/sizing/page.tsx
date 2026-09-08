@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SkiSizingSections } from "./ski-sizing-sections";
 import { SnowboardSizingSections } from "./snowboard-sizing-sections";
-import { isPageVisible } from "@/lib/page-visibility";
+import { isPageVisible, requireVisiblePage } from "@/lib/page-visibility";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPublicSite, publicTitle } from "@/lib/public-site";
@@ -26,6 +26,10 @@ const SNOWBOARD_CATEGORIES = [
 ];
 
 export default async function GearSizingPage() {
+  // Gated separately from the rest of /gears: these charts are Chatter Snow's
+  // snow-sports guide, not chrome every tenant should publish (#795 Phase 3).
+  await requireVisiblePage("gears-sizing");
+
   const learnVisible = await isPageVisible("learn");
 
   return (

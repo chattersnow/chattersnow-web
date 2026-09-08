@@ -67,7 +67,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     slot: "gears",
     links: [
       { label: "Gear Library", href: "/gears/library" },
-      { label: "Sizing Guide", href: "/gears/sizing" },
+      { label: "Sizing Guide", href: "/gears/sizing", slot: "gears-sizing" },
       // Was four separate entries pointing at #how-it-works, #request, #donate
       // and #gear-drives -- four rows in the menu that all land on the same
       // page. The page's own headings do that job once you are on it.
@@ -136,4 +136,40 @@ export function visibleGroups(hidden: readonly string[]): NavGroup[] {
 /** Whether a section is currently shown, for gating header/in-page CTAs. */
 export function isSlotVisible(hidden: readonly string[], slot: string) {
   return !hidden.includes(slot);
+}
+
+/**
+ * Every section slot a public href sits under, from this tree rather than from
+ * a second hand-written mapping -- NAV_GROUPS already records which slot owns
+ * which path, and a duplicate of that is exactly the drift the tree was
+ * introduced to end.
+ *
+ * A nested slot matches alongside its parent: `/gears/sizing` is under both
+ * `gears` and `gears-sizing`, and the page is unreachable when either is off.
+ * In-page anchors and ungated routes (the legal notices) match nothing.
+ */
+export function slotsForHref(href: string): string[] {
+  const gated = NAV_GROUPS.flatMap((group) => [
+    ...(group.slot ? [{ base: group.href, slot: group.slot }] : []),
+    ...(group.links ?? []).flatMap((link) =>
+      link.slot ? [{ base: link.href, slot: link.slot }] : [],
+    ),
+  ]);
+
+  return gated
+    .filter(({ base }) => href === base || href.startsWith(`${base}/`))
+    .map(({ slot }) => slot);
+}
+
+/**
+ * Whether an in-page link to a public route still goes somewhere. Use it for
+ * links written into content -- an article's "further reading", a CTA -- which
+ * the nav filter never sees and which 404 once the board hides the section
+ * they point into.
+ */
+export function isHrefVisible(
+  hidden: readonly string[],
+  href: string,
+): boolean {
+  return !slotsForHref(href).some((slot) => hidden.includes(slot));
 }

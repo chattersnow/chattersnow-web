@@ -4,70 +4,40 @@ import { notFound } from "next/navigation";
 import { ArrowLeftIcon } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPublicSite, publicTitle } from "@/lib/public-site";
+import { getPageVisibility, hiddenSlots } from "@/lib/page-visibility";
+import type { LearnArticle } from "../learn-data";
 import { LEARN_CATEGORIES, getLearnCategory } from "../learn-data";
-import { ParkRidingSafetySections } from "../park-riding-safety/park-riding-safety-sections";
+import { LearnArticleSections } from "../learn-section";
 import { PARK_SAFETY_ARTICLES } from "../park-riding-safety/park-riding-safety-data";
-import { GettingStartedSections } from "../getting-started/getting-started-sections";
 import { GETTING_STARTED_ARTICLES } from "../getting-started/getting-started-data";
-import { EtiquetteSections } from "../etiquette/etiquette-sections";
 import { ETIQUETTE_ARTICLES } from "../etiquette/etiquette-data";
-import { GearCareSections } from "../gear-care/gear-care-sections";
 import { GEAR_CARE_ARTICLES } from "../gear-care/gear-care-data";
-import { MountainBasicsSections } from "../mountain-basics/mountain-basics-sections";
 import { MOUNTAIN_BASICS_ARTICLES } from "../mountain-basics/mountain-basics-data";
-import { CommunityAndInclusionSections } from "../community-and-inclusion/community-and-inclusion-sections";
 import { COMMUNITY_AND_INCLUSION_ARTICLES } from "../community-and-inclusion/community-and-inclusion-data";
-import { BudgetSections } from "../budget/budget-sections";
 import { BUDGET_ARTICLES } from "../budget/budget-data";
-import { GearAndSizingSections } from "../gear-and-sizing/gear-and-sizing-sections";
 import { GEAR_AND_SIZING_ARTICLES } from "../gear-and-sizing/gear-and-sizing-data";
 
-const CATEGORY_CONTENT: Record<string, () => React.ReactNode> = {
-  "getting-started": () => <GettingStartedSections />,
-  etiquette: () => <EtiquetteSections />,
-  "park-riding-safety": () => <ParkRidingSafetySections />,
-  "mountain-basics": () => <MountainBasicsSections />,
-  "gear-care": () => <GearCareSections />,
-  "community-and-inclusion": () => <CommunityAndInclusionSections />,
-  budget: () => <BudgetSections />,
-  "gear-and-sizing": () => <GearAndSizingSections />,
-};
-
-const CATEGORY_NAV: Record<string, { href: string; label: string }[]> = {
-  "getting-started": GETTING_STARTED_ARTICLES.map((article) => ({
-    href: `#${article.id}`,
-    label: article.title,
-  })),
-  etiquette: ETIQUETTE_ARTICLES.map((article) => ({
-    href: `#${article.id}`,
-    label: article.title,
-  })),
-  "park-riding-safety": PARK_SAFETY_ARTICLES.map((article) => ({
-    href: `#${article.id}`,
-    label: article.title,
-  })),
-  "mountain-basics": MOUNTAIN_BASICS_ARTICLES.map((article) => ({
-    href: `#${article.id}`,
-    label: article.title,
-  })),
-  "gear-care": GEAR_CARE_ARTICLES.map((article) => ({
-    href: `#${article.id}`,
-    label: article.title,
-  })),
-  "community-and-inclusion": COMMUNITY_AND_INCLUSION_ARTICLES.map(
-    (article) => ({
-      href: `#${article.id}`,
-      label: article.title,
-    }),
-  ),
-  budget: BUDGET_ARTICLES.map((article) => ({
-    href: `#${article.id}`,
-    label: article.title,
-  })),
-  "gear-and-sizing": GEAR_AND_SIZING_ARTICLES.map((article) => ({
-    href: `#${article.id}`,
-    label: article.title,
-  })),
+/**
+ * The articles each category renders, and the in-page nav is derived from the
+ * same list.
+ *
+ * This was two parallel maps -- one of `() => <XSections />` render functions,
+ * one deriving the nav from the article arrays -- behind eight
+ * `*-sections.tsx` files that each did nothing but pass their own array to
+ * LearnArticleSections. The arrays are what both maps were made of, and going
+ * through them directly is what lets this page filter the articles' links
+ * against page visibility: a render function taking no arguments had nowhere
+ * to put them.
+ */
+const CATEGORY_ARTICLES: Record<string, readonly LearnArticle[]> = {
+  "getting-started": GETTING_STARTED_ARTICLES,
+  etiquette: ETIQUETTE_ARTICLES,
+  "park-riding-safety": PARK_SAFETY_ARTICLES,
+  "mountain-basics": MOUNTAIN_BASICS_ARTICLES,
+  "gear-care": GEAR_CARE_ARTICLES,
+  "community-and-inclusion": COMMUNITY_AND_INCLUSION_ARTICLES,
+  budget: BUDGET_ARTICLES,
+  "gear-and-sizing": GEAR_AND_SIZING_ARTICLES,
 };
 
 export function generateStaticParams() {
@@ -93,8 +63,14 @@ export default async function LearnCategoryPage({
   const category = getLearnCategory((await params).slug);
   if (!category) notFound();
 
-  const nav = CATEGORY_NAV[category.slug];
-  const renderContent = CATEGORY_CONTENT[category.slug];
+  const supabase = await createSupabaseServerClient();
+  const hidden = hiddenSlots(await getPageVisibility(supabase));
+
+  const articles = CATEGORY_ARTICLES[category.slug];
+  const nav = articles?.map((article) => ({
+    href: `#${article.id}`,
+    label: article.title,
+  }));
 
   return (
     <div>
@@ -115,7 +91,7 @@ export default async function LearnCategoryPage({
         {category.description}
       </p>
 
-      {nav && (
+      {nav && nav.length > 0 && (
         <nav
           aria-label={`${category.title} articles`}
           className="mt-6 flex flex-wrap gap-x-4 gap-y-2 text-sm"
@@ -132,8 +108,10 @@ export default async function LearnCategoryPage({
         </nav>
       )}
 
-      {renderContent ? (
-        <div className="mt-10 space-y-12">{renderContent()}</div>
+      {articles ? (
+        <div className="mt-10 space-y-12">
+          <LearnArticleSections articles={articles} hidden={hidden} />
+        </div>
       ) : (
         <p className="app-muted mt-10 text-sm italic">
           Articles for this category are coming soon.

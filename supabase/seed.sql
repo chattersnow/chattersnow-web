@@ -1225,7 +1225,12 @@ end $$;
 insert into public.app_settings (key, value) values
   ('page_visibility.programs', to_jsonb(true)),
   ('page_visibility.learn', to_jsonb(true)),
-  ('page_visibility.support', to_jsonb(true))
+  ('page_visibility.support', to_jsonb(true)),
+  -- The sizing guide is off by default for the same reason the sections above
+  -- are: it is one organization's snow-sports content, not platform chrome
+  -- (#795 Phase 3). e2e/gears.spec.ts, e2e/skip-link.spec.ts and the a11y
+  -- route sweep all visit /gears/sizing, so local and CI turn it on.
+  ('page_visibility.gears-sizing', to_jsonb(true))
 on conflict (tenant_id, key) do update set value = excluded.value;
 
 -- Fiscal year (20260905030000). The migration already seeds July as a
