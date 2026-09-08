@@ -7,17 +7,11 @@
 
 export const PORTAL_PATH_PREFIX = "/portal";
 
-export const PORTAL_HOST = "portal.chattersnow.org";
-
-export const PUBLIC_HOSTS = new Set(["chattersnow.org", "www.chattersnow.org"]);
-
 /**
  * Any `portal.` subdomain is a portal host (#707 Phase 4). A tenant on its own
  * domain points `portal.<domain>` at the same deployment and gets the same
- * unprefixed portal the Chatter Snow host has; `public_tenant_id()` resolves it
- * through the parent-domain match on `tenants.custom_domain`. The proxy's apex
- * -> portal redirect stays Chatter Snow's own: it assumes the subdomain exists,
- * which only that tenant's DNS has promised.
+ * unprefixed portal Chatter Snow's host has; `public_tenant_id()` resolves it
+ * through the parent-domain match on `tenants.custom_domain`.
  *
  * It lives here, next to the path helpers, rather than in the proxy, so that
  * the client-side canonicalizer decides what a portal host is the same way the
@@ -25,7 +19,45 @@ export const PUBLIC_HOSTS = new Set(["chattersnow.org", "www.chattersnow.org"]);
  * on a tenant's own host.
  */
 export function isPortalHost(hostname: string): boolean {
-  return hostname === PORTAL_HOST || hostname.startsWith("portal.");
+  return hostname.startsWith("portal.");
+}
+
+/**
+ * Public hosts that redirect `/portal/*` to their own `portal.` subdomain,
+ * from `PORTAL_REDIRECT_HOSTS` -- a comma-separated list of apex domains.
+ *
+ * This replaces two literals, `PORTAL_HOST = "portal.chattersnow.org"` and
+ * `PUBLIC_HOSTS = {chattersnow.org, www.chattersnow.org}` (#795 Phase 2). They
+ * drove exactly one behaviour, the apex -> portal 308, and hardcoding them made
+ * one tenant's DNS the platform's routing table. The redirect is a promise only
+ * the owner of a domain can make -- it assumes `portal.<domain>` resolves --
+ * so which domains have made it is configuration, not source.
+ *
+ * `www.<host>` matches without being listed and the target is always
+ * `portal.<host>`, so one entry covers a tenant's three names. A host that is
+ * not listed is not rewritten and not redirected: `/portal/...` simply works as
+ * a path there, which is what a preview, a local run and a tenant who has not
+ * pointed a subdomain here all want. The redirect is cosmetic, never a gate.
+ *
+ * Read per call so a test can vary it. Note that Next inlines `process.env`
+ * into the proxy bundle at build time, so changing this on Vercel takes a
+ * redeploy rather than a restart.
+ */
+export function portalRedirectHosts(): string[] {
+  return (process.env.PORTAL_REDIRECT_HOSTS ?? "")
+    .split(",")
+    .map((host) => host.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+/**
+ * The portal host a `/portal/*` request on this host should be sent to, or null
+ * when this host has not promised one.
+ */
+export function portalRedirectTarget(hostname: string): string | null {
+  const host = hostname.toLowerCase();
+  const apex = host.startsWith("www.") ? host.slice(4) : host;
+  return portalRedirectHosts().includes(apex) ? `portal.${apex}` : null;
 }
 
 export function isPortalPathname(pathname: string): boolean {
