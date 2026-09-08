@@ -9,17 +9,26 @@ export type PublicCalendarItem = {
   public_url: string | null;
 };
 
-export const CATEGORIES = [
-  { value: "lgbtq_community", label: "LGBTQ+ community" },
-  { value: "winter_outdoor_sports", label: "Winter & outdoor sports" },
-  { value: "community_social_justice", label: "Community & social justice" },
-  { value: "chatter_events", label: "Chatter events" },
-  { value: "campaigns_fundraising", label: "Campaigns & fundraising" },
-  { value: "partner_opportunities", label: "Partner opportunities" },
-] as const;
+/**
+ * A category as the resolved tenant words it, from `public_calendar_categories`.
+ *
+ * This was a hardcoded six-entry list, which is how one organization's
+ * vocabulary reached every tenant's visitors: the filter below offered "Chatter
+ * events", "LGBTQ+ community" and "Winter & outdoor sports" on any customer's
+ * public site from the day they were provisioned (#834). The page reads the
+ * tenant's own rows instead.
+ */
+export type PublicCalendarCategory = { key: string; label: string };
 
-export function categoryLabel(value: string): string {
-  return (
-    CATEGORIES.find((category) => category.value === value)?.label ?? value
-  );
+/**
+ * Falls back to the raw key rather than hiding the value. A category can be
+ * deactivated while items are still tagged with it, and showing the key is a
+ * legible "this exists but has no name any more" -- rendering nothing would
+ * silently drop a filter chip.
+ */
+export function categoryLabel(
+  categories: readonly PublicCalendarCategory[],
+  value: string,
+): string {
+  return categories.find((category) => category.key === value)?.label ?? value;
 }

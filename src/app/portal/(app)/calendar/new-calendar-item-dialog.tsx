@@ -160,7 +160,7 @@ export function NewCalendarItemDialog({
         <DialogHeader>
           <DialogTitle>Create calendar item</DialogTitle>
           <DialogDescription>
-            Chatter events, community observances, campaigns, and content
+            Your own events, community observances, campaigns, and content
             opportunities all share this shape.
           </DialogDescription>
         </DialogHeader>

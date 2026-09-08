@@ -20,7 +20,7 @@ import { getCalendarItem, listWorkQueueItems } from "./queries";
 describe("getCalendarItem (integration)", () => {
   test("returns the mapped item with categories and content opportunity", async () => {
     const item = await createCalendarItem({
-      categories: ["lgbtq_community", "chatter_events"],
+      categories: ["lgbtq_community", "own_events"],
     });
     const opportunity = await createContentOpportunity(item.id);
 
@@ -34,8 +34,8 @@ describe("getCalendarItem (integration)", () => {
     expect(fetched!.id).toBe(item.id);
     expect(fetched!.item_type).toBe("community_observance");
     expect(fetched!.categories.sort()).toEqual([
-      "chatter_events",
       "lgbtq_community",
+      "own_events",
     ]);
     expect(fetched!.program_ids).toEqual([]);
     expect(fetched!.content_opportunity).not.toBeNull();
@@ -79,7 +79,7 @@ describe("listWorkQueueItems (integration)", () => {
     // them.
     const later = await createCalendarItem({
       startsAt: new Date("2099-06-02T00:00:00.000Z").toISOString(),
-      categories: ["chatter_events"],
+      categories: ["own_events"],
     });
     const earlier = await createCalendarItem({
       startsAt: new Date("2099-06-01T00:00:00.000Z").toISOString(),
@@ -107,7 +107,7 @@ describe("listWorkQueueItems (integration)", () => {
     // queue, since the Tier-1-undecided warning applies at the item level.
     const fetchedLater = items.find((item) => item.id === later.id)!;
     expect(fetchedLater.content_opportunity).toBeNull();
-    expect(fetchedLater.categories).toEqual(["chatter_events"]);
+    expect(fetchedLater.categories).toEqual(["own_events"]);
 
     await earlier.cleanup();
     await later.cleanup();

@@ -143,7 +143,7 @@ export function CalendarWorkspace({
 
       {eventsError && (
         <p className="app-muted text-sm" role="status">
-          Chatter events could not be loaded, so this calendar is showing
+          Your own events could not be loaded, so this calendar is showing
           content items only.
         </p>
       )}

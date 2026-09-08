@@ -3,7 +3,7 @@ import type { PersonSelectOption } from "../people/person-select";
 import type { ContentOpportunityRow } from "./content-opportunity-shared";
 
 export const ITEM_TYPES = [
-  { value: "chatter_event", label: "Chatter event" },
+  { value: "own_event", label: "Our own event" },
   { value: "partner_event", label: "Partner / co-hosted event" },
   { value: "community_observance", label: "Community observance" },
   {
@@ -24,7 +24,7 @@ export const CATEGORIES = [
   { value: "lgbtq_community", label: "LGBTQ+ community" },
   { value: "winter_outdoor_sports", label: "Winter & outdoor sports" },
   { value: "community_social_justice", label: "Community & social justice" },
-  { value: "chatter_events", label: "Chatter events" },
+  { value: "own_events", label: "Our events" },
   { value: "campaigns_fundraising", label: "Campaigns & fundraising" },
   { value: "partner_opportunities", label: "Partner opportunities" },
 ] as const;

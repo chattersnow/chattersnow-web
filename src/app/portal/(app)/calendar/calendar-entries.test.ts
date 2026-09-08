@@ -103,11 +103,11 @@ describe("filtersExcludeEvents", () => {
   });
 
   test("keeps events for filters an event can answer", () => {
-    expect(filtersExcludeEvents({ ...NO_FILTERS, type: "chatter_event" })).toBe(
+    expect(filtersExcludeEvents({ ...NO_FILTERS, type: "own_event" })).toBe(
       false,
     );
     expect(
-      filtersExcludeEvents({ ...NO_FILTERS, category: "chatter_events" }),
+      filtersExcludeEvents({ ...NO_FILTERS, category: "own_events" }),
     ).toBe(false);
     expect(filtersExcludeEvents({ ...NO_FILTERS, visibility: "public" })).toBe(
       false,

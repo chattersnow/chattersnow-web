@@ -79,10 +79,10 @@ export function eventEntry(event: CalendarEventRow): CalendarEntry {
 }
 
 /** The item_type an event is tagged with, matching `public_calendar_items` (#359). */
-export const EVENT_ITEM_TYPE = "chatter_event";
+export const EVENT_ITEM_TYPE = "own_event";
 
 /** The category an event is tagged with, matching `public_calendar_items` (#359). */
-export const EVENT_CATEGORY = "chatter_events";
+export const EVENT_CATEGORY = "own_events";
 
 /** The URL filters the calendar page resolves, as they reach the events fetch. */
 export type CalendarFilters = {

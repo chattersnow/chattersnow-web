@@ -12,7 +12,7 @@ const METRIC_LABELS = [
   "Planned opportunities completed on time",
   "Overdue content tasks",
   "Median time to first review",
-  "Public items with a clear Chatter connection",
+  "Public items with a clear connection to your organization",
   "Publication permissions recorded",
 ];
 
