@@ -3,6 +3,7 @@ import { signIn, reloadStayingSignedIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { pickPerson, seedPerson } from "./helpers/people";
 import { modal } from "./helpers/dialog";
+import { portalMain } from "./helpers/regions";
 
 // Governance routes that revolve around the board and its meeting record
 // (#442). The document-shaped routes -- bylaws, policies, conflict of
@@ -186,10 +187,9 @@ test.describe("portal governance board, meetings, and resolutions", () => {
       // Reload the detail page (not the list -- #462 moved this flow off
       // it) to prove the status update round-tripped to the database.
       await reloadStayingSignedIn(page);
-      await expect(page.locator("#meeting-status-view")).toContainText(
-        "Completed",
-        { timeout: 15_000 },
-      );
+      await expect(
+        portalMain(page).locator("#meeting-status-view"),
+      ).toContainText("Completed", { timeout: 15_000 });
     } finally {
       // governance_meeting_action_items cascades from the meeting.
       await admin.from("governance_meetings").delete().eq("location", location);
