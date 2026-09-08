@@ -15,6 +15,15 @@ export type PublicPageSlot = {
    * default a contributor has to opt out of rather than remember to opt in to.
    */
   defaultVisible: boolean;
+  /**
+   * The file under `src/app/(public)` that calls `requireVisiblePage()` for
+   * this slot. Defaults to `<key>/layout.tsx`, which is where a section-wide
+   * slot belongs. A slot covering a single route names that route's page
+   * instead, and page-visibility.test.ts checks whichever file this resolves
+   * to -- registering a slot without gating it hides the nav link and leaves
+   * the URL live.
+   */
+  gate?: string;
 };
 
 /**
@@ -24,8 +33,10 @@ export type PublicPageSlot = {
  * every slot is just a keyed row in app_settings (same approach as
  * BRAND_COLOR_TOKENS in src/lib/branding.ts).
  *
- * A slot covers a whole section, not a single route: the gate goes in the
- * section's layout, so every page beneath it is hidden together.
+ * A slot normally covers a whole section, not a single route: the gate goes in
+ * the section's layout, so every page beneath it is hidden together. `gate`
+ * is the exception, for a single page whose *content* rather than its shape is
+ * what needs gating.
  */
 export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
   {
@@ -65,8 +76,23 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
   {
     key: "gears",
     label: "Gear",
-    description: "The gear library, sizing guide, and gear donation pages.",
+    description: "The gear library and the gear donation pages.",
     defaultVisible: true,
+  },
+  // The one slot that gates a single route rather than a section, and the
+  // reason is the content rather than the shape: the sizing charts are
+  // snow-sports specific (ski lengths, mondopoint, DIN settings), authored by
+  // Chatter Snow, and not editable from the portal. Gear as a whole is chrome
+  // any organization can use, so it stays on by default; these charts are one
+  // organization's guide and would otherwise publish under every tenant's
+  // brand the moment they were provisioned (#795 Phase 3).
+  {
+    key: "gears-sizing",
+    label: "Sizing Guide",
+    description:
+      "The ski and snowboard sizing charts under Gear. Written for snow sports specifically, so it stays hidden until an organization says the guide is theirs.",
+    defaultVisible: false,
+    gate: "gears/sizing/page.tsx",
   },
   {
     key: "get-involved",
