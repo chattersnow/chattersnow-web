@@ -18,6 +18,12 @@ const baseURL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://127.0.0.1:3000";
  * gated now, so any slot a spec toggles can take out every other spec that
  * touches that section.
  *
+ * unresolved-host.spec.ts provisions a second *active* tenant, which is the
+ * only way to exercise the host-resolution 404 (#795 Phase 4) -- and doing so
+ * switches off the sole-active-tenant fallback that every other spec's public
+ * page depends on. For as long as it holds that tenant, the whole public site
+ * 404s for everyone.
+ *
  * Playwright runs a dependency project in full, ignoring any file or --grep
  * filter, so run one of these on its own with --no-deps:
  *   bunx playwright test e2e/page-visibility.spec.ts --no-deps
@@ -26,7 +32,7 @@ const baseURL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://127.0.0.1:3000";
  * That same rule is why E2E_MUTATING exists (see below): --shard is one more
  * filter a dependency project ignores.
  */
-const MUTATING_SPECS = /page-visibility\.spec\.ts/;
+const MUTATING_SPECS = /(page-visibility|unresolved-host)\.spec\.ts/;
 
 const ALL_BROWSER_PROJECTS = [
   { name: "chromium", use: { ...devices["Desktop Chrome"] } },
@@ -37,7 +43,7 @@ const ALL_BROWSER_PROJECTS = [
 
 /**
  * Narrow the browser matrix with E2E_BROWSERS rather than `--project`, so the
- * page-visibility project's dependency edge still covers exactly the projects
+ * mutating project's dependency edge still covers exactly the projects
  * that are running. `--project=chromium` would leave that project unselected
  * (nothing depends on it), and naming it as well would drag in the browsers it
  * depends on that the run meant to skip.
@@ -67,17 +73,17 @@ const browserProjects = requestedBrowsers.length
  * across a matrix (#753). Unset -- the local default -- builds both halves and
  * changes nothing.
  *
- *   skip   only the browser projects; page-visibility is left out entirely
- *   only   only page-visibility, with no dependency edge, alone on its own stack
+ *   skip   only the browser projects; the mutating specs are left out entirely
+ *   only   only the mutating specs, no dependency edge, alone on their own stack
  *
  * `--shard` splits top-level projects only. Playwright detaches dependency
  * project suites before applying the shard filter and re-adds them in full
  * afterwards, and a project that is both selected *and* depended on counts as a
- * dependency. So with page-visibility in the run, chromium and mobile-chromium
+ * dependency. So with the mutating project in the run, chromium and mobile-chromium
  * are dependency projects, and `--shard=1/4` gives shard 1 all 354 tests and
  * shards 2-4 none of them. The two halves therefore have to be separate
  * processes, which on CI means separate jobs -- and separate jobs mean separate
- * Supabase stacks and servers, which isolates page-visibility more thoroughly
+ * Supabase stacks and servers, which isolates the mutating specs more thoroughly
  * than the dependency edge ever did.
  */
 const mutatingMode = process.env.E2E_MUTATING?.trim() ?? "";
@@ -157,7 +163,7 @@ export default defineConfig({
             // global state -- see MUTATING_SPECS above. Under E2E_MUTATING=only
             // it is the whole run, so there is nothing to order it after and
             // the dependency edge would only drag the browsers back in.
-            name: "page-visibility",
+            name: "mutating",
             use: { ...devices["Desktop Chrome"] },
             testMatch: MUTATING_SPECS,
             dependencies:

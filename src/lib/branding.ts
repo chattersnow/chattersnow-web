@@ -204,17 +204,45 @@ export async function getPublicBranding(
 export type PublicTenant = { id: string; name: string; slug: string };
 
 /**
- * The tenant the public site is being served for, by host. Null only when
- * nothing resolves: no custom domain matched and more than one tenant is
- * active, which is the state a misconfigured domain lands in.
+ * Why this is three outcomes and not a nullable tenant (#795 Phase 4).
+ *
+ * "No tenant resolved" and "the read failed" are the same `null` to a caller
+ * that only asks whether a tenant came back, and they call for opposite
+ * responses. An unresolved host belongs to nobody and must 404. A failed read
+ * is a database blip on a host that is perfectly well configured, and 404ing
+ * it would take every tenant's public site down for the duration.
+ *
+ * So they are told apart here, at the only place that can tell them apart,
+ * rather than reconstructed later from a null.
  */
+export type PublicTenantResult =
+  /** A tenant owns this host. */
+  | { status: "resolved"; tenant: PublicTenant }
+  /** The query succeeded and matched nothing: no `custom_domain` matched the
+   *  request host, and the sole-active-tenant fallback is off because more
+   *  than one tenant is active. This is where a domain pointed at the
+   *  deployment before its tenant row exists lands. */
+  | { status: "unresolved" }
+  /** The read itself failed. Says nothing about whether a tenant exists. */
+  | { status: "unavailable" };
+
+/** The tenant the public site is being served for, resolved from the host. */
 export async function getPublicTenant(
   supabase: SupabaseClient,
-): Promise<PublicTenant | null> {
+): Promise<PublicTenantResult> {
   const { data, error } = await supabase
     .from("public_tenant")
     .select("id, name, slug")
     .maybeSingle();
-  if (error || !data) return null;
-  return data as PublicTenant;
+  if (error) {
+    // Loudly: this is the branch that keeps a blip from 404ing the site, so a
+    // silent one would look exactly like a correctly-refused unknown host.
+    console.error(
+      "[branding] could not read public_tenant; serving the request rather than 404ing it",
+      error,
+    );
+    return { status: "unavailable" };
+  }
+  if (!data) return { status: "unresolved" };
+  return { status: "resolved", tenant: data as PublicTenant };
 }
