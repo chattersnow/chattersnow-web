@@ -123,8 +123,8 @@ export default async function SiteContentPage({
       </div>
 
       <p className="app-muted mt-6 max-w-3xl text-sm leading-relaxed">
-        The words on the public website, page by page. Saving keeps a draft;
-        nothing reaches the public site until you publish it.
+        The words and photos on the public website, page by page. Saving keeps a
+        draft; nothing reaches the public site until you publish it.
       </p>
 
       {/* The page switcher lives inside the editor because leaving it here

@@ -43,9 +43,21 @@ const PRIVACY: ContentSlot = {
   route: "/privacy",
 };
 
+const PHOTO: ContentSlot = {
+  key: "site_images.home_carousel_1",
+  page: "home",
+  section: "home:hero",
+  label: "Homepage carousel — slide 1",
+  type: "image",
+  default: null,
+};
+
+const URL = "https://drive.google.com/file/d/abc123/view";
+
 describe("slotLines", () => {
   test("reads each slot shape as the lines a person would read", () => {
     expect(slotLines(HEADING, "Hello")).toEqual(["Hello"]);
+    expect(slotLines(PHOTO, URL)).toEqual([URL]);
     expect(slotLines(INTRO, ["a", "b"])).toEqual(["a", "b"]);
     expect(slotLines(VALUES, [{ name: "Joy", body: "We ride." }])).toEqual([
       "Joy — We ride.",
@@ -66,6 +78,7 @@ describe("slotLines", () => {
     expect(slotLines(HEADING, "")).toEqual([]);
     expect(slotLines(PRIVACY, null)).toEqual([]);
     expect(slotLines(INTRO, undefined)).toEqual([]);
+    expect(slotLines(PHOTO, null)).toEqual([]);
   });
 });
 
@@ -89,6 +102,15 @@ describe("slotChanges", () => {
 
     expect(changes[0].toDefault).toBe(true);
   });
+
+  test("clearing a photo reads as a change back to the placeholder", () => {
+    const changes = slotChanges([{ slot: PHOTO, value: null, published: URL }]);
+
+    expect(changes).toHaveLength(1);
+    expect(changes[0].before).toEqual([URL]);
+    expect(changes[0].after).toEqual([]);
+    expect(changes[0].toDefault).toBe(true);
+  });
 });
 
 describe("draftValueFor", () => {
@@ -102,5 +124,7 @@ describe("draftValueFor", () => {
     expect(draftValueFor(HEADING, HEADING.default)).toBeNull();
     expect(draftValueFor(INTRO, ["One.", "Two."])).toBeNull();
     expect(draftValueFor(PRIVACY, null)).toBeNull();
+    expect(draftValueFor(PHOTO, null)).toBeNull();
+    expect(draftValueFor(PHOTO, URL)).toBe(URL);
   });
 });

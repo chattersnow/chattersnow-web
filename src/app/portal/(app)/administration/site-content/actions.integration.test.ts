@@ -181,6 +181,56 @@ describe("permissions", () => {
   });
 });
 
+// The photos are slots in this table since #812, and the public pages read
+// them through `public_site_images` -- so a photo, like a sentence, must be
+// invisible to the site while it is only a draft and gone again when the slot
+// is published back to its default.
+describe("image slots", () => {
+  const IMAGE_KEY = "site_images.gear_placeholder";
+  const URL = "https://example.test/gear.jpg";
+
+  async function publicImage() {
+    const { data, error } = await anonClient()
+      .from("public_site_images")
+      .select("slot, value")
+      .eq("slot", "gear_placeholder");
+    if (error) throw error;
+    return data;
+  }
+
+  afterEach(async () => {
+    await service.from("site_content").delete().eq("key", IMAGE_KEY);
+  });
+
+  test("a drafted photo is not on the site until it is published", async () => {
+    const { error } = await adminClient.rpc("save_site_content_drafts", {
+      p_entries: [{ key: IMAGE_KEY, value: URL }],
+    });
+    expect(error).toBeNull();
+    expect(await publicImage()).toEqual([]);
+
+    await adminClient.rpc("publish_site_content", { p_keys: [IMAGE_KEY] });
+    expect(await publicImage()).toEqual([
+      { slot: "gear_placeholder", value: URL },
+    ]);
+
+    await adminClient.rpc("save_site_content_drafts", {
+      p_entries: [{ key: IMAGE_KEY, value: null }],
+    });
+    await adminClient.rpc("publish_site_content", { p_keys: [IMAGE_KEY] });
+    expect(await publicImage()).toEqual([]);
+  });
+
+  test("nothing is left in app_settings, where the photos used to live", async () => {
+    const { data, error } = await service
+      .from("app_settings")
+      .select("key")
+      .like("key", "site_images.%");
+    expect(error).toBeNull();
+    expect(data).toEqual([]);
+  });
+});
+
 describe("discarding a draft", () => {
   test("leaves the published copy in place", async () => {
     await adminClient.rpc("save_site_content_drafts", {

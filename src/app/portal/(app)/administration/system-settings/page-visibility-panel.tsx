@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Spinner } from "@/components/ui/spinner";
 // Type-only: @/lib/page-visibility also exports server helpers that pull in
 // createSupabaseServerClient, which must not reach the client bundle. The slot
-// list arrives as a prop from the server page, same as SiteImagesPanel.
+// list arrives as a prop from the server page, same as BrandingPanel.
 import type { PublicPageSlot } from "@/lib/page-visibility";
 import { runAction } from "@/components/portal/action-toast";
 

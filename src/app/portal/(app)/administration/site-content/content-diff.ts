@@ -23,6 +23,8 @@ export function slotLines(slot: ContentSlot, value: unknown): string[] {
       return Array.isArray(value) ? (value as ListItem[]).map(itemLine) : [];
     case "document":
       return documentLines(value as LegalDocumentContent | null);
+    case "image":
+      return typeof value === "string" && value ? [value] : [];
   }
 }
 

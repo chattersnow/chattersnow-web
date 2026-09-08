@@ -24,6 +24,7 @@ import {
   textToParagraphs,
 } from "./content-values";
 import { DocumentEditor } from "./document-editor";
+import { ImageSlotField, ImageSlotHint } from "./image-slot-field";
 import { ListEditor } from "./list-editor";
 
 /** The slot's control, for the label to point at. */
@@ -63,10 +64,13 @@ function SlotStatus({
   overridden,
   dirty,
   hasDraft,
+  noun,
 }: {
   overridden: boolean;
   dirty: boolean;
   hasDraft: boolean;
+  /** What the tenant's override is called: "text" for copy, "image" for a photo. */
+  noun: "text" | "image";
 }) {
   if (dirty) {
     return (
@@ -85,7 +89,7 @@ function SlotStatus({
   if (overridden) {
     return (
       <span className="app-muted rounded-full border border-[var(--line)] px-2 py-0.5 text-xs font-normal">
-        Your text
+        Your {noun}
       </span>
     );
   }
@@ -179,7 +183,12 @@ export function ContentSlotField({
   const heading = (
     <>
       {slot.label}
-      <SlotStatus overridden={overridden} dirty={dirty} hasDraft={hasDraft} />
+      <SlotStatus
+        overridden={overridden}
+        dirty={dirty}
+        hasDraft={hasDraft}
+        noun={slot.type === "image" ? "image" : "text"}
+      />
       {route && (
         <Link
           href={route}
@@ -234,12 +243,22 @@ export function ContentSlotField({
         />
       )}
 
+      {slot.type === "image" && (
+        <ImageSlotField
+          id={controlId}
+          label={slot.label}
+          value={typeof value === "string" ? value : null}
+          onChange={onChange}
+        />
+      )}
+
       {slot.description && (
         <FieldDescription>{slot.description}</FieldDescription>
       )}
       {slot.type === "paragraphs" && (
         <FieldDescription>{paragraphHint(paragraphs)}</FieldDescription>
       )}
+      {slot.type === "image" && <ImageSlotHint />}
 
       {slot.type === "list" && (
         <ListEditor

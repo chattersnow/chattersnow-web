@@ -22,7 +22,7 @@ export type PublicPageSlot = {
  * Administration > System Settings. Adding an entry here is enough to wire a
  * section up in the admin UI and in the gate -- no migration needed, since
  * every slot is just a keyed row in app_settings (same approach as
- * SITE_IMAGE_SLOTS in src/lib/site-images.ts).
+ * BRAND_COLOR_TOKENS in src/lib/branding.ts).
  *
  * A slot covers a whole section, not a single route: the gate goes in the
  * section's layout, so every page beneath it is hidden together.

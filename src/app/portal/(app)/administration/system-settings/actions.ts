@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkPermission } from "@/lib/auth/permissions";
-import { siteImageSettingKey } from "@/lib/site-images";
 import { pageVisibilitySettingKey } from "@/lib/page-visibility";
 import {
   BRAND_COLOR_TOKENS,
@@ -92,19 +91,6 @@ export async function updateFiscalYearStartMonthAction(
   return updateAppSettingAction(FISCAL_YEAR_SETTING_KEY, startMonth);
 }
 
-export async function updateSiteImageAction(
-  slot: string,
-  formData: FormData,
-): Promise<SettingActionResult> {
-  const url = String(formData.get("url") ?? "").trim();
-  const key = siteImageSettingKey(slot);
-
-  // app_settings only grants insert/update (no delete), so clearing a slot
-  // upserts an empty string rather than removing the row; getSiteImageUrls
-  // and resolveImageUrl both already treat an empty/non-string value as unset.
-  return updateAppSettingAction(key, url);
-}
-
 /**
  * Shows or hides a whole section of the public site (issue #584). The write is
  * audit-logged by the app_settings trigger, which is what makes the toggle
@@ -138,7 +124,7 @@ export async function updateEmailNotificationsEnabledAction(
  * that is silently dropped at send time looks, from this page, exactly like
  * one that was saved. Clearing the field switches the report off for this
  * tenant -- app_settings has no delete grant, so an empty list is how "off"
- * is written, the same constraint the image slots work under.
+ * is written -- app_settings has no delete grant.
  *
  * The write is audit-logged by the app_settings trigger, which is the point:
  * changing who sees the organization's daily operating picture is a
@@ -169,7 +155,7 @@ export async function updateOpsReportRecipientsAction(
  * Saves the tenant's branding (#707 Phase 4): one app_settings row per
  * colour token, the accent stops, and the logo. A blank field clears its row
  * to an empty value, which the readers treat as unset -- app_settings has no
- * delete grant, the same constraint the image slots work under.
+ * delete grant.
  */
 export async function updateBrandingAction(
   formData: FormData,
