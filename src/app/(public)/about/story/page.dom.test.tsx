@@ -1,4 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
+import { DEFAULT_SITE_CONTENT } from "@/lib/site-content";
 import { render } from "@testing-library/react";
 import { fakePublicSiteClient } from "../../../../../test/fake-public-site-client";
 
@@ -63,7 +64,12 @@ describe("StoryPage", () => {
 
     const intro = container.querySelector(".max-w-3xl");
     expect(intro).not.toBeNull();
-    expect(intro!.textContent).toContain("queer ski and snowboard community");
+    // Whatever the slot says, not a phrase from one organization's copy: the
+    // defaults became prompts in #795 Phase 3, and this test is about the
+    // measure the paragraph is set at, not about the words in it.
+    expect(intro!.textContent).toContain(
+      DEFAULT_SITE_CONTENT.paragraphs("about_story.intro")[0],
+    );
   });
 
   test("sizes the Our Story heading as a section heading, matching Mission page's Our Values", async () => {
