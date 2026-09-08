@@ -4,6 +4,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { getPublicTenant } from "@/lib/branding";
+import { publicSiteLink } from "@/lib/portal/paths";
+import { getRequestHost } from "@/lib/request-origin";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { DemoButton } from "./demo-button";
 import { LoginForm } from "./login-form";
 
@@ -11,11 +15,25 @@ export const metadata: Metadata = {
   title: "Log In",
 };
 
-export default function PortalLoginPage() {
+export default async function PortalLoginPage() {
   // Read here rather than in the button, so the credentials stay in the server
   // tree entirely; the client only ever learns that a demo is configured.
   const demoAvailable = Boolean(
     process.env.DEMO_EMAIL && process.env.DEMO_PASSWORD,
+  );
+
+  // Which organization's public site to offer, if any. `unresolved` and
+  // `unavailable` both mean there is nothing to name, and the link is dropped
+  // rather than guessed at -- the portal itself is unaffected either way,
+  // because sign-in never consults the host.
+  const supabase = await createSupabaseServerClient();
+  const [tenantResult, requestHost] = await Promise.all([
+    getPublicTenant(supabase),
+    getRequestHost(),
+  ]);
+  const backLink = publicSiteLink(
+    requestHost,
+    tenantResult.status === "resolved" ? tenantResult.tenant : null,
   );
 
   return (
@@ -47,13 +65,15 @@ export default function PortalLoginPage() {
             <LoginForm />
           </Suspense>
 
-          <Link
-            href="/home"
-            className="app-muted inline-flex items-center justify-center gap-1.5 text-sm hover:underline"
-          >
-            <ArrowLeft className="size-4" />
-            Back to chattersnow.org
-          </Link>
+          {backLink && (
+            <Link
+              href={backLink.href}
+              className="app-muted inline-flex items-center justify-center gap-1.5 text-sm hover:underline"
+            >
+              <ArrowLeft className="size-4" />
+              Back to {backLink.label}
+            </Link>
+          )}
         </CardContent>
       </Card>
     </main>

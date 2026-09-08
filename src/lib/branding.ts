@@ -201,7 +201,17 @@ export async function getPublicBranding(
   return brandingFromRows((data ?? []) as BrandingRow[]);
 }
 
-export type PublicTenant = { id: string; name: string; slug: string };
+export type PublicTenant = {
+  id: string;
+  name: string;
+  slug: string;
+  /**
+   * The host this tenant claims. Null until an operator sets one, which is the
+   * normal state on the local stack and on preview, where the tenant is
+   * resolved through TENANT_HOST_OVERRIDE rather than by domain.
+   */
+  custom_domain: string | null;
+};
 
 /**
  * Why this is three outcomes and not a nullable tenant (#795 Phase 4).
@@ -232,7 +242,7 @@ export async function getPublicTenant(
 ): Promise<PublicTenantResult> {
   const { data, error } = await supabase
     .from("public_tenant")
-    .select("id, name, slug")
+    .select("id, name, slug, custom_domain")
     .maybeSingle();
   if (error) {
     // Loudly: this is the branch that keeps a blip from 404ing the site, so a

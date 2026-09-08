@@ -48,3 +48,43 @@ export function stripPortalPrefix(pathname: string): string {
   if (!isPortalPathname(pathname)) return pathname;
   return pathname.slice(PORTAL_PATH_PREFIX.length) || "/";
 }
+
+/** Where the portal login's link back to the organization's public site goes. */
+export type PublicSiteLink = { href: string; label: string };
+
+/**
+ * The public site to offer a signed-out visitor on the portal login, or null
+ * when there is none to offer (#795 Phase 2).
+ *
+ * This used to be a hardcoded `/home` labelled "Back to chattersnow.org", and
+ * both halves were wrong. The label named one tenant's domain on every
+ * tenant's login page; the href was dead on every portal host, because the
+ * proxy rewrites an unprefixed path into `/portal/*` -- so `/home` resolved to
+ * the portal dashboard and bounced the visitor back to the login page.
+ *
+ * Three cases, in this order:
+ *
+ *   1. Not a portal host (localhost, a preview, the public host itself): the
+ *      relative link works and is the right one -- it keeps a visitor on
+ *      `uat.chattersnow.org` on uat rather than sending them to production.
+ *   2. A portal host, tenant has a public domain: an absolute link to it.
+ *   3. A portal host, and the tenant's own `custom_domain` is a portal host --
+ *      the platform tenant, whose domain is `portal.rickiecruz.com` because the
+ *      rickiecruz.com apex is the consulting site and is not served here. There
+ *      is no public site, so nothing is offered rather than a link off the
+ *      deployment.
+ */
+export function publicSiteLink(
+  requestHost: string,
+  tenant: { name: string; custom_domain: string | null } | null,
+): PublicSiteLink | null {
+  const domain =
+    tenant?.custom_domain && !isPortalHost(tenant.custom_domain)
+      ? tenant.custom_domain
+      : null;
+  const label = domain ?? tenant?.name;
+  if (!label) return null;
+  if (!isPortalHost(requestHost)) return { href: "/home", label };
+  if (!domain) return null;
+  return { href: `https://${domain}/home`, label: domain };
+}
