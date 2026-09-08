@@ -7,30 +7,29 @@
 :root {
   --surface: #ffffff;
   --surface-muted: color-mix(in oklch, var(--foreground) 8%, var(--surface));
-  --purple: #70419a;
-  --purple-deep: #32134f;
-  --purple-soft: #ede1fb;
-  --line: rgb(50 19 79 / 14%);
-  --rainbow: linear-gradient(
-    90deg,
-    #e84855 0%,
-    #f59e42 20%,
-    #f4d35e 40%,
-    #50b878 60%,
-    #38a5db 80%,
-    #8f55ba 100%
-  );
+  /* The platform's palette, not any organization's (#795 Phase 3). These were
+     Chatter Snow's purple and its pride gradient, which meant a tenant that had
+     set nothing rendered somebody else's brand -- and the six stops below in
+     particular are an identity, not a default. Chatter Snow now carries all of
+     this in its own `brand.*` settings, and `brandingCss()` overrides every
+     token here for any tenant that sets one.
+
+     A slate rather than a grey: it still reads as a UI palette rather than as
+     an absence, while being obviously nobody's brand. The accent gradient is
+     two stops of the same slate, so an unbranded deployment has an accent bar
+     that looks deliberate and says nothing. */
+  --purple: #475569;
+  --purple-deep: #1e293b;
+  --purple-soft: #e2e8f0;
+  --line: rgb(30 41 59 / 14%);
+  --rainbow: linear-gradient(90deg, #94a3b8 0%, #475569 100%);
   --rainbow-soft: linear-gradient(
     90deg,
-    rgb(232 72 85 / 12%) 0%,
-    rgb(245 158 66 / 12%) 20%,
-    rgb(244 211 94 / 12%) 40%,
-    rgb(80 184 120 / 12%) 60%,
-    rgb(56 165 219 / 12%) 80%,
-    rgb(143 85 186 / 12%) 100%
+    rgb(148 163 184 / 12%) 0%,
+    rgb(71 85 105 / 12%) 100%
   );
-  --background: #f7f0ff;
-  --foreground: #32134f;
+  --background: #f8fafc;
+  --foreground: #1e293b;
   --card: var(--surface);
   --card-foreground: var(--foreground);
   --popover: var(--surface);
@@ -40,7 +39,7 @@
   --secondary: var(--purple-soft);
   --secondary-foreground: var(--purple-deep);
   --muted: var(--purple-soft);
-  --muted-foreground: rgb(50 19 79 / 72%);
+  --muted-foreground: rgb(30 41 59 / 72%);
   --accent: var(--purple-soft);
   --accent-foreground: var(--purple-deep);
   /* Status colours are measured as 12px text against their own 10% tint --
@@ -277,24 +276,21 @@ body {
      on the light palette unless dark values are defined here too. Keep
      `--surface` in step with `--card` -- they alias each other in `:root`. */
   --surface: oklch(0.205 0 0);
-  --purple: #c8a8ea;
-  /* Was #e2d0f6. Nudged two units to `oklch(from #32134f 0.884 0.055 h)`, the
-     value `darkVariant()` derives for it in src/lib/branding.ts (#819), so that
-     a tenant setting Chatter Snow's palette reproduces Chatter Snow's dark mode
-     exactly rather than nearly. `--purple` above already is that derivation's
-     output, to the byte. These stay literals so a browser without relative
-     colour syntax still has a palette to fall back to. */
-  --purple-deep: #e0d1f7;
+  /* The dark forms of the two brand tokens, and they are not free choices:
+     each is exactly what `darkVariant()` in src/lib/branding.ts derives from
+     its light counterpart above (#819), so a tenant that sets the platform's
+     own colours -- or Chatter Snow, which sets the ones this file used to
+     carry -- reproduces this palette rather than nearly reproducing it.
+     `e2e/tenant-branding.spec.ts` is what holds that true. They stay literals
+     so a browser without relative colour syntax still has a palette. */
+  --purple: #aabad1; /* oklch(from #475569 0.783 min(c, 0.098) h) */
+  --purple-deep: #cbdaf2; /* oklch(from #1e293b 0.884 min(c, 0.055) h) */
   --purple-soft: oklch(0.269 0 0);
   --line: oklch(1 0 0 / 12%);
   --rainbow-soft: linear-gradient(
     90deg,
-    rgb(232 72 85 / 10%) 0%,
-    rgb(245 158 66 / 10%) 20%,
-    rgb(244 211 94 / 10%) 40%,
-    rgb(80 184 120 / 10%) 60%,
-    rgb(56 165 219 / 10%) 80%,
-    rgb(143 85 186 / 10%) 100%
+    rgb(148 163 184 / 10%) 0%,
+    rgb(71 85 105 / 10%) 100%
   );
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);

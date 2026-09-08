@@ -165,7 +165,7 @@ function gradient(stops: readonly string[], alpha: number | null): string {
  * `color-mix(... N%, white)` against globals.css's `#c8a8ea` never got closer
  * than 21 in RGB distance, at any N.
  *
- * Setting lightness and chroma outright and keeping only the hue does reach it.
+ * Setting the lightness and capping the chroma, keeping only the hue, reaches it.
  * The constants below are globals.css's own dark values read back as oklch, so
  * a tenant that sets Chatter Snow's palette reproduces Chatter Snow's dark mode
  * exactly: `--purple` lands on `rgb(200, 168, 234)`, which is the stylesheet's
@@ -178,14 +178,21 @@ function gradient(stops: readonly string[], alpha: number | null): string {
  * browser without it drops the declaration and falls back to the stylesheet's
  * own `.dark` literals, which is the behaviour every tenant has today anyway.
  */
-const DARK_ACCENT = { lightness: 0.783, chroma: 0.098 };
-const DARK_DEEP = { lightness: 0.884, chroma: 0.055 };
+const DARK_ACCENT = { lightness: 0.783, maxChroma: 0.098 };
+const DARK_DEEP = { lightness: 0.884, maxChroma: 0.055 };
 
 function darkVariant(
   color: string,
-  { lightness, chroma }: { lightness: number; chroma: number },
+  { lightness, maxChroma }: { lightness: number; maxChroma: number },
 ): string {
-  return `oklch(from ${color} ${lightness} ${chroma} h)`;
+  // `min(c, ...)` rather than a flat chroma (#795 Phase 3). Setting it outright
+  // reproduced Chatter Snow's dark palette exactly, because a brand colour is
+  // saturated by definition and the cap was always the smaller number. It is
+  // wrong for the platform's own neutral default, which is barely chromatic at
+  // all: forcing #475569 to 0.098 turns a slate grey into #90bbf7, a blue.
+  // Clamping keeps both -- a saturated brand comes down to the cap, a neutral
+  // one keeps its own chroma and stays neutral.
+  return `oklch(from ${color} ${lightness} min(c, ${maxChroma}) h)`;
 }
 
 export function brandingCss(branding: Branding): string {
