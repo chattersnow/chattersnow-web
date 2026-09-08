@@ -463,7 +463,7 @@ begin
   );
 
   insert into public.calendar_item_categories (item_id, category)
-  values (v_calendar_promo_id, 'chatter_events'), (v_calendar_promo_id, 'campaigns_fundraising');
+  values (v_calendar_promo_id, 'own_events'), (v_calendar_promo_id, 'campaigns_fundraising');
 
   insert into public.calendar_item_programs (item_id, program_id)
   values (v_calendar_promo_id, v_program_id);
@@ -1067,7 +1067,7 @@ begin
   -- the content pipeline board also gets volume.
   for i in 1..65 loop
     v_starts_at := now() + ((floor(random() * 300)::int - 100) || ' days')::interval;
-    v_item_type := (array['chatter_event','partner_event','community_observance','heritage_social_justice_moment','winter_outdoor_sports_moment','content_campaign','fundraiser','partner_opportunity','content_opportunity'])[1 + floor(random()*9)::int];
+    v_item_type := (array['own_event','partner_event','community_observance','heritage_social_justice_moment','winter_outdoor_sports_moment','content_campaign','fundraiser','partner_opportunity','content_opportunity'])[1 + floor(random()*9)::int];
     insert into public.calendar_items (
       title, item_type, starts_at, ends_at, time_zone, summary, priority_tier,
       calendar_status, visibility, owner_id, created_by
@@ -1086,13 +1086,13 @@ begin
     insert into public.calendar_item_categories (item_id, category)
     values (
       v_calendar_item_id,
-      (array['lgbtq_community','winter_outdoor_sports','community_social_justice','chatter_events','campaigns_fundraising','partner_opportunities'])[1 + floor(random()*6)::int]
+      (array['lgbtq_community','winter_outdoor_sports','community_social_justice','own_events','campaigns_fundraising','partner_opportunities'])[1 + floor(random()*6)::int]
     );
     if random() < 0.3 then
       insert into public.calendar_item_categories (item_id, category)
       values (
         v_calendar_item_id,
-        (array['lgbtq_community','winter_outdoor_sports','community_social_justice','chatter_events','campaigns_fundraising','partner_opportunities'])[1 + floor(random()*6)::int]
+        (array['lgbtq_community','winter_outdoor_sports','community_social_justice','own_events','campaigns_fundraising','partner_opportunities'])[1 + floor(random()*6)::int]
       )
       on conflict do nothing;
     end if;

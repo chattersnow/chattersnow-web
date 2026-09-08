@@ -172,7 +172,7 @@ export function CalendarFiltersSheet({
         <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4">
           {eventsHidden && (
             <p className="app-muted text-xs">
-              Chatter events are hidden while these filters are active.
+              Your own events are hidden while these filters are active.
               Priority, owner, decision and status are content-calendar fields
               an event has no value for.
             </p>

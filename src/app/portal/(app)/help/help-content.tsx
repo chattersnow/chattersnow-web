@@ -593,7 +593,7 @@ export const helpContent: Record<string, HelpEntry> = {
             </li>
             <li>
               <strong className="text-foreground">
-                Public items with a clear Chatter connection
+                Public items with a clear connection to your organization
               </strong>{" "}
               — the selected fiscal year&apos;s items that are public, live
               (active or complete), and have a non-empty Chatter connection

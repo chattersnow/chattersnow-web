@@ -392,8 +392,8 @@ beforeAll(async () => {
   });
   await fixture("calendar_program_suggestion_rules", {
     program_id: a.programId,
-    item_type: "chatter_event",
-    category: "chatter_events",
+    item_type: "own_event",
+    category: "own_events",
   });
   const opportunity = await must(
     service

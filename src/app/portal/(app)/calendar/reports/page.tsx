@@ -114,7 +114,7 @@ export default async function CalendarAnnualReviewPage({
             "Only counts opportunities currently in review — status history before the most recent transition isn't tracked.",
         },
         {
-          label: "Public items with a clear Chatter connection",
+          label: "Public items with a clear connection to your organization",
           value: formatNumber(review.publicWithConnectionCount),
         },
         {

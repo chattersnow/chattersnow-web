@@ -167,7 +167,7 @@ export function EventEntryBadge() {
     <StatusBadge
       tone="info"
       className="gap-1"
-      title="A Chatter event -- managed in the Events module"
+      title="One of your own events -- managed in the Events module"
     >
       <CalendarDays className="size-3" />
       Event
