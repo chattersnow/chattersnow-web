@@ -278,7 +278,13 @@ body {
      `--surface` in step with `--card` -- they alias each other in `:root`. */
   --surface: oklch(0.205 0 0);
   --purple: #c8a8ea;
-  --purple-deep: #e2d0f6;
+  /* Was #e2d0f6. Nudged two units to `oklch(from #32134f 0.884 0.055 h)`, the
+     value `darkVariant()` derives for it in src/lib/branding.ts (#819), so that
+     a tenant setting Chatter Snow's palette reproduces Chatter Snow's dark mode
+     exactly rather than nearly. `--purple` above already is that derivation's
+     output, to the byte. These stay literals so a browser without relative
+     colour syntax still has a palette to fall back to. */
+  --purple-deep: #e0d1f7;
   --purple-soft: oklch(0.269 0 0);
   --line: oklch(1 0 0 / 12%);
   --rainbow-soft: linear-gradient(
