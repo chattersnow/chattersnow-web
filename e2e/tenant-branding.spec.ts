@@ -16,20 +16,21 @@ import { test, expect } from "./helpers/test";
 import { createAdminClient } from "./helpers/admin-client";
 import type { Page } from "@playwright/test";
 
-/** globals.css's own `:root` palette, as brand settings. */
-const CHATTER_PALETTE: Record<string, unknown> = {
-  "brand.primary": "#70419a",
-  "brand.primary_deep": "#32134f",
-  "brand.primary_soft": "#ede1fb",
-  "brand.background": "#f7f0ff",
-  "brand.accent_stops": [
-    "#e84855",
-    "#f59e42",
-    "#f4d35e",
-    "#50b878",
-    "#38a5db",
-    "#8f55ba",
-  ],
+/**
+ * globals.css's own `:root` palette, as brand settings.
+ *
+ * The platform's, not Chatter Snow's -- since #795 Phase 3 the stylesheet
+ * carries a neutral slate and Chatter Snow carries its purple in its own rows.
+ * Keep these in step with `:root` in src/app/globals.css: the whole test is
+ * that setting the stylesheet's own colours as tenant branding is a no-op, so
+ * the day they drift is the day it stops testing anything.
+ */
+const PLATFORM_PALETTE: Record<string, unknown> = {
+  "brand.primary": "#475569",
+  "brand.primary_deep": "#1e293b",
+  "brand.primary_soft": "#e2e8f0",
+  "brand.background": "#f8fafc",
+  "brand.accent_stops": ["#94a3b8", "#475569"],
 };
 
 const TOKENS = [
@@ -163,7 +164,7 @@ test("a tenant's own palette renders the same site in both themes", async ({
     unbranded.light["--background"],
   );
 
-  await setBranding(CHATTER_PALETTE);
+  await setBranding(PLATFORM_PALETTE);
   await page.goto("/home");
 
   expect(await palette(page, "light")).toEqual(unbranded.light);

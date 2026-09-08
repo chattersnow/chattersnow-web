@@ -82,18 +82,24 @@ describe("brandingCss", () => {
     expect(dark).not.toContain("--foreground:");
   });
 
-  // The dark accent keeps the brand's hue and takes globals.css's own dark
-  // lightness and chroma, so a tenant setting Chatter Snow's palette
+  // The dark accent keeps the brand's hue, takes globals.css's own dark
+  // lightness, and caps the chroma, so a tenant setting Chatter Snow's palette
   // reproduces Chatter Snow's dark mode. A white mix could not: it drops
   // chroma as it raises lightness, and missed `#c8a8ea` at every percentage.
+  // The cap is a `min()` rather than a flat value so that the platform's own
+  // near-neutral palette is not pushed *up* into a colour it never had.
   test("derives the dark accent from the brand's hue, not from white", () => {
     const css = brandingCss({
       colors: { primary: "#70419a", primary_deep: "#32134f" },
       accentStops: null,
       logoUrl: null,
     });
-    expect(css).toContain("--purple: oklch(from #70419a 0.783 0.098 h);");
-    expect(css).toContain("--purple-deep: oklch(from #32134f 0.884 0.055 h);");
+    expect(css).toContain(
+      "--purple: oklch(from #70419a 0.783 min(c, 0.098) h);",
+    );
+    expect(css).toContain(
+      "--purple-deep: oklch(from #32134f 0.884 min(c, 0.055) h);",
+    );
     expect(css).not.toContain("white");
   });
 

@@ -24,7 +24,10 @@ export async function generateMetadata(): Promise<Metadata> {
     return { title: NOT_FOUND_TITLE };
   }
   return {
-    title: site.name,
+    // Undefined rather than a placeholder when the tenant read failed and
+    // there is no name (#795 Phase 3): Next falls back to the root layout's
+    // neutral title, which names no organization either.
+    title: site.name ?? undefined,
     description: site.content.text("org.tagline"),
   };
 }
@@ -102,13 +105,15 @@ export default async function PublicLayout({
           <Link href="/home" className="flex shrink-0 items-center gap-2">
             <BrandLogo
               logoUrl={branding.logoUrl}
-              alt={name}
+              alt={name ?? ""}
               className="h-10 w-10"
               priority
             />
-            <span className="brand-display text-lg font-semibold tracking-[-0.02em] sm:text-xl">
-              {name}
-            </span>
+            {name && (
+              <span className="brand-display text-lg font-semibold tracking-[-0.02em] sm:text-xl">
+                {name}
+              </span>
+            )}
           </Link>
           <SiteNav hiddenSlots={hidden} supportLabel={supportLabel} />
         </div>
@@ -129,7 +134,7 @@ export default async function PublicLayout({
               <Link href="/home" className="flex w-fit items-center gap-2">
                 <BrandLogo
                   logoUrl={branding.logoUrl}
-                  alt={name}
+                  alt={name ?? ""}
                   className="h-8 w-8"
                 />
                 <span className="brand-display font-semibold tracking-[-0.02em]">
@@ -157,7 +162,7 @@ export default async function PublicLayout({
                 </a>
                 <InstagramLink
                   handle={content.text("org.instagram_handle")}
-                  orgName={name}
+                  orgName={name ?? "this organization"}
                 />
               </div>
             </div>
@@ -165,7 +170,8 @@ export default async function PublicLayout({
 
           <div className="mt-8 flex flex-col gap-3 border-t border-[var(--line)] pt-6 sm:flex-row sm:items-center sm:justify-between">
             <p className="app-muted text-sm">
-              &copy; {new Date().getFullYear()} {name}. All rights reserved.
+              &copy; {new Date().getFullYear()}
+              {name ? ` ${name}.` : ""} All rights reserved.
             </p>
             {/* Omitted entirely rather than rendered empty while the legal
                 review is outstanding: an empty <nav aria-label="Legal"> is

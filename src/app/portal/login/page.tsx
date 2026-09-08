@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { getPublicTenant } from "@/lib/branding";
+import { getPublicBranding, getPublicTenant } from "@/lib/branding";
+import { BrandLogo } from "@/components/brand-logo";
 import { publicSiteLink } from "@/lib/portal/paths";
 import { getRequestHost } from "@/lib/request-origin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -27,8 +27,13 @@ export default async function PortalLoginPage() {
   // rather than guessed at -- the portal itself is unaffected either way,
   // because sign-in never consults the host.
   const supabase = await createSupabaseServerClient();
-  const [tenantResult, requestHost] = await Promise.all([
+  const [tenantResult, branding, requestHost] = await Promise.all([
     getPublicTenant(supabase),
+    // The logo the host's tenant has set, if any. It was
+    // `/chatter-logo-transparent.png` hardcoded, so every tenant's login page
+    // carried Chatter Snow's mark -- visible on portal.rickiecruz.com, which
+    // is the platform's own host (#795 Phase 3).
+    getPublicBranding(supabase),
     getRequestHost(),
   ]);
   const backLink = publicSiteLink(
@@ -40,16 +45,12 @@ export default async function PortalLoginPage() {
     <main className="app-shell flex items-center justify-center px-6 py-12 sm:px-10">
       <Card className="w-full max-w-md [--card-spacing:--spacing(8)] sm:[--card-spacing:--spacing(10)]">
         <CardHeader>
-          <div className="relative mx-auto h-32 w-32">
-            <Image
-              src="/chatter-logo-transparent.png"
-              alt=""
-              width={320}
-              height={320}
-              priority
-              className="h-full w-full object-contain"
-            />
-          </div>
+          <BrandLogo
+            logoUrl={branding.logoUrl}
+            alt=""
+            className="mx-auto h-32 w-32"
+            priority
+          />
           {/* The page had no heading at all, so the only thing a screen
               reader met before the controls was the logo's alt text. The
               logo is decorative next to a real h1, hence alt="". */}
