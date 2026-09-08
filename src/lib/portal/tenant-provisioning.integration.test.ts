@@ -461,9 +461,16 @@ describe("site content and branding", () => {
         "b content",
       ),
     ).toEqual([{ key: "home.heading", value: `Heading ${run}` }]);
+    // A owns a `home.heading` of its own since #795 rollout step 3, so the
+    // claim is no longer "A has no such row" -- it is that A's row is A's.
+    // Asserting on the value is what actually tests the isolation; asserting
+    // on the key only ever tested that the seed was empty.
     expect(
-      await must(a.from("public_site_content").select("key"), "a content"),
-    ).not.toContainEqual({ key: "home.heading" });
+      await must(
+        a.from("public_site_content").select("key, value"),
+        "a content",
+      ),
+    ).not.toContainEqual({ key: "home.heading", value: `Heading ${run}` });
 
     const branding = await must(
       b.from("public_branding").select("token, value").order("token"),
@@ -480,9 +487,18 @@ describe("site content and branding", () => {
 
   test("the tenant's own copy is invisible to another tenant's admin and to anon without a host", async () => {
     const seededAdmin = await signIn(SEEDED_USERS.admin);
+    // Same as above: A's admin does see a `home.heading` -- its own. What must
+    // not appear is B's row, so the assertion is on the tenant every visible
+    // row belongs to, which is the isolation claim stated directly.
+    const visible = await must(
+      seededAdmin.from("site_content").select("tenant_id"),
+      "a reads",
+    );
     expect(
-      await must(seededAdmin.from("site_content").select("key"), "a reads"),
-    ).not.toContainEqual({ key: "home.heading" });
+      (visible as { tenant_id: string }[]).every(
+        (r) => r.tenant_id === tenantA,
+      ),
+    ).toBe(true);
     // The site_content view for the seeded admin's session is A's: the draft
     // RPC stamps the caller's own tenant, never the one being read by host.
     await must(
@@ -497,7 +513,14 @@ describe("site content and branding", () => {
       .eq("key", "home.intro")
       .single();
     expect(data?.tenant_id).toBe(tenantA);
-    await service.from("site_content").delete().eq("tenant_id", tenantA);
+    // Clear the draft rather than delete the row: `home.intro` is one of the
+    // slots A owns since #795 rollout step 3, so deleting A's site_content
+    // here would take its published copy with it.
+    await service
+      .from("site_content")
+      .update({ has_draft: false, draft_value: null })
+      .eq("tenant_id", tenantA)
+      .eq("key", "home.intro");
 
     // Two active tenants and no host: nothing resolves.
     expect(
