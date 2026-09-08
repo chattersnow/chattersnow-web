@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import {
-  getCurrentUserPermissions,
-  hasPermission,
-} from "@/lib/auth/permissions";
+import { hasPermission, requirePermission } from "@/lib/auth/permissions";
 import { EmptyState } from "@/components/portal/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/portal/status-badge";
@@ -27,7 +24,15 @@ export const metadata: Metadata = {
 
 export default async function CalendarCategoriesPage() {
   const supabase = await createSupabaseServerClient();
-  const permissions = await getCurrentUserPermissions(supabase);
+  // Guards the route, not just the controls: hiding the buttons is not
+  // authorization, and route-guards.test.ts sweeps for exactly this. `view` is
+  // the bar to read the vocabulary; `manage` is the bar to change it.
+  const permissions = await requirePermission(
+    supabase,
+    "content_calendar",
+    "view",
+    "Calendar categories",
+  );
   const canManage = hasPermission(permissions, "content_calendar", "manage");
 
   const [{ data: categoryRows, error }, { data: taggedRows }] =
