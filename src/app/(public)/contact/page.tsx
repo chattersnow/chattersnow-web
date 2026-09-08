@@ -65,7 +65,10 @@ export default async function ContactPage() {
             <div>
               <span className="app-eyebrow">Follow us</span>
               <div className="app-muted mt-3 text-sm leading-relaxed sm:text-base">
-                <InstagramLink handle={instagramHandle} orgName={name} />
+                <InstagramLink
+                  handle={instagramHandle}
+                  orgName={name ?? "this organization"}
+                />
               </div>
             </div>
           )}

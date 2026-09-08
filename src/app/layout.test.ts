@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 import { DEFAULT_SITE_CONTENT } from "@/lib/site-content";
-import { DEFAULT_SITE_NAME, PLATFORM_TITLE } from "@/lib/public-site";
+import { PLATFORM_TITLE } from "@/lib/public-site";
 
 // layout.tsx pulls in font loaders, analytics, and global CSS that only
 // resolve inside a real Next.js build — stub them so `metadata` (a plain
@@ -29,7 +29,6 @@ describe("root layout metadata", () => {
   // assertion is the property, not the string: no organization here, ever.
   test("the fallback title names no organization", () => {
     expect(metadata.title).toBe(PLATFORM_TITLE);
-    expect(metadata.title).not.toBe(DEFAULT_SITE_NAME);
     expect(String(metadata.title)).not.toMatch(/chatter/i);
   });
 
