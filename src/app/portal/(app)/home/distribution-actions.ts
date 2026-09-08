@@ -140,6 +140,16 @@ export async function recordEventDistributionAction(
   );
 
   if (error) {
+    // Raised by record_event_distribution when the item was claimed between
+    // this picker being rendered and this submit landing -- another staffer
+    // gave it out first (#748). Worth naming, since "try again" is the one
+    // thing that cannot help here.
+    if (error.message === "ITEM_ALREADY_DISTRIBUTED") {
+      return {
+        error:
+          "That item has already been distributed. Refresh and pick another.",
+      };
+    }
     return { error: "Could not record the distribution. Please try again." };
   }
 

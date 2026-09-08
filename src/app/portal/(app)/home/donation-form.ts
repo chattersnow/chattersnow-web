@@ -16,6 +16,9 @@ export type DonationItemInput = {
   /** Tier key (e.g. "gold") when the staffer picks one; otherwise the
    *  giveaway's keyword hints suggest it server-side. */
   giveawayTier?: string;
+  /** Full URL of the item's photo (issue #781) -- a gear-photos object uploaded
+   *  from the device, or a pasted external link. */
+  photoUrl?: string;
 };
 
 export type CreateDonationInput = {
@@ -57,6 +60,7 @@ export type DonationRpcArgs = {
     notes: string | null;
     intended_use: string;
     giveaway_tier: string | null;
+    photo_url: string | null;
   }[];
   p_event_id: string | null;
 };
@@ -113,6 +117,15 @@ export function parseDonationInput(
     ) {
       return { error: `${label}: select a valid intended use.` };
     }
+    // Same rule as `events.flier_url`'s check constraint, applied here because
+    // an unvalidated value ends up in next/image's `new URL()` at render, which
+    // throws and takes the whole page down. The RPC re-checks it (20260907170000)
+    // since it is reachable over PostgREST without going through this parser.
+    if (item.photoUrl?.trim() && !/^https?:\/\//i.test(item.photoUrl.trim())) {
+      return {
+        error: `${label}: the photo link must start with http:// or https://.`,
+      };
+    }
   }
 
   return {
@@ -134,6 +147,7 @@ export function parseDonationInput(
         notes: item.notes?.trim() || null,
         intended_use: item.intendedUse || "gear_library",
         giveaway_tier: item.giveawayTier?.trim() || null,
+        photo_url: item.photoUrl?.trim() || null,
       })),
       p_event_id: input.eventId ?? null,
     },

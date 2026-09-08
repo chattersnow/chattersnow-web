@@ -3,6 +3,7 @@ import { reloadStayingSignedIn, signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { modal } from "./helpers/dialog";
 import { pickPerson } from "./helpers/people";
+import { portalMain } from "./helpers/regions";
 
 // Pre-creates the person directly (rather than exercising PersonPicker's
 // inline "+ Create new person" flow, which isn't otherwise covered by any
@@ -107,10 +108,9 @@ test.describe("portal access management", () => {
       // Scoped to the "Last reviewed" field specifically -- today's date
       // also appears in the grant's "Granted" column, since the grant was
       // created moments earlier in this same test.
-      await expect(page.locator("#asset-detail-last-reviewed")).toHaveText(
-        new Date().toISOString().slice(0, 10),
-        { timeout: 15_000 },
-      );
+      await expect(
+        portalMain(page).locator("#asset-detail-last-reviewed"),
+      ).toHaveText(new Date().toISOString().slice(0, 10), { timeout: 15_000 });
     } finally {
       await person.cleanup();
     }

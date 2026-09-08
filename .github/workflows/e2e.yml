@@ -48,7 +48,7 @@ jobs:
         shard: [1, 2, 3, 4]
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -77,7 +77,7 @@ jobs:
 
       - name: E2E tests
         # E2E_MUTATING=skip is what makes --shard do anything at all: with
-        # page-visibility in the run its dependencies are exempt from sharding
+        # the mutating project in the run its dependencies are exempt from sharding
         # and shard 1 gets the entire suite. See playwright.config.ts.
         run: bun run test:e2e:ci --shard=${{ matrix.shard }}/${{ env.SHARD_TOTAL }}
         env:
@@ -90,7 +90,7 @@ jobs:
 
       - name: Upload blob report
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: blob-report-${{ inputs.artifact-prefix }}-${{ matrix.shard }}
           path: blob-report/
@@ -104,12 +104,12 @@ jobs:
     name: Page visibility (isolated)
     runs-on: ubuntu-latest
     # Deliberately parallel with the shards rather than after them. The only
-    # reason page-visibility ran last was that it shares a Supabase stack and a
+    # reason the mutating specs ran last was that they share a Supabase stack and a
     # server with everything else (#594); on its own runner it shares neither,
     # so there is nothing left to order it against.
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -133,8 +133,8 @@ jobs:
       - name: Reset DB (migrate + seed)
         run: supabase db reset
 
-      # The page-visibility project is Desktop Chrome whatever the caller's
-      # browser matrix is, so this one never needs the others.
+      # The mutating project is Desktop Chrome whatever the caller's browser
+      # matrix is, so this one never needs the others.
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps chromium
 
@@ -149,7 +149,7 @@ jobs:
 
       - name: Upload blob report
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: blob-report-${{ inputs.artifact-prefix }}-mutating
           path: blob-report/
@@ -168,7 +168,7 @@ jobs:
     if: ${{ !cancelled() }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -180,7 +180,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Download blob reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: all-blob-reports
           pattern: blob-report-${{ inputs.artifact-prefix }}-*
@@ -192,7 +192,7 @@ jobs:
         run: bunx playwright merge-reports --reporter html ./all-blob-reports
 
       - name: Upload Playwright report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-${{ inputs.artifact-prefix }}
           path: playwright-report/

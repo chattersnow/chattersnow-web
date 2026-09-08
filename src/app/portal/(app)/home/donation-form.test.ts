@@ -156,10 +156,52 @@ describe("parseDonationInput", () => {
             intended_use: "gear_library",
             notes: null,
             giveaway_tier: null,
+            photo_url: null,
           },
         ],
         p_event_id: "event-1",
       },
+    });
+  });
+
+  test("passes a photo URL through to the rpc args", () => {
+    const result = parseDonationInput({
+      ...validInput,
+      items: [
+        {
+          ...validItem,
+          photoUrl:
+            "  https://abcdefgh.supabase.co/storage/v1/object/public/gear-photos/t/p.jpg  ",
+        },
+      ],
+    });
+    expect("data" in result && result.data.p_items[0].photo_url).toBe(
+      "https://abcdefgh.supabase.co/storage/v1/object/public/gear-photos/t/p.jpg",
+    );
+  });
+
+  // A legacy Google Drive share link stays valid -- pasting one is not a
+  // regression now that the field also uploads.
+  test("accepts an external link", () => {
+    const result = parseDonationInput({
+      ...validInput,
+      items: [
+        { ...validItem, photoUrl: "https://drive.google.com/file/d/ABC/view" },
+      ],
+    });
+    expect("data" in result && result.data.p_items[0].photo_url).toBe(
+      "https://drive.google.com/file/d/ABC/view",
+    );
+  });
+
+  test("rejects a photo value that isn't an http(s) URL", () => {
+    expect(
+      parseDonationInput({
+        ...validInput,
+        items: [validItem, { ...validItem, photoUrl: "javascript:alert(1)" }],
+      }),
+    ).toEqual({
+      error: "Item 2: the photo link must start with http:// or https://.",
     });
   });
 });

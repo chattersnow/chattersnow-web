@@ -86,12 +86,15 @@ describe("listWorkQueueItems (integration)", () => {
     });
     const opportunity = await createContentOpportunity(earlier.id);
 
-    const items = await listWorkQueueItems(adminClient);
+    const { items, truncated, error } = await listWorkQueueItems(adminClient);
+    expect(error).toBe(false);
+    // The query pages past PostgREST's max_rows now (#755), so these year-2099
+    // rows only fall off the end once the calendar passes WORK_QUEUE_MAX_ITEMS
+    // -- at which point `truncated` says so rather than the list silently
+    // ending. Still asserted present before the ordering compare, since two
+    // indexOf misses would satisfy `-1 < -1` on their own.
+    expect(truncated).toBe(false);
     const ids = items.map((item) => item.id);
-    // Asserted present before the ordering compare: the query is unranged and
-    // PostgREST caps a response at max_rows (1000, supabase/config.toml), so
-    // once the calendar outgrows that these year-2099 rows fall off the end
-    // and two indexOf misses would otherwise satisfy `-1 < -1` silently.
     expect(ids).toContain(earlier.id);
     expect(ids).toContain(later.id);
     expect(ids.indexOf(earlier.id)).toBeLessThan(ids.indexOf(later.id));
@@ -114,7 +117,8 @@ describe("listWorkQueueItems (integration)", () => {
     const active = await createCalendarItem({ calendarStatus: "active" });
     const archived = await createCalendarItem({ calendarStatus: "archived" });
 
-    const ids = (await listWorkQueueItems(adminClient)).map((item) => item.id);
+    const { items } = await listWorkQueueItems(adminClient);
+    const ids = items.map((item) => item.id);
     expect(ids).toContain(active.id);
     expect(ids).not.toContain(archived.id);
 
@@ -126,13 +130,18 @@ describe("listWorkQueueItems (integration)", () => {
     const item = await createCalendarItem();
 
     const viewer = await signInAs(SEEDED_USERS.volunteer);
-    expect((await listWorkQueueItems(viewer)).map((i) => i.id)).toContain(
-      item.id,
-    );
+    const viewerQueue = await listWorkQueueItems(viewer);
+    expect(viewerQueue.items.map((i) => i.id)).toContain(item.id);
 
-    // The query swallows its error (it has no error channel), so an
-    // anonymous caller must come back empty rather than with rows.
-    expect(await listWorkQueueItems(anonClient())).toEqual([]);
+    // An anonymous request is rejected outright (401), not filtered down to
+    // zero rows, so it comes back on the error channel -- which is the point
+    // of having one: no rows because the read failed is not the same thing as
+    // no rows because there is no work, and the page says so.
+    expect(await listWorkQueueItems(anonClient())).toEqual({
+      items: [],
+      truncated: false,
+      error: true,
+    });
 
     await item.cleanup();
   });

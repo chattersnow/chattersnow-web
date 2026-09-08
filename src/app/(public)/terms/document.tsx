@@ -1,9 +1,7 @@
 import Link from "next/link";
 import { CONTACT_EMAIL } from "@/lib/contact-addresses";
-import {
-  LegalPageShell,
-  type LegalSection,
-} from "@/components/legal-page-shell";
+import { LegalPageShell } from "@/components/legal-page-shell";
+import { LEGAL_DOCUMENT_OUTLINES } from "@/lib/site-content";
 
 // Shown to visitors and kept in sync by hand: bump it in the same commit as
 // any change to the terms below, since a stale date is worse than none.
@@ -42,27 +40,11 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 //     Event waivers, the gear acknowledgement and volunteer agreements each
 //     cover their own activity -- see "Other agreements". Keep it that way.
 
-const SECTIONS: readonly LegalSection[] = [
-  { id: "who-we-are", title: "Who we are" },
-  { id: "using-this-site", title: "Using this site" },
-  { id: "events-and-programs", title: "Events and programs" },
-  { id: "snow-sports-risks", title: "Snow-sports risks" },
-  { id: "gear-library", title: "Gear library" },
-  { id: "volunteering", title: "Volunteering" },
-  { id: "accessibility-and-inclusion", title: "Accessibility and inclusion" },
-  { id: "educational-content", title: "Educational content" },
-  { id: "donations-and-payments", title: "Donations and payments" },
-  { id: "photos-and-content", title: "Photos, video and what you send us" },
-  { id: "other-sites-and-venues", title: "Other websites and venues" },
-  { id: "other-agreements", title: "Other agreements" },
-  { id: "no-warranties", title: "No warranties" },
-  { id: "limitation-of-liability", title: "Limits on liability" },
-  { id: "indemnification", title: "Your responsibility to us" },
-  { id: "changes", title: "Changes to these terms" },
-  { id: "governing-law", title: "Governing law" },
-  { id: "severability", title: "Severability" },
-  { id: "contact", title: "Contact" },
-] as const;
+// Drives the section nav beside the document, and the outline the Site Content
+// editor offers as a starting point for a tenant's own version -- one list, so
+// the two cannot drift (#792). Every entry has to match an id on a <section>
+// below, or the link scrolls nowhere; legal-page.dom.test.tsx checks that.
+const SECTIONS = LEGAL_DOCUMENT_OUTLINES["legal.terms"].sections;
 
 /** Search/link-preview description for the platform's own document. */
 export const DESCRIPTION =

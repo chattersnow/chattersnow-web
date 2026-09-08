@@ -1,0 +1,125 @@
+import { describe, expect, spyOn, test } from "bun:test";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  DEFAULT_SITE_NAME,
+  NOT_FOUND_TITLE,
+  getPublicSite,
+  publicTitle,
+} from "./public-site";
+
+type Result = { data: unknown; error: unknown };
+
+/**
+ * Enough of a PostgREST builder for the three reads `getPublicSite` makes.
+ * It is both thenable (the site-content and branding reads await `select()`
+ * directly) and carries `maybeSingle()` (the tenant read does not).
+ */
+function fakeClient(responses: Record<string, Result>): SupabaseClient {
+  return {
+    from(table: string) {
+      const result = responses[table] ?? { data: null, error: null };
+      const builder = {
+        select: () => builder,
+        maybeSingle: async () => result,
+        then: (resolve: (value: Result) => unknown) => resolve(result),
+      };
+      return builder;
+    },
+  } as unknown as SupabaseClient;
+}
+
+const NO_ROWS = { data: null, error: null };
+const TENANT = {
+  data: { id: "t1", name: "Example Nonprofit", slug: "example" },
+  error: null,
+};
+
+describe("getPublicSite host resolution", () => {
+  test("a host a tenant owns resolves to it", async () => {
+    const site = await getPublicSite(
+      fakeClient({ public_tenant: TENANT, public_site_content: NO_ROWS }),
+    );
+    expect(site.status).toBe("resolved");
+    expect(site.tenant?.slug).toBe("example");
+    expect(site.name).toBe("Example Nonprofit");
+  });
+
+  test("a host no tenant owns is unresolved", async () => {
+    const site = await getPublicSite(
+      fakeClient({ public_tenant: NO_ROWS, public_site_content: NO_ROWS }),
+    );
+    expect(site.status).toBe("unresolved");
+    expect(site.tenant).toBeNull();
+  });
+
+  // The distinction this whole shape exists for (#795 Phase 4). Both of these
+  // used to be a bare `null`, and the caller 404s on one of them: collapsing
+  // them again would mean a database blip 404s every tenant's public site at
+  // once, rather than one misconfigured host serving nothing.
+  test("a failed read is unavailable, not unresolved", async () => {
+    const error = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const site = await getPublicSite(
+        fakeClient({
+          public_tenant: { data: null, error: { message: "boom" } },
+          public_site_content: NO_ROWS,
+        }),
+      );
+      expect(site.status).toBe("unavailable");
+      expect(site.status).not.toBe("unresolved");
+      expect(site.tenant).toBeNull();
+      // Loudly, so it is not mistaken for a correctly-refused unknown host.
+      expect(error).toHaveBeenCalled();
+    } finally {
+      error.mockRestore();
+    }
+  });
+
+  test("an unresolved host still falls back to a usable name", async () => {
+    // It never reaches a browser -- the public layout 404s first -- but the
+    // metadata read runs either way and must not blow up on a null tenant.
+    const site = await getPublicSite(
+      fakeClient({ public_tenant: NO_ROWS, public_site_content: NO_ROWS }),
+    );
+    expect(site.name).toBe(DEFAULT_SITE_NAME);
+  });
+});
+
+describe("publicTitle", () => {
+  test("names the organization on a resolved host", async () => {
+    const site = await getPublicSite(
+      fakeClient({ public_tenant: TENANT, public_site_content: NO_ROWS }),
+    );
+    expect(publicTitle(site, "Gear")).toBe("Gear | Example Nonprofit");
+  });
+
+  // A page's own generateMetadata overrides the layout's, so the layout
+  // returning a neutral title is not enough on its own -- every public page
+  // builds its title through here. Missing this shipped a 404 on someone
+  // else's domain titled "Gear | <the default organization>", which
+  // e2e/unresolved-host.spec.ts caught and this pins down.
+  test("names no organization on a host that resolves to none", async () => {
+    const site = await getPublicSite(
+      fakeClient({ public_tenant: NO_ROWS, public_site_content: NO_ROWS }),
+    );
+    expect(publicTitle(site, "Gear")).toBe(NOT_FOUND_TITLE);
+    expect(publicTitle(site, "Gear")).not.toContain(DEFAULT_SITE_NAME);
+  });
+
+  // A blip is not an unknown host: the page still belongs to whoever the
+  // request was for, and it still renders.
+  test("still names the fallback when the read merely failed", async () => {
+    const error = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const site = await getPublicSite(
+        fakeClient({
+          public_tenant: { data: null, error: { message: "boom" } },
+          public_site_content: NO_ROWS,
+        }),
+      );
+      expect(publicTitle(site, "Gear")).toBe(`Gear | ${DEFAULT_SITE_NAME}`);
+    } finally {
+      error.mockRestore();
+    }
+  });
+});

@@ -43,12 +43,17 @@ next-env.d.ts
 
 # scripts
 #
-# Operator scripts are local by default. The demo reset (#604) is the
-# exception and has to be committed: .github/workflows/demo-reset.yml runs it
-# on a schedule, from a checkout that has only what is in the repository.
+# Operator scripts are local by default. Two exceptions, both because
+# something outside this machine has to be able to run them from a checkout
+# that has only what is in the repository: the demo reset (#604), which
+# .github/workflows/demo-reset.yml runs on a schedule, and the tenant CLI
+# (#795), which package.json aliases as `tenant:*` and docs/tenants.md tells
+# an operator to run.
 scripts/*
 !scripts/demo/
 !scripts/demo-reset.ts
+!scripts/tenant/
+!scripts/tenant-cli.ts
 
 # playwright
 /test-results/

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Eye } from "lucide-react";
+import { CalendarDays, Eye } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getCurrentUserPermissions,
@@ -87,6 +87,13 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
   const supabase = await createSupabaseServerClient();
   const permissions = await getCurrentUserPermissions(supabase);
   const canManage = hasPermission(permissions, "events", "manage");
+  // Events stays a top-level module rather than nesting under Calendar (#530);
+  // this is the cross-link that replaces that nesting.
+  const canViewCalendar = hasPermission(
+    permissions,
+    "content_calendar",
+    "view",
+  );
 
   const params = await searchParams;
   const raw = (key: string) => {
@@ -305,6 +312,17 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
             </div>
           </form>
         </FiltersSheet>
+
+        {canViewCalendar && (
+          <Button
+            variant="secondary"
+            nativeButton={false}
+            render={<Link href="/portal/calendar?view=month" />}
+          >
+            <CalendarDays className="size-4" />
+            <LinkPendingPulse>View on Calendar</LinkPendingPulse>
+          </Button>
+        )}
 
         {canManage && <NewEventDialog programs={programs} />}
       </div>

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CalendarItemRow } from "./calendar-shared";
+import type { CalendarEventRow } from "./calendar-entries";
 import {
   findMissingCoverageSeries,
   type MissingCoverageSeries,
@@ -123,22 +124,96 @@ export async function getCalendarItem(
 }
 
 /**
+ * Rows one work-queue request asks PostgREST for. Matches its `max_rows`
+ * (1000, `supabase/config.toml`), which caps a single response however wide a
+ * `.range()` asks for -- asking for more would just be a page that comes back
+ * short and ends the loop early.
+ */
+const WORK_QUEUE_PAGE_SIZE = 1000;
+
+/**
+ * The most items the work queue will load. The page renders every row it is
+ * handed into one client-side table, so this is what stops a runaway calendar
+ * (a bad import, a recurring series generated too far out) from turning the
+ * page into an unbounded fetch. Past it the reader is told the list is cut
+ * short rather than left to assume they are seeing everything -- #755.
+ */
+export const WORK_QUEUE_MAX_ITEMS = 5000;
+
+export type WorkQueueResult = {
+  items: CalendarItemRow[];
+  /** More non-archived items exist than `WORK_QUEUE_MAX_ITEMS`, so `items` is the head of the list rather than all of it. */
+  truncated: boolean;
+  /** The query failed, so `items` is empty for a reason the page must not render as "nothing to do". */
+  error: boolean;
+};
+
+/**
  * All non-archived calendar items with their content opportunity, for the
  * work-queue view. Intentionally not inner-joined to content_opportunities:
  * the Tier-1-undecided warning applies at the calendar-item level whether or
  * not an opportunity has been created yet.
+ *
+ * Paged rather than fetched in one shot: an unranged select stops at
+ * PostgREST's `max_rows` with no error and no indicator, so the work queue
+ * used to quietly drop the tail of the list -- ascending `starts_at`, so the
+ * items that vanished were the furthest-out ones (#755).
  */
 export async function listWorkQueueItems(
   supabase: SupabaseClient,
-): Promise<CalendarItemRow[]> {
-  const { data: rows } = await supabase
-    .from("calendar_items")
-    .select(CALENDAR_ITEM_WITH_CONTENT_OPPORTUNITY_SELECT)
-    .neq("calendar_status", "archived")
-    .order("starts_at", { ascending: true });
+): Promise<WorkQueueResult> {
+  const rows: unknown[] = [];
 
-  return (rows ?? []).map(mapCalendarItemRow);
+  for (
+    let offset = 0;
+    offset <= WORK_QUEUE_MAX_ITEMS;
+    offset += WORK_QUEUE_PAGE_SIZE
+  ) {
+    // Reaches one row past the cap, so "a full last page" and "there is more
+    // beyond the cap" can be told apart without a second count query.
+    const to = Math.min(
+      offset + WORK_QUEUE_PAGE_SIZE - 1,
+      WORK_QUEUE_MAX_ITEMS,
+    );
+
+    const { data, error } = await supabase
+      .from("calendar_items")
+      .select(CALENDAR_ITEM_WITH_CONTENT_OPPORTUNITY_SELECT)
+      .neq("calendar_status", "archived")
+      .order("starts_at", { ascending: true })
+      // Tiebreaker, not decoration: paging on `starts_at` alone leaves rows
+      // that share a timestamp free to move between requests, which is how a
+      // paged read drops one row and repeats another.
+      .order("id", { ascending: true })
+      .range(offset, to);
+
+    if (error) return { items: [], truncated: false, error: true };
+
+    const page = data ?? [];
+    rows.push(...page);
+    if (page.length < to - offset + 1) break;
+  }
+
+  return {
+    items: rows.slice(0, WORK_QUEUE_MAX_ITEMS).map(mapCalendarItemRow),
+    truncated: rows.length > WORK_QUEUE_MAX_ITEMS,
+    error: false,
+  };
 }
+
+/** `public.events` as PostgREST returns it for the calendar, before shaping. */
+type RawCalendarEventRow = {
+  id: string;
+  name: string;
+  starts_at: string;
+  ends_at: string | null;
+  timezone: string;
+  description: string | null;
+  location: string | null;
+  status: string;
+  visibility: string;
+  event_programs: { program_id: string }[] | null;
+};
 
 /** A calendar_items row shaped for series generation: enough to both detect a coverage gap and act as the copy-from template for the next instance. */
 export type SeriesCandidateItem = Pick<
@@ -203,4 +278,59 @@ export async function getMissingCoverageSeriesForYear(
 ): Promise<MissingCoverageSeries<SeriesCandidateItem>[]> {
   const candidates = await listSeriesCandidates(supabase);
   return findMissingCoverageSeries(candidates, targetYear);
+}
+
+/**
+ * Portal events for the calendar views (#530).
+ *
+ * Read-only, and deliberately wider than the public Community Calendar's union
+ * (which shows published/public events only): this is an internal planning
+ * surface, so drafts and private events count -- they are exactly what staff
+ * need to see alongside content moments. Archived events are left out for the
+ * same reason the work queue drops archived calendar items.
+ *
+ * Authorization is the `events` resource, not `content_calendar`: the select
+ * runs under the caller's own RLS (`events select` -> `has_permission('events',
+ * 'view')`), so a content-calendar-only account gets zero rows here rather than
+ * a view onto event titles and dates it can't otherwise reach.
+ */
+export async function listCalendarEvents(
+  supabase: SupabaseClient,
+  options: { programId?: string } = {},
+): Promise<{ events: CalendarEventRow[]; error: boolean }> {
+  const programSelect = options.programId
+    ? "event_programs!inner(program_id)"
+    : "event_programs(program_id)";
+
+  let query = supabase
+    .from("events")
+    .select(
+      `id, name, starts_at, ends_at, timezone, description, location, status, visibility, ${programSelect}`,
+    )
+    .neq("status", "archived")
+    .order("starts_at", { ascending: true })
+    .order("id", { ascending: true });
+
+  if (options.programId)
+    query = query.eq("event_programs.program_id", options.programId);
+
+  const { data, error } = await query;
+  if (error) return { events: [], error: true };
+
+  const rows = (data ?? []) as unknown as RawCalendarEventRow[];
+  return {
+    events: rows.map((row) => ({
+      id: row.id,
+      title: row.name,
+      starts_at: row.starts_at,
+      ends_at: row.ends_at,
+      time_zone: row.timezone,
+      summary: row.description,
+      location: row.location,
+      status: row.status,
+      visibility: row.visibility,
+      program_ids: (row.event_programs ?? []).map((p) => p.program_id),
+    })),
+    error: false,
+  };
 }

@@ -51,7 +51,7 @@ jobs:
     environment: Preview
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       # `v3`, not `v1`: the v1 action declares `using: node20`, which GitHub
       # deprecated (#733) and currently runs on Node 24 under a compatibility
@@ -89,7 +89,7 @@ jobs:
     environment: Production
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v3

@@ -345,10 +345,21 @@ beforeAll(async () => {
     funder_name: `Isolation funder ${run}`,
     application_deadline: "2030-01-01",
   });
-  await fixture("site_content", {
-    key: "home.heading",
-    value: `Isolation heading ${run}`,
-  });
+  // Via `service`: since #793 `site_content.value` is not writable by
+  // `authenticated` at all -- publishing goes through `publish_site_content`
+  // -- and a published row cannot be deleted by one either, so an admin
+  // session can neither create this fixture nor clean it up.
+  await fixture(
+    "site_content",
+    {
+      // `service` has no session, so `default_tenant_id()` resolves nothing
+      // and the tenant has to be named.
+      tenant_id: tenantA,
+      key: "home.heading",
+      value: `Isolation heading ${run}`,
+    },
+    service,
+  );
   await fixture("event_incidents", {
     event_id: SEEDED_EVENT_IDS.past,
     description: "Isolation incident",

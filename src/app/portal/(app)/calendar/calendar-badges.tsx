@@ -3,7 +3,7 @@ import {
   StatusBadge,
   type StatusTone,
 } from "@/components/portal/status-badge";
-import { AlertTriangle, Clock, ShieldAlert } from "lucide-react";
+import { AlertTriangle, CalendarDays, Clock, ShieldAlert } from "lucide-react";
 import { CATEGORIES, DECISIONS, labelFor } from "./calendar-shared";
 
 const CALENDAR_STATUS_STYLES: Record<string, StatusTone> = {
@@ -17,12 +17,24 @@ const VISIBILITY_STYLES: Record<string, StatusTone> = {
   public: "info",
   internal: "neutral",
   unlisted_draft: "progress",
+  // Events carry their own visibility vocabulary (public/private).
+  private: "neutral",
 };
 
 const VISIBILITY_LABELS: Record<string, string> = {
   public: "Public",
   internal: "Internal",
   unlisted_draft: "Unlisted draft",
+  private: "Private",
+};
+
+/** `events.status` -- a separate lifecycle from `calendar_status`, so it gets its own tones. */
+const EVENT_STATUS_STYLES: Record<string, StatusTone> = {
+  draft: "neutral",
+  published: "progress",
+  completed: "success",
+  cancelled: "danger",
+  archived: "neutral",
 };
 
 const PRIORITY_TIER_STYLES: Record<string, StatusTone> = {
@@ -133,6 +145,32 @@ export function PastUndecidedFlag() {
     >
       <Clock className="size-3" />
       Past, undecided
+    </StatusBadge>
+  );
+}
+
+export function EventStatusBadge({ status }: { status: string }) {
+  return (
+    <StatusBadge tone={EVENT_STATUS_STYLES[status] ?? "neutral"}>
+      {humanizeStatus(status)}
+    </StatusBadge>
+  );
+}
+
+/**
+ * Marks a row the calendar is only showing: it lives in the Events module and
+ * none of the editorial workflow (priority, decision, sensitive review, content
+ * opportunities) applies to it.
+ */
+export function EventEntryBadge() {
+  return (
+    <StatusBadge
+      tone="info"
+      className="gap-1"
+      title="A Chatter event -- managed in the Events module"
+    >
+      <CalendarDays className="size-3" />
+      Event
     </StatusBadge>
   );
 }

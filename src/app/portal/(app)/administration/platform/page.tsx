@@ -12,25 +12,27 @@ export default async function PlatformPage() {
   const { data, error } = await supabase.rpc("platform_list_tenants");
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Platform</h1>
-        <p className="app-muted mt-1 max-w-3xl text-sm leading-relaxed">
-          The organizations on this platform. Everything here is an
-          organization&rsquo;s <em>metadata</em> — its name, domain, plan and
-          status — never its data. Deleting an organization is deliberately not
-          on this page: it stays a two-step command so it remains a considered
-          act. Support access stays each organization&rsquo;s to grant; what
-          shows below is only whether any is currently open.
-        </p>
+    <>
+      <div className="w-fit">
+        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          Platform
+        </h1>
+        <div className="rainbow-accent mt-3 w-full" />
       </div>
 
-      <PlatformTenants
-        initialTenants={(data ?? []) as PlatformTenant[]}
-        loadError={
-          error ? "Could not load tenants. Reload to try again." : null
-        }
-      />
-    </div>
+      <p className="app-muted mt-6 max-w-3xl text-sm leading-relaxed">
+        The organizations on this platform and their metadata — name, domain,
+        plan and status.
+      </p>
+
+      <div className="mt-6">
+        <PlatformTenants
+          initialTenants={(data ?? []) as PlatformTenant[]}
+          loadError={
+            error ? "Could not load tenants. Reload to try again." : null
+          }
+        />
+      </div>
+    </>
   );
 }

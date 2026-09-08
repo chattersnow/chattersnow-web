@@ -6,6 +6,7 @@ import Image from "next/image";
 import { ArrowLeft, Eye, Pencil } from "lucide-react";
 import { BrandImageFallback } from "@/components/brand-image-fallback";
 import { CategorySelect } from "@/components/portal/category-select";
+import { PhotoUploadField } from "@/components/portal/photo-upload-field";
 import {
   categoryLabelFor,
   OTHER_CATEGORY_KEY,
@@ -355,8 +356,8 @@ export function EditInventoryModal({
                 <ReadOnlyField label="Face value" htmlFor="edit-faceValue">
                   {formatFaceValue(item.face_value)}
                 </ReadOnlyField>
-                <ReadOnlyField label="Photo URL" htmlFor="edit-photoUrl">
-                  {item.photo_url || "—"}
+                <ReadOnlyField label="Photo" htmlFor="edit-photoUrl">
+                  {item.photo_url ? "Attached" : "—"}
                 </ReadOnlyField>
                 <ReadOnlyField label="Item notes" htmlFor="edit-notes">
                   {item.notes || "—"}
@@ -530,18 +531,11 @@ export function EditInventoryModal({
                     </FieldDescription>
                   </Field>
 
-                  <Field>
-                    <FieldLabel htmlFor="edit-photoUrl">Photo URL</FieldLabel>
-                    <Input
-                      id="edit-photoUrl"
-                      type="url"
-                      placeholder="https://..."
-                      value={form.photoUrl}
-                      onChange={(event) =>
-                        update("photoUrl", event.target.value)
-                      }
-                    />
-                  </Field>
+                  <PhotoUploadField
+                    idPrefix="edit"
+                    value={form.photoUrl}
+                    onChange={(url) => update("photoUrl", url)}
+                  />
 
                   <Field>
                     <FieldLabel htmlFor="edit-notes">Item notes</FieldLabel>

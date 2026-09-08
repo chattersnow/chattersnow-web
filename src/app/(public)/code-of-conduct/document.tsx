@@ -2,10 +2,8 @@ import Link from "next/link";
 import { LifeBuoyIcon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CONDUCT_EMAIL, CONTACT_EMAIL } from "@/lib/contact-addresses";
-import {
-  LegalPageShell,
-  type LegalSection,
-} from "@/components/legal-page-shell";
+import { LegalPageShell } from "@/components/legal-page-shell";
+import { LEGAL_DOCUMENT_OUTLINES } from "@/lib/site-content";
 
 // Shown to visitors and kept in sync by hand: bump it in the same commit as
 // any change to the text below, since a stale date is worse than none.
@@ -69,19 +67,11 @@ function SubHeading({ children }: { children: React.ReactNode }) {
 //     for exactly that case -- add it here and on /about/team once there is
 //     an individual address to publish.
 
-// Drives the section nav beside the document. Every entry has to match an
-// id on a <section> below, or the link scrolls nowhere -- legal-page.dom.test.tsx
-// checks the two stay in step.
-const SECTIONS: readonly LegalSection[] = [
-  { id: "what-we-expect", title: "What we expect" },
-  { id: "bringing-a-minor", title: "If you’re bringing a minor" },
-  { id: "on-the-mountain", title: "On the mountain" },
-  { id: "what-isnt-tolerated", title: "What isn’t tolerated" },
-  { id: "reporting-a-problem", title: "Reporting a problem" },
-  { id: "how-we-handle-a-report", title: "How we handle a report" },
-  { id: "if-you-disagree", title: "If you disagree with a decision" },
-  { id: "questions", title: "Questions" },
-] as const;
+// Drives the section nav beside the document, and the outline the Site Content
+// editor offers as a starting point for a tenant's own version -- one list, so
+// the two cannot drift (#792). Every entry has to match an id on a <section>
+// below, or the link scrolls nowhere; legal-page.dom.test.tsx checks that.
+const SECTIONS = LEGAL_DOCUMENT_OUTLINES["legal.code_of_conduct"].sections;
 
 /** Search/link-preview description for the platform's own document. */
 export const DESCRIPTION =

@@ -374,3 +374,82 @@ describe("registerForEventAction (integration)", () => {
     expect(await assignedRegistrationIds(id)).toHaveLength(0);
   });
 });
+
+// #748. The capacity check above runs serially: one request finishes before
+// the next starts, so the RPC's `sum(party_size)` always sees the finished
+// one. The case that actually loses seats is two requests reading that sum
+// before either has inserted, which only overlapping promises produce.
+describe("registerForEventAction under concurrency", () => {
+  // Deleting the `people` rows resolve_or_create_person_by_email() minted
+  // behind each registration. Registered as a cleanup *before* the event
+  // fixture so it pops last: deleteEvent() has to clear event_registrations
+  // first or the FK refuses.
+  function cleanUpPeople(emails: string[]) {
+    cleanups.push(async () => {
+      await adminClient.from("people").delete().in("email", emails);
+    });
+  }
+
+  test("never seats past capacity when the last seats are claimed at once", async () => {
+    currentIp = uniqueIp();
+    const emails = Array.from({ length: 4 }, (_, i) =>
+      uniqueEmail(`capacity-race-${i}`),
+    );
+    cleanUpPeople(emails);
+    const { id } = await event({ capacity: 2 });
+
+    const results = await Promise.all(
+      emails.map((email, i) =>
+        registerForEventAction(
+          id,
+          formData({ name: `Capacity Racer ${i}`, email, partySize: "1" }),
+        ),
+      ),
+    );
+
+    const seated = results.filter((result) => "success" in result);
+    const refused = results.filter((result) => "error" in result);
+    expect(seated).toHaveLength(2);
+    for (const result of refused) {
+      expect(result).toEqual({ error: "This event has reached capacity." });
+    }
+
+    // The invariant, asserted against the table rather than the return
+    // values: capacity is a promise about seats, not about calls.
+    const { data, error } = await adminClient
+      .from("event_registrations")
+      .select("party_size")
+      .eq("event_id", id);
+    expect(error).toBeNull();
+    expect(data!.reduce((sum, row) => sum + row.party_size, 0)).toBe(2);
+  });
+
+  // A party larger than the remaining seats must not slip through either:
+  // three parties of two against four seats is two winners, not three, and
+  // the loser must be the whole party rather than a truncated one.
+  test("never admits a party larger than the seats left", async () => {
+    currentIp = uniqueIp();
+    const emails = Array.from({ length: 3 }, (_, i) =>
+      uniqueEmail(`party-race-${i}`),
+    );
+    cleanUpPeople(emails);
+    const { id } = await event({ capacity: 4 });
+
+    const results = await Promise.all(
+      emails.map((email, i) =>
+        registerForEventAction(
+          id,
+          formData({ name: `Party Racer ${i}`, email, partySize: "2" }),
+        ),
+      ),
+    );
+
+    expect(results.filter((result) => "success" in result)).toHaveLength(2);
+
+    const { data } = await adminClient
+      .from("event_registrations")
+      .select("party_size")
+      .eq("event_id", id);
+    expect(data!.reduce((sum, row) => sum + row.party_size, 0)).toBe(4);
+  });
+});

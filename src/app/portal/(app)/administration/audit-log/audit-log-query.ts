@@ -11,6 +11,8 @@ export type AuditLogEntry = {
   occurred_at: string;
   old_data: Record<string, unknown> | null;
   new_data: Record<string, unknown> | null;
+  /** Set once the retention job cleared the personal values inside the snapshots (#720). */
+  redacted_at: string | null;
 };
 
 export async function fetchAuditLogEntries(
@@ -20,7 +22,7 @@ export async function fetchAuditLogEntries(
   let query = supabase
     .from("audit_log")
     .select(
-      "id, table_name, record_id, action, actor_id, occurred_at, old_data, new_data",
+      "id, table_name, record_id, action, actor_id, occurred_at, old_data, new_data, redacted_at",
       { count: "exact" },
     )
     .order(filters.sort, { ascending: filters.dir === "asc" })

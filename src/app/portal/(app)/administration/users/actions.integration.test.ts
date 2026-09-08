@@ -81,11 +81,22 @@ async function createThrowawayUser() {
   return {
     id,
     email,
-    // Cascades: user_roles.user_id and deactivated_users.user_id both
-    // `on delete cascade` from auth.users, so deleting the user is
-    // sufficient cleanup for any role assignment/deactivation left behind.
+    // user_roles.user_id, deactivated_users.user_id and
+    // tenant_memberships.user_id all `on delete cascade` from auth.users, so
+    // the account carries those away with it. `public.people` does not: it
+    // has three `no action` foreign keys to auth.users (auth_user_id,
+    // created_by, updated_by), and updateUserPreferredNameAction provisions a
+    // people row for an account that has never signed in -- so the row has to
+    // go first or GoTrue refuses the delete (#763). Both errors are checked:
+    // an unchecked teardown is how a leak survives a green run.
     async cleanup() {
-      await serviceRoleClient.auth.admin.deleteUser(id);
+      const { error: personError } = await serviceRoleClient
+        .from("people")
+        .delete()
+        .eq("auth_user_id", id);
+      if (personError) throw personError;
+      const { error } = await serviceRoleClient.auth.admin.deleteUser(id);
+      if (error) throw error;
     },
   };
 }
@@ -151,7 +162,9 @@ async function createOutsiderInAnotherTenant() {
     email,
     homeTenantId: tenant.id as string,
     async cleanup() {
-      await serviceRoleClient.auth.admin.deleteUser(user.user!.id);
+      const { error: userError } =
+        await serviceRoleClient.auth.admin.deleteUser(user.user!.id);
+      if (userError) throw userError;
       // delete_tenant() rather than a bare delete on `tenants`: every foreign
       // key to tenants is `no action`, so a bare delete only works while
       // nothing has been seeded into the tenant -- and what gets seeded grows
@@ -166,12 +179,29 @@ async function createOutsiderInAnotherTenant() {
   };
 }
 
+/**
+ * The auth account for an address, or null. Pages through
+ * `auth.admin.listUsers()`, which has no by-email filter and a page size that
+ * a long-lived local stack outgrows.
+ */
+const LIST_USERS_PAGE_SIZE = 200;
+async function findAuthUserByEmail(email: string) {
+  for (let page = 1; ; page += 1) {
+    const { data, error } = await serviceRoleClient.auth.admin.listUsers({
+      page,
+      perPage: LIST_USERS_PAGE_SIZE,
+    });
+    if (error) throw error;
+    const match = data.users.find((u) => u.email === email);
+    if (match) return match;
+    if (data.users.length < LIST_USERS_PAGE_SIZE) return null;
+  }
+}
+
 let adminUserIdCache: string | undefined;
 async function adminUserId(): Promise<string> {
   if (adminUserIdCache) return adminUserIdCache;
-  const { data, error } = await serviceRoleClient.auth.admin.listUsers();
-  if (error) throw error;
-  const user = data.users.find((u) => u.email === SEEDED_USERS.admin);
+  const user = await findAuthUserByEmail(SEEDED_USERS.admin);
   if (!user) throw new Error(`seeded user ${SEEDED_USERS.admin} not found`);
   adminUserIdCache = user.id;
   return user.id;
@@ -214,7 +244,27 @@ async function createPendingGrant(role = "volunteer") {
     .eq("email", email)
     .single();
   if (error || !data) throw error ?? new Error("expected a pending grant");
-  return { id: data.id as string, email };
+  const id = data.id as string;
+  return {
+    id,
+    email,
+    // Minting an invite link for this grant makes `generateLink({ type:
+    // "invite" })` create an auth.users row for the address as a side effect,
+    // so tearing down the grant row alone leaves the account behind (#763).
+    // Nothing blocks its deletion -- nobody was asking.
+    async cleanup() {
+      const { error: grantError } = await adminClient
+        .from("pending_role_grants")
+        .delete()
+        .eq("id", id);
+      if (grantError) throw grantError;
+      const invited = await findAuthUserByEmail(email);
+      if (!invited) return;
+      const { error: userError } =
+        await serviceRoleClient.auth.admin.deleteUser(invited.id);
+      if (userError) throw userError;
+    },
+  };
 }
 
 describe("administration/users actions (integration)", () => {
@@ -247,7 +297,7 @@ describe("administration/users actions (integration)", () => {
     expect(await createInviteLinkAction(grant.id)).toEqual(SIGNED_OUT);
     expect(await deactivateUserAction(user.id)).toEqual(SIGNED_OUT);
 
-    await adminClient.from("pending_role_grants").delete().eq("id", grant.id);
+    await grant.cleanup();
     await user.cleanup();
   });
 
@@ -389,7 +439,7 @@ describe("administration/users actions (integration)", () => {
       .single();
     expect(data?.invited_at).not.toBeNull();
 
-    await adminClient.from("pending_role_grants").delete().eq("id", grant.id);
+    await grant.cleanup();
   });
 
   // #759. The magic-link fallback in mintInviteLink turns "this address already
@@ -481,10 +531,7 @@ describe("administration/users actions (integration)", () => {
         }
         expect(result.link).toContain("type=magiclink");
       } finally {
-        await serviceRoleClient
-          .from("pending_role_grants")
-          .delete()
-          .eq("id", grant.id);
+        await grant.cleanup();
         await insider.cleanup();
       }
     });
@@ -505,7 +552,7 @@ describe("administration/users actions (integration)", () => {
       error: "This grant has already been claimed or revoked.",
     });
 
-    await adminClient.from("pending_role_grants").delete().eq("id", grant.id);
+    await grant.cleanup();
   });
 
   test("admin can deactivate and reactivate a user, but not themselves", async () => {
@@ -580,7 +627,7 @@ describe("administration/users actions (integration)", () => {
       expect(await userRolesFor(user.id)).toEqual([]);
       expect(await isDeactivated(user.id)).toBe(false);
 
-      await adminClient.from("pending_role_grants").delete().eq("id", grant.id);
+      await grant.cleanup();
       await user.cleanup();
     });
   }

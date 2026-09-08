@@ -22,28 +22,218 @@
 export type ContentPage = {
   key: string;
   label: string;
-  /** Where on the public site the page's slots render. */
+  /**
+   * The page's own route. Several pages span more than one -- Get Involved
+   * carries four, Support three -- so this is only where a section that says
+   * nothing else renders; `ContentSection.route` is the precise answer.
+   */
   route: string;
+  /**
+   * The `PUBLIC_PAGE_SLOTS` key in `src/lib/page-visibility.ts` that decides
+   * whether this page is live, so the editor can say when copy is being
+   * written for a page nobody can reach. Unset where nothing gates the page:
+   * `org` and `home` are the site itself, and the legal pages deliberately
+   * carry no visibility slot (see `src/app/(public)/privacy/layout.tsx`).
+   */
+  visibilityKey?: string;
 };
 
 export const CONTENT_PAGES: readonly ContentPage[] = [
   { key: "org", label: "Organization", route: "/home" },
   { key: "home", label: "Home", route: "/home" },
-  { key: "about_story", label: "About: Our Story", route: "/about/story" },
+  {
+    key: "about_story",
+    label: "About: Our Story",
+    route: "/about/story",
+    visibilityKey: "about",
+  },
   {
     key: "about_mission",
     label: "About: Mission & Values",
     route: "/about/mission",
+    visibilityKey: "about",
   },
-  { key: "about_team", label: "About: Meet the Team", route: "/about/team" },
-  { key: "events", label: "Events", route: "/events" },
-  { key: "programs", label: "Programs", route: "/programs" },
-  { key: "learn", label: "Learn", route: "/learn" },
-  { key: "gears", label: "Gear", route: "/gears/library" },
-  { key: "get_involved", label: "Get Involved", route: "/get-involved" },
-  { key: "support", label: "Support", route: "/support" },
-  { key: "contact", label: "Contact", route: "/contact" },
+  {
+    key: "about_team",
+    label: "About: Meet the Team",
+    route: "/about/team",
+    visibilityKey: "about",
+  },
+  { key: "events", label: "Events", route: "/events", visibilityKey: "events" },
+  {
+    key: "programs",
+    label: "Programs",
+    route: "/programs",
+    visibilityKey: "programs",
+  },
+  { key: "learn", label: "Learn", route: "/learn", visibilityKey: "learn" },
+  {
+    key: "gears",
+    label: "Gear",
+    route: "/gears/library",
+    visibilityKey: "gears",
+  },
+  {
+    key: "get_involved",
+    label: "Get Involved",
+    route: "/get-involved",
+    visibilityKey: "get-involved",
+  },
+  {
+    key: "support",
+    label: "Support",
+    route: "/support",
+    visibilityKey: "support",
+  },
+  {
+    key: "contact",
+    label: "Contact",
+    route: "/contact",
+    visibilityKey: "contact",
+  },
   { key: "legal", label: "Legal documents", route: "/privacy" },
+] as const;
+
+/**
+ * A group of slots that read as one thing on the page -- a heading and the
+ * body under it, a card and its list. The 86 slots are not a flat list to
+ * anyone editing them: `get_involved` is six sections of heading-plus-body,
+ * and rendering them as fifteen siblings left the pairing to be inferred from
+ * adjacent labels (#792).
+ *
+ * `route` matters as much as the grouping. `ContentPage.route` is one route
+ * per page, but four pages span several -- Get Involved's slots render across
+ * `/get-involved`, `/get-involved/attend`, `/get-involved/partner` and
+ * `/get-involved/volunteer` -- so a single "view on the site" link pointed at
+ * the wrong page for most of them. Every route below was read off the public
+ * page that actually reads the slot.
+ */
+export type ContentSection = {
+  key: string;
+  page: string;
+  label: string;
+  description?: string;
+  /** Where this section renders, when it is not the page's own route. */
+  route?: string;
+};
+
+export const CONTENT_SECTIONS: readonly ContentSection[] = [
+  {
+    key: "org:identity",
+    page: "org",
+    label: "Identity",
+    description: "How the organization names and describes itself site-wide.",
+  },
+  {
+    key: "org:contact",
+    page: "org",
+    label: "Contact details",
+    description: "The addresses and handles published in the footer.",
+    route: "/contact",
+  },
+
+  { key: "home:hero", page: "home", label: "Hero" },
+  {
+    key: "home:next_event",
+    page: "home",
+    label: "Next event",
+    description: "The label above the next upcoming event on the homepage.",
+  },
+
+  { key: "about_story:opening", page: "about_story", label: "Opening" },
+  { key: "about_story:story", page: "about_story", label: "Our story" },
+
+  { key: "about_mission:mission", page: "about_mission", label: "Mission" },
+  { key: "about_mission:values", page: "about_mission", label: "Values" },
+  { key: "about_mission:why", page: "about_mission", label: "Why we exist" },
+
+  { key: "about_team:team", page: "about_team", label: "The team" },
+
+  { key: "events:listing", page: "events", label: "Events listing" },
+  {
+    key: "events:community",
+    page: "events",
+    label: "Community calendar",
+    route: "/events/community",
+  },
+
+  { key: "programs:opening", page: "programs", label: "Opening" },
+  { key: "programs:pillars", page: "programs", label: "Pillars" },
+  { key: "programs:items", page: "programs", label: "Programs" },
+
+  { key: "learn:opening", page: "learn", label: "Opening" },
+
+  { key: "gears:library", page: "gears", label: "Gear library" },
+  {
+    key: "gears:donate",
+    page: "gears",
+    label: "How donating works",
+    route: "/gears/donate",
+  },
+  {
+    key: "gears:request",
+    page: "gears",
+    label: "Requesting gear",
+    route: "/gears/donate",
+  },
+  {
+    key: "gears:accept",
+    page: "gears",
+    label: "What we accept",
+    route: "/gears/donate",
+  },
+  {
+    key: "gears:drives",
+    page: "gears",
+    label: "Gear drives",
+    route: "/gears/donate",
+  },
+
+  { key: "get_involved:opening", page: "get_involved", label: "Opening" },
+  { key: "get_involved:sponsor", page: "get_involved", label: "Sponsor" },
+  { key: "get_involved:gear", page: "get_involved", label: "Donate gear" },
+  {
+    key: "get_involved:attend",
+    page: "get_involved",
+    label: "Attend",
+    route: "/get-involved/attend",
+  },
+  {
+    key: "get_involved:community",
+    page: "get_involved",
+    label: "Community",
+    route: "/get-involved/attend",
+  },
+  {
+    key: "get_involved:partner",
+    page: "get_involved",
+    label: "Partner",
+    route: "/get-involved/partner",
+  },
+  {
+    key: "get_involved:volunteer",
+    page: "get_involved",
+    label: "Volunteer",
+    route: "/get-involved/volunteer",
+  },
+
+  { key: "support:opening", page: "support", label: "Opening" },
+  {
+    key: "support:donations",
+    page: "support",
+    label: "Donations",
+    route: "/support/donations",
+  },
+  {
+    key: "support:sponsorship",
+    page: "support",
+    label: "Sponsorship",
+    route: "/support/sponsorship",
+  },
+
+  { key: "contact:opening", page: "contact", label: "Opening" },
+
+  { key: "legal:documents", page: "legal", label: "Documents" },
 ] as const;
 
 export type ListField = {
@@ -77,9 +267,90 @@ export type LegalDocumentContent = {
   sections: LegalDocumentSection[];
 };
 
+/**
+ * The shape of the platform's own document: its title and the headings it is
+ * organized under, with none of the text.
+ *
+ * Nobody drafts a privacy policy from a blank box, so the editor offers this
+ * as the starting point (#792). It is deliberately the outline and not the
+ * prose: the platform documents carry links, tables and callouts that
+ * `LegalDocumentContent` cannot hold, and a tenant publishing Chatter Snow's
+ * policy verbatim as their own would be worse than a blank page. Authoring is
+ * #601.
+ *
+ * Each document renders these same entries as its section nav, importing them
+ * from here, so the outline offered in the editor and the document on the site
+ * cannot drift.
+ */
+export type LegalDocumentOutline = {
+  title: string;
+  sections: readonly { id: string; title: string }[];
+};
+
+export const LEGAL_DOCUMENT_OUTLINES: Record<string, LegalDocumentOutline> = {
+  "legal.privacy": {
+    title: "Privacy Policy",
+    sections: [
+      { id: "what-we-collect", title: "What we collect, and why" },
+      { id: "what-we-dont-do", title: "What we don’t do" },
+      { id: "how-long-we-keep-it", title: "How long we keep it" },
+      { id: "who-can-see-it", title: "Who can see it" },
+      { id: "how-we-protect-it", title: "How we protect it" },
+      { id: "cookies-and-analytics", title: "Cookies and analytics" },
+      { id: "other-sites", title: "Other sites we link to" },
+      { id: "your-choices", title: "Your choices" },
+      { id: "minors", title: "Minors" },
+      { id: "changes", title: "Changes to this policy" },
+      { id: "contact", title: "Contact" },
+    ],
+  },
+  "legal.terms": {
+    title: "Terms of Use",
+    sections: [
+      { id: "who-we-are", title: "Who we are" },
+      { id: "using-this-site", title: "Using this site" },
+      { id: "events-and-programs", title: "Events and programs" },
+      { id: "snow-sports-risks", title: "Snow-sports risks" },
+      { id: "gear-library", title: "Gear library" },
+      { id: "volunteering", title: "Volunteering" },
+      {
+        id: "accessibility-and-inclusion",
+        title: "Accessibility and inclusion",
+      },
+      { id: "educational-content", title: "Educational content" },
+      { id: "donations-and-payments", title: "Donations and payments" },
+      { id: "photos-and-content", title: "Photos, video and what you send us" },
+      { id: "other-sites-and-venues", title: "Other websites and venues" },
+      { id: "other-agreements", title: "Other agreements" },
+      { id: "no-warranties", title: "No warranties" },
+      { id: "limitation-of-liability", title: "Limits on liability" },
+      { id: "indemnification", title: "Your responsibility to us" },
+      { id: "changes", title: "Changes to these terms" },
+      { id: "governing-law", title: "Governing law" },
+      { id: "severability", title: "Severability" },
+      { id: "contact", title: "Contact" },
+    ],
+  },
+  "legal.code_of_conduct": {
+    title: "Code of Conduct",
+    sections: [
+      { id: "what-we-expect", title: "What we expect" },
+      { id: "bringing-a-minor", title: "If you’re bringing a minor" },
+      { id: "on-the-mountain", title: "On the mountain" },
+      { id: "what-isnt-tolerated", title: "What isn’t tolerated" },
+      { id: "reporting-a-problem", title: "Reporting a problem" },
+      { id: "how-we-handle-a-report", title: "How we handle a report" },
+      { id: "if-you-disagree", title: "If you disagree with a decision" },
+      { id: "questions", title: "Questions" },
+    ],
+  },
+};
+
 type SlotBase = {
   key: string;
   page: string;
+  /** A `CONTENT_SECTIONS` key. Required, so no slot falls outside the grouping. */
+  section: string;
   label: string;
   description?: string;
 };
@@ -89,7 +360,7 @@ export type ContentSlot = SlotBase &
     | { type: "text"; default: string }
     | { type: "paragraphs"; default: string[] }
     | { type: "list"; fields: readonly ListField[]; default: ListItem[] }
-    | { type: "document"; default: null }
+    | { type: "document"; default: null; route: string }
   );
 
 const BULLET: readonly ListField[] = [
@@ -101,6 +372,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "org.short_name",
     page: "org",
+    section: "org:identity",
     label: "Short name",
     description:
       "How the organization refers to itself mid-sentence. The full name comes from the organization's record.",
@@ -110,6 +382,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "org.tagline",
     page: "org",
+    section: "org:identity",
     label: "Site description",
     description:
       "The one-sentence description search engines and link previews show.",
@@ -120,6 +393,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "org.image_alt",
     page: "org",
+    section: "org:identity",
     label: "Photo description",
     description:
       "The text a screen reader announces for the community photos across the site.",
@@ -129,6 +403,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "org.email_general",
     page: "org",
+    section: "org:contact",
     label: "General email",
     description: "Where the contact page and the footer point.",
     type: "text",
@@ -137,6 +412,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "org.email_privacy",
     page: "org",
+    section: "org:contact",
     label: "Privacy email",
     description: "Access, correction and deletion requests.",
     type: "text",
@@ -145,6 +421,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "org.email_conduct",
     page: "org",
+    section: "org:contact",
     label: "Conduct email",
     description: "Code of conduct reports.",
     type: "text",
@@ -153,6 +430,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "org.instagram_handle",
     page: "org",
+    section: "org:contact",
     label: "Instagram handle",
     description: "Without the @. Leave blank to hide the Instagram links.",
     type: "text",
@@ -161,6 +439,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "org.footer_contact_eyebrow",
     page: "org",
+    section: "org:contact",
     label: "Footer contact heading",
     type: "text",
     default: "Get in touch",
@@ -170,6 +449,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "home.heading",
     page: "home",
+    section: "home:hero",
     label: "Heading",
     type: "text",
     default: "A queer ski & snowboard community",
@@ -177,6 +457,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "home.intro",
     page: "home",
+    section: "home:hero",
     label: "Introduction",
     type: "text",
     default:
@@ -185,6 +466,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "home.cta_events",
     page: "home",
+    section: "home:hero",
     label: "Events button",
     type: "text",
     default: "Join an event",
@@ -192,6 +474,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "home.cta_get_involved",
     page: "home",
+    section: "home:hero",
     label: "Get involved button",
     type: "text",
     default: "Get involved",
@@ -199,6 +482,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "home.cta_donate",
     page: "home",
+    section: "home:hero",
     label: "Donate button",
     description: "Shown only while the Support section is visible.",
     type: "text",
@@ -207,6 +491,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "home.next_event_eyebrow",
     page: "home",
+    section: "home:next_event",
     label: "Next event label",
     type: "text",
     default: "Next up",
@@ -216,6 +501,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "about_story.heading",
     page: "about_story",
+    section: "about_story:opening",
     label: "Heading",
     type: "text",
     default: "About Chatter",
@@ -223,6 +509,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "about_story.intro",
     page: "about_story",
+    section: "about_story:opening",
     label: "Introduction",
     type: "paragraphs",
     default: [
@@ -233,6 +520,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "about_story.section_heading",
     page: "about_story",
+    section: "about_story:story",
     label: "Story heading",
     type: "text",
     default: "Our Story",
@@ -240,6 +528,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "about_story.body",
     page: "about_story",
+    section: "about_story:story",
     label: "Story",
     type: "paragraphs",
     default: [
@@ -255,6 +544,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "about_mission.heading",
     page: "about_mission",
+    section: "about_mission:mission",
     label: "Heading",
     type: "text",
     default: "Our Mission",
@@ -262,6 +552,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "about_mission.statement",
     page: "about_mission",
+    section: "about_mission:mission",
     label: "Mission statement",
     description: "Shown in quotation marks.",
     type: "text",
@@ -271,6 +562,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "about_mission.lead_in",
     page: "about_mission",
+    section: "about_mission:mission",
     label: "Lead-in to the list",
     type: "text",
     default:
@@ -279,6 +571,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "about_mission.points",
     page: "about_mission",
+    section: "about_mission:mission",
     label: "How we do it",
     type: "list",
     fields: BULLET,
@@ -295,6 +588,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "about_mission.closing",
     page: "about_mission",
+    section: "about_mission:mission",
     label: "Closing line",
     type: "text",
     default:
@@ -303,6 +597,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "about_mission.values_heading",
     page: "about_mission",
+    section: "about_mission:values",
     label: "Values heading",
     type: "text",
     default: "Our Values",
@@ -310,6 +605,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "about_mission.values",
     page: "about_mission",
+    section: "about_mission:values",
     label: "Values",
     type: "list",
     fields: [
@@ -342,6 +638,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "about_mission.why_heading",
     page: "about_mission",
+    section: "about_mission:why",
     label: "Why heading",
     type: "text",
     default: "Why LGBTQ+ snow sports",
@@ -349,6 +646,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "about_mission.why_body",
     page: "about_mission",
+    section: "about_mission:why",
     label: "Why",
     type: "paragraphs",
     default: [
@@ -361,6 +659,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "about_team.heading",
     page: "about_team",
+    section: "about_team:team",
     label: "Heading",
     type: "text",
     default: "Meet the team",
@@ -368,6 +667,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "about_team.members",
     page: "about_team",
+    section: "about_team:team",
     label: "Team members",
     description:
       "A photo URL overrides the image slot. Leave both blank for the shared team placeholder.",
@@ -419,6 +719,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "about_team.bio_placeholder",
     page: "about_team",
+    section: "about_team:team",
     label: "Missing bio text",
     type: "text",
     default: "Bio coming soon.",
@@ -428,6 +729,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "events.heading",
     page: "events",
+    section: "events:listing",
     label: "Events heading",
     type: "text",
     default: "Upcoming & past events",
@@ -435,6 +737,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "events.intro",
     page: "events",
+    section: "events:listing",
     label: "Events introduction",
     type: "text",
     default: "Browse Chatter Snow events happening on and off the mountain.",
@@ -442,6 +745,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "events.community_heading",
     page: "events",
+    section: "events:community",
     label: "Community calendar heading",
     type: "text",
     default: "Community Calendar",
@@ -449,6 +753,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "events.community_intro",
     page: "events",
+    section: "events:community",
     label: "Community calendar introduction",
     type: "text",
     default:
@@ -459,6 +764,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "programs.heading",
     page: "programs",
+    section: "programs:opening",
     label: "Heading",
     type: "text",
     default: "Programs",
@@ -466,6 +772,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "programs.intro",
     page: "programs",
+    section: "programs:opening",
     label: "Introduction",
     type: "text",
     default: "Get access. Find your people. Learn and progress. Keep riding.",
@@ -473,6 +780,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "programs.pillars",
     page: "programs",
+    section: "programs:pillars",
     label: "Pillars",
     description: "The groups programs are listed under, in order.",
     type: "list",
@@ -492,6 +800,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "programs.items",
     page: "programs",
+    section: "programs:items",
     label: "Programs",
     description: "Each program names the pillar it belongs under.",
     type: "list",
@@ -551,6 +860,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "learn.heading",
     page: "learn",
+    section: "learn:opening",
     label: "Heading",
     type: "text",
     default: "Learn",
@@ -558,6 +868,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "learn.intro",
     page: "learn",
+    section: "learn:opening",
     label: "Introduction",
     description: "A link to the sizing guide follows it.",
     type: "text",
@@ -569,6 +880,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "gears.library_heading",
     page: "gears",
+    section: "gears:library",
     label: "Library heading",
     type: "text",
     default: "Gear library",
@@ -576,6 +888,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "gears.library_intro",
     page: "gears",
+    section: "gears:library",
     label: "Library introduction",
     type: "text",
     default: "Browse gear currently available to the community.",
@@ -583,6 +896,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "gears.donate_heading",
     page: "gears",
+    section: "gears:donate",
     label: "How it works heading",
     type: "text",
     default: "How the gear program works",
@@ -590,6 +904,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "gears.donate_intro",
     page: "gears",
+    section: "gears:donate",
     label: "How it works",
     type: "text",
     default:
@@ -598,6 +913,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "gears.request_heading",
     page: "gears",
+    section: "gears:request",
     label: "Request heading",
     type: "text",
     default: "Don't see what you need?",
@@ -605,6 +921,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "gears.request_body",
     page: "gears",
+    section: "gears:request",
     label: "Request",
     type: "text",
     default:
@@ -613,6 +930,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "gears.accept_heading",
     page: "gears",
+    section: "gears:accept",
     label: "Donate heading",
     type: "text",
     default: "Donate gear",
@@ -620,6 +938,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "gears.accept_title",
     page: "gears",
+    section: "gears:accept",
     label: "What we accept",
     type: "text",
     default: "We accept gently used gear",
@@ -627,6 +946,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "gears.accept_items",
     page: "gears",
+    section: "gears:accept",
     label: "Accepted items",
     type: "list",
     fields: BULLET,
@@ -640,6 +960,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "gears.dropoff_body",
     page: "gears",
+    section: "gears:accept",
     label: "How to drop off",
     type: "text",
     default:
@@ -648,6 +969,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "gears.drives_heading",
     page: "gears",
+    section: "gears:drives",
     label: "Gear drives heading",
     type: "text",
     default: "Gear drives",
@@ -655,6 +977,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "gears.drives_body",
     page: "gears",
+    section: "gears:drives",
     label: "Gear drives",
     description: "A link to Events follows it.",
     type: "text",
@@ -666,6 +989,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "get_involved.heading",
     page: "get_involved",
+    section: "get_involved:opening",
     label: "Heading",
     type: "text",
     default: "Get involved",
@@ -673,6 +997,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "get_involved.intro",
     page: "get_involved",
+    section: "get_involved:opening",
     label: "Introduction",
     type: "text",
     default:
@@ -681,6 +1006,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "get_involved.sponsor_heading",
     page: "get_involved",
+    section: "get_involved:sponsor",
     label: "Sponsor heading",
     type: "text",
     default: "Sponsor Chatter",
@@ -688,6 +1014,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "get_involved.sponsor_body",
     page: "get_involved",
+    section: "get_involved:sponsor",
     label: "Sponsor",
     type: "text",
     default: "Sponsorships help fund events, gear, and programs.",
@@ -695,6 +1022,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "get_involved.gear_heading",
     page: "get_involved",
+    section: "get_involved:gear",
     label: "Donate gear heading",
     type: "text",
     default: "Donate gear",
@@ -702,6 +1030,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "get_involved.gear_body",
     page: "get_involved",
+    section: "get_involved:gear",
     label: "Donate gear",
     description: "A link to the Gear page follows it.",
     type: "text",
@@ -711,6 +1040,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "get_involved.attend_heading",
     page: "get_involved",
+    section: "get_involved:attend",
     label: "Attend heading",
     type: "text",
     default: "Attend",
@@ -718,6 +1048,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "get_involved.attend_body",
     page: "get_involved",
+    section: "get_involved:attend",
     label: "Attend",
     type: "text",
     default:
@@ -726,6 +1057,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "get_involved.community_heading",
     page: "get_involved",
+    section: "get_involved:community",
     label: "Community heading",
     type: "text",
     default: "Join the community",
@@ -733,6 +1065,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "get_involved.community_body",
     page: "get_involved",
+    section: "get_involved:community",
     label: "Community",
     description: "The Instagram handle follows it.",
     type: "text",
@@ -742,6 +1075,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "get_involved.partner_heading",
     page: "get_involved",
+    section: "get_involved:partner",
     label: "Partner heading",
     type: "text",
     default: "Become a partner",
@@ -749,6 +1083,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "get_involved.partner_body",
     page: "get_involved",
+    section: "get_involved:partner",
     label: "Partner",
     type: "text",
     default:
@@ -757,6 +1092,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "get_involved.volunteer_heading",
     page: "get_involved",
+    section: "get_involved:volunteer",
     label: "Volunteer heading",
     type: "text",
     default: "Volunteer",
@@ -764,6 +1100,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "get_involved.volunteer_intro",
     page: "get_involved",
+    section: "get_involved:volunteer",
     label: "Volunteer introduction",
     type: "text",
     default:
@@ -772,6 +1109,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "get_involved.volunteer_empty",
     page: "get_involved",
+    section: "get_involved:volunteer",
     label: "No open roles text",
     type: "text",
     default: "Check back soon for open volunteer roles.",
@@ -781,6 +1119,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "support.heading",
     page: "support",
+    section: "support:opening",
     label: "Heading",
     type: "text",
     default: "Support Chatter",
@@ -788,6 +1127,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "support.intro",
     page: "support",
+    section: "support:opening",
     label: "Introduction",
     type: "text",
     default:
@@ -796,6 +1136,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "support.donations_card",
     page: "support",
+    section: "support:opening",
     label: "Donations card",
     type: "text",
     default:
@@ -804,6 +1145,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "support.sponsorship_card",
     page: "support",
+    section: "support:opening",
     label: "Sponsorship card",
     type: "text",
     default:
@@ -812,6 +1154,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "support.donations_heading",
     page: "support",
+    section: "support:donations",
     label: "Donations heading",
     type: "text",
     default: "Donations",
@@ -819,6 +1162,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "support.donations_intro",
     page: "support",
+    section: "support:donations",
     label: "Donations introduction",
     type: "text",
     default:
@@ -827,6 +1171,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "support.monetary_title",
     page: "support",
+    section: "support:donations",
     label: "Monetary donations title",
     type: "text",
     default: "Monetary donations",
@@ -834,6 +1179,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "support.monetary_body",
     page: "support",
+    section: "support:donations",
     label: "Monetary donations",
     type: "text",
     default:
@@ -842,6 +1188,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "support.inkind_title",
     page: "support",
+    section: "support:donations",
     label: "In-kind donations title",
     type: "text",
     default: "In-kind donations",
@@ -849,6 +1196,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "support.inkind_body",
     page: "support",
+    section: "support:donations",
     label: "In-kind donations",
     description: "A link to the Gear page follows it.",
     type: "text",
@@ -858,6 +1206,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "support.sponsorship_heading",
     page: "support",
+    section: "support:sponsorship",
     label: "Sponsorship heading",
     type: "text",
     default: "Sponsorship",
@@ -865,6 +1214,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "support.sponsorship_intro",
     page: "support",
+    section: "support:sponsorship",
     label: "Sponsorship introduction",
     type: "text",
     default:
@@ -873,6 +1223,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "support.sponsorship_tiers",
     page: "support",
+    section: "support:sponsorship",
     label: "Sponsorship options",
     type: "list",
     fields: [
@@ -900,6 +1251,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "support.sponsorship_cta",
     page: "support",
+    section: "support:sponsorship",
     label: "Sponsorship button",
     type: "text",
     default: "Talk to us about sponsoring",
@@ -909,6 +1261,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "contact.heading",
     page: "contact",
+    section: "contact:opening",
     label: "Heading",
     type: "text",
     default: "Get in touch",
@@ -916,6 +1269,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "contact.intro",
     page: "contact",
+    section: "contact:opening",
     label: "Introduction",
     type: "text",
     default:
@@ -926,29 +1280,35 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   {
     key: "legal.privacy",
     page: "legal",
+    section: "legal:documents",
     label: "Privacy policy",
     description:
       "Replaces the whole privacy page. Leave unset to publish the platform's document.",
     type: "document",
     default: null,
+    route: "/privacy",
   },
   {
     key: "legal.terms",
     page: "legal",
+    section: "legal:documents",
     label: "Terms of use",
     description:
       "Replaces the whole terms page. Leave unset to publish the platform's document.",
     type: "document",
     default: null,
+    route: "/terms",
   },
   {
     key: "legal.code_of_conduct",
     page: "legal",
+    section: "legal:documents",
     label: "Code of conduct",
     description:
       "Replaces the whole code of conduct page. Leave unset to publish the platform's document.",
     type: "document",
     default: null,
+    route: "/code-of-conduct",
   },
 ] as const;
 
@@ -962,6 +1322,14 @@ export function contentSlot(key: string): ContentSlot | undefined {
 
 export function slotsForPage(page: string): ContentSlot[] {
   return SITE_CONTENT_SLOTS.filter((slot) => slot.page === page);
+}
+
+export function sectionsForPage(page: string): ContentSection[] {
+  return CONTENT_SECTIONS.filter((section) => section.page === page);
+}
+
+export function slotsForSection(section: string): ContentSlot[] {
+  return SITE_CONTENT_SLOTS.filter((slot) => slot.section === section);
 }
 
 function isStringArray(value: unknown): value is string[] {

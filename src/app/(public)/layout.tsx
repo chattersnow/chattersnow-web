@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { BrandLogo } from "@/components/brand-logo";
 import { BrandStyle } from "@/components/brand-style";
 import { InstagramLink } from "@/components/instagram-link";
 import { SkipLink } from "@/components/skip-link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPageVisibility, hiddenSlots } from "@/lib/page-visibility";
-import { getPublicSite } from "@/lib/public-site";
+import { NOT_FOUND_TITLE, getPublicSite } from "@/lib/public-site";
 import { LEGAL_LINKS, visibleGroups } from "@/lib/public-nav";
 import { LEGAL_PAGES_PUBLISHED } from "@/lib/legal-pages";
 import { SiteNav } from "./site-nav";
@@ -16,6 +17,12 @@ import { SiteNav } from "./site-nav";
 export async function generateMetadata(): Promise<Metadata> {
   const supabase = await createSupabaseServerClient();
   const site = await getPublicSite(supabase);
+  // A host that resolves to no tenant gets no organization's name in its tab
+  // (#795 Phase 4). The layout below 404s this request; without this the 404
+  // page would still be titled after whichever organization the defaults name.
+  if (site.status === "unresolved") {
+    return { title: NOT_FOUND_TITLE };
+  }
   return {
     title: site.name,
     description: site.content.text("org.tagline"),
@@ -62,6 +69,24 @@ export default async function PublicLayout({
     getPageVisibility(supabase),
     getPublicSite(supabase),
   ]);
+  // The public site is the one surface that belongs to a host rather than to a
+  // session, so a host no tenant claims has nothing to serve (#795 Phase 4).
+  // Before this, such a request rendered the platform defaults -- which meant a
+  // domain pointed at the deployment before its tenant row existed spent that
+  // window publicly serving another organization's name and copy, with the
+  // page_visibility-gated routes 404ing underneath it.
+  //
+  // Only `unresolved`. A failed read is `unavailable` and keeps rendering:
+  // 404ing a database blip would take every tenant's site down at once, which
+  // is far worse than the thing this guard prevents.
+  //
+  // The portal is deliberately unaffected -- `current_tenant_id()` is
+  // membership-based and never consults the host, which is what lets
+  // portal.<anything> work before its domain is configured.
+  if (site.status === "unresolved") {
+    notFound();
+  }
+
   const hidden = hiddenSlots(visibility);
   const { name, branding, content } = site;
   const contactEmail = content.text("org.email_general");
