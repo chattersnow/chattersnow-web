@@ -72,6 +72,9 @@ jobs:
       - name: Reset DB (migrate + seed)
         run: supabase db reset
 
+      - name: Drop the unused Google Chrome apt source
+        uses: ./.github/actions/drop-google-apt-source
+
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps ${{ inputs.install-browsers }}
 
@@ -133,8 +136,9 @@ jobs:
       - name: Reset DB (migrate + seed)
         run: supabase db reset
 
-      # The mutating project is Desktop Chrome whatever the caller's browser
-      # matrix is, so this one never needs the others.
+      - name: Drop the unused Google Chrome apt source
+        uses: ./.github/actions/drop-google-apt-source
+
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps chromium
 
