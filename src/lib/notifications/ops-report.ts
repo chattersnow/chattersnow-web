@@ -1,3 +1,4 @@
+import { isEmailAddress } from "@/lib/email/identity";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { formatDateInZone, formatDateTimeInZone } from "@/lib/time";
 import { DIGEST_TIME_ZONE } from "@/lib/notifications/task-digest";
@@ -152,13 +153,12 @@ export function parseOpsReportRecipients(value: unknown): string[] {
 }
 
 /**
- * Deliberately loose: this guards against a stray word or a truncated paste,
- * not against an address a mail server would refuse. The provider is the only
- * thing that can really answer that, and its answer is recorded in the ledger.
+ * Moved to src/lib/email/identity.ts with #857, which needs it to validate a
+ * tenant's own sender address -- the email layer must not have to import the
+ * ops report for that. Re-exported here so this module's own callers, and
+ * anything importing it from here, did not have to move.
  */
-export function isEmailAddress(value: string): boolean {
-  return /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/.test(value);
-}
+export { isEmailAddress };
 
 /**
  * The report, or null when there is nothing to say.

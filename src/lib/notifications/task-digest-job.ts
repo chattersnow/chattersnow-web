@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { deliverEmail } from "@/lib/notifications/deliver";
+import { tenantMailIdentity, type MailIdentity } from "@/lib/email/identity";
 import { isOrgEmailEnabled } from "@/lib/notifications/settings";
 import { renderTaskDigest } from "@/lib/notifications/task-digest-email";
 import {
@@ -95,12 +96,23 @@ export async function runTaskDigest(
       continue;
     }
 
+    // Beside the switch, and after it: one lookup per tenant, and a muted
+    // tenant costs nothing further (#857).
+    const identity = await tenantMailIdentity(admin, tenantId);
+
     for (const recipient of tenantRecipients) {
       if (!optedIn.has(preferenceKey(recipient.tenantId, recipient.personId))) {
         summary.skipped += 1;
         continue;
       }
-      await deliver(admin, recipient, dedupeKey, options.siteUrl, summary);
+      await deliver(
+        admin,
+        recipient,
+        identity,
+        dedupeKey,
+        options.siteUrl,
+        summary,
+      );
     }
   }
 
@@ -117,12 +129,14 @@ export async function runTaskDigest(
 async function deliver(
   admin: SupabaseClient,
   recipient: DigestRecipient,
+  identity: MailIdentity,
   dedupeKey: string,
   siteUrl: string,
   summary: DigestRunSummary,
 ): Promise<void> {
   const outcome = await deliverEmail(admin, {
     tenantId: recipient.tenantId,
+    identity,
     personId: recipient.personId,
     kind: TASK_DIGEST_KIND,
     dedupeKey,

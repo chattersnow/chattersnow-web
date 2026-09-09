@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendEmail } from "@/lib/email/send";
+import type { MailIdentity } from "@/lib/email/identity";
 import type { RenderedEmail } from "@/lib/notifications/rendered-email";
 
 /**
@@ -37,6 +38,17 @@ export type DeliveryRequest = {
    * treats NULLs in a unique index as distinct.
    */
   personId: string | null;
+  /**
+   * Who this tenant's mail goes out as (#857), from tenantMailIdentity().
+   *
+   * Required, and resolved by the caller rather than here, for two reasons.
+   * Every sender below already loops grouped by tenant -- they each call
+   * isOrgEmailEnabled() once per tenant -- so resolving beside that is one
+   * lookup per tenant instead of one per recipient. And making it required is
+   * what stops a fourth sender being written that quietly sends as the
+   * platform: there is no default to fall through to.
+   */
+  identity: MailIdentity;
   /** A NOTIFICATION_KINDS key. */
   kind: string;
   /** What makes this send unique within its kind. */
@@ -47,7 +59,11 @@ export type DeliveryRequest = {
    * digest body costs a pass over someone's whole outstanding workload.
    */
   render: () => RenderedEmail;
-  /** Overrides EMAIL_REPLY_TO for this message. */
+  /**
+   * Overrides the tenant's resolved Reply-To for this one message. The contact
+   * message notice sets it to the address of whoever wrote in, so a reply
+   * reaches them rather than the organization's own inbox.
+   */
   replyTo?: string;
   /** Tag on this sender's log lines, e.g. "[task-digest]". */
   logPrefix: string;
@@ -79,12 +95,14 @@ export async function deliverEmail(
   }
 
   const message = request.render();
+  const replyTo = request.replyTo ?? request.identity.replyTo;
   const result = await sendEmail({
     to: request.to,
+    from: request.identity.from,
     subject: message.subject,
     text: message.text,
     html: message.html,
-    ...(request.replyTo ? { replyTo: request.replyTo } : {}),
+    ...(replyTo ? { replyTo } : {}),
   });
 
   const { error: finalizeError } = await admin
