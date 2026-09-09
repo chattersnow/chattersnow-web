@@ -8,7 +8,7 @@ import { SkipLink } from "@/components/skip-link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPageVisibility, hiddenSlots } from "@/lib/page-visibility";
 import { NOT_FOUND_TITLE, getPublicSite } from "@/lib/public-site";
-import { LEGAL_LINKS, visibleGroups } from "@/lib/public-nav";
+import { LEGAL_LINKS, isSlotVisible, visibleGroups } from "@/lib/public-nav";
 import { LEGAL_PAGES_PUBLISHED } from "@/lib/legal-pages";
 import { SiteNav } from "./site-nav";
 
@@ -173,6 +173,20 @@ export default async function PublicLayout({
               &copy; {new Date().getFullYear()}
               {name ? ` ${name}.` : ""} All rights reserved.
             </p>
+            {/* Not a SectionLinks entry, and deliberately not in the header.
+                The brand guide's whole value is its URL -- it is pasted into
+                an email to a sponsor or a print shop, not browsed to -- so it
+                sits with the utility links rather than competing with Events
+                and Programs. Its own landmark rather than joining the Legal
+                one, which is a nav about the terms of using the site. */}
+            {isSlotVisible(hidden, "brand") && (
+              <nav
+                aria-label="Resources"
+                className="flex flex-wrap gap-x-6 gap-y-2"
+              >
+                <FooterLink href="/brand" label="Brand & Design" />
+              </nav>
+            )}
             {/* Omitted entirely rather than rendered empty while the legal
                 review is outstanding: an empty <nav aria-label="Legal"> is
                 announced by screen readers as a landmark with nothing in it.

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { SiteImage } from "@/components/site-image";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSiteImageUrls } from "@/lib/site-images";
+import { isPageVisible } from "@/lib/page-visibility";
 import { getPublicSite, publicTitle } from "@/lib/public-site";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -15,9 +16,12 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function PartnerPage() {
   const supabase = await createSupabaseServerClient();
-  const [siteImages, { content, name }] = await Promise.all([
+  const [siteImages, { content, name }, brandVisible] = await Promise.all([
     getSiteImageUrls(supabase),
     getPublicSite(supabase),
+    // Gated rather than linked unconditionally: /brand is hidden by default,
+    // and an in-page CTA into a hidden section 404s the reader.
+    isPageVisible("brand"),
   ]);
 
   return (
@@ -40,6 +44,18 @@ export default async function PartnerPage() {
         >
           Start a conversation
         </Button>
+        {brandVisible && (
+          <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed">
+            Producing something that carries our name? Our{" "}
+            <Link
+              href="/brand"
+              className="underline underline-offset-4 hover:text-foreground"
+            >
+              brand and design guide
+            </Link>{" "}
+            has the colours, the logo and how to use them.
+          </p>
+        )}
         <SiteImage
           url={siteImages.get_involved_partner_photo ?? null}
           alt={`${name} partnership`}
