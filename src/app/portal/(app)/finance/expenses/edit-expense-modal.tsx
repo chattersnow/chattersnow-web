@@ -522,7 +522,7 @@ export function EditExpenseModal({
                     ? (expense.paid_by_person.name ??
                       expense.paid_by_person.email ??
                       "—")
-                    : "Chatter Snow (not personally fronted)"}
+                    : "The organization (not personally fronted)"}
                 </ReadOnlyField>
                 {hasLinkedReimbursement && (
                   <ReadOnlyField
