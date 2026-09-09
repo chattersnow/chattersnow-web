@@ -12,9 +12,6 @@ import {
 } from "../events/event-card";
 import { checkRegistrationWindow } from "../events/event-registration-form";
 
-/** How many upcoming events the home page lists. A tenant setting in #846 step 2. */
-export const HOME_UPCOMING_LIMIT = 3;
-
 /**
  * Matches the events listing and the event page, which both format in the
  * event's own zone. The home page used to format in the viewer's zone, so a

@@ -15,10 +15,10 @@ import { isPageVisible } from "@/lib/page-visibility";
 import { formatDateTimeInZone, nowMs } from "@/lib/time";
 import {
   HOME_UPCOMING_EVENT_COLUMNS,
-  HOME_UPCOMING_LIMIT,
   UpcomingEvents,
   type HomeUpcomingEvent,
 } from "./upcoming-events";
+import { MAX_HOME_UPCOMING_COUNT, getSiteLayout } from "@/lib/site-layout";
 import type { PublicEventProgram } from "../events/event-card";
 
 const CAROUSEL_SLOTS = [
@@ -88,18 +88,25 @@ export default async function Home() {
   // whole public event list to use one row of it, which is both wasteful and
   // the shape that let PostgREST's `max_rows` silently truncate a calendar
   // read before (#755).
-  const [{ data: events }, siteImages, site] = await Promise.all([
+  const [{ data: events }, siteImages, site, layout] = await Promise.all([
     supabase
       .from("public_events")
       .select(HOME_UPCOMING_EVENT_COLUMNS)
       .or(`ends_at.gte.${nowIso},and(ends_at.is.null,starts_at.gte.${nowIso})`)
       .order("starts_at", { ascending: true })
-      .limit(HOME_UPCOMING_LIMIT)
+      .limit(MAX_HOME_UPCOMING_COUNT)
       .returns<Omit<HomeUpcomingEvent, "programs">[]>(),
     getSiteImageUrls(supabase),
     getPublicSite(supabase),
+    getSiteLayout(supabase),
   ]);
   const { content } = site;
+
+  // Queried at the largest count any tenant can pick and sliced here, so
+  // reading the setting stays in the batch above rather than becoming a round
+  // trip the event query has to wait on. The over-read is at most a handful of
+  // rows, and bounded by the registry rather than by the size of the table.
+  const visibleEvents = (events ?? []).slice(0, layout.homeUpcomingCount);
 
   const [supportVisible, eventsVisible] = await Promise.all([
     isPageVisible("support"),
@@ -109,7 +116,7 @@ export default async function Home() {
   // Second round trip rather than a join, and only for the handful of ids the
   // query above returned -- the events listing reads every program row because
   // it renders every event.
-  const eventIds = eventsVisible ? (events ?? []).map((event) => event.id) : [];
+  const eventIds = eventsVisible ? visibleEvents.map((event) => event.id) : [];
   const { data: programRows } =
     eventIds.length > 0
       ? await supabase
@@ -132,7 +139,7 @@ export default async function Home() {
   // hides that section the whole block goes with it rather than pointing at a
   // 404 (#586).
   const upcoming: HomeUpcomingEvent[] = eventsVisible
-    ? (events ?? []).map((event) => ({
+    ? visibleEvents.map((event) => ({
         ...event,
         programs: programsByEvent.get(event.id) ?? [],
       }))
