@@ -9,6 +9,9 @@ const { sendEmail } = await import("./send");
 
 const MESSAGE = {
   to: "avery@example.test",
+  // Composed by resolveMailIdentity() (#857) and handed straight through; this
+  // module no longer knows where a sender comes from.
+  from: '"Chatter Snow" <reminders@chattersnow.org>',
   subject: "2 action items need your attention",
   text: "plain",
   html: "<p>rich</p>",
@@ -16,8 +19,6 @@ const MESSAGE = {
 
 const originalFetch = global.fetch;
 const originalKey = process.env.RESEND_API_KEY;
-const originalFrom = process.env.EMAIL_FROM;
-const originalReplyTo = process.env.EMAIL_REPLY_TO;
 
 function jsonResponse(status: number, body: unknown) {
   return new Response(JSON.stringify(body), {
@@ -28,18 +29,12 @@ function jsonResponse(status: number, body: unknown) {
 
 beforeEach(() => {
   process.env.RESEND_API_KEY = "re_test_key";
-  process.env.EMAIL_FROM = "reminders@chattersnow.org";
-  delete process.env.EMAIL_REPLY_TO;
 });
 
 afterEach(() => {
   global.fetch = originalFetch;
   if (originalKey === undefined) delete process.env.RESEND_API_KEY;
   else process.env.RESEND_API_KEY = originalKey;
-  if (originalFrom === undefined) delete process.env.EMAIL_FROM;
-  else process.env.EMAIL_FROM = originalFrom;
-  if (originalReplyTo === undefined) delete process.env.EMAIL_REPLY_TO;
-  else process.env.EMAIL_REPLY_TO = originalReplyTo;
 });
 
 describe("sendEmail without a key", () => {
@@ -77,7 +72,7 @@ describe("sendEmail with a key", () => {
       "Bearer re_test_key",
     );
     expect(JSON.parse(init.body as string)).toEqual({
-      from: "reminders@chattersnow.org",
+      from: MESSAGE.from,
       to: MESSAGE.to,
       subject: MESSAGE.subject,
       text: MESSAGE.text,
@@ -123,14 +118,14 @@ describe("sendEmail with a key", () => {
     });
   });
 
-  test("sends a Reply-To when one is configured", async () => {
+  test("sends a Reply-To when one is given", async () => {
     // The mailboxes people actually read are with a different provider, so a
-    // reply to the sending address would bounce.
-    process.env.EMAIL_REPLY_TO = "hello@chattersnow.org";
+    // reply to the sending address would bounce. Which address that is, is now
+    // the tenant's -- resolved before this module is reached.
     const fetchMock = mock(() => Promise.resolve(jsonResponse(200, {})));
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    await sendEmail(MESSAGE);
+    await sendEmail({ ...MESSAGE, replyTo: "hello@chattersnow.org" });
 
     const [, init] = fetchMock.mock.calls[0] as unknown as [
       string,
@@ -141,23 +136,7 @@ describe("sendEmail with a key", () => {
     );
   });
 
-  test("a per-message Reply-To wins over the configured one", async () => {
-    process.env.EMAIL_REPLY_TO = "hello@chattersnow.org";
-    const fetchMock = mock(() => Promise.resolve(jsonResponse(200, {})));
-    global.fetch = fetchMock as unknown as typeof fetch;
-
-    await sendEmail({ ...MESSAGE, replyTo: "board@chattersnow.org" });
-
-    const [, init] = fetchMock.mock.calls[0] as unknown as [
-      string,
-      RequestInit,
-    ];
-    expect(JSON.parse(init.body as string).reply_to).toBe(
-      "board@chattersnow.org",
-    );
-  });
-
-  test("omits Reply-To entirely when none is configured", async () => {
+  test("omits Reply-To entirely when none is given", async () => {
     const fetchMock = mock(() => Promise.resolve(jsonResponse(200, {})));
     global.fetch = fetchMock as unknown as typeof fetch;
 
@@ -171,11 +150,12 @@ describe("sendEmail with a key", () => {
   });
 
   test("refuses to send with no from address configured", async () => {
-    delete process.env.EMAIL_FROM;
+    // Reachable only when the tenant configured nothing and EMAIL_FROM is
+    // unset too, which is why the message still names the variable.
     const fetchMock = mock(() => Promise.resolve(jsonResponse(200, {})));
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    const result = await sendEmail(MESSAGE);
+    const result = await sendEmail({ ...MESSAGE, from: "" });
 
     expect(result).toEqual({
       ok: false,

@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { deliverEmail } from "@/lib/notifications/deliver";
+import { tenantMailIdentity } from "@/lib/email/identity";
 import { isOrgEmailEnabled } from "@/lib/notifications/settings";
 import { renderOpsReport } from "@/lib/notifications/ops-report-email";
 import {
@@ -80,9 +81,14 @@ export async function runOpsReport(
       continue;
     }
 
+    // After the quiet-day check as well as the switch, so a tenant with
+    // nothing to report costs no extra reads (#857).
+    const identity = await tenantMailIdentity(admin, tenantId);
+
     for (const email of recipients) {
       const outcome = await deliverEmail(admin, {
         tenantId,
+        identity,
         // Addressed to the organization: the configured inbox is an
         // app_settings value, not a `people` row, so there is nobody to point
         // at. See 20260907120000.

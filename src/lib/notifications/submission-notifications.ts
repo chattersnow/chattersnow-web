@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { deliverEmail } from "@/lib/notifications/deliver";
+import { tenantMailIdentity } from "@/lib/email/identity";
 import type { RenderedEmail } from "@/lib/notifications/rendered-email";
 import { isOrgEmailEnabled } from "@/lib/notifications/settings";
 import {
@@ -174,6 +175,10 @@ async function notifyRoleHolders(
     recipients.map((recipient) => recipient.person_id),
   );
 
+  // One tenant per call, so this is once per notice -- and after the gates
+  // above, so a tenant with no role holders costs nothing (#857).
+  const identity = await tenantMailIdentity(admin, options.tenantId);
+
   for (const recipient of recipients) {
     if (!optedIn.has(recipient.person_id)) {
       summary.skipped += 1;
@@ -182,6 +187,7 @@ async function notifyRoleHolders(
 
     const outcome = await deliverEmail(admin, {
       tenantId: options.tenantId,
+      identity,
       personId: recipient.person_id,
       kind: options.kind,
       dedupeKey: options.dedupeKey,

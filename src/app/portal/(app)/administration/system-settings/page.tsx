@@ -19,6 +19,14 @@ import {
   parseOpsReportRecipients,
 } from "@/lib/notifications/ops-report";
 import { currentTenant, getTenantContext } from "@/lib/portal/tenants";
+import {
+  FROM_ADDRESS_SETTING_KEY,
+  REPLY_TO_SETTING_KEY,
+  bareAddress,
+  isAllowedFromAddress,
+  settingAddress,
+  verifiedSendingDomains,
+} from "@/lib/email/identity";
 
 function parseThreshold(value: unknown): number | null {
   const threshold = typeof value === "number" ? value : Number(value ?? NaN);
@@ -35,6 +43,7 @@ export default async function SystemSettingsPage() {
     { data: expenseSetting },
     { data: reimbursementSetting },
     { data: opsReportSetting },
+    { data: mailIdentitySettings },
   ] = await Promise.all([
     supabase
       .from("app_settings")
@@ -51,6 +60,10 @@ export default async function SystemSettingsPage() {
       .select("value")
       .eq("key", OPS_REPORT_RECIPIENTS_SETTING_KEY)
       .maybeSingle(),
+    supabase
+      .from("app_settings")
+      .select("key, value")
+      .in("key", [REPLY_TO_SETTING_KEY, FROM_ADDRESS_SETTING_KEY]),
   ]);
 
   const [
@@ -69,6 +82,33 @@ export default async function SystemSettingsPage() {
     getOrgEmailEnabled(supabase),
   ]);
   const orgName = currentTenant(tenantContext)?.name ?? "this organization";
+
+  // What the tenant may actually put in the From field: its own domain, and
+  // only once the operator has verified it with the provider (#857). Anything
+  // else and the field renders read-only rather than pretending to be
+  // self-service -- resolveMailIdentity() would ignore the value anyway.
+  const tenantId = currentTenant(tenantContext)?.id;
+  const { data: tenantDomain } = tenantId
+    ? await supabase
+        .from("tenants")
+        .select("custom_domain")
+        .eq("id", tenantId)
+        .maybeSingle()
+    : { data: null };
+
+  const platformFrom = process.env.EMAIL_FROM ?? null;
+  const customDomain = (tenantDomain?.custom_domain as string) ?? null;
+  const mailSettings = new Map(
+    (mailIdentitySettings ?? []).map((row) => [row.key as string, row.value]),
+  );
+  const sendingDomain =
+    customDomain &&
+    isAllowedFromAddress(`x@${customDomain}`, {
+      verifiedDomains: verifiedSendingDomains(platformFrom),
+      tenantCustomDomain: customDomain,
+    })
+      ? customDomain
+      : null;
 
   return (
     <>
@@ -167,6 +207,13 @@ export default async function SystemSettingsPage() {
           <NotificationsPanel
             emailEnabled={emailEnabled}
             kinds={NOTIFICATION_KINDS}
+            orgName={orgName}
+            platformFrom={bareAddress(platformFrom)}
+            sendingDomain={sendingDomain}
+            replyTo={settingAddress(mailSettings.get(REPLY_TO_SETTING_KEY))}
+            fromAddress={settingAddress(
+              mailSettings.get(FROM_ADDRESS_SETTING_KEY),
+            )}
             opsReportRecipients={parseOpsReportRecipients(
               opsReportSetting?.value,
             )}
