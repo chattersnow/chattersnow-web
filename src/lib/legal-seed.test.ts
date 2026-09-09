@@ -156,3 +156,81 @@ describe("Chatter Snow's seeded legal documents", () => {
     }
   });
 });
+
+/**
+ * The follow-up that adds Resend to the privacy policy's subprocessor list
+ * (#864).
+ *
+ * A guarded content migration has one silent failure mode: the `where` clause
+ * quotes the old text slightly differently from the row -- one wrong dash, one
+ * missing bullet -- matches nothing, and the deploy reports success while the
+ * page still says what it said. Nothing else catches that, because the
+ * migration is scoped to a tenant no CI database has. This holds the guard
+ * against the text 20260909020000 actually seeds, and checks the replacement is
+ * the same list with one processor added.
+ */
+const RESEND_MIGRATION = join(
+  import.meta.dirname,
+  "..",
+  "..",
+  "supabase",
+  "migrations",
+  "20260909030000_privacy_policy_names_resend.sql",
+);
+
+describe("adding Resend to the subprocessor list", () => {
+  const sql = readFileSync(RESEND_MIGRATION, "utf8");
+  const dollarQuoted = (tag: string) =>
+    new RegExp(`\\$${tag}\\$([\\s\\S]*?)\\$${tag}\\$`).exec(sql)?.[1];
+
+  const before = dollarQuoted("old");
+  const after = dollarQuoted("new");
+  const seeded = seededDocuments().get("legal.privacy")!;
+  const providers = seeded.sections
+    .find((section) => section.id === "who-can-see-it")!
+    .paragraphs.find((paragraph) => paragraph.includes("**Supabase**"));
+
+  test("guards on the paragraph the seed migration wrote", () => {
+    expect(before).toBeDefined();
+    expect(before).toBe(providers);
+  });
+
+  test("guards on the date the seed migration wrote", () => {
+    expect(sql).toContain(`'${seeded.last_updated}'`);
+  });
+
+  test("moves the date, because a subprocessor was added", () => {
+    const updated = /to_jsonb\('([^']+)'::text\)\s*\)/.exec(sql)?.[1];
+    expect(updated).toBeDefined();
+    expect(updated).not.toBe(seeded.last_updated);
+  });
+
+  test("adds Resend and changes nothing else", () => {
+    expect(after).toContain("**Resend**");
+    const removed = before!
+      .split("\n")
+      .filter((line) => !after!.split("\n").includes(line));
+    const added = after!
+      .split("\n")
+      .filter((line) => !before!.split("\n").includes(line));
+    expect(removed).toEqual([]);
+    expect(added).toHaveLength(1);
+  });
+
+  test("the replacement is markup the parser can publish", () => {
+    expect(legalPlainText([after!])).not.toMatch(/\]\(|\*\*/);
+  });
+
+  test("the document it produces is still valid for its slot", () => {
+    const published: LegalDocumentContent = JSON.parse(
+      JSON.stringify(seeded).replace(
+        JSON.stringify(before).slice(1, -1),
+        JSON.stringify(after).slice(1, -1),
+      ),
+    );
+    expect(isValidSlotValue(contentSlot("legal.privacy")!, published)).toBe(
+      true,
+    );
+    expect(readable(published)).toContain("Resend");
+  });
+});
