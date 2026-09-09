@@ -142,6 +142,9 @@ jobs:
       - name: Reset DB (migrate + seed)
         run: supabase db reset
 
+      - name: Drop the unused Google Chrome apt source
+        uses: ./.github/actions/drop-google-apt-source
+
       - name: Install Playwright browser (chromium)
         run: bunx playwright install --with-deps chromium
 

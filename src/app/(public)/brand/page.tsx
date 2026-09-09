@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Button } from "@/components/ui/button";
 import { BrandLogo } from "@/components/brand-logo";
+import { InstagramLink } from "@/components/instagram-link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageShell } from "@/components/page-shell";
 import { SiteImage } from "@/components/site-image";
@@ -24,6 +25,7 @@ const JUMP_LINKS = [
   { href: "#space", label: "Spacing" },
   { href: "#logo", label: "Logo" },
   { href: "#voice", label: "Voice" },
+  { href: "#imagery", label: "Imagery" },
   { href: "#in-use", label: "In use" },
   { href: "#templates", label: "Templates" },
 ];
@@ -119,8 +121,19 @@ export default async function BrandPage() {
   const tagline = content.text("org.tagline");
   const shortName = content.text("org.short_name");
   const contactEmail = content.text("org.email_general");
-  const templatePhoto =
-    siteImages.home_carousel_1 ?? siteImages.about_story_photo ?? null;
+  /**
+   * The photos the organization has actually published, as the approved set.
+   *
+   * There is no separate "brand imagery" store and there should not be: a
+   * second library would drift from the site the day someone swapped a photo,
+   * and a partner would be handed a picture no longer in use. These are the
+   * `site_content` image slots, which is to say the pictures already standing
+   * on the public site under this organization's name.
+   */
+  const approvedImagery = Object.values(siteImages)
+    .filter((url): url is string => Boolean(url))
+    .slice(0, 6);
+  const templatePhoto = approvedImagery[0] ?? null;
 
   /**
    * The literal hex behind two tokens, for the parts of this page that depict
@@ -181,39 +194,62 @@ export default async function BrandPage() {
           title="Palette"
           intro="What each colour is for is a property of the design system, so it is the same wherever these colours are used. The values are this organization's."
         >
+          {/* Both modes on every swatch, each half labelled and carrying its
+              own hex.
+
+              This was a full-width light fill with the dark form as an
+              unlabelled third of a stripe, and only on the two tokens that
+              have one. It rendered correctly and communicated nothing: the
+              first person to look at the page reported there were no dark
+              colours on it. A value someone has to eyedropper off a screenshot
+              is not documentation, and a half-swatch that is simply absent
+              reads as an oversight rather than as "this one stays neutral". */}
           <div className="grid gap-4 sm:grid-cols-2">
-            {colors.map(({ token, value, dark }) => (
+            {colors.map(({ token, value, darkHex }) => (
               <div
                 key={token.key}
                 className="overflow-hidden rounded-xl border border-[var(--line)] bg-card"
               >
                 <div className="flex h-20">
                   <div className="flex-1" style={{ background: value }} />
-                  {/* Painted through the same derivation `brandingCss` emits,
-                      so the chip is the colour a dark-mode visitor sees. It is
-                      shown, not quoted: the derivation is relative-colour CSS
-                      the browser resolves, and printing that expression as if
-                      it were a hex would be worse than useless in Canva. */}
-                  {dark && (
-                    <div className="w-1/3" style={{ background: dark }} />
-                  )}
+                  <div
+                    className="flex-1"
+                    style={{ background: darkHex ?? "var(--muted)" }}
+                  />
                 </div>
                 <div className="p-4">
                   <p className="font-semibold">{token.label}</p>
                   <p className="app-muted mt-1 text-sm leading-relaxed">
                     {token.description}
                   </p>
-                  <p className="mt-3 font-mono text-sm uppercase">{value}</p>
-                  {dark && (
-                    <p className="app-muted mt-1 text-xs">
-                      The narrow band is its dark-mode form, derived from this
-                      colour&apos;s own hue.
-                    </p>
-                  )}
+                  <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <dt className="app-muted text-xs">Light</dt>
+                      <dd className="font-mono uppercase">{value}</dd>
+                    </div>
+                    <div>
+                      <dt className="app-muted text-xs">Dark</dt>
+                      <dd
+                        className={
+                          darkHex ? "font-mono uppercase" : "app-muted text-xs"
+                        }
+                      >
+                        {/* Said out loud rather than left blank. Dark mode
+                            keeps the stylesheet's neutral surfaces for these
+                            two by design -- see `brandingCss`. */}
+                        {darkHex ?? "Neutral surface, not a brand colour"}
+                      </dd>
+                    </div>
+                  </dl>
                 </div>
               </div>
             ))}
           </div>
+          <p className="app-muted mt-4 text-sm leading-relaxed">
+            The dark values are derived from each colour&apos;s own hue rather
+            than mixed toward white, which is why they stay recognisably ours on
+            a dark background.
+          </p>
 
           <div className="mt-6 rounded-xl border border-[var(--line)] bg-card p-5">
             <p className="app-eyebrow">The accent gradient</p>
@@ -353,6 +389,35 @@ export default async function BrandPage() {
             </div>
           </div>
 
+          {/* The file itself, not just a picture of it. Without this the
+              section tells someone what the mark looks like and leaves them to
+              right-click a next/image element, which hands them a resized
+              WebP off the optimiser rather than the original. */}
+          {branding.logoUrl && (
+            <div className="mt-6">
+              <Button
+                variant="secondary"
+                nativeButton={false}
+                render={
+                  <a
+                    href={branding.logoUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    download
+                  />
+                }
+              >
+                Download the logo
+              </Button>
+              {/* Stated rather than left to be discovered at the print shop.
+                  The mark is raster; vector is tracked on #845. */}
+              <p className="app-muted mt-2 text-xs">
+                Raster only for now. If you need vector artwork for print, ask
+                and we will send it.
+              </p>
+            </div>
+          )}
+
           <ul className="app-muted mt-6 space-y-2 text-sm leading-relaxed">
             {logoRules.map((rule) => (
               <li key={rule.text}>{rule.text}</li>
@@ -396,9 +461,41 @@ export default async function BrandPage() {
           </div>
         </Section>
 
+        {/* Rendered even with nothing in it, rather than hidden when the
+            tenant has published no photos. The sections are numbered, and a
+            conditional one makes an organization with no imagery jump from 05
+            to 07 -- a guide that looks like it is missing a page. The empty
+            state also says something true and useful to a partner. */}
+        <Section
+          id="imagery"
+          eyebrow="06 — Imagery"
+          title="Approved photography"
+          intro="The pictures currently published on our site. Using one of these is always safe; anything else should be checked with us first, because a photo of our community carries consent we have to be able to vouch for."
+        >
+          {approvedImagery.length > 0 ? (
+            <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              {approvedImagery.map((url) => (
+                <li key={url}>
+                  <SiteImage
+                    url={url}
+                    alt=""
+                    className="aspect-[4/3] rounded-xl"
+                    sizes="(min-width: 640px) 15rem, 45vw"
+                  />
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="app-muted text-sm leading-relaxed">
+              We have not published any photography yet. Ask us before using an
+              image alongside our name.
+            </p>
+          )}
+        </Section>
+
         <Section
           id="in-use"
-          eyebrow="06 — In use"
+          eyebrow="07 — In use"
           title="The real components"
           intro="Not screenshots. These are the same components the rest of the site is built from, rendered here in your colours, so they cannot fall out of date."
         >
@@ -442,7 +539,7 @@ export default async function BrandPage() {
 
         <Section
           id="templates"
-          eyebrow="07 — Templates"
+          eyebrow="08 — Templates"
           title="Social layouts"
           intro="Two shapes that hold up at post and story sizes, built from the same tokens. Rebuild them in whatever tool you use; the measurements are above."
         >
@@ -507,17 +604,30 @@ export default async function BrandPage() {
 
         <Section
           id="questions"
-          eyebrow="08 — Questions"
+          eyebrow="09 — Questions"
           title="Before you publish"
           intro="If you are producing something that carries our name and this page does not answer your question, ask rather than guess."
         >
-          <Button
-            variant="secondary"
-            nativeButton={false}
-            render={<a href={`mailto:${contactEmail}`} />}
-          >
-            {contactEmail}
-          </Button>
+          <div className="flex flex-wrap items-center gap-4">
+            <Button
+              variant="secondary"
+              nativeButton={false}
+              render={<a href={`mailto:${contactEmail}`} />}
+            >
+              {contactEmail}
+            </Button>
+            {/* Through the shared component, not a hand-written anchor: the
+                footer and the contact page each used to spell out their own
+                and drifted. A tenant with no handle renders nothing. */}
+            <InstagramLink
+              handle={content.text("org.instagram_handle")}
+              orgName={name ?? "this organization"}
+            />
+          </div>
+          <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed">
+            Tagging us is the fastest way to have something checked before it
+            goes out.
+          </p>
         </Section>
       </div>
     </PageShell>

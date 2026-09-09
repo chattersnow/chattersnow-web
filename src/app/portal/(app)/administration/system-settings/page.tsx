@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PUBLIC_PAGE_SLOTS, getPageVisibility } from "@/lib/page-visibility";
+import { LAYOUT_SLOTS, getTenantLayoutValues } from "@/lib/site-layout";
 import { SystemSettingsForm } from "./system-settings-form";
 import { PageVisibilityPanel } from "./page-visibility-panel";
+import { LayoutPanel } from "./layout-panel";
 import { NotificationsPanel } from "./notifications-panel";
 import { OrganizationSettingsPanel } from "./organization-settings-panel";
 import { BrandingPanel } from "./branding-panel";
@@ -53,12 +55,14 @@ export default async function SystemSettingsPage() {
 
   const [
     pageVisibility,
+    layoutValues,
     fiscalYearStartMonth,
     branding,
     tenantContext,
     emailEnabled,
   ] = await Promise.all([
     getPageVisibility(supabase),
+    getTenantLayoutValues(supabase),
     getFiscalYearStartMonth(supabase),
     getTenantBranding(supabase),
     getTenantContext(supabase),
@@ -84,6 +88,7 @@ export default async function SystemSettingsPage() {
             <TabsTrigger value="organization">Organization</TabsTrigger>
             <TabsTrigger value="workflow">Workflow settings</TabsTrigger>
             <TabsTrigger value="branding">Branding</TabsTrigger>
+            <TabsTrigger value="layout">Layout</TabsTrigger>
             <TabsTrigger value="visibility">Page visibility</TabsTrigger>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="data">Data</TabsTrigger>
@@ -124,6 +129,16 @@ export default async function SystemSettingsPage() {
             is recorded in the audit log.
           </p>
           <BrandingPanel branding={branding} />
+        </TabsContent>
+
+        <TabsContent value="layout" className="mt-6 space-y-4">
+          <p className="app-muted max-w-3xl text-sm leading-relaxed">
+            How the public site is arranged, for the parts that aren&rsquo;t
+            copy or colour. Page visibility decides whether a section exists at
+            all; these settings decide how much of it a page shows. Every change
+            here is recorded in the audit log.
+          </p>
+          <LayoutPanel slots={LAYOUT_SLOTS} values={layoutValues} />
         </TabsContent>
 
         <TabsContent value="visibility" className="mt-6 space-y-4">

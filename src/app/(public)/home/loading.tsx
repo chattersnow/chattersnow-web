@@ -30,11 +30,38 @@ export default function HomeLoading() {
           </div>
         </section>
 
-        <section className="mt-16 rounded-xl border border-[var(--line)] p-6 text-center sm:p-8">
-          <Skeleton className="mx-auto h-3 w-16" />
-          <Skeleton className="mx-auto mt-3 h-6 w-2/3 max-w-sm sm:h-7" />
-          <Skeleton className="mx-auto mt-2 h-4 w-1/2 max-w-xs" />
-          <Skeleton className="mx-auto mt-4 h-9 w-40 rounded-md" />
+        {/* Deliberately settings-agnostic, at the registry defaults: three
+            slots in the flier grid. `layout.home_upcoming_count` and
+            `layout.home_upcoming_cards` decide what actually renders, but a
+            Suspense fallback has to render synchronously, and awaiting them
+            would delay the whole skeleton -- including the hero above, which
+            every tenant sees -- to tidy a swap only tenants off the defaults
+            ever meet. */}
+        <section className="mt-16">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div className="w-fit">
+              <Skeleton className="h-3 w-28" />
+              <Skeleton className="mt-2 h-7 w-56 sm:h-8" />
+            </div>
+            <Skeleton className="h-5 w-28" />
+          </div>
+
+          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[0, 1, 2].map((card) => (
+              <div
+                key={card}
+                className="overflow-hidden rounded-xl ring-1 ring-foreground/10"
+              >
+                <Skeleton className="aspect-[16/9] w-full rounded-none" />
+                <div className="space-y-2 px-4 py-3">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-5 w-4/5" />
+                  <Skeleton className="h-3 w-2/3" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
         </section>
       </div>
     </main>
