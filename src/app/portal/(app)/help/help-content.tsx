@@ -82,11 +82,12 @@ export const helpContent: Record<string, HelpEntry> = {
         <HowToSection heading="&ldquo;FY&rdquo; means the fiscal year, not the calendar year">
           <p>
             The financial figures are captioned with a fiscal year — FY2027, say
-            — because Chatter&apos;s year does not start in January. A fiscal
-            year is named for the calendar year it ends in, so under a July
-            start FY2027 runs July 1 2026 to June 30 2027. That keeps a whole
-            winter season inside one year instead of splitting it across two. An
-            admin or board member sets the start month in{" "}
+            — because an organization&apos;s year need not start in January. A
+            fiscal year is named for the calendar year it ends in, so under a
+            July start FY2027 runs July 1 2026 to June 30 2027. A start month
+            chosen that way keeps a whole winter season inside one year instead
+            of splitting it across two. An admin or board member sets the start
+            month in{" "}
             <Link
               href="/portal/administration/system-settings"
               className="underline hover:text-foreground"
@@ -1699,9 +1700,9 @@ export const helpContent: Record<string, HelpEntry> = {
             The fiscal year decides what &ldquo;this year&rdquo; means
             everywhere else in the portal: the dashboard&apos;s financial
             figures, the default range on Financial Reports, the annual planning
-            review, and the year a conflict-of-interest disclosure covers.
-            Chatter&apos;s runs July 1 – June 30 so a winter season falls inside
-            one year rather than being split at New Year, and a fiscal year is
+            review, and the year a conflict-of-interest disclosure covers. A
+            July 1 – June 30 year, for instance, keeps a winter season inside
+            one year rather than splitting it at New Year, and a fiscal year is
             named for the calendar year it ends in — FY2027 is July 2026 through
             June 2027.
           </p>

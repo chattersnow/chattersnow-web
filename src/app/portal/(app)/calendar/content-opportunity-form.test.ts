@@ -10,7 +10,7 @@ function formData(fields: Record<string, string>) {
 
 const validFields = {
   contentStatus: "draft",
-  chatterConnection: "Ties into our winter gear access program.",
+  orgConnection: "Ties into our winter gear access program.",
   leadTimeDays: "21",
   publishDueAt: "2027-03-31T09:00",
   reviewDueAt: "2027-03-24T09:00",
@@ -57,19 +57,19 @@ describe("parseContentOpportunityForm", () => {
     );
   });
 
-  test("requires a Chatter connection once work begins", () => {
-    const { chatterConnection, ...rest } = validFields;
-    void chatterConnection;
+  test("requires a stated organization connection once work begins", () => {
+    const { orgConnection, ...rest } = validFields;
+    void orgConnection;
     const result = parseContentOpportunityForm(formData(rest));
     expect(result).toEqual({
       error:
-        "A stated Chatter connection is required once work begins on this content.",
+        "A stated connection to your organization is required once work begins on this content.",
     });
   });
 
   test("does not require a Chatter connection for not_planned, idea, or skipped", () => {
-    const { chatterConnection, ...rest } = validFields;
-    void chatterConnection;
+    const { orgConnection, ...rest } = validFields;
+    void orgConnection;
     for (const contentStatus of ["not_planned", "idea"]) {
       const result = parseContentOpportunityForm(
         formData({ ...rest, contentStatus }),

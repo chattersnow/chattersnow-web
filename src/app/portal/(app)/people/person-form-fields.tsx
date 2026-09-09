@@ -155,7 +155,7 @@ export function PersonFormFields({
         </FieldLabel>
         <Input
           id={`${idPrefix}-instagramHandle`}
-          placeholder="e.g. chattersnow"
+          placeholder="e.g. yourorganization"
           value={form.instagramHandle}
           onChange={(event) => update("instagramHandle", event.target.value)}
         />

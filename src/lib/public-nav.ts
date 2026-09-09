@@ -90,7 +90,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     href: "/support",
     slot: "support",
     links: [
-      { label: "Support Chatter", href: "/support" },
+      { label: "Support us", href: "/support" },
       { label: "Donations", href: "/support/donations" },
       { label: "Sponsorship", href: "/support/sponsorship" },
     ],
