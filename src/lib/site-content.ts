@@ -159,9 +159,9 @@ export const CONTENT_SECTIONS: readonly ContentSection[] = [
   {
     key: "home:next_event",
     page: "home",
-    label: "Next event",
+    label: "Upcoming events",
     description:
-      "The label above the next upcoming event -- or, when nothing is on the events calendar, the next community calendar item -- on the homepage.",
+      "The heading over the upcoming events on the homepage, the link through to the full events listing, and the ribbon on the soonest one. When nothing of your own is upcoming, the ribbon labels the next community calendar item instead.",
   },
 
   { key: "about_story:opening", page: "about_story", label: "Opening" },
@@ -557,10 +557,37 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     default: "Donate",
   },
   {
+    key: "home.upcoming_eyebrow",
+    page: "home",
+    section: "home:next_event",
+    label: "Section label",
+    description: "The small label above the Upcoming events heading.",
+    type: "text",
+    default: "On the calendar",
+  },
+  {
+    key: "home.upcoming_heading",
+    page: "home",
+    section: "home:next_event",
+    label: "Heading",
+    type: "text",
+    default: "Upcoming events",
+  },
+  {
+    key: "home.upcoming_cta",
+    page: "home",
+    section: "home:next_event",
+    label: "Link to all events",
+    type: "text",
+    default: "See all events",
+  },
+  {
     key: "home.next_event_eyebrow",
     page: "home",
     section: "home:next_event",
-    label: "Next event label",
+    label: "Soonest event ribbon",
+    description:
+      "The ribbon on the first card. Also labels the community calendar item shown when nothing of your own is upcoming.",
     type: "text",
     default: "Next up",
   },
