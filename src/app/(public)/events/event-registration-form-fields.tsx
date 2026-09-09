@@ -105,7 +105,7 @@ export function EventRegistrationForm({ eventId }: { eventId: string }) {
           </FieldLabel>
           <Input
             id="registration-instagram"
-            placeholder="e.g. chattersnow"
+            placeholder="e.g. yourhandle"
             autoComplete="off"
             value={instagramHandle}
             onChange={(event) => setInstagramHandle(event.target.value)}

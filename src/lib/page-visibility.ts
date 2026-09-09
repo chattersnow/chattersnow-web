@@ -57,7 +57,7 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
     key: "support",
     label: "Support",
     description:
-      "Support Chatter, plus the Donations and Sponsorship pages beneath it.",
+      "The Support page, plus the Donations and Sponsorship pages beneath it.",
     defaultVisible: false,
   },
   {
