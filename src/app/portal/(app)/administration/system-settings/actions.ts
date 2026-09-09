@@ -8,6 +8,7 @@ import {
   LAYOUT_SLOTS,
   isLayoutValue,
   layoutSettingKey,
+  type LayoutValue,
 } from "@/lib/site-layout";
 import {
   BRAND_COLOR_TOKENS,
@@ -119,7 +120,7 @@ export async function updatePageVisibilityAction(
  */
 export async function updateLayoutSettingAction(
   slot: string,
-  value: number,
+  value: LayoutValue,
 ): Promise<SettingActionResult> {
   const registered = LAYOUT_SLOTS.find((candidate) => candidate.key === slot);
   if (!registered || !isLayoutValue(registered, value)) {

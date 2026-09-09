@@ -13,9 +13,15 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * `public_site_layout` view already exposes the whole `layout.*` prefix, so a
  * new slot needs no migration.
  */
+/**
+ * Stored in app_settings as-is, so it has to be something jsonb round-trips
+ * unchanged and `===` compares correctly. Numbers, strings and booleans all
+ * do; anything structural would need a deep compare in `isLayoutValue`.
+ */
+export type LayoutValue = number | string | boolean;
+
 export type LayoutOption = {
-  /** Stored in app_settings as-is. */
-  value: number;
+  value: LayoutValue;
   label: string;
   /** Shown beside the label in the picker, when the label alone is thin. */
   hint?: string;
@@ -26,29 +32,65 @@ export type LayoutSlot = {
   key: string;
   label: string;
   description: string;
+  /**
+   * How the panel renders it. A two-value slot reads better as a switch, and
+   * `switch` requires exactly two options, the first of which is the "on"
+   * position.
+   */
+  control: "select" | "switch";
   options: readonly LayoutOption[];
   /**
    * Applied when no row exists, when the row is unreadable, and when it holds
    * a value no longer on offer. Production is seeded with no rows at all, so
    * this is what actually decides the layout on a fresh deploy.
    */
-  defaultValue: number;
+  defaultValue: LayoutValue;
 };
 
 export const HOME_UPCOMING_COUNT_SLOT = "home_upcoming_count";
+export const HOME_UPCOMING_CARDS_SLOT = "home_upcoming_cards";
+export const HOME_UPCOMING_COMMUNITY_SLOT = "home_upcoming_community";
+
+/** The two ways the home page can present an upcoming event. */
+export type HomeUpcomingCards = "fliers" | "compact";
 
 export const LAYOUT_SLOTS: LayoutSlot[] = [
   {
     key: HOME_UPCOMING_COUNT_SLOT,
     label: "Upcoming events on the home page",
     description:
-      "How many of the soonest events the home page lists. When fewer than this are upcoming, it shows the ones there are; when none are, it falls back to the next item on the community calendar.",
+      "How many of the soonest events the home page lists. When fewer than this are upcoming, it shows the ones there are.",
+    control: "select",
     defaultValue: 3,
     options: [
       { value: 1, label: "1 event", hint: "A single feature card" },
       { value: 2, label: "2 events" },
       { value: 3, label: "3 events", hint: "Default" },
       { value: 6, label: "6 events", hint: "Two rows" },
+    ],
+  },
+  {
+    key: HOME_UPCOMING_CARDS_SLOT,
+    label: "How events are shown",
+    description:
+      "Flier cards lead with each event's artwork. Choose the compact list if your events don't usually have a flier -- it puts the date first instead, and fits more events in less space.",
+    control: "select",
+    defaultValue: "fliers",
+    options: [
+      { value: "fliers", label: "Flier cards", hint: "Default" },
+      { value: "compact", label: "Compact list" },
+    ],
+  },
+  {
+    key: HOME_UPCOMING_COMMUNITY_SLOT,
+    label: "Fill empty slots from the community calendar",
+    description:
+      "When you have fewer events than the number above, show what other organizations have published on the community calendar. Turn this off and the home page shows only your own events -- and no events section at all when you have none upcoming.",
+    control: "switch",
+    defaultValue: true,
+    options: [
+      { value: true, label: "Included" },
+      { value: false, label: "Not included" },
     ],
   },
 ];
@@ -61,8 +103,8 @@ const SLOTS_BY_KEY = new Map(LAYOUT_SLOTS.map((slot) => [slot.key, slot]));
  * the setting doesn't have to happen before the query and serialise the two.
  */
 export const MAX_HOME_UPCOMING_COUNT = Math.max(
-  ...(SLOTS_BY_KEY.get(HOME_UPCOMING_COUNT_SLOT)?.options ?? []).map(
-    (option) => option.value,
+  ...(SLOTS_BY_KEY.get(HOME_UPCOMING_COUNT_SLOT)?.options ?? []).map((option) =>
+    Number(option.value),
   ),
 );
 
@@ -78,6 +120,9 @@ export function isLayoutValue(slot: LayoutSlot, value: unknown): boolean {
 /** What the public site reads. One field per slot, always populated. */
 export type SiteLayout = {
   homeUpcomingCount: number;
+  homeUpcomingCards: HomeUpcomingCards;
+  /** Whether unfilled slots may be topped up from the community calendar. */
+  homeUpcomingCommunity: boolean;
 };
 
 export type LayoutRow = { slot: string; value: unknown };
@@ -92,12 +137,12 @@ export type LayoutRow = { slot: string; value: unknown };
  */
 export function resolveLayoutValues(
   rows: readonly LayoutRow[],
-): Record<string, number> {
-  const values: Record<string, number> = {};
+): Record<string, LayoutValue> {
+  const values: Record<string, LayoutValue> = {};
   for (const slot of LAYOUT_SLOTS) {
     const row = rows.find((candidate) => candidate.slot === slot.key);
     values[slot.key] = isLayoutValue(slot, row?.value)
-      ? (row?.value as number)
+      ? (row?.value as LayoutValue)
       : slot.defaultValue;
   }
   return values;
@@ -105,7 +150,11 @@ export function resolveLayoutValues(
 
 export function resolveLayout(rows: readonly LayoutRow[]): SiteLayout {
   const values = resolveLayoutValues(rows);
-  return { homeUpcomingCount: values[HOME_UPCOMING_COUNT_SLOT] };
+  return {
+    homeUpcomingCount: values[HOME_UPCOMING_COUNT_SLOT] as number,
+    homeUpcomingCards: values[HOME_UPCOMING_CARDS_SLOT] as HomeUpcomingCards,
+    homeUpcomingCommunity: values[HOME_UPCOMING_COMMUNITY_SLOT] as boolean,
+  };
 }
 
 export const DEFAULT_SITE_LAYOUT: SiteLayout = resolveLayout([]);
@@ -145,7 +194,7 @@ export const getSiteLayout = cache(
  * `portal.<domain>` rather than the one they are editing.
  */
 export const getTenantLayoutValues = cache(
-  async (supabase: SupabaseClient): Promise<Record<string, number>> => {
+  async (supabase: SupabaseClient): Promise<Record<string, LayoutValue>> => {
     const { data, error } = await supabase
       .from("app_settings")
       .select("key, value")
