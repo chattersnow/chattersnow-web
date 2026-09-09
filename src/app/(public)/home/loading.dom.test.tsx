@@ -11,11 +11,17 @@ describe("HomeLoading", () => {
     expect(container.querySelector(".rounded-full")).toBeNull();
   });
 
-  test("mirrors the bordered Next up event card instead of the small aspect-video block", () => {
+  test("mirrors the three-card upcoming grid, not the single bordered panel", () => {
     const { container } = render(<HomeLoading />);
 
-    const card = container.querySelector("section.rounded-xl.border");
-    expect(card).not.toBeNull();
+    // The card placeholders carry the 16:9 flier slot the real cards do, and
+    // there is one per column of the default grid (#846).
+    const fliers = container.querySelectorAll(".aspect-\\[16\\/9\\]");
+    expect(fliers).toHaveLength(3);
+
+    expect(container.querySelector(".lg\\:grid-cols-3")).not.toBeNull();
+    // The old skeleton was a single centred bordered panel.
+    expect(container.querySelector("section.rounded-xl.border")).toBeNull();
     expect(container.querySelector(".aspect-video")).toBeNull();
   });
 });

@@ -13,7 +13,13 @@ import { getSiteImageUrls } from "@/lib/site-images";
 import { getPublicSite } from "@/lib/public-site";
 import { isPageVisible } from "@/lib/page-visibility";
 import { formatDateTimeInZone, nowMs } from "@/lib/time";
-import { formatDateTime } from "@/lib/format";
+import {
+  HOME_UPCOMING_EVENT_COLUMNS,
+  HOME_UPCOMING_LIMIT,
+  UpcomingEvents,
+  type HomeUpcomingEvent,
+} from "./upcoming-events";
+import type { PublicEventProgram } from "../events/event-card";
 
 const CAROUSEL_SLOTS = [
   "home_carousel_1",
@@ -21,16 +27,14 @@ const CAROUSEL_SLOTS = [
   "home_carousel_3",
 ] as const;
 
-/** Matches `formatDateTime`, so both sources of the card read the same. */
 const ITEM_DATE_FORMAT: Intl.DateTimeFormatOptions = {
   dateStyle: "medium",
   timeStyle: "short",
 };
 
 /**
- * Whatever the "Next up" card is pointing at right now. An upcoming event
- * always wins; a community calendar item is the fallback so the card doesn't
- * vanish between events (#823).
+ * The community calendar item shown when the organization has nothing of its
+ * own upcoming, so the section doesn't vanish between events (#823).
  */
 type NextUp = {
   title: string;
@@ -40,25 +44,6 @@ type NextUp = {
   /** A calendar item's public_url can be someone else's site. */
   external: boolean;
 };
-
-type UpcomingEvent = {
-  name: string;
-  location: string | null;
-  starts_at: string;
-  ends_at: string | null;
-};
-
-function eventCard(event: UpcomingEvent): NextUp {
-  return {
-    title: event.name,
-    meta:
-      formatDateTime(event.starts_at) +
-      (event.location ? ` · ${event.location}` : ""),
-    href: "/events",
-    ctaLabel: "See event details",
-    external: false,
-  };
-}
 
 /**
  * The soonest community calendar item that hasn't finished yet. Filtered and
@@ -96,12 +81,21 @@ async function nextCalendarItem(
 
 export default async function Home() {
   const supabase = await createSupabaseServerClient();
+  const now = nowMs();
+  const nowIso = new Date(now).toISOString();
 
+  // Filtered and limited in Postgres rather than in JS. This used to read the
+  // whole public event list to use one row of it, which is both wasteful and
+  // the shape that let PostgREST's `max_rows` silently truncate a calendar
+  // read before (#755).
   const [{ data: events }, siteImages, site] = await Promise.all([
     supabase
       .from("public_events")
-      .select("id, name, location, starts_at, ends_at")
-      .order("starts_at", { ascending: true }),
+      .select(HOME_UPCOMING_EVENT_COLUMNS)
+      .or(`ends_at.gte.${nowIso},and(ends_at.is.null,starts_at.gte.${nowIso})`)
+      .order("starts_at", { ascending: true })
+      .limit(HOME_UPCOMING_LIMIT)
+      .returns<Omit<HomeUpcomingEvent, "programs">[]>(),
     getSiteImageUrls(supabase),
     getPublicSite(supabase),
   ]);
@@ -112,20 +106,42 @@ export default async function Home() {
     isPageVisible("events"),
   ]);
 
-  const now = nowMs();
-  const nextEvent = (events ?? []).find(
-    (event) => new Date(event.ends_at ?? event.starts_at).getTime() >= now,
-  );
+  // Second round trip rather than a join, and only for the handful of ids the
+  // query above returned -- the events listing reads every program row because
+  // it renders every event.
+  const eventIds = eventsVisible ? (events ?? []).map((event) => event.id) : [];
+  const { data: programRows } =
+    eventIds.length > 0
+      ? await supabase
+          .from("public_event_programs")
+          .select("event_id, program_id, name")
+          .in("event_id", eventIds)
+          .returns<(PublicEventProgram & { event_id: string })[]>()
+      : { data: [] };
 
-  // The card's every destination lives under the Events slot -- the listing,
-  // an event page, and the community calendar -- so when the board hides that
-  // section the card has to go with it rather than point at a 404 (#586).
-  let nextUp: NextUp | null = null;
-  if (eventsVisible) {
-    nextUp = nextEvent
-      ? eventCard(nextEvent)
-      : await nextCalendarItem(supabase, now);
+  const programsByEvent = new Map<string, PublicEventProgram[]>();
+  for (const { event_id, ...program } of programRows ?? []) {
+    programsByEvent.set(event_id, [
+      ...(programsByEvent.get(event_id) ?? []),
+      program,
+    ]);
   }
+
+  // Every destination in this section lives under the Events slot -- the
+  // listing, the event pages, and the community calendar -- so when the board
+  // hides that section the whole block goes with it rather than pointing at a
+  // 404 (#586).
+  const upcoming: HomeUpcomingEvent[] = eventsVisible
+    ? (events ?? []).map((event) => ({
+        ...event,
+        programs: programsByEvent.get(event.id) ?? [],
+      }))
+    : [];
+
+  const nextUp: NextUp | null =
+    eventsVisible && upcoming.length === 0
+      ? await nextCalendarItem(supabase, now)
+      : null;
 
   return (
     // /home has no layout.tsx, so it has no PageShell ancestor -- it has to
@@ -191,6 +207,17 @@ export default async function Home() {
             ) : null}
           </div>
         </section>
+
+        {upcoming.length > 0 && (
+          <UpcomingEvents
+            events={upcoming}
+            now={now}
+            eyebrow={content.text("home.upcoming_eyebrow")}
+            heading={content.text("home.upcoming_heading")}
+            ctaLabel={content.text("home.upcoming_cta")}
+            nextUpLabel={content.text("home.next_event_eyebrow")}
+          />
+        )}
 
         {nextUp && (
           <section className="rainbow-surface mt-16 rounded-xl border border-[var(--line)] p-6 text-center shadow-md sm:p-8">
