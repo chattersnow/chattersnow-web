@@ -12,10 +12,17 @@
 export function fakePublicSiteClient({
   siteImages = {},
   content = {},
+  branding = {},
   tenant = null,
 }: {
   siteImages?: Record<string, string>;
   content?: Record<string, unknown>;
+  /**
+   * `brand.*` rows, keyed by token: `{ primary: "#123456" }`, or
+   * `{ accent_stops: [...] }`. Empty renders the stylesheet's palette, which
+   * is what a tenant that has set nothing gets.
+   */
+  branding?: Record<string, unknown>;
   tenant?: { id: string; name: string; slug: string } | null;
 } = {}) {
   const rows: Record<string, unknown[]> = {
@@ -27,7 +34,10 @@ export function fakePublicSiteClient({
       key,
       value,
     })),
-    public_branding: [],
+    public_branding: Object.entries(branding).map(([token, value]) => ({
+      token,
+      value,
+    })),
     public_tenant: tenant ? [tenant] : [],
   };
 

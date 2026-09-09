@@ -25,6 +25,19 @@ describe("NAV_GROUPS", () => {
     }
   });
 
+  /**
+   * Slots whose page is deliberately not a nav destination, and is reached
+   * some other way. Listing them by name keeps this test doing its real job --
+   * catching a section that fell out of the nav by accident -- while recording
+   * that these did not.
+   *
+   * `brand` is the footer's Resources link, cross-linked from Become a Partner
+   * and Sponsorship (#845). Its value is its URL: it gets pasted into an email
+   * to a sponsor or a print shop, not browsed to, and a header entry for it
+   * would compete with Events and Programs for no one's benefit.
+   */
+  const REACHED_OUTSIDE_THE_NAV = new Set(["brand"]);
+
   // The nav and the footer render from this one list, so a section missing here
   // is missing from both. The old footer had its own list and had already
   // drifted -- it was missing About and Learn.
@@ -41,6 +54,7 @@ describe("NAV_GROUPS", () => {
     );
 
     for (const slot of PUBLIC_PAGE_SLOTS) {
+      if (REACHED_OUTSIDE_THE_NAV.has(slot.key)) continue;
       expect(inNav.has(slot.key), `${slot.key} missing from NAV_GROUPS`).toBe(
         true,
       );

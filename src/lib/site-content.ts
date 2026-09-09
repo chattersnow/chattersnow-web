@@ -113,6 +113,7 @@ export const CONTENT_PAGES: readonly ContentPage[] = [
     route: "/contact",
     visibilityKey: "contact",
   },
+  { key: "brand", label: "Brand", route: "/brand", visibilityKey: "brand" },
   { key: "legal", label: "Legal documents", route: "/privacy" },
 ] as const;
 
@@ -255,6 +256,21 @@ export const CONTENT_SECTIONS: readonly ContentSection[] = [
   },
 
   { key: "contact:opening", page: "contact", label: "Opening" },
+
+  {
+    key: "brand:opening",
+    page: "brand",
+    label: "Opening",
+    description:
+      "The introduction to the brand guide. Everything below it on the page -- the palette, the accent gradient, the logo and the type specimens -- is read from the colours and copy set elsewhere in Administration and is not edited here.",
+  },
+  {
+    key: "brand:usage",
+    page: "brand",
+    label: "Usage",
+    description:
+      "The judgements a palette cannot express: how the organization talks, how its name is written, and what may and may not be done to the logo.",
+  },
 
   { key: "legal:documents", page: "legal", label: "Documents" },
 ] as const;
@@ -1411,6 +1427,79 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "Contact page — photo 3",
     "Third of three photos at the bottom of the Contact page.",
   ),
+
+  // Brand ---------------------------------------------------------------------
+  //
+  // Deliberately few slots. Most of /brand is *derived* -- the palette comes
+  // from BRAND_COLOR_TOKENS crossed with the tenant's `brand.*` rows, the
+  // gradient from `accent_stops`, the logo from `logo_url`, the specimens from
+  // `org.tagline`. Restating any of that here would reintroduce exactly the
+  // drift the page exists to end: two places to change a colour, one of which
+  // is prose nobody remembers to update.
+  //
+  // What is left is the part no token can hold -- how an organization talks,
+  // how its name is written, and what may be done to its mark.
+  {
+    key: "brand.heading",
+    page: "brand",
+    section: "brand:opening",
+    label: "Heading",
+    type: "text",
+    default: "Brand & Design Guide",
+  },
+  {
+    key: "brand.intro",
+    page: "brand",
+    section: "brand:opening",
+    label: "Introduction",
+    description:
+      "Who this page is for -- typically partners, sponsors, press and anyone producing materials on the organization's behalf.",
+    type: "text",
+    default:
+      "Everything on this page is read from the live site, so it is never out of date. Use it when you are producing anything that carries our name.",
+  },
+  {
+    key: "brand.voice",
+    page: "brand",
+    section: "brand:usage",
+    label: "Voice and tone",
+    description:
+      "How the organization sounds in writing, as do/don't pairs. Not derivable from anything -- a palette says nothing about how you talk.",
+    type: "list",
+    fields: [
+      { key: "do", label: "Do", kind: "text" },
+      { key: "dont", label: "Don't", kind: "text" },
+    ],
+    default: [
+      {
+        do: "Say what your organization sounds like at its best.",
+        dont: "And the habit it should avoid.",
+      },
+    ],
+  },
+  {
+    key: "brand.logo_rules",
+    page: "brand",
+    section: "brand:usage",
+    label: "Logo usage",
+    description:
+      "Clear space, minimum size, and what must not be done to the mark. The rules that belong to the design system are already stated on the page; these are yours.",
+    type: "list",
+    fields: BULLET,
+    default: [{ text: "A rule about how your logo may and may not be used." }],
+  },
+  {
+    key: "brand.name_usage",
+    page: "brand",
+    section: "brand:usage",
+    label: "Name in prose",
+    description:
+      "How to write the organization's name -- the legal name against the short one, capitalisation, and anything that is commonly got wrong.",
+    type: "paragraphs",
+    default: [
+      "How your organization's name should be written in running text, and which form belongs in a first mention.",
+    ],
+  },
 
   // Legal -----------------------------------------------------------------------
   {
