@@ -472,7 +472,7 @@ begin
   select current_version_id into v_template_version_id from public.content_brief_templates where id = v_template_id;
 
   insert into public.content_opportunities (
-    calendar_item_id, content_status, chatter_connection, recommended_formats,
+    calendar_item_id, content_status, org_connection, recommended_formats,
     recommended_action, outstanding_work, owner_id, reviewer_id, lead_time_days,
     publish_due_at, template_id, template_version_id, template_field_values, created_by
   )
@@ -1099,7 +1099,7 @@ begin
 
     if v_item_type in ('content_opportunity', 'partner_opportunity') then
       insert into public.content_opportunities (
-        calendar_item_id, content_status, chatter_connection, recommended_formats,
+        calendar_item_id, content_status, org_connection, recommended_formats,
         recommended_action, owner_id, reviewer_id, lead_time_days, publish_due_at, created_by
       )
       values (

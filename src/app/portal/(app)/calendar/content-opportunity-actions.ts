@@ -163,7 +163,7 @@ export async function createContentOpportunityAction(
     calendar_item_id: calendarItemId,
     content_status: data.contentStatus,
     skip_reason: data.skipReason,
-    chatter_connection: data.chatterConnection,
+    org_connection: data.orgConnection,
     recommended_formats: data.recommendedFormats,
     recommended_action: data.recommendedAction,
     outstanding_work: data.outstandingWork,
@@ -248,7 +248,7 @@ export async function updateContentOpportunityAction(
     .update({
       content_status: data.contentStatus,
       skip_reason: data.skipReason,
-      chatter_connection: data.chatterConnection,
+      org_connection: data.orgConnection,
       recommended_formats: data.recommendedFormats,
       recommended_action: data.recommendedAction,
       outstanding_work: data.outstandingWork,

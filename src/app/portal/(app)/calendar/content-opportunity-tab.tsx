@@ -60,7 +60,7 @@ function formStateFor(
   return {
     contentStatus: opportunity?.content_status ?? "not_planned",
     skipReason: opportunity?.skip_reason ?? "",
-    chatterConnection: opportunity?.chatter_connection ?? "",
+    orgConnection: opportunity?.org_connection ?? "",
     recommendedFormats: opportunity?.recommended_formats ?? "",
     recommendedAction: opportunity?.recommended_action ?? "",
     outstandingWork: opportunity?.outstanding_work ?? "",
@@ -245,7 +245,7 @@ export function ContentOpportunityTab({
     const formData = new FormData();
     formData.set("contentStatus", form.contentStatus);
     formData.set("skipReason", form.skipReason);
-    formData.set("chatterConnection", form.chatterConnection);
+    formData.set("orgConnection", form.orgConnection);
     formData.set("recommendedFormats", form.recommendedFormats);
     formData.set("recommendedAction", form.recommendedAction);
     formData.set("outstandingWork", form.outstandingWork);
@@ -378,8 +378,8 @@ export function ContentOpportunityTab({
               ))}
             </>
           )}
-          <ReadOnlyField label="Chatter connection" htmlFor="brief-connection">
-            {opportunity.chatter_connection || "—"}
+          <ReadOnlyField label="Our connection" htmlFor="brief-connection">
+            {opportunity.org_connection || "—"}
           </ReadOnlyField>
           <Field orientation="responsive">
             <ReadOnlyField
@@ -681,15 +681,15 @@ export function ContentOpportunityTab({
             </Field>
 
             <Field>
-              <FieldLabel htmlFor="brief-chatterConnection">
-                Chatter connection
+              <FieldLabel htmlFor="brief-orgConnection">
+                Our connection
               </FieldLabel>
               <Textarea
-                id="brief-chatterConnection"
-                placeholder="What's the specific Chatter connection?"
-                value={form.chatterConnection}
+                id="brief-orgConnection"
+                placeholder="Why does this matter to your organization?"
+                value={form.orgConnection}
                 onChange={(event) =>
-                  update("chatterConnection", event.target.value)
+                  update("orgConnection", event.target.value)
                 }
               />
             </Field>

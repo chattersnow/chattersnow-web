@@ -19,7 +19,7 @@ export type ContentOpportunityRow = {
   calendar_item_id: string;
   content_status: string;
   skip_reason: string | null;
-  chatter_connection: string | null;
+  org_connection: string | null;
   recommended_formats: string | null;
   recommended_action: string | null;
   outstanding_work: string | null;
