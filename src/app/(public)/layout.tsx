@@ -8,8 +8,8 @@ import { SkipLink } from "@/components/skip-link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPageVisibility, hiddenSlots } from "@/lib/page-visibility";
 import { NOT_FOUND_TITLE, getPublicSite } from "@/lib/public-site";
-import { LEGAL_LINKS, isSlotVisible, visibleGroups } from "@/lib/public-nav";
-import { LEGAL_PAGES_PUBLISHED } from "@/lib/legal-pages";
+import { isSlotVisible, visibleGroups } from "@/lib/public-nav";
+import { documentsInForce, getLegalPublication } from "@/lib/legal-publication";
 import { SiteNav } from "./site-nav";
 
 // The organization's name and description, per tenant (#707 Phase 4). Every
@@ -68,9 +68,10 @@ export default async function PublicLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createSupabaseServerClient();
-  const [visibility, site] = await Promise.all([
+  const [visibility, site, publication] = await Promise.all([
     getPageVisibility(supabase),
     getPublicSite(supabase),
+    getLegalPublication(supabase),
   ]);
   // The public site is the one surface that belongs to a host rather than to a
   // session, so a host no tenant claims has nothing to serve (#795 Phase 4).
@@ -187,24 +188,22 @@ export default async function PublicLayout({
                 <FooterLink href="/brand" label="Brand & Design" />
               </nav>
             )}
-            {/* Omitted entirely rather than rendered empty while the legal
-                review is outstanding: an empty <nav aria-label="Legal"> is
-                announced by screen readers as a landmark with nothing in it.
-                See src/lib/legal-pages.ts. */}
-            {LEGAL_PAGES_PUBLISHED && (
-              <nav
-                aria-label="Legal"
-                className="flex flex-wrap gap-x-6 gap-y-2"
-              >
-                {LEGAL_LINKS.map((link) => (
-                  <FooterLink
-                    key={link.href}
-                    href={link.href}
-                    label={link.label}
-                  />
-                ))}
-              </nav>
-            )}
+            {/* Only the documents this tenant serves (#859). The privacy
+                policy is always one of them, so this landmark is never empty --
+                an empty <nav aria-label="Legal"> would be announced by screen
+                readers as a landmark with nothing in it. A document that is not
+                in force drops out of here and 404s at its URL together;
+                dropping only the link would leave text nobody adopted at a
+                guessable address. */}
+            <nav aria-label="Legal" className="flex flex-wrap gap-x-6 gap-y-2">
+              {documentsInForce(publication).map((document) => (
+                <FooterLink
+                  key={document.route}
+                  href={document.route}
+                  label={document.label}
+                />
+              ))}
+            </nav>
           </div>
         </div>
       </footer>

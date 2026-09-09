@@ -286,7 +286,15 @@ Both are the tenant admin's, not the operator's:
   can answer -- so it is a starting point for their own counsel rather than
   legal advice, which the editor says beside the slot. Chatter Snow's own
   three documents are its tenant's rows
-  (`20260909020000_chatter_snow_owns_its_legal_documents.sql`). The site's photos are
+  (`20260909020000_chatter_snow_owns_its_legal_documents.sql`). Whether each of the
+  three is served is a separate per-tenant decision, in **Administration →
+  System Settings → Legal documents** (#859): the terms and the code of conduct
+  404 and stay out of the footer until that organization puts them in force,
+  and the privacy policy is always served because the public forms are always
+  collecting. It is one `app_settings` row per document
+  (`legal_publication.<key>`, read through `public_legal_publication`), and no
+  row is seeded — a newly provisioned tenant serves its privacy policy and
+  nothing else. The site's photos are
   slots here too (`site_images.*`, a Google Drive link each, blank for the
   placeholder icon), edited beside the copy they sit next to and published
   the same way; a new tenant starts with placeholders everywhere.

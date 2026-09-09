@@ -5,6 +5,10 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkPermission } from "@/lib/auth/permissions";
 import { pageVisibilitySettingKey } from "@/lib/page-visibility";
 import {
+  legalDocument,
+  legalPublicationSettingKey,
+} from "@/lib/legal-documents";
+import {
   LAYOUT_SLOTS,
   isLayoutValue,
   layoutSettingKey,
@@ -112,6 +116,36 @@ export async function updatePageVisibilityAction(
   visible: boolean,
 ): Promise<SettingActionResult> {
   return updateAppSettingAction(pageVisibilitySettingKey(slot), visible);
+}
+
+/**
+ * Puts a legal document in force on the public site, or takes it back out
+ * (#859).
+ *
+ * Not the same decision as page visibility, and deliberately a different
+ * action: a hidden section is content held back, while a document in force is
+ * an organization saying "this text is ours and it governs using our site".
+ * The privacy policy is refused outright rather than silently ignored -- it is
+ * served for every tenant, always, and a call asking to take it down is a bug
+ * worth hearing about rather than a no-op to swallow.
+ *
+ * Like every setting here, the write is audit-logged by the app_settings
+ * trigger, which is what makes it usable as the record of the decision.
+ */
+export async function updateLegalPublicationAction(
+  key: string,
+  inForce: boolean,
+): Promise<SettingActionResult> {
+  const document = legalDocument(key);
+  if (!document) return { error: "That is not a legal document." };
+  if (document.alwaysInForce) {
+    return { error: `The ${document.label.toLowerCase()} is always served.` };
+  }
+
+  return updateAppSettingAction(
+    legalPublicationSettingKey(document.key),
+    inForce,
+  );
 }
 
 /**

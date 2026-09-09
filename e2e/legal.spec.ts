@@ -1,85 +1,86 @@
 import { test, expect } from "./helpers/test";
-import { LEGAL_PAGES_PUBLISHED } from "../src/lib/legal-pages";
 
-// These notices have to be reachable from anywhere on the site, which is why
-// they live in the footer's legal bar rather than the header nav. They sit in
-// their own "Legal" landmark, separate from the "Footer" one carrying the
+// The legal notices have to be reachable from anywhere on the site, which is
+// why they live in the footer's legal bar rather than the header nav. They sit
+// in their own "Legal" landmark, separate from the "Footer" one carrying the
 // section links -- a utility link is not a site section.
-const LEGAL_PAGES = [
-  { name: "Privacy Policy", path: "/privacy" },
-  { name: "Terms of Use", path: "/terms" },
-  { name: "Code of Conduct", path: "/code-of-conduct" },
-];
+//
+// What this file asserts is the state of a tenant that has adopted nothing,
+// which is what the seeded tenant is and what every newly provisioned tenant
+// starts as (#859): the privacy policy is served and linked, and the other two
+// are not. Putting one in force is `legal-publication.spec.ts`, which mutates a
+// real row and therefore runs alone in the `mutating` project.
 
-// Which of these two suites runs is decided by LEGAL_PAGES_PUBLISHED rather
-// than by editing this file, so flipping that one constant when the board's
-// legal review approves the documents (#769) moves the coverage with it. The
-// gated half is not a placeholder: while the flag is off, "these routes are
-// unreachable and unlinked" is the behaviour worth protecting, since the whole
-// point of the gate is that unapproved text must not be published.
-if (LEGAL_PAGES_PUBLISHED) {
-  test.describe("legal pages", () => {
-    for (const { name, path } of LEGAL_PAGES) {
-      test(`${name} page loads`, async ({ page }) => {
-        await page.goto(path);
+test.describe("legal documents a tenant has not adopted", () => {
+  for (const path of ["/terms", "/code-of-conduct"]) {
+    test(`${path} is not served`, async ({ page }) => {
+      const response = await page.goto(path);
 
-        await expect(
-          page.getByRole("heading", { level: 1, name }),
-        ).toBeVisible();
-        await expect(page.getByText("Last updated:")).toBeVisible();
-      });
-
-      test(`the footer links to ${name} from a public page`, async ({
-        page,
-      }) => {
-        await page.goto("/home");
-
-        await page
-          .getByRole("navigation", { name: "Legal" })
-          .getByRole("link", { name })
-          .click();
-
-        await expect(page).toHaveURL(new RegExp(`${path}$`));
-        await expect(
-          page.getByRole("heading", { level: 1, name }),
-        ).toBeVisible();
-      });
-    }
-  });
-} else {
-  test.describe("legal pages (awaiting legal approval)", () => {
-    for (const { name, path } of LEGAL_PAGES) {
-      test(`${name} is not served`, async ({ page }) => {
-        const response = await page.goto(path);
-
-        // The document exists in the repository, so a 200 here would mean the
-        // gate had come off without the review -- the one failure this suite
-        // is here to catch.
-        expect(response?.status()).toBe(404);
-      });
-    }
-
-    test("the footer has no legal bar", async ({ page }) => {
-      await page.goto("/home");
-
-      // The landmark is omitted rather than emptied: an empty
-      // <nav aria-label="Legal"> is still announced by screen readers.
-      await expect(page.getByRole("navigation", { name: "Legal" })).toHaveCount(
-        0,
-      );
-
-      // The rest of the footer is untouched, which is what distinguishes the
-      // gate from the footer having failed to render at all.
-      await expect(
-        page.getByRole("navigation", { name: "Footer" }),
-      ).toBeVisible();
-
-      for (const { name } of LEGAL_PAGES) {
-        await expect(page.getByRole("link", { name })).toHaveCount(0);
-      }
+      // A 200 here would mean text nobody adopted is being published under this
+      // organization's name, which is the one failure this gate exists to
+      // prevent.
+      expect(response?.status()).toBe(404);
     });
+  }
+
+  test("the footer links to neither", async ({ page }) => {
+    await page.goto("/home");
+
+    const legal = page.getByRole("navigation", { name: "Legal" });
+    await expect(legal.getByRole("link", { name: "Terms of Use" })).toHaveCount(
+      0,
+    );
+    await expect(
+      legal.getByRole("link", { name: "Code of Conduct" }),
+    ).toHaveCount(0);
   });
-}
+});
+
+// The one route that must never 404 while the site is collecting personal
+// information through its public forms. It has no publication state and no
+// visibility slot, and since #858 there is always something to serve: this
+// tenant's own document, or the platform's neutral default.
+test.describe("the privacy policy", () => {
+  test("is served, whether or not the tenant has written its own", async ({
+    page,
+  }) => {
+    const response = await page.goto("/privacy");
+
+    expect(response?.status()).toBe(200);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Privacy Policy" }),
+    ).toBeVisible();
+    await expect(page.getByText("Last updated:")).toBeVisible();
+  });
+
+  test("is reachable from the footer of a public page", async ({ page }) => {
+    await page.goto("/home");
+
+    await page
+      .getByRole("navigation", { name: "Legal" })
+      .getByRole("link", { name: "Privacy Policy" })
+      .click();
+
+    await expect(page).toHaveURL(/\/privacy$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Privacy Policy" }),
+    ).toBeVisible();
+  });
+
+  // The landmark carries the privacy policy alone here, which is exactly why it
+  // is never rendered empty: an empty <nav aria-label="Legal"> is announced by
+  // screen readers as a landmark with nothing in it.
+  test("the rest of the footer is untouched", async ({ page }) => {
+    await page.goto("/home");
+
+    await expect(
+      page.getByRole("navigation", { name: "Footer" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("navigation", { name: "Legal" }).getByRole("link"),
+    ).toHaveCount(1);
+  });
+});
 
 // RFC 9116 requires an Expires field and treats the file as invalid once it
 // passes -- a security.txt nobody bumps stops being a disclosure route without

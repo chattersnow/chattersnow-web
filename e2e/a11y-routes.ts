@@ -11,7 +11,6 @@
 // of deliberate exceptions below.
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import { LEGAL_PAGES_PUBLISHED } from "../src/lib/legal-pages";
 
 export type RouteKind = "public" | "portal" | "auth";
 
@@ -29,19 +28,17 @@ export type DiscoveredRoute = {
 const SKIP: Record<string, string> = {
   "/portal": "redirect shim to /portal/login or /portal/entry",
   "/portal/entry": "redirect shim to /portal/home",
-  // The legal documents render notFound() until the board's legal review
-  // approves them (#769, src/lib/legal-pages.ts). Their page.tsx files exist,
-  // so discovery finds them, but while the gate is on there is nothing of
-  // theirs to scan -- all three would be a third scan of the same 404 page.
-  // Keyed off the flag rather than listed outright so the day it flips they
-  // come back into the sweep on their own.
-  ...(LEGAL_PAGES_PUBLISHED
-    ? {}
-    : {
-        "/privacy": "gated behind LEGAL_PAGES_PUBLISHED (#769)",
-        "/terms": "gated behind LEGAL_PAGES_PUBLISHED (#769)",
-        "/code-of-conduct": "gated behind LEGAL_PAGES_PUBLISHED (#769)",
-      }),
+  // The terms and the code of conduct are served once a tenant has put them in
+  // force, and the seeded tenant this scan runs against has not (#859), so both
+  // 404 here -- scanning them would be a second and third pass over the same
+  // 404 page. The privacy policy has no such gate and is scanned: it is served
+  // for every tenant, from the platform's own document when the tenant has
+  // published none of its own (#858).
+  //
+  // If either becomes part of the seed, delete its line rather than leaving a
+  // skip that no longer describes anything.
+  "/terms": "not in force for the seeded tenant (#859)",
+  "/code-of-conduct": "not in force for the seeded tenant (#859)",
 };
 
 const APP_DIR = join(import.meta.dirname, "..", "src", "app");
