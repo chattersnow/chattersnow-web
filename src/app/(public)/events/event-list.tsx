@@ -1,10 +1,13 @@
-"use client";
-
-import { useState } from "react";
 import { EventCard, type PublicEvent } from "./event-card";
-import { EventDetailSheet } from "./event-detail-sheet";
-import { EventRegistrationSheet } from "./event-registration-sheet";
 
+/**
+ * Upcoming and past events, each card an anchor to `/events/[id]`.
+ *
+ * Opening one used to be local state here -- a detail sheet, and a second
+ * sheet on top of it for registration -- which left every event without a URL.
+ * The sheet is now the intercepted route in `@modal`, so this component holds
+ * no state and needs no client boundary (#847).
+ */
 export function EventList({
   events,
   now,
@@ -12,23 +15,6 @@ export function EventList({
   events: PublicEvent[];
   now: number;
 }) {
-  const [selectedEvent, setSelectedEvent] = useState<PublicEvent | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [registrationEvent, setRegistrationEvent] =
-    useState<PublicEvent | null>(null);
-  const [registrationOpen, setRegistrationOpen] = useState(false);
-
-  function openEvent(event: PublicEvent) {
-    setSelectedEvent(event);
-    setDetailOpen(true);
-  }
-
-  function openRegistration(event: PublicEvent) {
-    setDetailOpen(false);
-    setRegistrationEvent(event);
-    setRegistrationOpen(true);
-  }
-
   if (events.length === 0) {
     return (
       <p className="app-muted py-16 text-center text-sm">No events yet.</p>
@@ -65,11 +51,7 @@ export function EventList({
         ) : (
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {upcoming.map((event) => (
-              <EventCard
-                key={event.id}
-                event={event}
-                onSelect={() => openEvent(event)}
-              />
+              <EventCard key={event.id} event={event} />
             ))}
           </div>
         )}
@@ -84,28 +66,11 @@ export function EventList({
         ) : (
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {past.map((event) => (
-              <EventCard
-                key={event.id}
-                event={event}
-                onSelect={() => openEvent(event)}
-              />
+              <EventCard key={event.id} event={event} />
             ))}
           </div>
         )}
       </section>
-
-      <EventDetailSheet
-        event={selectedEvent}
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-        onRegister={openRegistration}
-      />
-
-      <EventRegistrationSheet
-        event={registrationEvent}
-        open={registrationOpen}
-        onOpenChange={setRegistrationOpen}
-      />
     </div>
   );
 }

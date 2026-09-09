@@ -4,16 +4,17 @@
 import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
+import { SEEDED_EVENT_IDS } from "../test/seed-fixtures";
 
 const SLOT = "support";
-const KEY = `page_visibility.${SLOT}`;
 
-async function setVisibility(visible: boolean) {
+async function setVisibility(visible: boolean, slot: string = SLOT) {
+  const key = `page_visibility.${slot}`;
   const admin = createAdminClient();
   const { error } = await admin
     .from("app_settings")
-    .upsert({ key: KEY, value: visible }, { onConflict: "tenant_id,key" });
-  if (error) throw new Error(`Could not set ${KEY}: ${error.message}`);
+    .upsert({ key, value: visible }, { onConflict: "tenant_id,key" });
+  if (error) throw new Error(`Could not set ${key}: ${error.message}`);
 }
 
 test.describe("board-controlled page visibility", () => {
@@ -28,9 +29,11 @@ test.describe("board-controlled page visibility", () => {
   // gain from running it in more than one browser.
   test.describe.configure({ mode: "serial" });
 
-  // seed.sql leaves Support visible locally; restore that however a test ends.
+  // seed.sql leaves Support and Events visible locally; restore that however a
+  // test ends.
   test.afterEach(async () => {
     await setVisibility(true);
+    await setVisibility(true, "events");
   });
 
   test("a visible section is reachable and listed in the nav", async ({
@@ -57,6 +60,27 @@ test.describe("board-controlled page visibility", () => {
       "/support",
       "/support/donations",
       "/support/sponsorship",
+    ]) {
+      const response = await page.goto(path);
+      expect(response?.status(), `${path} should be hidden`).toBe(404);
+    }
+  });
+
+  // Events is the one section with a parallel slot: /events/[id] renders both
+  // as its own page and as a sheet intercepting that URL over the listing
+  // (#847). The gate lives on the layout that owns the slot, so hiding the
+  // section has to take the sheet with it -- not leave an overlay working on
+  // top of pages that 404. Nothing can open the sheet once the listing is
+  // gone, which is the property this pins down.
+  test("hiding Events takes the event pages and their sheet with it", async ({
+    page,
+  }) => {
+    await setVisibility(false, "events");
+
+    for (const path of [
+      "/events",
+      `/events/${SEEDED_EVENT_IDS.upcoming}`,
+      "/events/community",
     ]) {
       const response = await page.goto(path);
       expect(response?.status(), `${path} should be hidden`).toBe(404);
