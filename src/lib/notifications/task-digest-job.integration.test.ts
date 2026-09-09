@@ -28,6 +28,26 @@ import {
 // task-digest-job.ts and the send helper both import "server-only", which
 // throws outside Next's bundler.
 mock.module("server-only", () => ({}));
+
+/**
+ * Captures what would have gone to the provider, so a test can read the links
+ * the digest actually built (#860). Behaviourally the same as the unset-key
+ * path this file otherwise runs on -- sendEmail() returns success without
+ * contacting anyone either way -- so every other test here is unaffected.
+ */
+const sent: { to: string; from: string; html: string; text: string }[] = [];
+mock.module("@/lib/email/send", () => ({
+  sendEmail: async (message: {
+    to: string;
+    from: string;
+    html: string;
+    text: string;
+  }) => {
+    sent.push(message);
+    return { ok: true, id: null };
+  },
+}));
+
 const { runTaskDigest, TASK_DIGEST_KIND } = await import("./task-digest-job");
 
 const service = serviceRoleClient();
@@ -384,4 +404,64 @@ describe("runTaskDigest scope", () => {
       .eq("id", item.id as string);
     await service.from("people").delete().eq("id", noLoginId);
   }, 20000);
+});
+
+describe("runTaskDigest link origin", () => {
+  /**
+   * The bug this covers (#860): the origin used to come from the one
+   * NEXT_PUBLIC_SITE_URL handed to a job that walks every tenant, so a member
+   * of the second tenant got a digest whose links pointed at the first
+   * tenant's domain -- at best a 404, at worst an invitation to sign in
+   * somewhere that is not their organization.
+   *
+   * Provable with one tenant, and better so: no second tenant is provisioned
+   * here, because an extra active tenant changes host resolution for anything
+   * running beside this (#795). What has to hold is that the origin comes from
+   * the tenant row rather than from the argument, and that is exactly what a
+   * custom_domain differing from SITE_URL shows.
+   */
+  const TENANT_DOMAIN = "digest-origin-test.example";
+
+  async function setCustomDomain(domain: string | null) {
+    const { error } = await service
+      .from("tenants")
+      .update({ custom_domain: domain })
+      .eq("id", tenantId);
+    if (error) throw error;
+  }
+
+  afterEach(async () => {
+    await setCustomDomain(null);
+    sent.length = 0;
+  });
+
+  test("links a tenant's recipients to that tenant's own site", async () => {
+    await optIn(true);
+    await setCustomDomain(TENANT_DOMAIN);
+
+    const summary = await runTaskDigest(service, {
+      now: WEDNESDAY,
+      siteUrl: SITE_URL,
+    });
+    expect(summary.sent).toBe(1);
+
+    const digest = sent.at(-1)!;
+    expect(digest.html).toContain(`https://${TENANT_DOMAIN}/portal/`);
+    // The whole point: the origin the job was handed does not reach the links.
+    expect(digest.html).not.toContain(SITE_URL);
+    expect(digest.text).not.toContain(SITE_URL);
+  });
+
+  test("falls back to the platform origin for a tenant with no domain", async () => {
+    await optIn(true);
+    await setCustomDomain(null);
+
+    const summary = await runTaskDigest(service, {
+      now: WEDNESDAY,
+      siteUrl: SITE_URL,
+    });
+    expect(summary.sent).toBe(1);
+
+    expect(sent.at(-1)!.html).toContain(`${SITE_URL}/portal/`);
+  });
 });

@@ -3,6 +3,7 @@
 import { after } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getRequestOrigin } from "@/lib/request-origin";
 import { getClientIp } from "@/lib/get-client-ip";
 import { PRONOUNS_TOO_LONG_ERROR } from "@/lib/pronouns";
 import { notifyNewVolunteerApplication } from "@/lib/notifications/submission-notifications";
@@ -64,6 +65,11 @@ export async function submitVolunteerApplicationAction(
   // public_tenant_id() the RPC itself used. It has to be carried explicitly,
   // because a reference code is only unique *within* a tenant and the
   // service-role lookup below has no RLS to keep it in one.
+  // Read before after(), which runs once the response is on its way and may
+  // no longer have the request's headers. Only a fallback: the tenant's own
+  // domain wins where it has one (#860).
+  const siteUrl = await getRequestOrigin();
+
   after(async () => {
     const { data: tenantId } = await supabase.rpc("public_tenant_id");
     if (!tenantId) return;
@@ -71,7 +77,7 @@ export async function submitVolunteerApplicationAction(
     await notifyNewVolunteerApplication(createSupabaseAdminClient(), {
       tenantId: tenantId as string,
       referenceCode,
-      siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "",
+      siteUrl,
     });
   });
 

@@ -2,7 +2,7 @@
 // real local Supabase stack.
 //
 // identity.test.ts already pins the rules down; what only a database can show
-// is that tenantMailIdentity() reads the rows it means to -- tenants.name and
+// is that tenantMailContext() reads the rows it means to -- tenants.name and
 // tenants.custom_domain by id, and app_settings scoped to an explicit tenant_id
 // rather than to current_tenant_id(), which is null for the service-role
 // caller this runs as.
@@ -27,8 +27,18 @@ import { serviceRoleClient } from "../../../test/integration-setup";
 import {
   FROM_ADDRESS_SETTING_KEY,
   REPLY_TO_SETTING_KEY,
-  tenantMailIdentity,
+  tenantMailContext,
 } from "./identity";
+
+const FALLBACK_ORIGIN = "https://platform.test";
+
+/** The reader answers identity and origin together (#860); most cases want the identity. */
+const identityFor = async (tenantId: string) =>
+  (
+    await tenantMailContext(service, tenantId, {
+      fallbackOrigin: FALLBACK_ORIGIN,
+    })
+  ).identity;
 
 const service = serviceRoleClient();
 
@@ -100,9 +110,9 @@ afterAll(async () => {
   else process.env.EMAIL_VERIFIED_DOMAINS = originalVerified;
 });
 
-describe("tenantMailIdentity", () => {
+describe("tenantMailContext", () => {
   test("names the tenant on the platform address when nothing is configured", async () => {
-    const identity = await tenantMailIdentity(service, tenantId);
+    const identity = await identityFor(tenantId);
 
     expect(identity.from).toBe(`"${tenantName}" <${PLATFORM_FROM}>`);
     expect(identity).not.toHaveProperty("replyTo");
@@ -111,17 +121,13 @@ describe("tenantMailIdentity", () => {
   test("reads the tenant's own Reply-To", async () => {
     await setSetting(REPLY_TO_SETTING_KEY, "board@example.test");
 
-    expect((await tenantMailIdentity(service, tenantId)).replyTo).toBe(
-      "board@example.test",
-    );
+    expect((await identityFor(tenantId)).replyTo).toBe("board@example.test");
   });
 
   test("falls back to EMAIL_REPLY_TO when the tenant has set none", async () => {
     process.env.EMAIL_REPLY_TO = "hello@platform.test";
 
-    expect((await tenantMailIdentity(service, tenantId)).replyTo).toBe(
-      "hello@platform.test",
-    );
+    expect((await identityFor(tenantId)).replyTo).toBe("hello@platform.test");
   });
 
   test("sends from the tenant's own verified domain", async () => {
@@ -132,7 +138,7 @@ describe("tenantMailIdentity", () => {
       "hello@mail-identity-test.example",
     );
 
-    expect((await tenantMailIdentity(service, tenantId)).from).toBe(
+    expect((await identityFor(tenantId)).from).toBe(
       `"${tenantName}" <hello@mail-identity-test.example>`,
     );
   });
@@ -148,7 +154,7 @@ describe("tenantMailIdentity", () => {
       "billing@someone-elses-domain.example",
     );
 
-    expect((await tenantMailIdentity(service, tenantId)).from).toBe(
+    expect((await identityFor(tenantId)).from).toBe(
       `"${tenantName}" <${PLATFORM_FROM}>`,
     );
   });
@@ -161,8 +167,30 @@ describe("tenantMailIdentity", () => {
       "hello@mail-identity-test.example",
     );
 
-    expect((await tenantMailIdentity(service, tenantId)).from).toBe(
+    expect((await identityFor(tenantId)).from).toBe(
       `"${tenantName}" <${PLATFORM_FROM}>`,
     );
+  });
+});
+
+describe("tenantMailContext origin (#860)", () => {
+  test("resolves the tenant's own site from custom_domain", async () => {
+    await setCustomDomain("mail-identity-test.example");
+
+    const { origin } = await tenantMailContext(service, tenantId, {
+      fallbackOrigin: FALLBACK_ORIGIN,
+    });
+
+    expect(origin).toBe("https://mail-identity-test.example");
+  });
+
+  test("falls back to the platform origin when the tenant has no domain", async () => {
+    await setCustomDomain(null);
+
+    const { origin } = await tenantMailContext(service, tenantId, {
+      fallbackOrigin: FALLBACK_ORIGIN,
+    });
+
+    expect(origin).toBe(FALLBACK_ORIGIN);
   });
 });

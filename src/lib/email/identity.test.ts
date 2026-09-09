@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import {
   formatSender,
+  resolveTenantOrigin,
   isAllowedFromAddress,
   resolveMailIdentity,
   settingAddress,
@@ -280,5 +281,38 @@ describe("resolveMailIdentity", () => {
 
   test("omits Reply-To entirely rather than sending an empty one", () => {
     expect(resolveMailIdentity(BASE)).not.toHaveProperty("replyTo");
+  });
+});
+
+describe("resolveTenantOrigin", () => {
+  const FALLBACK = "https://chattersnow.org";
+
+  test("sends a tenant's recipients to the tenant's own site", () => {
+    expect(resolveTenantOrigin("example.org", FALLBACK)).toBe(
+      "https://example.org",
+    );
+  });
+
+  test("falls back to the platform origin when a tenant has no domain", () => {
+    // Local, CI and preview runs all live here, and so does every tenant
+    // before the operator points a domain at it.
+    expect(resolveTenantOrigin(null, FALLBACK)).toBe(FALLBACK);
+    expect(resolveTenantOrigin("   ", FALLBACK)).toBe(FALLBACK);
+  });
+
+  test("normalizes the stored domain", () => {
+    expect(resolveTenantOrigin(" Example.ORG ", FALLBACK)).toBe(
+      "https://example.org",
+    );
+  });
+
+  test("targets the apex, leaving the portal. redirect to the proxy", () => {
+    // custom_domain is a parent-domain match, so the apex is the one host a
+    // tenant is guaranteed to have pointed here. src/proxy.ts 308s /portal/...
+    // on to the subdomain where PORTAL_REDIRECT_HOSTS says it exists, and
+    // where it does not the path simply serves.
+    expect(resolveTenantOrigin("example.org", FALLBACK)).not.toContain(
+      "portal.",
+    );
   });
 });

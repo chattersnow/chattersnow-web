@@ -1,7 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { deliverEmail } from "@/lib/notifications/deliver";
-import { tenantMailIdentity } from "@/lib/email/identity";
+import { tenantMailContext } from "@/lib/email/identity";
 import { isOrgEmailEnabled } from "@/lib/notifications/settings";
 import { renderOpsReport } from "@/lib/notifications/ops-report-email";
 import {
@@ -82,13 +82,16 @@ export async function runOpsReport(
     }
 
     // After the quiet-day check as well as the switch, so a tenant with
-    // nothing to report costs no extra reads (#857).
-    const identity = await tenantMailIdentity(admin, tenantId);
+    // nothing to report costs no extra reads (#857). It answers the origin
+    // too, so each tenant's report links into its own site (#860).
+    const mail = await tenantMailContext(admin, tenantId, {
+      fallbackOrigin: options.siteUrl,
+    });
 
     for (const email of recipients) {
       const outcome = await deliverEmail(admin, {
         tenantId,
-        identity,
+        identity: mail.identity,
         // Addressed to the organization: the configured inbox is an
         // app_settings value, not a `people` row, so there is nobody to point
         // at. See 20260907120000.
@@ -96,7 +99,7 @@ export async function runOpsReport(
         kind: OPS_REPORT_KIND,
         dedupeKey: opsReportDedupeKey(day, email),
         to: email,
-        render: () => renderOpsReport(report, options.siteUrl),
+        render: () => renderOpsReport(report, mail.origin),
         logPrefix: "[ops-report]",
       });
 
