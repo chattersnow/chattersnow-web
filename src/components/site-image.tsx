@@ -10,6 +10,13 @@ type SiteImageProps = {
   className?: string;
   sizes?: string;
   priority?: boolean;
+  /**
+   * Passed through to `next/image`. Worth setting to "eager" for an image that
+   * is in the DOM but out of view and about to be shown without a scroll --
+   * a carousel slide that advances on its own is the case that needs it, since
+   * a lazy one is not fetched until it intersects and so arrives blank.
+   */
+  loading?: "eager" | "lazy";
 };
 
 /** Renders an admin-configured site image, falling back to the icon placeholder when unset. */
@@ -20,6 +27,7 @@ export function SiteImage({
   className,
   sizes,
   priority,
+  loading,
 }: SiteImageProps) {
   if (!url) {
     return <ImagePlaceholder icon={icon} className={className} />;
@@ -38,6 +46,7 @@ export function SiteImage({
         fill
         sizes={sizes ?? "100vw"}
         priority={priority}
+        loading={loading}
         className="object-cover"
       />
     </div>
