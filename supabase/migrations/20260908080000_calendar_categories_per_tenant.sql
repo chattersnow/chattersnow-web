@@ -116,6 +116,19 @@ on conflict (tenant_id, key) do nothing;
 -- 3. Point the item rows at the catalog
 -- ---------------------------------------------------------------------------
 
+-- The checks come off *before* the data is rewritten. A check constraint is
+-- enforced on every UPDATE, so setting a row to 'own_events' while the old
+-- constraint still lists 'chatter_events' fails on that row -- which is exactly
+-- what happened on the first push to the hosted project. It passed locally for
+-- a reason worth naming: `db:reset` runs migrations against an empty database
+-- and seeds afterwards, so the UPDATE matched nothing and the ordering never
+-- mattered. Production has the observance calendar seeded by 20260826070000.
+alter table public.calendar_item_categories
+  drop constraint calendar_item_categories_category_check;
+
+alter table public.calendar_program_suggestion_rules
+  drop constraint calendar_program_suggestion_rules_category_check;
+
 update public.calendar_item_categories set category = 'own_events'
 where category = 'chatter_events';
 
@@ -123,16 +136,10 @@ update public.calendar_program_suggestion_rules set category = 'own_events'
 where category = 'chatter_events';
 
 alter table public.calendar_item_categories
-  drop constraint calendar_item_categories_category_check;
-
-alter table public.calendar_item_categories
   add constraint calendar_item_categories_category_fkey
   foreign key (tenant_id, category)
   references public.calendar_categories (tenant_id, key)
   on update cascade;
-
-alter table public.calendar_program_suggestion_rules
-  drop constraint calendar_program_suggestion_rules_category_check;
 
 -- Nullable: a rule may match on item_type alone, and a foreign key ignores nulls.
 alter table public.calendar_program_suggestion_rules
@@ -145,10 +152,13 @@ alter table public.calendar_program_suggestion_rules
 -- 4. The item_type rename
 -- ---------------------------------------------------------------------------
 
+-- Drops before updates here too, for the same reason as section 3.
+alter table public.calendar_items drop constraint calendar_items_item_type_check;
+alter table public.calendar_program_suggestion_rules drop constraint calendar_program_suggestion_rules_item_type_check;
+
 update public.calendar_items set item_type = 'own_event' where item_type = 'chatter_event';
 update public.calendar_program_suggestion_rules set item_type = 'own_event' where item_type = 'chatter_event';
 
-alter table public.calendar_items drop constraint calendar_items_item_type_check;
 alter table public.calendar_items add constraint calendar_items_item_type_check
   check (item_type in (
     'own_event', 'partner_event', 'community_observance',
@@ -156,7 +166,6 @@ alter table public.calendar_items add constraint calendar_items_item_type_check
     'content_campaign', 'fundraiser', 'partner_opportunity', 'content_opportunity'
   ));
 
-alter table public.calendar_program_suggestion_rules drop constraint calendar_program_suggestion_rules_item_type_check;
 alter table public.calendar_program_suggestion_rules add constraint calendar_program_suggestion_rules_item_type_check
   check (item_type in (
     'own_event', 'partner_event', 'community_observance',
