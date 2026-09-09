@@ -1,7 +1,15 @@
+import type { Page } from "@playwright/test";
 import { test, expect } from "./helpers/test";
 import { modal } from "./helpers/dialog";
+import { SEEDED_EVENT_IDS } from "../test/seed-fixtures";
 
 const EVENT_NAME = "Winter Gear Swap";
+const EVENT_URL = /\/events\/[0-9a-f-]{36}$/;
+
+/** The listing's card for an event: an anchor to the event's own URL (#847). */
+function eventLink(page: Page) {
+  return page.getByRole("link", { name: EVENT_NAME });
+}
 
 test.describe("public events", () => {
   test.beforeEach(async ({ page }) => {
@@ -11,74 +19,102 @@ test.describe("public events", () => {
     ).toBeVisible();
   });
 
-  test("browsing the list and viewing an event's details", async ({ page }) => {
-    await page
-      .getByRole("button", { name: new RegExp(EVENT_NAME, "i") })
-      .click();
+  test("opening an event from the listing gives it a URL", async ({ page }) => {
+    await eventLink(page).click();
 
     const dialog = modal(page);
     await expect(
       dialog.getByRole("heading", { name: EVENT_NAME }),
     ).toBeVisible();
+    // The sheet is the intercepted /events/[id], so the event is shareable
+    // from the moment it opens -- and the listing is still underneath it,
+    // which is why Back lands there without a fetch. Read by tag rather than
+    // by role: an open modal makes the rest of the page inert, so the listing
+    // is deliberately out of the accessibility tree while the sheet is up.
+    await expect(page).toHaveURL(EVENT_URL);
+    await expect(
+      page.locator("h2", { hasText: "Upcoming events" }),
+    ).toBeVisible();
+  });
+
+  test("Back closes the sheet and Forward reopens it", async ({ page }) => {
+    await eventLink(page).click();
+    await expect(modal(page)).toBeVisible();
+
+    await page.goBack();
+    await expect(modal(page)).toHaveCount(0);
+    await expect(page).toHaveURL(/\/events$/);
+
+    await page.goForward();
+    await expect(
+      modal(page).getByRole("heading", { name: EVENT_NAME }),
+    ).toBeVisible();
+    await expect(page).toHaveURL(EVENT_URL);
+  });
+
+  test("a shared link renders the event's page, not the sheet", async ({
+    page,
+  }) => {
+    await page.goto(`/events/${SEEDED_EVENT_IDS.upcoming}`);
+
+    await expect(
+      page.getByRole("heading", { level: 1, name: EVENT_NAME }),
+    ).toBeVisible();
+    await expect(modal(page)).toHaveCount(0);
+  });
+
+  test("reloading the sheet's URL renders the page", async ({ page }) => {
+    await eventLink(page).click();
+    await expect(modal(page)).toBeVisible();
+
+    await page.reload();
+
+    await expect(
+      page.getByRole("heading", { level: 1, name: EVENT_NAME }),
+    ).toBeVisible();
+    await expect(modal(page)).toHaveCount(0);
   });
 
   test("submitting an event registration from the sheet", async ({ page }) => {
-    await page
-      .getByRole("button", { name: new RegExp(EVENT_NAME, "i") })
-      .click();
+    await eventLink(page).click();
 
-    const detailDialog = page.getByRole("dialog", { name: EVENT_NAME });
+    const dialog = page.getByRole("dialog", { name: EVENT_NAME });
     await expect(
-      detailDialog.getByRole("heading", { name: EVENT_NAME }),
-    ).toBeVisible();
-
-    await detailDialog
-      .getByRole("button", { name: "Register for this event" })
-      .click();
-
-    const registrationDialog = page.getByRole("dialog", { name: "Register" });
-    await expect(
-      registrationDialog.getByRole("heading", { name: "Register" }),
+      dialog.getByRole("heading", { name: EVENT_NAME }),
     ).toBeVisible();
 
     const uniqueEmail = `e2e-${Date.now()}@example.test`;
-    await registrationDialog.getByLabel("Name").fill("E2E Test Registrant");
-    await registrationDialog.getByLabel("Email").fill(uniqueEmail);
-    await registrationDialog.getByRole("button", { name: "Register" }).click();
+    await dialog.getByLabel("Name").fill("E2E Test Registrant");
+    await dialog.getByLabel("Email").fill(uniqueEmail);
+    await dialog.getByRole("button", { name: "Register" }).click();
 
     await expect(
-      registrationDialog.getByText(
+      dialog.getByText(
         "You're registered! We look forward to seeing you there.",
       ),
     ).toBeVisible();
 
     // The rider-profile prompt continues from the confirmation (#564).
-    await registrationDialog
-      .getByRole("combobox", { name: "Do you ski or ride?" })
-      .click();
+    await dialog.getByRole("combobox", { name: "Do you ski or ride?" }).click();
     await page.getByRole("option", { name: "Both" }).click();
 
-    await registrationDialog
-      .getByRole("combobox", { name: "Experience on skis" })
-      .click();
+    await dialog.getByRole("combobox", { name: "Experience on skis" }).click();
     await page.getByRole("option", { name: "Beginner" }).click();
 
-    await registrationDialog
+    await dialog
       .getByRole("combobox", { name: "Experience on a snowboard" })
       .click();
     await page.getByRole("option", { name: "Advanced" }).click();
 
-    await registrationDialog
+    await dialog
       .getByRole("combobox", { name: "Preferred mountain for meetups" })
       .click();
     await page.getByRole("option", { name: "Hunter" }).click();
 
-    await registrationDialog
-      .getByRole("button", { name: "Save details" })
-      .click();
+    await dialog.getByRole("button", { name: "Save details" }).click();
 
     await expect(
-      registrationDialog.getByText(
+      dialog.getByText(
         "Thanks — we'll use this to point you at the right group.",
       ),
     ).toBeVisible();
@@ -87,40 +123,52 @@ test.describe("public events", () => {
   test("skipping the rider profile leaves the registration confirmed", async ({
     page,
   }) => {
-    await page
-      .getByRole("button", { name: new RegExp(EVENT_NAME, "i") })
-      .click();
+    await eventLink(page).click();
 
-    const detailDialog = page.getByRole("dialog", { name: EVENT_NAME });
+    const dialog = page.getByRole("dialog", { name: EVENT_NAME });
     await expect(
-      detailDialog.getByRole("heading", { name: EVENT_NAME }),
-    ).toBeVisible();
-
-    await detailDialog
-      .getByRole("button", { name: "Register for this event" })
-      .click();
-
-    const registrationDialog = page.getByRole("dialog", { name: "Register" });
-    await expect(
-      registrationDialog.getByRole("heading", { name: "Register" }),
+      dialog.getByRole("heading", { name: EVENT_NAME }),
     ).toBeVisible();
 
     const uniqueEmail = `e2e-skip-${Date.now()}@example.test`;
-    await registrationDialog.getByLabel("Name").fill("E2E Skipping Registrant");
-    await registrationDialog.getByLabel("Email").fill(uniqueEmail);
-    await registrationDialog.getByRole("button", { name: "Register" }).click();
+    await dialog.getByLabel("Name").fill("E2E Skipping Registrant");
+    await dialog.getByLabel("Email").fill(uniqueEmail);
+    await dialog.getByRole("button", { name: "Register" }).click();
 
-    const confirmation = registrationDialog.getByText(
+    const confirmation = dialog.getByText(
       "You're registered! We look forward to seeing you there.",
     );
     await expect(confirmation).toBeVisible();
 
-    await registrationDialog.getByRole("button", { name: "Skip" }).click();
+    await dialog.getByRole("button", { name: "Skip" }).click();
 
     // The prompt goes away; the registration stands.
     await expect(
-      registrationDialog.getByRole("button", { name: "Save details" }),
+      dialog.getByRole("button", { name: "Save details" }),
     ).toBeHidden();
     await expect(confirmation).toBeVisible();
+  });
+});
+
+// Interception is scoped to the /events layout on purpose: an event followed
+// from anywhere else is a full navigation to its page, not a sheet over
+// whatever page the visitor was on. Moving the slot up to the (public) layout
+// would change that silently, which is what this covers (#847).
+test.describe("events linked from outside the listing", () => {
+  test("a card on the home page navigates to the event's own page", async ({
+    page,
+  }) => {
+    await page.goto("/home");
+
+    await page
+      .getByRole("link", { name: new RegExp(EVENT_NAME, "i") })
+      .first()
+      .click();
+
+    await expect(
+      page.getByRole("heading", { level: 1, name: EVENT_NAME }),
+    ).toBeVisible();
+    await expect(page).toHaveURL(EVENT_URL);
+    await expect(modal(page)).toHaveCount(0);
   });
 });
