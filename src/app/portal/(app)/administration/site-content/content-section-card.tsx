@@ -97,6 +97,7 @@ export function ContentSectionCard({
                   publishedBy={entry.publishedBy}
                   draftUpdatedAt={entry.draftUpdatedAt}
                   draftUpdatedBy={entry.draftUpdatedBy}
+                  starter={entry.starter}
                   dirty={dirtyKeys.has(slot.key)}
                   canEdit={canEdit}
                   onChange={(value) => onChange(slot.key, value)}

@@ -293,11 +293,12 @@ export type LegalDocumentSection = {
 };
 
 /**
- * A whole legal page as data: the shape `LegalPageShell` renders. Chatter
- * Snow's own documents stay as components -- they carry links, lists and
- * callouts a flat document cannot -- and a tenant that sets one of these
- * replaces the page outright. Legal text is not something another
- * organization templates; it is something they publish themselves.
+ * A whole legal page as data: the shape `LegalPageShell` renders.
+ *
+ * Both kinds of document are this shape since #858 -- the platform's neutral
+ * default, built in `src/lib/legal-defaults.ts`, and whatever a tenant
+ * publishes in its place. Paragraphs may carry the small markup
+ * `src/lib/legal-markup.ts` parses: bullets, links and bold, and nothing else.
  */
 export type LegalDocumentContent = {
   title: string;
@@ -308,18 +309,19 @@ export type LegalDocumentContent = {
 
 /**
  * The shape of the platform's own document: its title and the headings it is
- * organized under, with none of the text.
+ * organized under, in order.
  *
- * Nobody drafts a privacy policy from a blank box, so the editor offers this
- * as the starting point (#792). It is deliberately the outline and not the
- * prose: the platform documents carry links, tables and callouts that
- * `LegalDocumentContent` cannot hold, and a tenant publishing Chatter Snow's
- * policy verbatim as their own would be worse than a blank page. Authoring is
- * #601.
+ * `src/lib/legal-defaults.ts` writes one block of prose per id here and refuses
+ * to build a document if the two lists disagree, so the outline the Site
+ * Content editor offers and the document the site serves cannot drift (#792).
+ * It lives here rather than beside the prose because the editor is a client
+ * component that needs the headings without the text.
  *
- * Each document renders these same entries as its section nav, importing them
- * from here, so the outline offered in the editor and the document on the site
- * cannot drift.
+ * The questions a document has to answer are only the ones the platform can
+ * answer for any organization (#858). Snow-sports risk, the gear library, what
+ * happens on the mountain and a specific governing law were all headings here
+ * while these were Chatter Snow's documents; they are now sections of Chatter
+ * Snow's own published document rather than of the platform's default.
  */
 export type LegalDocumentOutline = {
   title: string;
@@ -349,8 +351,6 @@ export const LEGAL_DOCUMENT_OUTLINES: Record<string, LegalDocumentOutline> = {
       { id: "who-we-are", title: "Who we are" },
       { id: "using-this-site", title: "Using this site" },
       { id: "events-and-programs", title: "Events and programs" },
-      { id: "snow-sports-risks", title: "Snow-sports risks" },
-      { id: "gear-library", title: "Gear library" },
       { id: "volunteering", title: "Volunteering" },
       {
         id: "accessibility-and-inclusion",
@@ -365,7 +365,6 @@ export const LEGAL_DOCUMENT_OUTLINES: Record<string, LegalDocumentOutline> = {
       { id: "limitation-of-liability", title: "Limits on liability" },
       { id: "indemnification", title: "Your responsibility to us" },
       { id: "changes", title: "Changes to these terms" },
-      { id: "governing-law", title: "Governing law" },
       { id: "severability", title: "Severability" },
       { id: "contact", title: "Contact" },
     ],
@@ -374,8 +373,6 @@ export const LEGAL_DOCUMENT_OUTLINES: Record<string, LegalDocumentOutline> = {
     title: "Code of Conduct",
     sections: [
       { id: "what-we-expect", title: "What we expect" },
-      { id: "bringing-a-minor", title: "If you’re bringing a minor" },
-      { id: "on-the-mountain", title: "On the mountain" },
       { id: "what-isnt-tolerated", title: "What isn’t tolerated" },
       { id: "reporting-a-problem", title: "Reporting a problem" },
       { id: "how-we-handle-a-report", title: "How we handle a report" },
@@ -1535,7 +1532,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "legal:documents",
     label: "Privacy policy",
     description:
-      "Replaces the whole privacy page. Leave unset to publish the platform's document.",
+      "Replaces the whole privacy page. Leave unset to serve the platform's starting document -- a neutral draft for your own legal counsel to review and rewrite, not legal advice.",
     type: "document",
     default: null,
     route: "/privacy",
@@ -1546,7 +1543,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "legal:documents",
     label: "Terms of use",
     description:
-      "Replaces the whole terms page. Leave unset to publish the platform's document.",
+      "Replaces the whole terms page. Leave unset to serve the platform's starting document -- a neutral draft for your own legal counsel to review and rewrite, not legal advice.",
     type: "document",
     default: null,
     route: "/terms",
@@ -1557,7 +1554,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "legal:documents",
     label: "Code of conduct",
     description:
-      "Replaces the whole code of conduct page. Leave unset to publish the platform's document.",
+      "Replaces the whole code of conduct page. Leave unset to serve the platform's starting document -- a neutral draft for your own legal counsel to review and rewrite, not legal advice.",
     type: "document",
     default: null,
     route: "/code-of-conduct",

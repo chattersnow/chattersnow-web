@@ -7,6 +7,7 @@ import {
   type PublicTenant,
   type PublicTenantResult,
 } from "@/lib/branding";
+import type { LegalOrgContext } from "@/lib/legal-defaults";
 import {
   resolveSiteContent,
   type SiteContent,
@@ -94,6 +95,23 @@ export const getPublicSite = cache(
     };
   },
 );
+
+/**
+ * Who the platform's own legal documents are about (#858).
+ *
+ * The name is the tenant's, falling back to `org.short_name` on the read that
+ * could not name one -- a legal page has to say whose it is, and the short name
+ * is at worst the registry's "Your organization" prompt, which reads as
+ * unwritten rather than as somebody else.
+ */
+export function legalOrg(site: PublicSite): LegalOrgContext {
+  return {
+    name: site.name ?? site.content.text("org.short_name"),
+    emailGeneral: site.content.text("org.email_general"),
+    emailPrivacy: site.content.text("org.email_privacy"),
+    emailConduct: site.content.text("org.email_conduct"),
+  };
+}
 
 /**
  * `<title>` for a public page: "Page | Organization".

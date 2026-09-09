@@ -40,6 +40,13 @@ export type EditorSlot = {
   draftUpdatedBy: string | null;
   publishedAt: string | null;
   publishedBy: string | null;
+  /**
+   * For a `document` slot, the platform's own document named for this
+   * organization -- what the public site serves while the tenant has published
+   * none of its own, and what the editor copies in when someone starts from it
+   * (#858). Null for every other slot type.
+   */
+  starter: LegalDocumentContent | null;
 };
 
 /**
