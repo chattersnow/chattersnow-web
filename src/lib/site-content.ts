@@ -272,7 +272,13 @@ export const CONTENT_SECTIONS: readonly ContentSection[] = [
       "The judgements a palette cannot express: how the organization talks, how its name is written, and what may and may not be done to the logo.",
   },
 
-  { key: "legal:documents", page: "legal", label: "Documents" },
+  {
+    key: "legal:documents",
+    page: "legal",
+    label: "Documents",
+    description:
+      "The text of each document. Whether it is served at all is a separate decision, in Administration > System Settings > Legal documents: the terms and the code of conduct are published once your organization has adopted them, and the privacy policy always is (#859).",
+  },
 ] as const;
 
 export type ListField = {

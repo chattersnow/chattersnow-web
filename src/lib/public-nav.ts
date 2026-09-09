@@ -9,6 +9,8 @@
  * even after the board turned them back on.
  */
 
+import { LEGAL_DOCUMENTS } from "@/lib/legal-documents";
+
 export type NavLink = { label: string; href: string; slot?: string };
 
 export type NavGroup = {
@@ -104,17 +106,18 @@ export const NAV_GROUPS: readonly NavGroup[] = [
  * they are utility links, not destinations, and listing them alongside Events
  * and Gear read as if the privacy policy were a fifth part of the site.
  *
- * They are deliberately not NAV_GROUPS entries with slots: they have to stay
- * reachable from every page for as long as the site collects personal
- * information and takes event, volunteer and gear submissions, so they are
- * neither header destinations competing with the sections nor something the
- * board can hide from Administration > System Settings.
+ * They are deliberately not NAV_GROUPS entries with slots: a section of the
+ * marketing site is shown or hidden, and a legal document is adopted or not,
+ * and those are different decisions. Which of these the footer actually renders
+ * is the tenant's publication state (`@/lib/legal-publication.ts`), not page
+ * visibility -- the privacy policy is always among them.
+ *
+ * Derived from the registry so the footer, the routes and the admin panel
+ * cannot disagree about what the three documents are.
  */
-export const LEGAL_LINKS: readonly NavLink[] = [
-  { label: "Privacy Policy", href: "/privacy" },
-  { label: "Terms of Use", href: "/terms" },
-  { label: "Code of Conduct", href: "/code-of-conduct" },
-] as const;
+export const LEGAL_LINKS: readonly NavLink[] = LEGAL_DOCUMENTS.map(
+  (document) => ({ label: document.label, href: document.route }),
+);
 
 /**
  * Drops every group and sub-link belonging to a hidden section. A group is
