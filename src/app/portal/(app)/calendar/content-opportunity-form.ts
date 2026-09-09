@@ -6,7 +6,7 @@ const CONTENT_STATUS_VALUES = CONTENT_STATUSES.map((option) => option.value);
 export type ContentOpportunityFormData = {
   contentStatus: (typeof CONTENT_STATUS_VALUES)[number];
   skipReason: string | null;
-  chatterConnection: string | null;
+  orgConnection: string | null;
   recommendedFormats: string | null;
   recommendedAction: string | null;
   outstandingWork: string | null;
@@ -27,9 +27,7 @@ export function parseContentOpportunityForm(
 ): ParseResult<ContentOpportunityFormData> {
   const contentStatus = String(formData.get("contentStatus") ?? "");
   const skipReason = String(formData.get("skipReason") ?? "").trim();
-  const chatterConnection = String(
-    formData.get("chatterConnection") ?? "",
-  ).trim();
+  const orgConnection = String(formData.get("orgConnection") ?? "").trim();
   const recommendedFormats = String(
     formData.get("recommendedFormats") ?? "",
   ).trim();
@@ -64,11 +62,11 @@ export function parseContentOpportunityForm(
   }
   if (
     !["not_planned", "idea", "skipped"].includes(contentStatus) &&
-    !chatterConnection
+    !orgConnection
   ) {
     return {
       error:
-        "A stated Chatter connection is required once work begins on this content.",
+        "A stated connection to your organization is required once work begins on this content.",
     };
   }
 
@@ -125,7 +123,7 @@ export function parseContentOpportunityForm(
     data: {
       contentStatus: contentStatus as (typeof CONTENT_STATUS_VALUES)[number],
       skipReason: contentStatus === "skipped" ? skipReason : null,
-      chatterConnection: chatterConnection || null,
+      orgConnection: orgConnection || null,
       recommendedFormats: recommendedFormats || null,
       recommendedAction: recommendedAction || null,
       outstandingWork: outstandingWork || null,

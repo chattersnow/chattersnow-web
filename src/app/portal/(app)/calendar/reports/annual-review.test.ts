@@ -25,7 +25,7 @@ function opportunity(
     id: "opp-1",
     calendar_item_id: "item-1",
     content_status: "not_planned",
-    chatter_connection: null,
+    org_connection: null,
     template_id: null,
     draft_due_at: null,
     review_due_at: null,
@@ -177,17 +177,17 @@ describe("computeAnnualReview", () => {
     const opportunities = [
       opportunity({
         calendar_item_id: "a",
-        chatter_connection: "Ties to the winter gear drive",
+        org_connection: "Ties to the winter gear drive",
       }),
       opportunity({
         calendar_item_id: "b",
-        chatter_connection: "Also relevant",
+        org_connection: "Also relevant",
       }),
       opportunity({
         calendar_item_id: "c",
-        chatter_connection: "Not live yet",
+        org_connection: "Not live yet",
       }),
-      opportunity({ calendar_item_id: "d", chatter_connection: "" }),
+      opportunity({ calendar_item_id: "d", org_connection: "" }),
     ];
     const result = computeAnnualReview(items, opportunities, []);
     expect(result.publicWithConnectionCount).toBe(1);

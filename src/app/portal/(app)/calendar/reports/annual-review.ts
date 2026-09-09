@@ -12,7 +12,7 @@ export type AnnualReviewOpportunityRow = {
   id: string;
   calendar_item_id: string;
   content_status: string;
-  chatter_connection: string | null;
+  org_connection: string | null;
   template_id: string | null;
   draft_due_at: string | null;
   review_due_at: string | null;
@@ -95,8 +95,8 @@ export function computeAnnualReview(
         item.calendar_status === "complete");
     return (
       isLivePublic &&
-      opp.chatter_connection !== null &&
-      opp.chatter_connection.trim() !== ""
+      opp.org_connection !== null &&
+      opp.org_connection.trim() !== ""
     );
   }).length;
 
