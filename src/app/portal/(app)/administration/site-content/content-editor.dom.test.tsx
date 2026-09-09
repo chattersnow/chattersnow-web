@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithToaster } from "../../../../../../test/toast-testing";
+import { platformLegalDocument } from "@/lib/legal-defaults";
 import type {
   ContentPage,
   ContentSection,
@@ -122,6 +123,15 @@ function editorSlot(
     draftUpdatedBy: hasDraft ? "Robin" : null,
     publishedAt: overridden ? "2026-09-01T10:00:00Z" : null,
     publishedBy: overridden ? "Alex" : null,
+    starter:
+      slot.type === "document"
+        ? platformLegalDocument(slot.key, {
+            name: "Example Nonprofit",
+            emailGeneral: "hello@example.org",
+            emailPrivacy: "privacy@example.org",
+            emailConduct: "conduct@example.org",
+          })
+        : null,
   };
 }
 
@@ -577,11 +587,13 @@ describe("the list editor", () => {
 });
 
 describe("legal documents", () => {
-  test("starting from the outline seeds the platform document's headings", async () => {
+  // The platform's document is neutral since #858, so it is a tenant's to copy
+  // and edit rather than headings-only prompting for prose nobody has written.
+  test("starting from the platform document seeds its headings and its text", async () => {
     renderEditor([editorSlot(PRIVACY, null)]);
 
     await userEvent.click(
-      screen.getByRole("button", { name: "Start from the outline" }),
+      screen.getByRole("button", { name: "Start from the platform document" }),
     );
 
     expect(screen.getByRole("textbox", { name: "Title" })).toHaveValue(
@@ -591,8 +603,9 @@ describe("legal documents", () => {
     expect((headings[0] as HTMLInputElement).value).toBe(
       "What we collect, and why",
     );
-    // Headings only -- the platform's text is not a tenant's to publish.
-    expect(screen.getAllByRole("textbox", { name: "Text" })[0]).toHaveValue("");
+    expect(screen.getAllByRole("textbox", { name: "Text" })[0]).not.toHaveValue(
+      "",
+    );
   });
 
   test("starting blank leaves the title empty", async () => {

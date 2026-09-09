@@ -1,25 +1,35 @@
 import { describe, expect, test } from "bun:test";
 import { render } from "@testing-library/react";
-import { PrivacyDocument } from "@/app/(public)/privacy/document";
-import { TermsDocument } from "@/app/(public)/terms/document";
-import { CodeOfConductDocument } from "@/app/(public)/code-of-conduct/document";
 import { LegalDocument } from "@/components/legal-document";
+import {
+  platformLegalDocument,
+  PLATFORM_LEGAL_SLOT_KEYS,
+  type LegalOrgContext,
+} from "@/lib/legal-defaults";
+import { LEGAL_DOCUMENT_OUTLINES } from "@/lib/site-content";
 
 // The section nav beside each legal document is driven by that document's
-// entry in LEGAL_DOCUMENT_OUTLINES, while the anchors it points at live on
-// <section> elements in the document itself. Nothing links the two, so a
-// renamed or dropped section leaves a nav entry that scrolls nowhere --
-// silently, since a bad fragment is not an error. These pages are long enough
-// that nobody would notice by scrolling.
+// sections, while the anchors it points at live on <section> elements in the
+// body. Nothing links the two, so a renamed or dropped section leaves a nav
+// entry that scrolls nowhere -- silently, since a bad fragment is not an
+// error. These pages are long enough that nobody would notice by scrolling.
 //
-// Since #792 the same outline is what the Site Content editor offers a tenant
-// as the starting point for their own document, so this also guards the seed
-// against drifting from the published page.
+// Since #858 the platform's own documents are data too, built from the same
+// outline the Site Content editor offers a tenant as a starting point, so this
+// also guards that outline against drifting from the published page.
+const ORG: LegalOrgContext = {
+  name: "Example Nonprofit",
+  emailGeneral: "hello@example.org",
+  emailPrivacy: "privacy@example.org",
+  emailConduct: "conduct@example.org",
+};
+
 const PAGES = [
-  { name: "privacy policy", Page: PrivacyDocument },
-  { name: "terms of use", Page: TermsDocument },
-  { name: "code of conduct", Page: CodeOfConductDocument },
-  // A tenant-published document goes through the same shell, so the same
+  ...PLATFORM_LEGAL_SLOT_KEYS.map((key) => ({
+    name: LEGAL_DOCUMENT_OUTLINES[key].title.toLowerCase(),
+    Page: () => <LegalDocument doc={platformLegalDocument(key, ORG)} />,
+  })),
+  // A tenant-published document goes through the same component, so the same
   // invariants hold for it.
   {
     name: "tenant-published document",

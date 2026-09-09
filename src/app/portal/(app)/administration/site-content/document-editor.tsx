@@ -45,9 +45,9 @@ function today(): string {
  * The platform document's title and headings, with none of its text.
  *
  * Nobody drafts a privacy policy from nothing, and "Write your own" seeded an
- * empty box (#792). The outline is what a tenant can honestly start from: the
- * questions the document has to answer, in the order the platform answers
- * them, for them to write their own answers under.
+ * empty box (#792). This was the starting point offered while the platform's
+ * prose was Chatter Snow's and could not honestly be copied; since #858 it is
+ * the fallback for a document slot the server could not build a starter for.
  */
 function outlineDocument(slotKey: string): LegalDocumentContent {
   const outline = LEGAL_DOCUMENT_OUTLINES[slotKey];
@@ -178,10 +178,17 @@ function SectionsEditor({
 export function DocumentEditor({
   slot,
   doc,
+  starter,
   onChange,
 }: {
   slot: ContentSlot;
   doc: LegalDocumentContent | null;
+  /**
+   * The platform's document for this slot, named for this organization -- what
+   * the public site serves while nothing of the tenant's own is published, and
+   * what "start from" copies into the editor (#858).
+   */
+  starter: LegalDocumentContent | null;
   onChange: (doc: LegalDocumentContent | null) => void;
 }) {
   if (!doc) {
@@ -196,9 +203,15 @@ export function DocumentEditor({
             type="button"
             variant="secondary"
             size="sm"
-            onClick={() => onChange(outlineDocument(slot.key))}
+            onClick={() =>
+              onChange(
+                starter
+                  ? { ...starter, last_updated: today() }
+                  : outlineDocument(slot.key),
+              )
+            }
           >
-            Start from the outline
+            Start from the platform document
           </Button>
           <Button
             type="button"
@@ -212,9 +225,10 @@ export function DocumentEditor({
           </Button>
         </div>
         <p className="app-muted text-xs">
-          The outline gives you the platform document&apos;s headings with none
-          of its text — the questions to answer, for you to answer in your own
-          words.
+          The platform document is a neutral starting point, not legal advice:
+          it describes what this site does with the information people give it,
+          and leaves everything only your organization can answer to you. Have
+          your own legal counsel review whatever you publish here.
         </p>
       </div>
     );

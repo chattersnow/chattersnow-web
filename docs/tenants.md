@@ -237,7 +237,7 @@ Chatter Snow's production tenant is untouched — that migration ran there long
 ago and migrations do not re-run, so its row still says `chatter-snow`. This is
 why the migrations that write Chatter Snow's own copy, palette and page
 visibility (`20260908040000`, `20260908050000`, `20260908060000`,
-`20260908070000`) are all scoped `where slug = 'chatter-snow'`: on a hosted
+`20260908070000`, `20260909020000`) are all scoped `where slug = 'chatter-snow'`: on a hosted
 project they find their tenant, and on a fresh local or CI database they
 correctly find nothing.
 
@@ -268,7 +268,14 @@ Both are the tenant admin's, not the operator's:
   slots and Chatter Snow's copy as each default is `src/lib/site-content.ts`;
   a new tenant renders that until it rewrites a slot. The three legal pages
   are published whole as structured documents under `legal.*` -- a tenant
-  either publishes its own or the platform's renders. The site's photos are
+  either publishes its own or the platform's renders. Since #858 the
+  platform's is genuinely neutral (`src/lib/legal-defaults.ts`): it describes
+  what this application does for a nonprofit, names the organization and its
+  `org.email_*` addresses, and leaves out everything only that organization
+  can answer -- so it is a starting point for their own counsel rather than
+  legal advice, which the editor says beside the slot. Chatter Snow's own
+  three documents are its tenant's rows
+  (`20260909020000_chatter_snow_owns_its_legal_documents.sql`). The site's photos are
   slots here too (`site_images.*`, a Google Drive link each, blank for the
   placeholder icon), edited beside the copy they sit next to and published
   the same way; a new tenant starts with placeholders everywhere.
