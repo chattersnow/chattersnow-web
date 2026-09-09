@@ -1,7 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { deliverEmail } from "@/lib/notifications/deliver";
-import { tenantMailIdentity } from "@/lib/email/identity";
+import { tenantMailContext } from "@/lib/email/identity";
 import type { RenderedEmail } from "@/lib/notifications/rendered-email";
 import { isOrgEmailEnabled } from "@/lib/notifications/settings";
 import {
@@ -85,7 +85,8 @@ export async function notifyNewVolunteerApplication(
     resourceKeys: VOLUNTEER_APPLICATION_RESOURCES,
     minLevel: "manage",
     dedupeKey: `${VOLUNTEER_APPLICATION_KIND}:${data.id as string}`,
-    render: () =>
+    fallbackOrigin: options.siteUrl,
+    render: (origin) =>
       renderVolunteerApplicationEmail(
         {
           applicationId: data.id as string,
@@ -93,7 +94,7 @@ export async function notifyNewVolunteerApplication(
           email: (data.email as string) ?? "",
           roleInterest: (data.role_interest as string | null) ?? null,
         },
-        options.siteUrl,
+        origin,
       ),
   });
 }
@@ -133,7 +134,8 @@ export async function notifyNewContactMessage(
     // volunteer notice deliberately has no equivalent: an application is
     // answered from the queue, where the reply is recorded.
     replyTo: submitterEmail || undefined,
-    render: () =>
+    fallbackOrigin: options.siteUrl,
+    render: (origin) =>
       renderContactMessageEmail(
         {
           messageId: data.id as string,
@@ -141,7 +143,7 @@ export async function notifyNewContactMessage(
           email: submitterEmail,
           topic: (data.topic as string) ?? "",
         },
-        options.siteUrl,
+        origin,
       ),
   });
 }
@@ -157,7 +159,14 @@ async function notifyRoleHolders(
     minLevel: "view" | "manage";
     dedupeKey: string;
     replyTo?: string;
-    render: () => RenderedEmail;
+    /**
+     * Where this tenant's site lives when it has no domain of its own -- the
+     * origin the request came in on. The tenant's own wins where there is one
+     * (#860); a thunk taking the origin rather than a closure over it is what
+     * lets that be decided here, after the tenant is known.
+     */
+    fallbackOrigin: string;
+    render: (origin: string) => RenderedEmail;
   },
 ): Promise<NotifySummary> {
   const summary: NotifySummary = { ...NOTHING };
@@ -177,7 +186,9 @@ async function notifyRoleHolders(
 
   // One tenant per call, so this is once per notice -- and after the gates
   // above, so a tenant with no role holders costs nothing (#857).
-  const identity = await tenantMailIdentity(admin, options.tenantId);
+  const mail = await tenantMailContext(admin, options.tenantId, {
+    fallbackOrigin: options.fallbackOrigin,
+  });
 
   for (const recipient of recipients) {
     if (!optedIn.has(recipient.person_id)) {
@@ -187,12 +198,12 @@ async function notifyRoleHolders(
 
     const outcome = await deliverEmail(admin, {
       tenantId: options.tenantId,
-      identity,
+      identity: mail.identity,
       personId: recipient.person_id,
       kind: options.kind,
       dedupeKey: options.dedupeKey,
       to: recipient.email,
-      render: options.render,
+      render: () => options.render(mail.origin),
       replyTo: options.replyTo,
       logPrefix: "[submission-notify]",
     });

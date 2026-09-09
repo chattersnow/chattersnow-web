@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
- * Who a tenant's mail comes from, and where a reply to it goes (#857).
+ * Who a tenant's mail comes from, where a reply to it goes (#857), and which
+ * origin its links point at (#860).
  *
  * Outbound mail used to be multi-tenant on the recipient side and
  * single-tenant on the sender side: sendEmail() read EMAIL_FROM and
@@ -12,8 +13,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * the sending address bounces, which is the whole reason EMAIL_REPLY_TO
  * exists.
  *
+ * The origin is here rather than in a module of its own because it is answered
+ * by a column this file already reads: tenants.custom_domain decides both
+ * whether a tenant may send from its own address and which site its recipients
+ * should be sent to. Two readers would mean two queries per tenant per run for
+ * one row.
+ *
  * Split the way ops-report.ts and ops-report-job.ts are: everything above
- * tenantMailIdentity() is pure, so the precedence rules and the header
+ * tenantMailContext() is pure, so the precedence rules and the header
  * composition are unit-testable without a database, and the one function that
  * touches Postgres does nothing but two reads. No `server-only`: this reads no
  * secret, the same as src/lib/notifications/settings.ts, and staying importable
@@ -200,6 +207,38 @@ function displayName(name: string | null): string {
 }
 
 /**
+ * The site a tenant's recipients should be sent to (#860).
+ *
+ * Every scheduled email used to be built from one NEXT_PUBLIC_SITE_URL, handed
+ * to a job that walks several tenants -- so on a database with more than one
+ * tenant, a member of the second got a digest whose "open this action item"
+ * links pointed at the first tenant's domain. At best a 404; at worst an
+ * invitation to sign in somewhere that is not their organization. Invisible
+ * until a second tenant is live, which is exactly when nobody is looking.
+ *
+ * The origin is a property of the tenant a message is for, not of the
+ * deployment: `https://<custom_domain>` when the tenant has one, and the
+ * platform's own origin when it does not -- the same order provision_tenant()
+ * already uses when it mints an invite link, and what keeps local, CI and
+ * preview runs working unchanged.
+ *
+ * The apex, deliberately, rather than `portal.<domain>`, even though the links
+ * are all /portal/... paths. custom_domain is a parent-domain match, so the
+ * apex is the one host a tenant is guaranteed to have pointed here;
+ * src/proxy.ts 308s /portal/... on to the subdomain for hosts listed in
+ * PORTAL_REDIRECT_HOSTS, and where it does not, /portal/... simply resolves as
+ * a path. Linking to a subdomain nobody has pointed yet would turn a working
+ * link into a dead one, and the redirect is cosmetic rather than a gate.
+ */
+export function resolveTenantOrigin(
+  customDomain: string | null,
+  fallback: string,
+): string {
+  const domain = customDomain?.trim().toLowerCase();
+  return domain ? `https://${domain}` : fallback;
+}
+
+/**
  * The identity one tenant's mail goes out with.
  *
  * From: the tenant's own address when it passes isAllowedFromAddress(),
@@ -241,8 +280,11 @@ export function resolveMailIdentity(input: MailIdentityInput): MailIdentity {
   };
 }
 
+/** Everything one tenant's mail needs that the database has to answer. */
+export type TenantMailContext = { identity: MailIdentity; origin: string };
+
 /**
- * The same, read for one named tenant.
+ * The identity and the origin for one named tenant, off a single read.
  *
  * Runs on the service-role client, which bypasses RLS, so tenant_id is passed
  * explicitly rather than left to current_tenant_id() -- that resolves to null
@@ -254,10 +296,11 @@ export function resolveMailIdentity(input: MailIdentityInput): MailIdentity {
  * the opposite trade -- refusing to send a night's reminders because a Reply-To
  * was unreadable is worse than sending them from the platform's own address.
  */
-export async function tenantMailIdentity(
+export async function tenantMailContext(
   admin: SupabaseClient,
   tenantId: string,
-): Promise<MailIdentity> {
+  options: { fallbackOrigin: string },
+): Promise<TenantMailContext> {
   const platformFrom = process.env.EMAIL_FROM ?? null;
   const platformReplyTo = process.env.EMAIL_REPLY_TO ?? null;
 
@@ -308,13 +351,20 @@ export async function tenantMailIdentity(
     );
   }
 
-  return resolveMailIdentity({
-    tenantName: (tenant.data?.name as string) ?? null,
-    tenantCustomDomain,
-    fromAddressSetting,
-    replyToSetting: byKey.get(REPLY_TO_SETTING_KEY),
-    platformFrom,
-    platformReplyTo,
-    verifiedDomains,
-  });
+  return {
+    identity: resolveMailIdentity({
+      tenantName: (tenant.data?.name as string) ?? null,
+      tenantCustomDomain,
+      fromAddressSetting,
+      replyToSetting: byKey.get(REPLY_TO_SETTING_KEY),
+      platformFrom,
+      platformReplyTo,
+      verifiedDomains,
+    }),
+    // A failed tenant read leaves this null, so the links fall back to the
+    // platform origin rather than to nothing -- the same trade as the identity
+    // above, and for the same reason: a digest with a slightly wrong link is
+    // recoverable, a digest that was never sent is not.
+    origin: resolveTenantOrigin(tenantCustomDomain, options.fallbackOrigin),
+  };
 }

@@ -28,6 +28,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // The *fallback* origin since #860: each tenant's mail is linked to its own
+  // custom_domain where it has one. Still required, because a run that
+  // resolves no origin at all should refuse rather than put `undefined` in a
+  // href for every tenant that has no domain yet.
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
   if (!siteUrl) {
     return NextResponse.json(

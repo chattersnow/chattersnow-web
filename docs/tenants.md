@@ -147,6 +147,17 @@ Every tenant's mail already goes out under its own name: the From header is
 message is for (#857). There is nothing to configure for that, and it needs no
 DNS.
 
+**Links in that mail point at the tenant's own site**, also with nothing to
+configure: `https://<custom_domain>` when the tenant has one, and
+`NEXT_PUBLIC_SITE_URL` when it does not — the same order `provision_tenant()`
+uses when it mints an invite link (#860). They target the **apex**, not
+`portal.<domain>`, even though every link is a `/portal/...` path: the apex is
+the one host a tenant is guaranteed to have pointed here, and the section above
+explains how `/portal/...` gets to the portal from there either way. This
+matters more than it looks — the tenant is resolved from the hostname and the
+session cookie is bound to it, so a link on the wrong tenant's host does not
+just 404, it strands the recipient's session.
+
 Two things can be varied per tenant, and they need very different amounts of
 work.
 
