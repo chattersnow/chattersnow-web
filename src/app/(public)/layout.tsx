@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BrandLogo } from "@/components/brand-logo";
+import { BrandLogoProvider } from "@/components/brand-logo-context";
 import { BrandStyle } from "@/components/brand-style";
 import { InstagramLink } from "@/components/instagram-link";
 import { SkipLink } from "@/components/skip-link";
@@ -119,7 +120,13 @@ export default async function PublicLayout({
           <SiteNav hiddenSlots={hidden} supportLabel={supportLabel} />
         </div>
       </header>
-      {children}
+      {/* The tenant's own mark for every image placeholder below the header --
+          event fliers and gear photos that have not been uploaded yet. The
+          header and footer take `logoUrl` directly; the placeholders sit too
+          deep, and in client components, to be handed it. */}
+      <BrandLogoProvider logoUrl={branding.logoUrl}>
+        {children}
+      </BrandLogoProvider>
       {/*
         Three zones over a legal bar. The section links, the contact details
         and the legal notices are three different kinds of thing, and running
