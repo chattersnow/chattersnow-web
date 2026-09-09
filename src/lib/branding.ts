@@ -197,8 +197,8 @@ function gradient(stops: readonly string[], alpha: number | null): string {
  * browser without it drops the declaration and falls back to the stylesheet's
  * own `.dark` literals, which is the behaviour every tenant has today anyway.
  */
-const DARK_ACCENT = { lightness: 0.783, maxChroma: 0.098 };
-const DARK_DEEP = { lightness: 0.884, maxChroma: 0.055 };
+export const DARK_ACCENT = { lightness: 0.783, maxChroma: 0.098 };
+export const DARK_DEEP = { lightness: 0.884, maxChroma: 0.055 };
 
 function darkVariant(
   color: string,
@@ -214,6 +214,88 @@ function darkVariant(
   return `oklch(from ${color} ${lightness} min(c, ${maxChroma}) h)`;
 }
 
+/* --- oklch, in TypeScript ------------------------------------------------
+ *
+ * `darkVariant()` hands the browser a relative-colour expression and lets it
+ * do the maths. That is right for the stylesheet and wrong for the brand
+ * guide, whose whole job is to hand someone a value they can paste into Canva:
+ * "oklch(from #70419a 0.783 min(c, 0.098) h)" is not a colour a designer can
+ * use, and eyedropping a screenshot is not an answer.
+ *
+ * So the same derivation is done here as well, and `darkVariantHex()` is
+ * pinned by a test to the values globals.css already documents -- the comment
+ * on DARK_ACCENT records that Chatter Snow's `--purple` must land on
+ * `rgb(200, 168, 234)`. If this drifts from what the browser computes, that
+ * test fails rather than the guide quietly publishing a wrong hex.
+ *
+ * Björn Ottosson's sRGB <-> Oklab matrices, unchanged.
+ */
+
+function srgbToLinear(channel: number): number {
+  return channel <= 0.04045
+    ? channel / 12.92
+    : ((channel + 0.055) / 1.055) ** 2.4;
+}
+
+function linearToSrgb(channel: number): number {
+  return channel <= 0.0031308
+    ? channel * 12.92
+    : 1.055 * channel ** (1 / 2.4) - 0.055;
+}
+
+/** Hex to Oklab's lightness, chroma and hue (hue in radians). */
+function hexToOklch(hex: string): { l: number; c: number; h: number } {
+  const r = srgbToLinear(parseInt(hex.slice(1, 3), 16) / 255);
+  const g = srgbToLinear(parseInt(hex.slice(3, 5), 16) / 255);
+  const b = srgbToLinear(parseInt(hex.slice(5, 7), 16) / 255);
+
+  const lCube = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b); // prettier-ignore
+  const mCube = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b); // prettier-ignore
+  const sCube = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b); // prettier-ignore
+
+  const l = 0.2104542553 * lCube + 0.793617785 * mCube - 0.0040720468 * sCube;
+  const a = 1.9779984951 * lCube - 2.428592205 * mCube + 0.4505937099 * sCube;
+  const bAxis =
+    0.0259040371 * lCube + 0.7827717662 * mCube - 0.808675766 * sCube;
+
+  return { l, c: Math.hypot(a, bAxis), h: Math.atan2(bAxis, a) };
+}
+
+function oklchToHex({ l, c, h }: { l: number; c: number; h: number }): string {
+  const a = c * Math.cos(h);
+  const bAxis = c * Math.sin(h);
+
+  const lCube = (l + 0.3963377774 * a + 0.2158037573 * bAxis) ** 3;
+  const mCube = (l - 0.1055613458 * a - 0.0638541728 * bAxis) ** 3;
+  const sCube = (l - 0.0894841775 * a - 1.291485548 * bAxis) ** 3;
+
+  const channels = [
+    4.0767416621 * lCube - 3.3077115913 * mCube + 0.2309699292 * sCube,
+    -1.2684380046 * lCube + 2.6097574011 * mCube - 0.3413193965 * sCube,
+    -0.0041960863 * lCube - 0.7034186147 * mCube + 1.707614701 * sCube,
+  ];
+
+  return `#${channels
+    .map((channel) => {
+      // Clamped, because a hue at this lightness can land outside sRGB. The
+      // browser clips the same way when it paints the swatch beside this hex.
+      const byte = Math.round(
+        Math.min(1, Math.max(0, linearToSrgb(channel))) * 255,
+      );
+      return byte.toString(16).padStart(2, "0");
+    })
+    .join("")}`;
+}
+
+/** `darkVariant()`'s output as a hex, for anyone who has to reproduce it. */
+export function darkVariantHex(
+  color: string,
+  { lightness, maxChroma }: { lightness: number; maxChroma: number },
+): string {
+  const { c, h } = hexToOklch(color);
+  return oklchToHex({ l: lightness, c: Math.min(c, maxChroma), h });
+}
+
 export type BrandColorPair = {
   token: BrandColorToken;
   /** The hex this tenant actually renders: its own, or the stylesheet's. */
@@ -224,6 +306,8 @@ export type BrandColorPair = {
    * surfaces (see `brandingCss`).
    */
   dark: string | null;
+  /** The same colour as a hex, for the guide. Null wherever `dark` is. */
+  darkHex: string | null;
 };
 
 /**
@@ -245,7 +329,12 @@ export function brandColorPairs(branding: Branding): BrandColorPair[] {
         : token.key === "primary_deep"
           ? DARK_DEEP
           : null;
-    return { token, value, dark: shape ? darkVariant(value, shape) : null };
+    return {
+      token,
+      value,
+      dark: shape ? darkVariant(value, shape) : null,
+      darkHex: shape ? darkVariantHex(value, shape) : null,
+    };
   });
 }
 

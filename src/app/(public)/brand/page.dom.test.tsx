@@ -50,6 +50,26 @@ describe("BrandPage", () => {
     expect(container.querySelector("#color")!.textContent).toContain("#f7f0ff");
   });
 
+  test("prints the dark-mode value as a hex, not as the CSS expression", async () => {
+    const { container } = render(await BrandPage());
+
+    const swatches = container.querySelector("#color")!.textContent!;
+    // The dark form of this tenant's teal accent, computed rather than left
+    // for the browser -- a designer has to be able to paste it into Canva.
+    expect(swatches).toContain("#72c7db");
+    expect(swatches).not.toContain("oklch(");
+  });
+
+  test("says why the two neutral tokens have no dark value", async () => {
+    const { container } = render(await BrandPage());
+
+    // Blank halves read as an oversight; these two genuinely keep the
+    // stylesheet's neutral surfaces in dark mode, so the page says so.
+    expect(container.querySelector("#color")!.textContent).toContain(
+      "Neutral surface, not a brand colour",
+    );
+  });
+
   test("draws as many gradient stops as the tenant set, not a fixed six", async () => {
     const { container } = render(await BrandPage());
 
