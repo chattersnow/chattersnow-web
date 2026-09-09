@@ -30,9 +30,11 @@ export default function HomeLoading() {
           </div>
         </section>
 
-        {/* Mirrors UpcomingEvents at its default of three. The section reads
-            its length from the data, so this is the common case rather than
-            the only one -- a shorter list settles into fewer columns. */}
+        {/* Deliberately count-agnostic, at the registry default of three.
+            `layout.home_upcoming_count` decides the real length, but a Suspense
+            fallback has to render synchronously -- awaiting the setting here
+            would delay the whole skeleton to save a jump only the tenants on
+            1 or 6 ever see. */}
         <section className="mt-16">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div className="w-fit">

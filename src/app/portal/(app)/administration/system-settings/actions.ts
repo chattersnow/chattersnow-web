@@ -5,6 +5,11 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkPermission } from "@/lib/auth/permissions";
 import { pageVisibilitySettingKey } from "@/lib/page-visibility";
 import {
+  LAYOUT_SLOTS,
+  isLayoutValue,
+  layoutSettingKey,
+} from "@/lib/site-layout";
+import {
   BRAND_COLOR_TOKENS,
   MAX_ACCENT_STOPS,
   brandSettingKey,
@@ -101,6 +106,27 @@ export async function updatePageVisibilityAction(
   visible: boolean,
 ): Promise<SettingActionResult> {
   return updateAppSettingAction(pageVisibilitySettingKey(slot), visible);
+}
+
+/**
+ * How much of a section the public site shows (#846). Validated against the
+ * slot's own options rather than trusted from the client: this is a Server
+ * Action, so the argument is whatever the caller sent, and a value nobody
+ * offered would reach the home page as a layout nobody designed.
+ *
+ * Like every other setting here, the write is audit-logged by the app_settings
+ * trigger.
+ */
+export async function updateLayoutSettingAction(
+  slot: string,
+  value: number,
+): Promise<SettingActionResult> {
+  const registered = LAYOUT_SLOTS.find((candidate) => candidate.key === slot);
+  if (!registered || !isLayoutValue(registered, value)) {
+    return { error: "That isn't one of the options for this setting." };
+  }
+
+  return updateAppSettingAction(layoutSettingKey(slot), value);
 }
 
 /**
