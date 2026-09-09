@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SiteImage } from "@/components/site-image";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSiteImageUrls } from "@/lib/site-images";
+import { isPageVisible } from "@/lib/page-visibility";
 import { getPublicSite, publicTitle } from "@/lib/public-site";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -14,9 +15,12 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function SponsorshipPage() {
   const supabase = await createSupabaseServerClient();
-  const [siteImages, { content }] = await Promise.all([
+  const [siteImages, { content }, brandVisible] = await Promise.all([
     getSiteImageUrls(supabase),
     getPublicSite(supabase),
+    // /brand is hidden by default, so this link is gated the same way the
+    // homepage's Donate button is -- an in-page CTA into a hidden section 404s.
+    isPageVisible("brand"),
   ]);
   const imageAlt = content.text("org.image_alt");
 
@@ -60,6 +64,19 @@ export default async function SponsorshipPage() {
       >
         {content.text("support.sponsorship_cta")}
       </Button>
+
+      {brandVisible && (
+        <p className="app-muted max-w-3xl text-sm leading-relaxed">
+          Sponsors putting our logo on their own materials should start with the{" "}
+          <Link
+            href="/brand"
+            className="underline underline-offset-4 hover:text-foreground"
+          >
+            brand and design guide
+          </Link>
+          .
+        </p>
+      )}
 
       <section className="grid gap-6 sm:grid-cols-2">
         <SiteImage

@@ -106,6 +106,22 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
     description: "The contact page and its message form.",
     defaultVisible: true,
   },
+  // The second single-route slot, and hidden by default for the opposite
+  // reason from `gears-sizing`. That one is off because its content is one
+  // organization's. This page's content is never anyone else's -- every colour,
+  // stop and specimen on it is read back from this tenant's own `brand.*` and
+  // `site_content` rows. It is off because a tenant that has set *no* brand
+  // tokens would publish a confident guide to the platform's neutral default
+  // under their own name, which is worse than having no page at all. The board
+  // turns it on once the branding is actually theirs.
+  {
+    key: "brand",
+    label: "Brand",
+    description:
+      "The brand and design guide at /brand, for sharing with partners, sponsors and press. Derived from the colours, logo and copy set elsewhere in Administration, so turn it on once those are yours.",
+    defaultVisible: false,
+    gate: "brand/page.tsx",
+  },
 ];
 
 export function pageVisibilitySettingKey(slot: string): string {

@@ -127,6 +127,25 @@ export function brandingFromRows(rows: readonly BrandingRow[]): Branding {
   return branding;
 }
 
+/**
+ * The accent gradient's stops, each with the percentage it sits at.
+ *
+ * Extracted from `gradient()` rather than recomputed beside it, because
+ * /brand documents these positions to whoever is rebuilding the gradient in
+ * Figma or Canva. Two copies of `index / (length - 1)` is the drift that page
+ * exists to end -- a tenant with five stops would have been told six.
+ */
+export function accentStops(
+  branding: Branding,
+): { color: string; position: number }[] {
+  const stops = branding.accentStops ?? DEFAULT_ACCENT_STOPS;
+  const last = Math.max(stops.length - 1, 1);
+  return stops.map((color, index) => ({
+    color,
+    position: Math.round((index / last) * 100),
+  }));
+}
+
 function gradient(stops: readonly string[], alpha: number | null): string {
   const last = Math.max(stops.length - 1, 1);
   const parts = stops.map((stop, index) => {
@@ -193,6 +212,41 @@ function darkVariant(
   // Clamping keeps both -- a saturated brand comes down to the cap, a neutral
   // one keeps its own chroma and stays neutral.
   return `oklch(from ${color} ${lightness} min(c, ${maxChroma}) h)`;
+}
+
+export type BrandColorPair = {
+  token: BrandColorToken;
+  /** The hex this tenant actually renders: its own, or the stylesheet's. */
+  value: string;
+  /**
+   * The CSS the dark block paints this token with, or null for the two tokens
+   * that have no dark form because dark mode keeps the stylesheet's neutral
+   * surfaces (see `brandingCss`).
+   */
+  dark: string | null;
+};
+
+/**
+ * Every brand colour with the value this tenant renders it at, for /brand.
+ *
+ * Note what this does that `brandingCss()` does not: it falls back to the
+ * token's `defaultValue` for a colour the tenant has not set, because the
+ * guide documents what a visitor *sees*, not what the tenant has overridden.
+ * `brandingCss()` correctly emits nothing there and lets the stylesheet stand.
+ * The two agree on what is painted, and the dark derivation is the same
+ * function in both.
+ */
+export function brandColorPairs(branding: Branding): BrandColorPair[] {
+  return BRAND_COLOR_TOKENS.map((token) => {
+    const value = branding.colors[token.key] ?? token.defaultValue;
+    const shape =
+      token.key === "primary"
+        ? DARK_ACCENT
+        : token.key === "primary_deep"
+          ? DARK_DEEP
+          : null;
+    return { token, value, dark: shape ? darkVariant(value, shape) : null };
+  });
 }
 
 export function brandingCss(branding: Branding): string {
