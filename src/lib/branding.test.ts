@@ -1,8 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
+  DARK_ACCENT,
+  DARK_DEEP,
   EMPTY_BRANDING,
+  accentStops,
+  brandColorPairs,
   brandingCss,
   brandingFromRows,
+  darkVariantHex,
   normalizeHexColor,
 } from "./branding";
 
@@ -134,5 +139,73 @@ describe("normalizeHexColor", () => {
     expect(normalizeHexColor(" #AABBCC ")).toBe("#aabbcc");
     expect(normalizeHexColor("#abc")).toBeNull();
     expect(normalizeHexColor("aabbcc")).toBeNull();
+  });
+});
+
+describe("darkVariantHex", () => {
+  /**
+   * The whole point of this function is that /brand can print a hex a designer
+   * pastes into Canva, where the browser's `oklch(from ...)` is only a swatch.
+   * That is worth having only if the two agree, so it is pinned to values
+   * globals.css has already written down rather than to whatever it returns.
+   */
+  test("reproduces the .dark literals globals.css derives", () => {
+    // globals.css:286-287, which record the expression beside each value.
+    expect(darkVariantHex("#475569", DARK_ACCENT)).toBe("#aabad1");
+    expect(darkVariantHex("#1e293b", DARK_DEEP)).toBe("#cbdaf2");
+  });
+
+  test("reproduces the accent Chatter Snow's palette lands on", () => {
+    // The DARK_ACCENT comment states this must come out as rgb(200, 168, 234).
+    expect(darkVariantHex("#70419a", DARK_ACCENT)).toBe("#c8a8ea");
+  });
+
+  test("keeps a near-neutral neutral rather than turning it blue", () => {
+    // The reason the chroma is clamped rather than set: #475569 forced to
+    // 0.098 would be #90bbf7. Its own chroma is smaller, so it survives.
+    expect(darkVariantHex("#475569", DARK_ACCENT)).not.toBe("#90bbf7");
+  });
+});
+
+describe("brandColorPairs", () => {
+  test("falls back to the stylesheet's value for an unset token", () => {
+    const pairs = brandColorPairs({
+      ...EMPTY_BRANDING,
+      colors: { primary: "#0b7285" },
+    });
+
+    expect(pairs.find((p) => p.token.key === "primary")?.value).toBe("#0b7285");
+    // Unset: the guide documents what a visitor sees, not what was overridden.
+    expect(pairs.find((p) => p.token.key === "background")?.value).toBe(
+      "#f7f0ff",
+    );
+  });
+
+  test("gives a dark form only to the two tokens that have one", () => {
+    const pairs = brandColorPairs(EMPTY_BRANDING);
+    const withDark = pairs.filter((pair) => pair.darkHex !== null);
+
+    expect(withDark.map((pair) => pair.token.key)).toEqual([
+      "primary",
+      "primary_deep",
+    ]);
+    // The rest keep the stylesheet's neutral surfaces in dark mode, which the
+    // page has to say rather than leave as a blank half-swatch.
+    expect(pairs.every((pair) => (pair.dark === null) === (pair.darkHex === null))).toBe(true); // prettier-ignore
+  });
+});
+
+describe("accentStops", () => {
+  test("spaces however many stops the tenant set", () => {
+    expect(
+      accentStops({
+        ...EMPTY_BRANDING,
+        accentStops: ["#111111", "#222222", "#333333", "#444444"],
+      }).map((stop) => stop.position),
+    ).toEqual([0, 33, 67, 100]);
+  });
+
+  test("falls back to the platform's six", () => {
+    expect(accentStops(EMPTY_BRANDING)).toHaveLength(6);
   });
 });
