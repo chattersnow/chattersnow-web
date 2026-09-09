@@ -1,8 +1,7 @@
 import Papa from "papaparse";
-import { ITEM_TYPES, CATEGORIES, PRIORITY_TIERS } from "../calendar-shared";
+import { ITEM_TYPES, PRIORITY_TIERS } from "../calendar-shared";
 
 const ITEM_TYPE_VALUES = ITEM_TYPES.map((option) => option.value);
-const CATEGORY_VALUES = CATEGORIES.map((option) => option.value);
 const PRIORITY_TIER_VALUES = PRIORITY_TIERS.map((option) => option.value);
 
 export type CalendarImportRow = {
@@ -13,7 +12,7 @@ export type CalendarImportRow = {
   timeZone: string;
   recurrenceRule: string | null;
   priorityTier: 1 | 2 | 3;
-  category: (typeof CATEGORY_VALUES)[number];
+  category: string;
   region: string | null;
 };
 
@@ -41,6 +40,7 @@ function isValidTimeZone(timeZone: string): boolean {
 export function parseCalendarImportRow(
   raw: CalendarImportCsvRow,
   rowNumber: number,
+  validCategories: readonly string[],
 ): { data: CalendarImportRow } | { error: string } {
   const title = (raw.title ?? "").trim();
   const itemType = (raw.item_type ?? "").trim();
@@ -95,8 +95,12 @@ export function parseCalendarImportRow(
   ) {
     return { error: `row ${rowNumber}: priority_tier must be 1, 2, or 3` };
   }
-  if (!CATEGORY_VALUES.includes(category as (typeof CATEGORY_VALUES)[number])) {
-    return { error: `row ${rowNumber}: invalid category "${category}"` };
+  // The tenant's own vocabulary since #834, so the message lists what this
+  // organization actually has rather than a fixed six.
+  if (!validCategories.includes(category)) {
+    return {
+      error: `row ${rowNumber}: invalid category "${category}" -- expected one of ${validCategories.join(", ")}`,
+    };
   }
 
   return {
@@ -108,13 +112,16 @@ export function parseCalendarImportRow(
       timeZone,
       recurrenceRule: recurrenceRule || null,
       priorityTier: Number(priorityTierRaw) as 1 | 2 | 3,
-      category: category as (typeof CATEGORY_VALUES)[number],
+      category,
       region: region || null,
     },
   };
 }
 
-export function parseCalendarImportCsv(csvText: string): {
+export function parseCalendarImportCsv(
+  csvText: string,
+  validCategories: readonly string[],
+): {
   rows: ({ data: CalendarImportRow } | { error: string })[];
   totalRows: number;
 } {
@@ -123,6 +130,8 @@ export function parseCalendarImportCsv(csvText: string): {
     skipEmptyLines: true,
   });
 
-  const rows = parsed.data.map((row, i) => parseCalendarImportRow(row, i + 2));
+  const rows = parsed.data.map((row, i) =>
+    parseCalendarImportRow(row, i + 2, validCategories),
+  );
   return { rows, totalRows: parsed.data.length };
 }

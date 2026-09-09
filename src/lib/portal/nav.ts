@@ -81,6 +81,16 @@ export const NAV_ITEMS: readonly NavItem[] = [
         access: [{ resource: "content_calendar_reports", level: "view" }],
       },
       {
+        value: "categories",
+        label: "Categories",
+        href: "/portal/calendar/categories",
+        // view, not manage: the page is readable by anyone who works the
+        // calendar -- the vocabulary is what their pickers are made of -- and
+        // the write controls are gated on manage inside it, the way Item
+        // Categories does it.
+        access: [{ resource: "content_calendar", level: "view" }],
+      },
+      {
         value: "import",
         label: "Import",
         href: "/portal/calendar/import",

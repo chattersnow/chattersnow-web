@@ -3,7 +3,8 @@
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createSuggestionRuleAction } from "./actions";
-import { CATEGORIES, ITEM_TYPES } from "../calendar-shared";
+import { ITEM_TYPES } from "../calendar-shared";
+import type { CalendarCategory } from "../calendar-shared";
 import type { Program } from "../../programs/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -32,7 +33,14 @@ function getInitialFormState() {
   return { itemType: "any", category: "any", programId: "", note: "" };
 }
 
-export function NewSuggestionRuleDialog({ programs }: { programs: Program[] }) {
+export function NewSuggestionRuleDialog({
+  programs,
+  categoryVocabulary,
+}: {
+  programs: Program[];
+  /** The tenant's category vocabulary (#834). */
+  categoryVocabulary: CalendarCategory[];
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(getInitialFormState);
@@ -134,14 +142,15 @@ export function NewSuggestionRuleDialog({ programs }: { programs: Program[] }) {
                     {(value: string) =>
                       value === "any"
                         ? "Any category"
-                        : CATEGORIES.find((option) => option.value === value)
-                            ?.label
+                        : categoryVocabulary.find(
+                            (option) => option.value === value,
+                          )?.label
                     }
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="any">Any category</SelectItem>
-                  {CATEGORIES.map((option) => (
+                  {categoryVocabulary.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
                     </SelectItem>

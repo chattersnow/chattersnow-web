@@ -13,8 +13,8 @@ import { formatDateInZone } from "@/lib/time";
 import { CalendarListView } from "./calendar-list-view";
 import { currentMonthKey, CalendarMonthView } from "./calendar-month-view";
 import {
-  CATEGORIES,
   categoryLabel,
+  type PublicCalendarCategory,
   type PublicCalendarItem,
 } from "./calendar-shared";
 
@@ -30,9 +30,12 @@ function monthOptionLabel(month: string) {
 
 export function CommunityCalendar({
   items,
+  categories,
   now,
 }: {
   items: PublicCalendarItem[];
+  /** The resolved tenant's own categories, in their order (#834). */
+  categories: PublicCalendarCategory[];
   now: number;
 }) {
   const [viewMode, setViewMode] = useState<"list" | "month">("list");
@@ -133,14 +136,16 @@ export function CommunityCalendar({
             >
               <SelectValue placeholder="Category">
                 {(value: string) =>
-                  value === FILTER_ALL ? "All categories" : categoryLabel(value)
+                  value === FILTER_ALL
+                    ? "All categories"
+                    : categoryLabel(categories, value)
                 }
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={FILTER_ALL}>All categories</SelectItem>
-              {CATEGORIES.map((category) => (
-                <SelectItem key={category.value} value={category.value}>
+              {categories.map((category) => (
+                <SelectItem key={category.key} value={category.key}>
                   {category.label}
                 </SelectItem>
               ))}

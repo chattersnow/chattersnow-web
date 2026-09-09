@@ -17,12 +17,19 @@ export default async function CommunityCalendarPage() {
   const supabase = await createSupabaseServerClient();
 
   const { content } = await getPublicSite(supabase);
-  const { data: items } = await supabase
-    .from("public_calendar_items")
-    .select(
-      "id, title, starts_at, ends_at, time_zone, summary, categories, public_url",
-    )
-    .order("starts_at", { ascending: true });
+  const [{ data: items }, { data: categories }] = await Promise.all([
+    supabase
+      .from("public_calendar_items")
+      .select(
+        "id, title, starts_at, ends_at, time_zone, summary, categories, public_url",
+      )
+      .order("starts_at", { ascending: true }),
+    // The tenant's own vocabulary, not a list compiled into the bundle (#834).
+    supabase
+      .from("public_calendar_categories")
+      .select("key, label")
+      .order("sort_order", { ascending: true }),
+  ]);
 
   return (
     <PageShell>
@@ -39,7 +46,11 @@ export default async function CommunityCalendarPage() {
       </section>
 
       <div className="mt-10">
-        <CommunityCalendar items={items ?? []} now={nowMs()} />
+        <CommunityCalendar
+          items={items ?? []}
+          categories={categories ?? []}
+          now={nowMs()}
+        />
       </div>
     </PageShell>
   );

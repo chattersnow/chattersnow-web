@@ -4,6 +4,20 @@ import {
   parseCalendarImportCsv,
 } from "./calendar-import-row";
 
+/**
+ * The six categories a fresh database seeds. Passed in explicitly because the
+ * vocabulary is per-tenant since #834 -- there is no constant to import, and
+ * spelling it out here is what makes these cases readable.
+ */
+const CATEGORY_KEYS = [
+  "lgbtq_community",
+  "winter_outdoor_sports",
+  "community_social_justice",
+  "own_events",
+  "campaigns_fundraising",
+  "partner_opportunities",
+];
+
 const validRow = {
   title: "GLAAD Spirit Day",
   item_type: "community_observance",
@@ -18,7 +32,7 @@ const validRow = {
 
 describe("parseCalendarImportRow", () => {
   test("parses a valid row", () => {
-    const result = parseCalendarImportRow(validRow, 2);
+    const result = parseCalendarImportRow(validRow, 2, CATEGORY_KEYS);
     expect("data" in result).toBe(true);
     if ("data" in result) {
       expect(result.data.title).toBe("GLAAD Spirit Day");
@@ -31,12 +45,16 @@ describe("parseCalendarImportRow", () => {
   });
 
   test("treats a fully blank row as blank, not a missing-field error", () => {
-    const result = parseCalendarImportRow({}, 5);
+    const result = parseCalendarImportRow({}, 5, CATEGORY_KEYS);
     expect(result).toEqual({ error: "row 5: blank" });
   });
 
   test("requires a title", () => {
-    const result = parseCalendarImportRow({ ...validRow, title: "" }, 3);
+    const result = parseCalendarImportRow(
+      { ...validRow, title: "" },
+      3,
+      CATEGORY_KEYS,
+    );
     expect(result).toEqual({ error: "row 3: title is required" });
   });
 
@@ -44,6 +62,7 @@ describe("parseCalendarImportRow", () => {
     const result = parseCalendarImportRow(
       { ...validRow, item_type: "bogus" },
       3,
+      CATEGORY_KEYS,
     );
     expect("error" in result && result.error.includes("item_type")).toBe(true);
   });
@@ -52,6 +71,7 @@ describe("parseCalendarImportRow", () => {
     const result = parseCalendarImportRow(
       { ...validRow, starts_at: "not-a-date" },
       3,
+      CATEGORY_KEYS,
     );
     expect("error" in result && result.error.includes("starts_at")).toBe(true);
   });
@@ -60,6 +80,7 @@ describe("parseCalendarImportRow", () => {
     const result = parseCalendarImportRow(
       { ...validRow, ends_at: "2027-10-20T00:00:00Z" },
       3,
+      CATEGORY_KEYS,
     );
     expect("error" in result && result.error.includes("ends_at")).toBe(true);
   });
@@ -68,6 +89,7 @@ describe("parseCalendarImportRow", () => {
     const result = parseCalendarImportRow(
       { ...validRow, time_zone: "Not/AZone" },
       3,
+      CATEGORY_KEYS,
     );
     expect("error" in result && result.error.includes("time_zone")).toBe(true);
   });
@@ -76,6 +98,7 @@ describe("parseCalendarImportRow", () => {
     const result = parseCalendarImportRow(
       { ...validRow, priority_tier: "5" },
       3,
+      CATEGORY_KEYS,
     );
     expect("error" in result && result.error.includes("priority_tier")).toBe(
       true,
@@ -86,6 +109,7 @@ describe("parseCalendarImportRow", () => {
     const result = parseCalendarImportRow(
       { ...validRow, category: "bogus" },
       3,
+      CATEGORY_KEYS,
     );
     expect("error" in result && result.error.includes("category")).toBe(true);
   });
@@ -99,7 +123,7 @@ describe("parseCalendarImportCsv", () => {
       ",,,,,,,,",
     ].join("\n");
 
-    const { rows, totalRows } = parseCalendarImportCsv(csv);
+    const { rows, totalRows } = parseCalendarImportCsv(csv, CATEGORY_KEYS);
     expect(totalRows).toBe(2);
     expect("data" in rows[0]).toBe(true);
     expect(rows[1]).toEqual({ error: "row 3: blank" });

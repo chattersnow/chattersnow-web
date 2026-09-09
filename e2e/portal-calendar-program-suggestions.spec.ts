@@ -64,7 +64,7 @@ async function createRule(page: Page, programName: string, note: string) {
   ).toBeVisible();
 
   await selectOption(page, "Item type", "Content opportunity");
-  await selectOption(page, "Category", "Chatter events");
+  await selectOption(page, "Category", "Our events");
   await selectOption(page, "Suggested program", programName);
   await dialog.getByLabel("Note").fill(note);
   await dialog.getByRole("button", { name: "Create rule" }).click();
@@ -108,7 +108,7 @@ test.describe("portal calendar program suggestions", () => {
 
       await expect(row).toBeVisible();
       await expect(row).toContainText("Content opportunity");
-      await expect(row).toContainText("Chatter events");
+      await expect(row).toContainText("Our events");
       await expect(row).toContainText("E2E suggestion note");
       await expect(row).toContainText("Yes");
     } finally {
@@ -137,7 +137,7 @@ test.describe("portal calendar program suggestions", () => {
         "Content opportunity",
       );
       await expect(sheet.locator("#rule-view-category")).toHaveText(
-        "Chatter events",
+        "Our events",
       );
       await expect(sheet.locator("#rule-view-note")).toHaveText(
         "E2E editable note",

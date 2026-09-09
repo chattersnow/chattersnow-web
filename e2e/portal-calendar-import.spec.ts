@@ -91,7 +91,7 @@ test.describe("portal calendar import", () => {
     const csv = [
       "title,item_type,starts_at,ends_at,time_zone,recurrence_rule,priority_tier,category,region",
       `${observanceTitle},community_observance,${IMPORT_YEAR}-03-14T00:00:00Z,,America/Denver,,2,lgbtq_community,us`,
-      `${campaignTitle},content_campaign,${IMPORT_YEAR}-04-02T00:00:00Z,,America/Denver,,3,chatter_events,`,
+      `${campaignTitle},content_campaign,${IMPORT_YEAR}-04-02T00:00:00Z,,America/Denver,,3,own_events,`,
       `E2E Import Rejected ${suffix},not_a_type,${IMPORT_YEAR}-05-01T00:00:00Z,,America/Denver,,2,lgbtq_community,us`,
     ].join("\n");
 

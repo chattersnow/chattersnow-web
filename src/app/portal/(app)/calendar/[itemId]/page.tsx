@@ -11,6 +11,7 @@ import { listActiveContentBriefTemplatesAction } from "../templates/actions";
 import { listActiveProgramSuggestionRulesAction } from "../program-suggestions/actions";
 import { getCalendarItem } from "../queries";
 import { CalendarItemDetailView } from "./calendar-item-detail-view";
+import { listCalendarCategories } from "../queries";
 
 export async function generateMetadata({
   params,
@@ -35,6 +36,7 @@ export default async function CalendarItemDetailPage({
 }) {
   const { itemId } = await params;
   const supabase = await createSupabaseServerClient();
+  const categoryVocabulary = await listCalendarCategories(supabase);
   const permissions = await requirePermission(
     supabase,
     "content_calendar",
@@ -87,6 +89,7 @@ export default async function CalendarItemDetailPage({
       <PortalBreadcrumbs current={item.title} />
 
       <CalendarItemDetailView
+        categoryVocabulary={categoryVocabulary}
         item={item}
         owners={owners}
         programs={programs}

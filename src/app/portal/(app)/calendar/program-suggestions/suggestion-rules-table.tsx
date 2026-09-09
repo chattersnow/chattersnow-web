@@ -14,7 +14,8 @@ import {
   PortalDataTable,
   type PortalDataTableColumn,
 } from "@/components/portal/data-table";
-import { CATEGORIES, ITEM_TYPES, labelFor } from "../calendar-shared";
+import { ITEM_TYPES, labelFor } from "../calendar-shared";
+import type { CalendarCategory } from "../calendar-shared";
 import type { Program } from "../../programs/actions";
 import {
   SuggestionRuleDetailsSheet,
@@ -29,11 +30,14 @@ export function SuggestionRulesTable({
   programs,
   canManage,
   newAction,
+  categoryVocabulary,
 }: {
   rules: SuggestionRuleListRow[];
   programs: Program[];
   canManage: boolean;
   newAction?: ReactNode;
+  /** The tenant's category vocabulary, for resolving labels (#834). */
+  categoryVocabulary: CalendarCategory[];
 }) {
   const [programFilter, setProgramFilter] = useState(FILTER_ALL);
   const [activeFilter, setActiveFilter] = useState(FILTER_ALL);
@@ -78,10 +82,10 @@ export function SuggestionRulesTable({
         key: "category",
         label: "Category",
         sortValue: (rule) =>
-          rule.category ? labelFor(CATEGORIES, rule.category) : "Any",
+          rule.category ? labelFor(categoryVocabulary, rule.category) : "Any",
         cellClassName: "app-muted",
         render: (rule) =>
-          rule.category ? labelFor(CATEGORIES, rule.category) : "Any",
+          rule.category ? labelFor(categoryVocabulary, rule.category) : "Any",
       },
       {
         key: "program",
@@ -115,6 +119,7 @@ export function SuggestionRulesTable({
         cellClassName: "text-right",
         render: (rule) => (
           <SuggestionRuleDetailsSheet
+            categoryVocabulary={categoryVocabulary}
             rule={rule}
             programs={programs}
             canManage={canManage}
@@ -122,7 +127,7 @@ export function SuggestionRulesTable({
         ),
       },
     ],
-    [programs, programName, canManage],
+    [programs, programName, canManage, categoryVocabulary],
   );
 
   return (
