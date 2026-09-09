@@ -16,6 +16,7 @@ import {
   Layers,
   Mail,
   Package,
+  Palette,
   Scale,
   ShieldCheck,
   Ticket,
@@ -46,6 +47,7 @@ import {
 const SECTION_ICONS: Record<string, typeof LayoutDashboard> = {
   overview: LayoutDashboard,
   events: CalendarDays,
+  artwork: Palette,
   calendar: CalendarRange,
   programs: Layers,
   inventory: Package,

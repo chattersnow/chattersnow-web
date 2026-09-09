@@ -65,6 +65,13 @@ export const NOTIFICATION_KINDS: NotificationKind[] = [
       level: "manage",
     },
   },
+  {
+    key: "artwork_submission",
+    label: "New artwork submissions",
+    description:
+      "An email as soon as someone submits artwork to an open call, linking straight to the review queue.",
+    requires: { resources: ["artwork_submissions"], level: "manage" },
+  },
 ];
 
 export function isNotificationKind(key: string): boolean {

@@ -45,6 +45,29 @@ export const NAV_ITEMS: readonly NavItem[] = [
     access: [{ resource: "events", level: "view" }],
   },
   {
+    value: "artwork",
+    label: "Artwork",
+    href: "/portal/artwork",
+    basePath: "/portal/artwork",
+    // Its own section rather than a child of Events (#870): the queue is
+    // gated on artwork_submissions alone, so a curator who holds nothing else
+    // can still reach it.
+    subItems: [
+      {
+        value: "submissions",
+        label: "Submissions",
+        href: "/portal/artwork",
+        access: [{ resource: "artwork_submissions", level: "view" }],
+      },
+      {
+        value: "calls",
+        label: "Calls",
+        href: "/portal/artwork/calls",
+        access: [{ resource: "artwork_submissions", level: "manage" }],
+      },
+    ],
+  },
+  {
     value: "calendar",
     label: "Calendar",
     href: "/portal/calendar",

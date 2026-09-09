@@ -55,6 +55,7 @@ describe("getOpsInboxSummary event check-ins (integration)", () => {
       canSeeVolunteerApplications: false,
       canSeeContactMessages: false,
       canSeeEventCheckins: true,
+      canSeeArtworkSubmissions: false,
     });
 
     const itemA = result.items.find((item) => item.href.includes(eventA.id));
@@ -83,6 +84,7 @@ describe("getOpsInboxSummary event check-ins (integration)", () => {
       canSeeVolunteerApplications: false,
       canSeeContactMessages: false,
       canSeeEventCheckins: true,
+      canSeeArtworkSubmissions: false,
     });
 
     expect(result.items.some((item) => item.href.includes(event.id))).toBe(
@@ -104,6 +106,7 @@ describe("getOpsInboxSummary event check-ins (integration)", () => {
       canSeeVolunteerApplications: false,
       canSeeContactMessages: false,
       canSeeEventCheckins: false,
+      canSeeArtworkSubmissions: false,
     });
 
     expect(result.items.some((item) => item.href.includes(event.id))).toBe(
@@ -124,6 +127,7 @@ const ALL_FLAGS_ON = {
   canSeeVolunteerApplications: true,
   canSeeContactMessages: true,
   canSeeEventCheckins: true,
+  canSeeArtworkSubmissions: true,
 };
 
 const EMPTY = { items: [] };
@@ -205,6 +209,13 @@ describe("attention summaries for unprivileged actors (integration)", () => {
     // was forced on above and RLS still returned nothing.
     expect(
       result.items.some((item) => item.key === "contact_messages_new"),
+    ).toBe(false);
+    // Same question for artwork_submissions (#870), which this role also does
+    // not hold -- and here the refusal comes from inside
+    // count_pending_artwork_submissions() rather than from a policy, so it is
+    // worth pinning separately.
+    expect(
+      result.items.some((item) => item.key === "artwork_submissions_pending"),
     ).toBe(false);
 
     // Event tasks are read at events:view too, so forcing canManageEvents on
