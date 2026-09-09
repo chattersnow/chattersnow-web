@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { listCalendarCategories } from "../queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDateInZone } from "@/lib/time";
 import { getMissingCoverageSeriesForYear } from "../queries";
@@ -19,6 +20,9 @@ export default async function CalendarImportPage({
   searchParams,
 }: CalendarImportPageProps) {
   const supabase = await createSupabaseServerClient();
+  const categoryKeys = (await listCalendarCategories(supabase)).map(
+    (category) => category.value,
+  );
   const params = await searchParams;
   const yearParam = params.year;
   const defaultYear = new Date().getUTCFullYear() + 1;
@@ -84,7 +88,7 @@ export default async function CalendarImportPage({
           <CardTitle>Bulk import new observances</CardTitle>
         </CardHeader>
         <CardContent>
-          <CsvImportPanel />
+          <CsvImportPanel categoryKeys={categoryKeys} />
         </CardContent>
       </Card>
     </>

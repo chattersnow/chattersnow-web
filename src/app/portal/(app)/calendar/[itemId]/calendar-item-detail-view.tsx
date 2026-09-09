@@ -25,6 +25,7 @@ import {
   type CalendarOwner,
   type CalendarProgram,
 } from "../calendar-shared";
+import type { CalendarCategory } from "../calendar-shared";
 import {
   CalendarStatusBadge,
   CalendarVisibilityBadge,
@@ -71,6 +72,7 @@ export function CalendarItemDetailView({
   defaultLeadTimeDays,
   programSuggestionRules,
   canManage,
+  categoryVocabulary,
 }: {
   item: CalendarItemRow;
   owners: CalendarOwner[];
@@ -79,6 +81,8 @@ export function CalendarItemDetailView({
   defaultLeadTimeDays: number;
   programSuggestionRules: ProgramSuggestionRule[];
   canManage: boolean;
+  /** The tenant's category vocabulary (#834). */
+  categoryVocabulary: CalendarCategory[];
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -275,6 +279,7 @@ export function CalendarItemDetailView({
           programs={programs}
           programSuggestionRules={programSuggestionRules}
           canManage={canManage}
+          categoryVocabulary={categoryVocabulary}
         />
 
         <SensitiveTopicCard item={item} owners={owners} canManage={canManage} />
@@ -286,7 +291,12 @@ export function CalendarItemDetailView({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <RelatedItemsTab itemId={item.id} canManage={canManage} open />
+            <RelatedItemsTab
+              categoryVocabulary={categoryVocabulary}
+              itemId={item.id}
+              canManage={canManage}
+              open
+            />
           </CardContent>
         </Card>
 

@@ -9,7 +9,8 @@ import {
   type RelatedCalendarItemSummary,
   type SuggestedRelatedCalendarItem,
 } from "./related-items-actions";
-import { CATEGORIES, ITEM_TYPES, labelFor } from "./calendar-shared";
+import { ITEM_TYPES, labelFor } from "./calendar-shared";
+import type { CalendarCategory } from "./calendar-shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
@@ -21,10 +22,13 @@ export function RelatedItemsTab({
   itemId,
   canManage,
   open,
+  categoryVocabulary,
 }: {
   itemId: string;
   canManage: boolean;
   open: boolean;
+  /** The tenant's category vocabulary, for resolving labels (#834). */
+  categoryVocabulary: CalendarCategory[];
 }) {
   const [loading, setLoading] = useState(true);
   const [confirmed, setConfirmed] = useState<RelatedCalendarItemSummary[]>([]);
@@ -170,7 +174,7 @@ export function RelatedItemsTab({
                         Shares:{" "}
                         {[
                           ...candidate.shared_categories.map((category) =>
-                            labelFor(CATEGORIES, category),
+                            labelFor(categoryVocabulary, category),
                           ),
                           ...candidate.shared_programs,
                         ].join(", ")}

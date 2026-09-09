@@ -3,10 +3,21 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseSuggestionRuleForm } from "./suggestion-rule-form";
+import { listCalendarCategories } from "../queries";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { checkPermission } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
 import { friendlyError } from "@/lib/db-errors";
 import type { ProgramSuggestionRule } from "../program-suggestion-shared";
+
+/**
+ * The tenant's category keys, for the form parsers. Read on every submit rather
+ * than cached: the vocabulary is editable (#834), and validating against a
+ * stale list would reject a category someone had just added.
+ */
+async function validCategoryKeys(supabase: SupabaseClient): Promise<string[]> {
+  return (await listCalendarCategories(supabase)).map((c) => c.value);
+}
 
 export type SuggestionRuleActionResult = { error: string } | { success: true };
 
@@ -31,7 +42,10 @@ export async function createSuggestionRuleAction(
   );
   if (permissionError) return permissionError;
 
-  const parsed = parseSuggestionRuleForm(formData);
+  const parsed = parseSuggestionRuleForm(
+    formData,
+    await validCategoryKeys(supabase),
+  );
   if ("error" in parsed) return parsed;
 
   const { error } = await supabase
@@ -75,7 +89,10 @@ export async function updateSuggestionRuleAction(
   );
   if (permissionError) return permissionError;
 
-  const parsed = parseSuggestionRuleForm(formData);
+  const parsed = parseSuggestionRuleForm(
+    formData,
+    await validCategoryKeys(supabase),
+  );
   if ("error" in parsed) return parsed;
 
   const { error } = await supabase

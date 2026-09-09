@@ -16,6 +16,7 @@ import {
   type CalendarEntry,
 } from "./calendar-entries";
 import { listCalendarEvents, mapCalendarItemRow } from "./queries";
+import { listCalendarCategories } from "./queries";
 
 const VIEW_VALUES: CalendarView[] = ["list", "agenda", "month"];
 const SORT_VALUES: ListSortColumn[] = ["title", "starts_at", "calendar_status"];
@@ -37,6 +38,7 @@ export default async function CalendarPage({
   searchParams,
 }: CalendarPageProps) {
   const supabase = await createSupabaseServerClient();
+  const categoryVocabulary = await listCalendarCategories(supabase);
   const permissions = await requirePermission(
     supabase,
     "content_calendar",
@@ -173,6 +175,7 @@ export default async function CalendarPage({
       ) : (
         <div className="mt-2">
           <CalendarWorkspace
+            categoryVocabulary={categoryVocabulary}
             view={view}
             month={month}
             entries={entries}

@@ -7,7 +7,8 @@ import {
   deleteSuggestionRuleAction,
   updateSuggestionRuleAction,
 } from "./actions";
-import { CATEGORIES, ITEM_TYPES, labelFor } from "../calendar-shared";
+import { ITEM_TYPES, labelFor } from "../calendar-shared";
+import type { CalendarCategory } from "../calendar-shared";
 import type { Program } from "../../programs/actions";
 import {
   AlertDialog,
@@ -86,10 +87,13 @@ export function SuggestionRuleDetailsSheet({
   rule,
   programs,
   canManage,
+  categoryVocabulary,
 }: {
   rule: SuggestionRuleListRow;
   programs: Program[];
   canManage: boolean;
+  /** The tenant's category vocabulary (#834). */
+  categoryVocabulary: CalendarCategory[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -296,7 +300,9 @@ export function SuggestionRuleDetailsSheet({
                     : "Any"}
                 </ReadOnlyField>
                 <ReadOnlyField label="Category" htmlFor="rule-view-category">
-                  {rule.category ? labelFor(CATEGORIES, rule.category) : "Any"}
+                  {rule.category
+                    ? labelFor(categoryVocabulary, rule.category)
+                    : "Any"}
                 </ReadOnlyField>
                 <ReadOnlyField label="Note" htmlFor="rule-view-note">
                   {rule.note || "—"}
@@ -361,7 +367,7 @@ export function SuggestionRuleDetailsSheet({
                           {(value: string) =>
                             value === "any"
                               ? "Any category"
-                              : CATEGORIES.find(
+                              : categoryVocabulary.find(
                                   (option) => option.value === value,
                                 )?.label
                           }
@@ -369,7 +375,7 @@ export function SuggestionRuleDetailsSheet({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="any">Any category</SelectItem>
-                        {CATEGORIES.map((option) => (
+                        {categoryVocabulary.map((option) => (
                           <SelectItem key={option.value} value={option.value}>
                             {option.label}
                           </SelectItem>

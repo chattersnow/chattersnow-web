@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { CalendarFiltersSheet } from "./calendar-filters-sheet";
 import { type CalendarOwner, type CalendarProgram } from "./calendar-shared";
+import type { CalendarCategory } from "./calendar-shared";
 import type { CalendarEntry } from "./calendar-entries";
 import type { ProgramSuggestionRule } from "./program-suggestion-shared";
 import { ListView, type ListSortColumn } from "./list-view";
@@ -12,6 +13,7 @@ import { NewCalendarItemDialog } from "./new-calendar-item-dialog";
 import { ViewToggle, type CalendarView } from "./view-toggle";
 
 export function CalendarWorkspace({
+  categoryVocabulary,
   view,
   month,
   entries,
@@ -33,6 +35,8 @@ export function CalendarWorkspace({
   statusFilter,
   decisionFilter,
 }: {
+  /** The tenant's category vocabulary (#834). */
+  categoryVocabulary: CalendarCategory[];
   view: CalendarView;
   month: string;
   entries: CalendarEntry[];
@@ -110,6 +114,7 @@ export function CalendarWorkspace({
 
         <div className="flex flex-wrap items-center gap-2">
           <CalendarFiltersSheet
+            categoryVocabulary={categoryVocabulary}
             view={view}
             month={month}
             sort={sort}
@@ -133,6 +138,7 @@ export function CalendarWorkspace({
 
           {canManage && (
             <NewCalendarItemDialog
+              categoryVocabulary={categoryVocabulary}
               owners={owners}
               programs={programs}
               programSuggestionRules={programSuggestionRules}

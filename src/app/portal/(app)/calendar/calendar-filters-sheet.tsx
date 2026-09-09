@@ -22,7 +22,6 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import {
-  CATEGORIES,
   CALENDAR_STATUSES,
   DECISIONS,
   ITEM_TYPES,
@@ -33,6 +32,7 @@ import {
   type CalendarProgram,
   ownerName,
 } from "./calendar-shared";
+import type { CalendarCategory } from "./calendar-shared";
 import { personDisplayName } from "@/lib/format";
 import type { CalendarView } from "./view-toggle";
 import type { ListSortColumn } from "./list-view";
@@ -41,6 +41,8 @@ const fieldLabelClassName =
   "app-muted text-xs font-semibold uppercase tracking-[0.1em]";
 
 type CalendarFiltersSheetProps = {
+  /** The tenant's category vocabulary (#834). */
+  categoryVocabulary: CalendarCategory[];
   view: CalendarView;
   month: string;
   sort: ListSortColumn;
@@ -83,6 +85,7 @@ export function CalendarFiltersSheet({
   range,
   onRangeChange,
   eventsHidden,
+  categoryVocabulary,
 }: CalendarFiltersSheetProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -254,14 +257,15 @@ export function CalendarFiltersSheet({
                   {(value: string) =>
                     value === "all"
                       ? "All categories"
-                      : CATEGORIES.find((option) => option.value === value)
-                          ?.label
+                      : categoryVocabulary.find(
+                          (option) => option.value === value,
+                        )?.label
                   }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All categories</SelectItem>
-                {CATEGORIES.map((option) => (
+                {categoryVocabulary.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
