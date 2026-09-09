@@ -142,6 +142,12 @@ jobs:
       - name: Reset DB (migrate + seed)
         run: supabase db reset
 
+      # See the same step in .github/workflows/e2e.yml: apt fails the whole
+      # install when Google's Chrome index is inconsistent, and we never read
+      # it.
+      - name: Drop the unused Google Chrome apt source
+        run: sudo rm -f /etc/apt/sources.list.d/google-chrome.list
+
       - name: Install Playwright browser (chromium)
         run: bunx playwright install --with-deps chromium
 

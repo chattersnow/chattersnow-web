@@ -72,6 +72,19 @@ jobs:
       - name: Reset DB (migrate + seed)
         run: supabase db reset
 
+      # `--with-deps` runs `apt-get update` across every source on the runner
+      # image, and GitHub's Ubuntu image ships Google's Chrome repository. We
+      # never read it -- Playwright fetches its own Chromium from Playwright's
+      # CDN -- but apt treats any failed index as fatal, so when that repo
+      # served a Packages.gz whose hash did not match the InRelease it had just
+      # published (2026-09-09, a Chrome release rolling out mid-publish), every
+      # browser job here died at install with exit code 100 having never run a
+      # test, twice, ten minutes apart. Dropping the source we don't read keeps
+      # `--with-deps` doing its real job -- the shared libraries Chromium needs
+      # -- without staking the run on Google's publishing being consistent.
+      - name: Drop the unused Google Chrome apt source
+        run: sudo rm -f /etc/apt/sources.list.d/google-chrome.list
+
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps ${{ inputs.install-browsers }}
 
@@ -135,6 +148,11 @@ jobs:
 
       # The mutating project is Desktop Chrome whatever the caller's browser
       # matrix is, so this one never needs the others.
+      # See the same step in the shard job above: apt fails the whole install
+      # when Google's Chrome index is inconsistent, and we never read it.
+      - name: Drop the unused Google Chrome apt source
+        run: sudo rm -f /etc/apt/sources.list.d/google-chrome.list
+
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps chromium
 
