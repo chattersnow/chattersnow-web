@@ -30,11 +30,13 @@ export default function HomeLoading() {
           </div>
         </section>
 
-        {/* Deliberately count-agnostic, at the registry default of three.
-            `layout.home_upcoming_count` decides the real length, but a Suspense
-            fallback has to render synchronously -- awaiting the setting here
-            would delay the whole skeleton to save a jump only the tenants on
-            1 or 6 ever see. */}
+        {/* Deliberately settings-agnostic, at the registry defaults: three
+            slots in the flier grid. `layout.home_upcoming_count` and
+            `layout.home_upcoming_cards` decide what actually renders, but a
+            Suspense fallback has to render synchronously, and awaiting them
+            would delay the whole skeleton -- including the hero above, which
+            every tenant sees -- to tidy a swap only tenants off the defaults
+            ever meet. */}
         <section className="mt-16">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div className="w-fit">

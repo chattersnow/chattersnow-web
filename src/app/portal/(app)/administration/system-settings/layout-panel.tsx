@@ -16,13 +16,26 @@ import { Spinner } from "@/components/ui/spinner";
 // Type-only: @/lib/site-layout also exports getSiteLayout, which pulls in
 // createSupabaseServerClient and must not reach the client bundle. The slot
 // list arrives as a prop from the server page, same as PageVisibilityPanel.
-import type { LayoutSlot } from "@/lib/site-layout";
+import { Switch } from "@/components/ui/switch";
+import type { LayoutSlot, LayoutValue } from "@/lib/site-layout";
 import { runAction } from "@/components/portal/action-toast";
 
-function optionLabel(slot: LayoutSlot, value: number): string {
+function optionLabel(slot: LayoutSlot, value: LayoutValue): string {
   return (
     slot.options.find((option) => option.value === value)?.label ??
     String(value)
+  );
+}
+
+/**
+ * Selects speak strings, but a slot's values can be numbers or booleans, so
+ * the option list is the lookup table in both directions. Serialising with
+ * `String()` is safe because no slot mixes types -- 1 and "1" would collide.
+ */
+function valueFromString(slot: LayoutSlot, raw: string): LayoutValue {
+  return (
+    slot.options.find((option) => String(option.value) === raw)?.value ??
+    slot.defaultValue
   );
 }
 
@@ -32,7 +45,7 @@ function LayoutRow({
   onError,
 }: {
   slot: LayoutSlot;
-  value: number;
+  value: LayoutValue;
   onError: (message: string | null) => void;
 }) {
   const router = useRouter();
@@ -42,7 +55,7 @@ function LayoutRow({
   const [selected, setSelected] = useOptimistic(value);
   const [isPending, startTransition] = useTransition();
 
-  function handleChange(next: number) {
+  function handleChange(next: LayoutValue) {
     onError(null);
 
     startTransition(async () => {
@@ -76,24 +89,45 @@ function LayoutRow({
       </div>
       <div className="flex shrink-0 items-center gap-2 pt-0.5">
         {isPending ? <Spinner className="size-4" /> : null}
-        <Select
-          value={String(selected)}
-          onValueChange={(next) => handleChange(Number(next))}
-          disabled={isPending}
-        >
-          <SelectTrigger aria-labelledby={labelId} className="w-40 bg-card">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {slot.options.map((option) => (
-              <SelectItem key={option.value} value={String(option.value)}>
-                {option.hint
-                  ? `${option.label} — ${option.hint}`
-                  : option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {slot.control === "switch" ? (
+          <>
+            <span className="app-muted w-24 text-right text-xs">
+              {optionLabel(slot, selected)}
+            </span>
+            <Switch
+              checked={selected === slot.options[0].value}
+              onCheckedChange={(on) =>
+                handleChange((on ? slot.options[0] : slot.options[1]).value)
+              }
+              disabled={isPending}
+              aria-labelledby={labelId}
+            />
+          </>
+        ) : (
+          <Select
+            value={String(selected)}
+            onValueChange={(next) =>
+              handleChange(valueFromString(slot, String(next)))
+            }
+            disabled={isPending}
+          >
+            <SelectTrigger aria-labelledby={labelId} className="w-44 bg-card">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {slot.options.map((option) => (
+                <SelectItem
+                  key={String(option.value)}
+                  value={String(option.value)}
+                >
+                  {option.hint
+                    ? `${option.label} — ${option.hint}`
+                    : option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
     </div>
   );
@@ -105,7 +139,7 @@ export function LayoutPanel({
 }: {
   slots: LayoutSlot[];
   /** Resolved per slot, so one with no row still shows its default. */
-  values: Record<string, number>;
+  values: Record<string, LayoutValue>;
 }) {
   const [error, setError] = useState<string | null>(null);
 

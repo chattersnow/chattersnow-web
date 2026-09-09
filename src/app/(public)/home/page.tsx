@@ -12,13 +12,18 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSiteImageUrls } from "@/lib/site-images";
 import { getPublicSite } from "@/lib/public-site";
 import { isPageVisible } from "@/lib/page-visibility";
-import { formatDateTimeInZone, nowMs } from "@/lib/time";
+import { nowMs } from "@/lib/time";
+import { MAX_HOME_UPCOMING_COUNT, getSiteLayout } from "@/lib/site-layout";
 import {
+  HOME_COMMUNITY_ITEM_COLUMNS,
   HOME_UPCOMING_EVENT_COLUMNS,
   UpcomingEvents,
+  type HomeCommunityItem,
   type HomeUpcomingEvent,
+  type HomeUpcomingItem,
 } from "./upcoming-events";
-import { MAX_HOME_UPCOMING_COUNT, getSiteLayout } from "@/lib/site-layout";
+import { categoryLabel } from "../events/community/calendar-shared";
+import type { PublicCalendarCategory } from "../events/community/calendar-shared";
 import type { PublicEventProgram } from "../events/event-card";
 
 const CAROUSEL_SLOTS = [
@@ -27,96 +32,99 @@ const CAROUSEL_SLOTS = [
   "home_carousel_3",
 ] as const;
 
-const ITEM_DATE_FORMAT: Intl.DateTimeFormatOptions = {
-  dateStyle: "medium",
-  timeStyle: "short",
+/** A calendar row before its category is resolved to the tenant's wording. */
+type CalendarRow = Omit<HomeCommunityItem, "categoryLabel"> & {
+  categories: string[] | null;
 };
-
-/**
- * The community calendar item shown when the organization has nothing of its
- * own upcoming, so the section doesn't vanish between events (#823).
- */
-type NextUp = {
-  title: string;
-  meta: string;
-  href: string;
-  ctaLabel: string;
-  /** A calendar item's public_url can be someone else's site. */
-  external: boolean;
-};
-
-/**
- * The soonest community calendar item that hasn't finished yet. Filtered and
- * limited in Postgres rather than in JS: the calendar is unbounded and
- * PostgREST caps rows at `max_rows`, which silently truncated a calendar read
- * before (#755).
- */
-async function nextCalendarItem(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  now: number,
-): Promise<NextUp | null> {
-  const nowIso = new Date(now).toISOString();
-  const { data } = await supabase
-    .from("public_calendar_items")
-    .select("id, title, starts_at, time_zone, public_url")
-    .or(`ends_at.gte.${nowIso},and(ends_at.is.null,starts_at.gte.${nowIso})`)
-    .order("starts_at", { ascending: true })
-    .limit(1);
-
-  const item = data?.[0];
-  if (!item) return null;
-
-  return {
-    title: item.title,
-    meta: formatDateTimeInZone(
-      item.starts_at,
-      item.time_zone,
-      ITEM_DATE_FORMAT,
-    ),
-    href: item.public_url ?? "/events/community",
-    ctaLabel: item.public_url ? "Learn more" : "See the community calendar",
-    external: /^https?:\/\//i.test(item.public_url ?? ""),
-  };
-}
 
 export default async function Home() {
   const supabase = await createSupabaseServerClient();
   const now = nowMs();
   const nowIso = new Date(now).toISOString();
 
-  // Filtered and limited in Postgres rather than in JS. This used to read the
-  // whole public event list to use one row of it, which is both wasteful and
-  // the shape that let PostgREST's `max_rows` silently truncate a calendar
+  // "Hasn't finished yet", for both sources: an event still running today is
+  // upcoming, and one with no end time counts until it starts.
+  const stillUpcoming = `ends_at.gte.${nowIso},and(ends_at.is.null,starts_at.gte.${nowIso})`;
+
+  // Both feeds are filtered and limited in Postgres rather than in JS. The
+  // page used to read the whole public event list to use one row of it, which
+  // is the shape that let PostgREST's `max_rows` silently truncate a calendar
   // read before (#755).
-  const [{ data: events }, siteImages, site, layout] = await Promise.all([
+  const [
+    { data: events },
+    { data: calendarRows },
+    { data: categories },
+    siteImages,
+    site,
+    layout,
+  ] = await Promise.all([
     supabase
       .from("public_events")
       .select(HOME_UPCOMING_EVENT_COLUMNS)
-      .or(`ends_at.gte.${nowIso},and(ends_at.is.null,starts_at.gte.${nowIso})`)
+      .or(stillUpcoming)
       .order("starts_at", { ascending: true })
       .limit(MAX_HOME_UPCOMING_COUNT)
       .returns<Omit<HomeUpcomingEvent, "programs">[]>(),
+    // `public_calendar_items` is a union of the calendar table and the events
+    // table, so every published event is already in it as `chatter_event`.
+    // Without this filter the top-up prints the same event twice -- once as
+    // its own card and once as somebody's community item (#846).
+    supabase
+      .from("public_calendar_items")
+      .select(HOME_COMMUNITY_ITEM_COLUMNS)
+      .neq("item_type", "chatter_event")
+      .or(stillUpcoming)
+      .order("starts_at", { ascending: true })
+      .limit(MAX_HOME_UPCOMING_COUNT)
+      .returns<CalendarRow[]>(),
+    supabase
+      .from("public_calendar_categories")
+      .select("key, label")
+      .returns<PublicCalendarCategory[]>(),
     getSiteImageUrls(supabase),
     getPublicSite(supabase),
     getSiteLayout(supabase),
   ]);
   const { content } = site;
 
-  // Queried at the largest count any tenant can pick and sliced here, so
-  // reading the setting stays in the batch above rather than becoming a round
-  // trip the event query has to wait on. The over-read is at most a handful of
-  // rows, and bounded by the registry rather than by the size of the table.
-  const visibleEvents = (events ?? []).slice(0, layout.homeUpcomingCount);
-
   const [supportVisible, eventsVisible] = await Promise.all([
     isPageVisible("support"),
     isPageVisible("events"),
   ]);
 
+  // Every destination in this section lives under the Events slot -- the
+  // listing, the event pages, and the community calendar -- so when the board
+  // hides that section the whole block goes with it rather than pointing at a
+  // 404 (#586).
+  //
+  // Both feeds are queried at the largest count any tenant can pick and sliced
+  // here, so reading the setting stays in the batch above rather than becoming
+  // a round trip they have to wait on. The over-read is bounded by the
+  // registry rather than by the size of either table.
+  const ownEvents = eventsVisible
+    ? (events ?? []).slice(0, layout.homeUpcomingCount)
+    : [];
+
+  // The community toggle governs the empty-state fallback as well as the
+  // top-up: a tenant who switched community items off should not still meet
+  // one on a week with nothing of their own.
+  const communitySlots =
+    eventsVisible && layout.homeUpcomingCommunity
+      ? layout.homeUpcomingCount - ownEvents.length
+      : 0;
+  const communityItems: HomeCommunityItem[] = (calendarRows ?? [])
+    .slice(0, Math.max(communitySlots, 0))
+    .map(({ categories: itemCategories, ...item }) => ({
+      ...item,
+      categoryLabel: itemCategories?.[0]
+        ? categoryLabel(categories ?? [], itemCategories[0])
+        : null,
+    }));
+
   // Second round trip rather than a join, and only for the handful of ids the
   // query above returned -- the events listing reads every program row because
   // it renders every event.
-  const eventIds = eventsVisible ? visibleEvents.map((event) => event.id) : [];
+  const eventIds = ownEvents.map((event) => event.id);
   const { data: programRows } =
     eventIds.length > 0
       ? await supabase
@@ -134,21 +142,24 @@ export default async function Home() {
     ]);
   }
 
-  // Every destination in this section lives under the Events slot -- the
-  // listing, the event pages, and the community calendar -- so when the board
-  // hides that section the whole block goes with it rather than pointing at a
-  // 404 (#586).
-  const upcoming: HomeUpcomingEvent[] = eventsVisible
-    ? visibleEvents.map((event) => ({
-        ...event,
-        programs: programsByEvent.get(event.id) ?? [],
-      }))
-    : [];
-
-  const nextUp: NextUp | null =
-    eventsVisible && upcoming.length === 0
-      ? await nextCalendarItem(supabase, now)
-      : null;
+  const upcoming: HomeUpcomingItem[] = [
+    ...ownEvents.map((event): HomeUpcomingItem => ({
+      kind: "event",
+      event: { ...event, programs: programsByEvent.get(event.id) ?? [] },
+    })),
+    ...communityItems.map((item): HomeUpcomingItem => ({
+      kind: "community",
+      item,
+    })),
+  ].sort(
+    (a, b) =>
+      new Date(
+        a.kind === "event" ? a.event.starts_at : a.item.starts_at,
+      ).getTime() -
+      new Date(
+        b.kind === "event" ? b.event.starts_at : b.item.starts_at,
+      ).getTime(),
+  );
 
   return (
     // /home has no layout.tsx, so it has no PageShell ancestor -- it has to
@@ -217,44 +228,14 @@ export default async function Home() {
 
         {upcoming.length > 0 && (
           <UpcomingEvents
-            events={upcoming}
+            items={upcoming}
             now={now}
+            cards={layout.homeUpcomingCards}
             eyebrow={content.text("home.upcoming_eyebrow")}
             heading={content.text("home.upcoming_heading")}
             ctaLabel={content.text("home.upcoming_cta")}
             nextUpLabel={content.text("home.next_event_eyebrow")}
           />
-        )}
-
-        {nextUp && (
-          <section className="rainbow-surface mt-16 rounded-xl border border-[var(--line)] p-6 text-center shadow-md sm:p-8">
-            <span className="app-eyebrow">
-              {content.text("home.next_event_eyebrow")}
-            </span>
-            <h2 className="brand-display mt-2 text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
-              {nextUp.title}
-            </h2>
-            <p className="app-muted mt-2 text-sm">{nextUp.meta}</p>
-            <Button
-              variant="secondary"
-              className="mt-4"
-              nativeButton={false}
-              render={
-                nextUp.external ? (
-                  <a
-                    href={nextUp.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={`${nextUp.ctaLabel} about ${nextUp.title} (opens in new tab)`}
-                  />
-                ) : (
-                  <Link href={nextUp.href} />
-                )
-              }
-            >
-              {nextUp.ctaLabel}
-            </Button>
-          </section>
         )}
       </div>
     </main>

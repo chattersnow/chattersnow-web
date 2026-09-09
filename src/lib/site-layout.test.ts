@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
   DEFAULT_SITE_LAYOUT,
+  HOME_UPCOMING_CARDS_SLOT,
+  HOME_UPCOMING_COMMUNITY_SLOT,
   HOME_UPCOMING_COUNT_SLOT,
   LAYOUT_SLOTS,
   MAX_HOME_UPCOMING_COUNT,
@@ -8,7 +10,14 @@ import {
   layoutSettingKey,
   resolveLayout,
   resolveLayoutValues,
+  type SiteLayout,
 } from "./site-layout";
+
+const DEFAULTS: SiteLayout = {
+  homeUpcomingCount: 3,
+  homeUpcomingCards: "fliers",
+  homeUpcomingCommunity: true,
+};
 
 const countSlot = LAYOUT_SLOTS.find(
   (slot) => slot.key === HOME_UPCOMING_COUNT_SLOT,
@@ -23,15 +32,29 @@ describe("layoutSettingKey", () => {
 });
 
 describe("resolveLayout", () => {
-  test("uses a stored value the slot offers", () => {
+  test("uses stored values the slots offer, across all three value types", () => {
     expect(
-      resolveLayout([{ slot: HOME_UPCOMING_COUNT_SLOT, value: 6 }]),
-    ).toEqual({ homeUpcomingCount: 6 });
+      resolveLayout([
+        { slot: HOME_UPCOMING_COUNT_SLOT, value: 6 },
+        { slot: HOME_UPCOMING_CARDS_SLOT, value: "compact" },
+        { slot: HOME_UPCOMING_COMMUNITY_SLOT, value: false },
+      ]),
+    ).toEqual({
+      homeUpcomingCount: 6,
+      homeUpcomingCards: "compact",
+      homeUpcomingCommunity: false,
+    });
   });
 
-  test("falls back to the registry default when nothing is stored", () => {
-    expect(resolveLayout([])).toEqual({ homeUpcomingCount: 3 });
-    expect(DEFAULT_SITE_LAYOUT).toEqual({ homeUpcomingCount: 3 });
+  test("falls back to the registry defaults when nothing is stored", () => {
+    expect(resolveLayout([])).toEqual(DEFAULTS);
+    expect(DEFAULT_SITE_LAYOUT).toEqual(DEFAULTS);
+  });
+
+  test("resolves each slot independently", () => {
+    expect(
+      resolveLayout([{ slot: HOME_UPCOMING_CARDS_SLOT, value: "compact" }]),
+    ).toEqual({ ...DEFAULTS, homeUpcomingCards: "compact" });
   });
 
   // A row someone typed straight into the table, a value retired from the
@@ -41,12 +64,28 @@ describe("resolveLayout", () => {
     ["a value nobody offers", 4],
     ["a number as a string", "3"],
     ["null", null],
-    ["a boolean", true],
+    ["a boolean where a number belongs", true],
     ["an object", { count: 3 }],
   ])("ignores %s and uses the default", (_label, value) => {
-    expect(resolveLayout([{ slot: HOME_UPCOMING_COUNT_SLOT, value }])).toEqual({
-      homeUpcomingCount: 3,
-    });
+    expect(resolveLayout([{ slot: HOME_UPCOMING_COUNT_SLOT, value }])).toEqual(
+      DEFAULTS,
+    );
+  });
+
+  // `false` is a legitimate stored value, so the resolver must not treat it
+  // the way it treats a missing row.
+  test("keeps a stored false rather than falling back to the default of true", () => {
+    expect(
+      resolveLayout([{ slot: HOME_UPCOMING_COMMUNITY_SLOT, value: false }])
+        .homeUpcomingCommunity,
+    ).toBe(false);
+  });
+
+  test('ignores "false" as a string, which is not an offered value', () => {
+    expect(
+      resolveLayout([{ slot: HOME_UPCOMING_COMMUNITY_SLOT, value: "false" }])
+        .homeUpcomingCommunity,
+    ).toBe(true);
   });
 
   test("ignores rows for slots that aren't registered", () => {
@@ -55,7 +94,7 @@ describe("resolveLayout", () => {
         { slot: "home_upcoming_somethingelse", value: 6 },
         { slot: HOME_UPCOMING_COUNT_SLOT, value: 1 },
       ]),
-    ).toEqual({ homeUpcomingCount: 1 });
+    ).toEqual({ ...DEFAULTS, homeUpcomingCount: 1 });
   });
 });
 
@@ -75,11 +114,27 @@ describe("the registry itself", () => {
     }
   });
 
+  // The panel serialises option values with String() to drive a Select, so two
+  // options that stringify the same would be indistinguishable coming back.
+  test("no slot's options collide when stringified", () => {
+    for (const slot of LAYOUT_SLOTS) {
+      const rendered = slot.options.map((option) => String(option.value));
+      expect(new Set(rendered).size).toBe(slot.options.length);
+    }
+  });
+
+  // A switch reads options[0] as "on" and options[1] as "off".
+  test("every switch slot has exactly two options", () => {
+    for (const slot of LAYOUT_SLOTS.filter((s) => s.control === "switch")) {
+      expect(slot.options).toHaveLength(2);
+    }
+  });
+
   // The home page queries this many rows and slices down, so a new option
   // above the maximum would be silently unreachable.
   test("MAX_HOME_UPCOMING_COUNT covers the largest option on offer", () => {
     const largest = Math.max(
-      ...countSlot.options.map((option) => option.value),
+      ...countSlot.options.map((option) => Number(option.value)),
     );
     expect(MAX_HOME_UPCOMING_COUNT).toBe(largest);
   });
