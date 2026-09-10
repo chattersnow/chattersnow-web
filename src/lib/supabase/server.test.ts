@@ -36,7 +36,7 @@ describe("tenantHost", () => {
   });
 
   test("answers even with no request Host at all", () => {
-    process.env.TENANT_HOST_OVERRIDE = "demo.chattersnow.org";
-    expect(tenantHost(null)).toBe("demo.chattersnow.org");
+    process.env.TENANT_HOST_OVERRIDE = "demo.rickiecruz.com";
+    expect(tenantHost(null)).toBe("demo.rickiecruz.com");
   });
 });

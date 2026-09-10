@@ -1,11 +1,37 @@
 # chattersnow-web
 
-The public website and operations portal for Chatter Snow — a Next.js App Router
-application backed by Supabase.
+A multi-tenant nonprofit-operations platform — a public website and an
+operations portal, served to any number of organizations from one Next.js App
+Router application backed by Supabase.
+
+**Chatter Snow is the first tenant, not the product.** The repository is named
+after it and started as its site, but every organization the platform serves is
+a row in `tenants`, and nothing about which one a request belongs to is
+hardcoded: the request host resolves the tenant, and the tenant's own rows carry
+its branding, copy, permission matrix and data. Chatter Snow specifics belong in
+that tenant's data, never in platform code — see `docs/licensing.md`.
+
+## Where it runs
+
+| Host                         | What it serves                                                   |
+| ---------------------------- | ---------------------------------------------------------------- |
+| `www.chattersnow.org`        | Chatter Snow's public site (the apex redirects to `www`)         |
+| `portal.chattersnow.org`     | Chatter Snow's operations portal                                 |
+| `demo.rickiecruz.com`        | The public demo tenant's site                                    |
+| `demo.rickiecruz.com/portal` | The demo portal — one click from the login screen, reset nightly |
+| `portal.rickiecruz.com`      | The platform tenant's own portal (no public site)                |
+| `uat.chattersnow.org`        | The `development` branch, deployed as a Vercel Preview           |
+
+The demo is the fastest way to see the portal: it is an ordinary tenant on the
+`demo` plan, kept apart by the same policies as any paying one, and its data is
+fictional. Never copy production data into it. See "The demo tenant" in
+`docs/tenants.md`.
+
+## Docs
 
 - `CLAUDE.md` — build, lint, test, and architecture conventions. Read this first.
 - `docs/technical-spec.md` — what is built and specified today.
-- `docs/tenants.md` — provisioning, custom domains, branding, support access, export and deletion for a second organization (multi-tenancy, #707).
+- `docs/tenants.md` — the operator's runbook: provisioning a tenant, custom domains, branding, support access, the demo tenant, export and deletion (multi-tenancy, #707).
 - `CONTRIBUTING.md` — how to contribute, and the CLA required before a first
   contribution.
 
