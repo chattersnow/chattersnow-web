@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getClientIp } from "@/lib/get-client-ip";
+import { isDemoLoginOfferedOnHost } from "./demo-availability";
 
 /**
  * One-click sign-in to the public demo tenant (#604).
@@ -22,6 +23,15 @@ export async function demoSignInAction(): Promise<{ error: string }> {
   const email = process.env.DEMO_EMAIL;
   const password = process.env.DEMO_PASSWORD;
   if (!email || !password) {
+    return { error: "The demo is not available right now." };
+  }
+
+  // The button renders on the demo tenant's host alone, and so does the action
+  // behind it. A Server Action is a POST endpoint that any host on this
+  // deployment can reach, so leaving the host check to the render would make
+  // "not offered here" a matter of what was drawn rather than of what works.
+  const supabase = await createSupabaseServerClient();
+  if (!(await isDemoLoginOfferedOnHost(supabase))) {
     return { error: "The demo is not available right now." };
   }
 
@@ -44,7 +54,6 @@ export async function demoSignInAction(): Promise<{ error: string }> {
     return { error: "Too many demo sign-ins from here. Try again shortly." };
   }
 
-  const supabase = await createSupabaseServerClient();
   const first = await supabase.auth.signInWithPassword({ email, password });
 
   if (first.error) {

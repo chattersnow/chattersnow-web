@@ -1,12 +1,27 @@
 # Serving more than one organization
 
-**Updated:** 2026-09-06
+**Updated:** 2026-09-10
 
-The operator's runbook for tenants (#707 Phase 4): how a second organization
-is provisioned, put on its own domain, branded, supported, exported and
-deleted. The model behind it -- `tenants`, `tenant_id` on every table,
-membership instead of a super-admin -- is in `docs/technical-spec.md` §6 and
-in the planning repo's `decisions/2026-09-05-multi-tenancy-model.md`.
+The operator's runbook for tenants (#707 Phase 4): how an organization is
+provisioned, put on its own domain, branded, supported, exported and deleted.
+The model behind it -- `tenants`, `tenant_id` on every table, membership
+instead of a super-admin -- is in `docs/technical-spec.md` §6 and in the
+planning repo's `decisions/2026-09-05-multi-tenancy-model.md`.
+
+This is no longer hypothetical. Three tenants are live, and **Chatter Snow is
+simply the first of them**, not the product:
+
+| Tenant       | Plan       | Hosts                                                                                                                                    |
+| ------------ | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Chatter Snow | (customer) | `www.chattersnow.org`, `portal.chattersnow.org`, and `uat.chattersnow.org` for the `development` preview                                 |
+| Platform     | `internal` | `portal.rickiecruz.com` -- no public site, since the `rickiecruz.com` apex is a separate consulting site not served from this deployment |
+| Demo         | `demo`     | `demo.rickiecruz.com`, portal at `demo.rickiecruz.com/portal`                                                                            |
+
+The demo and platform tenants are on `rickiecruz.com` subdomains rather than
+`chattersnow.org` because neither belongs to Chatter Snow -- demoing the
+platform on a customer's domain would present that customer's brand as the
+product. Host -> tenant resolution is data-driven, so moving them to a product
+domain later is a `custom_domain` update, not a code change.
 
 Most of it can also be done from the portal, at Administration → **Platform**
 (#707 Phase 5c) — provisioning, the domain, the status and the export. That
@@ -472,9 +487,26 @@ The portal's login screen offers a one-click demo (#604). It is not a special
 mode: it is a tenant whose `plan` is `demo`, with an ordinary account holding
 the admin role inside it, kept apart by the same policies and composite foreign
 keys as any paying tenant. `DEMO_EMAIL` and `DEMO_PASSWORD` are server-only, so
-the button is rendered by `src/app/portal/login/page.tsx` only when both are
-set and the credentials themselves never reach the browser;
-`demoSignInAction()` signs in on the server and redirects to `/portal/home`.
+the credentials themselves never reach the browser; `demoSignInAction()` signs
+in on the server and redirects to `/portal/home`.
+
+`isDemoLoginOffered()` in `src/app/portal/login/demo-availability.ts` decides
+whether the button is drawn, and both halves of its condition matter. The
+credentials being set is a fact about the **deployment**, and one deployment
+serves every tenant -- gating on them alone put "Explore the demo" on every
+tenant's login page, offering a white-label customer's staff a one-click
+sign-in to somebody else's sample organization. So the second half is the
+tenant the request host resolves to: `plan = 'demo'`, read from `public_tenant`
+(`20260910000000`), the same constrained enum `current_tenant_is_demo()` and
+`seed_demo_tenant()` insist on rather than a slug. A host no tenant claims and
+a failed tenant read both get no button. `demoSignInAction()` re-checks the
+same condition, because a Server Action is a POST endpoint every host on the
+deployment can reach whether or not the button was drawn.
+
+One consequence worth knowing before you go looking for the button: it is
+absent on `uat.chattersnow.org` and on preview and local runs, because
+`TENANT_HOST_OVERRIDE` resolves those to Chatter Snow's own tenant. The demo is
+exercised on `demo.chattersnow.org`.
 
 ### The rollout order is load-bearing
 
@@ -507,16 +539,20 @@ verified **positively** while the fallback is still masking any mistake:
    which is a single unique column, so a second host cannot simply be listed
    against the tenant. `src/lib/supabase/server.ts` prefers the override over
    the request `Host` when it is set.
-4. Add `demo.chattersnow.org` to the Vercel project and to the Supabase Auth
-   redirect allowlist. Longest-suffix matching means it beats
-   `chattersnow.org`. `src/proxy.ts` needs no change: it is not a `portal.`
-   host, so `/portal/login` passes through as a path.
+4. Add `demo.rickiecruz.com` to the Vercel project and to the Supabase Auth
+   redirect allowlist. `src/proxy.ts` needs no change: it is not a `portal.`
+   host, so `/portal/login` passes through as a path, which is why the demo
+   portal is reached at `demo.rickiecruz.com/portal`. It is on a different
+   apex from any customer domain, so nothing about it depends on
+   longest-suffix matching against `chattersnow.org`; a `demo.` subdomain of a
+   customer's own domain would have, and would also have put the demo behind
+   that customer's brand.
 5. Only then run the reset against the linked project.
 
 ### Resetting it
 
 ```bash
-DEMO_EMAIL=… DEMO_PASSWORD=… DEMO_SLUG=demo DEMO_HOST=demo.chattersnow.org \
+DEMO_EMAIL=… DEMO_PASSWORD=… DEMO_SLUG=demo DEMO_HOST=demo.rickiecruz.com \
   bun --env-file=.env.production.local scripts/demo-reset.ts
 ```
 
