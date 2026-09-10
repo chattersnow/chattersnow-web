@@ -1,29 +1,31 @@
-# Chatter Snow Website and Operations Portal
+# Nonprofit Website and Operations Portal
 
 ## Technical Specification
 
 - **Status:** Draft for team review
-- **Version:** 0.9
-- **Date:** 2026-08-26
-- **Owner:** Chatter Snow
+- **Version:** 0.10
+- **Date:** 2026-09-10
+- **Owner:** the platform (Chatter Snow is its first tenant)
 - **Repository:** `chattersnow-web`
-- **Canonical domain:** `https://chattersnow.org`
+- **Hosts:** see §3.1
 
 ## 1. Purpose
 
-Chatter Snow needs a public website for sharing its mission and programs, plus a secure admin portal for managing events, donations, inventory, expenses, and operational summaries.
+A nonprofit needs a public website for sharing its mission and programs, plus a secure admin portal for managing events, donations, inventory, expenses, and operational summaries.
+
+This began as Chatter Snow's own site and is now a **multi-tenant platform** serving that need for any number of organizations from one application and one database (§6, "Multi-tenancy"). **Chatter Snow is the first tenant, not the product.** Read every requirement below as a requirement of the platform, satisfied per tenant: "the organization's mission", not "Chatter Snow's mission". Where Chatter Snow appears by name it is an example of a tenant's data, and belongs in that tenant's rows rather than in platform code — `docs/licensing.md` draws the line, and `docs/tenants.md` is the operator's runbook.
 
 The product has two distinct audiences:
 
 > **Public users are primarily consumers of information. Authorized users are operators of the system.**
 
-The public site must remain useful without an account. Operational data must require authentication and role-based authorization.
+The public site must remain useful without an account. Operational data must require authentication and role-based authorization. Both are per tenant: the request host decides which organization a public visitor is looking at, and a membership decides which one an operator is working in.
 
 ## 2. Goals and Non-Goals
 
 ### Goals
 
-1. Publish accessible information about Chatter Snow, its mission, programs, leadership, contact details, and ways to support it.
+1. Publish accessible information about the organization, its mission, programs, leadership, contact details, and ways to support it.
 2. Publish upcoming and past events with optional registration.
 3. Give authorized staff and volunteers a secure place to manage operational records.
 4. Treat donations, inventory changes, distributions, and expenses as records with history, rather than silently overwriting facts.
@@ -54,6 +56,22 @@ The public site must remain useful without an account. Operational data must req
 | Source control           | GitHub                                                                                                                                                                                                                                                                                                                                                                                         |
 | DNS and domain           | Cloudflare DNS; Vercel manages application deployment and domain integration                                                                                                                                                                                                                                                                                                                   |
 | Local development        | Next.js development server and Supabase local stack                                                                                                                                                                                                                                                                                                                                            |
+
+### 3.1 Hosts and tenants
+
+One deployment serves every tenant. Which one a request belongs to is resolved from its `Host` against `tenants.custom_domain` (§6, "Multi-tenancy"), so adding an organization is a DNS entry plus a row — never a branch, a build, or a deploy.
+
+| Host                         | Tenant                     | What it serves                                                                                                                                                                                                                                                                            |
+| ---------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `chattersnow.org`            | Chatter Snow               | Redirects to `www`                                                                                                                                                                                                                                                                        |
+| `www.chattersnow.org`        | Chatter Snow               | Public site                                                                                                                                                                                                                                                                               |
+| `portal.chattersnow.org`     | Chatter Snow               | Operations portal                                                                                                                                                                                                                                                                         |
+| `demo.rickiecruz.com`        | Demo (`demo` plan)         | Public site of the demo tenant                                                                                                                                                                                                                                                            |
+| `demo.rickiecruz.com/portal` | Demo (`demo` plan)         | Demo portal, one click from the login screen, reset nightly (§6, "The demo tenant"; `docs/tenants.md`)                                                                                                                                                                                    |
+| `portal.rickiecruz.com`      | Platform (`internal` plan) | The platform operator's own portal. No public site — the `rickiecruz.com` apex is a separate consulting site and is not served from this deployment                                                                                                                                       |
+| `uat.chattersnow.org`        | Chatter Snow               | The `development` branch, deployed as a Vercel **Preview** (the free plan has no separate Development environment). Parent-domain matching resolves it to Chatter Snow without an override; a raw `*.vercel.app` preview host matches no `custom_domain` and needs `TENANT_HOST_OVERRIDE` |
+
+The demo and platform tenants sit on `rickiecruz.com` subdomains rather than `chattersnow.org` because neither is Chatter Snow's: putting a demo of the platform on a customer's domain would present one tenant's brand as the product's. The eventual product brand gets its own domain, and because host → tenant resolution is data-driven, that move is a `custom_domain` update rather than a code change.
 
 The repository started as a minimal Next.js application and has since been built out well past the original "coming soon" skeleton. Supabase Auth, Storage, and API services are enabled in `supabase/config.toml`. Schema exists as 100+ ordered migrations under `supabase/migrations/`, now covering the shared `people` directory (donors, sponsors, volunteers), donations, inventory items/movements, events, event sponsors, event expenses/revenue, event attendance (a simple event-level headcount, not per-attendee), event registrations (with check-in), discount codes, giveaways/giveaway prizes/giveaway winners, programs, volunteer role types/hours, reimbursements, governance (board members, meetings, agendas/agenda templates, minutes, action items, decisions, resolutions, conflict-of-interest disclosures, annual requirements), nonprofit-status milestones, the content and community calendar (calendar items, content opportunities, brief templates, program-suggestion rules), `roles`/`user_roles`/`role_permissions`/`pending_role_grants`/`deactivated_users`, and an append-only `audit_log`, plus curated public views (`public_gear_catalog`, `public_events`, `public_event_sponsors`, `public_event_programs`, `public_volunteer_role_types`, `public_calendar_items`) and abuse-protection primitives (`rate_limit_hits`/`check_rate_limit()`, `contact_messages`) backing the public intake forms. `supabase/seed.sql` populates a local dev database with one test account per role (plus a multi-role and a no-role account, all `@example.test`) and sample operational data, so the role matrix and every workflow below can be exercised locally without touching production.
 
@@ -554,7 +572,9 @@ Implemented in phases under #707; the model is recorded in the planning repo's `
   - Isolation: `site_content` is in `TENANT_TABLES` and the suite; `src/lib/portal/tenant-provisioning.integration.test.ts` provisions a tenant, signs its admin in through the staged grant, exercises support access, removal, deactivation scoping, host-resolved content and branding, export and deletion.
 - Phase 5b -- per-tenant retention (`20260906160000`, `20260906170000`): `retention_policies`, `retention_runs` and `retention_run_tables` carry `tenant_id`, `retention_policies` is keyed `(tenant_id, policy_key)`, and both foreign keys out of `retention_run_tables` are composite. An `after insert` trigger on `tenants` seeds a new tenant's clocks from the oldest tenant, always in `dry_run`. `run_retention_purge()` takes a fourth `p_tenant_id` (null = every active tenant, which is what the unchanged pg_cron job passes) and loops, keeping each rule's exception block inside the loop so one tenant's bad clock does not discard another's sweep; `retention_log()` derives the tenant from the run, since cron has no session. `trigger_retention_run()` and `set_retention_policy_mode()` answer for `current_tenant_id()` only -- before this, both were granted to `authenticated` on a global table, so any tenant's admin could enforce a purge over every tenant's data. Rule F's `user_roles` delete is scoped too: `deactivated_users` is platform-wide, so the unscoped form removed an account's roles in every tenant it belonged to. `rate_limit_hits` stays global (per-IP, no tenant), purged once per sweep on the shortest period any tenant sets; `retention_purgeable_person_refs` stays a global registry, and gains `retention_run_tables.subject_person_id` so that asking for a deletion does not make the subject permanently un-anonymizable.
 - Phase 5c -- the platform UI (`20260906180000`): a `platform_tenants` resource and `/portal/administration/platform`, so the operator provisions a tenant, sets its domain, changes its status and downloads its export from the portal rather than a `service_role` shell. Not a super-admin: `is_platform_operator()` requires `platform_tenants:manage` **and** `current_membership_kind() = 'member'` **and** the caller's tenant being on the `internal` plan. The second condition is the load-bearing one -- a tenant admin owns their own permission matrix and can grant themselves the resource, so the permission alone would be a bypass; the third keeps a support grant into the internal tenant from inheriting the platform with it. Every RPC (`platform_list_tenants`, `platform_provision_tenant`, `platform_set_tenant_domain`, `platform_set_tenant_status`, `platform_export_tenant`) is a thin authenticated wrapper over a Phase 4 function that stays `service_role`-only, and every one touches tenant _metadata_, never a customer row; no policy predicate changes, so `tenant_isolation_gaps()` and the isolation suite keep meaning what they meant. Deletion stays the two-step CLI and support grants stay the customer's to issue -- the page reports open grants read-only. Suspending or archiving the internal tenant is refused there, since platform access is a membership in it. Invite-link minting, previously duplicated between the users actions and `scripts/tenant-cli.ts`, is now `src/lib/auth/invite-link.ts`.
-- Still owed: the demo tenant, which is #604 rather than a phase here -- it is blocked on #759 and on Phase 5b above, because a demo tenant's admin is an anonymous visitor and any control that is still cross-tenant becomes public the day it goes live. Local development has no `custom_domain` on the Chatter Snow tenant, so it resolves through the sole-active-tenant fallback exactly as before.
+- The demo tenant (#604) -- **implemented**, and live at `demo.rickiecruz.com`, with its portal at `demo.rickiecruz.com/portal` (not a `portal.` host, so `/portal` stays a path). It is not a special mode: it is a tenant on the `demo` plan with an ordinary account holding admin inside it, kept apart by the same policies and composite foreign keys as any paying tenant. The login screen renders its one-click button only when the server-only `DEMO_EMAIL`/`DEMO_PASSWORD` are both set. It was blocked on Phase 5b and #759 for a reason that still shapes it: a demo tenant's admin is an anonymous visitor, so every control that reaches outside the tenant is closed by `current_tenant_is_demo()`. `.github/workflows/demo-reset.yml` archives, deletes and re-provisions it nightly via `scripts/demo-reset.ts`, whose guards refuse any tenant not on the `demo` plan and refuse the `chatter-snow` slug outright. Operator detail, including the load-bearing rollout order and what is blocked inside a demo tenant, is in `docs/tenants.md`.
+- Live tenants today: **Chatter Snow** (the first tenant, `chattersnow.org`), the **platform** tenant on the `internal` plan (`portal.rickiecruz.com`, which is what makes Phase 5c's `is_platform_operator()` answer true for anyone), and the **demo** tenant. See §3.1 for the full host map.
+- Local development has no `custom_domain` on the Chatter Snow tenant, so it resolves through the sole-active-tenant fallback exactly as before -- which is why a demo tenant must never be left on the local stack (`bun run demo:teardown`).
 
 ### Identity and access
 

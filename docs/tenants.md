@@ -1,12 +1,27 @@
 # Serving more than one organization
 
-**Updated:** 2026-09-06
+**Updated:** 2026-09-10
 
-The operator's runbook for tenants (#707 Phase 4): how a second organization
-is provisioned, put on its own domain, branded, supported, exported and
-deleted. The model behind it -- `tenants`, `tenant_id` on every table,
-membership instead of a super-admin -- is in `docs/technical-spec.md` §6 and
-in the planning repo's `decisions/2026-09-05-multi-tenancy-model.md`.
+The operator's runbook for tenants (#707 Phase 4): how an organization is
+provisioned, put on its own domain, branded, supported, exported and deleted.
+The model behind it -- `tenants`, `tenant_id` on every table, membership
+instead of a super-admin -- is in `docs/technical-spec.md` §6 and in the
+planning repo's `decisions/2026-09-05-multi-tenancy-model.md`.
+
+This is no longer hypothetical. Three tenants are live, and **Chatter Snow is
+simply the first of them**, not the product:
+
+| Tenant       | Plan       | Hosts                                                                                                                                    |
+| ------------ | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Chatter Snow | (customer) | `www.chattersnow.org`, `portal.chattersnow.org`, and `uat.chattersnow.org` for the `development` preview                                 |
+| Platform     | `internal` | `portal.rickiecruz.com` -- no public site, since the `rickiecruz.com` apex is a separate consulting site not served from this deployment |
+| Demo         | `demo`     | `demo.rickiecruz.com`, portal at `demo.rickiecruz.com/portal`                                                                            |
+
+The demo and platform tenants are on `rickiecruz.com` subdomains rather than
+`chattersnow.org` because neither belongs to Chatter Snow -- demoing the
+platform on a customer's domain would present that customer's brand as the
+product. Host -> tenant resolution is data-driven, so moving them to a product
+domain later is a `custom_domain` update, not a code change.
 
 Most of it can also be done from the portal, at Administration → **Platform**
 (#707 Phase 5c) — provisioning, the domain, the status and the export. That
@@ -507,16 +522,20 @@ verified **positively** while the fallback is still masking any mistake:
    which is a single unique column, so a second host cannot simply be listed
    against the tenant. `src/lib/supabase/server.ts` prefers the override over
    the request `Host` when it is set.
-4. Add `demo.chattersnow.org` to the Vercel project and to the Supabase Auth
-   redirect allowlist. Longest-suffix matching means it beats
-   `chattersnow.org`. `src/proxy.ts` needs no change: it is not a `portal.`
-   host, so `/portal/login` passes through as a path.
+4. Add `demo.rickiecruz.com` to the Vercel project and to the Supabase Auth
+   redirect allowlist. `src/proxy.ts` needs no change: it is not a `portal.`
+   host, so `/portal/login` passes through as a path, which is why the demo
+   portal is reached at `demo.rickiecruz.com/portal`. It is on a different
+   apex from any customer domain, so nothing about it depends on
+   longest-suffix matching against `chattersnow.org`; a `demo.` subdomain of a
+   customer's own domain would have, and would also have put the demo behind
+   that customer's brand.
 5. Only then run the reset against the linked project.
 
 ### Resetting it
 
 ```bash
-DEMO_EMAIL=… DEMO_PASSWORD=… DEMO_SLUG=demo DEMO_HOST=demo.chattersnow.org \
+DEMO_EMAIL=… DEMO_PASSWORD=… DEMO_SLUG=demo DEMO_HOST=demo.rickiecruz.com \
   bun --env-file=.env.production.local scripts/demo-reset.ts
 ```
 
