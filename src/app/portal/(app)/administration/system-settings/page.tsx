@@ -2,10 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PUBLIC_PAGE_SLOTS, getPageVisibility } from "@/lib/page-visibility";
+import {
+  PUBLIC_PAGE_SLOTS,
+  getTenantPageVisibility,
+} from "@/lib/page-visibility";
 import { LAYOUT_SLOTS, getTenantLayoutValues } from "@/lib/site-layout";
 import { LEGAL_DOCUMENTS } from "@/lib/legal-documents";
-import { getLegalPublication } from "@/lib/legal-publication";
+import { getTenantLegalPublication } from "@/lib/legal-publication";
 import { SystemSettingsForm } from "./system-settings-form";
 import { PageVisibilityPanel } from "./page-visibility-panel";
 import {
@@ -83,8 +86,8 @@ export default async function SystemSettingsPage() {
     tenantContext,
     emailEnabled,
   ] = await Promise.all([
-    getPageVisibility(supabase),
-    getLegalPublication(supabase),
+    getTenantPageVisibility(supabase),
+    getTenantLegalPublication(supabase),
     // Which of the three this tenant has published text of its own for, so the
     // panel can say what each route is actually serving rather than only
     // whether it is served (#859). A published row is `value not null`; a draft
