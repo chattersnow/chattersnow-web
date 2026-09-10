@@ -29,7 +29,8 @@
 create table public.event_artwork_calls (
   id uuid primary key default gen_random_uuid(),
   tenant_id uuid not null references public.tenants(id) default public.default_tenant_id(),
-  event_id uuid not null references public.events(id) on delete cascade,
+  -- The foreign key is composite and declared below, with the rest of them.
+  event_id uuid not null,
   -- Uppercase, from the unambiguous alphabet generate_volunteer_reference_code
   -- uses (no I, L, O, 0, 1) because this one gets read off a flyer and typed
   -- by hand as often as it gets scanned.
@@ -47,7 +48,23 @@ create table public.event_artwork_calls (
   -- grouped, and a second call on the same event would split the queue in two
   -- with no way to tell which link a submitter used.
   unique (event_id),
+  -- Mirrors that single-column unique, the same way 20260906080000 mirrored
+  -- every other one: PostgREST embeds a relationship as one-to-one only when a
+  -- unique covers exactly the foreign key's columns, and the foreign key is
+  -- (tenant_id, event_id) now. Without this the call would start embedding as
+  -- an array on the event.
+  unique (tenant_id, event_id),
   unique (tenant_id, submission_code),
+  -- Referenced by artwork_submissions (tenant_id, call_id).
+  unique (tenant_id, id),
+  -- Composite, so a call cannot be hung off another tenant's event. Every
+  -- foreign key between two tenant tables in this schema references
+  -- (tenant_id, id) rather than id alone -- 20260906080000 converted the other
+  -- 106, and `tenant_isolation_gaps()` fails the build over a new one that does
+  -- not. RLS hides the parent either way; what this stops is the row existing
+  -- at all, and any service-role path or join that trusts the key.
+  foreign key (tenant_id, event_id)
+    references public.events (tenant_id, id) on delete cascade,
   constraint event_artwork_calls_window check (closes_at is null or opens_at is null or closes_at >= opens_at)
 );
 
@@ -94,8 +111,9 @@ grant select, insert, update, delete on public.event_artwork_calls to authentica
 create table public.artwork_submissions (
   id uuid primary key default gen_random_uuid(),
   tenant_id uuid not null references public.tenants(id) default public.default_tenant_id(),
-  call_id uuid not null references public.event_artwork_calls(id) on delete cascade,
-  event_id uuid not null references public.events(id) on delete cascade,
+  -- Both foreign keys are composite and declared below.
+  call_id uuid not null,
+  event_id uuid not null,
   submitter_name text not null,
   submitter_email text not null,
   title text,
@@ -112,7 +130,13 @@ create table public.artwork_submissions (
   reviewed_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  updated_by uuid references auth.users(id)
+  updated_by uuid references auth.users(id),
+  -- Referenced by artwork_submission_images (tenant_id, submission_id).
+  unique (tenant_id, id),
+  foreign key (tenant_id, call_id)
+    references public.event_artwork_calls (tenant_id, id) on delete cascade,
+  foreign key (tenant_id, event_id)
+    references public.events (tenant_id, id) on delete cascade
 );
 
 comment on table public.artwork_submissions is
@@ -163,13 +187,16 @@ grant select, insert, update, delete on public.artwork_submissions to authentica
 create table public.artwork_submission_images (
   id uuid primary key default gen_random_uuid(),
   tenant_id uuid not null references public.tenants(id) default public.default_tenant_id(),
-  submission_id uuid not null references public.artwork_submissions(id) on delete cascade,
+  -- Composite, declared below.
+  submission_id uuid not null,
   storage_path text not null unique,
   thumb_path text not null unique,
   content_type text not null,
   byte_size bigint,
   position integer not null default 0,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  foreign key (tenant_id, submission_id)
+    references public.artwork_submissions (tenant_id, id) on delete cascade
 );
 
 comment on column public.artwork_submission_images.storage_path is
