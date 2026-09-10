@@ -18,6 +18,7 @@ describe("parseArtworkCallForm", () => {
         opensAt: null,
         closesAt: null,
         intro: null,
+        rightsNote: null,
         maxImages: 3,
       },
     });
@@ -49,6 +50,28 @@ describe("parseArtworkCallForm", () => {
     expect(parseArtworkCallForm(form({ maxImages: "three" }))).toEqual({
       error: "Images per submission must be between 1 and 5.",
     });
+  });
+
+  test("keeps the rights note optional and trims it to null when blank", () => {
+    expect(parseArtworkCallForm(form({ rightsNote: "   " }))).toMatchObject({
+      data: { rightsNote: null },
+    });
+    expect(
+      parseArtworkCallForm(form({ rightsNote: "  You keep the original.  " })),
+    ).toMatchObject({
+      data: { rightsNote: "You keep the original." },
+    });
+  });
+
+  test("refuses a rights note longer than the brief can carry", () => {
+    expect(parseArtworkCallForm(form({ rightsNote: "x".repeat(501) }))).toEqual(
+      {
+        error: "Please keep the rights and credit note under 500 characters.",
+      },
+    );
+    expect(
+      parseArtworkCallForm(form({ rightsNote: "x".repeat(500) })),
+    ).toMatchObject({ data: { rightsNote: "x".repeat(500) } });
   });
 
   test("refuses a window that closes before it opens", () => {

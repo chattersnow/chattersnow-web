@@ -61,6 +61,7 @@ export type ArtworkCall = {
   opens_at: string | null;
   closes_at: string | null;
   intro: string | null;
+  rights_note: string | null;
   max_images: number;
   event: { id: string; name: string; starts_at: string } | null;
   submission_count: number;
