@@ -22,18 +22,36 @@ mock.module("next/navigation", () => ({
 
 type ActionResult = { error: string } | { success: true };
 
+/**
+ * A server action takes time, and these three stand-ins have to as well.
+ *
+ * Resolving in a microtask is not a faithful server: it lets an assertion
+ * written straight after `await waitFor(() => expect(saveMock).toHaveBeenCalled())`
+ * pass, because by the time the assertion runs the action's transition has
+ * usually closed. "Usually" is the whole problem -- the CI runner is slower
+ * than this machine, and "puts the registry default back in the field" failed
+ * there twice while passing every time locally. A timer forces the gap open on
+ * every run, so an assertion that depends on the action being finished fails
+ * here rather than one run in three on a shared runner.
+ */
+const ACTION_MS = 50;
+
 const saveMock = mock(
-  async (_entries: { key: string; value: unknown }[]): Promise<ActionResult> =>
-    ({ success: true }) as const,
+  async (
+    _entries: { key: string; value: unknown }[],
+  ): Promise<ActionResult> => {
+    await new Promise((resolve) => setTimeout(resolve, ACTION_MS));
+    return { success: true } as const;
+  },
 );
-const publishMock = mock(
-  async (_keys: string[]): Promise<ActionResult> =>
-    ({ success: true }) as const,
-);
-const discardMock = mock(
-  async (_keys: string[]): Promise<ActionResult> =>
-    ({ success: true }) as const,
-);
+const publishMock = mock(async (_keys: string[]): Promise<ActionResult> => {
+  await new Promise((resolve) => setTimeout(resolve, ACTION_MS));
+  return { success: true } as const;
+});
+const discardMock = mock(async (_keys: string[]): Promise<ActionResult> => {
+  await new Promise((resolve) => setTimeout(resolve, ACTION_MS));
+  return { success: true } as const;
+});
 // Mocked wholesale: actions.ts reaches the server Supabase client, which
 // throws when pulled into a client-component module graph.
 mock.module("./actions", () => ({
@@ -236,6 +254,12 @@ describe("Back to default", () => {
       ]),
     );
 
+    // `saveMock` records the call before its promise resolves, so the action's
+    // transition is still open here and the bar still reads "Saving...".
+    // Waiting for it to come back is waiting for the save to be over, which is
+    // when the server would answer -- and so when the refresh below belongs.
+    await screen.findByRole("button", { name: "Save draft" });
+
     view.refreshWith([editorSlot(HEADING, DEFAULT_HEADING, false)]);
     expect(saveBar()).toBeDisabled();
     expect(
@@ -257,6 +281,12 @@ describe("saving and publishing are two steps", () => {
       ]),
     );
     expect(publishMock).not.toHaveBeenCalled();
+
+    // `saveMock` records the call before its promise resolves, so the action's
+    // transition is still open here and the bar still reads "Saving...".
+    // Waiting for it to come back is waiting for the save to be over, which is
+    // when the server would answer -- and so when the refresh below belongs.
+    await screen.findByRole("button", { name: "Save draft" });
 
     // The server comes back with the draft staged; the copy is still not live.
     view.refreshWith([editorSlot(HEADING, `${DEFAULT_HEADING}!`, false, true)]);
@@ -305,7 +335,15 @@ describe("saving and publishing are two steps", () => {
         { key: "home.heading", value: `${DEFAULT_HEADING} today` },
       ]),
     );
-    expect(publishMock).toHaveBeenCalledWith(["home.heading"]);
+    // Staging and publishing are two round trips, so the second one is still
+    // in front of us when the first is recorded. Given its own budget rather
+    // than the default second: this is the only assertion in the file waiting
+    // on two `ACTION_MS` actions in series behind a dialog, and it came within
+    // 50ms of the default under a full-file run.
+    await waitFor(
+      () => expect(publishMock).toHaveBeenCalledWith(["home.heading"]),
+      { timeout: 5_000 },
+    );
   });
 
   test("Discard drops the saved draft as well as the edits on screen", async () => {
