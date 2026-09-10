@@ -607,13 +607,25 @@ create trigger audit_log_row after insert or update or delete on public.artwork_
 
 -- Ships in dry_run like every other policy (20260905090000): the nightly job
 -- logs real counts without deleting until a human moves it to enforce.
-insert into public.retention_policies (policy_key, label, period, mode, description) values (
-  'artwork_submissions',
-  'Artwork submissions',
-  interval '3 years',
-  'dry_run',
-  'Community artwork submissions and their stored images, counted from the submission date. Long by design: a piece may be reprinted or credited in a later issue, and the artist''s consent was given for the zine, not for a year.'
-);
+--
+-- One row per tenant, and tenant_id named rather than defaulted -- the form
+-- 20260907150000 uses, for a reason that only shows up against a real database.
+-- retention_policies has been keyed (tenant_id, policy_key) since 20260906160000,
+-- and its tenant_id default is default_tenant_id(), which resolves to the sole
+-- active tenant only when there is exactly one. A local `supabase db reset` has
+-- exactly one, so the defaulted insert passed CI; the hosted project has three,
+-- so the default came back null and the whole migration rolled back on a
+-- not-null violation. New tenants still inherit this through
+-- seed_tenant_retention_policies() (20260906160000), which copies the oldest
+-- tenant's rules.
+insert into public.retention_policies (tenant_id, policy_key, label, period, mode, description)
+select t.id,
+       'artwork_submissions',
+       'Artwork submissions',
+       interval '3 years',
+       'dry_run',
+       'Community artwork submissions and their stored images, counted from the submission date. Long by design: a piece may be reprinted or credited in a later issue, and the artist''s consent was given for the zine, not for a year.'
+  from public.tenants t;
 
 -- Self-check, the same one 20260906130000 runs: none of the three new tables
 -- may have opened an isolation gap.
