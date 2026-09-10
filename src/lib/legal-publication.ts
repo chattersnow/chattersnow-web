@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   LEGAL_DOCUMENTS,
+  LEGAL_PUBLICATION_PREFIX,
   resolveInForce,
   type LegalDocument,
 } from "@/lib/legal-documents";
@@ -43,6 +44,56 @@ export const getLegalPublication = cache(
     for (const document of LEGAL_DOCUMENTS) {
       const row = data?.find((setting) => setting.document === document.key);
       inForce[document.key] = resolveInForce(document, row?.value);
+    }
+    return inForce;
+  },
+);
+
+/**
+ * The same state for the tenant the signed-in admin has selected, for the
+ * System Settings panel. Read straight from `app_settings` -- RLS scopes it to
+ * the current tenant -- rather than through `public_legal_publication`, which
+ * answers for the *request host*. Same split as `getTenantLayoutValues` and
+ * `getSiteLayout`, and for the same reason.
+ *
+ * Reading the public view here is what made the switch snap back (#859): the
+ * write goes to `app_settings` with `tenant_id` defaulting to
+ * `default_tenant_id()`, which is the admin's own tenant, while the panel read
+ * came back for whichever tenant `public_tenant_id()` resolves `portal.<domain>`
+ * to -- a different tenant, or none at all once a second tenant is active and
+ * the sole-active-tenant fallback switches off. The row was written, the toast
+ * was honest, and the re-render showed the document as never adopted.
+ */
+export const getTenantLegalPublication = cache(
+  async (supabase: SupabaseClient): Promise<LegalPublication> => {
+    const { data, error } = await supabase
+      .from("app_settings")
+      .select("key, value")
+      .like("key", `${LEGAL_PUBLICATION_PREFIX}%`);
+
+    // Same reasoning as the read above, and the same refusal to be quiet about
+    // it: "not in force" is where an unreadable flag has to land, but a silent
+    // fallback is indistinguishable from a toggle that will not save.
+    if (error) {
+      console.error(
+        "[legal-publication] could not read legal_publication.* from app_settings; the panel is showing every document as not in force",
+        error,
+      );
+    }
+
+    const stored = new Map(
+      (data ?? []).map((row) => [
+        String(row.key).slice(LEGAL_PUBLICATION_PREFIX.length),
+        row.value,
+      ]),
+    );
+
+    const inForce: LegalPublication = {};
+    for (const document of LEGAL_DOCUMENTS) {
+      inForce[document.key] = resolveInForce(
+        document,
+        stored.get(document.key),
+      );
     }
     return inForce;
   },
