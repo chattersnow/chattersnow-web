@@ -219,6 +219,23 @@ export function ArtworkSubmissionReviewSheet({
             <ReadOnlyField label="Email" htmlFor="submission-email">
               {submission.submitter_email}
             </ReadOnlyField>
+            {/*
+              Only rendered when the artist asked to be credited differently.
+              submit_artwork() stores credit_name only when it differs from the
+              contact name, so the presence of this row is the signal -- a
+              reviewer should not have to compare two strings to notice that
+              the printed name is not the one above.
+            */}
+            {submission.credit_name && (
+              <ReadOnlyField label="Credit as" htmlFor="submission-credit">
+                {submission.credit_name}
+              </ReadOnlyField>
+            )}
+            {submission.portfolio_url && (
+              <ReadOnlyField label="Portfolio" htmlFor="submission-portfolio">
+                <PortfolioValue value={submission.portfolio_url} />
+              </ReadOnlyField>
+            )}
             <ReadOnlyField label="For" htmlFor="submission-event">
               {submission.event?.name || "—"}
             </ReadOnlyField>
@@ -227,6 +244,15 @@ export function ArtworkSubmissionReviewSheet({
             </ReadOnlyField>
             <ReadOnlyField label="About the work" htmlFor="submission-about">
               {submission.artist_statement || "—"}
+            </ReadOnlyField>
+            <ReadOnlyField label="Consent" htmlFor="submission-consent">
+              {submission.consented_at
+                ? `Confirmed the work is theirs on ${formatDateTime(submission.consented_at)}`
+                : // Only submissions taken before #877 shipped. Worth saying
+                  // plainly rather than showing an em dash, because "we never
+                  // asked" and "they declined" are not the same thing and a
+                  // reviewer reprinting the piece should know which it is.
+                  "Not recorded — submitted before consent was collected"}
             </ReadOnlyField>
 
             {canManage ? (
@@ -314,5 +340,29 @@ export function ArtworkSubmissionReviewSheet({
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+/**
+ * A portfolio value as a link only when it is safely one.
+ *
+ * The field accepts an @handle as readily as a URL, and the column's check
+ * constraint only guarantees that anything carrying a scheme carries http or
+ * https. So the scheme is re-tested here before an anchor is rendered: a
+ * reviewer clicking through from the portal must never be handed a
+ * `javascript:` or `data:` target, and anything that is not plainly a web
+ * address is shown as the text the artist typed.
+ */
+function PortfolioValue({ value }: { value: string }) {
+  if (!/^https?:\/\//i.test(value)) return <>{value}</>;
+  return (
+    <a
+      href={value}
+      target="_blank"
+      rel="noopener noreferrer nofollow"
+      className="underline underline-offset-4"
+    >
+      {value}
+    </a>
   );
 }

@@ -28,6 +28,10 @@ const ERROR_MESSAGES: Record<string, string> = {
     "Something went wrong with your images. Please remove them and add them again.",
   NAME_REQUIRED: "Your name is required.",
   INVALID_EMAIL: "A valid email is required.",
+  CONSENT_REQUIRED:
+    "Please confirm the work is yours and that you agree to the terms above.",
+  INVALID_PORTFOLIO_URL:
+    "A portfolio link has to start with http:// or https://.",
 };
 
 function messageFor(rpcError: string, fallback: string): string {
@@ -150,6 +154,9 @@ export async function submitArtworkAction(
     p_medium: parsed.data.medium,
     p_statement: parsed.data.statement,
     p_images: parsed.data.images,
+    p_credit_name: parsed.data.creditName,
+    p_portfolio_url: parsed.data.portfolio,
+    p_consent: parsed.data.consent,
     p_honeypot: honeypot,
     p_ip_address: ipAddress,
   });

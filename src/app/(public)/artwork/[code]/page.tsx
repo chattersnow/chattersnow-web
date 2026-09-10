@@ -88,7 +88,11 @@ export default async function ArtworkSubmissionPage({
         </div>
 
         <div className="mt-10">
-          <ArtworkSubmissionForm code={code} maxImages={call.max_images} />
+          <ArtworkSubmissionForm
+            code={code}
+            maxImages={call.max_images}
+            rightsNote={call.rights_note}
+          />
         </div>
       </div>
     </div>
