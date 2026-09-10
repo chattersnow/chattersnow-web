@@ -91,7 +91,7 @@ export function NewBoardMemberDialog({ people }: { people: PersonListItem[] }) {
       >
         Add board member
       </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Add board member</DialogTitle>
           <DialogDescription>Link a person to a board term.</DialogDescription>

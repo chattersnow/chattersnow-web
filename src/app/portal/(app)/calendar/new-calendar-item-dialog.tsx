@@ -159,7 +159,7 @@ export function NewCalendarItemDialog({
       >
         New calendar item
       </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Create calendar item</DialogTitle>
           <DialogDescription>

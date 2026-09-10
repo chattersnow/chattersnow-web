@@ -71,7 +71,7 @@ export function MinutesApprovalDialog({
           </Badge>
         )}
       </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Previous meeting minutes</DialogTitle>
           <DialogDescription>

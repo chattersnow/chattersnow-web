@@ -99,7 +99,7 @@ export function NewAccessGrantDialog({
       <DialogTrigger render={<Button type="button" />}>
         Add access grant
       </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Add access grant</DialogTitle>
           <DialogDescription>

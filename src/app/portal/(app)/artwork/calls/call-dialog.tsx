@@ -88,7 +88,10 @@ export function ArtworkCallDialog({
       >
         {editing ? "Edit call" : "New call"}
       </DialogTrigger>
-      <DialogContent>
+      {/* Nine fields, each with a description under it, so the `sm:max-w-sm`
+          default leaves the help text in ribbons. Height is not set here --
+          DialogContent caps and scrolls itself since #884. */}
+      <DialogContent className="sm:max-w-lg">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>
