@@ -1,13 +1,5 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
-import { SiteImage } from "@/components/site-image";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSiteImageUrls } from "@/lib/site-images";
 import { getPublicSite } from "@/lib/public-site";
@@ -22,6 +14,7 @@ import {
   type HomeUpcomingEvent,
   type HomeUpcomingItem,
 } from "./upcoming-events";
+import { HomeCarousel } from "./home-carousel";
 import { categoryLabel } from "../events/community/calendar-shared";
 import type { PublicCalendarCategory } from "../events/community/calendar-shared";
 import type { PublicEventProgram } from "../events/event-card";
@@ -171,23 +164,13 @@ export default async function Home() {
     >
       <div className="mx-auto max-w-6xl">
         <section className="flex flex-col items-center text-center">
-          <Carousel className="w-full max-w-5xl" opts={{ loop: true }}>
-            <CarouselContent>
-              {CAROUSEL_SLOTS.map((slot, index) => (
-                <CarouselItem key={slot}>
-                  <SiteImage
-                    url={siteImages[slot] ?? null}
-                    alt={content.text("org.image_alt")}
-                    className="aspect-[21/9] rounded-2xl"
-                    sizes="(min-width: 1024px) 1024px, 100vw"
-                    priority={index === 0}
-                  />
-                </CarouselItem>
-              ))}
-            </CarouselContent>
-            <CarouselPrevious className="hidden sm:flex" />
-            <CarouselNext className="hidden sm:flex" />
-          </Carousel>
+          <HomeCarousel
+            slides={CAROUSEL_SLOTS.map((slot) => ({
+              key: slot,
+              url: siteImages[slot] ?? null,
+            }))}
+            alt={content.text("org.image_alt")}
+          />
 
           <div className="mt-5 w-fit">
             <div className="rainbow-accent w-full" />
