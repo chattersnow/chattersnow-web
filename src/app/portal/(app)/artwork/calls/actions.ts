@@ -29,6 +29,8 @@ async function requireManage() {
 
 function fields(data: ArtworkCallFormData) {
   return {
+    title: data.title,
+    timezone: data.timezone,
     is_open: data.isOpen,
     opens_at: data.opensAt,
     closes_at: data.closesAt,
@@ -46,7 +48,10 @@ export async function createArtworkCallAction(
 
   const parsed = parseArtworkCallForm(formData);
   if ("error" in parsed) return parsed;
-  if (!parsed.data.eventId) return { error: "Choose an event." };
+
+  // No event is a valid call since #879 -- a zine issue or an ongoing inbox has
+  // nothing to attach to. What used to be required here is the title instead,
+  // and parseArtworkCallForm has already insisted on it.
 
   // submission_code is left to its column default, which calls
   // generate_artwork_submission_code() -- twelve characters from a 31-letter

@@ -23,6 +23,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
+import { TIMEZONE_OPTIONS } from "@/lib/time";
 import { toast } from "@/components/ui/toast";
 import { createArtworkCallAction, updateArtworkCallAction } from "./actions";
 import type { ArtworkCall } from "../submission-types";
@@ -54,7 +55,6 @@ export function ArtworkCallDialog({
   const [isPending, startTransition] = useTransition();
 
   const editing = !!call;
-  const noEvents = !editing && events.length === 0;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -97,35 +97,77 @@ export function ArtworkCallDialog({
             <DialogDescription>
               {editing
                 ? "The event cannot be changed — submissions already point at it."
-                : "One call per event. Its link is generated when you save."}
+                : "A call does not need an event. Its link is generated when you save."}
             </DialogDescription>
           </DialogHeader>
 
           <div className="px-4 py-2">
             <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="call-title">Title</FieldLabel>
+                <Input
+                  id="call-title"
+                  name="title"
+                  required
+                  maxLength={200}
+                  defaultValue={call?.title ?? ""}
+                />
+                <FieldDescription>
+                  The heading on the public page. Not the event&apos;s name —
+                  &ldquo;Zine Vol. 2, open call&rdquo; rather than the ride it
+                  might end up in.
+                </FieldDescription>
+              </Field>
+
               {editing ? null : (
                 <Field>
-                  <FieldLabel htmlFor="call-event">Event</FieldLabel>
+                  <FieldLabel htmlFor="call-event">Event (optional)</FieldLabel>
                   <select
                     id="call-event"
                     name="eventId"
-                    required
-                    disabled={noEvents}
                     className={selectClassName}
                   >
+                    {/* First, and selected by default: standing on its own is
+                        the ordinary case for a zine issue or an open inbox,
+                        and making it the default is what stops a curator
+                        attaching an unrelated event just to get past the
+                        field. */}
+                    <option value="">No event — this call stands alone</option>
                     {events.map((option) => (
                       <option key={option.id} value={option.id}>
                         {option.name}
                       </option>
                     ))}
                   </select>
-                  {noEvents && (
-                    <FieldDescription>
-                      Every event already has a call. Create an event first.
-                    </FieldDescription>
-                  )}
+                  <FieldDescription>
+                    Attaching one shows its date and place on the page, and
+                    files the submissions against it. Still one call per event.
+                  </FieldDescription>
                 </Field>
               )}
+
+              <Field>
+                <FieldLabel htmlFor="call-timezone">
+                  Deadline timezone
+                </FieldLabel>
+                <select
+                  id="call-timezone"
+                  name="timezone"
+                  defaultValue={call?.timezone ?? ""}
+                  className={selectClassName}
+                >
+                  <option value="">From the event, or UTC</option>
+                  {TIMEZONE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <FieldDescription>
+                  Which zone the closing time is stated in. Leave it alone for a
+                  call attached to an event — it will use the event&apos;s.
+                </FieldDescription>
+              </Field>
 
               <Field orientation="horizontal">
                 <Checkbox
@@ -219,7 +261,7 @@ export function ArtworkCallDialog({
           </div>
 
           <DialogFooter>
-            <Button type="submit" disabled={isPending || noEvents}>
+            <Button type="submit" disabled={isPending}>
               {isPending ? <Spinner /> : null}
               {editing ? "Save call" : "Open call"}
             </Button>

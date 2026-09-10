@@ -40,8 +40,10 @@ type StorageObject = {
 /**
  * Every object under `prefix`, walking down into folders.
  *
- * Unlike the flat gear-photos bucket, paths here are four segments deep
- * (`{tenant}/{event}/{draft}/{image}`), and `.list()` only returns one level.
+ * Unlike the flat gear-photos bucket, paths here are four segments deep --
+ * `{tenant}/{call}/{draft}/{image}` since #879, and `{tenant}/{event}/...` for
+ * objects written before it, which is immaterial here because this walks the
+ * tree rather than parsing it -- and `.list()` only returns one level.
  * A folder comes back as an entry with a null `id`, which is how the two are
  * told apart.
  */

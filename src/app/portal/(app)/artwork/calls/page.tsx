@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/portal/empty-state";
 import { LinkPendingPulse } from "@/components/link-pending";
-import { formatInstantDate } from "@/lib/format";
+import { formatDateTimeInZone } from "@/lib/time";
 import { ArtworkCallStatusBadge } from "../submission-badges";
 import type { ArtworkCall } from "../submission-types";
 import { ArtworkCallDialog } from "./call-dialog";
@@ -29,7 +29,7 @@ export default async function ArtworkCallsPage() {
   const { data, error } = await supabase
     .from("event_artwork_calls")
     .select(
-      "id, event_id, submission_code, is_open, opens_at, closes_at, intro, rights_note, max_images, event:events(id, name, starts_at), submissions:artwork_submissions(count)",
+      "id, title, timezone, event_id, submission_code, is_open, opens_at, closes_at, intro, rights_note, max_images, event:events(id, name, starts_at, timezone), submissions:artwork_submissions(count)",
     )
     .order("created_at", { ascending: false });
 
@@ -48,9 +48,13 @@ export default async function ArtworkCallsPage() {
   });
 
   // Only events that have no call yet can take a new one -- the table's
-  // `unique (event_id)` would refuse the rest, and offering them in the picker
-  // would turn a rule into a surprise.
-  const claimed = new Set(calls.map((call) => call.event_id));
+  // `unique (tenant_id, event_id)` would refuse the rest, and offering them in
+  // the picker would turn a rule into a surprise. Standalone calls contribute a
+  // null and are filtered out: they claim no event, and leaving nulls in would
+  // only make the Set's type a lie.
+  const claimed = new Set(
+    calls.map((call) => call.event_id).filter((id) => id !== null),
+  );
   const { data: eventRows } = await supabase
     .from("events")
     .select("id, name, starts_at")
@@ -95,7 +99,7 @@ export default async function ArtworkCallsPage() {
             <CardContent className="px-0">
               <EmptyState
                 title="No calls yet"
-                description="Open a call on an event to start collecting community artwork."
+                description="Open a call to start collecting community artwork. It can stand on its own, or hang off an event."
               />
             </CardContent>
           </Card>
@@ -106,11 +110,15 @@ export default async function ArtworkCallsPage() {
                 <Card>
                   <CardContent className="flex flex-col gap-3 p-4">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="text-lg font-medium">
-                        {call.event?.name ?? "Untitled event"}
-                      </h2>
+                      <h2 className="text-lg font-medium">{call.title}</h2>
                       <ArtworkCallStatusBadge isOpen={call.is_open} />
                     </div>
+                    {/* The event is context now rather than identity, so it
+                        sits under the title and disappears when there isn't
+                        one, instead of a placeholder standing in for it. */}
+                    {call.event && (
+                      <p className="app-muted text-sm">For {call.event.name}</p>
+                    )}
                     <p className="app-muted text-sm">
                       {call.submission_count === 1
                         ? "1 submission"
@@ -118,8 +126,18 @@ export default async function ArtworkCallsPage() {
                       {" · "}
                       {call.max_images} image
                       {call.max_images === 1 ? "" : "s"} per artist
+                      {/* In the call's own zone, resolved the same way the
+                          public page resolves it. formatInstantDate would use
+                          the server's, so a curator and the artist they are
+                          waiting on could read different days off the same
+                          deadline. */}
                       {call.closes_at
-                        ? ` · closes ${formatInstantDate(call.closes_at)}`
+                        ? ` · closes ${formatDateTimeInZone(
+                            call.closes_at,
+                            call.timezone ?? call.event?.timezone ?? "UTC",
+                            { dateStyle: "medium" },
+                            "en-US",
+                          )}`
                         : ""}
                     </p>
                     <ShareLink code={call.submission_code} />

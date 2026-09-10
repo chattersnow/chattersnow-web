@@ -236,8 +236,12 @@ export function ArtworkSubmissionReviewSheet({
                 <PortfolioValue value={submission.portfolio_url} />
               </ReadOnlyField>
             )}
-            <ReadOnlyField label="For" htmlFor="submission-event">
-              {submission.event?.name || "—"}
+            {/* The call, not the event: a submission always belongs to one
+                call and since #879 may belong to no event at all. The event
+                stays alongside it as context when there is one. */}
+            <ReadOnlyField label="For" htmlFor="submission-call">
+              {submission.call?.title || "—"}
+              {submission.event?.name ? ` · ${submission.event.name}` : ""}
             </ReadOnlyField>
             <ReadOnlyField label="Medium" htmlFor="submission-medium">
               {submission.medium || "—"}
