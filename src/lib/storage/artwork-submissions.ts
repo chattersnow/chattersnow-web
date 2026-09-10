@@ -1,4 +1,3 @@
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { compressImage } from "./gear-photos";
 
 /**
@@ -39,9 +38,6 @@ export type UploadedArtwork = {
 export type ArtworkUploadResult =
   { image: UploadedArtwork } | { error: string };
 
-const GENERIC_UPLOAD_ERROR =
-  "That image could not be uploaded. Check your connection and try again.";
-
 /** The file extension the server must have used when it minted `path`. */
 export function extensionForType(type: string): string {
   if (type === "image/png") return "png";
@@ -68,6 +64,77 @@ export function checkArtworkFile(file: File): string | null {
 }
 
 /**
+ * PUT a blob to a signed upload URL, reporting progress as it goes (#878).
+ *
+ * Hand-rolled rather than `supabase.storage.uploadToSignedUrl()`, and only for
+ * that reason: supabase-js uploads through `fetch`, which cannot report upload
+ * progress at all. Three artworks at 10 MB apiece over cellular is minutes of
+ * an indeterminate spinner on the one step the whole page exists for, and
+ * `XMLHttpRequest.upload.onprogress` is still the only way a browser will tell
+ * you how far a request body has got.
+ *
+ * The request is a faithful copy of what storage-js builds for a Blob body, so
+ * this stays compatible with the same endpoint: PUT to
+ * `/object/upload/sign/{bucket}/{path}?token=`, multipart with `cacheControl`
+ * and the file under an empty field name, and no explicit content-type header
+ * -- the browser has to set that itself to carry the multipart boundary.
+ */
+function putToSignedUrl(
+  path: string,
+  token: string,
+  body: Blob,
+  onProgress?: (fraction: number) => void,
+): Promise<{ ok: true } | { status: number }> {
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
+  // Path segments are server-minted uuids and a known extension, so they need
+  // no escaping; the token is opaque and does.
+  const url =
+    `${base}/storage/v1/object/upload/sign/${ARTWORK_BUCKET}/${path}` +
+    `?token=${encodeURIComponent(token)}`;
+
+  const form = new FormData();
+  form.append("cacheControl", "3600");
+  form.append("", body);
+
+  return new Promise((resolve) => {
+    const request = new XMLHttpRequest();
+    request.open("PUT", url);
+    request.setRequestHeader("apikey", key);
+    request.setRequestHeader("authorization", `Bearer ${key}`);
+    request.setRequestHeader("x-upsert", "false");
+
+    if (onProgress) {
+      request.upload.addEventListener("progress", (event) => {
+        // Not computable on the first tick, and on some proxies never; the
+        // caller falls back to an indeterminate bar rather than showing 0%
+        // forever.
+        if (event.lengthComputable && event.total > 0) {
+          onProgress(event.loaded / event.total);
+        }
+      });
+    }
+
+    // Resolved, never rejected: the caller is a form mid-entry and every
+    // outcome here has to come back as something it can render.
+    request.addEventListener("load", () => {
+      resolve(
+        request.status >= 200 && request.status < 300
+          ? { ok: true }
+          : { status: request.status },
+      );
+    });
+    // status 0 is "the request never completed" -- offline, DNS, a cancelled
+    // navigation. Indistinguishable from here and identical to the artist.
+    request.addEventListener("error", () => resolve({ status: 0 }));
+    request.addEventListener("abort", () => resolve({ status: 0 }));
+    request.addEventListener("timeout", () => resolve({ status: 0 }));
+
+    request.send(form);
+  });
+}
+
+/**
  * Uploads one artwork twice: the original untouched, and a compressed preview.
  *
  * The original is stored as picked because the zine is *printed* -- the 1600px
@@ -76,16 +143,21 @@ export function checkArtworkFile(file: File): string | null {
  * submissions would otherwise pull close to a gigabyte of egress on every load,
  * against a 5 GB free-tier month.
  *
+ * `onProgress` tracks the original only. The thumbnail is a couple of hundred
+ * kilobytes against as much as ten megabytes, so folding it into one figure
+ * would buy a percentage point of accuracy at the cost of a bar that jumps.
+ *
  * Never throws. The caller is a form mid-entry, so every failure comes back as
- * a sentence; the underlying storage error is logged instead, because a 403
- * from storage-api says nothing useful to the person who picked the file.
+ * a sentence naming the file it happened to -- a batch of three that loses its
+ * second file has to say which one. The underlying storage error is logged
+ * instead, because a 403 from storage-api says nothing to the person who picked
+ * it.
  */
 export async function uploadArtwork(
   file: File,
   slot: ArtworkUploadSlot,
+  onProgress?: (fraction: number) => void,
 ): Promise<ArtworkUploadResult> {
-  const supabase = createSupabaseBrowserClient();
-
   // Thumbnail first. It is the half that can fail on a browser that cannot
   // decode the image, and failing here costs one small encode rather than a
   // full-size upload that then has to be cleaned up.
@@ -99,29 +171,24 @@ export async function uploadArtwork(
     };
   }
 
-  const thumbUpload = await supabase.storage
-    .from(ARTWORK_BUCKET)
-    .uploadToSignedUrl(slot.thumbPath, slot.thumbToken, thumb, {
-      contentType: "image/jpeg",
-    });
-  if (thumbUpload.error) {
-    console.error("Could not upload the artwork preview", thumbUpload.error);
-    return { error: GENERIC_UPLOAD_ERROR };
+  const thumbUpload = await putToSignedUrl(
+    slot.thumbPath,
+    slot.thumbToken,
+    thumb,
+  );
+  if (!("ok" in thumbUpload)) {
+    console.error(
+      "Could not upload the artwork preview",
+      slot.thumbPath,
+      thumbUpload.status,
+    );
+    return { error: uploadErrorFor(file.name, thumbUpload.status) };
   }
 
-  const upload = await supabase.storage
-    .from(ARTWORK_BUCKET)
-    .uploadToSignedUrl(slot.path, slot.token, file, {
-      contentType: file.type,
-    });
-  if (upload.error) {
-    console.error("Could not upload the artwork", upload.error);
-    const status = String(
-      (upload.error as { statusCode?: string | number }).statusCode,
-    );
-    if (status === "413")
-      return { error: `${file.name} is larger than 10 MB.` };
-    return { error: GENERIC_UPLOAD_ERROR };
+  const upload = await putToSignedUrl(slot.path, slot.token, file, onProgress);
+  if (!("ok" in upload)) {
+    console.error("Could not upload the artwork", slot.path, upload.status);
+    return { error: uploadErrorFor(file.name, upload.status) };
   }
 
   return {
@@ -132,4 +199,10 @@ export async function uploadArtwork(
       byteSize: file.size,
     },
   };
+}
+
+/** Always names the file: one of three that failed needs to be identifiable. */
+function uploadErrorFor(fileName: string, status: number): string {
+  if (status === 413) return `${fileName} is larger than 10 MB.`;
+  return `${fileName} could not be uploaded. Check your connection and try again.`;
 }
