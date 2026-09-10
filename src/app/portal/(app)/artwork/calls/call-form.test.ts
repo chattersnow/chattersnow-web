@@ -3,6 +3,7 @@ import { parseArtworkCallForm } from "./call-form";
 
 function form(fields: Record<string, string>): FormData {
   const formData = new FormData();
+  formData.set("title", "Zine Vol. 2");
   formData.set("eventId", "11111111-1111-4111-8111-111111111111");
   for (const [key, value] of Object.entries(fields)) formData.set(key, value);
   return formData;
@@ -13,7 +14,9 @@ describe("parseArtworkCallForm", () => {
     const result = parseArtworkCallForm(form({}));
     expect(result).toEqual({
       data: {
+        title: "Zine Vol. 2",
         eventId: "11111111-1111-4111-8111-111111111111",
+        timezone: null,
         isOpen: false,
         opensAt: null,
         closesAt: null,
@@ -22,6 +25,34 @@ describe("parseArtworkCallForm", () => {
         maxImages: 3,
       },
     });
+  });
+
+  test("accepts a call with no event and reports it as null", () => {
+    const noEvent = form({});
+    noEvent.set("eventId", "");
+    expect(parseArtworkCallForm(noEvent)).toMatchObject({
+      data: { eventId: null, title: "Zine Vol. 2" },
+    });
+  });
+
+  test("insists on a title, which is the public page's only heading", () => {
+    expect(parseArtworkCallForm(form({ title: "   " }))).toEqual({
+      error: "Give the call a title.",
+    });
+    expect(parseArtworkCallForm(form({ title: "x".repeat(201) }))).toEqual({
+      error: "Please keep the title under 200 characters.",
+    });
+  });
+
+  // A typo here means a deadline stated in the wrong zone, and
+  // formatDateTimeInZone swallows an unknown zone by falling back silently.
+  test("refuses a timezone that is not one of the offered options", () => {
+    expect(parseArtworkCallForm(form({ timezone: "Mars/Olympus" }))).toEqual({
+      error: "That is not a timezone we recognise.",
+    });
+    expect(
+      parseArtworkCallForm(form({ timezone: "America/Denver" })),
+    ).toMatchObject({ data: { timezone: "America/Denver" } });
   });
 
   test("reads the checkbox's 'on' and normalizes the window to instants", () => {

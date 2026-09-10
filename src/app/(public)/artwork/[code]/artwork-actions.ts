@@ -51,7 +51,7 @@ function messageFor(rpcError: string, fallback: string): string {
  *
  * `claim_artwork_upload_slots` runs first and does the load-bearing work: the
  * rate limit, the open-call check, and resolving the tenant from the request
- * host. Nothing the caller sent reaches a path — the tenant and event ids come
+ * host. Nothing the caller sent reaches a path — the tenant and call ids come
  * back from the RPC, and the two uuid segments are minted here.
  */
 export async function createArtworkUploadSlotsAction(
@@ -88,7 +88,7 @@ export async function createArtworkUploadSlotsAction(
   }
   if (!data) return { error: ERROR_MESSAGES.CALL_CLOSED };
 
-  const claim = data as { tenant_id: string; event_id: string };
+  const claim = data as { tenant_id: string; call_id: string };
   const admin = createSupabaseAdminClient();
   // One folder per batch of picked files, so a path can never collide with
   // another submitter's and the purge job has a natural unit to sweep.
@@ -97,7 +97,7 @@ export async function createArtworkUploadSlotsAction(
 
   for (const contentType of contentTypes) {
     const imageId = crypto.randomUUID();
-    const prefix = `${claim.tenant_id}/${claim.event_id}/${draftId}/${imageId}`;
+    const prefix = `${claim.tenant_id}/${claim.call_id}/${draftId}/${imageId}`;
     const path = `${prefix}.${extensionForType(contentType)}`;
     const thumbPath = `${prefix}-thumb.jpg`;
 

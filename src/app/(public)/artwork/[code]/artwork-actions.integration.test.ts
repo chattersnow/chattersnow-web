@@ -49,7 +49,7 @@ const { createArtworkUploadSlotsAction, submitArtworkAction } =
 type Call = {
   id: string;
   code: string;
-  eventId: string;
+  eventId: string | null;
   tenantId: string;
   cleanup: () => Promise<void>;
 };
@@ -62,12 +62,23 @@ async function createCall(
     max_images?: number;
     closes_at?: string;
     rights_note?: string;
+    timezone?: string;
+    /** Skips the event fixture entirely, for the standalone case (#879). */
+    withoutEvent?: boolean;
   } = {},
 ): Promise<Call> {
-  const event = await createPublishedEvent({ visibility: "public" });
+  const { withoutEvent, ...columns } = overrides;
+  const event = withoutEvent
+    ? null
+    : await createPublishedEvent({ visibility: "public" });
   const { data, error } = await service
     .from("event_artwork_calls")
-    .insert({ event_id: event.id, is_open: true, ...overrides })
+    .insert({
+      event_id: event?.id ?? null,
+      title: "Zine Vol. 2",
+      is_open: true,
+      ...columns,
+    })
     .select("id, submission_code, tenant_id")
     .single();
   if (error) throw error;
@@ -75,24 +86,26 @@ async function createCall(
   const call: Call = {
     id: data.id as string,
     code: data.submission_code as string,
-    eventId: event.id,
+    eventId: event?.id ?? null,
     tenantId: data.tenant_id as string,
     // The call cascades to its submissions and their image rows; the event
     // fixture owns the event itself.
     cleanup: async () => {
       await service.from("event_artwork_calls").delete().eq("id", data.id);
-      await event.cleanup();
+      await event?.cleanup();
     },
   };
   createdCalls.push(call);
   return call;
 }
 
+// Keyed on the call since #879, which is what the RPC now builds its prefix
+// from and what an eventless call has instead of an event id.
 function imagePaths(call: Call, draft = crypto.randomUUID()) {
   const image = crypto.randomUUID();
   return {
-    path: `${call.tenantId}/${call.eventId}/${draft}/${image}.jpg`,
-    thumbPath: `${call.tenantId}/${call.eventId}/${draft}/${image}-thumb.jpg`,
+    path: `${call.tenantId}/${call.id}/${draft}/${image}.jpg`,
+    thumbPath: `${call.tenantId}/${call.id}/${draft}/${image}-thumb.jpg`,
     contentType: "image/jpeg",
     byteSize: 4096,
   };
@@ -363,8 +376,8 @@ describe("submitArtworkAction (integration)", () => {
         images: JSON.stringify([
           {
             // Another tenant's prefix entirely.
-            path: `${stranger}/${call.eventId}/${draft}/${crypto.randomUUID()}.jpg`,
-            thumbPath: `${stranger}/${call.eventId}/${draft}/${crypto.randomUUID()}-thumb.jpg`,
+            path: `${stranger}/${call.id}/${draft}/${crypto.randomUUID()}.jpg`,
+            thumbPath: `${stranger}/${call.id}/${draft}/${crypto.randomUUID()}-thumb.jpg`,
             contentType: "image/jpeg",
             byteSize: 1,
           },
@@ -390,8 +403,8 @@ describe("submitArtworkAction (integration)", () => {
         email: uniqueEmail("artwork-traversal"),
         images: JSON.stringify([
           {
-            path: `${call.tenantId}/${call.eventId}/../../../secrets/key.jpg`,
-            thumbPath: `${call.tenantId}/${call.eventId}/../../../secrets/key-thumb.jpg`,
+            path: `${call.tenantId}/${call.id}/../../../secrets/key.jpg`,
+            thumbPath: `${call.tenantId}/${call.id}/../../../secrets/key-thumb.jpg`,
             contentType: "image/jpeg",
             byteSize: 1,
           },
@@ -450,9 +463,7 @@ describe("createArtworkUploadSlotsAction (integration)", () => {
     if (!("slots" in result)) return;
     expect(result.slots).toHaveLength(2);
     for (const slot of result.slots) {
-      expect(slot.path.startsWith(`${call.tenantId}/${call.eventId}/`)).toBe(
-        true,
-      );
+      expect(slot.path.startsWith(`${call.tenantId}/${call.id}/`)).toBe(true);
       expect(slot.thumbPath.endsWith("-thumb.jpg")).toBe(true);
       expect(slot.token.length).toBeGreaterThan(0);
       expect(slot.thumbToken.length).toBeGreaterThan(0);
@@ -519,7 +530,7 @@ describe("anonymous reach (integration)", () => {
     const { error } = await anon.storage
       .from("artwork-submissions")
       .upload(
-        `${call.tenantId}/${call.eventId}/${crypto.randomUUID()}/${crypto.randomUUID()}.jpg`,
+        `${call.tenantId}/${call.id}/${crypto.randomUUID()}/${crypto.randomUUID()}.jpg`,
         new Blob([new Uint8Array([1, 2, 3])], { type: "image/jpeg" }),
       );
 
@@ -555,14 +566,83 @@ describe("anonymous reach (integration)", () => {
 
     expect(data).toMatchObject({
       call_id: call.id,
+      title: "Zine Vol. 2",
       event_id: call.eventId,
-      // createPublishedEvent's default, and the whole point of returning it:
-      // the page must not format a deadline in the server's zone.
-      event_timezone: "America/Chicago",
+      // createPublishedEvent's default, inherited because the call sets no
+      // zone of its own. The page must not format a deadline in the server's.
+      display_timezone: "America/Chicago",
       rights_note: "You keep the original. We print it once and credit you.",
     });
     expect(
       new Date((data as { closes_at: string }).closes_at).toISOString(),
     ).toBe(closesAt);
+  });
+
+  // #879. The whole point: no event row behind it, and the page still has
+  // everything it needs to render.
+  test("get_artwork_call serves a call with no event at all", async () => {
+    const call = await createCall({
+      withoutEvent: true,
+      timezone: "America/Denver",
+      closes_at: new Date(Date.now() + 86_400_000).toISOString(),
+    });
+    const anon = anonClient();
+
+    const { data } = await anon
+      .rpc("get_artwork_call", { p_code: call.code, p_ip_address: uniqueIp() })
+      .maybeSingle();
+
+    expect(data).toMatchObject({
+      call_id: call.id,
+      title: "Zine Vol. 2",
+      event_id: null,
+      event_name: null,
+      starts_at: null,
+      // Its own, since there is no event to inherit from.
+      display_timezone: "America/Denver",
+    });
+  });
+
+  test("a call with neither an event nor a zone still resolves one", async () => {
+    const call = await createCall({ withoutEvent: true });
+    const anon = anonClient();
+
+    const { data } = await anon
+      .rpc("get_artwork_call", { p_code: call.code, p_ip_address: uniqueIp() })
+      .maybeSingle();
+
+    // UTC rather than null: the page labels the zone it prints, so this is
+    // visible to a reader rather than a silent guess.
+    expect(data).toMatchObject({ display_timezone: "UTC" });
+  });
+
+  test("submitting to an eventless call stores a row with no event", async () => {
+    currentIp = uniqueIp();
+    const call = await createCall({ withoutEvent: true });
+
+    const result = await submitArtworkAction(
+      call.code,
+      formData({
+        name: "Ari",
+        email: uniqueEmail("artwork-standalone"),
+        images: JSON.stringify([imagePaths(call)]),
+      }),
+    );
+
+    expect(result).toEqual({ success: true });
+    const { data } = await service
+      .from("artwork_submissions")
+      .select("event_id, call_id")
+      .eq("call_id", call.id);
+    expect(data).toHaveLength(1);
+    expect(data![0]).toMatchObject({ event_id: null, call_id: call.id });
+  });
+
+  // Two standalone calls would collide if the unique on (tenant_id, event_id)
+  // treated nulls as equal. It does not, and this is what says so.
+  test("any number of calls can stand alone beside each other", async () => {
+    const first = await createCall({ withoutEvent: true });
+    const second = await createCall({ withoutEvent: true });
+    expect(first.id).not.toBe(second.id);
   });
 });

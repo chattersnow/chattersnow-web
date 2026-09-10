@@ -8,10 +8,16 @@ import { CallBrief } from "./call-brief";
 
 type ArtworkCall = {
   call_id: string;
-  event_id: string;
-  event_name: string;
-  starts_at: string;
-  event_timezone: string;
+  title: string;
+  /** Null on a call that stands on its own (#879); the four fields below it
+   * are null with it, and the page renders the call's own deadline instead of
+   * an event line. */
+  event_id: string | null;
+  event_name: string | null;
+  starts_at: string | null;
+  /** The call's own zone, else the event's, else UTC -- resolved in the RPC so
+   * this is never null and never has to be guessed at here. */
+  display_timezone: string;
   location: string | null;
   intro: string | null;
   rights_note: string | null;
@@ -48,12 +54,14 @@ export default async function ArtworkSubmissionPage({
   // In the event's own zone, not the rendering environment's. This runs in a
   // Server Component, so the toLocaleDateString() it replaces was resolving
   // against whatever zone the serverless region happened to be in.
-  const eventDate = formatDateTimeInZone(
-    call.starts_at,
-    call.event_timezone,
-    { dateStyle: "long" },
-    "en-US",
-  );
+  const eventLine = call.starts_at
+    ? formatDateTimeInZone(
+        call.starts_at,
+        call.display_timezone,
+        { dateStyle: "long" },
+        "en-US",
+      ) + (call.location ? ` · ${call.location}` : "")
+    : null;
 
   return (
     // px matching the layout's own header and footer. `app-shell` carries no
@@ -63,14 +71,18 @@ export default async function ArtworkSubmissionPage({
     <div className="app-shell px-6 py-12 sm:px-10 sm:py-16">
       <div className="mx-auto max-w-2xl">
         <p className="app-eyebrow">Call for artwork</p>
+        {/*
+          The call's own title, not the event's name (#879). Someone arriving
+          from a flyer used to read this page as an event page, with the thing
+          it was actually asking of them in quiet eyebrow text above.
+        */}
         <h1 className="brand-display mt-2 text-3xl sm:text-4xl">
-          {call.event_name}
+          {call.title}
         </h1>
         <div className="rainbow-accent mt-4 w-16" />
-        <p className="app-muted mt-4">
-          {eventDate}
-          {call.location ? ` · ${call.location}` : ""}
-        </p>
+        {/* Absent entirely on a standalone call: the brief below carries the
+            deadline, which is the date that matters to a submitter anyway. */}
+        {eventLine && <p className="app-muted mt-4">{eventLine}</p>}
 
         {call.intro && (
           <div className="mt-6 whitespace-pre-line text-base leading-relaxed">
@@ -81,7 +93,7 @@ export default async function ArtworkSubmissionPage({
         <div className="mt-8">
           <CallBrief
             closesAt={call.closes_at}
-            timeZone={call.event_timezone}
+            timeZone={call.display_timezone}
             maxImages={call.max_images}
             rightsNote={call.rights_note}
           />

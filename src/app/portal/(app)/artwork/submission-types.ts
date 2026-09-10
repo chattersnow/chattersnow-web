@@ -40,6 +40,7 @@ export type ArtworkSubmission = {
   review_notes: string | null;
   reviewed_at: string | null;
   created_at: string;
+  call: { id: string; title: string } | null;
   event: { id: string; name: string } | null;
   images: ArtworkSubmissionImage[];
 };
@@ -58,7 +59,9 @@ export type SignedArtworkImage = ArtworkSubmissionImage & {
 
 export type ArtworkCall = {
   id: string;
-  event_id: string;
+  title: string;
+  timezone: string | null;
+  event_id: string | null;
   submission_code: string;
   is_open: boolean;
   opens_at: string | null;
@@ -66,7 +69,12 @@ export type ArtworkCall = {
   intro: string | null;
   rights_note: string | null;
   max_images: number;
-  event: { id: string; name: string; starts_at: string } | null;
+  event: {
+    id: string;
+    name: string;
+    starts_at: string;
+    timezone: string;
+  } | null;
   submission_count: number;
 };
 
