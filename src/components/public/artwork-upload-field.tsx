@@ -196,8 +196,7 @@ export function ArtworkUploadField({
       <FieldDescription id="artwork-files-help">
         {remaining > 0
           ? `JPEG, PNG or WebP, up to 10 MB each. You can add ${remaining} more.`
-          : "That's the most images this call accepts."}{" "}
-        Send the highest-resolution file you have — the zine is printed.
+          : "That's the most images this call accepts."}
       </FieldDescription>
 
       {error && (

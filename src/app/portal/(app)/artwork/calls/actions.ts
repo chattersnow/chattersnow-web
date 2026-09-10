@@ -33,6 +33,7 @@ function fields(data: ArtworkCallFormData) {
     opens_at: data.opensAt,
     closes_at: data.closesAt,
     intro: data.intro,
+    rights_note: data.rightsNote,
     max_images: data.maxImages,
   };
 }

@@ -29,7 +29,7 @@ export default async function ArtworkCallsPage() {
   const { data, error } = await supabase
     .from("event_artwork_calls")
     .select(
-      "id, event_id, submission_code, is_open, opens_at, closes_at, intro, max_images, event:events(id, name, starts_at), submissions:artwork_submissions(count)",
+      "id, event_id, submission_code, is_open, opens_at, closes_at, intro, rights_note, max_images, event:events(id, name, starts_at), submissions:artwork_submissions(count)",
     )
     .order("created_at", { ascending: false });
 

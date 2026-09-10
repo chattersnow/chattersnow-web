@@ -187,8 +187,26 @@ export function ArtworkCallDialog({
                   defaultValue={call?.intro ?? ""}
                 />
                 <FieldDescription>
-                  Shown above the form: what you are looking for, the theme, how
-                  work will be credited.
+                  Shown above the form as prose: what you are looking for and
+                  the theme. Credit and rights go in the next field, where they
+                  get a heading of their own.
+                </FieldDescription>
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="call-rights">Rights and credit</FieldLabel>
+                <Textarea
+                  id="call-rights"
+                  name="rightsNote"
+                  rows={3}
+                  maxLength={500}
+                  defaultValue={call?.rights_note ?? ""}
+                />
+                <FieldDescription>
+                  One or two lines on what we may do with a piece and how the
+                  artist is credited. Leave it empty and the brief simply
+                  doesn&apos;t mention rights — better than a promise nobody has
+                  agreed to.
                 </FieldDescription>
               </Field>
 

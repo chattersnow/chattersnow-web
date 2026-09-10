@@ -2,15 +2,20 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getClientIp } from "@/lib/get-client-ip";
+import { formatDateTimeInZone } from "@/lib/time";
 import { ArtworkSubmissionForm } from "./artwork-submission-form";
+import { CallBrief } from "./call-brief";
 
 type ArtworkCall = {
   call_id: string;
   event_id: string;
   event_name: string;
   starts_at: string;
+  event_timezone: string;
   location: string | null;
   intro: string | null;
+  rights_note: string | null;
+  closes_at: string | null;
   max_images: number;
 };
 
@@ -40,14 +45,22 @@ export default async function ArtworkSubmissionPage({
   if (error || !data) notFound();
   const call = data as ArtworkCall;
 
-  const eventDate = new Date(call.starts_at).toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+  // In the event's own zone, not the rendering environment's. This runs in a
+  // Server Component, so the toLocaleDateString() it replaces was resolving
+  // against whatever zone the serverless region happened to be in.
+  const eventDate = formatDateTimeInZone(
+    call.starts_at,
+    call.event_timezone,
+    { dateStyle: "long" },
+    "en-US",
+  );
 
   return (
-    <div className="app-shell py-12 sm:py-16">
+    // px matching the layout's own header and footer. `app-shell` carries no
+    // horizontal padding and (public)/layout.tsx pads only its chrome, so
+    // without this the page runs edge to edge on anything narrower than
+    // max-w-2xl -- which is every phone, and this call is shared by link.
+    <div className="app-shell px-6 py-12 sm:px-10 sm:py-16">
       <div className="mx-auto max-w-2xl">
         <p className="app-eyebrow">Call for artwork</p>
         <h1 className="brand-display mt-2 text-3xl sm:text-4xl">
@@ -64,6 +77,15 @@ export default async function ArtworkSubmissionPage({
             {call.intro}
           </div>
         )}
+
+        <div className="mt-8">
+          <CallBrief
+            closesAt={call.closes_at}
+            timeZone={call.event_timezone}
+            maxImages={call.max_images}
+            rightsNote={call.rights_note}
+          />
+        </div>
 
         <div className="mt-10">
           <ArtworkSubmissionForm code={code} maxImages={call.max_images} />

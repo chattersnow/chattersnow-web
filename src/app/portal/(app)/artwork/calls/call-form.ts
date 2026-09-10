@@ -6,8 +6,16 @@ export type ArtworkCallFormData = {
   opensAt: string | null;
   closesAt: string | null;
   intro: string | null;
+  rightsNote: string | null;
   maxImages: number;
 };
+
+/**
+ * A cap rather than a hard requirement, and a tight one (#876). The rights note
+ * is a line in a scanned brief, not a second introduction -- anything longer
+ * belongs in `intro`, where it will be read as prose.
+ */
+const RIGHTS_NOTE_MAX = 500;
 
 /**
  * Pure, so the rules can be tested without a Supabase client -- the same split
@@ -25,6 +33,7 @@ export function parseArtworkCallForm(
   const opensAt = String(formData.get("opensAt") ?? "").trim();
   const closesAt = String(formData.get("closesAt") ?? "").trim();
   const intro = String(formData.get("intro") ?? "").trim();
+  const rightsNote = String(formData.get("rightsNote") ?? "").trim();
   const maxImagesRaw = String(formData.get("maxImages") ?? "3").trim();
 
   const maxImages = Number.parseInt(maxImagesRaw, 10);
@@ -33,6 +42,11 @@ export function parseArtworkCallForm(
   }
   if (intro.length > 4000) {
     return { error: "Please keep the introduction under 4000 characters." };
+  }
+  if (rightsNote.length > RIGHTS_NOTE_MAX) {
+    return {
+      error: `Please keep the rights and credit note under ${RIGHTS_NOTE_MAX} characters.`,
+    };
   }
   if (opensAt && closesAt && new Date(closesAt) < new Date(opensAt)) {
     return { error: "The closing date cannot be before the opening date." };
@@ -45,6 +59,7 @@ export function parseArtworkCallForm(
       opensAt: opensAt ? new Date(opensAt).toISOString() : null,
       closesAt: closesAt ? new Date(closesAt).toISOString() : null,
       intro: intro || null,
+      rightsNote: rightsNote || null,
       maxImages,
     },
   };

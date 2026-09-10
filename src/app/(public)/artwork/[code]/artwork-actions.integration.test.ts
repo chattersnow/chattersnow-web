@@ -61,6 +61,7 @@ async function createCall(
     is_open?: boolean;
     max_images?: number;
     closes_at?: string;
+    rights_note?: string;
   } = {},
 ): Promise<Call> {
   const event = await createPublishedEvent({ visibility: "public" });
@@ -442,5 +443,36 @@ describe("anonymous reach (integration)", () => {
       p_ip_address: uniqueIp(),
     });
     expect(data ?? []).toHaveLength(0);
+  });
+
+  // The three columns #876 added. The page renders a deadline, a rights line
+  // and every instant on it from these, so a migration that drops one of them
+  // has to fail here rather than as a blank row in production.
+  test("get_artwork_call carries the deadline, the rights note and the event's zone", async () => {
+    const closesAt = new Date(Date.now() + 86_400_000).toISOString();
+    const call = await createCall({
+      closes_at: closesAt,
+      rights_note: "You keep the original. We print it once and credit you.",
+    });
+    const anon = anonClient();
+
+    const { data } = await anon
+      .rpc("get_artwork_call", {
+        p_code: call.code,
+        p_ip_address: uniqueIp(),
+      })
+      .maybeSingle();
+
+    expect(data).toMatchObject({
+      call_id: call.id,
+      event_id: call.eventId,
+      // createPublishedEvent's default, and the whole point of returning it:
+      // the page must not format a deadline in the server's zone.
+      event_timezone: "America/Chicago",
+      rights_note: "You keep the original. We print it once and credit you.",
+    });
+    expect(
+      new Date((data as { closes_at: string }).closes_at).toISOString(),
+    ).toBe(closesAt);
   });
 });
