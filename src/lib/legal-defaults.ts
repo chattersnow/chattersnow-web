@@ -52,7 +52,7 @@ export type LegalOrgContext = {
  * Printed on all three documents. Bump it in the same commit as any change to
  * the prose below: a stale date on a legal page is worse than none.
  */
-export const PLATFORM_LEGAL_LAST_UPDATED = "September 9, 2026";
+export const PLATFORM_LEGAL_LAST_UPDATED = "September 10, 2026";
 
 type Prose = (org: LegalOrgContext) => string[];
 
@@ -105,6 +105,7 @@ const PRIVACY: DocumentProse = {
         ),
       ),
       "These periods are enforced by a scheduled job, not by hand: it runs nightly and removes or anonymizes whatever has passed its date, and keeps a record of what it did so we can check the policy is being applied.",
+      "We also keep encrypted backups of the database so the site can be restored after a failure. A backup is taken nightly and deleted after 90 days, so information removed from the live site — by the scheduled job or at your request — may persist in a backup for up to 90 days after that. Backups are used only to restore the site, not to look up information that has been deleted.",
       "Some records have to outlive those periods because the law or our own accounting requires it — donation and financial records we need for our reporting and tax filings, for example. A few organizational records, such as tax filings, financial statements, and governance records, we keep permanently. If you ask us to delete your information and something falls into one of those categories, we'll tell you what we have to keep and why.",
     ],
     "who-can-see-it": (org) => [
