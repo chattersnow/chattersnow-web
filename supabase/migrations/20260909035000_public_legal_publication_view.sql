@@ -1,5 +1,17 @@
 -- Which legal documents a tenant serves (#859).
 --
+-- Renamed off 20260909030000, which #864 had already taken. Both PRs picked
+-- the same slot while open side by side, and neither run saw the other: the
+-- collision only exists once both are in one tree, and it surfaces as
+-- `duplicate key value violates unique constraint "schema_migrations_pkey"`
+-- on the *second* file, which stops the reset before any later migration is
+-- reached. This half is the one that moves because the hosted database has
+-- 20260909030000 recorded against #864's file, applied on its merge -- moving
+-- that one would orphan a version already in production, while this one had
+-- never been applied anywhere. The two are independent (one edits
+-- site_content rows, this creates a view over app_settings), so the order
+-- between them carries no meaning.
+--
 -- `LEGAL_PAGES_PUBLISHED` in src/lib/legal-pages.ts was one boolean compiled
 -- into the application, and it made one board's legal review the gate on every
 -- tenant's privacy policy: a tenant whose own counsel had signed off still
