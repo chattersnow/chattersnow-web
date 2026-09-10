@@ -53,7 +53,24 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          // `max-h-[85vh] overflow-y-auto` is a default rather than something
+          // each dialog opts into (#884). The popup is `fixed` and centred by
+          // a -50% translate, so without a cap a form taller than the viewport
+          // runs off both ends -- and since the popup is not a scroll container
+          // and the page behind a modal does not scroll, the submit button
+          // becomes unreachable. 42 of the 54 call sites were already pasting
+          // this in by hand; the four that forgot did so by omission, and one
+          // of them (#883) shipped a dialog nobody could finish.
+          //
+          // Safe to make universal because nothing `position: sticky` renders
+          // inside a Dialog -- the two sticky users in the portal are inside a
+          // Sheet, whose body is deliberately the scroller. Were that to change,
+          // see the note on Card in ./card.tsx: a sticky descendant pins to its
+          // nearest scroll container, which this now is.
+          //
+          // A call site can still size itself: tailwind-merge resolves the
+          // `max-h`/`overflow` conflict in favour of the passed className.
+          "fixed top-1/2 left-1/2 z-50 grid max-h-[85vh] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className,
         )}
         {...props}
