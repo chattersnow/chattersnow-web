@@ -1,10 +1,17 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PUBLIC_PAGE_SLOTS, getPageVisibility } from "@/lib/page-visibility";
 import { LAYOUT_SLOTS, getTenantLayoutValues } from "@/lib/site-layout";
+import { LEGAL_DOCUMENTS } from "@/lib/legal-documents";
+import { getLegalPublication } from "@/lib/legal-publication";
 import { SystemSettingsForm } from "./system-settings-form";
 import { PageVisibilityPanel } from "./page-visibility-panel";
+import {
+  LegalDocumentsPanel,
+  type LegalDocumentStatus,
+} from "./legal-documents-panel";
 import { LayoutPanel } from "./layout-panel";
 import { NotificationsPanel } from "./notifications-panel";
 import { OrganizationSettingsPanel } from "./organization-settings-panel";
@@ -19,6 +26,14 @@ import {
   parseOpsReportRecipients,
 } from "@/lib/notifications/ops-report";
 import { currentTenant, getTenantContext } from "@/lib/portal/tenants";
+import {
+  FROM_ADDRESS_SETTING_KEY,
+  REPLY_TO_SETTING_KEY,
+  bareAddress,
+  isAllowedFromAddress,
+  settingAddress,
+  verifiedSendingDomains,
+} from "@/lib/email/identity";
 
 function parseThreshold(value: unknown): number | null {
   const threshold = typeof value === "number" ? value : Number(value ?? NaN);
@@ -35,6 +50,7 @@ export default async function SystemSettingsPage() {
     { data: expenseSetting },
     { data: reimbursementSetting },
     { data: opsReportSetting },
+    { data: mailIdentitySettings },
   ] = await Promise.all([
     supabase
       .from("app_settings")
@@ -51,10 +67,16 @@ export default async function SystemSettingsPage() {
       .select("value")
       .eq("key", OPS_REPORT_RECIPIENTS_SETTING_KEY)
       .maybeSingle(),
+    supabase
+      .from("app_settings")
+      .select("key, value")
+      .in("key", [REPLY_TO_SETTING_KEY, FROM_ADDRESS_SETTING_KEY]),
   ]);
 
   const [
     pageVisibility,
+    legalPublication,
+    { data: ownLegalDocuments },
     layoutValues,
     fiscalYearStartMonth,
     branding,
@@ -62,6 +84,16 @@ export default async function SystemSettingsPage() {
     emailEnabled,
   ] = await Promise.all([
     getPageVisibility(supabase),
+    getLegalPublication(supabase),
+    // Which of the three this tenant has published text of its own for, so the
+    // panel can say what each route is actually serving rather than only
+    // whether it is served (#859). A published row is `value not null`; a draft
+    // is not being served and does not count.
+    supabase
+      .from("site_content")
+      .select("key, value")
+      .like("key", "legal.%")
+      .not("value", "is", null),
     getTenantLayoutValues(supabase),
     getFiscalYearStartMonth(supabase),
     getTenantBranding(supabase),
@@ -69,6 +101,44 @@ export default async function SystemSettingsPage() {
     getOrgEmailEnabled(supabase),
   ]);
   const orgName = currentTenant(tenantContext)?.name ?? "this organization";
+
+  const ownLegalSlots = new Set(
+    (ownLegalDocuments ?? []).map((row) => row.key as string),
+  );
+  const legalStatuses: LegalDocumentStatus[] = LEGAL_DOCUMENTS.map(
+    (document) => ({
+      key: document.key,
+      inForce: Boolean(legalPublication[document.key]),
+      ownDocument: ownLegalSlots.has(document.slotKey),
+    }),
+  );
+
+  // What the tenant may actually put in the From field: its own domain, and
+  // only once the operator has verified it with the provider (#857). Anything
+  // else and the field renders read-only rather than pretending to be
+  // self-service -- resolveMailIdentity() would ignore the value anyway.
+  const tenantId = currentTenant(tenantContext)?.id;
+  const { data: tenantDomain } = tenantId
+    ? await supabase
+        .from("tenants")
+        .select("custom_domain")
+        .eq("id", tenantId)
+        .maybeSingle()
+    : { data: null };
+
+  const platformFrom = process.env.EMAIL_FROM ?? null;
+  const customDomain = (tenantDomain?.custom_domain as string) ?? null;
+  const mailSettings = new Map(
+    (mailIdentitySettings ?? []).map((row) => [row.key as string, row.value]),
+  );
+  const sendingDomain =
+    customDomain &&
+    isAllowedFromAddress(`x@${customDomain}`, {
+      verifiedDomains: verifiedSendingDomains(platformFrom),
+      tenantCustomDomain: customDomain,
+    })
+      ? customDomain
+      : null;
 
   return (
     <>
@@ -90,6 +160,7 @@ export default async function SystemSettingsPage() {
             <TabsTrigger value="branding">Branding</TabsTrigger>
             <TabsTrigger value="layout">Layout</TabsTrigger>
             <TabsTrigger value="visibility">Page visibility</TabsTrigger>
+            <TabsTrigger value="legal">Legal documents</TabsTrigger>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="data">Data</TabsTrigger>
           </TabsList>
@@ -155,6 +226,30 @@ export default async function SystemSettingsPage() {
           />
         </TabsContent>
 
+        <TabsContent value="legal" className="mt-6 space-y-4">
+          <p className="app-muted max-w-3xl text-sm leading-relaxed">
+            Which of the three legal documents this organization serves on its
+            public site. This is not a show/hide control: putting one in force
+            is saying the text is yours and governs using your site, so a
+            document nobody has adopted stays off rather than being published
+            under your name. The privacy policy is always served &mdash; the
+            site collects personal information through its public forms, and a
+            policy saying what happens to it has to be reachable while it does.
+            Write or replace the text itself in Administration &rarr;{" "}
+            <Link
+              href="/portal/administration/site-content?page=legal"
+              className="underline underline-offset-4"
+            >
+              Site Content
+            </Link>
+            . Every change here is recorded in the audit log.
+          </p>
+          <LegalDocumentsPanel
+            documents={LEGAL_DOCUMENTS}
+            statuses={legalStatuses}
+          />
+        </TabsContent>
+
         <TabsContent value="notifications" className="mt-6 space-y-4">
           <p className="app-muted max-w-3xl text-sm leading-relaxed">
             The organization-wide switch for every email this portal sends. It
@@ -167,6 +262,13 @@ export default async function SystemSettingsPage() {
           <NotificationsPanel
             emailEnabled={emailEnabled}
             kinds={NOTIFICATION_KINDS}
+            orgName={orgName}
+            platformFrom={bareAddress(platformFrom)}
+            sendingDomain={sendingDomain}
+            replyTo={settingAddress(mailSettings.get(REPLY_TO_SETTING_KEY))}
+            fromAddress={settingAddress(
+              mailSettings.get(FROM_ADDRESS_SETTING_KEY),
+            )}
             opsReportRecipients={parseOpsReportRecipients(
               opsReportSetting?.value,
             )}

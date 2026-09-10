@@ -140,6 +140,88 @@ This used to be two literals in `src/lib/portal/paths.ts`, `PORTAL_HOST =
 www.chattersnow.org}`, which made one tenant's DNS the platform's routing
 table and sent _every_ public host to that tenant's subdomain (#795 Phase 2).
 
+## Sending mail as a tenant
+
+Every tenant's mail already goes out under its own name: the From header is
+`"<tenants.name>" <EMAIL_FROM>`, composed per message from the tenant the
+message is for (#857). There is nothing to configure for that, and it needs no
+DNS.
+
+**Links in that mail point at the tenant's own site**, also with nothing to
+configure: `https://<custom_domain>` when the tenant has one, and
+`NEXT_PUBLIC_SITE_URL` when it does not — the same order `provision_tenant()`
+uses when it mints an invite link (#860). They target the **apex**, not
+`portal.<domain>`, even though every link is a `/portal/...` path: the apex is
+the one host a tenant is guaranteed to have pointed here, and the section above
+explains how `/portal/...` gets to the portal from there either way. This
+matters more than it looks — the tenant is resolved from the hostname and the
+session cookie is bound to it, so a link on the wrong tenant's host does not
+just 404, it strands the recipient's session.
+
+Two things can be varied per tenant, and they need very different amounts of
+work.
+
+**Reply-To is the tenant's own, and self-service.** Administration → System
+Settings → Notifications, "Reply-To address". This is the one that matters
+most: the application sends through Resend while the mailboxes people actually
+read are on Zoho, so a reply to the sending address bounces. Left empty it
+falls back to `EMAIL_REPLY_TO`. It carries no domain restriction — a Reply-To
+is a routing preference, and any real mailbox is a legitimate answer to it.
+
+**Sending from the tenant's own address takes an operator.** In order:
+
+1. **`custom_domain` must already be set** for the tenant — the section above.
+   It is what proves the domain is theirs.
+2. **Verify the domain in Resend** (Domains → Add Domain) and have the customer
+   publish the DKIM and SPF records it gives you. Mind the ceiling before
+   promising this to anyone: **Resend Free allows 3 verified domains, 3,000
+   emails a month and 100 a day; Pro at $20/month raises it to 10 domains**
+   (checked September 2026 — re-check, it moves). The platform's own domain
+   plus the first two customers fit on Free.
+3. **Add the domain to `EMAIL_VERIFIED_DOMAINS`** (Vercel → Settings →
+   Environment Variables), comma-separated:
+   `chattersnow.org,example.org`. Unset, it defaults to the domain of
+   `EMAIL_FROM`, which is exactly the behaviour that came before this existed —
+   so no tenant override takes effect until an operator opts in here. A Vercel
+   environment variable only reaches **new** deployments, so **redeploy**.
+4. **The tenant fills the field in** — the same Notifications panel, "Send from
+   your own address". Until steps 1-3 are done that field renders read-only,
+   showing the platform address and saying who to ask, rather than accepting a
+   value that would be ignored.
+
+The rule an address has to pass is both of these at once: its domain is in
+`EMAIL_VERIFIED_DOMAINS` **exactly** (a provider verifies a domain, not its
+subtree, so `mail.example.org` is its own verification), **and** it is the
+tenant's `custom_domain` or a subdomain of it. The second half is not
+belt-and-braces. Any tenant administrator can write their own
+`notifications.from_address`, so without it, one verified customer domain would
+let every other tenant send DKIM-signed mail as that customer.
+
+The rule is enforced where the mail is sent, in `resolveMailIdentity()`
+(`src/lib/email/identity.ts`), not only where the setting is saved: the generic
+`updateAppSettingAction` takes a free-form key, so the panel's validation is
+there to explain a refusal, not to be the control.
+
+A misconfiguration never fails a send. An address that does not pass falls back
+to the platform sender and logs a warning naming the tenant; so does an
+unreadable settings row. That is the opposite of the `notifications.email_enabled`
+kill switch, which fails closed — mail going out after somebody switched it off
+is unrecoverable, whereas a night of reminders not sent because a Reply-To could
+not be read is simply worse than sending them from the platform's address.
+
+Two limitations, both deliberate:
+
+- A tenant whose mail domain is neither its `custom_domain` nor a subdomain of
+  it cannot be configured without a code change. Real, but uncommon enough not
+  to be worth a second ownership table yet.
+- On the shared platform domain, the display name is the tenant's own `name`,
+  and a tenant administrator can rename their tenant. Display-name spoofing is
+  therefore possible there; only a per-tenant sending domain fixes it.
+
+Not supported, and not planned: a tenant supplying its own Resend API key. That
+is a provider secret in the database, and Supabase Vault to hold it safely is
+more machinery than the problem is worth at this size.
+
 ## The tenant a fresh database bootstraps as
 
 `20260905190000_seed_initial_tenant.sql` creates one tenant, because a database
@@ -166,7 +248,7 @@ Chatter Snow's production tenant is untouched — that migration ran there long
 ago and migrations do not re-run, so its row still says `chatter-snow`. This is
 why the migrations that write Chatter Snow's own copy, palette and page
 visibility (`20260908040000`, `20260908050000`, `20260908060000`,
-`20260908070000`) are all scoped `where slug = 'chatter-snow'`: on a hosted
+`20260908070000`, `20260909020000`) are all scoped `where slug = 'chatter-snow'`: on a hosted
 project they find their tenant, and on a fresh local or CI database they
 correctly find nothing.
 
@@ -197,7 +279,22 @@ Both are the tenant admin's, not the operator's:
   slots and Chatter Snow's copy as each default is `src/lib/site-content.ts`;
   a new tenant renders that until it rewrites a slot. The three legal pages
   are published whole as structured documents under `legal.*` -- a tenant
-  either publishes its own or the platform's renders. The site's photos are
+  either publishes its own or the platform's renders. Since #858 the
+  platform's is genuinely neutral (`src/lib/legal-defaults.ts`): it describes
+  what this application does for a nonprofit, names the organization and its
+  `org.email_*` addresses, and leaves out everything only that organization
+  can answer -- so it is a starting point for their own counsel rather than
+  legal advice, which the editor says beside the slot. Chatter Snow's own
+  three documents are its tenant's rows
+  (`20260909020000_chatter_snow_owns_its_legal_documents.sql`). Whether each of the
+  three is served is a separate per-tenant decision, in **Administration →
+  System Settings → Legal documents** (#859): the terms and the code of conduct
+  404 and stay out of the footer until that organization puts them in force,
+  and the privacy policy is always served because the public forms are always
+  collecting. It is one `app_settings` row per document
+  (`legal_publication.<key>`, read through `public_legal_publication`), and no
+  row is seeded — a newly provisioned tenant serves its privacy policy and
+  nothing else. The site's photos are
   slots here too (`site_images.*`, a Google Drive link each, blank for the
   placeholder icon), edited beside the copy they sit next to and published
   the same way; a new tenant starts with placeholders everywhere.

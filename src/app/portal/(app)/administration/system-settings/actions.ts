@@ -5,6 +5,10 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkPermission } from "@/lib/auth/permissions";
 import { pageVisibilitySettingKey } from "@/lib/page-visibility";
 import {
+  legalDocument,
+  legalPublicationSettingKey,
+} from "@/lib/legal-documents";
+import {
   LAYOUT_SLOTS,
   isLayoutValue,
   layoutSettingKey,
@@ -21,10 +25,15 @@ import {
   isFiscalYearStartMonth,
 } from "@/lib/fiscal-year";
 import { EMAIL_ENABLED_SETTING_KEY } from "@/lib/notifications/kinds";
+import { OPS_REPORT_RECIPIENTS_SETTING_KEY } from "@/lib/notifications/ops-report";
 import {
-  OPS_REPORT_RECIPIENTS_SETTING_KEY,
+  FROM_ADDRESS_SETTING_KEY,
+  REPLY_TO_SETTING_KEY,
+  isAllowedFromAddress,
   isEmailAddress,
-} from "@/lib/notifications/ops-report";
+  verifiedSendingDomains,
+} from "@/lib/email/identity";
+import { currentTenant, getTenantContext } from "@/lib/portal/tenants";
 
 export type SettingActionResult = { error: string } | { success: true };
 
@@ -110,6 +119,36 @@ export async function updatePageVisibilityAction(
 }
 
 /**
+ * Puts a legal document in force on the public site, or takes it back out
+ * (#859).
+ *
+ * Not the same decision as page visibility, and deliberately a different
+ * action: a hidden section is content held back, while a document in force is
+ * an organization saying "this text is ours and it governs using our site".
+ * The privacy policy is refused outright rather than silently ignored -- it is
+ * served for every tenant, always, and a call asking to take it down is a bug
+ * worth hearing about rather than a no-op to swallow.
+ *
+ * Like every setting here, the write is audit-logged by the app_settings
+ * trigger, which is what makes it usable as the record of the decision.
+ */
+export async function updateLegalPublicationAction(
+  key: string,
+  inForce: boolean,
+): Promise<SettingActionResult> {
+  const document = legalDocument(key);
+  if (!document) return { error: "That is not a legal document." };
+  if (document.alwaysInForce) {
+    return { error: `The ${document.label.toLowerCase()} is always served.` };
+  }
+
+  return updateAppSettingAction(
+    legalPublicationSettingKey(document.key),
+    inForce,
+  );
+}
+
+/**
  * How much of a section the public site shows (#846). Validated against the
  * slot's own options rather than trusted from the client: this is a Server
  * Action, so the argument is whatever the caller sent, and a value nobody
@@ -176,6 +215,95 @@ export async function updateOpsReportRecipientsAction(
     ...new Set(entries.map((entry) => entry.toLowerCase())),
   ].sort();
   return updateAppSettingAction(OPS_REPORT_RECIPIENTS_SETTING_KEY, recipients);
+}
+
+/**
+ * Who this tenant's mail comes from, and where a reply to it goes (#857).
+ *
+ * One action for both fields because they are one idea -- the identity a
+ * recipient sees -- and because updateBrandingAction below is the precedent for
+ * writing several app_settings rows at once.
+ *
+ * The From address is checked against the same rule the sender applies, but
+ * make no mistake about which one is the control: updateAppSettingAction above
+ * takes a free-form key, so anyone holding `system_settings:manage` can write
+ * `notifications.from_address` without ever reaching this function. The
+ * enforcement lives in resolveMailIdentity() at send time; what happens here is
+ * that an administrator is told why a value will not work, instead of saving
+ * something that is silently ignored every morning afterwards.
+ *
+ * The Reply-To gets no such check. A From address is a claim about who sent a
+ * message; a Reply-To is a routing preference, and any real mailbox answers it.
+ *
+ * Both writes are audit-logged by the app_settings trigger. A blank field
+ * clears its row to "" -- app_settings has no delete grant.
+ */
+export async function updateSenderIdentityAction(
+  formData: FormData,
+): Promise<SettingActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(
+    supabase,
+    "system_settings",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  const replyTo = String(formData.get("replyTo") ?? "")
+    .trim()
+    .toLowerCase();
+  if (replyTo && !isEmailAddress(replyTo)) {
+    return { error: `Not an email address: ${replyTo}.` };
+  }
+
+  const fromAddress = String(formData.get("fromAddress") ?? "")
+    .trim()
+    .toLowerCase();
+  if (fromAddress) {
+    if (!isEmailAddress(fromAddress)) {
+      return { error: `Not an email address: ${fromAddress}.` };
+    }
+
+    const tenantId = currentTenant(await getTenantContext(supabase))?.id;
+    const { data: tenant } = tenantId
+      ? await supabase
+          .from("tenants")
+          .select("custom_domain")
+          .eq("id", tenantId)
+          .maybeSingle()
+      : { data: null };
+
+    const tenantCustomDomain = (tenant?.custom_domain as string) ?? null;
+    const verifiedDomains = verifiedSendingDomains(
+      process.env.EMAIL_FROM ?? null,
+    );
+    if (
+      !isAllowedFromAddress(fromAddress, {
+        verifiedDomains,
+        tenantCustomDomain,
+      })
+    ) {
+      return {
+        error: tenantCustomDomain
+          ? `Mail can only be sent from an address at ${tenantCustomDomain}, once your platform operator has set that domain up for sending.`
+          : "Your organization has no sending domain yet. Ask your platform operator to set one up.",
+      };
+    }
+  }
+
+  const { error } = await supabase.from("app_settings").upsert(
+    [
+      { key: REPLY_TO_SETTING_KEY, value: replyTo },
+      { key: FROM_ADDRESS_SETTING_KEY, value: fromAddress },
+    ],
+    { onConflict: "tenant_id,key" },
+  );
+  if (error) {
+    return { error: "Could not save these settings. Please try again." };
+  }
+
+  revalidatePath("/portal/administration/system-settings");
+  return { success: true };
 }
 
 /**

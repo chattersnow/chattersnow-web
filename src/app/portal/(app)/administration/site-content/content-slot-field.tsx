@@ -146,6 +146,7 @@ export function ContentSlotField({
   publishedBy,
   draftUpdatedAt,
   draftUpdatedBy,
+  starter,
   dirty,
   canEdit,
   onChange,
@@ -163,6 +164,8 @@ export function ContentSlotField({
   publishedBy: string | null;
   draftUpdatedAt: string | null;
   draftUpdatedBy: string | null;
+  /** The platform's own document, for a `document` slot; null otherwise. */
+  starter: LegalDocumentContent | null;
   dirty: boolean;
   canEdit: boolean;
   onChange: (value: unknown) => void;
@@ -272,6 +275,7 @@ export function ContentSlotField({
         <DocumentEditor
           slot={slot}
           doc={(value as LegalDocumentContent | null) ?? null}
+          starter={starter}
           onChange={onChange}
         />
       )}

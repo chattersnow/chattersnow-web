@@ -132,6 +132,7 @@ export async function getOpsInboxSummary(
     canSeeVolunteerApplications: boolean;
     canSeeContactMessages: boolean;
     canSeeEventCheckins: boolean;
+    canSeeArtworkSubmissions: boolean;
   },
   nowIso: string = new Date().toISOString(),
 ): Promise<PendingApprovalsSummary> {
@@ -164,6 +165,25 @@ export async function getOpsInboxSummary(
         label: "New messages",
         count: count ?? 0,
         href: "/portal/communications?status=new",
+        severity: "info",
+      });
+    }
+  }
+
+  if (options.canSeeArtworkSubmissions) {
+    // Through the RPC rather than a head count, because it is the same number
+    // the dashboard and any later report must agree on, and the permission
+    // check lives inside it.
+    const { data: pendingArtwork } = await supabase.rpc(
+      "count_pending_artwork_submissions",
+    );
+    const count = pendingArtwork ?? 0;
+    if (count > 0) {
+      items.push({
+        key: "artwork_submissions_pending",
+        label: "Artwork to review",
+        count,
+        href: "/portal/artwork?status=pending",
         severity: "info",
       });
     }

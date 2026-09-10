@@ -314,12 +314,14 @@ Worth resolving before more sections get gated: every slot now has a route gate,
 
 ## Known and accepted
 
-**`/events/[id]` is intentionally orphaned.** Event cards in `(public)/events/event-list.tsx` call `onSelect` to open `EventDetailSheet` rather than linking to the route, so nothing on the site links to `/events/[id]` even though the page exists and renders. Confirmed as deliberate for now. Consequences worth having on the record, for whenever it is revisited:
+**`/events/[id]` was intentionally orphaned — resolved by #846 and #847.** Event cards in `(public)/events/event-list.tsx` used to call `onSelect` to open `EventDetailSheet` rather than linking to the route, so nothing on the site linked to `/events/[id]` even though the page existed and rendered. That was confirmed as deliberate at the time of the audit; the consequences on record were:
 
 - No shareable URL for an individual event — a member cannot link one to a friend, a Discord, or an Instagram bio.
 - Individual events are not crawlable from the listing, so they can't surface in search.
 - Browser Back does not close the sheet; it leaves the events page entirely.
 - `/events/[id]` is not covered by any nav or in-page link, so regressions there are invisible outside its own e2e spec.
+
+#846 made the home page's upcoming cards real links to `/events/[id]`. #847 did the same for the listing and reunited the two presentations: the cards are anchors, and a parallel + intercepting route (`(public)/events/@modal/(.)[id]`) renders the sheet over the listing while the URL becomes the event's own. A shared link, a refresh or a search result renders the full page; Back closes the sheet. Both presentations now read one query and one content component, and `/events/[id]` is scanned by following a real anchor rather than a pinned seed id.
 
 ---
 

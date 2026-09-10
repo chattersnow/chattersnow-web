@@ -36,6 +36,20 @@ import {
 // ops-report-job.ts and the send helper both import "server-only", which
 // throws outside Next's bundler.
 mock.module("server-only", () => ({}));
+
+/**
+ * Captures what would have gone to the provider, so a test can read the links
+ * the report actually built (#860). Behaviourally the same as the unset-key
+ * path this file otherwise runs on, so every other test here is unaffected.
+ */
+const sent: { to: string; html: string; text: string }[] = [];
+mock.module("@/lib/email/send", () => ({
+  sendEmail: async (message: { to: string; html: string; text: string }) => {
+    sent.push(message);
+    return { ok: true, id: null };
+  },
+}));
+
 const { runOpsReport } = await import("./ops-report-job");
 
 const service = serviceRoleClient();
@@ -278,5 +292,60 @@ describe("app_settings scoping", () => {
 
     expect(error).toBeNull();
     expect(data?.value).toEqual([RECIPIENT]);
+  });
+});
+
+describe("runOpsReport link origin", () => {
+  /**
+   * The ops report resolves its origin at its own call site (#860), so it gets
+   * its own case rather than leaning on the task digest's: a shared helper
+   * wired in wrong in one of two places is exactly the defect that survives a
+   * single test. One tenant is enough -- what has to hold is that the origin
+   * comes from the tenant row and not from the argument.
+   */
+  const TENANT_DOMAIN = "ops-origin-test.example";
+
+  async function setCustomDomain(domain: string | null) {
+    const { error } = await service
+      .from("tenants")
+      .update({ custom_domain: domain })
+      .eq("id", tenantId);
+    if (error) throw error;
+  }
+
+  afterEach(async () => {
+    await setCustomDomain(null);
+    sent.length = 0;
+  });
+
+  test("links each tenant's report into that tenant's own site", async () => {
+    await seedSomethingToReport();
+    await setRecipients([RECIPIENT]);
+    await setCustomDomain(TENANT_DOMAIN);
+
+    const summary = await runOpsReport(service, {
+      now: NOW,
+      siteUrl: SITE_URL,
+    });
+    expect(summary.sent).toBe(1);
+
+    const report = sent.at(-1)!;
+    expect(report.html).toContain(`https://${TENANT_DOMAIN}/portal/`);
+    expect(report.html).not.toContain(SITE_URL);
+    expect(report.text).not.toContain(SITE_URL);
+  });
+
+  test("falls back to the platform origin for a tenant with no domain", async () => {
+    await seedSomethingToReport();
+    await setRecipients([RECIPIENT]);
+    await setCustomDomain(null);
+
+    const summary = await runOpsReport(service, {
+      now: NOW,
+      siteUrl: SITE_URL,
+    });
+    expect(summary.sent).toBe(1);
+
+    expect(sent.at(-1)!.html).toContain(`${SITE_URL}/portal/`);
   });
 });

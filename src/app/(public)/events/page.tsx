@@ -3,6 +3,7 @@ import { PageShell } from "@/components/page-shell";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { nowMs } from "@/lib/time";
 import { EventList } from "./event-list";
+import { PUBLIC_EVENT_COLUMNS } from "./event-detail-data";
 import type { PublicEventSponsor } from "./event-sponsors";
 import type { PublicEventProgram } from "./event-card";
 
@@ -24,9 +25,7 @@ export default async function EventsPage() {
   ] = await Promise.all([
     supabase
       .from("public_events")
-      .select(
-        "id, name, location, starts_at, ends_at, timezone, description, capacity, registration_enabled, registration_deadline, flier_url",
-      )
+      .select(PUBLIC_EVENT_COLUMNS)
       .order("starts_at", { ascending: true }),
     supabase
       .from("public_event_sponsors")

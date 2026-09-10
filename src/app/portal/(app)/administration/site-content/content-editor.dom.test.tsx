@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { screen, waitFor, within } from "@testing-library/react";
+import { configure, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithToaster } from "../../../../../../test/toast-testing";
+import { platformLegalDocument } from "@/lib/legal-defaults";
 import type {
   ContentPage,
   ContentSection,
@@ -20,6 +21,34 @@ mock.module("next/navigation", () => ({
 }));
 
 type ActionResult = { error: string } | { success: true };
+
+/**
+ * How long any wait in this file is given.
+ *
+ * Every one sits behind a server action and a re-render of a whole page of
+ * slots, on a runner doing the same for the rest of the suite in parallel.
+ * `waitFor`'s default second is measured against this machine, where these
+ * waits resolve in tens of milliseconds; the runner that failed twice is
+ * slower than that by more than the margin the default leaves. A wait that
+ * succeeds costs nothing, so the budget is set by what a real stall would
+ * exceed rather than by what a pass needs.
+ */
+const ACTION_TIMEOUT_MS = 5_000;
+
+configure({ asyncUtilTimeout: ACTION_TIMEOUT_MS });
+
+/**
+ * Waits for a save's transition to close.
+ *
+ * `saveMock` records the call before its promise resolves, so waiting for the
+ * mock leaves the action still running and the bar still reading "Saving...".
+ * The bar coming back is the reader's own signal that the save is over, and so
+ * the point at which a refresh stands for the server's answer arriving after
+ * the save rather than during it.
+ */
+function saveSettled() {
+  return screen.findByRole("button", { name: "Save draft" });
+}
 
 const saveMock = mock(
   async (_entries: { key: string; value: unknown }[]): Promise<ActionResult> =>
@@ -122,6 +151,15 @@ function editorSlot(
     draftUpdatedBy: hasDraft ? "Robin" : null,
     publishedAt: overridden ? "2026-09-01T10:00:00Z" : null,
     publishedBy: overridden ? "Alex" : null,
+    starter:
+      slot.type === "document"
+        ? platformLegalDocument(slot.key, {
+            name: "Example Nonprofit",
+            emailGeneral: "hello@example.org",
+            emailPrivacy: "privacy@example.org",
+            emailConduct: "conduct@example.org",
+          })
+        : null,
   };
 }
 
@@ -226,6 +264,8 @@ describe("Back to default", () => {
       ]),
     );
 
+    await saveSettled();
+
     view.refreshWith([editorSlot(HEADING, DEFAULT_HEADING, false)]);
     expect(saveBar()).toBeDisabled();
     expect(
@@ -247,6 +287,8 @@ describe("saving and publishing are two steps", () => {
       ]),
     );
     expect(publishMock).not.toHaveBeenCalled();
+
+    await saveSettled();
 
     // The server comes back with the draft staged; the copy is still not live.
     view.refreshWith([editorSlot(HEADING, `${DEFAULT_HEADING}!`, false, true)]);
@@ -284,10 +326,15 @@ describe("saving and publishing are two steps", () => {
       " today",
     );
     await userEvent.click(publishBar());
+    // `findByRole` inside the dialog as well as for the dialog itself: the
+    // dialog element reaches the document a tick before its contents do, and a
+    // synchronous lookup for the button can land in that gap. It would throw
+    // inside the promise chain rather than at an assertion, so the test hangs
+    // to the runner's own timeout instead of naming the missing element --
+    // which is how it presented while this file was under investigation.
+    const dialog = await screen.findByRole("dialog");
     await userEvent.click(
-      within(await screen.findByRole("dialog")).getByRole("button", {
-        name: "Publish",
-      }),
+      await within(dialog).findByRole("button", { name: "Publish" }),
     );
 
     await waitFor(() =>
@@ -295,7 +342,11 @@ describe("saving and publishing are two steps", () => {
         { key: "home.heading", value: `${DEFAULT_HEADING} today` },
       ]),
     );
-    expect(publishMock).toHaveBeenCalledWith(["home.heading"]);
+    // Staging and publishing are two round trips, so the second one is still
+    // in front of us when the first is recorded.
+    await waitFor(() =>
+      expect(publishMock).toHaveBeenCalledWith(["home.heading"]),
+    );
   });
 
   test("Discard drops the saved draft as well as the edits on screen", async () => {
@@ -577,11 +628,13 @@ describe("the list editor", () => {
 });
 
 describe("legal documents", () => {
-  test("starting from the outline seeds the platform document's headings", async () => {
+  // The platform's document is neutral since #858, so it is a tenant's to copy
+  // and edit rather than headings-only prompting for prose nobody has written.
+  test("starting from the platform document seeds its headings and its text", async () => {
     renderEditor([editorSlot(PRIVACY, null)]);
 
     await userEvent.click(
-      screen.getByRole("button", { name: "Start from the outline" }),
+      screen.getByRole("button", { name: "Start from the platform document" }),
     );
 
     expect(screen.getByRole("textbox", { name: "Title" })).toHaveValue(
@@ -591,8 +644,9 @@ describe("legal documents", () => {
     expect((headings[0] as HTMLInputElement).value).toBe(
       "What we collect, and why",
     );
-    // Headings only -- the platform's text is not a tenant's to publish.
-    expect(screen.getAllByRole("textbox", { name: "Text" })[0]).toHaveValue("");
+    expect(screen.getAllByRole("textbox", { name: "Text" })[0]).not.toHaveValue(
+      "",
+    );
   });
 
   test("starting blank leaves the title empty", async () => {

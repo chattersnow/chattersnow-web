@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { BrandImageFallback } from "@/components/brand-image-fallback";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDateTimeInZone } from "@/lib/time";
@@ -43,33 +44,27 @@ const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
   timeStyle: "short",
 };
 
-export function EventCard({
-  event,
-  onSelect,
-}: {
-  event: PublicEvent;
-  onSelect: () => void;
-}) {
+/**
+ * A card is a link to the event's own page. From the listing that URL is
+ * intercepted into a sheet over the list, and everywhere else it is a full
+ * navigation -- but either way it is a real anchor, so the event is
+ * shareable, crawlable, and reachable by keyboard without a hand-rolled
+ * key handler (#847).
+ *
+ * The anchor is the title, stretched over the whole card by its ::after: the
+ * accessible name stays "Winter Gear Swap" rather than swallowing the flier's
+ * alt text and the date line with it.
+ */
+export function EventCard({ event }: { event: PublicEvent }) {
   const imageUrl = resolveImageUrl(event.flier_url);
 
   return (
-    <Card
-      role="button"
-      tabIndex={0}
-      onClick={onSelect}
-      onKeyDown={(keyEvent) => {
-        if (keyEvent.key === "Enter" || keyEvent.key === " ") {
-          keyEvent.preventDefault();
-          onSelect();
-        }
-      }}
-      className="rainbow-ring-hover cursor-pointer gap-0 overflow-hidden py-0"
-    >
+    <Card className="rainbow-ring-hover relative gap-0 overflow-hidden py-0">
       <div className="relative aspect-[16/9] w-full bg-muted">
         {imageUrl ? (
           <Image
             src={imageUrl}
-            alt={event.name}
+            alt=""
             fill
             sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
             className="object-cover"
@@ -79,7 +74,14 @@ export function EventCard({
         )}
       </div>
       <CardContent className="space-y-1 px-4 py-3">
-        <p className="text-sm font-medium">{event.name}</p>
+        <p className="text-sm font-medium">
+          <Link
+            href={`/events/${event.id}`}
+            className="after:absolute after:inset-0 after:content-['']"
+          >
+            {event.name}
+          </Link>
+        </p>
         <p className="app-muted text-xs">
           {formatDateTimeInZone(
             event.starts_at,

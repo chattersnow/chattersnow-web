@@ -76,7 +76,7 @@ export function NewAssetDialog({
       >
         New asset
       </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Add asset</DialogTitle>
           <DialogDescription>

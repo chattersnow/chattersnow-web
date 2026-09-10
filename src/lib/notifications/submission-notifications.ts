@@ -1,16 +1,19 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { deliverEmail } from "@/lib/notifications/deliver";
+import { tenantMailContext } from "@/lib/email/identity";
 import type { RenderedEmail } from "@/lib/notifications/rendered-email";
 import { isOrgEmailEnabled } from "@/lib/notifications/settings";
 import {
+  renderArtworkSubmissionEmail,
   renderContactMessageEmail,
   renderVolunteerApplicationEmail,
 } from "@/lib/notifications/submission-emails";
 
 /**
- * The two event-triggered sends (#742): a new volunteer application and a new
- * contact message reach the people who own that queue.
+ * The event-triggered sends: a new volunteer application, a new contact
+ * message (#742) and a new artwork submission (#870) reach the people who own
+ * that queue.
  *
  * Called from `after()` in the public Server Actions, so nothing here may
  * throw and nothing here may matter to the visitor who submitted the form --
@@ -25,10 +28,12 @@ import {
 
 export const VOLUNTEER_APPLICATION_KIND = "volunteer_application";
 export const CONTACT_MESSAGE_KIND = "contact_message";
+export const ARTWORK_SUBMISSION_KIND = "artwork_submission";
 
 /** Who owns the ops inbox. `administration` is the standing fallback. */
 const CONTACT_MESSAGE_RESOURCES = ["communications", "administration"];
 const VOLUNTEER_APPLICATION_RESOURCES = ["volunteers"];
+const ARTWORK_SUBMISSION_RESOURCES = ["artwork_submissions"];
 
 export type NotifySummary = {
   /** Role holders who could have been mailed, before the gates. */
@@ -84,7 +89,8 @@ export async function notifyNewVolunteerApplication(
     resourceKeys: VOLUNTEER_APPLICATION_RESOURCES,
     minLevel: "manage",
     dedupeKey: `${VOLUNTEER_APPLICATION_KIND}:${data.id as string}`,
-    render: () =>
+    fallbackOrigin: options.siteUrl,
+    render: (origin) =>
       renderVolunteerApplicationEmail(
         {
           applicationId: data.id as string,
@@ -92,7 +98,7 @@ export async function notifyNewVolunteerApplication(
           email: (data.email as string) ?? "",
           roleInterest: (data.role_interest as string | null) ?? null,
         },
-        options.siteUrl,
+        origin,
       ),
   });
 }
@@ -132,7 +138,8 @@ export async function notifyNewContactMessage(
     // volunteer notice deliberately has no equivalent: an application is
     // answered from the queue, where the reply is recorded.
     replyTo: submitterEmail || undefined,
-    render: () =>
+    fallbackOrigin: options.siteUrl,
+    render: (origin) =>
       renderContactMessageEmail(
         {
           messageId: data.id as string,
@@ -140,7 +147,60 @@ export async function notifyNewContactMessage(
           email: submitterEmail,
           topic: (data.topic as string) ?? "",
         },
-        options.siteUrl,
+        origin,
+      ),
+  });
+}
+
+export async function notifyNewArtworkSubmission(
+  admin: SupabaseClient,
+  options: { submissionId: string; siteUrl: string },
+): Promise<NotifySummary> {
+  const { data, error } = await admin
+    .from("artwork_submissions")
+    .select(
+      "id, tenant_id, submitter_name, title, events(name), artwork_submission_images(id)",
+    )
+    .eq("id", options.submissionId)
+    .maybeSingle();
+
+  if (error) {
+    console.error(
+      "[submission-notify] could not read the artwork submission",
+      error,
+    );
+    return { ...NOTHING };
+  }
+  // Same honeypot reasoning as the two above: submit_artwork() answers a filled
+  // honeypot with a gen_random_uuid() for a row it never inserted.
+  if (!data) return { ...NOTHING };
+
+  const event = data.events as { name: string } | { name: string }[] | null;
+  const eventName = Array.isArray(event)
+    ? (event[0]?.name ?? "")
+    : (event?.name ?? "");
+  const images = (data.artwork_submission_images ?? []) as unknown[];
+
+  return notifyRoleHolders(admin, {
+    tenantId: data.tenant_id as string,
+    kind: ARTWORK_SUBMISSION_KIND,
+    resourceKeys: ARTWORK_SUBMISSION_RESOURCES,
+    minLevel: "manage",
+    dedupeKey: `${ARTWORK_SUBMISSION_KIND}:${data.id as string}`,
+    // No replyTo. A submission is answered from the queue once the piece has
+    // been looked at, not by replying to the notice -- the same call the
+    // volunteer notice makes.
+    fallbackOrigin: options.siteUrl,
+    render: (origin) =>
+      renderArtworkSubmissionEmail(
+        {
+          submissionId: data.id as string,
+          name: (data.submitter_name as string) ?? "",
+          eventName,
+          title: (data.title as string | null) ?? null,
+          imageCount: images.length,
+        },
+        origin,
       ),
   });
 }
@@ -156,7 +216,14 @@ async function notifyRoleHolders(
     minLevel: "view" | "manage";
     dedupeKey: string;
     replyTo?: string;
-    render: () => RenderedEmail;
+    /**
+     * Where this tenant's site lives when it has no domain of its own -- the
+     * origin the request came in on. The tenant's own wins where there is one
+     * (#860); a thunk taking the origin rather than a closure over it is what
+     * lets that be decided here, after the tenant is known.
+     */
+    fallbackOrigin: string;
+    render: (origin: string) => RenderedEmail;
   },
 ): Promise<NotifySummary> {
   const summary: NotifySummary = { ...NOTHING };
@@ -174,6 +241,12 @@ async function notifyRoleHolders(
     recipients.map((recipient) => recipient.person_id),
   );
 
+  // One tenant per call, so this is once per notice -- and after the gates
+  // above, so a tenant with no role holders costs nothing (#857).
+  const mail = await tenantMailContext(admin, options.tenantId, {
+    fallbackOrigin: options.fallbackOrigin,
+  });
+
   for (const recipient of recipients) {
     if (!optedIn.has(recipient.person_id)) {
       summary.skipped += 1;
@@ -182,11 +255,12 @@ async function notifyRoleHolders(
 
     const outcome = await deliverEmail(admin, {
       tenantId: options.tenantId,
+      identity: mail.identity,
       personId: recipient.person_id,
       kind: options.kind,
       dedupeKey: options.dedupeKey,
       to: recipient.email,
-      render: options.render,
+      render: () => options.render(mail.origin),
       replyTo: options.replyTo,
       logPrefix: "[submission-notify]",
     });

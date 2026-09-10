@@ -2,14 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BrandLogo } from "@/components/brand-logo";
+import { BrandLogoProvider } from "@/components/brand-logo-context";
 import { BrandStyle } from "@/components/brand-style";
 import { InstagramLink } from "@/components/instagram-link";
 import { SkipLink } from "@/components/skip-link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPageVisibility, hiddenSlots } from "@/lib/page-visibility";
 import { NOT_FOUND_TITLE, getPublicSite } from "@/lib/public-site";
-import { LEGAL_LINKS, isSlotVisible, visibleGroups } from "@/lib/public-nav";
-import { LEGAL_PAGES_PUBLISHED } from "@/lib/legal-pages";
+import { isSlotVisible, visibleGroups } from "@/lib/public-nav";
+import { documentsInForce, getLegalPublication } from "@/lib/legal-publication";
 import { SiteNav } from "./site-nav";
 
 // The organization's name and description, per tenant (#707 Phase 4). Every
@@ -68,9 +69,10 @@ export default async function PublicLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createSupabaseServerClient();
-  const [visibility, site] = await Promise.all([
+  const [visibility, site, publication] = await Promise.all([
     getPageVisibility(supabase),
     getPublicSite(supabase),
+    getLegalPublication(supabase),
   ]);
   // The public site is the one surface that belongs to a host rather than to a
   // session, so a host no tenant claims has nothing to serve (#795 Phase 4).
@@ -118,7 +120,13 @@ export default async function PublicLayout({
           <SiteNav hiddenSlots={hidden} supportLabel={supportLabel} />
         </div>
       </header>
-      {children}
+      {/* The tenant's own mark for every image placeholder below the header --
+          event fliers and gear photos that have not been uploaded yet. The
+          header and footer take `logoUrl` directly; the placeholders sit too
+          deep, and in client components, to be handed it. */}
+      <BrandLogoProvider logoUrl={branding.logoUrl}>
+        {children}
+      </BrandLogoProvider>
       {/*
         Three zones over a legal bar. The section links, the contact details
         and the legal notices are three different kinds of thing, and running
@@ -173,38 +181,49 @@ export default async function PublicLayout({
               &copy; {new Date().getFullYear()}
               {name ? ` ${name}.` : ""} All rights reserved.
             </p>
-            {/* Not a SectionLinks entry, and deliberately not in the header.
+            {/* Both link groups sit in one right-hand cluster, so the bar is
+                two zones rather than three. Left as three children of
+                `justify-between`, the middle one lands wherever the widths of
+                the other two leave it -- not centred on anything, and reading
+                as an orphan rather than as a sibling of the link beside it.
+                They stay two landmarks inside it: a brand guide and the terms
+                of using the site are different things to a screen reader,
+                whatever they look like on the page. */}
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+              {/* Not a SectionLinks entry, and deliberately not in the header.
                 The brand guide's whole value is its URL -- it is pasted into
                 an email to a sponsor or a print shop, not browsed to -- so it
                 sits with the utility links rather than competing with Events
                 and Programs. Its own landmark rather than joining the Legal
                 one, which is a nav about the terms of using the site. */}
-            {isSlotVisible(hidden, "brand") && (
-              <nav
-                aria-label="Resources"
-                className="flex flex-wrap gap-x-6 gap-y-2"
-              >
-                <FooterLink href="/brand" label="Brand & Design" />
-              </nav>
-            )}
-            {/* Omitted entirely rather than rendered empty while the legal
-                review is outstanding: an empty <nav aria-label="Legal"> is
-                announced by screen readers as a landmark with nothing in it.
-                See src/lib/legal-pages.ts. */}
-            {LEGAL_PAGES_PUBLISHED && (
+              {isSlotVisible(hidden, "brand") && (
+                <nav
+                  aria-label="Resources"
+                  className="flex flex-wrap gap-x-6 gap-y-2"
+                >
+                  <FooterLink href="/brand" label="Brand & Design" />
+                </nav>
+              )}
+              {/* Only the documents this tenant serves (#859). The privacy
+                policy is always one of them, so this landmark is never empty --
+                an empty <nav aria-label="Legal"> would be announced by screen
+                readers as a landmark with nothing in it. A document that is not
+                in force drops out of here and 404s at its URL together;
+                dropping only the link would leave text nobody adopted at a
+                guessable address. */}
               <nav
                 aria-label="Legal"
                 className="flex flex-wrap gap-x-6 gap-y-2"
               >
-                {LEGAL_LINKS.map((link) => (
+                {documentsInForce(publication).map((document) => (
                   <FooterLink
-                    key={link.href}
-                    href={link.href}
-                    label={link.label}
+                    key={document.route}
+                    href={document.route}
+                    label={document.label}
                   />
                 ))}
               </nav>
-            )}
+            </div>
           </div>
         </div>
       </footer>

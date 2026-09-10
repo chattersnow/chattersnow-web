@@ -140,7 +140,7 @@ export function LogHoursDialog({
       >
         {triggerLabel}
       </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Log volunteer hours</DialogTitle>
           <DialogDescription>

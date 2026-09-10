@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Toaster } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { BrandLogoProvider } from "@/components/brand-logo-context";
 import { BrandStyle } from "@/components/brand-style";
 import { SkipLink } from "@/components/skip-link";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -133,6 +134,11 @@ export default async function PortalAppLayout({
     "view",
   );
   const canSeeEventCheckins = hasPermission(permissions, "events", "view");
+  const canSeeArtworkSubmissions = hasPermission(
+    permissions,
+    "artwork_submissions",
+    "view",
+  );
   const canSeeContentCalendar = hasPermission(
     permissions,
     "content_calendar",
@@ -179,11 +185,15 @@ export default async function PortalAppLayout({
           canSeeReimbursementApprovals,
         })
       : { items: [] },
-    canSeeVolunteerApplications || canSeeContactMessages || canSeeEventCheckins
+    canSeeVolunteerApplications ||
+    canSeeContactMessages ||
+    canSeeEventCheckins ||
+    canSeeArtworkSubmissions
       ? getOpsInboxSummary(supabase, {
           canSeeVolunteerApplications,
           canSeeContactMessages,
           canSeeEventCheckins,
+          canSeeArtworkSubmissions,
         })
       : { items: [] },
     canSeeContentCalendar
@@ -325,7 +335,13 @@ export default async function PortalAppLayout({
               tabIndex={-1}
               className="app-shell px-6 py-8 outline-none sm:px-10"
             >
-              <div className="mx-auto max-w-6xl">{children}</div>
+              <div className="mx-auto max-w-6xl">
+                {/* The tenant's own mark for the inventory placeholders, which
+                    sit too deep -- and in a client modal -- to be handed it. */}
+                <BrandLogoProvider logoUrl={branding.logoUrl}>
+                  {children}
+                </BrandLogoProvider>
+              </div>
             </main>
             {/* Rendered here rather than on the dashboard: the sidebar, help
                 button and bell the tour explains are all part of this shell,

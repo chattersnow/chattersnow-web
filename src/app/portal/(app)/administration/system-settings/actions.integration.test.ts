@@ -37,7 +37,10 @@ const {
   updateExpenseApprovalThresholdAction,
   updateReimbursementApprovalThresholdAction,
   updateEmailNotificationsEnabledAction,
+  updateSenderIdentityAction,
 } = await import("./actions");
+const { FROM_ADDRESS_SETTING_KEY, REPLY_TO_SETTING_KEY } =
+  await import("@/lib/email/identity");
 
 afterEach(() => {
   revalidatePathMock.mockClear();
@@ -271,5 +274,75 @@ describe("the outbound email kill switch (integration)", () => {
         (row) => (row.new_data as { key?: string } | null)?.key === KEY,
       ),
     ).toBe(true);
+  });
+});
+
+describe("updateSenderIdentityAction", () => {
+  function identityForm(replyTo: string, fromAddress = "") {
+    const fd = new FormData();
+    fd.set("replyTo", replyTo);
+    fd.set("fromAddress", fromAddress);
+    return fd;
+  }
+
+  test("an anonymous visitor cannot touch it", async () => {
+    currentSupabase = anonClient();
+
+    expect(
+      await updateSenderIdentityAction(identityForm("board@example.test")),
+    ).toEqual(DENIED);
+  });
+
+  test("saves the tenant's Reply-To", async () => {
+    await withRestoredSetting(REPLY_TO_SETTING_KEY, async () => {
+      currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+      expect(
+        await updateSenderIdentityAction(identityForm("Board@Example.TEST")),
+      ).toEqual({ success: true });
+      // Normalized on the way in, the way the ops report's recipients are.
+      expect(await settingValue(REPLY_TO_SETTING_KEY)).toBe(
+        "board@example.test",
+      );
+    });
+  });
+
+  test("refuses a Reply-To that is not an address", async () => {
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+    expect(
+      await updateSenderIdentityAction(identityForm("not-an-address")),
+    ).toEqual({ error: "Not an email address: not-an-address." });
+  });
+
+  test("clearing the field writes an empty value rather than deleting", async () => {
+    // app_settings has no delete grant for `authenticated`, so "" is how the
+    // readers are told a tenant has configured nothing.
+    await withRestoredSetting(REPLY_TO_SETTING_KEY, async () => {
+      currentSupabase = await signInAs(SEEDED_USERS.admin);
+      await updateSenderIdentityAction(identityForm("board@example.test"));
+
+      expect(await updateSenderIdentityAction(identityForm(""))).toEqual({
+        success: true,
+      });
+      expect(await settingValue(REPLY_TO_SETTING_KEY)).toBe("");
+    });
+  });
+
+  test("refuses a From address on a domain this tenant does not own", async () => {
+    // The message is what this check is for; resolveMailIdentity() is what
+    // makes it true, since updateAppSettingAction takes a free-form key.
+    await withRestoredSetting(FROM_ADDRESS_SETTING_KEY, async () => {
+      currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+      const result = await updateSenderIdentityAction(
+        identityForm("", "billing@someone-elses-domain.example"),
+      );
+
+      expect(result).toHaveProperty("error");
+      expect(await settingValue(FROM_ADDRESS_SETTING_KEY)).not.toBe(
+        "billing@someone-elses-domain.example",
+      );
+    });
   });
 });

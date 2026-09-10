@@ -1,21 +1,20 @@
 import { PageShell } from "@/components/page-shell";
-import { notFound } from "next/navigation";
-import { LEGAL_PAGES_PUBLISHED } from "@/lib/legal-pages";
+import { requireLegalDocumentInForce } from "@/lib/legal-publication";
 
-// No visibility slot, for the same reason as the privacy policy and the terms:
-// the code of conduct governs every event and every space Chatter runs, so it
-// has to stay reachable for as long as those are running, and is not something
-// the board can hide from Administration > System Settings.
+// Not a page-visibility slot, for the same reason as the terms: this is a
+// decision about a document, not about a section of the site (#859). It is
+// served once this tenant has put it in force, and 404s until then -- a code of
+// conduct nobody has adopted is worse than none, because it tells someone there
+// is a process behind it.
 //
 // Default max-w-6xl, like every other public section, with the text held to a
 // readable measure inside page.tsx.
-export default function CodeOfConductLayout({
+export default async function CodeOfConductLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // Awaiting the board's legal review; see src/lib/legal-pages.ts.
-  if (!LEGAL_PAGES_PUBLISHED) notFound();
+  await requireLegalDocumentInForce("code_of_conduct");
 
   return <PageShell>{children}</PageShell>;
 }

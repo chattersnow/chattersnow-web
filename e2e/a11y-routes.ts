@@ -11,8 +11,6 @@
 // of deliberate exceptions below.
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import { SEEDED_EVENT_IDS } from "../test/seed-fixtures";
-import { LEGAL_PAGES_PUBLISHED } from "../src/lib/legal-pages";
 
 export type RouteKind = "public" | "portal" | "auth";
 
@@ -30,19 +28,17 @@ export type DiscoveredRoute = {
 const SKIP: Record<string, string> = {
   "/portal": "redirect shim to /portal/login or /portal/entry",
   "/portal/entry": "redirect shim to /portal/home",
-  // The legal documents render notFound() until the board's legal review
-  // approves them (#769, src/lib/legal-pages.ts). Their page.tsx files exist,
-  // so discovery finds them, but while the gate is on there is nothing of
-  // theirs to scan -- all three would be a third scan of the same 404 page.
-  // Keyed off the flag rather than listed outright so the day it flips they
-  // come back into the sweep on their own.
-  ...(LEGAL_PAGES_PUBLISHED
-    ? {}
-    : {
-        "/privacy": "gated behind LEGAL_PAGES_PUBLISHED (#769)",
-        "/terms": "gated behind LEGAL_PAGES_PUBLISHED (#769)",
-        "/code-of-conduct": "gated behind LEGAL_PAGES_PUBLISHED (#769)",
-      }),
+  // The terms and the code of conduct are served once a tenant has put them in
+  // force, and the seeded tenant this scan runs against has not (#859), so both
+  // 404 here -- scanning them would be a second and third pass over the same
+  // 404 page. The privacy policy has no such gate and is scanned: it is served
+  // for every tenant, from the platform's own document when the tenant has
+  // published none of its own (#858).
+  //
+  // If either becomes part of the seed, delete its line rather than leaving a
+  // skip that no longer describes anything.
+  "/terms": "not in force for the seeded tenant (#859)",
+  "/code-of-conduct": "not in force for the seeded tenant (#859)",
 };
 
 const APP_DIR = join(import.meta.dirname, "..", "src", "app");
@@ -56,6 +52,12 @@ function walk(dir: string, urlPath: string, found: string[]): void {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (entry.isDirectory()) {
       if (entry.name.startsWith("_") || entry.name === "api") continue;
+      // Parallel-route slots (@modal) have no URL of their own: what they hold
+      // is another route's pattern, rendered over the page the visitor is
+      // already on. Walking into one would invent paths like
+      // /events/@modal/(.)[id] that no browser can ask for. The overlay itself
+      // is scanned as a transient surface instead -- see a11y-surfaces.ts.
+      if (entry.name.startsWith("@")) continue;
       walk(join(dir, entry.name), `${urlPath}/${entry.name}`, found);
     } else if (entry.name === "page.tsx") {
       found.push(stripRouteGroups(urlPath) || "/");
@@ -98,7 +100,9 @@ export const SKIPPED_ROUTES = SKIP;
  * don't reach for it where a link exists. `expectHeading` is what keeps it
  * honest: following a link proves the record exists, a hard-coded id proves
  * nothing, so a `path` has to name the heading its record renders and the scan
- * checks for it before scanning.
+ * checks for it before scanning. Nothing uses it at the moment -- /events/[id]
+ * was the last orphan, and #847 gave the listing an anchor to follow -- but it
+ * stays for the next route that ends up without one.
  *
  * A pattern with no resolver is reported as skipped rather than silently
  * dropped.
@@ -108,14 +112,9 @@ export type DynamicRouteSource =
   | { path: string; expectHeading: string };
 
 export const DYNAMIC_ROUTE_SOURCES: Record<string, DynamicRouteSource> = {
-  // Nothing on /events links here: the list renders cards that open a detail
-  // sheet instead of navigating (#178), so there is no anchor to follow and the
-  // route was reported skipped on every run. Deep-link to the pinned upcoming
-  // event -- the page is still live and still takes public registrations, so it
-  // is worth scanning even though the UI no longer routes to it.
   "/events/[id]": {
-    path: `/events/${SEEDED_EVENT_IDS.upcoming}`,
-    expectHeading: "Winter Gear Swap",
+    listPath: "/events",
+    linkPattern: /^\/events\/[0-9a-f-]{36}$/,
   },
   "/learn/[slug]": {
     listPath: "/learn",

@@ -24,6 +24,12 @@ const baseURL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://127.0.0.1:3000";
  * page depends on. For as long as it holds that tenant, the whole public site
  * 404s for everyone.
  *
+ * legal-publication.spec.ts puts a legal document in force by writing the real
+ * `legal_publication.*` row (#859), which changes the footer for every spec
+ * running at the same time and makes /terms answer differently from what
+ * legal.spec.ts asserts. It clears the rows again in afterEach, but only
+ * serialising it makes that safe.
+ *
  * tenant-branding.spec.ts writes `brand.*` rows for the seeded tenant (#819),
  * which repaints the public site for every other spec running at the same
  * time. It gives them back in afterAll, but only serialising it makes that
@@ -38,7 +44,7 @@ const baseURL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://127.0.0.1:3000";
  * filter a dependency project ignores.
  */
 const MUTATING_SPECS =
-  /(page-visibility|unresolved-host|tenant-branding)\.spec\.ts/;
+  /(page-visibility|unresolved-host|tenant-branding|legal-publication)\.spec\.ts/;
 
 const ALL_BROWSER_PROJECTS = [
   { name: "chromium", use: { ...devices["Desktop Chrome"] } },

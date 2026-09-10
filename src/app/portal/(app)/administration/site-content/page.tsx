@@ -4,6 +4,11 @@ import {
   hasPermission,
 } from "@/lib/auth/permissions";
 import { getPageVisibility } from "@/lib/page-visibility";
+import {
+  platformLegalDocument,
+  type LegalOrgContext,
+} from "@/lib/legal-defaults";
+import { currentTenant, getTenantContext } from "@/lib/portal/tenants";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   CONTENT_PAGES,
@@ -65,7 +70,7 @@ export default async function SiteContentPage({
     CONTENT_PAGES[0];
 
   const supabase = await createSupabaseServerClient();
-  const [permissions, { data }, visibility] = await Promise.all([
+  const [permissions, { data }, visibility, tenants] = await Promise.all([
     getCurrentUserPermissions(supabase),
     supabase
       .from("site_content")
@@ -73,6 +78,7 @@ export default async function SiteContentPage({
         "key, value, draft_value, has_draft, draft_updated_at, draft_updated_by, published_at, published_by",
       ),
     getPageVisibility(supabase),
+    getTenantContext(supabase),
   ]);
   const rows = (data ?? []) as SiteContentDraftRow[];
   const { published, draft } = resolveDraftAndPublished(rows);
@@ -82,6 +88,16 @@ export default async function SiteContentPage({
   );
   const canEdit = hasPermission(permissions, "site_content", "manage");
   const actors = await actorNames(supabase, rows);
+
+  // Who the platform's own legal documents are about, read the way the public
+  // site reads them: from what is published, not from a pending draft, so the
+  // starter matches the document a visitor is being served right now (#858).
+  const org: LegalOrgContext = {
+    name: currentTenant(tenants)?.name ?? published.text("org.short_name"),
+    emailGeneral: published.text("org.email_general"),
+    emailPrivacy: published.text("org.email_privacy"),
+    emailConduct: published.text("org.email_conduct"),
+  };
 
   // The editor gets, for every slot on the page, the copy it edits (the draft
   // where there is one) and the copy the public site is serving, so it can
@@ -103,6 +119,8 @@ export default async function SiteContentPage({
       publishedBy: row?.published_by
         ? (actors.get(row.published_by) ?? null)
         : null,
+      starter:
+        slot.type === "document" ? platformLegalDocument(slot.key, org) : null,
     };
   });
 

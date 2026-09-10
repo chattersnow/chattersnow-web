@@ -13,17 +13,28 @@ import "server-only";
  * Resend, over plain fetch. Sending is a single POST; the SDK would be a
  * runtime dependency earning one call, and a mocked `global.fetch` is a
  * simpler thing to unit-test against than a mocked client object.
+ *
+ * `from` and `replyTo` arrive as arguments rather than being read from the
+ * environment (#857): the sender is a property of the tenant a message is for,
+ * not of the deployment, and resolving it is src/lib/email/identity.ts' job.
+ * RESEND_API_KEY is the only environment this file still touches.
  */
 
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 
 export type EmailMessage = {
   to: string;
+  /**
+   * The composed From header for this tenant, e.g.
+   * `"Example Nonprofit" <notifications@example.org>` -- see
+   * resolveMailIdentity() in src/lib/email/identity.ts.
+   */
+  from: string;
   subject: string;
   text: string;
   html: string;
   /**
-   * Where a reply should go, overriding EMAIL_REPLY_TO.
+   * Where a reply to this message should go, already resolved.
    *
    * The application sends through a transactional provider, but the
    * organization's mailboxes live somewhere else entirely (Zoho), and the
@@ -49,8 +60,7 @@ export async function sendEmail(
   message: EmailMessage,
 ): Promise<SendEmailResult> {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM;
-  const replyTo = message.replyTo ?? process.env.EMAIL_REPLY_TO;
+  const { from, replyTo } = message;
 
   // No key configured: log and succeed. Development, preview deploys and CI all
   // run without one, and this is what lets the whole path -- the cron route,
@@ -63,6 +73,8 @@ export async function sendEmail(
     return { ok: true, id: null };
   }
 
+  // Reachable only when a tenant configured nothing and EMAIL_FROM is unset
+  // too, so the message still names the thing an operator has to go and set.
   if (!from) {
     return { ok: false, error: "EMAIL_FROM is not configured." };
   }

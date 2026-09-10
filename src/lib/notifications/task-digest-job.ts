@@ -1,6 +1,10 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { deliverEmail } from "@/lib/notifications/deliver";
+import {
+  tenantMailContext,
+  type TenantMailContext,
+} from "@/lib/email/identity";
 import { isOrgEmailEnabled } from "@/lib/notifications/settings";
 import { renderTaskDigest } from "@/lib/notifications/task-digest-email";
 import {
@@ -95,12 +99,19 @@ export async function runTaskDigest(
       continue;
     }
 
+    // Beside the switch, and after it: one lookup per tenant, and a muted
+    // tenant costs nothing further (#857). It answers the origin too, so this
+    // tenant's recipients are linked to this tenant's site (#860).
+    const mail = await tenantMailContext(admin, tenantId, {
+      fallbackOrigin: options.siteUrl,
+    });
+
     for (const recipient of tenantRecipients) {
       if (!optedIn.has(preferenceKey(recipient.tenantId, recipient.personId))) {
         summary.skipped += 1;
         continue;
       }
-      await deliver(admin, recipient, dedupeKey, options.siteUrl, summary);
+      await deliver(admin, recipient, mail, dedupeKey, summary);
     }
   }
 
@@ -117,17 +128,18 @@ export async function runTaskDigest(
 async function deliver(
   admin: SupabaseClient,
   recipient: DigestRecipient,
+  mail: TenantMailContext,
   dedupeKey: string,
-  siteUrl: string,
   summary: DigestRunSummary,
 ): Promise<void> {
   const outcome = await deliverEmail(admin, {
     tenantId: recipient.tenantId,
+    identity: mail.identity,
     personId: recipient.personId,
     kind: TASK_DIGEST_KIND,
     dedupeKey,
     to: recipient.email,
-    render: () => renderTaskDigest(recipient, siteUrl),
+    render: () => renderTaskDigest(recipient, mail.origin),
     logPrefix: "[task-digest]",
   });
 

@@ -3,6 +3,7 @@
 import { after } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getRequestOrigin } from "@/lib/request-origin";
 import { getClientIp } from "@/lib/get-client-ip";
 import { notifyNewContactMessage } from "@/lib/notifications/submission-notifications";
 import { parseContactForm } from "./contact-form-parser";
@@ -58,10 +59,15 @@ export async function submitContactMessageAction(
   // user-controlled reaches it: the only input is the id the RPC just minted,
   // and the notifier treats an id with no row behind it as a filled honeypot
   // and returns silently.
+  // Read before after(), which runs once the response is on its way and may
+  // no longer have the request's headers. Only a fallback: the tenant's own
+  // domain wins where it has one (#860).
+  const siteUrl = await getRequestOrigin();
+
   after(async () => {
     await notifyNewContactMessage(createSupabaseAdminClient(), {
       messageId: data as string,
-      siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "",
+      siteUrl,
     });
   });
 
