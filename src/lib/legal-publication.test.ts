@@ -8,13 +8,32 @@ import {
   legalPublicationSettingKey,
   resolveInForce,
 } from "./legal-documents";
-import { documentsInForce, getLegalPublication } from "./legal-publication";
+import {
+  documentsInForce,
+  getLegalPublication,
+  getTenantLegalPublication,
+} from "./legal-publication";
 
 type Row = { document: string; value: unknown };
 
 function clientReturning(data: Row[] | null): SupabaseClient {
   return {
     from: () => ({ select: async () => ({ data, error: null }) }),
+  } as unknown as SupabaseClient;
+}
+
+/**
+ * `app_settings` as the panel reads it: whole keys, filtered with `.like()`.
+ * The public view hands back a bare `document`; this one does not, and the two
+ * reads answering for different tenants is exactly what #859 got wrong.
+ */
+function settingsClientReturning(
+  data: { key: string; value: unknown }[] | null,
+): SupabaseClient {
+  return {
+    from: () => ({
+      select: () => ({ like: async () => ({ data, error: null }) }),
+    }),
   } as unknown as SupabaseClient;
 }
 
@@ -161,5 +180,44 @@ describe("documentsInForce", () => {
         code_of_conduct: true,
       }).map((document) => document.route),
     ).toEqual(["/privacy", "/code-of-conduct"]);
+  });
+});
+
+describe("getTenantLegalPublication", () => {
+  test("reads the admin's own tenant rows out of app_settings", async () => {
+    const publication = await getTenantLegalPublication(
+      settingsClientReturning([
+        { key: "legal_publication.terms", value: true },
+        { key: "legal_publication.code_of_conduct", value: true },
+      ]),
+    );
+
+    expect(publication).toEqual({
+      privacy: true,
+      terms: true,
+      code_of_conduct: true,
+    });
+  });
+
+  test("a document with no row is not in force, and privacy still is", async () => {
+    expect(
+      await getTenantLegalPublication(settingsClientReturning([])),
+    ).toEqual({
+      privacy: true,
+      terms: false,
+      code_of_conduct: false,
+    });
+  });
+
+  test("anything that is not an explicit true is not in force", async () => {
+    const publication = await getTenantLegalPublication(
+      settingsClientReturning([
+        { key: "legal_publication.terms", value: "yes" },
+        { key: "legal_publication.code_of_conduct", value: null },
+      ]),
+    );
+
+    expect(publication.terms).toBe(false);
+    expect(publication.code_of_conduct).toBe(false);
   });
 });

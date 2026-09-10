@@ -124,8 +124,10 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
   },
 ];
 
+export const PAGE_VISIBILITY_PREFIX = "page_visibility.";
+
 export function pageVisibilitySettingKey(slot: string): string {
-  return `page_visibility.${slot}`;
+  return `${PAGE_VISIBILITY_PREFIX}${slot}`;
 }
 
 /**
@@ -166,6 +168,52 @@ export const getPageVisibility = cache(
     for (const slot of PUBLIC_PAGE_SLOTS) {
       const row = data?.find((setting) => setting.slot === slot.key);
       visibility[slot.key] = resolveVisibility(row?.value, slot.defaultVisible);
+    }
+    return visibility;
+  },
+);
+
+/**
+ * The same flags for the tenant the signed-in admin has selected, for the
+ * System Settings panel. Read straight from `app_settings` -- RLS scopes it to
+ * the current tenant -- rather than through `public_page_visibility`, which
+ * answers for the *request host* and so shows a portal admin whichever tenant
+ * owns `portal.<domain>` rather than the one they are editing. Same split as
+ * `getTenantLayoutValues` / `getSiteLayout`.
+ *
+ * The two are the same row until they are not: the write goes to `app_settings`
+ * with `tenant_id` defaulting to `default_tenant_id()` -- the admin's own
+ * tenant -- so any host that resolves elsewhere leaves the panel reading a row
+ * it did not write, and the switch snaps back to the other tenant's answer
+ * after a save that really did happen.
+ */
+export const getTenantPageVisibility = cache(
+  async (supabase: SupabaseClient): Promise<Record<string, boolean>> => {
+    const { data, error } = await supabase
+      .from("app_settings")
+      .select("key, value")
+      .like("key", `${PAGE_VISIBILITY_PREFIX}%`);
+
+    if (error) {
+      console.error(
+        "[page-visibility] could not read page_visibility.* from app_settings; the panel is showing registry defaults",
+        error,
+      );
+    }
+
+    const stored = new Map(
+      (data ?? []).map((row) => [
+        String(row.key).slice(PAGE_VISIBILITY_PREFIX.length),
+        row.value,
+      ]),
+    );
+
+    const visibility: Record<string, boolean> = {};
+    for (const slot of PUBLIC_PAGE_SLOTS) {
+      visibility[slot.key] = resolveVisibility(
+        stored.get(slot.key),
+        slot.defaultVisible,
+      );
     }
     return visibility;
   },

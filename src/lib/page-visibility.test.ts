@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   PUBLIC_PAGE_SLOTS,
   getPageVisibility,
+  getTenantPageVisibility,
   hiddenSlots,
   pageVisibilitySettingKey,
 } from "./page-visibility";
@@ -187,5 +188,39 @@ describe("hiddenSlots", () => {
       "programs",
       "support",
     ]);
+  });
+});
+
+describe("getTenantPageVisibility", () => {
+  /**
+   * `app_settings` as the panel reads it: whole keys, filtered with `.like()`,
+   * scoped to the signed-in admin's tenant by RLS rather than to the request
+   * host by the view.
+   */
+  function settingsClientReturning(
+    data: { key: string; value: unknown }[] | null,
+  ): SupabaseClient {
+    return {
+      from: () => ({
+        select: () => ({ like: async () => ({ data, error: null }) }),
+      }),
+    } as unknown as SupabaseClient;
+  }
+
+  test("reads the admin's own tenant rows, and falls back to the registry default", async () => {
+    const slot = PUBLIC_PAGE_SLOTS[0];
+    const visibility = await getTenantPageVisibility(
+      settingsClientReturning([
+        {
+          key: pageVisibilitySettingKey(slot.key),
+          value: !slot.defaultVisible,
+        },
+      ]),
+    );
+
+    expect(visibility[slot.key]).toBe(!slot.defaultVisible);
+    for (const other of PUBLIC_PAGE_SLOTS.slice(1)) {
+      expect(visibility[other.key]).toBe(other.defaultVisible);
+    }
   });
 });
