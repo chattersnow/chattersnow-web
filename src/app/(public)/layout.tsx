@@ -181,36 +181,49 @@ export default async function PublicLayout({
               &copy; {new Date().getFullYear()}
               {name ? ` ${name}.` : ""} All rights reserved.
             </p>
-            {/* Not a SectionLinks entry, and deliberately not in the header.
+            {/* Both link groups sit in one right-hand cluster, so the bar is
+                two zones rather than three. Left as three children of
+                `justify-between`, the middle one lands wherever the widths of
+                the other two leave it -- not centred on anything, and reading
+                as an orphan rather than as a sibling of the link beside it.
+                They stay two landmarks inside it: a brand guide and the terms
+                of using the site are different things to a screen reader,
+                whatever they look like on the page. */}
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+              {/* Not a SectionLinks entry, and deliberately not in the header.
                 The brand guide's whole value is its URL -- it is pasted into
                 an email to a sponsor or a print shop, not browsed to -- so it
                 sits with the utility links rather than competing with Events
                 and Programs. Its own landmark rather than joining the Legal
                 one, which is a nav about the terms of using the site. */}
-            {isSlotVisible(hidden, "brand") && (
-              <nav
-                aria-label="Resources"
-                className="flex flex-wrap gap-x-6 gap-y-2"
-              >
-                <FooterLink href="/brand" label="Brand & Design" />
-              </nav>
-            )}
-            {/* Only the documents this tenant serves (#859). The privacy
+              {isSlotVisible(hidden, "brand") && (
+                <nav
+                  aria-label="Resources"
+                  className="flex flex-wrap gap-x-6 gap-y-2"
+                >
+                  <FooterLink href="/brand" label="Brand & Design" />
+                </nav>
+              )}
+              {/* Only the documents this tenant serves (#859). The privacy
                 policy is always one of them, so this landmark is never empty --
                 an empty <nav aria-label="Legal"> would be announced by screen
                 readers as a landmark with nothing in it. A document that is not
                 in force drops out of here and 404s at its URL together;
                 dropping only the link would leave text nobody adopted at a
                 guessable address. */}
-            <nav aria-label="Legal" className="flex flex-wrap gap-x-6 gap-y-2">
-              {documentsInForce(publication).map((document) => (
-                <FooterLink
-                  key={document.route}
-                  href={document.route}
-                  label={document.label}
-                />
-              ))}
-            </nav>
+              <nav
+                aria-label="Legal"
+                className="flex flex-wrap gap-x-6 gap-y-2"
+              >
+                {documentsInForce(publication).map((document) => (
+                  <FooterLink
+                    key={document.route}
+                    href={document.route}
+                    label={document.label}
+                  />
+                ))}
+              </nav>
+            </div>
           </div>
         </div>
       </footer>
