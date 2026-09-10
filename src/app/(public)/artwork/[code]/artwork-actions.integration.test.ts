@@ -100,6 +100,9 @@ function imagePaths(call: Call, draft = crypto.randomUUID()) {
 
 function formData(fields: Record<string, string>) {
   const fd = new FormData();
+  // Consent is required since #877; ticked by default so each test below still
+  // exercises the thing it is named for. The rule has its own tests.
+  fd.set("consent", "on");
   for (const [key, value] of Object.entries(fields)) fd.set(key, value);
   return fd;
 }
@@ -107,7 +110,9 @@ function formData(fields: Record<string, string>) {
 async function submissionsFor(callId: string) {
   const { data, error } = await service
     .from("artwork_submissions")
-    .select("id, submitter_name, submitter_email, title, status")
+    .select(
+      "id, submitter_name, submitter_email, title, status, credit_name, portfolio_url, consented_at",
+    )
     .eq("call_id", callId);
   if (error) throw error;
   return data;
@@ -166,6 +171,91 @@ describe("submitArtworkAction (integration)", () => {
       thumb_path: image.thumbPath,
       position: 0,
     });
+  });
+
+  test("records consent, the credit name and the portfolio link", async () => {
+    currentIp = uniqueIp();
+    const call = await createCall();
+
+    const result = await submitArtworkAction(
+      call.code,
+      formData({
+        name: "Ari Nakamura",
+        email: uniqueEmail("artwork-credit"),
+        creditName: "snowghost",
+        portfolio: "@snowghost",
+        images: JSON.stringify([imagePaths(call)]),
+      }),
+    );
+
+    expect(result).toEqual({ success: true });
+    const rows = await submissionsFor(call.id);
+    expect(rows[0]).toMatchObject({
+      submitter_name: "Ari Nakamura",
+      credit_name: "snowghost",
+      portfolio_url: "@snowghost",
+    });
+    expect(rows[0].consented_at).not.toBeNull();
+  });
+
+  // Null means "credit me as submitter_name", so an artist who retypes their
+  // own name must not leave a row that looks like a deliberate pseudonym.
+  test("stores no credit name when it matches the contact name", async () => {
+    currentIp = uniqueIp();
+    const call = await createCall();
+
+    await submitArtworkAction(
+      call.code,
+      formData({
+        name: "Ari Nakamura",
+        email: uniqueEmail("artwork-samename"),
+        creditName: "  Ari Nakamura  ",
+        images: JSON.stringify([imagePaths(call)]),
+      }),
+    );
+
+    const rows = await submissionsFor(call.id);
+    expect(rows[0].credit_name).toBeNull();
+  });
+
+  test("refuses a submission that did not consent, and writes nothing", async () => {
+    currentIp = uniqueIp();
+    const call = await createCall();
+
+    const withoutConsent = formData({
+      name: "Ari",
+      email: uniqueEmail("artwork-noconsent"),
+      images: JSON.stringify([imagePaths(call)]),
+    });
+    withoutConsent.delete("consent");
+
+    const result = await submitArtworkAction(call.code, withoutConsent);
+
+    expect(result).toEqual({
+      error:
+        "Please confirm the work is yours and that you agree to the terms above.",
+    });
+    expect(await submissionsFor(call.id)).toHaveLength(0);
+  });
+
+  test("refuses a portfolio link carrying a scheme that is not http(s)", async () => {
+    currentIp = uniqueIp();
+    const call = await createCall();
+
+    const result = await submitArtworkAction(
+      call.code,
+      formData({
+        name: "Ari",
+        email: uniqueEmail("artwork-badlink"),
+        portfolio: "javascript://example.test/x",
+        images: JSON.stringify([imagePaths(call)]),
+      }),
+    );
+
+    expect(result).toEqual({
+      error: "A portfolio link has to start with http:// or https://.",
+    });
+    expect(await submissionsFor(call.id)).toHaveLength(0);
   });
 
   test("accepts a lowercase code, since the link may be retyped", async () => {

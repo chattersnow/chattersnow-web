@@ -40,7 +40,7 @@ export const metadata: Metadata = {
 };
 
 const SELECT =
-  "id, submitter_name, submitter_email, title, medium, artist_statement, status, review_notes, reviewed_at, created_at, event:events(id, name), images:artwork_submission_images(id, storage_path, thumb_path, content_type, byte_size, position)";
+  "id, submitter_name, submitter_email, credit_name, portfolio_url, consented_at, title, medium, artist_statement, status, review_notes, reviewed_at, created_at, event:events(id, name), images:artwork_submission_images(id, storage_path, thumb_path, content_type, byte_size, position)";
 
 const selectClassName =
   "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";

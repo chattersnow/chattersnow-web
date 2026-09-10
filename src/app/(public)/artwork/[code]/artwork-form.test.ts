@@ -15,6 +15,9 @@ function form(
   const formData = new FormData();
   formData.set("name", "Ari Nakamura");
   formData.set("email", "ari@example.test");
+  // Ticked by default so every other case here keeps testing what it is named
+  // for; the consent rule gets its own tests below.
+  formData.set("consent", "on");
   for (const [key, value] of Object.entries(fields)) formData.set(key, value);
   if (images !== undefined) formData.set("images", JSON.stringify(images));
   return formData;
@@ -29,9 +32,12 @@ describe("parseArtworkForm", () => {
       data: {
         name: "Ari",
         email: "ari@example.test",
+        creditName: "",
+        portfolio: "",
         title: "Snowline",
         medium: "Ink",
         statement: "",
+        consent: true,
         images: [
           {
             path: "t/e/d/i.jpg",
@@ -88,6 +94,44 @@ describe("parseArtworkForm", () => {
   test("caps the artist statement", () => {
     expect(parseArtworkForm(form({ statement: "x".repeat(2001) }))).toEqual({
       error: "Please keep the description under 2000 characters.",
+    });
+  });
+
+  test("refuses a submission with the consent box unticked", () => {
+    const unticked = form({});
+    unticked.delete("consent");
+    expect(parseArtworkForm(unticked)).toEqual({
+      error:
+        "Please confirm the work is yours and that you agree to the terms above.",
+    });
+    // Anything other than a checked checkbox's "on" is a no, including the
+    // string "true" a hand-rolled request might send.
+    expect(parseArtworkForm(form({ consent: "true" }))).toEqual({
+      error:
+        "Please confirm the work is yours and that you agree to the terms above.",
+    });
+  });
+
+  test("keeps a credit name distinct from the contact name", () => {
+    expect(
+      parseArtworkForm(form({ creditName: "  snowghost  " })),
+    ).toMatchObject({
+      data: { name: "Ari Nakamura", creditName: "snowghost" },
+    });
+  });
+
+  test("takes a handle as-is but insists a real scheme be http(s)", () => {
+    expect(parseArtworkForm(form({ portfolio: " @snowghost " }))).toMatchObject(
+      { data: { portfolio: "@snowghost" } },
+    );
+    expect(
+      parseArtworkForm(form({ portfolio: "https://snowghost.example/work" })),
+    ).toMatchObject({ data: { portfolio: "https://snowghost.example/work" } });
+    // The one that matters: a reviewer opens this from the portal.
+    expect(
+      parseArtworkForm(form({ portfolio: "javascript://example.test/x" })),
+    ).toEqual({
+      error: "A portfolio link has to start with http:// or https://.",
     });
   });
 });

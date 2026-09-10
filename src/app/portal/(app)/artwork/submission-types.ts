@@ -30,6 +30,9 @@ export type ArtworkSubmission = {
   id: string;
   submitter_name: string;
   submitter_email: string;
+  credit_name: string | null;
+  portfolio_url: string | null;
+  consented_at: string | null;
   title: string | null;
   medium: string | null;
   artist_statement: string | null;
