@@ -88,7 +88,13 @@ export function ArtworkCallDialog({
       >
         {editing ? "Edit call" : "New call"}
       </DialogTrigger>
-      <DialogContent>
+      {/*
+        DialogContent has no height of its own -- it is `fixed` and centred by
+        a -50% translate, so a form taller than the viewport overflows off both
+        ends with nothing to scroll. Every other long dialog in the portal caps
+        itself the same way; this one had nine fields and none of it.
+      */}
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>
