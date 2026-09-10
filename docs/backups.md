@@ -87,7 +87,7 @@ every commit that ever contained them.
 
 Set once, in repository settings.
 
-### The `Backups` environment
+### The `Backup` environment
 
 `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` are **environment** secrets
 on `Production`, not repository secrets. A job that declares no environment
@@ -97,12 +97,12 @@ this workflow has to name an environment to see them.
 It cannot be `Production`, because that environment requires a reviewer and a
 nightly backup waiting on manual approval is a backup that does not happen. So:
 
-1. Settings → Environments → **New environment**, named `Backups`.
+1. Settings → Environments → **New environment**, named `Backup`.
 2. Leave protection rules empty — no required reviewers, no wait timer.
    Everything this job does is read-only against the database.
 3. Add all five secrets below to it.
 
-**Secrets** (Settings → Environments → `Backups` → Environment secrets):
+**Secrets** (Settings → Environments → `Backup` → Environment secrets):
 
 | Name                    | Value                                                                |
 | ----------------------- | -------------------------------------------------------------------- |
