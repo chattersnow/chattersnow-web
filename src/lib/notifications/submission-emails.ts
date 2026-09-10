@@ -34,12 +34,24 @@ export type ContactMessageNotice = {
   topic: string;
 };
 
+export type ArtworkSubmissionNotice = {
+  submissionId: string;
+  name: string;
+  eventName: string;
+  title: string | null;
+  imageCount: number;
+};
+
 export function volunteerApplicationHref(applicationId: string): string {
   return `/portal/volunteers/applications?application=${encodeURIComponent(applicationId)}`;
 }
 
 export function contactMessageHref(messageId: string): string {
   return `/portal/communications?message=${encodeURIComponent(messageId)}`;
+}
+
+export function artworkSubmissionHref(submissionId: string): string {
+  return `/portal/artwork?submission=${encodeURIComponent(submissionId)}`;
 }
 
 export function renderVolunteerApplicationEmail(
@@ -104,6 +116,46 @@ export function renderContactMessageEmail(
         accountUrl: `${origin}/portal/account`,
       },
     ),
+  };
+}
+
+/**
+ * Deliberately carries no image, not even the thumbnail. The bucket is private
+ * and its signed URLs expire within the hour, so an inline preview would be a
+ * broken image by the time most people opened the mail -- and embedding the
+ * artwork itself would put an artist's unpublished work in an inbox that no
+ * retention policy can reach. The link goes to the queue.
+ */
+export function renderArtworkSubmissionEmail(
+  notice: ArtworkSubmissionNotice,
+  siteUrl: string,
+): RenderedEmail {
+  const origin = normalizeOrigin(siteUrl);
+  const url = `${origin}${artworkSubmissionHref(notice.submissionId)}`;
+
+  const facts: Fact[] = [
+    { label: "Artist", value: notice.name },
+    { label: "For", value: notice.eventName },
+    { label: "Title", value: notice.title || "Untitled" },
+    {
+      label: "Images",
+      value:
+        notice.imageCount === 1 ? "1 image" : `${notice.imageCount} images`,
+    },
+  ];
+
+  return {
+    subject: `New artwork submission: ${notice.title || notice.name}`,
+    text: renderText("Someone has submitted artwork.", facts, {
+      linkLabel: "Review the submission",
+      url,
+      accountUrl: `${origin}/portal/account`,
+    }),
+    html: renderHtml("Someone has submitted artwork.", facts, {
+      linkLabel: "Review the submission",
+      url,
+      accountUrl: `${origin}/portal/account`,
+    }),
   };
 }
 

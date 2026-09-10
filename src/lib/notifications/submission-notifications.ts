@@ -5,13 +5,15 @@ import { tenantMailContext } from "@/lib/email/identity";
 import type { RenderedEmail } from "@/lib/notifications/rendered-email";
 import { isOrgEmailEnabled } from "@/lib/notifications/settings";
 import {
+  renderArtworkSubmissionEmail,
   renderContactMessageEmail,
   renderVolunteerApplicationEmail,
 } from "@/lib/notifications/submission-emails";
 
 /**
- * The two event-triggered sends (#742): a new volunteer application and a new
- * contact message reach the people who own that queue.
+ * The event-triggered sends: a new volunteer application, a new contact
+ * message (#742) and a new artwork submission (#870) reach the people who own
+ * that queue.
  *
  * Called from `after()` in the public Server Actions, so nothing here may
  * throw and nothing here may matter to the visitor who submitted the form --
@@ -26,10 +28,12 @@ import {
 
 export const VOLUNTEER_APPLICATION_KIND = "volunteer_application";
 export const CONTACT_MESSAGE_KIND = "contact_message";
+export const ARTWORK_SUBMISSION_KIND = "artwork_submission";
 
 /** Who owns the ops inbox. `administration` is the standing fallback. */
 const CONTACT_MESSAGE_RESOURCES = ["communications", "administration"];
 const VOLUNTEER_APPLICATION_RESOURCES = ["volunteers"];
+const ARTWORK_SUBMISSION_RESOURCES = ["artwork_submissions"];
 
 export type NotifySummary = {
   /** Role holders who could have been mailed, before the gates. */
@@ -142,6 +146,59 @@ export async function notifyNewContactMessage(
           name: (data.name as string) ?? "",
           email: submitterEmail,
           topic: (data.topic as string) ?? "",
+        },
+        origin,
+      ),
+  });
+}
+
+export async function notifyNewArtworkSubmission(
+  admin: SupabaseClient,
+  options: { submissionId: string; siteUrl: string },
+): Promise<NotifySummary> {
+  const { data, error } = await admin
+    .from("artwork_submissions")
+    .select(
+      "id, tenant_id, submitter_name, title, events(name), artwork_submission_images(id)",
+    )
+    .eq("id", options.submissionId)
+    .maybeSingle();
+
+  if (error) {
+    console.error(
+      "[submission-notify] could not read the artwork submission",
+      error,
+    );
+    return { ...NOTHING };
+  }
+  // Same honeypot reasoning as the two above: submit_artwork() answers a filled
+  // honeypot with a gen_random_uuid() for a row it never inserted.
+  if (!data) return { ...NOTHING };
+
+  const event = data.events as { name: string } | { name: string }[] | null;
+  const eventName = Array.isArray(event)
+    ? (event[0]?.name ?? "")
+    : (event?.name ?? "");
+  const images = (data.artwork_submission_images ?? []) as unknown[];
+
+  return notifyRoleHolders(admin, {
+    tenantId: data.tenant_id as string,
+    kind: ARTWORK_SUBMISSION_KIND,
+    resourceKeys: ARTWORK_SUBMISSION_RESOURCES,
+    minLevel: "manage",
+    dedupeKey: `${ARTWORK_SUBMISSION_KIND}:${data.id as string}`,
+    // No replyTo. A submission is answered from the queue once the piece has
+    // been looked at, not by replying to the notice -- the same call the
+    // volunteer notice makes.
+    fallbackOrigin: options.siteUrl,
+    render: (origin) =>
+      renderArtworkSubmissionEmail(
+        {
+          submissionId: data.id as string,
+          name: (data.submitter_name as string) ?? "",
+          eventName,
+          title: (data.title as string | null) ?? null,
+          imageCount: images.length,
         },
         origin,
       ),
