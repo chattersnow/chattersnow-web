@@ -472,9 +472,26 @@ The portal's login screen offers a one-click demo (#604). It is not a special
 mode: it is a tenant whose `plan` is `demo`, with an ordinary account holding
 the admin role inside it, kept apart by the same policies and composite foreign
 keys as any paying tenant. `DEMO_EMAIL` and `DEMO_PASSWORD` are server-only, so
-the button is rendered by `src/app/portal/login/page.tsx` only when both are
-set and the credentials themselves never reach the browser;
-`demoSignInAction()` signs in on the server and redirects to `/portal/home`.
+the credentials themselves never reach the browser; `demoSignInAction()` signs
+in on the server and redirects to `/portal/home`.
+
+`isDemoLoginOffered()` in `src/app/portal/login/demo-availability.ts` decides
+whether the button is drawn, and both halves of its condition matter. The
+credentials being set is a fact about the **deployment**, and one deployment
+serves every tenant -- gating on them alone put "Explore the demo" on every
+tenant's login page, offering a white-label customer's staff a one-click
+sign-in to somebody else's sample organization. So the second half is the
+tenant the request host resolves to: `plan = 'demo'`, read from `public_tenant`
+(`20260910000000`), the same constrained enum `current_tenant_is_demo()` and
+`seed_demo_tenant()` insist on rather than a slug. A host no tenant claims and
+a failed tenant read both get no button. `demoSignInAction()` re-checks the
+same condition, because a Server Action is a POST endpoint every host on the
+deployment can reach whether or not the button was drawn.
+
+One consequence worth knowing before you go looking for the button: it is
+absent on `uat.chattersnow.org` and on preview and local runs, because
+`TENANT_HOST_OVERRIDE` resolves those to Chatter Snow's own tenant. The demo is
+exercised on `demo.chattersnow.org`.
 
 ### The rollout order is load-bearing
 

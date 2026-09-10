@@ -416,6 +416,12 @@ export type PublicTenant = {
    * resolved through TENANT_HOST_OVERRIDE rather than by domain.
    */
   custom_domain: string | null;
+  /**
+   * The tenant's plan, one of the `tenants_plan_check` values. Here for a
+   * single question the portal login has to answer before it renders anything:
+   * is this host the public demo's (`plan = 'demo'`)? See `isDemoTenant`.
+   */
+  plan: string;
 };
 
 /**
@@ -447,7 +453,7 @@ export async function getPublicTenant(
 ): Promise<PublicTenantResult> {
   const { data, error } = await supabase
     .from("public_tenant")
-    .select("id, name, slug, custom_domain")
+    .select("id, name, slug, custom_domain, plan")
     .maybeSingle();
   if (error) {
     // Loudly: this is the branch that keeps a blip from 404ing the site, so a

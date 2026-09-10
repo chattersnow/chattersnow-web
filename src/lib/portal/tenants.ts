@@ -19,8 +19,15 @@ export type Tenant = {
   plan: string;
 };
 
-/** Whether this tenant is the public demo anyone can sign into. */
-export function isDemoTenant(tenant: Tenant | null): boolean {
+/**
+ * Whether this tenant is the public demo anyone can sign into.
+ *
+ * Takes anything carrying a plan rather than a full `Tenant`: the portal login
+ * asks this about a `PublicTenant` -- the tenant the request *host* resolves to
+ * -- before any session exists, which is how the demo button stays on the demo
+ * tenant's host alone.
+ */
+export function isDemoTenant(tenant: Pick<Tenant, "plan"> | null): boolean {
   return tenant?.plan === "demo";
 }
 
