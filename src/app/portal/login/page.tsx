@@ -8,6 +8,7 @@ import { BrandLogo } from "@/components/brand-logo";
 import { publicSiteLink } from "@/lib/portal/paths";
 import { getRequestHost } from "@/lib/request-origin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { isDemoLoginOffered } from "./demo-availability";
 import { DemoButton } from "./demo-button";
 import { LoginForm } from "./login-form";
 
@@ -16,12 +17,6 @@ export const metadata: Metadata = {
 };
 
 export default async function PortalLoginPage() {
-  // Read here rather than in the button, so the credentials stay in the server
-  // tree entirely; the client only ever learns that a demo is configured.
-  const demoAvailable = Boolean(
-    process.env.DEMO_EMAIL && process.env.DEMO_PASSWORD,
-  );
-
   // Which organization's public site to offer, if any. `unresolved` and
   // `unavailable` both mean there is nothing to name, and the link is dropped
   // rather than guessed at -- the portal itself is unaffected either way,
@@ -40,6 +35,12 @@ export default async function PortalLoginPage() {
     requestHost,
     tenantResult.status === "resolved" ? tenantResult.tenant : null,
   );
+
+  // Decided here rather than in the button, so the credentials stay in the
+  // server tree entirely; the client only ever learns that a demo is on offer.
+  // It is on offer only on the demo tenant's own host -- the credentials being
+  // configured says something about the deployment, which serves every tenant.
+  const demoAvailable = isDemoLoginOffered(tenantResult);
 
   return (
     <main className="app-shell flex items-center justify-center px-6 py-12 sm:px-10">
