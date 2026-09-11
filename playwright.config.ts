@@ -44,7 +44,7 @@ const baseURL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://127.0.0.1:3000";
  * filter a dependency project ignores.
  */
 const MUTATING_SPECS =
-  /(page-visibility|unresolved-host|tenant-branding|legal-publication)\.spec\.ts/;
+  /(page-visibility|unresolved-host|tenant-branding|legal-publication|module-gating)\.spec\.ts/;
 
 const ALL_BROWSER_PROJECTS = [
   { name: "chromium", use: { ...devices["Desktop Chrome"] } },

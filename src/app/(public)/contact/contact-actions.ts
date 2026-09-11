@@ -16,6 +16,9 @@ const ERROR_MESSAGES: Record<string, string> = {
   TOPIC_REQUIRED: "Please choose a topic.",
   MESSAGE_REQUIRED: "Message is required.",
   RATE_LIMITED: "Too many attempts — please try again in a few minutes.",
+  // #902. The page is gated too, so reaching this means a stale tab or a
+  // direct post -- but the form still has to say something true.
+  SECTION_UNAVAILABLE: "This form is not available on this site.",
 };
 
 // Public, unauthenticated action: anyone can send a contact message.

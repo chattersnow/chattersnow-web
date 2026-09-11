@@ -16,6 +16,41 @@ import { Spinner } from "@/components/ui/spinner";
 import type { PublicPageSlot } from "@/lib/page-visibility";
 import { runAction } from "@/components/portal/action-toast";
 
+/**
+ * A section this organization is not entitled to (#902). Read-only and off,
+ * with the reason on screen rather than a switch that writes a flag the gate
+ * will ignore -- the same treatment `notifications.from_address` gets when its
+ * domain is not verified, and for the same reason.
+ *
+ * Shown rather than hidden: an administrator looking for Gear should find out
+ * that it exists and is not theirs, not that it has silently vanished from a
+ * list they remember it being on.
+ */
+function BlockedRow({ slot }: { slot: PublicPageSlot }) {
+  const labelId = `page-visibility-${slot.key}-label`;
+  return (
+    <div className="flex items-start justify-between gap-4 py-4">
+      <div className="min-w-0">
+        <p id={labelId} className="text-sm font-medium">
+          {slot.label}
+        </p>
+        <p className="app-muted mt-1 text-sm leading-relaxed">
+          {slot.description}
+        </p>
+        <p className="app-muted mt-1 text-sm leading-relaxed">
+          Not part of this organization&rsquo;s plan, so it stays off the public
+          site whatever this switch says. Ask whoever manages your account if
+          you need it.
+        </p>
+      </div>
+      <div className="flex shrink-0 items-center gap-2 pt-0.5">
+        <span className="app-muted w-14 text-right text-xs">Unavailable</span>
+        <Switch checked={false} disabled aria-labelledby={labelId} />
+      </div>
+    </div>
+  );
+}
+
 function PageVisibilityRow({
   slot,
   visible,
@@ -87,9 +122,12 @@ function PageVisibilityRow({
 export function PageVisibilityPanel({
   slots,
   visibility,
+  blockedSlots = {},
 }: {
   slots: PublicPageSlot[];
   visibility: Record<string, boolean>;
+  /** Slot key -> the module withholding it (#902). Empty for most tenants. */
+  blockedSlots?: Record<string, string>;
 }) {
   const [error, setError] = useState<string | null>(null);
 
@@ -103,14 +141,18 @@ export function PageVisibilityPanel({
 
       <Card>
         <CardContent className="divide-y divide-[var(--line)]">
-          {slots.map((slot) => (
-            <PageVisibilityRow
-              key={slot.key}
-              slot={slot}
-              visible={visibility[slot.key] ?? slot.defaultVisible}
-              onError={setError}
-            />
-          ))}
+          {slots.map((slot) =>
+            blockedSlots[slot.key] ? (
+              <BlockedRow key={slot.key} slot={slot} />
+            ) : (
+              <PageVisibilityRow
+                key={slot.key}
+                slot={slot}
+                visible={visibility[slot.key] ?? slot.defaultVisible}
+                onError={setError}
+              />
+            ),
+          )}
         </CardContent>
       </Card>
     </div>

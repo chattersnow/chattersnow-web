@@ -4,7 +4,9 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   PUBLIC_PAGE_SLOTS,
+  getTenantModules,
   getTenantPageVisibility,
+  moduleBlockedSlots,
 } from "@/lib/page-visibility";
 import { LAYOUT_SLOTS, getTenantLayoutValues } from "@/lib/site-layout";
 import { LEGAL_DOCUMENTS } from "@/lib/legal-documents";
@@ -85,6 +87,7 @@ export default async function SystemSettingsPage() {
     branding,
     tenantContext,
     emailEnabled,
+    tenantModules,
   ] = await Promise.all([
     getTenantPageVisibility(supabase),
     getTenantLegalPublication(supabase),
@@ -102,8 +105,15 @@ export default async function SystemSettingsPage() {
     getTenantBranding(supabase),
     getTenantContext(supabase),
     getOrgEmailEnabled(supabase),
+    getTenantModules(supabase),
   ]);
   const orgName = currentTenant(tenantContext)?.name ?? "this organization";
+
+  // Sections this organization has not been sold (#902). The switches for them
+  // render read-only and off: the flag would be written and then ignored by the
+  // gate, and a control that silently does nothing is worse than one that says
+  // why it cannot.
+  const blockedSlots = moduleBlockedSlots(tenantModules);
 
   const ownLegalSlots = new Set(
     (ownLegalDocuments ?? []).map((row) => row.key as string),
@@ -226,6 +236,7 @@ export default async function SystemSettingsPage() {
           <PageVisibilityPanel
             slots={PUBLIC_PAGE_SLOTS}
             visibility={pageVisibility}
+            blockedSlots={blockedSlots}
           />
         </TabsContent>
 

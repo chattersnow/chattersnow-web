@@ -83,7 +83,11 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     links: [
       { label: "Ways to Get Involved", href: "/get-involved" },
       { label: "Attend", href: "/get-involved/attend" },
-      { label: "Volunteer", href: "/get-involved/volunteer" },
+      {
+        label: "Volunteer",
+        href: "/get-involved/volunteer",
+        slot: "get-involved-volunteer",
+      },
       { label: "Become a Partner", href: "/get-involved/partner" },
     ],
   },
