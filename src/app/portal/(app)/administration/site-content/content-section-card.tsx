@@ -7,6 +7,7 @@ import { FieldGroup } from "@/components/ui/field";
 import type { ContentPage, ContentSection } from "@/lib/site-content";
 import type { EditorSlot } from "./content-shared";
 import { ContentSlotField, slotRoute } from "./content-slot-field";
+import { ImageSlotHint } from "./image-slot-field";
 
 export function sectionCardId(key: string): string {
   return `section-${key}`;
@@ -55,6 +56,10 @@ export function ContentSectionCard({
   const route = slots.some(({ slot }) => !slotRoute(slot))
     ? (section.route ?? page.route)
     : undefined;
+  // Said once here rather than under each photo. The same two sentences under
+  // all eight image slots on Get Involved was twenty-four lines of identical
+  // grey text at 390px, and the page is long enough already (#918).
+  const hasImage = slots.some(({ slot }) => slot.type === "image");
 
   return (
     <Card id={sectionCardId(section.key)} className="scroll-mt-28">
@@ -77,6 +82,7 @@ export function ContentSectionCard({
         {section.description && (
           <p className="app-muted text-sm">{section.description}</p>
         )}
+        {hasImage && <ImageSlotHint />}
       </CardHeader>
       <CardContent>
         <fieldset disabled={!canEdit || isPending}>

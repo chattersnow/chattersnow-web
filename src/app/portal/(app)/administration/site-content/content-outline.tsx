@@ -2,7 +2,7 @@
 
 import { MouseEvent, useMemo, useState } from "react";
 import Link from "next/link";
-import { EyeOff, PanelLeftOpen, Search } from "lucide-react";
+import { EyeOff, ImageIcon, PanelLeftOpen, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -267,6 +267,14 @@ export function ContentOutline({
                               onClick={() => onJump(entry.key)}
                               className="hover:bg-[var(--purple-soft)] flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm"
                             >
+                              {/* Which entries are photos, without scrolling
+                                  to the section that holds them (#918). */}
+                              {entry.image && (
+                                <ImageIcon
+                                  className="app-muted size-3.5 shrink-0"
+                                  aria-label="Photo"
+                                />
+                              )}
                               <span className="min-w-0 flex-1 truncate">
                                 {entry.label}
                               </span>

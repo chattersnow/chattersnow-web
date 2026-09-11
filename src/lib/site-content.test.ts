@@ -293,6 +293,19 @@ describe("resolveSiteContent", () => {
     expect(DEFAULT_SITE_CONTENT.image(key)).toBeNull();
   });
 
+  test("an image slot refuses a value that is not a renderable src", () => {
+    const slot = contentSlot("site_images.learn_photo")!;
+    expect(isValidSlotValue(slot, "https://example.test/a.jpg")).toBe(true);
+    // Root-relative is how a photo shipped with the app would be named.
+    expect(isValidSlotValue(slot, "/images/learn.jpg")).toBe(true);
+    // A bare filename is a valid non-empty string and used to pass. The box
+    // is `type="url"`, which guards the form submit but not "Publish", so it
+    // reached the public site and 404ed against whatever page showed it
+    // (#918).
+    expect(isValidSlotValue(slot, "learn-photo.jpg")).toBe(false);
+    expect(isValidSlotValue(slot, "")).toBe(false);
+  });
+
   test("reading a key as the wrong type is a programming error", () => {
     expect(() => DEFAULT_SITE_CONTENT.paragraphs("home.heading")).toThrow();
     expect(() => DEFAULT_SITE_CONTENT.text("does.not.exist")).toThrow();
