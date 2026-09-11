@@ -1,6 +1,6 @@
 # Serving more than one organization
 
-**Updated:** 2026-09-10
+**Updated:** 2026-09-11
 
 The operator's runbook for tenants (#707 Phase 4): how an organization is
 provisioned, put on its own domain, branded, supported, exported and deleted.
@@ -470,6 +470,62 @@ Volunteers module is off does not get volunteer-application email either.
 still contains them, `delete_tenant()` still removes them, and turning the module
 back on restores the section with its history intact. Nothing about a module
 deletes tenant data.
+
+### The public site (#902)
+
+Those three functions are all about a signed-in person in a tenant, and the
+public site has neither a session nor a permission — so gating them alone left a
+tenant with Inventory off still publishing a gear library at `/gears`, with a
+working request form. The public surface has its own choke point and modules sit
+above it:
+
+- **`PUBLIC_PAGE_SLOTS`** (`src/lib/page-visibility.ts`) gains a `module` per
+  slot. A slot whose module is off is forced hidden whatever the board stored:
+  the section drops out of the nav and footer and its URLs 404. The override is
+  one-way — a module being _on_ never publishes a section the board has hidden,
+  and turning a module back on returns the decision to them rather than making
+  it for them.
+- **`public_tenant_modules`** is the anon-readable view it reads, answering for
+  the tenant the request _host_ resolves to (`public_tenant_id()`), since
+  `tenant_module_enabled()` answers only for a membership a visitor does not
+  have.
+- **Every RPC `anon` can call** checks the module on the tenant it resolved.
+  Hiding a page does not stop a form post, and this is the half that makes it a
+  gate rather than a hidden link. Each raises the code it already used for
+  "there is nothing here for you", so the visitor sees a true sentence and the
+  forms' existing error handling is unchanged.
+
+Slot-to-module mapping, with the two that are judgement calls:
+
+| Slot                      | Module           |
+| ------------------------- | ---------------- |
+| `events`                  | `events`         |
+| `gears`, `gears-sizing`   | `inventory`      |
+| `programs`                | `programs`       |
+| `support`                 | `finance`        |
+| `get-involved-volunteer`  | `volunteers`     |
+| `contact`                 | `communications` |
+| `about`, `learn`, `brand` | none             |
+| `get-involved`            | none             |
+
+**`support` goes with Finance** because it is the fundraising ask and the
+donations and sponsorships it collects are Finance's records.
+
+**`get-involved` is deliberately not mapped to `volunteers`**, though #902
+proposed it. The section is Attend, Volunteer and Become a Partner, and only the
+middle one is about volunteers — Attend is about events and the partner page is
+a pitch that funnels to `/contact?topic=partnership`. So the volunteer pages got
+a slot of their own (`get-involved-volunteer`, gated at
+`get-involved/volunteer/layout.tsx`, covering the status lookup beneath it) and
+the section stays the board's.
+
+About, Learn and Brand have no module at all: they are the organization's own
+pages whatever it is paying for.
+
+In Administration → System Settings → Page visibility, a slot whose module is
+off renders read-only and off, saying the section is not part of this
+organization's plan. Site Content marks the same pages unpublishable, from the
+same read.
 
 ### The catalog
 

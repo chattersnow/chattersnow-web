@@ -7,14 +7,31 @@ import {
   getPageVisibility,
   getTenantPageVisibility,
   hiddenSlots,
+  moduleBlockedSlots,
   pageVisibilitySettingKey,
 } from "./page-visibility";
 
 type Row = { slot: string; value: unknown };
+type ModuleRow = { module_key: string; enabled: boolean };
 
-function clientReturning(data: Row[] | null): SupabaseClient {
+/**
+ * Since #902 `getPageVisibility` reads two tables, so the fake dispatches on the
+ * name rather than answering everything with the same rows. `modules` defaults
+ * to the whole catalog being on, which is every tenant until an operator says
+ * otherwise -- so a test that says nothing about modules gets the pre-#902
+ * behaviour.
+ */
+function clientReturning(
+  data: Row[] | null,
+  modules: ModuleRow[] = [],
+): SupabaseClient {
   return {
-    from: () => ({ select: async () => ({ data, error: null }) }),
+    from: (table: string) => ({
+      select: async () => ({
+        data: table === "public_tenant_modules" ? modules : data,
+        error: null,
+      }),
+    }),
   } as unknown as SupabaseClient;
 }
 
@@ -160,7 +177,9 @@ describe("getPageVisibility", () => {
     try {
       await getPageVisibility(clientFailing());
 
-      expect(error).toHaveBeenCalledTimes(1);
+      // Twice since #902: the visibility read and the module read are separate
+      // queries against the same broken client, and each has to say so.
+      expect(error).toHaveBeenCalledTimes(2);
       expect(error.mock.calls[0]?.[1]).toMatchObject({ code: "PGRST205" });
     } finally {
       error.mockRestore();
@@ -173,6 +192,146 @@ describe("getPageVisibility", () => {
     );
 
     expect(visibility["not-a-section"]).toBeUndefined();
+  });
+});
+
+// #902. The entitlement is the platform's and the visibility flag is the
+// board's, and when they disagree the entitlement wins -- so these assert the
+// override in both directions, and that nothing changes for a tenant that has
+// every module, which is every tenant today.
+describe("module gating", () => {
+  const MODULE_KEYS = [
+    "events",
+    "artwork",
+    "calendar",
+    "programs",
+    "inventory",
+    "volunteers",
+    "communications",
+    "finance",
+    "reimbursements",
+    "people",
+    "governance",
+    "access_management",
+    "administration",
+  ];
+
+  test("every slot's module, where it has one, is a real module", () => {
+    // The registry is TypeScript and the catalog is SQL, so nothing but this
+    // stops a typo mapping a section to a module that will never be off.
+    for (const slot of PUBLIC_PAGE_SLOTS) {
+      if (slot.module === undefined) continue;
+      expect(MODULE_KEYS, `${slot.key} -> ${slot.module}`).toContain(
+        slot.module,
+      );
+    }
+  });
+
+  test("a slot with its module off is hidden whatever the board stored", async () => {
+    const visibility = await getPageVisibility(
+      clientReturning(
+        [
+          { slot: "events", value: true },
+          { slot: "gears", value: true },
+          { slot: "contact", value: true },
+        ],
+        [{ module_key: "inventory", enabled: false }],
+      ),
+    );
+
+    expect(visibility.gears).toBe(false);
+    // Both slots the Inventory module owns, including the single-route one.
+    expect(visibility["gears-sizing"]).toBe(false);
+    // And nothing else moves.
+    expect(visibility.events).toBe(true);
+    expect(visibility.contact).toBe(true);
+  });
+
+  test("a slot whose module is on behaves exactly as before", async () => {
+    const withModules = await getPageVisibility(
+      clientReturning(
+        [{ slot: "programs", value: true }],
+        MODULE_KEYS.map((key) => ({ module_key: key, enabled: true })),
+      ),
+    );
+    const withoutModules = await getPageVisibility(
+      clientReturning([{ slot: "programs", value: true }]),
+    );
+
+    expect(withModules).toEqual(withoutModules);
+    expect(withModules.programs).toBe(true);
+  });
+
+  test("an off module cannot publish a section the board has hidden", async () => {
+    // The override is one-way. `support` defaults to hidden, so Finance being
+    // *on* must not turn it on.
+    const visibility = await getPageVisibility(
+      clientReturning([], [{ module_key: "finance", enabled: true }]),
+    );
+    expect(visibility.support).toBe(false);
+  });
+
+  test("an unmapped slot ignores modules entirely", async () => {
+    // About, Learn and Brand are the organization's own pages; no entitlement
+    // reaches them.
+    const visibility = await getPageVisibility(
+      clientReturning(
+        [
+          { slot: "about", value: true },
+          { slot: "learn", value: true },
+        ],
+        MODULE_KEYS.map((key) => ({ module_key: key, enabled: false })),
+      ),
+    );
+    expect(visibility.about).toBe(true);
+    expect(visibility.learn).toBe(true);
+  });
+
+  test("Get Involved survives Volunteers being off; the volunteer page does not", async () => {
+    // The decision #902 left for review. Attend is about events and the partner
+    // page funnels to /contact, so only the volunteer routes go.
+    const visibility = await getPageVisibility(
+      clientReturning([], [{ module_key: "volunteers", enabled: false }]),
+    );
+
+    expect(visibility["get-involved"]).toBe(true);
+    expect(visibility["get-involved-volunteer"]).toBe(false);
+  });
+
+  test("an unreadable module answer leaves every section as the board set it", async () => {
+    // Fail open, the opposite of the visibility read directly above -- a
+    // missing module row means "this tenant predates the table", not "nobody
+    // has approved this".
+    const error = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const visibility = await getPageVisibility({
+        from: (table: string) => ({
+          select: async () =>
+            table === "public_tenant_modules"
+              ? { data: null, error: { code: "PGRST205", message: "gone" } }
+              : { data: [{ slot: "gears", value: true }], error: null },
+        }),
+      } as unknown as SupabaseClient);
+
+      expect(visibility.gears).toBe(true);
+    } finally {
+      error.mockRestore();
+    }
+  });
+
+  describe("moduleBlockedSlots", () => {
+    test("names the module withholding each slot, for the panel to explain", () => {
+      expect(moduleBlockedSlots({ inventory: false, finance: false })).toEqual({
+        gears: "inventory",
+        "gears-sizing": "inventory",
+        support: "finance",
+      });
+    });
+
+    test("is empty for a tenant with everything", () => {
+      expect(moduleBlockedSlots({ inventory: true })).toEqual({});
+      expect(moduleBlockedSlots({})).toEqual({});
+    });
   });
 });
 
