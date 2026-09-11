@@ -1,7 +1,7 @@
 -- #887: record and enforce the security definer view pattern.
 --
 -- Supabase's database advisor reports lint 0010_security_definer_view (ERROR)
--- against every view in `public` that is not `security_invoker`. Seventeen of
+-- against every view in `public` that is not `security_invoker`. Eighteen of
 -- ours are not, and none of them is an accident: a definer view is the only
 -- mechanism this schema has for the two audiences RLS here was never written
 -- for.
@@ -27,7 +27,7 @@
 -- visibility/status/tenant predicate that today lives in one place per view,
 -- and -- for Family B -- `anon` on `app_settings` itself, a far wider blast
 -- radius than a two-column view. Considered and declined; the advisor will
--- keep reporting these seventeen forever, and Supabase documents no way to
+-- keep reporting these eighteen forever, and Supabase documents no way to
 -- suppress a finding. docs/technical-spec.md §6 carries the decision.
 --
 -- What is real is the gap the pattern leaves. tenant_isolation_gaps()
@@ -37,7 +37,7 @@
 -- policies it checks. A new public_* view that forgets public_tenant_id(), or
 -- an existing one that gains a write grant, is a cross-tenant leak nothing in
 -- this repository would catch. This migration adds the two kinds that close
--- it, comments all seventeen views, and marks the anon-facing ones
+-- it, comments all eighteen views, and marks the anon-facing ones
 -- `security_barrier`.
 
 -- 1. The invariant.
@@ -50,7 +50,7 @@
 --               dependencies only: a view built on another view inherits that
 --               view's predicate, and that view is checked on its own.
 --   view_grant  a definer view in `public` with INSERT, UPDATE or DELETE
---               reachable by `anon` or `authenticated`. All seventeen are
+--               reachable by `anon` or `authenticated`. All eighteen are
 --               SELECT-only today and nothing enforced it; one `grant all`
 --               would hand out RLS-free writes to the base table --
 --               20260908000000_site_content_drafts.sql:71 already warns about
@@ -170,6 +170,9 @@ comment on view public.public_site_content is
 comment on view public.public_site_images is
   'The resolved tenant''s published site images, keyed by the slot registry in src/lib/site-images.ts. Security definer by design (#887), same reasoning as public_site_content, over the site_images.% key prefix.';
 
+comment on view public.public_tenant_modules is
+  'Module entitlements for the tenant the request host resolves to (#902). The public-site counterpart to tenant_module_enabled(), which answers only for a signed-in member. Security definer by design (#887): `tenant_modules` and `tenants` admit `authenticated` only. Isolation is public_tenant_id() on both joins; with no resolvable host every module falls back to its own default_enabled, which is a registry fact rather than any tenant''s configuration.';
+
 comment on view public.public_tenant is
   'The tenant a public request is for: the header, footer, page titles, the portal login''s link back to the public site and its demo button all need it, and `tenants` itself is only readable by members. One row, always the tenant that owns the requested host. Security definer by design (#887): an invoker-rights view would leave every anon page without a name or a brand. Isolation is id = public_tenant_id(); the column list is id, name, slug, custom_domain and plan.';
 
@@ -212,6 +215,7 @@ alter view public.public_volunteer_role_types set (security_barrier = true);
 alter view public.public_site_content set (security_barrier = true);
 alter view public.public_site_images set (security_barrier = true);
 alter view public.public_tenant set (security_barrier = true);
+alter view public.public_tenant_modules set (security_barrier = true);
 alter view public.public_branding set (security_barrier = true);
 alter view public.public_page_visibility set (security_barrier = true);
 alter view public.public_legal_publication set (security_barrier = true);

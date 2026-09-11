@@ -80,6 +80,7 @@ const b = {
   volunteerRoleTypeId: "",
   sponsorId: "",
   siteContentKey: `home.isolation_probe_b_${run}`,
+  disabledModuleKey: "",
 };
 // The marker rows in A that the public-view checks point at (#887). The ones
 // with a seeded equivalent are looked up; the four prefixes the seed leaves
@@ -392,6 +393,32 @@ beforeAll(async () => {
       .select("id"),
     "b prefix settings",
   );
+  // A module B has switched off, so public_tenant_modules can be checked for a
+  // difference rather than for a row count -- the module registry is platform
+  // data, the same list for every tenant, and only the answer is per tenant.
+  const enabledModule = await must(
+    service
+      .from("modules")
+      .select("key")
+      .eq("default_enabled", true)
+      .order("key")
+      .limit(1)
+      .single(),
+    "a default-enabled module",
+  );
+  b.disabledModuleKey = enabledModule.key as string;
+  await must(
+    service
+      .from("tenant_modules")
+      .insert({
+        tenant_id: tenantB,
+        module_key: b.disabledModuleKey,
+        enabled: false,
+      })
+      .select("module_key"),
+    "b module override",
+  );
+
   // A's ids the RPC checks use.
   a.expenseId = (
     await must(
@@ -728,6 +755,7 @@ afterAll(async () => {
     "event_expenses",
     // The public-surface rows (#887): each references an event, a program, a
     // person or a donation below it.
+    "tenant_modules",
     "site_content",
     "calendar_items",
     "calendar_categories",
@@ -1504,6 +1532,27 @@ describe("every anon-readable view follows the host", () => {
       expect(await read()).toEqual([]);
     });
   }
+
+  // public_tenant_modules (#902) is the one that cannot answer "nothing": it
+  // reads the module registry, which is platform data, and falls back to each
+  // module's own default when no tenant resolves. What is per tenant is the
+  // answer, so that is what the check compares.
+  test("public_tenant_modules answers for the host's tenant", async () => {
+    const enabledFor = async (host?: string) => {
+      const rows = await must<Array<{ module_key: string; enabled: boolean }>>(
+        anonClient(host ? { host } : undefined)
+          .from("public_tenant_modules")
+          .select("module_key, enabled"),
+        `modules for ${host ?? "no host"}`,
+      );
+      return new Map(rows.map((row) => [row.module_key, row.enabled]));
+    };
+
+    expect((await enabledFor(B_HOST)).get(b.disabledModuleKey)).toBe(false);
+    expect((await enabledFor(A_HOST)).get(b.disabledModuleKey)).toBe(true);
+    // No host: the registry default, never B's override.
+    expect((await enabledFor()).get(b.disabledModuleKey)).toBe(true);
+  });
 });
 
 describe("support grants", () => {
