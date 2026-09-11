@@ -24,9 +24,9 @@ import { isPhaseKey, type PhaseKey } from "../phase-status";
 import {
   FORM_ID_PREFIX,
   LOCKED_ON_REPORT_SUBMIT_TABS,
-  PHASES,
   TAB_CONFIG,
   phaseForTab,
+  type EventPhase,
   type TabConfigEntry,
   type TabRenderContext,
   type TabValue,
@@ -243,6 +243,14 @@ export function EventDetailView(props: {
   programs: Program[];
   canManage: boolean;
   deleteBlockers: string[];
+  /**
+   * The phases and cards this reader gets, resolved from the permission map on
+   * the server (#903) rather than from the module-level constant this file
+   * used to import: the map is the server's to read, and the Finance and
+   * Inventory cards have to be gone before the markup reaches the browser, not
+   * hidden in it.
+   */
+  phases: EventPhase[];
   initialTab?: TabValue;
   phaseTasks?: Record<PhaseKey, string[]>;
 }) {
@@ -258,6 +266,7 @@ function EventDetailContent({
   programs,
   canManage,
   deleteBlockers,
+  phases,
   initialTab,
   phaseTasks,
 }: {
@@ -265,16 +274,27 @@ function EventDetailContent({
   programs: Program[];
   canManage: boolean;
   deleteBlockers: string[];
+  phases: EventPhase[];
   initialTab?: TabValue;
   phaseTasks?: Record<PhaseKey, string[]>;
 }) {
   // ?tab= stays the deep-link entry point (the notification bell and the
   // outstanding-tasks sheet both link with it), but the phase is what the
   // page actually shows, so that's what round-trips through the URL.
+  //
+  // Both the URL value and the fallback are checked against `phases` rather
+  // than against the full PhaseKey union, since #903 dropped a phase with no
+  // cards left for this reader. Nothing in the catalog makes that possible
+  // today -- every phase holds at least one ungated events card -- but a
+  // ?phase= or a ?tab= deep link that selected a phase the strip no longer
+  // offers would render an empty page rather than a wrong one.
+  const preferred = initialTab ? phaseForTab(initialTab) : "basic";
+  const available = (value: string): value is PhaseKey =>
+    isPhaseKey(value) && phases.some((phase) => phase.key === value);
   const [phaseKey, setPhaseKey] = useUrlTabState<PhaseKey>({
     param: "phase",
-    fallback: initialTab ? phaseForTab(initialTab) : "basic",
-    isValid: isPhaseKey,
+    fallback: available(preferred) ? preferred : (phases[0]?.key ?? "basic"),
+    isValid: available,
   });
   return (
     <>
@@ -307,7 +327,7 @@ function EventDetailContent({
       >
         <div className="rainbow-surface rounded-xl border border-[var(--line)] p-4 shadow-md">
           <TabsList variant="line" className="flex-wrap">
-            {PHASES.map((phase) => (
+            {phases.map((phase) => (
               <TabsTrigger key={phase.key} value={phase.key}>
                 {phase.key === "basic" ? "Overview" : phase.label}
                 <PhaseOutstandingBadge tasks={phaseTasks?.[phase.key] ?? []} />
@@ -316,7 +336,7 @@ function EventDetailContent({
           </TabsList>
         </div>
 
-        {PHASES.map((phase) => (
+        {phases.map((phase) => (
           <TabsContent key={phase.key} value={phase.key} className="mt-4">
             {/* Base UI unmounts the phases you aren't looking at, so exactly
                 one provider is live and each shared read runs once per phase

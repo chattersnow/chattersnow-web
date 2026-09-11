@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import {
   MAX_LISTED_ROWS,
+  OPS_REPORT_SOURCE_MODULES,
   buildOpsReport,
   isEmailAddress,
   opsReportDay,
   opsReportDedupeKey,
+  opsReportSourceGates,
   parseOpsReportRecipients,
   type OpsReportSource,
 } from "./ops-report";
@@ -226,5 +228,62 @@ describe("buildOpsReport", () => {
     expect(report?.tenantId).toBe("tenant-1");
     expect(report?.day).toBe("2026-03-14");
     expect(report?.since).toBe(SINCE);
+  });
+});
+
+describe("opsReportSourceGates", () => {
+  const EVERY_FIELD = Object.keys(
+    OPS_REPORT_SOURCE_MODULES,
+  ) as (keyof OpsReportSource)[];
+
+  test("lets every count through for a tenant holding every module", () => {
+    const gates = opsReportSourceGates({
+      finance: true,
+      reimbursements: true,
+      events: true,
+      communications: true,
+      volunteers: true,
+      inventory: true,
+    });
+    for (const field of EVERY_FIELD) expect(gates[field]).toBe(true);
+  });
+
+  test("closes the counts a disabled module owns, and no others", () => {
+    const gates = opsReportSourceGates({ finance: false });
+
+    // Both halves of Finance, which sit in two different report sections.
+    expect(gates.pendingExpenseApprovals).toBe(false);
+    expect(gates.monetaryDonations).toBe(false);
+
+    // Each of those sections keeps its other line: this is per count, not per
+    // section, because the sections mix modules.
+    expect(gates.pendingReimbursementApprovals).toBe(true);
+    expect(gates.inKindDonations).toBe(true);
+    expect(gates.newContactMessages).toBe(true);
+    expect(gates.newVolunteerApplications).toBe(true);
+    expect(gates.upcomingEvents).toBe(true);
+    expect(gates.shiftCoverageGaps).toBe(true);
+  });
+
+  test("coverage gaps follow Events, not Volunteers", () => {
+    const gates = opsReportSourceGates({ volunteers: false });
+    expect(gates.shiftCoverageGaps).toBe(true);
+    expect(gates.newVolunteerApplications).toBe(false);
+  });
+
+  test("fails open on a map that is empty or has never heard of a module", () => {
+    // An unreadable answer and a map that predates a module both leave the
+    // counts in -- the same direction as the coalesce at the bottom of
+    // module_enabled_for_tenant().
+    const gates = opsReportSourceGates({});
+    for (const field of EVERY_FIELD) expect(gates[field]).toBe(true);
+  });
+
+  test("a tenant with every reported module off is sent nothing", () => {
+    // The job skips the reads, so what it shapes is an all-zeros source -- and
+    // that is the quiet day buildOpsReport already declines to send. Asserted
+    // here so "no sections left" cannot quietly become "an email with nothing
+    // in it".
+    expect(build()).toBeNull();
   });
 });

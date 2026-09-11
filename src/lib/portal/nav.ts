@@ -19,7 +19,21 @@ export type NavSubItem = {
   value: string;
   label: string;
   href: string;
+  /** Any one of these is enough, the way `hasAnyPermission` reads them. */
   access: readonly PermissionCheck[];
+  /**
+   * An extra condition that must hold *as well as* `access`, for a cross-link
+   * whose route guard is not the section it is filed under (#903).
+   *
+   * Volunteers -> Directory is the only one: it points at the People directory
+   * filtered to volunteers, so `access` says `people:view` -- the guard
+   * people/layout.tsx actually has -- and without this a tenant whose
+   * Volunteers module is off kept a Volunteers section in the sidebar holding
+   * that one link, advertising a module it was never sold. `people` is a core
+   * module and can never be disabled, so the link itself was never a dead end;
+   * the section heading above it was the lie.
+   */
+  alsoRequires?: readonly PermissionCheck[];
 };
 
 export type NavItem = {
@@ -213,11 +227,17 @@ export const NAV_ITEMS: readonly NavItem[] = [
       // duplicated, and gated on the guard its route actually has
       // (people/layout.tsx), which is why this one says people:view. Listed
       // last so firstAccessibleHref still lands /portal/volunteers on Roles.
+      //
+      // `alsoRequires` is what keeps it from holding the whole Volunteers
+      // section open on its own: people:view is held by almost everyone and
+      // `people` is a core module, so without it a tenant with Volunteers off
+      // still got a Volunteers heading with this single link under it (#903).
       {
         value: "directory",
         label: "Directory",
         href: "/portal/people/volunteers",
         access: [{ resource: "people", level: "view" }],
+        alsoRequires: [{ resource: "volunteers", level: "view" }],
       },
     ],
   },
@@ -530,16 +550,15 @@ export function activeSubItemFor(
  * section's href is rewritten to its first reachable sub-item.
  */
 export function visibleNavItems(permissions: PermissionMap): NavItem[] {
+  const reachable = (sub: NavSubItem) =>
+    hasAnyPermission(permissions, sub.access) &&
+    (!sub.alsoRequires || hasAnyPermission(permissions, sub.alsoRequires));
+
   return NAV_ITEMS.filter((item) => {
-    if (item.subItems)
-      return item.subItems.some((sub) =>
-        hasAnyPermission(permissions, sub.access),
-      );
+    if (item.subItems) return item.subItems.some(reachable);
     return !item.access || hasAnyPermission(permissions, item.access);
   }).map((item) => {
-    const subItems = item.subItems?.filter((sub) =>
-      hasAnyPermission(permissions, sub.access),
-    );
+    const subItems = item.subItems?.filter(reachable);
     const href =
       subItems &&
       subItems.length > 0 &&
