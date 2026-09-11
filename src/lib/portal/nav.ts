@@ -269,6 +269,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
         access: [{ resource: "finance", level: "manage" }],
       },
       {
+        value: "products",
+        label: "Products",
+        href: "/portal/finance/sales/products",
+        access: [{ resource: "sales", level: "manage" }],
+      },
+      {
         value: "donations",
         label: "Donations",
         href: "/portal/finance/donations",

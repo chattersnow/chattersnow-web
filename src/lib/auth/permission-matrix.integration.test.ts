@@ -87,6 +87,30 @@ describe("authorization matrix (integration)", () => {
     expect(permissions.volunteer_hours_logging).toBe("manage");
   });
 
+  test("sales is manage for the three roles that run a register, and none for the two that don't", async () => {
+    // #907. event_coordinator is the interesting one: it holds sales at
+    // manage while holding finance at none, so the Sales pages cannot be
+    // gated on `finance` and the Finance layout has to admit `sales`
+    // independently.
+    for (const role of ["admin", "finance", "coordinator"] as const) {
+      const permissions = await permissionsFor(
+        await signIn(SEEDED_USERS[role]),
+      );
+      expect(permissions.sales, role).toBe("manage");
+    }
+    for (const role of ["board", "volunteer"] as const) {
+      const permissions = await permissionsFor(
+        await signIn(SEEDED_USERS[role]),
+      );
+      expect(permissions.sales, role).toBe("none");
+    }
+
+    const coordinator = await permissionsFor(
+      await signIn(SEEDED_USERS.coordinator),
+    );
+    expect(coordinator.finance).toBe("none");
+  });
+
   test("a user with multiple roles gets the highest level from either role, per resource", async () => {
     // multi@example.test holds event_coordinator (events: manage,
     // inventory_intake: none) and volunteer (events: view, inventory_intake:
