@@ -12,6 +12,7 @@
 //   bun run tenant:list
 //   bun run tenant:export <slug> [--out path.json]
 //   bun run tenant:plan <slug> --plan <internal|demo|white_label>
+//   bun run tenant:modules <slug> [--enable <key>] [--disable <key>]
 //   bun run tenant:archive <slug>
 //   bun run tenant:delete <slug> --confirm <slug>
 //   bun run tenant:support <slug> --email staff@platform.org --reason "..." \
@@ -35,6 +36,13 @@
 // platform administration resolves only inside one, so there would be no way
 // back in. See scripts/tenant/plan-guards.ts and #795.
 //
+// `tenant:modules` lists and sets a tenant's module entitlements (#901). The
+// portal offers the same thing at Administration > Platform > Modules, through
+// an RPC behind the operator gate; this writes as service_role and therefore
+// goes around that gate, which is the point -- it is the fallback for when the
+// portal itself is what is broken. The refusals that matter are in
+// scripts/tenant/module-guards.ts, with the #900 trigger as the backstop.
+//
 // Support grants are normally issued by the tenant's own admin from
 // Administration > Users; this command is the fallback for an organization
 // that has locked itself out, and it should be used with their agreement.
@@ -45,6 +53,11 @@ import { parseArgs } from "node:util";
 import { createClient } from "@supabase/supabase-js";
 import { inviteOrigin } from "./tenant/invite-origin";
 import { TenantPlanError, assertPlanChange } from "./tenant/plan-guards";
+import {
+  TenantModuleError,
+  assertModuleChange,
+  type ModuleRow,
+} from "./tenant/module-guards";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const secret = process.env.SUPABASE_SECRET_KEY;
@@ -74,6 +87,8 @@ const { values, positionals } = parseArgs({
     template: { type: "string" },
     out: { type: "string" },
     confirm: { type: "string" },
+    enable: { type: "string" },
+    disable: { type: "string" },
     email: { type: "string" },
     reason: { type: "string" },
     days: { type: "string", default: "7" },
@@ -265,6 +280,98 @@ async function changePlan() {
   }
 }
 
+async function modules() {
+  const slug = required(positionals[0], "slug (positional)");
+  const tenant = await tenantBySlug(slug);
+
+  if (values.enable && values.disable) {
+    fail("Pass one of --enable or --disable, not both.");
+  }
+
+  const { data: catalog, error: catalogError } = await service
+    .from("modules")
+    .select("key, label, is_core, default_enabled")
+    .order("sort_order");
+  if (catalogError) fail(catalogError.message);
+
+  const requestedKey = values.enable ?? values.disable;
+  if (requestedKey) {
+    const enabled = Boolean(values.enable);
+    let target: ModuleRow;
+    try {
+      target = assertModuleChange({
+        tenant,
+        catalog: (catalog ?? []) as ModuleRow[],
+        requestedKey,
+        enabled,
+      });
+    } catch (guardError) {
+      if (guardError instanceof TenantModuleError) fail(guardError.message);
+      throw guardError;
+    }
+
+    // No updated_by: this runs as service_role with no account behind it, and
+    // a null there reads as "the CLI" rather than misattributing it to
+    // whoever last used the portal.
+    const { error } = await service.from("tenant_modules").upsert(
+      {
+        tenant_id: tenant.id,
+        module_key: target.key,
+        enabled,
+        updated_at: new Date().toISOString(),
+        updated_by: null,
+      },
+      { onConflict: "tenant_id,module_key" },
+    );
+    if (error) fail(error.message);
+
+    console.log(
+      `"${target.label}" is now ${enabled ? "on" : "off"} for "${tenant.name}" (${slug}).`,
+    );
+    if (!enabled) {
+      console.log(
+        "Their data is retained and unreachable; re-enabling restores the section. Nobody was notified.",
+      );
+    }
+  }
+
+  // Always print the resulting state, whether or not anything was set: the
+  // same resolution order tenant_module_enabled() uses, so what this prints is
+  // what the portal will do.
+  const { data: rows, error: rowsError } = await service
+    .from("tenant_modules")
+    .select("module_key, enabled")
+    .eq("tenant_id", tenant.id);
+  if (rowsError) fail(rowsError.message);
+  const { data: planRows, error: planError } = await service
+    .from("plan_modules")
+    .select("module_key, enabled")
+    .eq("plan", tenant.plan);
+  if (planError) fail(planError.message);
+
+  const forTenant = new Map(
+    (rows ?? []).map((r) => [r.module_key as string, r.enabled as boolean]),
+  );
+  const forPlan = new Map(
+    (planRows ?? []).map((r) => [r.module_key as string, r.enabled as boolean]),
+  );
+
+  console.table(
+    (catalog ?? []).map((m) => {
+      const key = m.key as string;
+      const set = forTenant.has(key);
+      return {
+        module: key,
+        enabled: set
+          ? forTenant.get(key)
+          : (forPlan.get(key) ?? (m.default_enabled as boolean)),
+        source: set ? "tenant" : forPlan.has(key) ? "plan" : "default",
+        core: m.is_core,
+      };
+    }),
+  );
+}
+
 async function remove() {
   const slug = required(positionals[0], "slug (positional)");
   if (values.confirm !== slug) {
@@ -345,6 +452,7 @@ const commands: Record<string, () => Promise<void>> = {
   list,
   export: exportTenant,
   plan: changePlan,
+  modules,
   archive,
   delete: remove,
   support,

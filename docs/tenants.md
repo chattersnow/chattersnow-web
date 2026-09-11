@@ -65,6 +65,9 @@ into:
 - the catalog defaults a fresh database gets from migrations: the inventory
   category vocabulary, the agenda templates and the content brief templates,
   current versions included;
+- its **module entitlements**, seeded from `plan_modules` for `--plan` and
+  _not_ copied from the template tenant: the template's entitlements are what
+  the platform sold that organization. See "Modules" below;
 - the platform-default settings (`finance.*`, `content.*`, `org.*`), and
   nothing else from the template's `app_settings` -- not its page visibility
   or branding, and nothing from `site_content` (copy or photos);
@@ -93,12 +96,20 @@ with the invite link on screen. It does not offer `--template`: choosing a
 template is choosing whose permission matrix a customer inherits, and that is
 not a dropdown. Use the command when you need one.
 
+A new tenant starts with every module its plan gives it, which today is all of
+them for all three plans. Withhold one afterwards from Administration → Platform
+→ Modules, or with `tenant:modules`.
+
 ### What is not seeded
 
 The public observance calendar, the nonprofit-status milestones and the
 volunteer role types describe Chatter Snow, not the platform, so a new tenant
 starts without them. Retention policies are still one platform-wide set (see
 "Still owed" below).
+
+Module entitlements are seeded, but from `plan_modules` rather than from the
+template tenant — for the same reason retention rules always arrive in
+`dry_run`: what the template was sold is not what this organization was sold.
 
 ## Custom domains
 
@@ -417,10 +428,15 @@ this command is the only way:
 bun run tenant:plan example-nonprofit --plan white_label
 ```
 
-The plan decides two things and nothing else: `internal` is what
-`is_platform_operator()` requires of the caller's own tenant, and the oldest
-`internal` tenant is what `provision_tenant()` templates from. `demo` is what
-`current_tenant_is_demo()` reads and what `seed_demo_tenant()` insists on.
+The plan decides three things and nothing else: `internal` is what
+`is_platform_operator()` requires of the caller's own tenant, the oldest
+`internal` tenant is what `provision_tenant()` templates from, and the plan's
+row in `plan_modules` is what a tenant's module entitlements are seeded from at
+provisioning (see the next section). `demo` is what `current_tenant_is_demo()`
+reads and what `seed_demo_tenant()` insists on.
+
+Changing a plan does **not** re-seed modules. A tenant's `tenant_modules` rows
+are what it was sold; the plan only decides what it starts with.
 
 It refuses to move the **last active `internal` tenant** off that plan.
 Platform administration resolves only inside one, and it is a membership rather
@@ -429,6 +445,109 @@ than a bypass, so there would be no way back in and no super-admin to open one
 the internal tenant. Provision the replacement first, then move the old one.
 The guards are in `scripts/tenant/plan-guards.ts` and unit tested; the database
 has no opinion here, so they are the only check there is.
+
+## Modules: what a tenant has been sold
+
+A **module** is a named group of resources — Events, Finance, Inventory,
+Governance and so on — that a tenant is either entitled to or not. They are the
+answer to "this nonprofit runs no gear library, why are we showing them
+Inventory", and to "we sold them the volunteer half and not the money half".
+
+The flags are **the platform's, not the customer's**. A tenant admin owns their
+own permission matrix, so anything they can write is not a gate: `tenant_modules`
+has a select policy for its own tenant and **no insert, update or delete policy
+for anyone**. Every write goes through an operator RPC or the CLI.
+
+A module that is off is enforced in the database, not in the navigation. All
+three of the functions the portal resolves access through subtract it —
+`has_permission()` (every RLS predicate and every definer RPC),
+`my_permissions()` (the sidebar, the command palette, `requirePermission()` in
+every route layout, the dashboard) and `people_with_permission()` (the
+sessionless recipient resolver behind inbound submission mail). A customer whose
+Volunteers module is off does not get volunteer-application email either.
+
+**Off is hidden and frozen, never deleted.** The rows stay, the tenant's export
+still contains them, `delete_tenant()` still removes them, and turning the module
+back on restores the section with its history intact. Nothing about a module
+deletes tenant data.
+
+### The catalog
+
+| Module              | Resources                                                                                                     |
+| ------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `events`            | `events`, `event_impact`, `event_incidents`, `event_volunteer_hours`                                          |
+| `artwork`           | `artwork_submissions`                                                                                         |
+| `calendar`          | `content_calendar`, `content_calendar_reports`                                                                |
+| `programs`          | `programs`, `programs_reports`                                                                                |
+| `inventory`         | `inventory`, `inventory_reports`, `inventory_intake`                                                          |
+| `volunteers`        | `volunteers`, `volunteer_hours_logging`                                                                       |
+| `communications`    | `communications`                                                                                              |
+| `finance`           | `finance`, `finance_approvals`, `finance_reports`, `finance_self_approval`, `event_expenses`, `event_revenue` |
+| `reimbursements`    | `reimbursements`, `reimbursement_approvals`, `reimbursement_self_approval`                                    |
+| `people`            | `people`, `people_intake` — **core**                                                                          |
+| `governance`        | `governance`                                                                                                  |
+| `access_management` | `access_management_assets`, `access_management_reviews`                                                       |
+| `administration`    | `administration`, `system_settings`, `site_content`, `platform_tenants` — **core**                            |
+
+Two of those placements are decisions rather than tidying:
+
+- **`event_expenses` and `event_revenue` are Finance, not Events**, though
+  `resources.section` says Events. They are the money tabs on an event, and a
+  tenant that is not buying Finance should not see money on an event detail
+  page. So turning Finance off takes two tabs off Events, on purpose.
+- **`platform_tenants` is in the core `administration` module**, so no
+  configuration can gate the operator out of the page that un-gates things.
+
+**Core** modules (`people`, `administration`) cannot be turned off for anyone.
+The RPC refuses it, the CLI guard refuses it, and a trigger on `tenant_modules`
+refuses it underneath both — the CLI writes as `service_role`, which bypasses
+row-level security but not triggers.
+
+### Where a value comes from
+
+Resolution order, in `module_enabled_for_tenant()`: the tenant's own
+`tenant_modules` row, else its plan's row in `plan_modules`, else
+`modules.default_enabled`, else on.
+
+It **fails open** — the opposite of page visibility, and deliberately. A missing
+`page_visibility` row means "nobody has approved publishing this yet", so the
+safe answer is dark. A missing module row means "this tenant predates the
+table", and blacking out an existing organization's Finance section because a
+seed missed it is the worse failure.
+
+Both the portal and the CLI show which of the three answered, because "on
+because we said so for this organization" and "on because nobody has said
+otherwise" call for different actions.
+
+### Setting them
+
+**From the portal:** Administration → Platform → **Modules** on the
+organization's row. Switches, with core modules shown but disabled, and a line
+under each saying where its current value comes from. Turning one off asks for a
+confirmation and says what will happen; turning one on does not. Nobody is
+notified — tell the customer yourself.
+
+**From the command line**, which is the fallback for when the portal is what is
+broken:
+
+```bash
+bun run tenant:modules example-nonprofit
+bun run tenant:modules example-nonprofit --disable finance
+bun run tenant:modules example-nonprofit --enable finance
+```
+
+With no flag it lists; with one it sets and then lists. It writes as
+`service_role` and so goes around the RPC's gate entirely, which is why the
+refusals live in `scripts/tenant/module-guards.ts` and are unit tested: an
+unknown module key, a core module, and turning anything off on the `internal`
+tenant — that last one being the operator dismantling their own controls, with
+no super-admin to put them back.
+
+Every write is audited. `tenant_modules` is registered in `audited_tables`, so
+insert, update and delete all land in `audit_log` whichever route wrote them,
+including provisioning's initial seed. `record_id` is the **tenant**, since
+`tenant_modules` is keyed by `(tenant_id, module_key)` and has no surrogate id;
+which module changed and what it became are in `old_data`/`new_data`.
 
 ## Writing migrations on a multi-tenant database
 
