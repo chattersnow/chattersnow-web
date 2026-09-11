@@ -99,12 +99,15 @@ export default async function FinancialReportsPage({
         reimbursements: result.reimbursements ?? [],
         in_kind_items: result.in_kind_items ?? [],
         monetary_donations: result.monetary_donations ?? [],
+        sales: result.sales ?? [],
       };
     }
   }
 
   const summary = data ? computeFinanceSummary(data) : null;
-  const revenueBySource = data ? summarizeRevenueBySource(data.revenue) : [];
+  const revenueBySource = data
+    ? summarizeRevenueBySource(data.revenue, data.sales)
+    : [];
   const expensesByStatus = data ? summarizeSpendByStatus(data.expenses) : [];
   const reimbursementsByStatus = data
     ? summarizeSpendByStatus(data.reimbursements)
@@ -114,6 +117,7 @@ export default async function FinancialReportsPage({
         data.revenue,
         [...data.expenses, ...data.reimbursements],
         data.monetary_donations,
+        data.sales,
       )
     : [];
 
@@ -124,7 +128,14 @@ export default async function FinancialReportsPage({
         {
           label: "Income",
           value: formatCurrency(summary.income),
-          caption: "Event revenue received",
+          caption: "Event revenue and merchandise sales",
+        },
+        {
+          label: "Merchandise sales",
+          value: formatCurrency(summary.salesTotal),
+          caption: `${formatNumber(summary.salesCount)} sale${
+            summary.salesCount === 1 ? "" : "s"
+          } recorded`,
         },
         {
           label: "Monetary donations",
@@ -165,8 +176,8 @@ export default async function FinancialReportsPage({
           </div>
           <p className="app-muted mt-3 max-w-2xl text-sm">
             Summary of income, expenses, and donations across the selected
-            period, computed live from event revenue, expenses, reimbursements,
-            monetary donations, and donation intake.
+            period, computed live from event revenue, merchandise sales,
+            expenses, reimbursements, monetary donations, and donation intake.
           </p>
         </div>
       </div>
@@ -187,7 +198,7 @@ export default async function FinancialReportsPage({
           </CardContent>
         </Card>
       ) : summary ? (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {summaryCards.map((card) => (
             <Card key={card.label}>
               <CardHeader>
@@ -272,7 +283,7 @@ export default async function FinancialReportsPage({
                   <EmptyState
                     className="py-4"
                     title="No revenue recorded in this period"
-                    description="Widen the date range above, or record income under Finance › Revenue."
+                    description="Widen the date range above, or record income under Finance › Revenue or Finance › Sales."
                   />
                 ) : (
                   <RevenueBySourceTable rows={revenueBySource} />

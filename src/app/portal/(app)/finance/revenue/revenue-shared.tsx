@@ -6,6 +6,11 @@ export type RevenueSource =
   | "grants"
   | "other";
 
+// Every source a row can currently *hold*. `merchandise` stays here -- rows
+// predating the register (#908) still carry it, and they have to display,
+// filter and validate like any other. What changed in #909 is that nothing
+// new may be created with it: pickers offer REVENUE_SOURCE_OPTIONS instead,
+// and a database trigger is the actual gate.
 export const REVENUE_SOURCES: readonly RevenueSource[] = [
   "ticket_sales",
   "registration_fees",
@@ -14,6 +19,14 @@ export const REVENUE_SOURCES: readonly RevenueSource[] = [
   "grants",
   "other",
 ];
+
+/** The sources a new row may be given. Merchandise is sold at the register. */
+export const REVENUE_SOURCE_OPTIONS: readonly RevenueSource[] =
+  REVENUE_SOURCES.filter((source) => source !== "merchandise");
+
+/** Shown wherever a user is stopped from choosing `merchandise`. */
+export const MERCHANDISE_RETIRED_MESSAGE =
+  "Merchandise is recorded under Finance > Sales.";
 
 export function isRevenueSource(
   value: string | undefined,

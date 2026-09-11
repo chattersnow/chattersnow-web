@@ -290,6 +290,7 @@ export function EditRevenueModal({
                     update={update}
                     events={events}
                     lockEventSelection={lockEventSelection}
+                    legacyMerchandise={revenue.source === "merchandise"}
                     idPrefix="edit-revenue"
                   />
 

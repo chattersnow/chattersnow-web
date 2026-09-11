@@ -10,8 +10,11 @@ import {
   type FinanceReportData,
   type MonetaryDonationReportRow,
   type RevenueReportRow,
+  type SaleReportRow,
   type SpendReportRow,
 } from "./summary";
+
+const SOLD_AT = "2026-03-15T18:00:00Z";
 
 // numeric(10,2) columns come back from PostgREST as strings, so every helper
 // has to cope with both shapes.
@@ -48,6 +51,40 @@ describe("summarizeRevenueBySource", () => {
 
   test("returns nothing for an empty period", () => {
     expect(summarizeRevenueBySource([])).toEqual([]);
+  });
+
+  // #909: merchandise is sold at the register, but rows typed in before it
+  // existed still carry `source = 'merchandise'`. The reader gets one line
+  // for both, or the same product appears twice under different names.
+  test("folds register sales into the merchandise bucket", () => {
+    const sales: SaleReportRow[] = [
+      { amount: 30, sold_at: SOLD_AT, event_id: null, event_name: null },
+      { amount: "12.50", sold_at: SOLD_AT, event_id: "e1", event_name: "Jam" },
+    ];
+    const legacy: RevenueReportRow[] = [
+      { source: "merchandise", amount: 7.5, event_id: null, event_name: null },
+    ];
+    expect(summarizeRevenueBySource(legacy, sales)).toEqual([
+      { source: "merchandise", count: 3, total: 50 },
+    ]);
+  });
+
+  test("gives sales a merchandise row of their own when no legacy row exists", () => {
+    const sales: SaleReportRow[] = [
+      { amount: 30, sold_at: SOLD_AT, event_id: null, event_name: null },
+    ];
+    expect(summarizeRevenueBySource(revenue, sales)).toEqual([
+      { source: "grants", count: 1, total: 500 },
+      { source: "ticket_sales", count: 2, total: 150 },
+      { source: "merchandise", count: 1, total: 30 },
+      { source: "other", count: 1, total: 10 },
+    ]);
+  });
+
+  test("is unchanged when no sales are passed", () => {
+    expect(summarizeRevenueBySource(revenue, [])).toEqual(
+      summarizeRevenueBySource(revenue),
+    );
   });
 });
 
@@ -138,6 +175,28 @@ describe("summarizeByEvent", () => {
     });
   });
 
+  test("adds event-linked sales to that event's income", () => {
+    const sales: SaleReportRow[] = [
+      { amount: 60, sold_at: SOLD_AT, event_id: "e1", event_name: "Jam" },
+      { amount: "15", sold_at: SOLD_AT, event_id: null, event_name: null },
+    ];
+    const byEvent = summarizeByEvent(revenue, spend, [], sales);
+    expect(byEvent.find((row) => row.eventId === "e1")).toEqual({
+      eventId: "e1",
+      eventName: "Jam",
+      income: 360,
+      paidSpend: 100,
+      net: 260,
+    });
+    expect(byEvent.find((row) => row.eventId === null)).toEqual({
+      eventId: null,
+      eventName: NO_EVENT_LABEL,
+      income: 35,
+      paidSpend: 0,
+      net: 35,
+    });
+  });
+
   test("groups every unassigned row under a single 'No event' entry", () => {
     const unassigned = summarizeByEvent(
       [{ source: "grants", amount: 10, event_id: null, event_name: null }],
@@ -180,15 +239,34 @@ describe("computeFinanceSummary", () => {
       { amount: 100, event_id: null, event_name: null, donor_name: "Jamie" },
       { amount: "25", event_id: null, event_name: null, donor_name: null },
     ],
+    sales: [
+      { amount: 120, sold_at: SOLD_AT, event_id: null, event_name: null },
+      { amount: "80", sold_at: SOLD_AT, event_id: "e1", event_name: "Jam" },
+    ],
   };
 
   test("nets cash income and monetary donations against paid spend", () => {
     const summary = computeFinanceSummary(data);
-    expect(summary.income).toBe(1000);
+    // 1000 of event revenue plus 200 of completed sales.
+    expect(summary.income).toBe(1200);
     expect(summary.cashDonations).toBe(125);
     expect(summary.cashDonationCount).toBe(2);
     expect(summary.paidSpend).toBe(200);
-    expect(summary.net).toBe(925);
+    expect(summary.net).toBe(1125);
+  });
+
+  test("reports merchandise sales separately as well as inside income", () => {
+    const summary = computeFinanceSummary(data);
+    expect(summary.salesTotal).toBe(200);
+    expect(summary.salesCount).toBe(2);
+    expect(summary.income).toBe(1000 + summary.salesTotal);
+  });
+
+  test("leaves income on event revenue alone when nothing was sold", () => {
+    const summary = computeFinanceSummary({ ...data, sales: [] });
+    expect(summary.salesTotal).toBe(0);
+    expect(summary.salesCount).toBe(0);
+    expect(summary.income).toBe(1000);
   });
 
   test("reports approved-but-unpaid and pending spend separately", () => {
@@ -207,7 +285,7 @@ describe("computeFinanceSummary", () => {
   });
 
   test("rejected spend never reduces the net", () => {
-    expect(computeFinanceSummary(data).net).toBe(925);
+    expect(computeFinanceSummary(data).net).toBe(1125);
   });
 
   test("zeroes out on an empty period", () => {
@@ -218,9 +296,12 @@ describe("computeFinanceSummary", () => {
         reimbursements: [],
         in_kind_items: [],
         monetary_donations: [],
+        sales: [],
       }),
     ).toEqual({
       income: 0,
+      salesTotal: 0,
+      salesCount: 0,
       cashDonations: 0,
       cashDonationCount: 0,
       paidSpend: 0,

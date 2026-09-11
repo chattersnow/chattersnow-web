@@ -98,7 +98,10 @@ export default async function PortalHomePage({
   // events), so each live-data widget checks its own resource or it would
   // render a misleading zero instead of just not appearing.
   const canSeeExpenses = hasPermission(permissions, "event_expenses", "view");
-  const canSeeRevenue = hasPermission(permissions, "event_revenue", "view");
+  const canSeeRevenue = hasAnyPermission(permissions, [
+    { resource: "event_revenue", level: "view" },
+    { resource: "sales", level: "view" },
+  ]);
   const canSeeReimbursements = hasPermission(
     permissions,
     "reimbursements",
@@ -331,7 +334,7 @@ export default async function PortalHomePage({
             )}
             {canSeeRevenue && (
               <DashboardStatRow
-                label="Revenue"
+                label="Revenue and sales"
                 href="/portal/finance/revenue"
                 value={formatCurrency(financial.revenueThisMonth)}
                 caption={`This month · ${formatCurrency(financial.revenueThisYear)} ${fiscalYearLabel}`}

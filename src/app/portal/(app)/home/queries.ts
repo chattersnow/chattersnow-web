@@ -92,9 +92,9 @@ const EARLIEST_FINANCE_DATE = "2000-01-01";
 
 // get_finance_report_data (20260828010000) is a SECURITY DEFINER RPC gated
 // on finance_reports:view, returning revenue/expenses/reimbursements/
-// monetary-donations rows regardless of the caller's table-level RLS --
+// monetary-donations/sales rows regardless of the caller's table-level RLS --
 // exactly what board (finance_reports:view but no event_expenses/
-// event_revenue/finance table access) needs to see an aggregate cash
+// event_revenue/sales/finance table access) needs to see an aggregate cash
 // figure. Every role that reaches getFinancialSummary already holds
 // finance_reports:view (see canSeeFinancial in home/page.tsx), so no
 // separate per-widget permission check is needed here the way
@@ -116,6 +116,7 @@ async function loadFinanceReportData(
     reimbursements: result.reimbursements ?? [],
     in_kind_items: result.in_kind_items ?? [],
     monetary_donations: result.monetary_donations ?? [],
+    sales: result.sales ?? [],
   };
 }
 
@@ -131,8 +132,6 @@ export async function getFinancialSummary(
     { data: expensesThisYear },
     { data: expensesThisMonth },
     { data: eventBudgets },
-    { data: revenueThisYear },
-    { data: revenueThisMonth },
     { data: outstandingReimbursements },
     allTimeFinanceData,
     yearFinanceData,
@@ -152,14 +151,6 @@ export async function getFinancialSummary(
       .eq("status", "published")
       .gte("starts_at", nowIso),
     supabase
-      .from("event_revenue")
-      .select("amount")
-      .gte("received_date", startOfYearDate),
-    supabase
-      .from("event_revenue")
-      .select("amount")
-      .gte("received_date", startOfMonthDate),
-    supabase
       .from("reimbursements")
       .select("amount")
       .in("status", ["submitted", "approved"]),
@@ -176,9 +167,11 @@ export async function getFinancialSummary(
   ).reduce((total, row) => total + (row.budget_amount ?? 0), 0);
 
   // Cash position is net of paid spend only (money that's actually left the
-  // bank); monthly/yearly income is gross cash in (revenue + monetary
-  // donations), matching the Finance Reports page's definitions
-  // (computeFinanceSummary).
+  // bank); monthly/yearly income is gross cash in (revenue + merchandise
+  // sales + monetary donations), matching the Finance Reports page's
+  // definitions (computeFinanceSummary). `income` there is already event
+  // revenue plus completed sales, which is exactly what the Revenue tile
+  // means, so both figures come off the same summaries.
   const cashPositionSummary = computeFinanceSummary(allTimeFinanceData);
   const yearIncomeSummary = computeFinanceSummary(yearFinanceData);
   const monthIncomeSummary = computeFinanceSummary(monthFinanceData);
@@ -187,8 +180,8 @@ export async function getFinancialSummary(
     expensesThisMonth: sumAmounts(expensesThisMonth),
     expensesThisYear: sumAmounts(expensesThisYear),
     eventBudgetTotal,
-    revenueThisMonth: sumAmounts(revenueThisMonth),
-    revenueThisYear: sumAmounts(revenueThisYear),
+    revenueThisMonth: monthIncomeSummary.income,
+    revenueThisYear: yearIncomeSummary.income,
     outstandingReimbursementTotal: sumAmounts(outstandingReimbursements),
     cashPositionTotal: cashPositionSummary.net,
     incomeThisMonth:

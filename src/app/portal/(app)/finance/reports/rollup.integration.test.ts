@@ -17,6 +17,7 @@ import {
   adminClient,
   createPerson,
   createPublishedEvent,
+  serviceRoleClient,
   signInAs,
 } from "../../../../../../test/integration-setup";
 
@@ -41,6 +42,12 @@ type ReportPayload = {
   monetary_donations: {
     amount: string | number;
     donor_name: string | null;
+  }[];
+  sales: {
+    amount: string | number;
+    sold_at: string;
+    event_id: string | null;
+    event_name: string | null;
   }[];
 };
 
@@ -119,7 +126,92 @@ const donationId = await insertFixture("monetary_donations", {
   received_date: IN_RANGE_DATE,
 });
 
+// Sales (#909) are the one rollup input with no insert grant at all: the only
+// way one exists is `record_product_sale`. So this file builds a tiny catalog
+// of its own -- three variants at three unique prices, so each sale below is
+// identifiable by its total inside a payload that also holds the seed's --
+// and sells through the real RPC rather than inserting rows.
+const service = serviceRoleClient();
+const run = crypto.randomUUID().slice(0, 8);
+
+const inRangeSaleAmount = uniqueAmount();
+const voidedSaleAmount = uniqueAmount();
+const outOfRangeSaleAmount = uniqueAmount();
+
+const { data: saleProduct, error: saleProductError } = await adminClient
+  .from("products")
+  .insert({ name: `Rollup IT Product ${run}` })
+  .select("id")
+  .single();
+if (saleProductError) throw saleProductError;
+
+const { data: saleVariants, error: saleVariantError } = await adminClient
+  .from("product_variants")
+  .insert(
+    [inRangeSaleAmount, voidedSaleAmount, outOfRangeSaleAmount].map(
+      (price, index) => ({
+        product_id: saleProduct.id,
+        label: `Rollup ${index}`,
+        price,
+        stock_on_hand: 5,
+        is_active: true,
+      }),
+    ),
+  )
+  .select("id, price");
+if (saleVariantError) throw saleVariantError;
+
+const variantIdForPrice = new Map(
+  (saleVariants as { id: string; price: string | number }[]).map((variant) => [
+    Number(variant.price),
+    variant.id,
+  ]),
+);
+
+async function sell(price: number, soldAt: string): Promise<string> {
+  const { data, error } = await adminClient
+    .rpc("record_product_sale", {
+      p_event_id: event.id,
+      p_purchaser_person_id: null,
+      p_payment_method: "cash",
+      p_discount_amount: 0,
+      p_sold_at: soldAt,
+      p_notes: `Rollup IT sale ${run}`,
+      p_lines: [{ variant_id: variantIdForPrice.get(price), quantity: 1 }],
+    })
+    .single();
+  if (error) throw error;
+  return (data as { sale_id: string }).sale_id;
+}
+
+const inRangeSaleId = await sell(
+  inRangeSaleAmount,
+  `${IN_RANGE_DATE}T18:00:00Z`,
+);
+const outOfRangeSaleId = await sell(
+  outOfRangeSaleAmount,
+  "2026-04-15T18:00:00Z",
+);
+const voidedSaleId = await sell(voidedSaleAmount, `${IN_RANGE_DATE}T19:00:00Z`);
+const { error: voidError } = await adminClient.rpc("void_product_sale", {
+  p_sale_id: voidedSaleId,
+  p_reason: "Rollup integration test",
+});
+if (voidError) throw voidError;
+
+function saleAmounts(payload: ReportPayload) {
+  return payload.sales.map((row) => Number(row.amount));
+}
+
 afterAll(async () => {
+  // `sales` has no delete grant for authenticated by design, so the catalog
+  // this file created is taken back out through service_role.
+  for (const saleId of [inRangeSaleId, outOfRangeSaleId, voidedSaleId]) {
+    await service.from("sale_line_items").delete().eq("sale_id", saleId);
+    await service.from("sales").delete().eq("id", saleId);
+  }
+  await service.from("products").delete().eq("id", saleProduct.id);
+
   // Ordered by dependency: the reimbursement and donation reference the
   // person, and both the revenue and expense rows reference the event.
   await adminClient.from("reimbursements").delete().eq("id", reimbursementId);
@@ -154,6 +246,9 @@ describe("get_finance_report_data access", () => {
     expect(amounts(boardPayload.revenue)).toContain(revenueAmount);
     expect(amounts(boardPayload.expenses)).toContain(expenseAmount);
     expect(amounts(boardPayload.monetary_donations)).toContain(donationAmount);
+    // board holds finance_reports:view and not sales:view, so this is the
+    // case that proves the rollup's single gate covers the new key too.
+    expect(saleAmounts(boardPayload)).toContain(inRangeSaleAmount);
   });
 
   test.each([
@@ -226,6 +321,34 @@ describe("get_finance_report_data period filtering", () => {
     );
   });
 
+  // #909: merchandise income is derived from the register, so the rollup has
+  // to agree with the ledger about which sales are money -- completed ones,
+  // in the period, and nothing else.
+  test("includes a completed sale rung up inside the range, with its event", async () => {
+    const payload = await report(adminClient, IN_RANGE);
+    const sale = payload.sales.find(
+      (row) => Number(row.amount) === inRangeSaleAmount,
+    );
+    expect(sale).toBeDefined();
+    expect(sale?.event_id).toBe(event.id);
+    expect(sale?.event_name).toBe(event.name);
+  });
+
+  test("excludes a voided sale, whose stock went back", async () => {
+    const payload = await report(adminClient, IN_RANGE);
+    expect(saleAmounts(payload)).not.toContain(voidedSaleAmount);
+  });
+
+  test("buckets sales by the date they were rung up", async () => {
+    const [marchPayload, aprilPayload] = await Promise.all([
+      report(adminClient, IN_RANGE),
+      report(adminClient, OUT_OF_RANGE),
+    ]);
+    expect(saleAmounts(marchPayload)).not.toContain(outOfRangeSaleAmount);
+    expect(saleAmounts(aprilPayload)).toContain(outOfRangeSaleAmount);
+    expect(saleAmounts(aprilPayload)).not.toContain(inRangeSaleAmount);
+  });
+
   test("returns empty arrays rather than nulls for a period with nothing in it", async () => {
     const payload = await report(adminClient, {
       p_from: "1999-01-01",
@@ -237,6 +360,7 @@ describe("get_finance_report_data period filtering", () => {
       reimbursements: [],
       in_kind_items: [],
       monetary_donations: [],
+      sales: [],
     });
   });
 

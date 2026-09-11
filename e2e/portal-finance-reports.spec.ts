@@ -40,6 +40,7 @@ test.describe("portal finance reports", () => {
 
     for (const title of [
       "Income",
+      "Merchandise sales",
       "Expenses paid",
       "Net",
       "In-kind donations",
