@@ -559,6 +559,82 @@ The RPC refuses it, the CLI guard refuses it, and a trigger on `tenant_modules`
 refuses it underneath both — the CLI writes as `service_role`, which bypasses
 row-level security but not triggers.
 
+### The surfaces that don't read `my_permissions()` (#903)
+
+Almost the whole portal follows module gating for free, because it all resolves
+through the three functions above: the sidebar, the command palette, the quick
+actions, breadcrumbs, the section-index redirects, the 48 route layouts that
+call `requirePermission()`, the notification-preference kinds, and the dashboard,
+which derives every widget and every attention item from the permission map.
+Four surfaces read something else, and each needed its own gate.
+
+- **Administration → Permissions** selected straight `from("resources")`, the
+  platform's global catalog, so the matrix offered a column for every resource
+  the product has. An admin could set `finance: manage` on a role and watch it
+  do nothing — the grant is genuinely written, and `my_permissions()` correctly
+  reports `none` — which reads as a bug in the permissions screen. The matrix is
+  now **filtered** to the tenant's enabled modules. That is the opposite call
+  from `20260908010000`, which left the inert `platform_tenants` grant visible as
+  a row someone set, and the two differ on purpose: that grant is inert per
+  _user_, so hiding it would hide a real assignment from the operator reading
+  the same screen, while a disabled module is off for the whole organization.
+  Nothing is deleted — existing grants on a hidden resource stay in
+  `role_permissions`, so re-enabling a module brings the section back with its
+  matrix intact.
+- **The weekly ops report** reads its counts straight off the tables as
+  `service_role` (the portal's `count_pending_*` RPCs answer for `auth.uid()`,
+  and a cron job has no session), so a tenant with Finance off was still being
+  told how many expense approvals were waiting. Each count is now gated on its
+  module, and a gated count is never read rather than read and discarded. The
+  recipients were already gated, through `people_with_permission()`. A tenant
+  with nothing left to report gets no email at all, which is the behaviour a
+  quiet day already had.
+- **The welcome tour** opened by naming seven sections. Every section, quick
+  action and attention item it names is now taken from the reader's permission
+  map, so the tour cannot advertise a section the tenant was not sold.
+- **The event detail page** rendered all seventeen cards regardless. Its
+  Expenses, Revenue, Donations and Distributions cards read Finance and
+  Inventory tables — `event_expenses` and `event_revenue` belong to the
+  **Finance** module, not Events — so a tenant without Finance was offered an
+  Expenses card and an "Add expense" button that could not save. Those four
+  cards now carry the gate their server actions already enforced, and the phase
+  strip is built per reader.
+
+Walking the portal with Finance, Inventory and Volunteers off turned up three
+more, all of the same shape and all fixed here.
+
+- **Volunteers → Directory** links into `/portal/people/volunteers`, and
+  `people` is a core module, so the link itself was never a dead end — but it
+  was the only sub-item left in the Volunteers section, which therefore kept a
+  Volunteers heading in the sidebar for a tenant that was never sold the module.
+  `NavSubItem.alsoRequires` now says a cross-link needs its own section as well
+  as its route's guard.
+- **Finance → Reimbursements** was a link the sidebar rendered and
+  `finance/layout.tsx` refused: Reimbursements is its own module living under
+  the `/portal/finance` prefix, and that layout admitted only the two Finance
+  resources. The same mismatch held for Expenses shown to an approver, and for
+  Administration's Access Management and Platform links under
+  `administration/layout.tsx`. Each of those parent layouts is now the union of
+  what its children admit; every child still re-checks on its own, so nothing is
+  given away.
+- **The People directory's empty states** advised a second route in — "or
+  approve an application from Volunteers › Applications", "or record a donation
+  from Inventory › Donations". Those clauses are now `crossSectionHint` and are
+  appended only for a reader who can reach the section they name. The sentence
+  before them stands alone, and the segment's own New button is directly above
+  it.
+
+`src/lib/portal/nav-guards.test.ts` is the invariant that stops the second of
+those coming back: it reads every route layout on disk and asserts that every
+way of _seeing_ a sidebar link is a way of _opening_ it.
+
+The finance pages name an event on each row but do not link to it, so Events
+being off leaves no dead link behind.
+
+The nightly retention sweep is the fourth sessionless surface and is a
+deliberate exception — see "A disabled module's retention clocks keep running"
+under Data retention.
+
 ### Where a value comes from
 
 Resolution order, in `module_enabled_for_tenant()`: the tenant's own
@@ -655,6 +731,36 @@ takes the **shortest** period any tenant has set -- the privacy-correct
 direction for that data, and the reason the page labels that row as shared.
 Each tenant's run still logs the rule, so the page explains it rather than
 appearing to have skipped it.
+
+### A disabled module's retention clocks keep running (#903)
+
+**Decided: keep purging.** `run_retention_purge()` runs as `pg_cron` with no
+session, so none of #900's three choke points applies to it, and it sweeps every
+active tenant's rules whatever modules that tenant has. A tenant with Inventory
+off for a year therefore comes back to find its gear history aged out by a rule
+nobody was looking at, and that is the intended behaviour rather than an
+oversight.
+
+The argument is that retention is a privacy promise, not a feature. The rows a
+disabled module holds are still personal data about real participants, donors
+and volunteers; "we stopped deleting your data on schedule because the customer
+stopped paying for the section it lives in" is not a sentence this platform
+wants to be able to say, and a regulator reading the retention policy would not
+find an exception for it. Off means hidden and frozen to the _tenant_ -- the
+rows stay, the export still contains them, re-enabling restores the section --
+and none of that is a promise to stop the clock.
+
+The cost is real and is accepted: a tenant that turns Inventory back on after a
+year does not get the year of history it would have had, and nobody was being
+shown the counts in the meantime. What makes it survivable is that the clocks
+are the tenant's own. Every rule arrives in `dry_run`, an organization turns
+each one on for itself after reviewing its counts, and a rule nobody enabled
+purges nothing -- so the data lost is data that organization decided, on the
+record, it did not want kept.
+
+This is written down because the first time anybody notices will be after the
+data is gone. If it is ever revisited, the change is a module check inside
+`run_retention_purge()`'s per-rule loop, not a reschedule of the cron job.
 
 ## The demo tenant
 

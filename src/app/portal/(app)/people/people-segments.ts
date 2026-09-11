@@ -1,3 +1,8 @@
+import {
+  hasAnyPermission,
+  type PermissionCheck,
+  type PermissionMap,
+} from "@/lib/auth/permissions";
 import type { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { PersonType, RoleKey } from "./people-shared";
 
@@ -44,6 +49,23 @@ export type PeopleSegment = {
   /** Shown when the viewer can add records; the other when they cannot. */
   emptyDescriptionManage: string;
   emptyDescriptionView: string;
+  /**
+   * A second sentence naming another section, appended to
+   * `emptyDescriptionManage` only when the reader can reach that section
+   * (#903).
+   *
+   * These segments are filters on the `people` directory -- role flags on a
+   * person row, not modules -- so `people` being core keeps every one of them
+   * reachable. What was not reachable was the advice: "or approve an
+   * application from Volunteers > Applications" is a dead end for a tenant
+   * whose Volunteers module is off, and "record a donation from Inventory >
+   * Donations" for one without Inventory. Split out rather than gated as a
+   * whole string, so the sentence before it still stands on its own.
+   */
+  crossSectionHint?: {
+    text: string;
+    access: readonly PermissionCheck[];
+  };
   /** Optional tiles above the table. */
   stats?: (supabase: SupabaseServerClient) => Promise<SegmentStat[]>;
 };
@@ -110,8 +132,11 @@ export const DONORS_SEGMENT: PeopleSegment = {
   newPerson: { triggerLabel: "New Donor", defaultRole: "is_donor" },
   noun: "donor",
   emptyTitle: "No donors added yet",
-  emptyDescriptionManage:
-    "Add the first one with New Donor above, or record a donation and its donor from Inventory › Donations.",
+  emptyDescriptionManage: "Add the first one with New Donor above.",
+  crossSectionHint: {
+    text: "You can also record a donation and its donor from Inventory › Donations.",
+    access: [{ resource: "inventory", level: "manage" }],
+  },
   emptyDescriptionView:
     "Donors appear here once someone is added with the donor role or recorded on a donation.",
 };
@@ -123,8 +148,11 @@ export const SPONSORS_SEGMENT: PeopleSegment = {
   newPerson: { triggerLabel: "New Sponsor", defaultRole: "is_sponsor" },
   noun: "sponsor",
   emptyTitle: "No sponsors added yet",
-  emptyDescriptionManage:
-    "Add the first one with New Sponsor above, or record a sponsor on an event's Sponsors tab.",
+  emptyDescriptionManage: "Add the first one with New Sponsor above.",
+  crossSectionHint: {
+    text: "You can also record a sponsor on an event's Sponsors tab.",
+    access: [{ resource: "events", level: "manage" }],
+  },
   emptyDescriptionView:
     "Sponsors appear here once someone is added with the sponsor role or recorded on an event's Sponsors tab.",
 };
@@ -139,8 +167,11 @@ export const VOLUNTEERS_SEGMENT: PeopleSegment = {
   newPerson: { triggerLabel: "New Volunteer", defaultRole: "is_volunteer" },
   noun: "volunteer",
   emptyTitle: "No volunteers added yet",
-  emptyDescriptionManage:
-    "Add the first one with New Volunteer above, or approve an application from Volunteers › Applications.",
+  emptyDescriptionManage: "Add the first one with New Volunteer above.",
+  crossSectionHint: {
+    text: "You can also approve an application from Volunteers › Applications.",
+    access: [{ resource: "volunteers", level: "manage" }],
+  },
   emptyDescriptionView:
     "Volunteers appear here once someone applies, signs up for an event shift, or has hours logged.",
 };
@@ -166,8 +197,11 @@ export const STAFF_SEGMENT: PeopleSegment = {
   newPerson: { triggerLabel: "New Staff Member", defaultRole: "is_staff" },
   noun: "staff member",
   emptyTitle: "No staff added yet",
-  emptyDescriptionManage:
-    "Add the first one with New Staff Member above, or assign someone on an event's Staff tab.",
+  emptyDescriptionManage: "Add the first one with New Staff Member above.",
+  crossSectionHint: {
+    text: "You can also assign someone on an event's Staff tab.",
+    access: [{ resource: "events", level: "manage" }],
+  },
   emptyDescriptionView:
     "Staff appear here once someone is added with the staff role or assigned on an event's Staff tab.",
 };
@@ -185,8 +219,11 @@ export const PARTNERS_SEGMENT: PeopleSegment = {
   },
   noun: "partner",
   emptyTitle: "No partners added yet",
-  emptyDescriptionManage:
-    "Add the first one with New Partner above, or close a partnership as won from Governance › Partnerships.",
+  emptyDescriptionManage: "Add the first one with New Partner above.",
+  crossSectionHint: {
+    text: "You can also close a partnership as won from Governance › Partnerships.",
+    access: [{ resource: "governance", level: "manage" }],
+  },
   emptyDescriptionView:
     "Partners appear here once a partnership opportunity is closed as won, or someone is added with the partner role.",
 };
@@ -210,3 +247,24 @@ export const ORGANIZATIONS_SEGMENT: PeopleSegment = {
   emptyDescriptionView:
     "Organizations appear here once a person record is marked as one.",
 };
+
+/**
+ * A segment's "you can add one here" copy, with its cross-section hint dropped
+ * for a reader who cannot reach the section it names (#903).
+ *
+ * The hint is genuinely useful when it applies -- "or close a partnership as
+ * won from Governance > Partnerships" is how most partner rows actually come
+ * into being -- and is only ever advice, never the only way in: every one of
+ * these segments has its own New button right above the sentence. So the
+ * ungated half always stands alone, and this only ever removes.
+ */
+export function emptyManageDescription(
+  segment: PeopleSegment,
+  permissions: PermissionMap,
+): string {
+  const hint = segment.crossSectionHint;
+  if (!hint || !hasAnyPermission(permissions, hint.access)) {
+    return segment.emptyDescriptionManage;
+  }
+  return `${segment.emptyDescriptionManage} ${hint.text}`;
+}

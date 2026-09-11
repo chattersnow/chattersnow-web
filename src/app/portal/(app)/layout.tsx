@@ -353,7 +353,13 @@ export default async function PortalAppLayout({
                 clears is what lets "Show the tour again" (or a release bump)
                 bring it back. Only one is ever mounted -- whatsNewOwed already
                 excludes welcomeOwed. */}
-            {welcomeOwed && <WelcomeDialog key="welcome" initialOpen />}
+            {welcomeOwed && (
+              <WelcomeDialog
+                key="welcome"
+                initialOpen
+                permissions={permissions}
+              />
+            )}
             {whatsNewOwed && (
               <WhatsNewDialog key={CURRENT_RELEASE} initialOpen />
             )}

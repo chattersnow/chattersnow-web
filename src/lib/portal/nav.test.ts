@@ -85,6 +85,19 @@ describe("Volunteers section", () => {
         ?.subItems?.map((sub) => sub.value),
     ).toEqual(["roles", "participation", "applications"]);
   });
+
+  test("the directory alone does not hold the section open (#903)", () => {
+    // `people` is a core module and people:view is held by almost everyone, so
+    // before the cross-link carried alsoRequires, a tenant whose Volunteers
+    // module was off still got a Volunteers heading in the sidebar with this
+    // one link under it -- advertising a module it was never sold. The link
+    // worked; the heading was the lie.
+    const peopleOnly: PermissionMap = { people: "view" };
+    expect(visibleNavItems(peopleOnly).map((item) => item.value)).not.toContain(
+      "volunteers",
+    );
+    expect(firstAccessibleHref(peopleOnly, "volunteers")).toBeNull();
+  });
 });
 
 describe("People section", () => {

@@ -4,6 +4,7 @@ import { deliverEmail } from "@/lib/notifications/deliver";
 import { tenantMailContext } from "@/lib/email/identity";
 import { isOrgEmailEnabled } from "@/lib/notifications/settings";
 import { renderOpsReport } from "@/lib/notifications/ops-report-email";
+import { modulesForTenant } from "@/lib/portal/modules";
 import {
   OPS_REPORT_KIND,
   OPS_REPORT_RECIPIENTS_SETTING_KEY,
@@ -11,6 +12,7 @@ import {
   buildOpsReport,
   opsReportDay,
   opsReportDedupeKey,
+  opsReportSourceGates,
   parseOpsReportRecipients,
   type OpsReportSource,
   type ShiftCoverageGap,
@@ -30,6 +32,12 @@ import {
  * Unlike the digest, the recipient list starts the run rather than falling out
  * of it: the tenants worth doing any work for are exactly the ones with a
  * configured `notifications.ops_report_recipients`.
+ *
+ * Since #903 the counts are also filtered by the recipient tenant's module
+ * entitlements. Nothing else here needed it -- the recipients come from
+ * `people_with_permission()`, which #900 already gates -- but the counts do
+ * not go through a permission at all, so a tenant with Finance off was still
+ * being told how many expense approvals were waiting on nobody.
  */
 
 /** When no report has ever been sent, "new since the last report" means this. */
@@ -72,10 +80,19 @@ export async function runOpsReport(
     }
 
     const since = await fetchLastReportAt(admin, tenantId, now);
-    const source = await collectSource(admin, tenantId, now, since);
+    // Before the counts, because it decides which of them to read at all
+    // (#903). A tenant with Finance off is not told how many expense
+    // approvals are waiting, and does not pay for the query that would have
+    // found out. Placed after the kill switch so a muted tenant still costs
+    // nothing extra.
+    const modules = await modulesForTenant(admin, tenantId);
+    const source = await collectSource(admin, tenantId, now, since, modules);
     const report = buildOpsReport(source, { tenantId, now, since });
 
     // A quiet day is not a failure and not worth an email; see buildOpsReport.
+    // Since #903 a tenant whose every remaining module is off lands here too,
+    // which is the intended answer: no sections left means no email, rather
+    // than an email with nothing in it.
     if (!report) {
       summary.skipped += recipients.length;
       continue;
@@ -190,16 +207,27 @@ async function fetchLastReportAt(
   return Number.isNaN(since.getTime()) ? fallback : since;
 }
 
+/**
+ * The tenant's numbers, minus the modules it has not been sold (#903).
+ *
+ * A gated count is never read rather than read and discarded: `has_permission`
+ * would have stopped these queries for a signed-in caller, and the whole
+ * reason this job asks the tables directly is that there is no caller. The
+ * gates come from opsReportSourceGates(), so "which count belongs to which
+ * module" lives in ops-report.ts next to the shaping it governs.
+ */
 async function collectSource(
   admin: SupabaseClient,
   tenantId: string,
   now: Date,
   since: Date,
+  modules: Record<string, boolean>,
 ): Promise<OpsReportSource> {
   const sinceIso = since.toISOString();
   const windowEnd = new Date(
     now.getTime() + UPCOMING_EVENT_WINDOW_DAYS * 24 * 60 * 60 * 1000,
   ).toISOString();
+  const gates = opsReportSourceGates(modules);
 
   const [
     pendingExpenseApprovals,
@@ -213,30 +241,48 @@ async function collectSource(
     // The portal's count_pending_* RPCs cannot stand in here: they answer for
     // auth.uid() through has_permission(), and this caller has no session at
     // all. The queue itself is the same one they count.
-    countRows(admin, "event_expenses", tenantId, (query) =>
-      query.eq("status", "submitted"),
-    ),
-    countRows(admin, "reimbursements", tenantId, (query) =>
-      query.eq("status", "submitted"),
-    ),
-    fetchUpcoming(admin, tenantId, now.toISOString(), windowEnd),
-    countRows(admin, "contact_messages", tenantId, (query) =>
-      query.gte("created_at", sinceIso),
-    ),
-    countRows(admin, "volunteer_applications", tenantId, (query) =>
-      query.gte("created_at", sinceIso),
-    ),
-    countRows(admin, "donations", tenantId, (query) =>
-      query.gte("donated_at", sinceIso),
-    ),
-    sumMonetaryDonations(admin, tenantId, sinceIso),
+    gates.pendingExpenseApprovals
+      ? countRows(admin, "event_expenses", tenantId, (query) =>
+          query.eq("status", "submitted"),
+        )
+      : 0,
+    gates.pendingReimbursementApprovals
+      ? countRows(admin, "reimbursements", tenantId, (query) =>
+          query.eq("status", "submitted"),
+        )
+      : 0,
+    // One fetch feeds two gated fields, so it runs if either wants it and
+    // each is narrowed on the way out. They share a module today; the `||`
+    // is what keeps that a fact about the catalog rather than an assumption
+    // baked in here.
+    gates.upcomingEvents || gates.shiftCoverageGaps
+      ? fetchUpcoming(admin, tenantId, now.toISOString(), windowEnd)
+      : { events: [], gaps: [] },
+    gates.newContactMessages
+      ? countRows(admin, "contact_messages", tenantId, (query) =>
+          query.gte("created_at", sinceIso),
+        )
+      : 0,
+    gates.newVolunteerApplications
+      ? countRows(admin, "volunteer_applications", tenantId, (query) =>
+          query.gte("created_at", sinceIso),
+        )
+      : 0,
+    gates.inKindDonations
+      ? countRows(admin, "donations", tenantId, (query) =>
+          query.gte("donated_at", sinceIso),
+        )
+      : 0,
+    gates.monetaryDonations
+      ? sumMonetaryDonations(admin, tenantId, sinceIso)
+      : { count: 0, total: 0 },
   ]);
 
   return {
     pendingExpenseApprovals,
     pendingReimbursementApprovals,
-    upcomingEvents: upcoming.events,
-    shiftCoverageGaps: upcoming.gaps,
+    upcomingEvents: gates.upcomingEvents ? upcoming.events : [],
+    shiftCoverageGaps: gates.shiftCoverageGaps ? upcoming.gaps : [],
     newContactMessages,
     newVolunteerApplications,
     inKindDonations,

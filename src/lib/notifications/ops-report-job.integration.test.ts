@@ -195,6 +195,81 @@ describe("runOpsReport gates", () => {
   // them.
 });
 
+describe("runOpsReport module gating (#903)", () => {
+  /**
+   * Writes an entitlement as service_role, which is how the CLI does it --
+   * `tenant_modules` has no write policy for anyone, so this is the only way
+   * to set one from a test. Restored in the afterEach below: leaving a module
+   * off here would silently change what every other integration file sees,
+   * since has_permission() consults the same rows.
+   */
+  async function setModule(key: string, enabled: boolean): Promise<void> {
+    const { error } = await service
+      .from("tenant_modules")
+      .upsert(
+        { tenant_id: tenantId, module_key: key, enabled },
+        { onConflict: "tenant_id,module_key" },
+      );
+    if (error) throw error;
+  }
+
+  afterEach(async () => {
+    await setModule("communications", true);
+    await setModule("finance", true);
+  });
+
+  test("drops the lines a disabled module owns and keeps the rest", async () => {
+    await seedSomethingToReport();
+    await setRecipients([RECIPIENT]);
+    sent.length = 0;
+    await setModule("communications", false);
+
+    const summary = await runOpsReport(service, {
+      now: NOW,
+      siteUrl: SITE_URL,
+    });
+
+    expect(summary.sent).toBe(1);
+    const body = sent[0].text;
+    // The contact message seeded above is the Messages module's line, and it
+    // is gone; the seeded expense queue is Finance's, and it is not.
+    expect(body).not.toContain("contact message");
+    expect(body).toContain("waiting for approval");
+  });
+
+  test("a module the tenant has is read as before", async () => {
+    // The counterpart to the case above, so a green assertion there cannot be
+    // the report having failed to build at all.
+    await seedSomethingToReport();
+    await setRecipients([RECIPIENT]);
+    sent.length = 0;
+
+    await runOpsReport(service, { now: NOW, siteUrl: SITE_URL });
+
+    expect(sent[0].text).toContain("contact message");
+  });
+
+  test("modules_for_tenant answers for a tenant it is handed", async () => {
+    // The sessionless read the job resolves its gates through. my_modules()
+    // cannot stand in: a cron route has no current_tenant_id().
+    await setModule("communications", false);
+
+    const { data, error } = await service.rpc("modules_for_tenant", {
+      p_tenant_id: tenantId,
+    });
+    if (error) throw error;
+
+    const rows = (data ?? []) as { module_key: string; enabled: boolean }[];
+    const byKey = new Map(rows.map((row) => [row.module_key, row.enabled]));
+    expect(byKey.get("communications")).toBe(false);
+    expect(byKey.get("finance")).toBe(true);
+    // Core modules are in the answer and are always on -- the trigger refuses
+    // a row that says otherwise, whoever writes it.
+    expect(byKey.get("people")).toBe(true);
+    expect(byKey.get("administration")).toBe(true);
+  });
+});
+
 describe("runOpsReport delivery", () => {
   test("sends one organization-addressed report per recipient", async () => {
     await seedSomethingToReport();

@@ -6,9 +6,27 @@ import { Sparkles } from "lucide-react";
 const onDismiss = mock(async () => ({ success: true }) as const);
 
 const { StepDialog } = await import("./step-dialog");
-const { WELCOME_STEPS } = await import("./welcome-steps");
+const { welcomeSteps } = await import("./welcome-steps");
 
-const MULTI = WELCOME_STEPS;
+// An admin holding everything, so the tour is at its full four steps -- this
+// file is about the dialog's mechanics, and #903 made the copy a function of
+// the reader's permissions.
+const MULTI = welcomeSteps(
+  Object.fromEntries(
+    [
+      "events",
+      "inventory",
+      "finance",
+      "finance_approvals",
+      "governance",
+      "volunteers",
+      "programs",
+      "content_calendar",
+      "communications",
+      "inventory_intake",
+    ].map((resource) => [resource, "manage" as const]),
+  ),
+);
 const SINGLE = [
   {
     key: "only",
