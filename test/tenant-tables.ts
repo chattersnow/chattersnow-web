@@ -79,6 +79,8 @@ export const TENANT_TABLES = [
   "person_organizations",
   "person_role_tags",
   "policies",
+  "product_variants",
+  "products",
   "programs",
   "reimbursements",
   "resolutions",

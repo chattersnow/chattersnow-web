@@ -51,6 +51,29 @@ describe("visibleNavItems", () => {
   });
 });
 
+describe("Finance section", () => {
+  test("Products is reachable on sales:manage alone (#907)", () => {
+    // event_coordinator's shape: sales:manage with finance:none. The section
+    // has to open for them, and on Products rather than a page they cannot
+    // read.
+    const coordinator: PermissionMap = { sales: "manage" };
+    const items = visibleNavItems(coordinator);
+    const finance = items.find((item) => item.value === "finance");
+    expect(finance?.subItems?.map((sub) => sub.value)).toEqual(["products"]);
+    expect(firstAccessibleHref(coordinator, "finance")).toBe(
+      "/portal/finance/sales/products",
+    );
+  });
+
+  test("sales:view is not enough to see Products", () => {
+    // The page is the catalog editor, gated at manage by its own layout; a
+    // view-only holder would reach a 403 through the sidebar.
+    expect(
+      visibleNavItems({ sales: "view" }).map((item) => item.value),
+    ).toEqual(["overview"]);
+  });
+});
+
 describe("activeSectionFor", () => {
   test("matches a section by its base path, including nested routes", () => {
     expect(activeSectionFor("/portal/finance/expenses/abc")).toBe("finance");

@@ -560,6 +560,34 @@ begin
   insert into public.deactivated_users (user_id, deactivated_at, deactivated_by)
   values (v_former_id, now() - interval '5 days', v_admin_id);
 
+  -- Merchandise catalog (#907). Three products, six variants: one
+  -- single-variant product, one sized in three, and one where the variants are
+  -- pack sizes at different prices -- so the Products admin has all three
+  -- shapes to render without anyone having to type them in.
+  --
+  -- Literal ids, mirrored in test/seed-fixtures.ts (SEEDED_PRODUCT_IDS,
+  -- SEEDED_VARIANT_IDS). created_by is named rather than defaulted: the column
+  -- is `not null default auth.uid()` and this file runs as postgres with no
+  -- session, so the default would come back null.
+  --
+  -- No `sales` rows: recording one is the part-2 RPC's job, and a sale written
+  -- straight into the table here would be the exact desync the missing insert
+  -- grant exists to prevent.
+  insert into public.products (id, name, description, sort_order, created_by) values
+    ('cdcdcdcd-0000-4000-8000-000000000001', 'Chatter Snow Beanie', 'Cuffed knit beanie with the embroidered logo.', 10, v_admin_id),
+    ('cdcdcdcd-0000-4000-8000-000000000002', 'Trailhead Tee', 'Soft cotton tee, printed front and back.', 20, v_admin_id),
+    ('cdcdcdcd-0000-4000-8000-000000000003', 'Sticker Pack', 'Weatherproof vinyl stickers, assorted designs.', 30, v_admin_id);
+
+  insert into public.product_variants (id, product_id, label, sku, price, stock_on_hand, sort_order, created_by) values
+    ('cdcdcdcd-0000-4000-8000-000000001001', 'cdcdcdcd-0000-4000-8000-000000000001', 'One size', 'CS-BEANIE', 20.00, 40, 10, v_admin_id),
+    ('cdcdcdcd-0000-4000-8000-000000001002', 'cdcdcdcd-0000-4000-8000-000000000002', 'S', 'CS-TEE-S', 25.00, 12, 10, v_admin_id),
+    ('cdcdcdcd-0000-4000-8000-000000001003', 'cdcdcdcd-0000-4000-8000-000000000002', 'M', 'CS-TEE-M', 25.00, 18, 20, v_admin_id),
+    ('cdcdcdcd-0000-4000-8000-000000001004', 'cdcdcdcd-0000-4000-8000-000000000002', 'L', 'CS-TEE-L', 25.00, 15, 30, v_admin_id),
+    -- No SKU on either sticker pack, which is what the partial unique index on
+    -- (tenant_id, sku) is there for: a plain unique would allow exactly one.
+    ('cdcdcdcd-0000-4000-8000-000000001005', 'cdcdcdcd-0000-4000-8000-000000000003', 'Pack of 5', null, 5.00, 120, 10, v_admin_id),
+    ('cdcdcdcd-0000-4000-8000-000000001006', 'cdcdcdcd-0000-4000-8000-000000000003', 'Pack of 12', null, 10.00, 60, 20, v_admin_id);
+
 end $$;
 
 -- Bulk volume data, appended after the hand-authored scenario above. Purely
