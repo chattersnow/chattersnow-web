@@ -14,6 +14,15 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import type { SlotChange } from "./content-diff";
 
 /**
+ * A photo needs different words from a sentence: it has no "default wording"
+ * to go back to, and clearing it shows the placeholder icon rather than
+ * nothing at all (#918).
+ */
+function isImage(change: SlotChange): boolean {
+  return change.slot.type === "image";
+}
+
+/**
  * What is about to go live, before it does (#793).
  *
  * Publishing used to be the same gesture as saving, so there was nothing to
@@ -45,7 +54,7 @@ export function PublishChangesDialog({
               : `Publish ${changes.length} changes?`}
           </DialogTitle>
           <DialogDescription>
-            This replaces the copy on the public website straight away.
+            This replaces what the public website shows straight away.
           </DialogDescription>
         </DialogHeader>
 
@@ -66,7 +75,9 @@ export function PublishChangesDialog({
                   {change.slot.label}
                   {change.toDefault && (
                     <span className="app-muted ml-2 text-xs font-normal">
-                      back to the default wording
+                      {isImage(change)
+                        ? "back to no photo"
+                        : "back to the default wording"}
                     </span>
                   )}
                 </p>
@@ -84,7 +95,11 @@ export function PublishChangesDialog({
                     ))}
                   </ul>
                 ) : (
-                  <p className="app-muted mt-2">Nothing will be shown here.</p>
+                  <p className="app-muted mt-2">
+                    {isImage(change)
+                      ? "The placeholder icon will be shown instead."
+                      : "Nothing will be shown here."}
+                  </p>
                 )}
               </div>
             ))}

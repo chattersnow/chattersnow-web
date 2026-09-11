@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { configure, screen, waitFor, within } from "@testing-library/react";
+import {
+  configure,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithToaster } from "../../../../../../test/toast-testing";
 import { platformLegalDocument } from "@/lib/legal-defaults";
@@ -129,6 +135,7 @@ const CAROUSEL: ContentSlot = {
   label: "Homepage carousel — slide 1",
   type: "image",
   default: null,
+  ratio: "21/9",
 };
 
 const PHOTO_URL = "https://example.test/carousel-1.jpg";
@@ -468,21 +475,24 @@ describe("the save bar", () => {
 // the copy, previews what the link points at, and clears back to the
 // placeholder through the same draft as a sentence does.
 describe("image slots", () => {
+  /** The preview image, or null while the box is blank or unreadable. */
+  function preview(): HTMLImageElement | null {
+    return document.querySelector("img");
+  }
+
   test("shows the photo the link points at, and clears it as a draft", async () => {
     renderEditor([editorSlot(CAROUSEL, PHOTO_URL, true)]);
 
     const box = screen.getByRole("textbox", { name: /Homepage carousel/ });
     expect(box).toHaveValue(PHOTO_URL);
-    expect(
-      screen.getByRole("img", { name: "Homepage carousel — slide 1" }),
-    ).toBeInTheDocument();
+    // The preview is decorative -- it sits against the labelled box holding
+    // the link it previews -- so it is found by what it points at (#918).
+    expect(preview()).toHaveAttribute("src", PHOTO_URL);
     expect(screen.getByText("Your image")).toBeInTheDocument();
 
     await userEvent.clear(box);
 
-    expect(
-      screen.queryByRole("img", { name: "Homepage carousel — slide 1" }),
-    ).not.toBeInTheDocument();
+    expect(preview()).toBeNull();
     expect(screen.getByText("1 change not published yet.")).toBeInTheDocument();
 
     await userEvent.click(saveBar());
@@ -514,6 +524,35 @@ describe("image slots", () => {
       screen.queryByRole("button", { name: "Back to default" }),
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  });
+
+  test("previews at the aspect the site crops the slot to", () => {
+    renderEditor([editorSlot(CAROUSEL, PHOTO_URL, true)]);
+
+    // Not a square: this slide runs as a 21:9 band, and a square thumbnail
+    // cannot show whether the picture survives that crop (#918).
+    expect(preview()?.parentElement?.style.aspectRatio).toBe("21 / 9");
+  });
+
+  test("says once per section what a photo link is and what blank does", () => {
+    renderEditor([editorSlot(CAROUSEL, null), editorSlot(HEADING, null)]);
+
+    // One hint for the section, not one under each photo: the same two
+    // sentences under all eight image slots on Get Involved was twenty-four
+    // lines of identical grey text at 390px (#918).
+    expect(screen.getAllByText(/Google Drive share link/)).toHaveLength(1);
+    expect(screen.getByText(/placeholder icon/)).toBeInTheDocument();
+  });
+
+  test("says so when the link does not load as a picture", async () => {
+    renderEditor([editorSlot(CAROUSEL, PHOTO_URL, true)]);
+
+    fireEvent.error(preview()!);
+
+    // A Drive *folder* link is a valid URL that serves HTML, so nothing but
+    // the failed load can tell the editor it picked the wrong link (#918).
+    expect(screen.getByText(/did not load as a picture/)).toBeInTheDocument();
+    expect(preview()).toBeNull();
   });
 
   test("is found by its label from the search rail", async () => {
