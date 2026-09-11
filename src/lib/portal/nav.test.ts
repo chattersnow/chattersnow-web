@@ -52,25 +52,35 @@ describe("visibleNavItems", () => {
 });
 
 describe("Finance section", () => {
-  test("Products is reachable on sales:manage alone (#907)", () => {
+  test("the three Sales pages are reachable on sales:manage alone (#907, #908)", () => {
     // event_coordinator's shape: sales:manage with finance:none. The section
-    // has to open for them, and on Products rather than a page they cannot
+    // has to open for them, and on the ledger rather than a page they cannot
     // read.
     const coordinator: PermissionMap = { sales: "manage" };
     const items = visibleNavItems(coordinator);
     const finance = items.find((item) => item.value === "finance");
-    expect(finance?.subItems?.map((sub) => sub.value)).toEqual(["products"]);
+    expect(finance?.subItems?.map((sub) => sub.value)).toEqual([
+      "sales",
+      "register",
+      "products",
+    ]);
     expect(firstAccessibleHref(coordinator, "finance")).toBe(
-      "/portal/finance/sales/products",
+      "/portal/finance/sales",
     );
   });
 
-  test("sales:view is not enough to see Products", () => {
-    // The page is the catalog editor, gated at manage by its own layout; a
-    // view-only holder would reach a 403 through the sidebar.
+  test("sales:view reaches the ledger and neither of the pages that write (#908)", () => {
+    // The register and the catalog editor are gated at manage by their own
+    // layouts, so a view-only holder offered either would reach a 403 through
+    // the sidebar. The ledger is a read and opens.
+    const viewer: PermissionMap = { sales: "view" };
+    const items = visibleNavItems(viewer);
+    expect(items.map((item) => item.value)).toEqual(["overview", "finance"]);
     expect(
-      visibleNavItems({ sales: "view" }).map((item) => item.value),
-    ).toEqual(["overview"]);
+      items
+        .find((item) => item.value === "finance")
+        ?.subItems?.map((sub) => sub.value),
+    ).toEqual(["sales"]);
   });
 });
 

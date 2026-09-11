@@ -19,6 +19,7 @@ const FULL_ACCESS: PermissionMap = Object.fromEntries(
     "finance",
     "event_expenses",
     "event_revenue",
+    "sales",
     "inventory",
     "inventory_reports",
   ].map((resource) => [resource, "manage" as PermissionLevel]),
@@ -41,15 +42,17 @@ describe("eventPhases", () => {
     expect(cards(FULL_ACCESS)).toEqual(TAB_CONFIG.map((entry) => entry.value));
   });
 
-  test("Finance off takes the Expenses, Revenue and Donations cards", () => {
-    // The three resources a tenant loses when the Finance module is disabled:
-    // my_permissions() reports `none` for each, whatever the matrix says.
+  test("Finance off takes the Expenses, Revenue, Sales and Donations cards", () => {
+    // The four resources a tenant loses when the Finance module is disabled --
+    // `sales` joined them in #907: my_permissions() reports `none` for each,
+    // whatever the matrix says.
     const visible = cards(
-      without("finance", "event_expenses", "event_revenue"),
+      without("finance", "event_expenses", "event_revenue", "sales"),
     );
 
     expect(visible).not.toContain("expenses");
     expect(visible).not.toContain("revenue");
+    expect(visible).not.toContain("sales");
     expect(visible).not.toContain("donations");
 
     // And nothing else moves -- the event's own cards are untouched.

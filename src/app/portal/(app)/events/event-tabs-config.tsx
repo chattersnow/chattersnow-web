@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import {
   hasAnyPermission,
   type PermissionCheck,
@@ -24,6 +26,7 @@ import { IncidentsTab } from "./incidents-tab";
 import { ChecklistTab } from "./checklist-tab";
 import { EventExpensesTab } from "./event-expenses-tab";
 import { EventRevenueTab } from "./event-revenue-tab";
+import { EventSalesTab } from "./event-sales-tab";
 import { GiveawayTab } from "./giveaway-tab";
 import { ReportTab } from "./report-tab";
 import { ImpactTab } from "./impact-tab";
@@ -61,6 +64,7 @@ export type TabValue =
   | "giveaway"
   | "expenses"
   | "revenue"
+  | "sales"
   | "report"
   | "impact"
   | "donations";
@@ -402,6 +406,37 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         triggerLabel="New Revenue"
         onSaved={ctx.onSaved}
       />
+    ),
+  },
+  {
+    value: "sales",
+    label: "Sales",
+    phase: "after",
+    kind: "plain",
+    // Gated like Expenses and Revenue beside it (#903): `sales` belongs to the
+    // Finance module, so a tenant that was never sold Finance must not be
+    // offered a Sales card and an "Open register" link that cannot work.
+    access: [{ resource: "sales", level: "view" }],
+    render: (ctx) => (
+      <EventSalesTab
+        eventId={ctx.event.id}
+        eventName={ctx.event.name}
+        mode={ctx.mode}
+      />
+    ),
+    toolbarActions: (ctx) => (
+      <Button
+        variant="outline"
+        size="sm"
+        // A Link renders an <a>, and Base UI's Button logs a console error
+        // unless it is told it is not rendering a native <button>.
+        nativeButton={false}
+        render={
+          <Link href={`/portal/finance/sales/register?event=${ctx.eventId}`} />
+        }
+      >
+        Open register
+      </Button>
     ),
   },
   {

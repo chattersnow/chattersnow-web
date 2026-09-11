@@ -56,10 +56,13 @@ const EXPECTED_COUNTS: Record<string, number> = {
   volunteer_applications: 47,
   reimbursements: 36,
   discount_codes: 135,
-  // Hand-authored rather than drawn (#907), so these two are exact by
-  // construction: three products, six variants.
+  // Hand-authored rather than drawn (#907, #908), so these are exact by
+  // construction: three products, six variants, and two sales (#908) -- one
+  // completed with two lines, one voided with one.
   products: 3,
   product_variants: 6,
+  sales: 2,
+  sale_line_items: 3,
 };
 
 // contact_messages is deliberately absent. retention.integration.test.ts drives

@@ -35,6 +35,8 @@ import {
 import {
   SEEDED_EVENT_IDS,
   SEEDED_PERSON_IDS,
+  SEEDED_SALE_IDS,
+  SEEDED_VARIANT_IDS,
   SEEDED_USER_IDS,
 } from "../../../test/seed-fixtures";
 import { TENANT_TABLES } from "../../../test/tenant-tables";
@@ -1004,6 +1006,36 @@ describe("security definer RPCs answer for the caller's tenant", () => {
     await notFound(
       bAdmin.rpc("seed_giveaway_tiers", { p_giveaway_id: a.giveawayId }),
       "GIVEAWAY_NOT_FOUND",
+    );
+  });
+
+  test("sales actions on another tenant's sale and stock (#908)", async () => {
+    // The seeded sales are tenant A's (supabase/seed.sql), so no fixture is
+    // needed here -- what matters is that B's admin, who holds sales:manage in
+    // B, gets the same answer for A's sale as for an id that never existed.
+    await notFound(
+      bAdmin.rpc("void_product_sale", {
+        p_sale_id: SEEDED_SALE_IDS.completed,
+        p_reason: "x",
+      }),
+      "SALE_NOT_FOUND",
+    );
+
+    // And A's stock cannot be moved from B: the variant reads as absent, which
+    // is the check that stands between one tenant and another's inventory.
+    await notFound(
+      bAdmin.rpc("record_product_sale", {
+        p_event_id: null,
+        p_purchaser_person_id: null,
+        p_payment_method: "cash",
+        p_discount_amount: 0,
+        p_sold_at: null,
+        p_notes: null,
+        p_lines: [
+          { variant_id: SEEDED_VARIANT_IDS.beanieOneSize, quantity: 1 },
+        ],
+      }),
+      "VARIANT_NOT_FOUND",
     );
   });
 

@@ -10,17 +10,18 @@ import { parseStockValue, parseVariantForm } from "./variant-form";
 export type ProductActionResult = { error: string } | { success: true };
 
 /**
- * Every write here invalidates three routes, not one. Part 2 puts the register
- * and the ledger on the same catalog, and a price or a stock count that moved
- * has to be right on all three the moment it changes -- a cashier reading a
- * stale price off a cached register page is a wrong receipt, not a stale view.
- * The two part-2 paths do not exist yet; naming them now means the day they
- * land is not the day someone remembers this list.
+ * Every write here invalidates three routes, not one. The register and the
+ * ledger read the same catalog, and a price or a stock count that moved has to
+ * be right on all three the moment it changes -- a cashier reading a stale
+ * price off a cached register page is a wrong receipt, not a stale view.
+ *
+ * (The ledger's route is `/portal/finance/sales`, not the `.../ledger` this
+ * list guessed at before #908 built it.)
  */
 const REVALIDATED_PATHS = [
   "/portal/finance/sales/products",
   "/portal/finance/sales/register",
-  "/portal/finance/sales/ledger",
+  "/portal/finance/sales",
 ];
 
 function revalidateSales() {
