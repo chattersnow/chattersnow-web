@@ -7,12 +7,13 @@
 // expecting absolute totals.
 // Requires `bun run db:start && bun run db:reset` first; run via
 // `bun run test:integration`. Not picked up by `bun run test`.
-import { describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, test } from "bun:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   SEEDED_USERS,
   adminClient,
   createMonetaryDonation,
+  serviceRoleClient,
   signInAs,
   unprivilegedActors,
 } from "../../../../../test/integration-setup";
@@ -44,6 +45,65 @@ function summary() {
   return summaryFor(adminClient);
 }
 
+// A catalog of this file's own rather than a seeded variant, so the stock
+// figures seed-shape.integration.test.ts pins are left exactly as they were.
+// `sales` has no insert or delete grant for authenticated by design, so the
+// sale goes in through `record_product_sale` and comes back out through
+// service_role.
+const service = serviceRoleClient();
+const run = crypto.randomUUID().slice(0, 8);
+const SALE_PRICE = 37.25;
+
+const { data: product, error: productError } = await adminClient
+  .from("products")
+  .insert({ name: `Dashboard IT Product ${run}` })
+  .select("id")
+  .single();
+if (productError) throw productError;
+
+const { data: variant, error: variantError } = await adminClient
+  .from("product_variants")
+  .insert({
+    product_id: product.id,
+    label: "One size",
+    price: SALE_PRICE,
+    stock_on_hand: 10,
+    is_active: true,
+  })
+  .select("id")
+  .single();
+if (variantError) throw variantError;
+const variantId = variant.id as string;
+const productId = product.id as string;
+
+const soldIds: string[] = [];
+
+async function sell(): Promise<string> {
+  const { data, error } = await adminClient
+    .rpc("record_product_sale", {
+      p_event_id: null,
+      p_purchaser_person_id: null,
+      p_payment_method: "cash",
+      p_discount_amount: 0,
+      p_sold_at: null,
+      p_notes: `Dashboard IT sale ${run}`,
+      p_lines: [{ variant_id: variantId, quantity: 1 }],
+    })
+    .single();
+  if (error) throw error;
+  const saleId = (data as { sale_id: string }).sale_id;
+  soldIds.push(saleId);
+  return saleId;
+}
+
+afterAll(async () => {
+  for (const saleId of soldIds) {
+    await service.from("sale_line_items").delete().eq("sale_id", saleId);
+    await service.from("sales").delete().eq("id", saleId);
+  }
+  await service.from("products").delete().eq("id", productId);
+});
+
 describe("getFinancialSummary (integration)", () => {
   test("counts a monetary donation received this month toward monthly/yearly income and cash position", async () => {
     const before = await summary();
@@ -59,6 +119,58 @@ describe("getFinancialSummary (integration)", () => {
     );
 
     await donation.cleanup();
+  });
+
+  // #909: the Revenue tile and the cash position derive merchandise income
+  // from the register, so a sale has to move them exactly the way an
+  // event_revenue row does -- and a voided one has to move nothing.
+  test("counts a completed sale toward revenue, income and cash position", async () => {
+    const before = await summary();
+
+    await sell();
+
+    const after = await summary();
+    expect(after.revenueThisMonth).toBeCloseTo(
+      before.revenueThisMonth + SALE_PRICE,
+      5,
+    );
+    expect(after.revenueThisYear).toBeCloseTo(
+      before.revenueThisYear + SALE_PRICE,
+      5,
+    );
+    expect(after.incomeThisMonth).toBeCloseTo(
+      before.incomeThisMonth + SALE_PRICE,
+      5,
+    );
+    expect(after.cashPositionTotal).toBeCloseTo(
+      before.cashPositionTotal + SALE_PRICE,
+      5,
+    );
+  });
+
+  test("stops counting a sale once it is voided", async () => {
+    const saleId = await sell();
+    const withSale = await summary();
+
+    const { error } = await adminClient.rpc("void_product_sale", {
+      p_sale_id: saleId,
+      p_reason: "Dashboard integration test",
+    });
+    if (error) throw error;
+
+    const after = await summary();
+    expect(after.revenueThisMonth).toBeCloseTo(
+      withSale.revenueThisMonth - SALE_PRICE,
+      5,
+    );
+    expect(after.incomeThisMonth).toBeCloseTo(
+      withSale.incomeThisMonth - SALE_PRICE,
+      5,
+    );
+    expect(after.cashPositionTotal).toBeCloseTo(
+      withSale.cashPositionTotal - SALE_PRICE,
+      5,
+    );
   });
 
   test("does not count a monetary donation received a year ago toward this month's or this fiscal year's income", async () => {

@@ -895,11 +895,14 @@ begin
       );
     end if;
 
-    -- Revenue for about 30%.
+    -- Revenue for about 30%. No 'merchandise': that source is retired for
+    -- new rows (#909) -- merchandise is sold at the register and lands in
+    -- `sales`. The array is one shorter but still costs one random() call,
+    -- so the rest of this deterministic seed is unchanged.
     if random() < 0.3 then
       insert into public.event_revenue (event_id, source, amount, received_date, notes, created_by)
       values (
-        v_event_id, (array['ticket_sales','registration_fees','merchandise','onsite_donations','grants','other'])[1 + floor(random()*6)::int],
+        v_event_id, (array['ticket_sales','registration_fees','onsite_donations','grants','other'])[1 + floor(random()*5)::int],
         round((25 + random()*900)::numeric, 2), v_starts_at::date, null, v_admin_id
       );
     end if;

@@ -34,12 +34,24 @@ export type MonetaryDonationReportRow = {
   donor_name: string | null;
 };
 
+// Completed sales from the register (#908). Merchandise income is recorded
+// there rather than as an event_revenue row, so the report has to read both:
+// the legacy `merchandise` rows under `revenue`, and these. `amount` is the
+// sale's total, after any discount.
+export type SaleReportRow = {
+  amount: number | string | null;
+  sold_at: string;
+  event_id: string | null;
+  event_name: string | null;
+};
+
 export type FinanceReportData = {
   revenue: RevenueReportRow[];
   expenses: SpendReportRow[];
   reimbursements: SpendReportRow[];
   in_kind_items: InKindItemRow[];
   monetary_donations: MonetaryDonationReportRow[];
+  sales: SaleReportRow[];
 };
 
 export const SPEND_STATUSES = [
@@ -51,6 +63,10 @@ export const SPEND_STATUSES = [
 
 export const NO_EVENT_LABEL = "No event";
 
+// event_revenue's retired `merchandise` source (#909). Legacy rows still
+// carry it, and register sales are reported under the same key.
+export const MERCHANDISE_SOURCE = "merchandise";
+
 export function toNumber(value: number | string | null | undefined): number {
   if (value === null || value === undefined) return 0;
   const numeric = typeof value === "string" ? Number(value) : value;
@@ -59,17 +75,25 @@ export function toNumber(value: number | string | null | undefined): number {
 
 export type SourceTotal = { source: string; count: number; total: number };
 
+// Sales fold into the `merchandise` bucket rather than getting a row of their
+// own, so the reader sees one "Merchandise" line whether the money was rung
+// up at the register or typed in as event revenue before the register
+// existed (#909).
 export function summarizeRevenueBySource(
   rows: RevenueReportRow[],
+  sales: SaleReportRow[] = [],
 ): SourceTotal[] {
   const totals = new Map<string, SourceTotal>();
-  for (const row of rows) {
-    const key = row.source?.trim() || "other";
+  const add = (key: string, amount: number | string | null) => {
     const entry = totals.get(key) ?? { source: key, count: 0, total: 0 };
     entry.count += 1;
-    entry.total += toNumber(row.amount);
+    entry.total += toNumber(amount);
     totals.set(key, entry);
-  }
+  };
+
+  for (const row of rows) add(row.source?.trim() || "other", row.amount);
+  for (const sale of sales) add(MERCHANDISE_SOURCE, sale.amount);
+
   return [...totals.values()].sort((a, b) => b.total - a.total);
 }
 
@@ -121,6 +145,7 @@ export function summarizeByEvent(
   revenue: RevenueReportRow[],
   spend: SpendReportRow[],
   donations: MonetaryDonationReportRow[] = [],
+  sales: SaleReportRow[] = [],
 ): EventTotal[] {
   const totals = new Map<string, EventTotal>();
 
@@ -143,6 +168,9 @@ export function summarizeByEvent(
   for (const row of donations) {
     entryFor(row.event_id, row.event_name).income += toNumber(row.amount);
   }
+  for (const row of sales) {
+    entryFor(row.event_id, row.event_name).income += toNumber(row.amount);
+  }
   for (const row of spend) {
     if (row.status !== "paid") continue;
     entryFor(row.event_id, row.event_name).paidSpend += toNumber(row.amount);
@@ -160,6 +188,8 @@ export function summarizeByEvent(
 
 export type FinanceSummary = {
   income: number;
+  salesTotal: number;
+  salesCount: number;
   cashDonations: number;
   cashDonationCount: number;
   paidSpend: number;
@@ -171,10 +201,15 @@ export type FinanceSummary = {
 };
 
 export function computeFinanceSummary(data: FinanceReportData): FinanceSummary {
-  const income = data.revenue.reduce(
+  const salesTotal = data.sales.reduce(
     (total, row) => total + toNumber(row.amount),
     0,
   );
+  // Income is gross cash in from trading: event revenue plus merchandise
+  // sold at the register. Monetary donations stay their own figure below.
+  const income =
+    data.revenue.reduce((total, row) => total + toNumber(row.amount), 0) +
+    salesTotal;
   const cashDonations = data.monetary_donations.reduce(
     (total, row) => total + toNumber(row.amount),
     0,
@@ -184,6 +219,8 @@ export function computeFinanceSummary(data: FinanceReportData): FinanceSummary {
 
   return {
     income,
+    salesTotal,
+    salesCount: data.sales.length,
     cashDonations,
     cashDonationCount: data.monetary_donations.length,
     paidSpend,

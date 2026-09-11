@@ -365,6 +365,7 @@ The initial admin dashboard shall summarize:
 - Donation inventory totals
 - Expenses for a selected period
 - Giveaway sales associated with events
+- Revenue for a selected period, which since #909 means event revenue plus completed merchandise sales (§5.22) — the dashboard tile and the Financial Reports Income figure are derived from the same `get_finance_report_data` rollup so the two can never disagree
 
 Dashboard values should be derived from stored records and clearly indicate the relevant date range. Expanded reports may later include filters, exports, and pending tasks.
 
@@ -453,6 +454,8 @@ Consistent with the segregation-of-duties model in `planning/governance/roles-an
 
 Routine, in-budget expenses may be self-approved by `finance`; expenses above a threshold require a second approval from `admin` or `board`; unbudgeted expenses above that threshold require Board approval. **The dollar thresholds themselves are an open decision** (see `roles-and-responsibilities.md` and issue #13 — not yet recorded in `planning/decisions/`); this section specifies the mechanism, not the specific amounts, so the workflow was built before the thresholds are finalized and the seeded default can be tightened later without a schema change.
 
+Financial Reports' **Income** figure covers both event revenue and completed merchandise sales (§5.22); a voided sale counts for nothing, and monetary donations stay a separate figure so in-kind face value is never mistaken for cash.
+
 **Implemented** (issue #29): `event_expenses.status` (submitted/approved/rejected/paid) plus `submitted_by`/`approved_by`/`approved_at`/`rejected_by`/`rejected_at`/`rejection_reason`/`paid_by`/`paid_at`, enforced by `approve_expense`/`reject_expense`/`mark_expense_paid` RPCs. A `finance_self_approval` resource gates self-approval of below-threshold submissions; at/above the threshold (`app_settings.finance.expense_approval_threshold`) a second approver holding `finance_approvals` is required. RLS additionally blocks a submitter from approving their own submission at the row level, independent of the RPC check. Reimbursements (§5.18) reuse the same status/RPC pattern with their own threshold key.
 
 ### 5.17 Volunteer management
@@ -540,6 +543,24 @@ All the date math lives in `src/lib/fiscal-year.ts` (pure, unit-tested, no serve
 - `conflict_of_interest_disclosures.disclosure_year` (§5.12), which names the fiscal year the disclosure covers rather than a calendar year
 
 Deliberately left on calendar years: the content calendar's recurring-coverage reminder and series generation (§5.20), since public observances are calendar-anchored by nature and a fiscal split would break one season's holidays across two generation cohorts; and the public site's footer copyright.
+
+### 5.22 Sales (point of sale)
+
+**Implemented** (issues #907 catalog and schema, #908 register and ledger, #909 rollup). A small register for selling merchandise at an event or from the office, at `/portal/finance/sales`, gated by the `sales` resource.
+
+**Record-only, exactly as giveaway ticket sales are (§5.8): payment is taken outside the system.** Cash, a card reader, a phone app — the money is collected however the org already collects it, and the sale row records that it happened, what left the shelf and what it came to. No processor is integrated and none is assumed. Integrating one (Square and Stripe both charge per transaction with no monthly fee; card-present would additionally need a reader) is a phase-2 question, not a gap in this one.
+
+**Stock model.** The catalog is `products` → `product_variants`, and the variant is what carries a price and a `stock_on_hand`. A single-size product still gets exactly one variant, so the register and the line items only ever reference one kind of row. This is deliberately _not_ `inventory_items`, which is the donation-managed, per-piece, unpriced gear library (§5.4) — a donated jacket and a printed t-shirt are different things with different lifecycles, and merging them would put a price on donated gear.
+
+**Void, not delete or edit.** A recorded sale is append-only in practice: `status` moves to `voided`, its units go back on the shelf, and the row and its line items stay with `voided_at`/`voided_by`/`void_reason` for the audit trail. The only editable columns are `event_id`, `purchaser_person_id` and `notes` — a mistake in the money or the stock is a void and a re-ring. Line items snapshot the description and unit price, so renaming or repricing a variant later cannot rewrite a past receipt. Refunds and partial voids are out of scope.
+
+**Where the money is counted.** `get_finance_report_data` returns completed sales (never voided ones) under a `sales` key, bucketed by `sold_at`, so Financial Reports' Income and the dashboard's Revenue tile derive merchandise income from the register rather than from a hand-typed figure (§5.10, §5.16). The rollup folds sales into the same **Merchandise** line as legacy `event_revenue` rows so the reader sees one figure per source. Because that RPC is gated only on `finance_reports:view`, `board` sees sales totals in the report without holding `sales:view` — the same way it already sees revenue and expenses.
+
+**Merchandise on `event_revenue` is retired.** Before the register, merchandise takings were typed in as an `event_revenue` row with `source = 'merchandise'`. Counting both would double-count, so a trigger refuses a _new_ row on that source (and refuses moving an existing row onto it), the pickers no longer offer it, and the seed no longer generates it. Rows that already exist keep their source, stay fully editable, and still count exactly once. A check constraint would have been the obvious gate and is wrong here: it would also block an edit to a legacy row's notes.
+
+**Roles.** `sales:manage` (record, void, manage the catalog) and `sales:view` (read the ledger) follow the data-driven role matrix (§5.3) like every other resource; no role-name checks live in application code.
+
+**Out of scope for phase 1**, and each a candidate for its own ticket: payment-processor integration, refunds and partial voids, printed or emailed receipts, a stock movement log (receiving, shrinkage, counts — today `stock_on_hand` moves only through sales and voids), sales tax, and demo-tenant seed data for the module.
 
 ## 6. Proposed Data Model
 
@@ -654,7 +675,7 @@ Impact rollups themselves (per-event, per-program, and season reports, including
 
 ### Finance and giveaways
 
-- `event_revenue`: **implemented** (issue #27) — optional `event_id`, `source` (check-constrained to ticket_sales/registration_fees/merchandise/onsite_donations/grants/other — deliberately excludes sponsorship, which is tracked via `event_sponsors` instead), `amount`, `received_date`, `notes`. Plain CRUD (no approval workflow), gated by the `event_revenue` resource, at `/portal/finance/revenue`.
+- `event_revenue`: **implemented** (issue #27) — optional `event_id`, `source` (check-constrained to ticket_sales/registration_fees/merchandise/onsite_donations/grants/other — deliberately excludes sponsorship, which is tracked via `event_sponsors` instead), `amount`, `received_date`, `notes`. Plain CRUD (no approval workflow), gated by the `event_revenue` resource, at `/portal/finance/revenue`. Since issue #909 the `merchandise` source is **retired for new rows** — merchandise is rung up at the register (§5.22) — enforced by the `event_revenue_reject_merchandise` trigger rather than by the check constraint, so pre-register rows stay editable and still count once.
 - `event_expenses`: implemented, with an optional `event_id` (nullable — expenses may or may not be tied to an event) and `receipt_url` (a plain text link to the file in an external solution, not an upload — see §5.6). **Implemented** (issue #29): an approval state (`status`: submitted/approved/rejected/paid), `submitted_by`, `approved_by`/`approved_at`, `rejected_by`/`rejected_at`/`rejection_reason`, `paid_by`/`paid_at` — see §5.16.
 - `reimbursements`: **implemented** (issue #51) — requester `person_id`, amount, description, `receipt_url` (external link, same pattern as `event_expenses`), optional `event_id`, and the same approval-state shape as `event_expenses` but with its own resources (`reimbursements`, `reimbursement_approvals`, `reimbursement_self_approval`) and `app_settings` threshold (see §5.16, §5.18)
 - `products`: **implemented** (issue #907, part 1 of 3) — the merchandise catalog: `name` (unique per tenant), `description`, `is_active`, `sort_order`. Deliberately separate from `inventory_items`, which is the donation-managed, per-piece, unpriced gear library. Managed at `/portal/finance/sales/products`, gated by the `sales` resource.

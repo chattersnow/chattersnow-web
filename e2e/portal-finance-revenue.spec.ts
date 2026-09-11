@@ -38,15 +38,14 @@ test.describe("portal finance revenue", () => {
       addDialog.getByRole("heading", { name: "Add revenue" }),
     ).toBeVisible();
 
+    // "Other", not "Merchandise": the merchandise source is retired for new
+    // rows since #909 and the picker no longer offers it.
     await addDialog.getByLabel("Source").click();
-    await page
-      .getByRole("listbox")
-      .getByText("Merchandise", { exact: true })
-      .click();
+    await page.getByRole("listbox").getByText("Other", { exact: true }).click();
     // Unique per run (not a fixed value like "88.13") so this can't collide
     // with another Playwright project's still-present row from the same
     // shared local Supabase instance -- the row lookup below has no other
-    // way to tell two Merchandise records apart.
+    // way to tell two Other records apart.
     const amount = ((Date.now() % 100000) / 100).toFixed(2);
     await addDialog.getByLabel("Amount").fill(amount);
     // Dated well past anything the seed seeds, because the list now shows ten
@@ -69,7 +68,7 @@ test.describe("portal finance revenue", () => {
 
     const row = page
       .getByRole("row")
-      .filter({ hasText: "Merchandise" })
+      .filter({ hasText: "Other" })
       .filter({ hasText: `$${amount}` });
     await expect(row).toBeVisible();
 

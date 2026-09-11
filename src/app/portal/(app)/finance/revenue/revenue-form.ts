@@ -1,5 +1,9 @@
 import type { ParseResult } from "@/lib/forms";
-import { isRevenueSource, type RevenueSource } from "./revenue-shared";
+import {
+  MERCHANDISE_RETIRED_MESSAGE,
+  isRevenueSource,
+  type RevenueSource,
+} from "./revenue-shared";
 
 export type RevenueFormData = {
   event_id: string | null;
@@ -9,8 +13,15 @@ export type RevenueFormData = {
   notes: string | null;
 };
 
+/**
+ * `allowLegacyMerchandise` is set only when the row being updated already has
+ * `source = 'merchandise'` -- those predate the register (#909) and stay
+ * editable, notes and all. Everything else is refused here so the user gets a
+ * sentence instead of the database trigger's error code.
+ */
 export function parseRevenueForm(
   formData: FormData,
+  { allowLegacyMerchandise = false }: { allowLegacyMerchandise?: boolean } = {},
 ): ParseResult<RevenueFormData> {
   const eventId = String(formData.get("eventId") ?? "").trim();
   const sourceRaw = String(formData.get("source") ?? "").trim();
@@ -19,6 +30,9 @@ export function parseRevenueForm(
   const notes = String(formData.get("notes") ?? "").trim();
 
   if (!isRevenueSource(sourceRaw)) return { error: "Source is required." };
+  if (sourceRaw === "merchandise" && !allowLegacyMerchandise) {
+    return { error: MERCHANDISE_RETIRED_MESSAGE };
+  }
   if (!receivedDate) return { error: "Date is required." };
 
   const amount = Number(amountRaw);

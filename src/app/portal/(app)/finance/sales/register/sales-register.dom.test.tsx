@@ -167,8 +167,14 @@ describe("SalesRegister", () => {
 
     // The cart and everything belonging to one transaction clear; the event
     // and the payment method are kept for the next sale at the same table.
+    //
+    // findBy, not getBy: `handleRecord` awaits the action *inside*
+    // `startTransition`, so the state it sets lands after the act() that
+    // `user.click` resolves on. A synchronous query here is a race that
+    // happens to win locally and lost once under CI's coverage
+    // instrumentation.
     expect(
-      screen.getByText("Tap a product to start a sale."),
+      await screen.findByText("Tap a product to start a sale."),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Discount")).toHaveValue("");
     expect(routerRefresh).toHaveBeenCalled();
@@ -186,8 +192,10 @@ describe("SalesRegister", () => {
       screen.getByRole("button", { name: "Record sale — $20.00" }),
     );
 
+    // findBy for the same reason as above: the error is set after an await
+    // inside the transition.
     expect(
-      screen.getByText(
+      await screen.findByText(
         "Not enough stock — Chatter Snow Beanie — One size: 1 on hand.",
       ),
     ).toBeInTheDocument();
