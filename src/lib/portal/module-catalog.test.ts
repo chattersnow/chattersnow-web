@@ -7,6 +7,16 @@
 // constraint cannot give you is the message. "Resources with no module:
 // artwork_submissions" tells whoever added a resource next month what to do,
 // and it says it in `bun run test` rather than on the first `db:reset`.
+//
+// A resource's module comes from one of two places, and this reads both
+// (#907). Everything that existed when modules landed is named in the backfill
+// inside the entitlements migration. Everything added since carries
+// `module_key` in its own `insert into public.resources` -- which is where it
+// has to be, since the column is `not null` and that backfill is an `update`
+// over rows that already existed: on a fresh database it runs before the later
+// migration inserts the resource and matches nothing, and on a hosted one it
+// has already run. Adding a row to it for a new resource would be a statement
+// about the past that never executes.
 import { describe, expect, test } from "bun:test";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -29,16 +39,113 @@ function statementsAfter(sql: string, header: RegExp): string[] {
   return out;
 }
 
+/**
+ * The `(...)` rows of a values list, split on parens that are not inside a
+ * string literal.
+ *
+ * A regex cannot do this: a resource's `description` is prose, and prose
+ * contains commas, brackets and doubled apostrophes. Scanning for the quote
+ * state costs a dozen lines and is right for every row, including the next one
+ * somebody writes.
+ */
+function valueRows(body: string): string[] {
+  const rows: string[] = [];
+  let depth = 0;
+  let inString = false;
+  let start = 0;
+
+  for (let i = 0; i < body.length; i++) {
+    const char = body[i];
+    if (inString) {
+      // '' is an escaped quote inside a literal, not the end of one.
+      if (char === "'") {
+        if (body[i + 1] === "'") i++;
+        else inString = false;
+      }
+      continue;
+    }
+    if (char === "'") inString = true;
+    else if (char === "(") {
+      if (depth === 0) start = i + 1;
+      depth++;
+    } else if (char === ")") {
+      depth--;
+      if (depth === 0) rows.push(body.slice(start, i));
+    }
+  }
+
+  return rows;
+}
+
+/** One row's values, split on top-level commas, in column order. */
+function valueFields(row: string): string[] {
+  const fields: string[] = [];
+  let depth = 0;
+  let inString = false;
+  let start = 0;
+
+  for (let i = 0; i < row.length; i++) {
+    const char = row[i];
+    if (inString) {
+      if (char === "'") {
+        if (row[i + 1] === "'") i++;
+        else inString = false;
+      }
+      continue;
+    }
+    if (char === "'") inString = true;
+    else if (char === "(") depth++;
+    else if (char === ")") depth--;
+    else if (char === "," && depth === 0) {
+      fields.push(row.slice(start, i));
+      start = i + 1;
+    }
+  }
+  fields.push(row.slice(start));
+
+  return fields.map((field) => field.trim());
+}
+
+/** A quoted literal's contents, or null for anything else (a number, null). */
+function literal(field: string | undefined): string | null {
+  if (!field) return null;
+  const match = /^'((?:[^']|'')*)'$/.exec(field);
+  return match ? match[1].replace(/''/g, "'") : null;
+}
+
 /** Every resource key any migration has ever seeded. */
 const resourceKeys = new Set<string>();
+/**
+ * Resources that name their own module, which is how one added after the
+ * entitlements migration does it (#907's `sales` is the first).
+ *
+ * The backfill in that migration is not the place for them: it is an `update`
+ * over rows that already existed, so on a fresh database it runs before the
+ * later migration inserts the resource and matches nothing, and on a hosted
+ * one it has already run. `resources.module_key` is `not null`, so the insert
+ * has to carry the module anyway -- this reads it from where it actually is.
+ */
+const inlineModules = new Map<string, string>();
 for (const name of migrationFiles) {
   const sql = readFileSync(join(MIGRATIONS, name), "utf8");
-  for (const body of statementsAfter(
-    sql,
-    /insert into public\.resources \([^)]*\) values/g,
+  for (const match of sql.matchAll(
+    /insert into public\.resources \(([^)]*)\) values/g,
   )) {
-    for (const row of body.matchAll(/\(\s*'([a-z0-9_]+)'\s*,/g)) {
-      resourceKeys.add(row[1]);
+    const columns = match[1].split(",").map((column) => column.trim());
+    const keyColumn = columns.indexOf("key");
+    const moduleColumn = columns.indexOf("module_key");
+    const from = match.index + match[0].length;
+    const to = sql.indexOf(";", from);
+
+    for (const row of valueRows(sql.slice(from, to === -1 ? undefined : to))) {
+      const fields = valueFields(row);
+      const key = literal(fields[keyColumn]);
+      if (!key) continue;
+      resourceKeys.add(key);
+
+      const moduleKey =
+        moduleColumn === -1 ? null : literal(fields[moduleColumn]);
+      if (moduleKey) inlineModules.set(key, moduleKey);
     }
   }
 }
@@ -59,7 +166,7 @@ for (const body of statementsAfter(
 }
 
 /** resource key -> module key, from the backfill. */
-const mapping = new Map<string, string>();
+const backfill = new Map<string, string>();
 {
   const start = entitlements.indexOf("update public.resources res");
   const end = entitlements.indexOf(
@@ -68,9 +175,15 @@ const mapping = new Map<string, string>();
   );
   const body = entitlements.slice(start, end);
   for (const row of body.matchAll(/\('([a-z0-9_]+)',\s*'([a-z0-9_]+)'\)/g)) {
-    mapping.set(row[1], row[2]);
+    backfill.set(row[1], row[2]);
   }
 }
+
+/**
+ * The two sources together: the backfill for everything that existed when
+ * modules landed, the insert's own `module_key` for everything since.
+ */
+const mapping = new Map([...backfill, ...inlineModules]);
 
 describe("the catalogs parse at all", () => {
   // Everything below is a set difference, and a set difference against an
@@ -78,8 +191,17 @@ describe("the catalogs parse at all", () => {
   // drifting off its statement and turning the whole file green.
   test("both were found in the migration", () => {
     expect(catalog.size).toBeGreaterThan(10);
-    expect(mapping.size).toBeGreaterThan(30);
+    expect(backfill.size).toBeGreaterThan(30);
     expect(resourceKeys.size).toBe(mapping.size);
+  });
+
+  // The inline reader is the half with no second witness: the backfill's
+  // absence shows up as an unmapped resource below, but a regression that
+  // stopped finding `module_key` on an insert would simply see fewer inline
+  // rows -- and every one of them would then fail "none is left out" with a
+  // misleading message. Pin the one that exists.
+  test("a resource added after the modules migration names its own module", () => {
+    expect(inlineModules.get("sales")).toBe("finance");
   });
 });
 
@@ -90,7 +212,7 @@ describe("every resource belongs to a module", () => {
       .sort();
     expect(
       unmapped,
-      `Resources with no module: ${unmapped.join(", ")}. Add them to the map in ${ENTITLEMENTS}.`,
+      `Resources with no module: ${unmapped.join(", ")}. A resource added after ${ENTITLEMENTS} names its module in its own insert -- add the module_key column to it. The backfill in that migration is only for what already existed.`,
     ).toEqual([]);
   });
 
