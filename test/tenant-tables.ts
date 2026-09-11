@@ -88,6 +88,8 @@ export const TENANT_TABLES = [
   "retention_run_tables",
   "retention_runs",
   "roles",
+  "sale_line_items",
+  "sales",
   "services",
   "site_content",
   "tenant_modules",

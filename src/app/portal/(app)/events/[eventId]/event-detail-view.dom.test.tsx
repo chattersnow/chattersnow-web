@@ -13,6 +13,7 @@ import * as ChecklistActions from "../checklist-actions";
 import * as GiveawayActions from "../giveaway-actions";
 import * as ExpensesActions from "../../finance/expenses/actions";
 import * as RevenueActions from "../../finance/revenue/actions";
+import * as SalesActions from "../../finance/sales/actions";
 import * as ImpactActions from "../impact-actions";
 import * as ImpactDerivedActions from "../impact-derived-actions";
 import * as HomeActions from "../../home/actions";
@@ -105,6 +106,10 @@ mock.module("../../finance/revenue/actions", () => ({
   ...RevenueActions,
   listEventRevenueAction: mock(async () => ({ data: [] })),
 }));
+mock.module("../../finance/sales/actions", () => ({
+  ...SalesActions,
+  listEventSalesAction: mock(async () => ({ data: [] })),
+}));
 mock.module("../impact-actions", () => ({
   ...ImpactActions,
   getEventImpactAction: mock(async () => ({ data: null })),
@@ -179,6 +184,7 @@ const ALL_PHASES = eventPhases(
       "finance",
       "event_expenses",
       "event_revenue",
+      "sales",
       "inventory",
       "inventory_reports",
     ].map((resource) => [resource, "manage" as const]),

@@ -268,6 +268,22 @@ export const NAV_ITEMS: readonly NavItem[] = [
         href: "/portal/finance/revenue",
         access: [{ resource: "finance", level: "manage" }],
       },
+      // Sales before Register before Products: the ledger is the section's
+      // read-only landing place and the only one a `sales:view` holder can
+      // open, and the register is used far more often than the catalog behind
+      // it.
+      {
+        value: "sales",
+        label: "Sales",
+        href: "/portal/finance/sales",
+        access: [{ resource: "sales", level: "view" }],
+      },
+      {
+        value: "register",
+        label: "Sales Register",
+        href: "/portal/finance/sales/register",
+        access: [{ resource: "sales", level: "manage" }],
+      },
       {
         value: "products",
         label: "Products",

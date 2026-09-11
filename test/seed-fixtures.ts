@@ -116,3 +116,16 @@ export const SEEDED_VARIANT_IDS = {
   stickersFive: "cdcdcdcd-0000-4000-8000-000000001005",
   stickersTwelve: "cdcdcdcd-0000-4000-8000-000000001006",
 } as const;
+
+/**
+ * The two seeded sales (#908), both on the past event. The seed's
+ * `stock_on_hand` figures are already net of the completed one, so a test that
+ * sells or voids through the RPCs can reason about stock from the seeded
+ * numbers without replaying the ledger first.
+ */
+export const SEEDED_SALE_IDS = {
+  /** Completed, two lines (2 beanies + 1 medium tee), $5 off a $65 subtotal. */
+  completed: "dcdcdcdc-0000-4000-8000-000000000001",
+  /** Voided, one line (3 five-packs) -- its units are back in stock. */
+  voided: "dcdcdcdc-0000-4000-8000-000000000002",
+} as const;
