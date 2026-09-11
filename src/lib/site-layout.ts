@@ -108,8 +108,11 @@ export const MAX_HOME_UPCOMING_COUNT = Math.max(
   ),
 );
 
+/** The reserved `app_settings` namespace these rows live in (#888). */
+export const LAYOUT_PREFIX = "layout.";
+
 export function layoutSettingKey(slot: string): string {
-  return `layout.${slot}`;
+  return `${LAYOUT_PREFIX}${slot}`;
 }
 
 /** Whether a value is one this slot actually offers. */
