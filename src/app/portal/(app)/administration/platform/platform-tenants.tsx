@@ -36,6 +36,7 @@ import {
   setTenantDomainAction,
   setTenantStatusAction,
 } from "./actions";
+import { TenantModulesDialog } from "./tenant-modules-dialog";
 import {
   PLAN_LABEL,
   STATUS_LABEL,
@@ -81,6 +82,7 @@ export function PlatformTenants({
   const [provisioning, setProvisioning] = useState(false);
   const [invite, setInvite] = useState<string | null>(null);
   const [editing, setEditing] = useState<PlatformTenant | null>(null);
+  const [modulesFor, setModulesFor] = useState<PlatformTenant | null>(null);
   const [domain, setDomain] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -191,6 +193,13 @@ export function PlatformTenants({
                         onClick={() => openDomain(tenant)}
                       >
                         Domain
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setModulesFor(tenant)}
+                      >
+                        Modules
                       </Button>
                       {/* A real link, not a button: the export is a route
                           handler that streams a file, so the browser's own
@@ -422,6 +431,18 @@ export function PlatformTenants({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Mounted per organization, so the dialog's own state -- what it has
+          loaded, what is awaiting confirmation -- starts fresh each time
+          rather than being reset on the way in. */}
+      {modulesFor ? (
+        <TenantModulesDialog
+          key={modulesFor.id}
+          tenant={modulesFor}
+          onClose={() => setModulesFor(null)}
+          onChanged={() => router.refresh()}
+        />
+      ) : null}
     </>
   );
 }

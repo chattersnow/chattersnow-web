@@ -6,9 +6,9 @@ import { checkPermission } from "@/lib/auth/permissions";
 import { mintInviteLink } from "@/lib/auth/invite-link";
 import { getRequestOrigin } from "@/lib/request-origin";
 import { friendlyError } from "@/lib/db-errors";
-import type { PlatformTenant } from "./platform-shared";
+import type { PlatformTenant, TenantModule } from "./platform-shared";
 
-export type { PlatformTenant } from "./platform-shared";
+export type { PlatformTenant, TenantModule } from "./platform-shared";
 
 /**
  * Every action here re-checks the permission before calling its RPC, the way
@@ -117,6 +117,47 @@ export async function setTenantDomainAction(
         error.message ?? "Could not set the domain.",
       ),
     };
+  }
+  revalidatePath("/portal/administration/platform");
+  return { success: true };
+}
+
+/**
+ * A tenant's module entitlements (#901). Loaded when the dialog opens rather
+ * than with the tenant list: it is one RPC per organization, and the operator
+ * opens it for one at a time.
+ */
+export async function listTenantModulesAction(
+  tenantId: string,
+): Promise<{ data: TenantModule[] } | { error: string }> {
+  const { supabase, denied } = await guard();
+  if (denied) return denied;
+
+  const { data, error } = await supabase.rpc("platform_list_tenant_modules", {
+    p_tenant_id: tenantId,
+  });
+  if (error) return { error: "Could not load this organization's modules." };
+  return { data: (data ?? []) as TenantModule[] };
+}
+
+export async function setTenantModuleAction(
+  tenantId: string,
+  moduleKey: string,
+  enabled: boolean,
+): Promise<{ error: string } | { success: true }> {
+  const { supabase, denied } = await guard();
+  if (denied) return denied;
+
+  const { error } = await supabase.rpc("platform_set_tenant_module", {
+    p_tenant_id: tenantId,
+    p_module_key: moduleKey,
+    p_enabled: enabled,
+  });
+  // The RPC's refusals are written to be read -- "The people module is core and
+  // cannot be turned off for anyone" is the whole explanation -- so they are
+  // passed through rather than replaced with a generic line.
+  if (error) {
+    return { error: error.message ?? "Could not change that module." };
   }
   revalidatePath("/portal/administration/platform");
   return { success: true };
