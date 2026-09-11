@@ -74,7 +74,31 @@ const b = {
   programId: "",
   personId: "",
   eventId: "",
+  calendarItemId: "",
+  calendarCategoryKey: `isob${run}`,
+  gearItemId: "",
+  volunteerRoleTypeId: "",
+  sponsorId: "",
+  siteContentKey: `home.isolation_probe_b_${run}`,
 };
+// The marker rows in A that the public-view checks point at (#887). The ones
+// with a seeded equivalent are looked up; the four prefixes the seed leaves
+// empty in A -- brand, layout, legal_publication, site_images -- get a fixture
+// so neither direction of the host check is vacuous.
+const aPublic = {
+  eventId: SEEDED_EVENT_IDS.upcoming,
+  calendarItemId: "",
+  calendarCategoryKey: "",
+  programId: "",
+  gearItemId: "",
+  volunteerRoleTypeId: "",
+  sponsorId: "",
+  siteContentKey: `home.isolation_probe_${run}`,
+};
+// One `<prefix>.<token>` app_settings / site_content key per tenant, so the
+// prefix views (public_branding and friends) can be checked the same way. The
+// token is what each view exposes once it strips the prefix.
+const probeToken = { a: `iso_a_${run}`, b: `iso_b_${run}` };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function must<T = any>(
@@ -279,6 +303,95 @@ beforeAll(async () => {
     "b expense",
   );
 
+  // B's half of the public surface (#887): a row behind every anon-readable
+  // view, written through B's own admin so tenant_id and created_by come from
+  // the session the way the app's do.
+  const bRow = async (table: string, row: Record<string, unknown>) =>
+    (
+      await must(
+        bAdmin.from(table).insert(row).select("*").single(),
+        `b ${table}`,
+      )
+    ).id as string;
+
+  b.calendarItemId = await bRow("calendar_items", {
+    title: `Isolation calendar item ${run}`,
+    item_type: "community_observance",
+    starts_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+    time_zone: "America/Chicago",
+    visibility: "public",
+    calendar_status: "active",
+  });
+  await bRow("calendar_categories", {
+    key: b.calendarCategoryKey,
+    label: "Isolation category",
+    sort_order: 900,
+    is_active: true,
+  });
+  await must(
+    bAdmin
+      .from("event_programs")
+      .insert({ event_id: b.eventId, program_id: b.programId })
+      .select("event_id"),
+    "b event program",
+  );
+  b.sponsorId = await bRow("event_sponsors", {
+    event_id: b.eventId,
+    person_id: b.personId,
+    support_type: "cash",
+    is_public: true,
+  });
+  const bDonationId = await bRow("donations", { donor_id: b.personId });
+  b.gearItemId = await bRow("inventory_items", {
+    donation_id: bDonationId,
+    description: `Isolation gear ${run}`,
+    condition: "good",
+    status: "available",
+    intended_use: "gear_library",
+  });
+  b.volunteerRoleTypeId = await bRow("volunteer_role_types", {
+    name: `Isolation role ${run}`,
+    description: "Isolation suite",
+    is_public: true,
+  });
+  // `site_content.value` is not writable by `authenticated` since #793, so
+  // B's copy goes in as service_role with the tenant named.
+  await must(
+    service
+      .from("site_content")
+      .insert({
+        tenant_id: tenantB,
+        key: b.siteContentKey,
+        value: `Isolation heading B ${run}`,
+      })
+      .select("id"),
+    "b site content",
+  );
+  await must(
+    service
+      .from("site_content")
+      .insert({
+        tenant_id: tenantB,
+        key: `site_images.${probeToken.b}`,
+        value: "https://example.test/b.png",
+      })
+      .select("id"),
+    "b site image",
+  );
+  await must(
+    bAdmin
+      .from("app_settings")
+      .insert(
+        ["brand", "layout", "page_visibility", "legal_publication"].map(
+          (prefix) => ({
+            key: `${prefix}.${probeToken.b}`,
+            value: "isolation",
+          }),
+        ),
+      )
+      .select("id"),
+    "b prefix settings",
+  );
   // A's ids the RPC checks use.
   a.expenseId = (
     await must(
@@ -422,6 +535,117 @@ beforeAll(async () => {
     service,
   );
 
+  // A's half of the public surface (#887). Where the seed already publishes
+  // something the marker is one of those rows; the four `app_settings`
+  // prefixes and the image slot the seed leaves empty in A get a fixture, so
+  // the prefix views are checked against a row rather than against nothing.
+  aPublic.calendarItemId = (
+    await must(
+      service
+        .from("calendar_items")
+        .select("id")
+        .eq("tenant_id", tenantA)
+        .eq("visibility", "public")
+        .in("calendar_status", ["active", "complete"])
+        .limit(1)
+        .single(),
+      "a calendar item",
+    )
+  ).id as string;
+  aPublic.calendarCategoryKey = (
+    await must(
+      service
+        .from("calendar_categories")
+        .select("key")
+        .eq("tenant_id", tenantA)
+        .eq("is_active", true)
+        .limit(1)
+        .single(),
+      "a calendar category",
+    )
+  ).key as string;
+  aPublic.programId = (
+    await must(
+      service
+        .from("event_programs")
+        .select("program_id, events!inner(visibility, status)")
+        .eq("tenant_id", tenantA)
+        .eq("events.visibility", "public")
+        .eq("events.status", "published")
+        .limit(1)
+        .single(),
+      "a public event program",
+    )
+  ).program_id as string;
+  aPublic.sponsorId = (
+    await must(
+      service
+        .from("event_sponsors")
+        .select("id, events!inner(visibility, status)")
+        .eq("tenant_id", tenantA)
+        .eq("is_public", true)
+        .eq("events.visibility", "public")
+        .eq("events.status", "published")
+        .limit(1)
+        .single(),
+      "a public event sponsor",
+    )
+  ).id as string;
+  aPublic.gearItemId = (
+    await must(
+      service
+        .from("inventory_items")
+        .select("id")
+        .eq("tenant_id", tenantA)
+        .eq("status", "available")
+        .eq("intended_use", "gear_library")
+        .limit(1)
+        .single(),
+      "a gear item",
+    )
+  ).id as string;
+  aPublic.volunteerRoleTypeId = (
+    await must(
+      service
+        .from("volunteer_role_types")
+        .select("id")
+        .eq("tenant_id", tenantA)
+        .eq("is_public", true)
+        .limit(1)
+        .single(),
+      "a public volunteer role type",
+    )
+  ).id as string;
+
+  // Via `service`: `app_settings` has no delete policy for any role -- a
+  // setting is upserted, never removed -- so an admin session could create
+  // these and then not clean them up.
+  for (const prefix of [
+    "brand",
+    "layout",
+    "page_visibility",
+    "legal_publication",
+  ]) {
+    await fixture(
+      "app_settings",
+      {
+        tenant_id: tenantA,
+        key: `${prefix}.${probeToken.a}`,
+        value: "isolation",
+      },
+      service,
+    );
+  }
+  await fixture(
+    "site_content",
+    {
+      tenant_id: tenantA,
+      key: `site_images.${probeToken.a}`,
+      value: "https://example.test/a.png",
+    },
+    service,
+  );
+
   // Giveaway tiers, grants, rules, a bucket, a package and a sale on A's
   // past-event giveaway; seed_giveaway_tiers is a no-op if tiers exist.
   await must(
@@ -502,6 +726,16 @@ afterAll(async () => {
     "contact_messages",
     "event_registrations",
     "event_expenses",
+    // The public-surface rows (#887): each references an event, a program, a
+    // person or a donation below it.
+    "site_content",
+    "calendar_items",
+    "calendar_categories",
+    "volunteer_role_types",
+    "event_programs",
+    "event_sponsors",
+    "inventory_items",
+    "donations",
     "events",
     "people",
     "programs",
@@ -518,7 +752,10 @@ afterAll(async () => {
 });
 
 describe("the catalog", () => {
-  test("every policy on a tenant table carries the tenant predicate and every foreign key between tenant tables is composite", async () => {
+  // Since #887 the report also covers the construct that bypasses the
+  // policies it checks: a security definer view over a tenant table with no
+  // tenant predicate, and any write grant on one.
+  test("every policy and definer view on a tenant table carries the tenant predicate, every foreign key between tenant tables is composite, and no definer view is writable", async () => {
     const { data, error } = await adminClient.rpc("tenant_isolation_gaps");
     expect(error).toBeNull();
     expect(data).toEqual([]);
@@ -781,14 +1018,12 @@ describe("security definer RPCs answer for the caller's tenant", () => {
       }),
       "finance report",
     );
-    for (const key of [
-      "revenue",
-      "reimbursements",
-      "in_kind_items",
-      "monetary_donations",
-    ]) {
+    for (const key of ["revenue", "reimbursements", "monetary_donations"]) {
       expect(finance[key], key).toEqual([]);
     }
+    // B's own gear item -- the donation behind the public_gear_catalog fixture
+    // (#887) is an in-kind donation like any other -- and none of A's hundred.
+    expect(finance.in_kind_items).toEqual([{ face_value: null }]);
     // B's one expense, and none of A's twenty-odd.
     expect(finance.expenses).toEqual([
       { status: "submitted", amount: 12.5, event_id: null, event_name: null },
@@ -810,7 +1045,11 @@ describe("security definer RPCs answer for the caller's tenant", () => {
       }),
       "calendar report",
     );
-    expect(calendar.items).toEqual([]);
+    // B's own calendar item -- the public_calendar_items fixture (#887) -- and
+    // none of A's two dozen.
+    expect(calendar.items.map((item: { id: string }) => item.id)).toEqual([
+      b.calendarItemId,
+    ]);
 
     const impact = await must(
       bAdmin.rpc("get_event_impact_derived_data", {
@@ -1140,6 +1379,131 @@ describe("the public surface follows the host", () => {
       await deleteTenantUser(userId);
     }
   });
+});
+
+// #887: the anon-readable views are security definer, so the base table's RLS
+// never runs for the caller and the tenant predicate in the view body is the
+// only thing between one tenant's public site and another's data. Before this
+// only public_events was covered. Each view gets a marker row in both tenants,
+// so "A's host sees A's row" and "A's host does not see B's" are both real
+// assertions rather than an empty result passing twice.
+describe("every anon-readable view follows the host", () => {
+  const probes: Array<{
+    view: string;
+    column: string;
+    inA: () => string;
+    inB: () => string;
+  }> = [
+    {
+      view: "public_events",
+      column: "id",
+      inA: () => aPublic.eventId,
+      inB: () => b.eventId,
+    },
+    {
+      view: "public_calendar_items",
+      column: "id",
+      inA: () => aPublic.calendarItemId,
+      inB: () => b.calendarItemId,
+    },
+    {
+      view: "public_calendar_categories",
+      column: "key",
+      inA: () => aPublic.calendarCategoryKey,
+      inB: () => b.calendarCategoryKey,
+    },
+    {
+      view: "public_event_programs",
+      column: "program_id",
+      inA: () => aPublic.programId,
+      inB: () => b.programId,
+    },
+    {
+      view: "public_event_sponsors",
+      column: "sponsor_id",
+      inA: () => aPublic.sponsorId,
+      inB: () => b.sponsorId,
+    },
+    {
+      view: "public_gear_catalog",
+      column: "id",
+      inA: () => aPublic.gearItemId,
+      inB: () => b.gearItemId,
+    },
+    {
+      view: "public_volunteer_role_types",
+      column: "id",
+      inA: () => aPublic.volunteerRoleTypeId,
+      inB: () => b.volunteerRoleTypeId,
+    },
+    {
+      view: "public_site_content",
+      column: "key",
+      inA: () => aPublic.siteContentKey,
+      inB: () => b.siteContentKey,
+    },
+    {
+      view: "public_site_images",
+      column: "slot",
+      inA: () => probeToken.a,
+      inB: () => probeToken.b,
+    },
+    {
+      view: "public_branding",
+      column: "token",
+      inA: () => probeToken.a,
+      inB: () => probeToken.b,
+    },
+    {
+      view: "public_site_layout",
+      column: "slot",
+      inA: () => probeToken.a,
+      inB: () => probeToken.b,
+    },
+    {
+      view: "public_page_visibility",
+      column: "slot",
+      inA: () => probeToken.a,
+      inB: () => probeToken.b,
+    },
+    {
+      view: "public_legal_publication",
+      column: "document",
+      inA: () => probeToken.a,
+      inB: () => probeToken.b,
+    },
+    {
+      view: "public_tenant",
+      column: "id",
+      inA: () => tenantA,
+      inB: () => tenantB,
+    },
+  ];
+
+  for (const probe of probes) {
+    test(`${probe.view} shows the host's tenant and nothing else`, async () => {
+      const read = async (host?: string) =>
+        (
+          await must<Array<Record<string, string>>>(
+            anonClient(host ? { host } : undefined)
+              .from(probe.view)
+              .select(probe.column),
+            `${probe.view} for ${host ?? "no host"}`,
+          )
+        ).map((row) => String(row[probe.column]));
+
+      const forA = await read(A_HOST);
+      expect(forA).toContain(probe.inA());
+      expect(forA).not.toContain(probe.inB());
+
+      const forB = await read(B_HOST);
+      expect(forB).toContain(probe.inB());
+      expect(forB).not.toContain(probe.inA());
+
+      // Two active tenants and no host: nothing, rather than everything.
+      expect(await read()).toEqual([]);
+    });
+  }
 });
 
 describe("support grants", () => {
