@@ -50,6 +50,7 @@ const PHOTO: ContentSlot = {
   label: "Homepage carousel — slide 1",
   type: "image",
   default: null,
+  ratio: "21/9",
 };
 
 const URL = "https://drive.google.com/file/d/abc123/view";

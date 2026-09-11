@@ -43,7 +43,7 @@ import {
   type PersonRow,
   type RoleKey,
 } from "./people-shared";
-import type { PeopleSegment } from "./people-segments";
+import { emptyManageDescription, type PeopleSegment } from "./people-segments";
 
 /**
  * Every column the directory table and its row links need. `primary_contact`
@@ -323,7 +323,7 @@ export async function PeopleDirectory({
                   hasActiveFilters
                     ? "Clear or loosen the filters to see more."
                     : canManage
-                      ? segment.emptyDescriptionManage
+                      ? emptyManageDescription(segment, permissions)
                       : segment.emptyDescriptionView
                 }
               />

@@ -1,4 +1,4 @@
-import { Sparkles } from "lucide-react";
+import { ShoppingBag } from "lucide-react";
 import type { DialogStep } from "./step-dialog";
 
 /**
@@ -23,22 +23,27 @@ import type { DialogStep } from "./step-dialog";
  * moves a user's pointer forward, so a downgrade silently shows no one
  * anything.
  */
-export const CURRENT_RELEASE = "2026-09-03";
+export const CURRENT_RELEASE = "2026-09-11";
 
 export const RELEASE_NOTES: DialogStep[] = [
   {
-    key: "portal-introduction",
-    icon: Sparkles,
-    title: "There's now a guided introduction to the portal",
+    key: "sales-register",
+    icon: ShoppingBag,
+    title: "Sell merchandise from the new Sales register",
     body: (
       <>
         <p>
-          New accounts get a short walkthrough of the basics on their first
-          sign-in — the sidebar, the help button, and the notifications bell.
+          <strong>Finance &rsaquo; Sales</strong> now has a product catalog, a
+          register for ringing up a sale, and a ledger of everything sold. The
+          register prices each line from the catalog and takes the stock down as
+          it goes; a sale you got wrong is voided, which puts its stock back and
+          leaves the original on the record.
         </p>
         <p>
-          You can run it yourself any time from <strong>My Account</strong>,
-          under &ldquo;Portal introduction&rdquo;.
+          Merchandise income is counted from those sales now, so{" "}
+          <strong>Merchandise</strong> is no longer a source you can pick under
+          Revenue. Rows recorded there before today keep their source and still
+          count exactly once.
         </p>
       </>
     ),

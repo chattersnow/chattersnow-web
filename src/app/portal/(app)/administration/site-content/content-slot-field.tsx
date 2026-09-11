@@ -24,7 +24,7 @@ import {
   textToParagraphs,
 } from "./content-values";
 import { DocumentEditor } from "./document-editor";
-import { ImageSlotField, ImageSlotHint } from "./image-slot-field";
+import { ImageSlotField } from "./image-slot-field";
 import { ListEditor } from "./list-editor";
 
 /** The slot's control, for the label to point at. */
@@ -250,6 +250,7 @@ export function ContentSlotField({
         <ImageSlotField
           id={controlId}
           label={slot.label}
+          ratio={slot.ratio}
           value={typeof value === "string" ? value : null}
           onChange={onChange}
         />
@@ -261,7 +262,6 @@ export function ContentSlotField({
       {slot.type === "paragraphs" && (
         <FieldDescription>{paragraphHint(paragraphs)}</FieldDescription>
       )}
-      {slot.type === "image" && <ImageSlotHint />}
 
       {slot.type === "list" && (
         <ListEditor

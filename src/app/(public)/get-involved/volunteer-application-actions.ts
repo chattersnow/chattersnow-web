@@ -19,6 +19,9 @@ const ERROR_MESSAGES: Record<string, string> = {
     "We already have a recent application from this email — we'll be in touch soon.",
   PRONOUNS_TOO_LONG: PRONOUNS_TOO_LONG_ERROR,
   RATE_LIMITED: "Too many attempts — please try again in a few minutes.",
+  // #902. The volunteer page is gated too, so reaching this means a stale tab
+  // or a direct post -- but the form still has to say something true.
+  SECTION_UNAVAILABLE: "This form is not available on this site.",
 };
 
 // Public, unauthenticated action: anyone can submit a volunteer application.

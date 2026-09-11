@@ -51,6 +51,39 @@ describe("visibleNavItems", () => {
   });
 });
 
+describe("Finance section", () => {
+  test("the three Sales pages are reachable on sales:manage alone (#907, #908)", () => {
+    // event_coordinator's shape: sales:manage with finance:none. The section
+    // has to open for them, and on the ledger rather than a page they cannot
+    // read.
+    const coordinator: PermissionMap = { sales: "manage" };
+    const items = visibleNavItems(coordinator);
+    const finance = items.find((item) => item.value === "finance");
+    expect(finance?.subItems?.map((sub) => sub.value)).toEqual([
+      "sales",
+      "register",
+      "products",
+    ]);
+    expect(firstAccessibleHref(coordinator, "finance")).toBe(
+      "/portal/finance/sales",
+    );
+  });
+
+  test("sales:view reaches the ledger and neither of the pages that write (#908)", () => {
+    // The register and the catalog editor are gated at manage by their own
+    // layouts, so a view-only holder offered either would reach a 403 through
+    // the sidebar. The ledger is a read and opens.
+    const viewer: PermissionMap = { sales: "view" };
+    const items = visibleNavItems(viewer);
+    expect(items.map((item) => item.value)).toEqual(["overview", "finance"]);
+    expect(
+      items
+        .find((item) => item.value === "finance")
+        ?.subItems?.map((sub) => sub.value),
+    ).toEqual(["sales"]);
+  });
+});
+
 describe("activeSectionFor", () => {
   test("matches a section by its base path, including nested routes", () => {
     expect(activeSectionFor("/portal/finance/expenses/abc")).toBe("finance");
@@ -84,6 +117,19 @@ describe("Volunteers section", () => {
         .find((item) => item.value === "volunteers")
         ?.subItems?.map((sub) => sub.value),
     ).toEqual(["roles", "participation", "applications"]);
+  });
+
+  test("the directory alone does not hold the section open (#903)", () => {
+    // `people` is a core module and people:view is held by almost everyone, so
+    // before the cross-link carried alsoRequires, a tenant whose Volunteers
+    // module was off still got a Volunteers heading in the sidebar with this
+    // one link under it -- advertising a module it was never sold. The link
+    // worked; the heading was the lie.
+    const peopleOnly: PermissionMap = { people: "view" };
+    expect(visibleNavItems(peopleOnly).map((item) => item.value)).not.toContain(
+      "volunteers",
+    );
+    expect(firstAccessibleHref(peopleOnly, "volunteers")).toBeNull();
   });
 });
 

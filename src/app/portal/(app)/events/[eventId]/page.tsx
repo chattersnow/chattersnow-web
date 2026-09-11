@@ -9,7 +9,7 @@ import {
 import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Card, CardContent } from "@/components/ui/card";
 import type { EventRow } from "../event-badges";
-import { isTabValue } from "../event-tabs-config";
+import { eventPhases, isTabValue } from "../event-tabs-config";
 import { eventPhaseTaskLabels } from "../phase-status";
 import { listProgramsAction } from "../../programs/actions";
 import { EventDetailView } from "./event-detail-view";
@@ -54,6 +54,10 @@ export default async function EventDetailPage({
   const supabase = await createSupabaseServerClient();
   const permissions = await getCurrentUserPermissions(supabase);
   const canManage = hasPermission(permissions, "events", "manage");
+  // Resolved here rather than in the client view, so a card whose section this
+  // reader has no access to -- or whose module this tenant was never sold
+  // (#903) -- is absent from the payload rather than hidden in it.
+  const phases = eventPhases(permissions);
 
   const { data: eventRow, error } = await supabase
     .from("events")
@@ -123,6 +127,7 @@ export default async function EventDetailPage({
         programs={programs}
         canManage={canManage}
         deleteBlockers={deleteBlockers ?? []}
+        phases={phases}
         initialTab={initialTab}
         phaseTasks={phaseTasks}
       />

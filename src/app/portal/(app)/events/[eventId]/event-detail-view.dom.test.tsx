@@ -13,6 +13,7 @@ import * as ChecklistActions from "../checklist-actions";
 import * as GiveawayActions from "../giveaway-actions";
 import * as ExpensesActions from "../../finance/expenses/actions";
 import * as RevenueActions from "../../finance/revenue/actions";
+import * as SalesActions from "../../finance/sales/actions";
 import * as ImpactActions from "../impact-actions";
 import * as ImpactDerivedActions from "../impact-derived-actions";
 import * as HomeActions from "../../home/actions";
@@ -20,6 +21,7 @@ import * as LogisticsActions from "../logistics-actions";
 import * as RoleTypesActions from "../../volunteers/roles/actions";
 import * as EventsActions from "../actions";
 import type { EventRow } from "../event-badges";
+import { eventPhases } from "../event-tabs-config";
 import { mockUrlTabState } from "@/../test/url-tab-state-mock";
 
 mockUrlTabState();
@@ -104,6 +106,10 @@ mock.module("../../finance/revenue/actions", () => ({
   ...RevenueActions,
   listEventRevenueAction: mock(async () => ({ data: [] })),
 }));
+mock.module("../../finance/sales/actions", () => ({
+  ...SalesActions,
+  listEventSalesAction: mock(async () => ({ data: [] })),
+}));
 mock.module("../impact-actions", () => ({
   ...ImpactActions,
   getEventImpactAction: mock(async () => ({ data: null })),
@@ -166,6 +172,25 @@ function makeEvent(overrides: Partial<EventRow> = {}): EventRow {
   };
 }
 
+// Every card, as an admin holding the lot gets them. #903 made the phase strip
+// a function of the permission map -- the Finance and Inventory cards drop out
+// for a reader (or a tenant) without those sections -- and these tests are
+// about the strip's behaviour, not about who sees what. eventPhases() is
+// covered on its own in event-tabs-config.test.ts.
+const ALL_PHASES = eventPhases(
+  Object.fromEntries(
+    [
+      "events",
+      "finance",
+      "event_expenses",
+      "event_revenue",
+      "sales",
+      "inventory",
+      "inventory_reports",
+    ].map((resource) => [resource, "manage" as const]),
+  ),
+);
+
 describe("EventDetailView", () => {
   test("shows one phase tab bar: Overview, Planning, During, After", () => {
     render(
@@ -174,6 +199,7 @@ describe("EventDetailView", () => {
         programs={[]}
         canManage={true}
         deleteBlockers={[]}
+        phases={ALL_PHASES}
       />,
     );
 
@@ -198,6 +224,7 @@ describe("EventDetailView", () => {
         programs={[]}
         canManage={true}
         deleteBlockers={[]}
+        phases={ALL_PHASES}
       />,
     );
 
@@ -217,6 +244,7 @@ describe("EventDetailView", () => {
         programs={[]}
         canManage={true}
         deleteBlockers={[]}
+        phases={ALL_PHASES}
       />,
     );
 
@@ -240,6 +268,7 @@ describe("EventDetailView", () => {
         programs={[]}
         canManage={true}
         deleteBlockers={[]}
+        phases={ALL_PHASES}
       />,
     );
 
@@ -266,6 +295,7 @@ describe("EventDetailView", () => {
         programs={[]}
         canManage={false}
         deleteBlockers={[]}
+        phases={ALL_PHASES}
       />,
     );
 
@@ -283,6 +313,7 @@ describe("EventDetailView", () => {
         programs={[]}
         canManage={false}
         deleteBlockers={[]}
+        phases={ALL_PHASES}
       />,
     );
 
@@ -298,6 +329,7 @@ describe("EventDetailView", () => {
         programs={[]}
         canManage={true}
         deleteBlockers={[]}
+        phases={ALL_PHASES}
       />,
     );
 
@@ -313,6 +345,7 @@ describe("EventDetailView", () => {
         programs={[]}
         canManage={true}
         deleteBlockers={[]}
+        phases={ALL_PHASES}
         initialTab="registrants"
       />,
     );
@@ -328,6 +361,7 @@ describe("EventDetailView", () => {
         programs={[]}
         canManage={true}
         deleteBlockers={[]}
+        phases={ALL_PHASES}
         phaseTasks={{
           basic: [],
           planning: ["Planning incomplete"],
@@ -358,6 +392,7 @@ describe("EventDetailView", () => {
           programs={[]}
           canManage={true}
           deleteBlockers={[]}
+          phases={ALL_PHASES}
         />,
       );
 
@@ -379,6 +414,7 @@ describe("EventDetailView", () => {
           programs={[]}
           canManage={true}
           deleteBlockers={[]}
+          phases={ALL_PHASES}
         />,
       );
 
@@ -399,6 +435,7 @@ describe("EventDetailView", () => {
         programs={[]}
         canManage={true}
         deleteBlockers={[]}
+        phases={ALL_PHASES}
         phaseTasks={{ basic: [], planning: [], during: [], after: [] }}
       />,
     );

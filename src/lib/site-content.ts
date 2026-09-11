@@ -41,6 +41,8 @@
  * `src/lib/public-site.ts`.
  */
 
+import { isRenderableImageSrc } from "@/lib/inventory";
+
 export type ContentPage = {
   key: string;
   label: string;
@@ -403,8 +405,15 @@ export type ContentSlot = SlotBase &
     | { type: "paragraphs"; default: string[] }
     | { type: "list"; fields: readonly ListField[]; default: ListItem[] }
     | { type: "document"; default: null; route: string }
-    /** A Google Drive share link or image URL; null is the placeholder icon. */
-    | { type: "image"; default: null }
+    /**
+     * A Google Drive share link or image URL; null is the placeholder icon.
+     *
+     * `ratio` is the aspect the public site crops this photo to -- "21/9" for
+     * a hero strip, "3/4" for the portrait beside Our Story. The editor's
+     * preview is drawn at it, because a square thumbnail cannot show whether
+     * the heads come off in a 21:9 band (#918).
+     */
+    | { type: "image"; default: null; ratio: string }
   );
 
 const BULLET: readonly ListField[] = [
@@ -427,6 +436,8 @@ function image(
   section: string,
   label: string,
   description: string,
+  /** The aspect the public site crops it to, as a CSS ratio: "21/9", "1/1". */
+  ratio: string,
 ): ContentSlot {
   return {
     key: `${IMAGE_SLOT_KEY_PREFIX}${name}`,
@@ -436,6 +447,7 @@ function image(
     description,
     type: "image",
     default: null,
+    ratio,
   };
 }
 
@@ -600,6 +612,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "home:hero",
     "Homepage carousel — slide 1",
     "First slide of the homepage image carousel.",
+    "21/9",
   ),
   image(
     "home_carousel_2",
@@ -607,6 +620,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "home:hero",
     "Homepage carousel — slide 2",
     "Second slide of the homepage image carousel.",
+    "21/9",
   ),
   image(
     "home_carousel_3",
@@ -614,6 +628,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "home:hero",
     "Homepage carousel — slide 3",
     "Third slide of the homepage image carousel.",
+    "21/9",
   ),
 
   // About: Our Story ------------------------------------------------------------
@@ -659,6 +674,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "about_story:story",
     "Our Story photo",
     "Photo alongside the Our Story section on the About page.",
+    "3/4",
   ),
 
   // About: Mission & Values ------------------------------------------------------
@@ -751,6 +767,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "about_mission:values",
     "Our Mission photo",
     "Photo alongside the Our Values section on the Mission page.",
+    "1/1",
   ),
   image(
     "about_mission_bottom_photo",
@@ -758,6 +775,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "about_mission:why",
     "Mission page — bottom photo",
     "Photo shown at the bottom of the Mission page, below the Why LGBTQ+ Snow Sports section.",
+    "16/9",
   ),
 
   // About: Meet the Team ---------------------------------------------------------
@@ -769,6 +787,18 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     type: "text",
     default: "Meet the team",
   },
+  // The order inside a section is the order the editor renders it in, so it
+  // follows the page: heading, the strip under it, then the member cards. It
+  // used to sit below "Missing bio text", four fields away from the heading it
+  // is glued to on the site (#918).
+  image(
+    "about_team_hero_photo",
+    "about_team",
+    "about_team:team",
+    "Meet the Team — top photo",
+    "Photo between the Meet the Team heading and the team member cards.",
+    "21/9",
+  ),
   {
     key: "about_team.members",
     page: "about_team",
@@ -797,6 +827,38 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
       },
     ],
   },
+  image(
+    "about_team_photo_cass",
+    "about_team",
+    "about_team:team",
+    "Team photo — Cass Lainez",
+    "Cass Lainez's photo on the Meet the Team page. A team member's Image slot field names it as about_team_photo_cass.",
+    "1/1",
+  ),
+  image(
+    "about_team_photo_rickie",
+    "about_team",
+    "about_team:team",
+    "Team photo — Rickie Cruz",
+    "Rickie Cruz's photo on the Meet the Team page. A team member's Image slot field names it as about_team_photo_rickie.",
+    "1/1",
+  ),
+  image(
+    "about_team_photo_sofie",
+    "about_team",
+    "about_team:team",
+    "Team photo — Sofie Chavez",
+    "Sofie Chavez's photo on the Meet the Team page. A team member's Image slot field names it as about_team_photo_sofie.",
+    "1/1",
+  ),
+  image(
+    "about_team_photo",
+    "about_team",
+    "about_team:team",
+    "Team member photo",
+    "Shown for any team member who doesn't have their own photo.",
+    "1/1",
+  ),
   {
     key: "about_team.bio_placeholder",
     page: "about_team",
@@ -805,41 +867,6 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     type: "text",
     default: "Bio coming soon.",
   },
-  image(
-    "about_team_hero_photo",
-    "about_team",
-    "about_team:team",
-    "Meet the Team — top photo",
-    "Photo between the Meet the Team heading and the team member cards.",
-  ),
-  image(
-    "about_team_photo_cass",
-    "about_team",
-    "about_team:team",
-    "Team photo — Cass Lainez",
-    "Cass Lainez's photo on the Meet the Team page. A team member's Image slot field names it as about_team_photo_cass.",
-  ),
-  image(
-    "about_team_photo_rickie",
-    "about_team",
-    "about_team:team",
-    "Team photo — Rickie Cruz",
-    "Rickie Cruz's photo on the Meet the Team page. A team member's Image slot field names it as about_team_photo_rickie.",
-  ),
-  image(
-    "about_team_photo_sofie",
-    "about_team",
-    "about_team:team",
-    "Team photo — Sofie Chavez",
-    "Sofie Chavez's photo on the Meet the Team page. A team member's Image slot field names it as about_team_photo_sofie.",
-  ),
-  image(
-    "about_team_photo",
-    "about_team",
-    "about_team:team",
-    "Team member photo",
-    "Shown for any team member who doesn't have their own photo.",
-  ),
 
   // Events ----------------------------------------------------------------------
   {
@@ -959,6 +986,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "learn:opening",
     "Learn section photo",
     "Photo shown at the bottom of every Learn page (the Learn index and each category page).",
+    "21/9",
   ),
 
   // Gear ------------------------------------------------------------------------
@@ -1075,6 +1103,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "gears:library",
     "Gear placeholder",
     "Shown in the gear library for any gear item that doesn't have its own photo.",
+    "1/1",
   ),
   image(
     "gears_donate_photo",
@@ -1082,6 +1111,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "gears:donate",
     "Donate gear page photo",
     "Photo on the Donate Gear page.",
+    "1/1",
   ),
   image(
     "gears_donate_bottom_photo",
@@ -1089,6 +1119,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "gears:drives",
     "Donate gear page — bottom photo",
     "Photo at the bottom of the Donate Gear page, below Gear drives.",
+    "16/9",
   ),
 
   // Get involved ----------------------------------------------------------------
@@ -1225,6 +1256,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "get_involved:opening",
     "Get Involved — hero image 1",
     "Large hero image at the top of the Get Involved page.",
+    "4/3",
   ),
   image(
     "get_involved_hero_2",
@@ -1232,6 +1264,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "get_involved:opening",
     "Get Involved — hero image 2",
     "Small hero image at the top of the Get Involved page.",
+    "1/1",
   ),
   image(
     "get_involved_hero_3",
@@ -1239,6 +1272,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "get_involved:opening",
     "Get Involved — hero image 3",
     "Small hero image at the top of the Get Involved page.",
+    "1/1",
   ),
   image(
     "get_involved_attend_photo",
@@ -1246,6 +1280,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "get_involved:attend",
     "Attend page photo",
     "Photo on the Attend page.",
+    "4/3",
   ),
   image(
     "get_involved_community_photo",
@@ -1253,6 +1288,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "get_involved:community",
     "Attend page — community photo",
     "Photo alongside the Join the Community section on the Attend page.",
+    "4/3",
   ),
   image(
     "get_involved_partner_photo",
@@ -1260,6 +1296,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "get_involved:partner",
     "Partner page photo",
     "Photo on the Become a Partner page.",
+    "21/9",
   ),
   image(
     "get_involved_volunteer_photo",
@@ -1267,6 +1304,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "get_involved:volunteer",
     "Volunteer page photo",
     "Photo on the Volunteer page.",
+    "21/9",
   ),
 
   // Support ---------------------------------------------------------------------
@@ -1402,6 +1440,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "support:donations",
     "Donations page photo",
     "Photo at the bottom of the Donations page.",
+    "16/9",
   ),
   image(
     "sponsorship_photo_1",
@@ -1409,6 +1448,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "support:sponsorship",
     "Sponsorship page — photo 1",
     "First of two small photos at the bottom of the Sponsorship page.",
+    "4/3",
   ),
   image(
     "sponsorship_photo_2",
@@ -1416,6 +1456,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "support:sponsorship",
     "Sponsorship page — photo 2",
     "Second of two small photos at the bottom of the Sponsorship page.",
+    "4/3",
   ),
 
   // Contact ---------------------------------------------------------------------
@@ -1442,6 +1483,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "contact:opening",
     "Contact page — photo 1",
     "First of three photos at the bottom of the Contact page.",
+    "1/1",
   ),
   image(
     "contact_photo_2",
@@ -1449,6 +1491,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "contact:opening",
     "Contact page — photo 2",
     "Second of three photos at the bottom of the Contact page.",
+    "1/1",
   ),
   image(
     "contact_photo_3",
@@ -1456,6 +1499,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "contact:opening",
     "Contact page — photo 3",
     "Third of three photos at the bottom of the Contact page.",
+    "1/1",
   ),
 
   // Brand ---------------------------------------------------------------------
@@ -1639,7 +1683,11 @@ export function isValidSlotValue(slot: ContentSlot, value: unknown): boolean {
     case "document":
       return isLegalDocument(value);
     case "image":
-      return typeof value === "string" && value.trim() !== "";
+      // Renderable, not merely non-empty. "team-photo.jpg" used to pass here,
+      // and `type="url"` on the box only guards the form submit -- "Publish"
+      // is a button, so it went straight past to the public site, where it
+      // resolved against whatever page was showing it and 404ed (#918).
+      return isRenderableImageSrc(typeof value === "string" ? value : null);
   }
 }
 

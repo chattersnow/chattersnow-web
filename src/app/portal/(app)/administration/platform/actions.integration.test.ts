@@ -325,6 +325,38 @@ describe("every platform RPC refuses everyone but the operator", () => {
       expect(error?.message, who).toContain("Not authorized");
     }
   });
+
+  test("platform_list_tenant_modules", async () => {
+    for (const [who, client] of callers()) {
+      const { error } = await client.rpc("platform_list_tenant_modules", {
+        p_tenant_id: tenantB,
+      });
+      expect(error?.message, who).toContain("Not authorized");
+    }
+  });
+
+  test("platform_set_tenant_module", async () => {
+    for (const [who, client] of callers()) {
+      const { error } = await client.rpc("platform_set_tenant_module", {
+        p_tenant_id: tenantB,
+        p_module_key: "finance",
+        p_enabled: false,
+      });
+      expect(error?.message, who).toContain("Not authorized");
+    }
+    // A customer's admin turning their *own* module off is the case this
+    // matters most for: they hold the resource in their own matrix, and the
+    // entitlement is not theirs to write.
+    const rows = await must(
+      service
+        .from("tenant_modules")
+        .select("enabled")
+        .eq("tenant_id", tenantB)
+        .eq("module_key", "finance"),
+      "B finance after refusals",
+    );
+    expect(rows[0]?.enabled).toBe(true);
+  });
 });
 
 describe("what the operator can do", () => {
@@ -486,6 +518,180 @@ describe("provisioning does not mint a link to an existing account (#759)", () =
 
     await service.from("tenants").update({ status: "archived" }).eq("id", id);
     await must(service.rpc("delete_tenant", { p_tenant_id: id }), "cleanup");
+  });
+});
+
+// #901. The entitlements themselves are #900's; this is the operator's way to
+// set them, and the interesting part is the same as everywhere else on this
+// page -- what it refuses.
+describe("module entitlements", () => {
+  const modulesOf = async (tenantId: string) =>
+    (await must(
+      seededAdmin.rpc("platform_list_tenant_modules", {
+        p_tenant_id: tenantId,
+      }),
+      "list modules",
+    )) as {
+      module_key: string;
+      is_core: boolean;
+      enabled: boolean;
+      source: string;
+      updated_by_email: string | null;
+    }[];
+
+  const moduleRow = async (tenantId: string, key: string) =>
+    (await modulesOf(tenantId)).find((m) => m.module_key === key)!;
+
+  test("lists the whole catalog, in order, with the core ones marked", async () => {
+    const modules = await modulesOf(tenantB);
+    expect(modules.length).toBeGreaterThan(10);
+    expect(modules.map((m) => m.module_key)).toContain("finance");
+    expect(modules.filter((m) => m.is_core).map((m) => m.module_key)).toEqual([
+      "people",
+      "administration",
+    ]);
+  });
+
+  test("reports where each value comes from, before and after a set", async () => {
+    // Provisioning seeded tenant_modules from plan_modules, so every row is
+    // already an explicit tenant setting. Removing one is how a tenant that
+    // predates #900 looks -- and the fallback is what the page must describe
+    // honestly rather than showing as a decision somebody took.
+    await must(
+      service
+        .from("tenant_modules")
+        .delete()
+        .eq("tenant_id", tenantB)
+        .eq("module_key", "governance")
+        .select("module_key"),
+      "drop governance row",
+    );
+    let governance = await moduleRow(tenantB, "governance");
+    expect(governance.source).toBe("plan");
+    expect(governance.enabled).toBe(true);
+    expect(governance.updated_by_email).toBeNull();
+
+    await must(
+      seededAdmin.rpc("platform_set_tenant_module", {
+        p_tenant_id: tenantB,
+        p_module_key: "governance",
+        p_enabled: false,
+      }),
+      "disable governance",
+    );
+    governance = await moduleRow(tenantB, "governance");
+    expect(governance.source).toBe("tenant");
+    expect(governance.enabled).toBe(false);
+    // Stamped with the operator who did it, which is the other half of the
+    // question this page answers.
+    expect(governance.updated_by_email).toBe(SEEDED_USERS.admin);
+  });
+
+  test("the tenant's own admin loses the section, and gets it back", async () => {
+    await must(
+      seededAdmin.rpc("platform_set_tenant_module", {
+        p_tenant_id: tenantB,
+        p_module_key: "inventory",
+        p_enabled: false,
+      }),
+      "disable inventory",
+    );
+
+    const off = await must(bAdmin.rpc("my_permissions"), "B perms off");
+    expect(
+      off.find((p: { resource_key: string }) => p.resource_key === "inventory")
+        ?.level,
+    ).toBe("none");
+
+    await must(
+      seededAdmin.rpc("platform_set_tenant_module", {
+        p_tenant_id: tenantB,
+        p_module_key: "inventory",
+        p_enabled: true,
+      }),
+      "re-enable inventory",
+    );
+    const on = await must(bAdmin.rpc("my_permissions"), "B perms on");
+    expect(
+      on.find((p: { resource_key: string }) => p.resource_key === "inventory")
+        ?.level,
+    ).toBe("manage");
+  });
+
+  test("refuses a core module, an unknown one, and a tenant that is not there", async () => {
+    const core = await seededAdmin.rpc("platform_set_tenant_module", {
+      p_tenant_id: tenantB,
+      p_module_key: "people",
+      p_enabled: false,
+    });
+    expect(core.error?.message).toContain("core");
+
+    const unknown = await seededAdmin.rpc("platform_set_tenant_module", {
+      p_tenant_id: tenantB,
+      p_module_key: "not_a_module",
+      p_enabled: true,
+    });
+    expect(unknown.error?.message).toContain("Unknown module");
+
+    const missing = await seededAdmin.rpc("platform_set_tenant_module", {
+      p_tenant_id: "00000000-0000-0000-0000-000000000000",
+      p_module_key: "finance",
+      p_enabled: false,
+    });
+    expect(missing.error?.message).toContain("No such tenant");
+
+    const missingList = await seededAdmin.rpc("platform_list_tenant_modules", {
+      p_tenant_id: "00000000-0000-0000-0000-000000000000",
+    });
+    expect(missingList.error?.message).toContain("No such tenant");
+
+    // Enabling a core module is a no-op rather than a refusal: it is already
+    // on, and an operator who clicks it should not be told off.
+    await must(
+      seededAdmin.rpc("platform_set_tenant_module", {
+        p_tenant_id: tenantB,
+        p_module_key: "people",
+        p_enabled: true,
+      }),
+      "enable a core module",
+    );
+  });
+
+  test("cannot turn a module off on the platform's own tenant", async () => {
+    // Same reasoning as refusing to archive it: platform administration is a
+    // membership inside this tenant, so taking a section off here is this page
+    // removing its own controls, with no super-admin to put them back.
+    const { error } = await seededAdmin.rpc("platform_set_tenant_module", {
+      p_tenant_id: tenantA,
+      p_module_key: "finance",
+      p_enabled: false,
+    });
+    expect(error?.message).toContain("platform tenant");
+
+    const still = await moduleRow(tenantA, "finance");
+    expect(still.enabled).toBe(true);
+  });
+
+  test("every write is in the audit log", async () => {
+    // "Who turned Finance off for this customer and when" is the question this
+    // page gets asked later, and audit_log.record_id is the tenant because
+    // tenant_modules has no surrogate id to be.
+    const rows = await must(
+      service
+        .from("audit_log")
+        .select("action, old_data, new_data")
+        .eq("table_name", "tenant_modules")
+        .eq("record_id", tenantB)
+        .order("occurred_at", { ascending: false })
+        .limit(20),
+      "module audit rows",
+    );
+    const governance = rows.find(
+      (r: { new_data: { module_key?: string } | null }) =>
+        r.new_data?.module_key === "governance",
+    );
+    expect(governance).toBeDefined();
+    expect(governance.new_data.enabled).toBe(false);
   });
 });
 

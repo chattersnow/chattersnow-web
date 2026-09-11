@@ -126,6 +126,12 @@ export default async function SiteContentPage({
 
   // Writing copy for a page nobody can reach is possible and used to give no
   // hint of it; page visibility lives one page over in System Settings (#792).
+  //
+  // Since #902 this covers modules too, without a second read: getPageVisibility
+  // already resolves a slot whose module is off to `false`, so a section this
+  // organization has not been sold is marked here the same way one the board
+  // has switched off is. The difference -- that one of them is not theirs to
+  // switch back on -- is explained where the switch is, in System Settings.
   const hiddenPages = CONTENT_PAGES.filter(
     (candidate) =>
       candidate.visibilityKey && visibility[candidate.visibilityKey] === false,

@@ -234,6 +234,208 @@ describe("provisioning", () => {
   });
 });
 
+// #900. `programs` is the representative module: two resources, a table the
+// tenant's admin can write through their own session, and an RPC gated on the
+// second resource -- so one module exercises every layer the entitlement has
+// to reach. The recipient resolver is covered where its fixtures already live,
+// in src/lib/notifications/people-with-permission.integration.test.ts.
+describe("module entitlements", () => {
+  let programId: string;
+
+  const setModule = async (moduleKey: string, enabled: boolean) =>
+    service
+      .from("tenant_modules")
+      .update({ enabled })
+      .eq("tenant_id", tenantB)
+      .eq("module_key", moduleKey);
+
+  const levelOf = async (resourceKey: string) => {
+    const permissions = await must(admin.rpc("my_permissions"), "perms");
+    return permissions.find(
+      (p: { resource_key: string }) => p.resource_key === resourceKey,
+    )?.level;
+  };
+
+  beforeAll(async () => {
+    programId = (
+      await must(
+        admin
+          .from("programs")
+          .insert({ name: `Module Test ${run}` })
+          .select("id")
+          .single(),
+        "program",
+      )
+    ).id;
+  });
+
+  test("provisioning seeds them from the plan, not from the template", async () => {
+    const seeded = await must(
+      service
+        .from("tenant_modules")
+        .select("module_key, enabled")
+        .eq("tenant_id", tenantB)
+        .order("module_key"),
+      "tenant modules",
+    );
+    const planned = await must(
+      service
+        .from("plan_modules")
+        .select("module_key, enabled")
+        .eq("plan", "white_label")
+        .order("module_key"),
+      "plan modules",
+    );
+    expect(seeded.length).toBeGreaterThan(0);
+    expect(seeded).toEqual(planned);
+  });
+
+  test("turning one off hides its resources, its rows and its RPCs", async () => {
+    // On, to begin with: every assertion below is only worth making because
+    // the same call answers the other way first.
+    expect(await levelOf("programs")).toBe("manage");
+    expect(
+      (
+        await must(
+          admin.from("programs").select("id").eq("id", programId),
+          "program visible",
+        )
+      ).length,
+    ).toBe(1);
+    await must(
+      admin.rpc("get_program_impact_rollup_data", { p_program_id: programId }),
+      "rollup allowed",
+    );
+
+    const { error: offError } = await setModule("programs", false);
+    expect(offError).toBeNull();
+    try {
+      // my_permissions: `none` for every resource in the module, whatever the
+      // matrix says -- and the admin's matrix still says manage.
+      expect(await levelOf("programs")).toBe("none");
+      expect(await levelOf("programs_reports")).toBe("none");
+      expect(await levelOf("events")).toBe("manage");
+
+      // Row-level security, which is the half a route guard could not give us.
+      const { data: rows, error: readError } = await admin
+        .from("programs")
+        .select("id")
+        .eq("id", programId);
+      expect(readError).toBeNull();
+      expect(rows).toEqual([]);
+
+      // And the definer RPC behind the section's report.
+      const { error: rpcError } = await admin.rpc(
+        "get_program_impact_rollup_data",
+        { p_program_id: programId },
+      );
+      expect(rpcError).not.toBeNull();
+
+      // Off is hidden and frozen, never deleted: the row is still there for
+      // service_role, so turning the module back on restores the history.
+      const kept = await must(
+        service.from("programs").select("id").eq("id", programId),
+        "program kept",
+      );
+      expect(kept).toHaveLength(1);
+    } finally {
+      await setModule("programs", true);
+    }
+
+    expect(await levelOf("programs")).toBe("manage");
+    expect(
+      (
+        await must(
+          admin.from("programs").select("id").eq("id", programId),
+          "program back",
+        )
+      ).length,
+    ).toBe(1);
+  });
+
+  test("the tenant's own admin cannot write them", async () => {
+    // The whole point of the ticket: an entitlement a customer can grant
+    // themselves is a preference. There is no insert, update or delete policy
+    // on tenant_modules and no write grant to go with one, so each of these
+    // either refuses outright (42501) or matches nothing.
+    const touchedNothing = (
+      result: { error: { code?: string } | null; data: unknown },
+      label: string,
+    ) => {
+      if (result.error) expect(result.error.code, label).toBe("42501");
+      else expect(result.data, label).toEqual([]);
+    };
+
+    await must(setModule("programs", false), "off");
+    try {
+      touchedNothing(
+        await admin
+          .from("tenant_modules")
+          .update({ enabled: true })
+          .eq("tenant_id", tenantB)
+          .eq("module_key", "programs")
+          .select("module_key"),
+        "update",
+      );
+      touchedNothing(
+        await admin
+          .from("tenant_modules")
+          .delete()
+          .eq("tenant_id", tenantB)
+          .eq("module_key", "programs")
+          .select("module_key"),
+        "delete",
+      );
+      const { error: insertError } = await admin.from("tenant_modules").insert({
+        tenant_id: tenantB,
+        module_key: "inventory",
+        enabled: true,
+      });
+      expect(insertError).not.toBeNull();
+
+      // Still off, and still unreachable.
+      expect(await levelOf("programs")).toBe("none");
+    } finally {
+      await setModule("programs", true);
+    }
+  });
+
+  test("the tenant may read what it has been sold", async () => {
+    const own = await must(
+      admin.from("tenant_modules").select("module_key, enabled"),
+      "own modules",
+    );
+    expect(own.length).toBeGreaterThan(0);
+    const foreign = await must(
+      admin
+        .from("tenant_modules")
+        .select("module_key")
+        .eq("tenant_id", tenantA),
+      "foreign modules",
+    );
+    expect(foreign).toEqual([]);
+  });
+
+  test("a core module cannot be disabled, even as service_role", async () => {
+    // service_role bypasses row-level security, so the guard is a trigger.
+    // The CLI and the seeds write as service_role; this is what stops one of
+    // them leaving a tenant with no People screen and no way back in.
+    for (const moduleKey of ["people", "administration"]) {
+      const { error } = await setModule(moduleKey, false);
+      expect(error?.message, moduleKey).toContain("MODULE_IS_CORE");
+    }
+    const core = await must(
+      service
+        .from("tenant_modules")
+        .select("module_key, enabled")
+        .eq("tenant_id", tenantB)
+        .in("module_key", ["people", "administration"]),
+      "core modules",
+    );
+    expect(core.every((m: { enabled: boolean }) => m.enabled)).toBe(true);
+  });
+});
+
 describe("support access", () => {
   let membershipId: string;
   let supportClient: SupabaseClient;

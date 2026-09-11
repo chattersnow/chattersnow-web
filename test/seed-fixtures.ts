@@ -97,3 +97,35 @@ export const SEEDED_GIVEAWAY_IDS = {
   /** "Trailhead Cleanup Giveaway" on the past event. */
   trailheadCleanup: "babababa-0000-4000-8000-000000000002",
 } as const;
+
+/** The merchandise catalog (#907): three products, six variants below. */
+export const SEEDED_PRODUCT_IDS = {
+  /** "Chatter Snow Beanie" -- one variant. */
+  beanie: "cdcdcdcd-0000-4000-8000-000000000001",
+  /** "Trailhead Tee" -- three sizes at one price. */
+  tee: "cdcdcdcd-0000-4000-8000-000000000002",
+  /** "Sticker Pack" -- two pack sizes at different prices, neither with a SKU. */
+  stickers: "cdcdcdcd-0000-4000-8000-000000000003",
+} as const;
+
+export const SEEDED_VARIANT_IDS = {
+  beanieOneSize: "cdcdcdcd-0000-4000-8000-000000001001",
+  teeSmall: "cdcdcdcd-0000-4000-8000-000000001002",
+  teeMedium: "cdcdcdcd-0000-4000-8000-000000001003",
+  teeLarge: "cdcdcdcd-0000-4000-8000-000000001004",
+  stickersFive: "cdcdcdcd-0000-4000-8000-000000001005",
+  stickersTwelve: "cdcdcdcd-0000-4000-8000-000000001006",
+} as const;
+
+/**
+ * The two seeded sales (#908), both on the past event. The seed's
+ * `stock_on_hand` figures are already net of the completed one, so a test that
+ * sells or voids through the RPCs can reason about stock from the seeded
+ * numbers without replaying the ledger first.
+ */
+export const SEEDED_SALE_IDS = {
+  /** Completed, two lines (2 beanies + 1 medium tee), $5 off a $65 subtotal. */
+  completed: "dcdcdcdc-0000-4000-8000-000000000001",
+  /** Voided, one line (3 five-packs) -- its units are back in stock. */
+  voided: "dcdcdcdc-0000-4000-8000-000000000002",
+} as const;

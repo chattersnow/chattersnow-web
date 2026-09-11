@@ -24,6 +24,18 @@ export type PublicPageSlot = {
    * the URL live.
    */
   gate?: string;
+  /**
+   * The module (#900) this section belongs to. When that module is off for the
+   * tenant, the slot is forced hidden whatever the board has stored -- an
+   * entitlement the platform sold, not a preference the organization set, so it
+   * wins.
+   *
+   * Undefined means the section belongs to no module and is the organization's
+   * own to show or hide: About, Learn and Brand are theirs whatever they are
+   * paying for. `support` is the judgement call in the other direction -- it is
+   * the fundraising ask, so it goes with Finance.
+   */
+  module?: string;
 };
 
 /**
@@ -45,6 +57,7 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
     description:
       "The Programs page describing Access, Community, and Progression.",
     defaultVisible: false,
+    module: "programs",
   },
   {
     key: "learn",
@@ -59,6 +72,9 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
     description:
       "The Support page, plus the Donations and Sponsorship pages beneath it.",
     defaultVisible: false,
+    // Finance, not a section of its own: this is the fundraising ask, and the
+    // donations and sponsorships it collects are Finance's records.
+    module: "finance",
   },
   {
     key: "about",
@@ -72,12 +88,14 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
     description:
       "The events listing, event detail pages, and the community calendar.",
     defaultVisible: true,
+    module: "events",
   },
   {
     key: "gears",
     label: "Gear",
     description: "The gear library and the gear donation pages.",
     defaultVisible: true,
+    module: "inventory",
   },
   // The one slot that gates a single route rather than a section, and the
   // reason is the content rather than the shape: the sizing charts are
@@ -93,18 +111,37 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
       "The ski and snowboard sizing charts under Gear. Written for snow sports specifically, so it stays hidden until an organization says the guide is theirs.",
     defaultVisible: false,
     gate: "gears/sizing/page.tsx",
+    module: "inventory",
   },
   {
+    // No module. #902's table proposed mapping this whole slot to `volunteers`,
+    // and that is wrong on the evidence: the section is Attend, Volunteer and
+    // Become a Partner, and only the middle one is about volunteers. Attend is
+    // about events and the partner page is a partnership pitch that funnels to
+    // /contact?topic=partnership -- a tenant that does not run volunteer
+    // coordination still wants both. So the section stays the board's own and
+    // the volunteer page gets the slot below, which is what the registry's
+    // per-route `gate` is for.
     key: "get-involved",
     label: "Get Involved",
     description: "Attend, Volunteer, and Become a Partner.",
     defaultVisible: true,
   },
   {
+    key: "get-involved-volunteer",
+    label: "Volunteer",
+    description:
+      "The volunteer page under Get Involved, its application form and the reference-code status lookup.",
+    defaultVisible: true,
+    gate: "get-involved/volunteer/layout.tsx",
+    module: "volunteers",
+  },
+  {
     key: "contact",
     label: "Contact",
     description: "The contact page and its message form.",
     defaultVisible: true,
+    module: "communications",
   },
   // The second single-route slot, and hidden by default for the opposite
   // reason from `gears-sizing`. That one is off because its content is one
@@ -141,15 +178,73 @@ function resolveVisibility(value: unknown, defaultVisible: boolean): boolean {
 }
 
 /**
+ * Module entitlements for the tenant the *request host* resolves to (#902),
+ * as `{ [module_key]: enabled }`.
+ *
+ * A module missing from the answer -- or an unreadable view -- resolves to
+ * **enabled**, which is the opposite of how a missing visibility row resolves
+ * two functions down, and deliberately so. A missing `page_visibility` row
+ * means "nobody has approved publishing this yet", so the safe answer is dark.
+ * A missing module row means "this tenant predates the table", and blacking out
+ * an organization's whole Events section because a seed missed it is the worse
+ * failure. Same decision the database makes in `module_enabled_for_tenant()`.
+ *
+ * Loud on failure for the same reason the visibility read is: this exact
+ * function's counterpart swallowed a PGRST205 on every request for a while
+ * once, and the symptom was admin toggles that looked like they refused to
+ * save.
+ */
+const getPublicTenantModules = cache(
+  async (supabase: SupabaseClient): Promise<Record<string, boolean>> => {
+    const { data, error } = await supabase
+      .from("public_tenant_modules")
+      .select("module_key, enabled");
+
+    if (error) {
+      console.error(
+        "[page-visibility] could not read public_tenant_modules; every module is falling back to enabled",
+        error,
+      );
+      return {};
+    }
+
+    const modules: Record<string, boolean> = {};
+    for (const row of data ?? []) {
+      modules[String(row.module_key)] = row.enabled !== false;
+    }
+    return modules;
+  },
+);
+
+/**
+ * Whether the module that owns a slot is off. `true` only for a slot that names
+ * a module and whose module is explicitly disabled -- an unmapped slot and an
+ * unknown module both answer `false`, so the failure direction is "shown".
+ */
+function moduleBlocks(
+  slot: PublicPageSlot,
+  modules: Record<string, boolean>,
+): boolean {
+  return slot.module !== undefined && modules[slot.module] === false;
+}
+
+/**
  * Reads the visibility of every registered section. Wrapped in React `cache()`
  * so the public layout (which filters the nav and footer) and the section
  * layout (which gates the route) share a single query per render.
+ *
+ * Two reads since #902, issued together: what the board has published, and what
+ * the platform has sold. A section needs both -- the entitlement is the
+ * platform's and wins, so a slot whose module is off is hidden whatever the
+ * board stored, and turning the module back on returns the section to whatever
+ * the board had set rather than to a default.
  */
 export const getPageVisibility = cache(
   async (supabase: SupabaseClient): Promise<Record<string, boolean>> => {
-    const { data, error } = await supabase
-      .from("public_page_visibility")
-      .select("slot, value");
+    const [{ data, error }, modules] = await Promise.all([
+      supabase.from("public_page_visibility").select("slot, value"),
+      getPublicTenantModules(supabase),
+    ]);
 
     // A failed read and "nothing configured yet" both land on the registry
     // defaults below. Falling back is the right call -- an unreadable flag must
@@ -167,7 +262,9 @@ export const getPageVisibility = cache(
     const visibility: Record<string, boolean> = {};
     for (const slot of PUBLIC_PAGE_SLOTS) {
       const row = data?.find((setting) => setting.slot === slot.key);
-      visibility[slot.key] = resolveVisibility(row?.value, slot.defaultVisible);
+      visibility[slot.key] =
+        !moduleBlocks(slot, modules) &&
+        resolveVisibility(row?.value, slot.defaultVisible);
     }
     return visibility;
   },
@@ -218,6 +315,58 @@ export const getTenantPageVisibility = cache(
     return visibility;
   },
 );
+
+/**
+ * The modules of the tenant the signed-in admin has *selected* (#902), which is
+ * not always the one their host resolves to -- the same split as
+ * `getTenantPageVisibility` above, and it matters here for the same reason: a
+ * panel that told an admin a section is unavailable because of some other
+ * tenant's entitlements would be worse than one that said nothing.
+ *
+ * Fails open, like its public counterpart: an unreadable answer leaves every
+ * control editable rather than locking the panel over a failed query.
+ */
+export const getTenantModules = cache(
+  async (supabase: SupabaseClient): Promise<Record<string, boolean>> => {
+    const { data, error } = await supabase.rpc("my_modules");
+
+    if (error) {
+      console.error(
+        "[page-visibility] could not read my_modules; the panel is treating every module as available",
+        error,
+      );
+      return {};
+    }
+
+    const modules: Record<string, boolean> = {};
+    for (const row of (data ?? []) as {
+      module_key: string;
+      enabled: boolean;
+    }[]) {
+      modules[row.module_key] = row.enabled !== false;
+    }
+    return modules;
+  },
+);
+
+/**
+ * The slots an administration panel must render read-only, mapped to the module
+ * that is withholding them. Empty for a tenant with everything it needs, which
+ * is every tenant until an operator says otherwise.
+ *
+ * A control that silently ignores what you set is worse than one that explains
+ * itself -- the same stance `notifications.from_address` takes when a domain is
+ * not verified.
+ */
+export function moduleBlockedSlots(
+  modules: Record<string, boolean>,
+): Record<string, string> {
+  const blocked: Record<string, string> = {};
+  for (const slot of PUBLIC_PAGE_SLOTS) {
+    if (moduleBlocks(slot, modules)) blocked[slot.key] = slot.module!;
+  }
+  return blocked;
+}
 
 /** The slots that are currently hidden, for filtering nav and footer links. */
 export function hiddenSlots(visibility: Record<string, boolean>): string[] {

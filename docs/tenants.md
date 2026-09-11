@@ -1,6 +1,6 @@
 # Serving more than one organization
 
-**Updated:** 2026-09-10
+**Updated:** 2026-09-11
 
 The operator's runbook for tenants (#707 Phase 4): how an organization is
 provisioned, put on its own domain, branded, supported, exported and deleted.
@@ -65,6 +65,9 @@ into:
 - the catalog defaults a fresh database gets from migrations: the inventory
   category vocabulary, the agenda templates and the content brief templates,
   current versions included;
+- its **module entitlements**, seeded from `plan_modules` for `--plan` and
+  _not_ copied from the template tenant: the template's entitlements are what
+  the platform sold that organization. See "Modules" below;
 - the platform-default settings (`finance.*`, `content.*`, `org.*`), and
   nothing else from the template's `app_settings` -- not its page visibility
   or branding, and nothing from `site_content` (copy or photos);
@@ -93,12 +96,20 @@ with the invite link on screen. It does not offer `--template`: choosing a
 template is choosing whose permission matrix a customer inherits, and that is
 not a dropdown. Use the command when you need one.
 
+A new tenant starts with every module its plan gives it, which today is all of
+them for all three plans. Withhold one afterwards from Administration → Platform
+→ Modules, or with `tenant:modules`.
+
 ### What is not seeded
 
 The public observance calendar, the nonprofit-status milestones and the
 volunteer role types describe Chatter Snow, not the platform, so a new tenant
 starts without them. Retention policies are still one platform-wide set (see
 "Still owed" below).
+
+Module entitlements are seeded, but from `plan_modules` rather than from the
+template tenant — for the same reason retention rules always arrive in
+`dry_run`: what the template was sold is not what this organization was sold.
 
 ## Custom domains
 
@@ -417,10 +428,15 @@ this command is the only way:
 bun run tenant:plan example-nonprofit --plan white_label
 ```
 
-The plan decides two things and nothing else: `internal` is what
-`is_platform_operator()` requires of the caller's own tenant, and the oldest
-`internal` tenant is what `provision_tenant()` templates from. `demo` is what
-`current_tenant_is_demo()` reads and what `seed_demo_tenant()` insists on.
+The plan decides three things and nothing else: `internal` is what
+`is_platform_operator()` requires of the caller's own tenant, the oldest
+`internal` tenant is what `provision_tenant()` templates from, and the plan's
+row in `plan_modules` is what a tenant's module entitlements are seeded from at
+provisioning (see the next section). `demo` is what `current_tenant_is_demo()`
+reads and what `seed_demo_tenant()` insists on.
+
+Changing a plan does **not** re-seed modules. A tenant's `tenant_modules` rows
+are what it was sold; the plan only decides what it starts with.
 
 It refuses to move the **last active `internal` tenant** off that plan.
 Platform administration resolves only inside one, and it is a membership rather
@@ -429,6 +445,241 @@ than a bypass, so there would be no way back in and no super-admin to open one
 the internal tenant. Provision the replacement first, then move the old one.
 The guards are in `scripts/tenant/plan-guards.ts` and unit tested; the database
 has no opinion here, so they are the only check there is.
+
+## Modules: what a tenant has been sold
+
+A **module** is a named group of resources — Events, Finance, Inventory,
+Governance and so on — that a tenant is either entitled to or not. They are the
+answer to "this nonprofit runs no gear library, why are we showing them
+Inventory", and to "we sold them the volunteer half and not the money half".
+
+The flags are **the platform's, not the customer's**. A tenant admin owns their
+own permission matrix, so anything they can write is not a gate: `tenant_modules`
+has a select policy for its own tenant and **no insert, update or delete policy
+for anyone**. Every write goes through an operator RPC or the CLI.
+
+A module that is off is enforced in the database, not in the navigation. All
+three of the functions the portal resolves access through subtract it —
+`has_permission()` (every RLS predicate and every definer RPC),
+`my_permissions()` (the sidebar, the command palette, `requirePermission()` in
+every route layout, the dashboard) and `people_with_permission()` (the
+sessionless recipient resolver behind inbound submission mail). A customer whose
+Volunteers module is off does not get volunteer-application email either.
+
+**Off is hidden and frozen, never deleted.** The rows stay, the tenant's export
+still contains them, `delete_tenant()` still removes them, and turning the module
+back on restores the section with its history intact. Nothing about a module
+deletes tenant data.
+
+### The public site (#902)
+
+Those three functions are all about a signed-in person in a tenant, and the
+public site has neither a session nor a permission — so gating them alone left a
+tenant with Inventory off still publishing a gear library at `/gears`, with a
+working request form. The public surface has its own choke point and modules sit
+above it:
+
+- **`PUBLIC_PAGE_SLOTS`** (`src/lib/page-visibility.ts`) gains a `module` per
+  slot. A slot whose module is off is forced hidden whatever the board stored:
+  the section drops out of the nav and footer and its URLs 404. The override is
+  one-way — a module being _on_ never publishes a section the board has hidden,
+  and turning a module back on returns the decision to them rather than making
+  it for them.
+- **`public_tenant_modules`** is the anon-readable view it reads, answering for
+  the tenant the request _host_ resolves to (`public_tenant_id()`), since
+  `tenant_module_enabled()` answers only for a membership a visitor does not
+  have.
+- **Every RPC `anon` can call** checks the module on the tenant it resolved.
+  Hiding a page does not stop a form post, and this is the half that makes it a
+  gate rather than a hidden link. Each raises the code it already used for
+  "there is nothing here for you", so the visitor sees a true sentence and the
+  forms' existing error handling is unchanged.
+
+Slot-to-module mapping, with the two that are judgement calls:
+
+| Slot                      | Module           |
+| ------------------------- | ---------------- |
+| `events`                  | `events`         |
+| `gears`, `gears-sizing`   | `inventory`      |
+| `programs`                | `programs`       |
+| `support`                 | `finance`        |
+| `get-involved-volunteer`  | `volunteers`     |
+| `contact`                 | `communications` |
+| `about`, `learn`, `brand` | none             |
+| `get-involved`            | none             |
+
+**`support` goes with Finance** because it is the fundraising ask and the
+donations and sponsorships it collects are Finance's records.
+
+**`get-involved` is deliberately not mapped to `volunteers`**, though #902
+proposed it. The section is Attend, Volunteer and Become a Partner, and only the
+middle one is about volunteers — Attend is about events and the partner page is
+a pitch that funnels to `/contact?topic=partnership`. So the volunteer pages got
+a slot of their own (`get-involved-volunteer`, gated at
+`get-involved/volunteer/layout.tsx`, covering the status lookup beneath it) and
+the section stays the board's.
+
+About, Learn and Brand have no module at all: they are the organization's own
+pages whatever it is paying for.
+
+In Administration → System Settings → Page visibility, a slot whose module is
+off renders read-only and off, saying the section is not part of this
+organization's plan. Site Content marks the same pages unpublishable, from the
+same read.
+
+### The catalog
+
+| Module              | Resources                                                                                                     |
+| ------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `events`            | `events`, `event_impact`, `event_incidents`, `event_volunteer_hours`                                          |
+| `artwork`           | `artwork_submissions`                                                                                         |
+| `calendar`          | `content_calendar`, `content_calendar_reports`                                                                |
+| `programs`          | `programs`, `programs_reports`                                                                                |
+| `inventory`         | `inventory`, `inventory_reports`, `inventory_intake`                                                          |
+| `volunteers`        | `volunteers`, `volunteer_hours_logging`                                                                       |
+| `communications`    | `communications`                                                                                              |
+| `finance`           | `finance`, `finance_approvals`, `finance_reports`, `finance_self_approval`, `event_expenses`, `event_revenue` |
+| `reimbursements`    | `reimbursements`, `reimbursement_approvals`, `reimbursement_self_approval`                                    |
+| `people`            | `people`, `people_intake` — **core**                                                                          |
+| `governance`        | `governance`                                                                                                  |
+| `access_management` | `access_management_assets`, `access_management_reviews`                                                       |
+| `administration`    | `administration`, `system_settings`, `site_content`, `platform_tenants` — **core**                            |
+
+Two of those placements are decisions rather than tidying:
+
+- **`event_expenses` and `event_revenue` are Finance, not Events**, though
+  `resources.section` says Events. They are the money tabs on an event, and a
+  tenant that is not buying Finance should not see money on an event detail
+  page. So turning Finance off takes two tabs off Events, on purpose.
+- **`platform_tenants` is in the core `administration` module**, so no
+  configuration can gate the operator out of the page that un-gates things.
+
+**Core** modules (`people`, `administration`) cannot be turned off for anyone.
+The RPC refuses it, the CLI guard refuses it, and a trigger on `tenant_modules`
+refuses it underneath both — the CLI writes as `service_role`, which bypasses
+row-level security but not triggers.
+
+### The surfaces that don't read `my_permissions()` (#903)
+
+Almost the whole portal follows module gating for free, because it all resolves
+through the three functions above: the sidebar, the command palette, the quick
+actions, breadcrumbs, the section-index redirects, the 48 route layouts that
+call `requirePermission()`, the notification-preference kinds, and the dashboard,
+which derives every widget and every attention item from the permission map.
+Four surfaces read something else, and each needed its own gate.
+
+- **Administration → Permissions** selected straight `from("resources")`, the
+  platform's global catalog, so the matrix offered a column for every resource
+  the product has. An admin could set `finance: manage` on a role and watch it
+  do nothing — the grant is genuinely written, and `my_permissions()` correctly
+  reports `none` — which reads as a bug in the permissions screen. The matrix is
+  now **filtered** to the tenant's enabled modules. That is the opposite call
+  from `20260908010000`, which left the inert `platform_tenants` grant visible as
+  a row someone set, and the two differ on purpose: that grant is inert per
+  _user_, so hiding it would hide a real assignment from the operator reading
+  the same screen, while a disabled module is off for the whole organization.
+  Nothing is deleted — existing grants on a hidden resource stay in
+  `role_permissions`, so re-enabling a module brings the section back with its
+  matrix intact.
+- **The weekly ops report** reads its counts straight off the tables as
+  `service_role` (the portal's `count_pending_*` RPCs answer for `auth.uid()`,
+  and a cron job has no session), so a tenant with Finance off was still being
+  told how many expense approvals were waiting. Each count is now gated on its
+  module, and a gated count is never read rather than read and discarded. The
+  recipients were already gated, through `people_with_permission()`. A tenant
+  with nothing left to report gets no email at all, which is the behaviour a
+  quiet day already had.
+- **The welcome tour** opened by naming seven sections. Every section, quick
+  action and attention item it names is now taken from the reader's permission
+  map, so the tour cannot advertise a section the tenant was not sold.
+- **The event detail page** rendered all seventeen cards regardless. Its
+  Expenses, Revenue, Donations and Distributions cards read Finance and
+  Inventory tables — `event_expenses` and `event_revenue` belong to the
+  **Finance** module, not Events — so a tenant without Finance was offered an
+  Expenses card and an "Add expense" button that could not save. Those four
+  cards now carry the gate their server actions already enforced, and the phase
+  strip is built per reader.
+
+Walking the portal with Finance, Inventory and Volunteers off turned up three
+more, all of the same shape and all fixed here.
+
+- **Volunteers → Directory** links into `/portal/people/volunteers`, and
+  `people` is a core module, so the link itself was never a dead end — but it
+  was the only sub-item left in the Volunteers section, which therefore kept a
+  Volunteers heading in the sidebar for a tenant that was never sold the module.
+  `NavSubItem.alsoRequires` now says a cross-link needs its own section as well
+  as its route's guard.
+- **Finance → Reimbursements** was a link the sidebar rendered and
+  `finance/layout.tsx` refused: Reimbursements is its own module living under
+  the `/portal/finance` prefix, and that layout admitted only the two Finance
+  resources. The same mismatch held for Expenses shown to an approver, and for
+  Administration's Access Management and Platform links under
+  `administration/layout.tsx`. Each of those parent layouts is now the union of
+  what its children admit; every child still re-checks on its own, so nothing is
+  given away.
+- **The People directory's empty states** advised a second route in — "or
+  approve an application from Volunteers › Applications", "or record a donation
+  from Inventory › Donations". Those clauses are now `crossSectionHint` and are
+  appended only for a reader who can reach the section they name. The sentence
+  before them stands alone, and the segment's own New button is directly above
+  it.
+
+`src/lib/portal/nav-guards.test.ts` is the invariant that stops the second of
+those coming back: it reads every route layout on disk and asserts that every
+way of _seeing_ a sidebar link is a way of _opening_ it.
+
+The finance pages name an event on each row but do not link to it, so Events
+being off leaves no dead link behind.
+
+The nightly retention sweep is the fourth sessionless surface and is a
+deliberate exception — see "A disabled module's retention clocks keep running"
+under Data retention.
+
+### Where a value comes from
+
+Resolution order, in `module_enabled_for_tenant()`: the tenant's own
+`tenant_modules` row, else its plan's row in `plan_modules`, else
+`modules.default_enabled`, else on.
+
+It **fails open** — the opposite of page visibility, and deliberately. A missing
+`page_visibility` row means "nobody has approved publishing this yet", so the
+safe answer is dark. A missing module row means "this tenant predates the
+table", and blacking out an existing organization's Finance section because a
+seed missed it is the worse failure.
+
+Both the portal and the CLI show which of the three answered, because "on
+because we said so for this organization" and "on because nobody has said
+otherwise" call for different actions.
+
+### Setting them
+
+**From the portal:** Administration → Platform → **Modules** on the
+organization's row. Switches, with core modules shown but disabled, and a line
+under each saying where its current value comes from. Turning one off asks for a
+confirmation and says what will happen; turning one on does not. Nobody is
+notified — tell the customer yourself.
+
+**From the command line**, which is the fallback for when the portal is what is
+broken:
+
+```bash
+bun run tenant:modules example-nonprofit
+bun run tenant:modules example-nonprofit --disable finance
+bun run tenant:modules example-nonprofit --enable finance
+```
+
+With no flag it lists; with one it sets and then lists. It writes as
+`service_role` and so goes around the RPC's gate entirely, which is why the
+refusals live in `scripts/tenant/module-guards.ts` and are unit tested: an
+unknown module key, a core module, and turning anything off on the `internal`
+tenant — that last one being the operator dismantling their own controls, with
+no super-admin to put them back.
+
+Every write is audited. `tenant_modules` is registered in `audited_tables`, so
+insert, update and delete all land in `audit_log` whichever route wrote them,
+including provisioning's initial seed. `record_id` is the **tenant**, since
+`tenant_modules` is keyed by `(tenant_id, module_key)` and has no surrogate id;
+which module changed and what it became are in `old_data`/`new_data`.
 
 ## Writing migrations on a multi-tenant database
 
@@ -480,6 +731,36 @@ takes the **shortest** period any tenant has set -- the privacy-correct
 direction for that data, and the reason the page labels that row as shared.
 Each tenant's run still logs the rule, so the page explains it rather than
 appearing to have skipped it.
+
+### A disabled module's retention clocks keep running (#903)
+
+**Decided: keep purging.** `run_retention_purge()` runs as `pg_cron` with no
+session, so none of #900's three choke points applies to it, and it sweeps every
+active tenant's rules whatever modules that tenant has. A tenant with Inventory
+off for a year therefore comes back to find its gear history aged out by a rule
+nobody was looking at, and that is the intended behaviour rather than an
+oversight.
+
+The argument is that retention is a privacy promise, not a feature. The rows a
+disabled module holds are still personal data about real participants, donors
+and volunteers; "we stopped deleting your data on schedule because the customer
+stopped paying for the section it lives in" is not a sentence this platform
+wants to be able to say, and a regulator reading the retention policy would not
+find an exception for it. Off means hidden and frozen to the _tenant_ -- the
+rows stay, the export still contains them, re-enabling restores the section --
+and none of that is a promise to stop the clock.
+
+The cost is real and is accepted: a tenant that turns Inventory back on after a
+year does not get the year of history it would have had, and nobody was being
+shown the counts in the meantime. What makes it survivable is that the clocks
+are the tenant's own. Every rule arrives in `dry_run`, an organization turns
+each one on for itself after reviewing its counts, and a rule nobody enabled
+purges nothing -- so the data lost is data that organization decided, on the
+record, it did not want kept.
+
+This is written down because the first time anybody notices will be after the
+data is gone. If it is ever revisited, the change is a module check inside
+`run_retention_purge()`'s per-rule loop, not a reschedule of the cron job.
 
 ## The demo tenant
 

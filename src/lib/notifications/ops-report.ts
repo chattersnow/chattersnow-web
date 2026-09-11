@@ -81,6 +81,67 @@ export type OpsReportSource = {
   monetaryDonations: { count: number; total: number };
 };
 
+/**
+ * The module each part of the source belongs to (#903).
+ *
+ * The report is the one portal surface that reads its counts straight off the
+ * tables as `service_role` -- the portal's `count_pending_*` RPCs answer for
+ * `auth.uid()` and this caller has no session -- so #900's gating inside
+ * `has_permission()` and `my_permissions()` does not reach it, and a tenant
+ * with Finance off would keep being told how many expense approvals are
+ * waiting. The recipients themselves already come from
+ * `people_with_permission()`, which #900 does gate; this is the other half.
+ *
+ * Gated per count rather than per section, because the sections mix modules:
+ * "Waiting on an approver" holds Finance and Reimbursements, "New since the
+ * last report" holds Messages and Volunteers, and "Donations" holds Finance
+ * and Inventory. Gating a whole section would take a line with it that the
+ * tenant is entitled to.
+ *
+ * Coverage gaps are `events`, not `volunteers`: the gap is a shift on an event
+ * being short of its target, it renders on the event's own page, and
+ * `event_volunteer_hours` is an Events resource in the #900 catalog. A tenant
+ * that has Events and not Volunteers still staffs its events.
+ *
+ * The `satisfies` clause is the point of writing it as a map: adding a field
+ * to `OpsReportSource` without saying which module it belongs to is a
+ * type error here rather than a silently ungated line in somebody's Monday
+ * email -- the same thing `resources.module_key not null` does in the schema.
+ */
+export const OPS_REPORT_SOURCE_MODULES = {
+  pendingExpenseApprovals: "finance",
+  pendingReimbursementApprovals: "reimbursements",
+  upcomingEvents: "events",
+  shiftCoverageGaps: "events",
+  newContactMessages: "communications",
+  newVolunteerApplications: "volunteers",
+  inKindDonations: "inventory",
+  monetaryDonations: "finance",
+} as const satisfies Record<keyof OpsReportSource, string>;
+
+/**
+ * Which of the source's counts this tenant is entitled to.
+ *
+ * Pure and separate from the queries that fill the source, for the same reason
+ * the shaping is: the job uses this to decide what to *read*, so a tenant with
+ * Finance off costs no expense query rather than costing one and discarding
+ * the answer -- and the rule that decides it stays in a file a unit test can
+ * import.
+ *
+ * `!== false` rather than a truth test: a module the map has never heard of,
+ * and a map that failed to load, both leave the count in. Same direction as
+ * the `coalesce(..., true)` at the bottom of `module_enabled_for_tenant()`.
+ */
+export function opsReportSourceGates(
+  modules: Record<string, boolean>,
+): Record<keyof OpsReportSource, boolean> {
+  const gates = {} as Record<keyof OpsReportSource, boolean>;
+  for (const [field, moduleKey] of Object.entries(OPS_REPORT_SOURCE_MODULES)) {
+    gates[field as keyof OpsReportSource] = modules[moduleKey] !== false;
+  }
+  return gates;
+}
+
 export type OpsReportLine = {
   label: string;
   /** A portal path. The renderer makes it absolute; the shaper has no origin. */

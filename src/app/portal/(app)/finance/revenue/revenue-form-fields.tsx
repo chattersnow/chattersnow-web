@@ -2,10 +2,11 @@
 
 import {
   REVENUE_SOURCES,
+  REVENUE_SOURCE_OPTIONS,
   revenueSourceLabel,
   type EventOption,
 } from "./revenue-shared";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -34,11 +35,19 @@ export function emptyRevenueForm(defaultEventId?: string): RevenueFormState {
   };
 }
 
+/**
+ * `legacyMerchandise` marks a row created before the register (#909): its
+ * source is frozen, since `merchandise` can no longer be chosen and moving
+ * the row off it would quietly rewrite history. Every other field stays
+ * editable, which is the whole reason the database gate is a trigger rather
+ * than a check constraint.
+ */
 export function RevenueFormFields({
   form,
   update,
   events,
   lockEventSelection,
+  legacyMerchandise,
   idPrefix,
 }: {
   form: RevenueFormState;
@@ -48,8 +57,15 @@ export function RevenueFormFields({
   ) => void;
   events: EventOption[];
   lockEventSelection?: boolean;
+  legacyMerchandise?: boolean;
   idPrefix: string;
 }) {
+  // The retired source is only listed so the frozen select can still render
+  // its own label.
+  const sourceOptions = legacyMerchandise
+    ? REVENUE_SOURCES
+    : REVENUE_SOURCE_OPTIONS;
+
   return (
     <>
       <Field>
@@ -57,18 +73,25 @@ export function RevenueFormFields({
         <Select
           value={form.source}
           onValueChange={(value) => update("source", value ?? "")}
+          disabled={legacyMerchandise}
         >
           <SelectTrigger id={`${idPrefix}-source`} className="w-full">
             <SelectValue placeholder="Select source" />
           </SelectTrigger>
           <SelectContent>
-            {REVENUE_SOURCES.map((source) => (
+            {sourceOptions.map((source) => (
               <SelectItem key={source} value={source}>
                 {revenueSourceLabel(source)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+        {legacyMerchandise && (
+          <FieldDescription>
+            Recorded before the sales register existed. Merchandise is now sold
+            under Finance &rsaquo; Sales, so this row keeps its source.
+          </FieldDescription>
+        )}
       </Field>
 
       <Field>

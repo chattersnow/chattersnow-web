@@ -1097,8 +1097,16 @@ export const helpContent: Record<string, HelpEntry> = {
           <ul className="list-disc space-y-2 pl-4">
             <li>
               <strong className="text-foreground">Income</strong> is event
-              revenue by the date it was received. Sponsorship commitments are
-              tracked separately and are not counted here.
+              revenue by the date it was received, plus completed{" "}
+              <Link
+                href="/portal/finance/sales"
+                className="underline hover:text-foreground"
+              >
+                merchandise sales
+              </Link>{" "}
+              by the date they were rung up. A voided sale counts for nothing.
+              Sponsorship commitments are tracked separately and are not counted
+              here.
             </li>
             <li>
               <strong className="text-foreground">Expenses paid</strong> counts
@@ -1123,7 +1131,8 @@ export const helpContent: Record<string, HelpEntry> = {
             <li>
               <strong className="text-foreground">In-kind donations</strong> is
               the face value of items donated in the period. It is not cash, so
-              it stays out of the net. Monetary donations are not tracked yet.
+              it stays out of the net. Monetary donations are cash received and
+              are counted, as their own figure alongside Income.
             </li>
             <li>
               Expenses count by the date the cost was incurred; reimbursements
@@ -1162,7 +1171,7 @@ export const helpContent: Record<string, HelpEntry> = {
           <p>
             Changing the date range re-runs the same report live — nothing is
             cached, so figures always reflect the current state of expenses,
-            reimbursements, revenue, and donations.
+            reimbursements, revenue, sales, and donations.
           </p>
         </HowToSection>
         <HowToSection heading="Common mistakes">
@@ -1190,8 +1199,21 @@ export const helpContent: Record<string, HelpEntry> = {
           <ol className="list-decimal space-y-2 pl-4">
             <li>
               <strong className="text-foreground">Source</strong> — ticket
-              sales, registration fees, merchandise, onsite donations, grants,
-              or other. Event and notes are optional.
+              sales, registration fees, onsite donations, grants, or other.
+              Event and notes are optional.
+            </li>
+            <li>
+              <strong className="text-foreground">Not for merchandise</strong> —
+              merchandise is rung up at the{" "}
+              <Link
+                href="/portal/finance/sales/register"
+                className="underline hover:text-foreground"
+              >
+                sales register
+              </Link>
+              , which prices it from the catalog and moves stock. Rows recorded
+              here before the register existed keep their Merchandise source and
+              still count once.
             </li>
             <li>
               <strong className="text-foreground">Not for sponsorships</strong>{" "}
@@ -1230,6 +1252,149 @@ export const helpContent: Record<string, HelpEntry> = {
             Recording a sponsor&apos;s commitment here instead of under the
             event&apos;s Sponsors tab — this table deliberately excludes
             sponsorship so a future combined rollup doesn&apos;t count it twice.
+          </p>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/finance/sales": {
+    title: "Reading the sales ledger",
+    description: "What a recorded sale is, and what voiding one does.",
+    body: (
+      <>
+        <HowToSection heading="Steps">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">Find the sale</strong> —
+              filter by event, status or payment, or search what was in it, who
+              bought it, or the note.
+            </li>
+            <li>
+              <strong className="text-foreground">Open it</strong> to see the
+              items at the prices they were sold for, the purchaser, and the
+              note.
+            </li>
+            <li>
+              <strong className="text-foreground">Correct it</strong> — the
+              pencil edits which event it belongs to and the note. Nothing else
+              about a recorded sale is editable.
+            </li>
+          </ol>
+        </HowToSection>
+        <HowToSection heading="Void, not delete">
+          <p>
+            A sale is never deleted. Voiding puts its items back into stock,
+            stops it counting toward income, and keeps the row with who voided
+            it and why — so the ledger still explains itself. Getting a total
+            wrong means voiding the sale and ringing it up again, which is also
+            what a refund looks like here.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Payment happens outside the system">
+          <p>
+            Nothing here takes money. The cash box, card reader or payment app
+            does that, and this records that it happened, for how much and by
+            what means — the same arrangement giveaway ticket sales use.
+          </p>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/finance/sales/register": {
+    title: "Ringing up a sale",
+    description: "Building a cart and recording what was paid.",
+    body: (
+      <>
+        <HowToSection heading="Steps">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">Tap products</strong> to build
+              the cart; tap again, or use the + and −, for more than one. A tile
+              shows what is left and goes out when there is none.
+            </li>
+            <li>
+              <strong className="text-foreground">
+                Set the event and payment
+              </strong>{" "}
+              — the event is guessed from what is happening now, and payment
+              defaults to cash. Both stay put for the next sale.
+            </li>
+            <li>
+              <strong className="text-foreground">
+                Discount and purchaser are optional
+              </strong>{" "}
+              — the discount comes off the whole sale, and naming a purchaser
+              attaches it to their record in People.
+            </li>
+            <li>
+              <strong className="text-foreground">Record the sale</strong> after
+              the money has been taken. Stock comes down as it saves.
+            </li>
+          </ol>
+        </HowToSection>
+        <HowToSection heading="Payment happens outside the system">
+          <p>
+            Take the money first — cash box, card reader or payment app — then
+            record it here. Nothing on this page charges anyone.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Common mistakes">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              Leaving the register open between events: the event picker keeps
+              whatever was last chosen, so check it before the first sale of the
+              day.
+            </li>
+            <li>
+              Trying to fix a recorded sale. Void it from the{" "}
+              <Link
+                href="/portal/finance/sales"
+                className="underline hover:text-foreground"
+              >
+                ledger
+              </Link>{" "}
+              and ring it up again — that is what puts the stock back.
+            </li>
+          </ul>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/finance/sales/products": {
+    title: "Keeping the catalog",
+    description: "Products, variants, prices and stock counts.",
+    body: (
+      <>
+        <HowToSection heading="Steps">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">
+                A product needs at least one variant
+              </strong>{" "}
+              — the variant is what carries the price and the stock count, so a
+              one-size product still gets one (&ldquo;One size&rdquo;). New
+              Product creates both together.
+            </li>
+            <li>
+              <strong className="text-foreground">Set stock by counting</strong>{" "}
+              — the Stock field is what is in the box now, not a delta. Sales
+              take units out on their own.
+            </li>
+            <li>
+              <strong className="text-foreground">
+                Merchandise is not the gear library
+              </strong>{" "}
+              — donated gear lives under Inventory, is tracked per piece and has
+              no price. This is what gets sold.
+            </li>
+          </ol>
+        </HowToSection>
+        <HowToSection heading="Deactivate, don't delete">
+          <p>
+            Anything that has ever been sold can only be deactivated: deleting
+            it would destroy the priced history a past receipt and the finance
+            rollup read. A deactivated product or variant disappears from the
+            register and keeps every sale it was part of.
           </p>
         </HowToSection>
       </>

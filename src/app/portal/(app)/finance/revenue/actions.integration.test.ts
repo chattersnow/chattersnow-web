@@ -14,8 +14,10 @@ import {
   SEEDED_USERS,
   adminClient,
   anonClient,
+  serviceRoleClient,
   signIn,
 } from "../../../../../../test/integration-setup";
+import { MERCHANDISE_RETIRED_MESSAGE } from "./revenue-shared";
 
 const revalidatePathMock = mock(() => {});
 mock.module("next/cache", () => ({ revalidatePath: revalidatePathMock }));
@@ -131,6 +133,91 @@ describe("createRevenueAction (integration)", () => {
     currentSupabase = await signIn(SEEDED_USERS.former);
     const result = await createRevenueAction(revenueForm());
     expect(result).toEqual(DENIED);
+  });
+});
+
+// #909: merchandise moved to the register, and the gate is a trigger on
+// event_revenue rather than a check constraint -- precisely so a row created
+// before the register keeps working. Both halves of that are only observable
+// against a real database.
+describe("the retired merchandise source (integration)", () => {
+  const service = serviceRoleClient();
+
+  /**
+   * A pre-register row, created the one way that is still allowed: through
+   * service_role, which the trigger exempts so fixtures and trusted server
+   * paths can still produce legacy-shaped data.
+   */
+  async function createLegacyMerchandiseRow() {
+    // service_role has no `auth.uid()`, so `created_by`'s default is null and
+    // the column is not-null -- the seeded admin is named explicitly.
+    const { data: session } = await adminClient.auth.getUser();
+    const { data, error } = await service
+      .from("event_revenue")
+      .insert({
+        source: "merchandise",
+        amount: 42,
+        received_date: new Date().toISOString().slice(0, 10),
+        notes: "Legacy merchandise row",
+        created_by: session.user!.id,
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+    return { id: data.id as string, cleanup: () => cleanupRevenue(data.id) };
+  }
+
+  test("finance cannot create a merchandise revenue record", async () => {
+    currentSupabase = await signIn(SEEDED_USERS.finance);
+    const result = await createRevenueAction(
+      revenueForm({ source: "merchandise" }),
+    );
+    expect(result).toEqual({ error: MERCHANDISE_RETIRED_MESSAGE });
+  });
+
+  test("the database refuses it even when the form check is bypassed", async () => {
+    const { error } = await adminClient.from("event_revenue").insert({
+      source: "merchandise",
+      amount: 10,
+      received_date: new Date().toISOString().slice(0, 10),
+    });
+    expect(error?.message).toContain("MERCHANDISE_SOURCE_RETIRED");
+  });
+
+  test("a legacy merchandise row stays editable, source and all", async () => {
+    const legacy = await createLegacyMerchandiseRow();
+    currentSupabase = await signIn(SEEDED_USERS.finance);
+
+    const form = revenueForm({ source: "merchandise", amount: 55 });
+    form.set("notes", "Corrected after the fact");
+    expect(await updateRevenueAction(legacy.id, form)).toEqual({
+      success: true,
+    });
+
+    const { data } = await adminClient
+      .from("event_revenue")
+      .select("source, amount, notes")
+      .eq("id", legacy.id)
+      .single();
+    expect(data?.source).toBe("merchandise");
+    expect(Number(data?.amount)).toBe(55);
+    expect(data?.notes).toBe("Corrected after the fact");
+
+    await legacy.cleanup();
+  });
+
+  test("an existing row cannot be moved onto merchandise", async () => {
+    const revenue = await createRevenueRow();
+    currentSupabase = await signIn(SEEDED_USERS.finance);
+
+    expect(
+      await updateRevenueAction(
+        revenue.id,
+        revenueForm({ source: "merchandise" }),
+      ),
+    ).toEqual({ error: MERCHANDISE_RETIRED_MESSAGE });
+
+    await revenue.cleanup();
   });
 });
 

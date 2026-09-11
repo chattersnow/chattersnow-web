@@ -560,6 +560,77 @@ begin
   insert into public.deactivated_users (user_id, deactivated_at, deactivated_by)
   values (v_former_id, now() - interval '5 days', v_admin_id);
 
+  -- Merchandise catalog (#907). Three products, six variants: one
+  -- single-variant product, one sized in three, and one where the variants are
+  -- pack sizes at different prices -- so the Products admin has all three
+  -- shapes to render without anyone having to type them in.
+  --
+  -- Literal ids, mirrored in test/seed-fixtures.ts (SEEDED_PRODUCT_IDS,
+  -- SEEDED_VARIANT_IDS). created_by is named rather than defaulted: the column
+  -- is `not null default auth.uid()` and this file runs as postgres with no
+  -- session, so the default would come back null.
+  --
+  -- `stock_on_hand` below is already net of the completed sale further down --
+  -- see the note there.
+  insert into public.products (id, name, description, sort_order, created_by) values
+    ('cdcdcdcd-0000-4000-8000-000000000001', 'Chatter Snow Beanie', 'Cuffed knit beanie with the embroidered logo.', 10, v_admin_id),
+    ('cdcdcdcd-0000-4000-8000-000000000002', 'Trailhead Tee', 'Soft cotton tee, printed front and back.', 20, v_admin_id),
+    ('cdcdcdcd-0000-4000-8000-000000000003', 'Sticker Pack', 'Weatherproof vinyl stickers, assorted designs.', 30, v_admin_id);
+
+  insert into public.product_variants (id, product_id, label, sku, price, stock_on_hand, sort_order, created_by) values
+    ('cdcdcdcd-0000-4000-8000-000000001001', 'cdcdcdcd-0000-4000-8000-000000000001', 'One size', 'CS-BEANIE', 20.00, 38, 10, v_admin_id),
+    ('cdcdcdcd-0000-4000-8000-000000001002', 'cdcdcdcd-0000-4000-8000-000000000002', 'S', 'CS-TEE-S', 25.00, 12, 10, v_admin_id),
+    ('cdcdcdcd-0000-4000-8000-000000001003', 'cdcdcdcd-0000-4000-8000-000000000002', 'M', 'CS-TEE-M', 25.00, 17, 20, v_admin_id),
+    ('cdcdcdcd-0000-4000-8000-000000001004', 'cdcdcdcd-0000-4000-8000-000000000002', 'L', 'CS-TEE-L', 25.00, 15, 30, v_admin_id),
+    -- No SKU on either sticker pack, which is what the partial unique index on
+    -- (tenant_id, sku) is there for: a plain unique would allow exactly one.
+    ('cdcdcdcd-0000-4000-8000-000000001005', 'cdcdcdcd-0000-4000-8000-000000000003', 'Pack of 5', null, 5.00, 120, 10, v_admin_id),
+    ('cdcdcdcd-0000-4000-8000-000000001006', 'cdcdcdcd-0000-4000-8000-000000000003', 'Pack of 12', null, 10.00, 60, 20, v_admin_id);
+
+  -- Two sales on the past event (#908), so the ledger, the event's Sales tab
+  -- and the void path all have something to render on a fresh reset.
+  --
+  -- Written straight into the tables rather than through record_product_sale:
+  -- the RPC reads `has_permission`, which reads `auth.uid()`, and this file
+  -- runs as postgres with no session. What the RPC would have done is done
+  -- here by hand instead, and the stock above is the part that matters --
+  -- `product_variants.stock_on_hand` is already net of the completed sale (two
+  -- beanies off 40, one medium tee off 18), because a seeded ledger that
+  -- disagreed with the stock it supposedly moved would make every
+  -- stock-arithmetic assertion downstream meaningless. The voided sale needs no
+  -- adjustment, which is the point of it: its units came back.
+  --
+  -- The voided row carries voided_at in the same insert, not a follow-up
+  -- update: `sales_void_state` asserts that `status = 'voided'` and
+  -- `voided_at is not null` are one state, so a two-step write would be
+  -- rejected halfway.
+  insert into public.sales (
+    id, event_id, purchaser_person_id, sold_at, payment_method,
+    subtotal, discount_amount, total, status,
+    voided_at, voided_by, void_reason, notes, created_by
+  ) values
+    ('dcdcdcdc-0000-4000-8000-000000000001', 'cccccccc-0000-4000-8000-000000000002',
+     'bbbbbbbb-0000-4000-8000-000000000001', now() - interval '40 days', 'cash',
+     65.00, 5.00, 60.00, 'completed',
+     null, null, null, 'Merch table, paid in cash.', v_admin_id),
+    ('dcdcdcdc-0000-4000-8000-000000000002', 'cccccccc-0000-4000-8000-000000000002',
+     null, now() - interval '40 days', 'card',
+     15.00, 0.00, 15.00, 'voided',
+     now() - interval '39 days', v_admin_id,
+     'Duplicate of the cash sale beside it.', 'Rung up twice by mistake.', v_admin_id);
+
+  -- description and unit_price are snapshots, so they are spelled out here the
+  -- way the RPC would have spelled them rather than joined to the catalog.
+  insert into public.sale_line_items (
+    sale_id, product_variant_id, description, unit_price, quantity, line_total, created_by
+  ) values
+    ('dcdcdcdc-0000-4000-8000-000000000001', 'cdcdcdcd-0000-4000-8000-000000001001',
+     'Chatter Snow Beanie — One size', 20.00, 2, 40.00, v_admin_id),
+    ('dcdcdcdc-0000-4000-8000-000000000001', 'cdcdcdcd-0000-4000-8000-000000001003',
+     'Trailhead Tee — M', 25.00, 1, 25.00, v_admin_id),
+    ('dcdcdcdc-0000-4000-8000-000000000002', 'cdcdcdcd-0000-4000-8000-000000001005',
+     'Sticker Pack — Pack of 5', 5.00, 3, 15.00, v_admin_id);
+
 end $$;
 
 -- Bulk volume data, appended after the hand-authored scenario above. Purely
@@ -824,11 +895,14 @@ begin
       );
     end if;
 
-    -- Revenue for about 30%.
+    -- Revenue for about 30%. No 'merchandise': that source is retired for
+    -- new rows (#909) -- merchandise is sold at the register and lands in
+    -- `sales`. The array is one shorter but still costs one random() call,
+    -- so the rest of this deterministic seed is unchanged.
     if random() < 0.3 then
       insert into public.event_revenue (event_id, source, amount, received_date, notes, created_by)
       values (
-        v_event_id, (array['ticket_sales','registration_fees','merchandise','onsite_donations','grants','other'])[1 + floor(random()*6)::int],
+        v_event_id, (array['ticket_sales','registration_fees','onsite_donations','grants','other'])[1 + floor(random()*5)::int],
         round((25 + random()*900)::numeric, 2), v_starts_at::date, null, v_admin_id
       );
     end if;
