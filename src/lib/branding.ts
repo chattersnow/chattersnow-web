@@ -84,8 +84,26 @@ export const EMPTY_BRANDING: Branding = {
   logoUrl: null,
 };
 
+/** The reserved `app_settings` namespace these rows live in (#888). */
+export const BRAND_PREFIX = "brand.";
+
+/** The two `brand.*` tokens that are not colours. */
+export const ACCENT_STOPS_TOKEN = "accent_stops";
+export const LOGO_URL_TOKEN = "logo_url";
+
+/**
+ * Every token the registry knows, colours and the two above. `brand.` is a
+ * public namespace (#888): `public_branding` serves the whole prefix to
+ * `anon`, so this is the list of keys that may exist under it.
+ */
+export const BRAND_TOKENS: readonly string[] = [
+  ...BRAND_COLOR_TOKENS.map((token) => token.key),
+  ACCENT_STOPS_TOKEN,
+  LOGO_URL_TOKEN,
+];
+
 export function brandSettingKey(token: string): string {
-  return `brand.${token}`;
+  return `${BRAND_PREFIX}${token}`;
 }
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/;
@@ -106,14 +124,14 @@ export type BrandingRow = { token: string; value: unknown };
 export function brandingFromRows(rows: readonly BrandingRow[]): Branding {
   const branding: Branding = { colors: {}, accentStops: null, logoUrl: null };
   for (const row of rows) {
-    if (row.token === "accent_stops") {
+    if (row.token === ACCENT_STOPS_TOKEN) {
       if (Array.isArray(row.value)) {
         const stops = row.value.filter(isHexColor).slice(0, MAX_ACCENT_STOPS);
         if (stops.length > 0) branding.accentStops = stops;
       }
       continue;
     }
-    if (row.token === "logo_url") {
+    if (row.token === LOGO_URL_TOKEN) {
       if (typeof row.value === "string" && row.value.trim()) {
         branding.logoUrl = resolveImageUrl(row.value.trim());
       }
