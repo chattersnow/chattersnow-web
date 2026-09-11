@@ -221,7 +221,48 @@ alter view public.public_page_visibility set (security_barrier = true);
 alter view public.public_legal_publication set (security_barrier = true);
 alter view public.public_site_layout set (security_barrier = true);
 
--- 4. Self-check, in the style 20260906100000 already uses: refuse to leave a
+-- 4. Close the gap the invariant just found on the hosted database.
+--
+-- Locally none of these views is writable by either role, because
+-- supabase/config.toml leaves `auto_expose_new_tables` unset -- the CLI's
+-- current default, under which a new entity in `public` reaches `anon` and
+-- `authenticated` only through an explicit GRANT, and the only GRANT these
+-- views ever got is SELECT. The hosted project predates that default and
+-- still auto-exposes, so all eighteen were created there with ALL privileges
+-- to both roles. A definer view runs as
+-- its owner and is auto-updatable when its body is simple, so `anon` holding
+-- UPDATE on public_site_content is a write to any tenant's site copy with no
+-- RLS in the way -- exactly the hole the view_grant kind was added to refuse,
+-- and the reason the first push of this migration aborted here rather than
+-- passing as it does against a local reset.
+--
+-- Dynamic rather than eighteen REVOKE lines: it covers whatever the set of
+-- definer views is when this runs, and it is a no-op wherever the grants were
+-- never made. SELECT is untouched -- that is what these views are for.
+do $$
+declare
+  v_view record;
+begin
+  for v_view in
+    select c.oid::regclass as ident
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public'
+      and c.relkind = 'v'
+      and not exists (
+        select 1
+        from unnest(coalesce(c.reloptions, '{}'::text[])) opt
+        where opt ~* '^security_invoker=(true|on|1|yes)$'
+      )
+  loop
+    execute format(
+      'revoke insert, update, delete on %s from anon, authenticated',
+      v_view.ident
+    );
+  end loop;
+end $$;
+
+-- 5. Self-check, in the style 20260906100000 already uses: refuse to leave a
 -- gap behind this migration. is_admin() is false in a migration, so the
 -- queries are repeated without the gate.
 do $$
