@@ -119,6 +119,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await service.from("tenant_modules").delete().eq("tenant_id", otherTenantId);
   await service.from("user_roles").delete().eq("tenant_id", otherTenantId);
   await service.from("people").delete().eq("tenant_id", otherTenantId);
   await service
@@ -246,6 +247,53 @@ describe("who it leaves out", () => {
         .eq("tenant_id", otherTenantId)
         .eq("user_id", SEEDED_USER_IDS.admin);
     }
+  });
+});
+
+describe("module entitlements (#900)", () => {
+  // The gap this closes: the senders run on a service-role client with no
+  // session and no row-level security underneath, so a tenant that is not
+  // buying Volunteers would keep receiving volunteer-application mail unless
+  // this function filters on the module itself.
+  test("nobody from a module the tenant is not entitled to", async () => {
+    // The second tenant was created by a plain insert rather than by
+    // provision_tenant(), so it has no tenant_modules rows -- and everyone is
+    // still elected, which is the fail-open half of the resolution order.
+    expect(
+      (await holders(otherTenantId, ["volunteers"], "manage")).map(
+        (row) => row.person_id,
+      ),
+    ).toEqual([otherPersonId]);
+
+    const { error } = await service.from("tenant_modules").insert({
+      tenant_id: otherTenantId,
+      module_key: "volunteers",
+      enabled: false,
+    });
+    if (error) throw error;
+
+    try {
+      expect(await holders(otherTenantId, ["volunteers"], "manage")).toEqual(
+        [],
+      );
+      // Another tenant's entitlements are nobody else's: Chatter Snow still
+      // hears about its own volunteers.
+      expect(
+        emailsOf(await holders(chatterTenantId, ["volunteers"], "manage")),
+      ).toEqual([SEEDED_USERS.admin]);
+    } finally {
+      await service
+        .from("tenant_modules")
+        .delete()
+        .eq("tenant_id", otherTenantId)
+        .eq("module_key", "volunteers");
+    }
+
+    expect(
+      (await holders(otherTenantId, ["volunteers"], "manage")).map(
+        (row) => row.person_id,
+      ),
+    ).toEqual([otherPersonId]);
   });
 });
 
