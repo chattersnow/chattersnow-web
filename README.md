@@ -1,8 +1,12 @@
 # chattersnow-web
 
-A multi-tenant nonprofit-operations platform — a public website and an
-operations portal, served to any number of organizations from one Next.js App
-Router application backed by Supabase.
+**Coven** — a multi-tenant operations platform for small nonprofits and small
+businesses: a public website and an operations portal, served to any number of
+organizations from one Next.js App Router application backed by Supabase.
+
+Coven is the product's name. The repository is named after Chatter Snow because
+it started as that organization's site; the commercial product ships under its
+own name and on its own domain (`docs/licensing.md`).
 
 **Chatter Snow is the first tenant, not the product.** The repository is named
 after it and started as its site, but every organization the platform serves is
@@ -39,8 +43,8 @@ fictional. Never copy production data into it. See "The demo tenant" in
 ## License and ownership
 
 This repository is **proprietary, not open source**. It contains two categories
-of material with different owners: the generic nonprofit-operations platform
-(the Core) and Chatter Snow's own brand, content, and data.
+of material with different owners: the generic operations platform that ships
+as Coven (the Core) and Chatter Snow's own brand, content, and data.
 
 - `LICENSE` — the terms.
 - `docs/licensing.md` — where the boundary falls, and the rules for keeping it

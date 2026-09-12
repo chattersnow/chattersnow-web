@@ -13,13 +13,22 @@ license grant has not been executed. Treat this as the boundary to build toward.
 
 ## The two categories
 
-**Core** — the generic nonprofit-operations platform. Anything that would still
-make sense if you deployed it for a bike co-op, an adaptive sports program, or a
-tool library. Owned by Rickie Cruz McDougal; Chatter Snow, Inc. gets a perpetual
-free license to it.
+**Core** — the generic operations platform, which ships commercially as
+**Coven**. Anything that would still make sense if you deployed it for a bike
+co-op, an adaptive sports program, a tool library, or a small business such as a
+two-person landscaping company or a neighbourhood studio. Owned by Rickie Cruz
+McDougal; Chatter Snow, Inc. gets a perpetual free license to it.
 
 **Organization Material** — anything that is about Chatter Snow specifically.
 Owned by Chatter Snow, Inc. outright.
+
+The commercial product's name is **Coven** (settled 2026-09-12), addressed at
+small nonprofits _and_ small businesses. "Chatter Snow" and its wordmark stay
+with the nonprofit, per the planning repository's
+`decisions/2026-09-05-portal-ip-ownership.md`. The widened market makes rule 2
+below stricter rather than looser: an assumption that every tenant is a
+nonprofit — in the schema, in platform copy, or in a module's vocabulary — now
+excludes paying customers, not just hypothetical ones.
 
 ## Where the line falls in this repository
 
