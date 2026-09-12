@@ -43,7 +43,6 @@ mock.module("@/lib/supabase/server", () => ({
 const { default: AdministrationLayout } = await import("./layout");
 const { default: UsersLayout } = await import("./users/layout");
 const { default: RolesLayout } = await import("./roles/layout");
-const { default: PermissionsLayout } = await import("./permissions/layout");
 const { default: SystemSettingsLayout } =
   await import("./system-settings/layout");
 const { default: AuditLogLayout } = await import("./audit-log/layout");
@@ -90,8 +89,10 @@ async function expectDenied(layout: Layout, email: string) {
   expect(redirectMock).toHaveBeenCalledWith(deniedHref);
 }
 
-// users/roles/permissions/audit-log all guard on administration:manage
-// alone, per their layout.tsx files -- only the admin role holds that.
+// users/roles/audit-log all guard on administration:manage alone, per their
+// layout.tsx files -- only the admin role holds that. The permissions layout
+// left this list with the page it guarded (#946): the matrix is a tab on
+// Roles now, so RolesLayout is the guard that stands in front of it.
 // technology also accepts access_management_assets/reviews:view as
 // alternatives (see its layout.tsx), but no seeded role holds either by
 // default (20260828100000_add_access_management_resources.sql grants only
@@ -100,7 +101,6 @@ async function expectDenied(layout: Layout, email: string) {
 describe.each([
   ["administration/users", () => UsersLayout],
   ["administration/roles", () => RolesLayout],
-  ["administration/permissions", () => PermissionsLayout],
   ["administration/audit-log", () => AuditLogLayout],
   ["technology", () => TechnologyLayout],
 ])("%s layout guard (integration)", (_name, getLayout) => {

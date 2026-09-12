@@ -1692,41 +1692,56 @@ export const helpContent: Record<string, HelpEntry> = {
       </>
     ),
   },
+  // One entry for one page: #946 merged Permissions into Roles as a tab, and
+  // the help registry is keyed on the pathname, which a tab does not change.
   "/portal/administration/roles": {
-    title: "How roles work",
-    description: "Creating roles that the permissions matrix grants access to.",
+    title: "How roles and permissions work",
+    description: "Naming a role on one tab, granting it access on the other.",
     body: (
       <>
         <HowToSection heading="Steps">
           <ol className="list-decimal space-y-2 pl-4">
             <li>
-              Give the role a name and optional description — that&apos;s all
-              this page does.
+              On <strong className="text-foreground">All roles</strong>,
+              &ldquo;New role&rdquo; gives the role a name and an optional
+              description. That is its identity — on its own it grants nothing.
             </li>
             <li>
-              Grant it access on the{" "}
-              <Link
-                href="/portal/administration/permissions"
-                className="underline hover:text-foreground"
-              >
-                Permissions
-              </Link>{" "}
-              page — a new role starts with no access to anything until
-              it&apos;s granted there.
+              On <strong className="text-foreground">Permissions</strong>, pick
+              the role, open the section holding the resource, and set it to{" "}
+              <strong className="text-foreground">None</strong>,{" "}
+              <strong className="text-foreground">View</strong>, or{" "}
+              <strong className="text-foreground">Manage</strong>. Manage
+              includes everything View does, plus the ability to create, edit,
+              or delete.
+            </li>
+            <li>
+              &ldquo;Save changes&rdquo; lists every cell you changed and asks
+              you to confirm before any of it is written; &ldquo;Discard
+              changes&rdquo; throws the whole batch away. Nothing is saved cell
+              by cell as you go.
             </li>
           </ol>
         </HowToSection>
         <HowToSection heading="Who can do this">
           <p>
-            Only <strong className="text-foreground">admin</strong> — this page
-            is admin-only like the rest of Administration.
+            Only <strong className="text-foreground">admin</strong> —
+            Administration (users, permissions, settings, audit log) is
+            admin-only across the whole portal.
           </p>
         </HowToSection>
         <HowToSection heading="What happens downstream">
           <ul className="list-disc space-y-2 pl-4">
             <li>
+              Route guards and the sidebar nav both read this same matrix on
+              every request, so a role loses or gains a page immediately — no
+              re-login, no deploy.
+            </li>
+            <li>
               The built-in roles (admin, event_coordinator, finance, board,
-              volunteer) can&apos;t be renamed or deleted from here.
+              volunteer) keep the names the platform grants permissions by —
+              give one a different display name instead. Only admin can&apos;t
+              be deleted.
             </li>
             <li>
               A role still assigned to any user can&apos;t be deleted either —
@@ -1737,8 +1752,23 @@ export const helpContent: Record<string, HelpEntry> = {
         <HowToSection heading="Common mistakes">
           <ul className="list-disc space-y-2 pl-4">
             <li>
-              Creating a role and assigning someone to it without ever visiting
-              Permissions leaves that person with no page access at all.
+              Creating a role and assigning someone to it without opening the
+              Permissions tab leaves that person with no page access at all.
+            </li>
+            <li>
+              Removing the last admin&apos;s Manage on Administration locks
+              everyone, including you, out of this page — keep at least one
+              admin with full access.
+            </li>
+            <li>
+              A role with View but not Manage on a resource can still open that
+              page, but every create/edit/delete action on it stays disabled or
+              hidden.
+            </li>
+            <li>
+              Only the resources for modules your organization has are listed. A
+              section you expected and can&apos;t find is a module that is off,
+              not a permission that went missing.
             </li>
           </ul>
         </HowToSection>
@@ -1790,65 +1820,6 @@ export const helpContent: Record<string, HelpEntry> = {
               Assuming a table missing from the filter dropdown isn&apos;t
               tracked — check &quot;All tables&quot; first before concluding
               that.
-            </li>
-          </ul>
-        </HowToSection>
-      </>
-    ),
-  },
-  "/portal/administration/permissions": {
-    title: "How the permissions matrix works",
-    description: "Granting roles None, View, or Manage per resource.",
-    body: (
-      <>
-        <HowToSection heading="Steps">
-          <ol className="list-decimal space-y-2 pl-4">
-            <li>
-              Pick a role&apos;s row and a resource&apos;s column, then click
-              the cell to cycle it through{" "}
-              <strong className="text-foreground">None</strong>,{" "}
-              <strong className="text-foreground">View</strong>, and{" "}
-              <strong className="text-foreground">Manage</strong>. Manage
-              includes everything View does, plus the ability to create, edit,
-              or delete.
-            </li>
-            <li>
-              There&apos;s no separate save step — each click writes
-              immediately.
-            </li>
-          </ol>
-        </HowToSection>
-        <HowToSection heading="Who can do this">
-          <p>
-            Only <strong className="text-foreground">admin</strong> —
-            Administration (users, permissions, settings, audit log) is
-            admin-only across the whole portal.
-          </p>
-        </HowToSection>
-        <HowToSection heading="What happens downstream">
-          <ul className="list-disc space-y-2 pl-4">
-            <li>
-              Route guards and the sidebar nav both read this same matrix on
-              every request, so a role loses or gains a page immediately — no
-              re-login, no deploy.
-            </li>
-            <li>
-              A new role you create starts with no permissions on any resource
-              until you grant them here.
-            </li>
-          </ul>
-        </HowToSection>
-        <HowToSection heading="Common mistakes">
-          <ul className="list-disc space-y-2 pl-4">
-            <li>
-              Removing the last admin&apos;s Manage on Administration locks
-              everyone, including you, out of this page — keep at least one
-              admin with full access.
-            </li>
-            <li>
-              A role with View but not Manage on a resource can still open that
-              page, but every create/edit/delete action on it stays disabled or
-              hidden.
             </li>
           </ul>
         </HowToSection>

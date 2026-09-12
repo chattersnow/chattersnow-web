@@ -2,6 +2,14 @@
 // (checkPermission, then the real `roles`/`role_permissions`/`user_roles`
 // RLS and the guards in protected-roles.ts) against a real local Supabase
 // stack. No integration test previously touched the `roles` table itself.
+//
+// Since #946 that includes updateRolePermissionsAction, which arrived here
+// with the Permissions page it used to serve -- its own file was
+// administration/permissions/actions.integration.test.ts. Distinct from
+// permission-matrix.integration.test.ts, which only exercises
+// has_permission()/my_permissions() reading the seeded matrix, never a write
+// path.
+//
 // Requires `bun run db:start && bun run db:reset` first; run via
 // `bun run test:integration`. Not picked up by `bun run test`.
 import { afterEach, describe, expect, mock, test } from "bun:test";
@@ -29,8 +37,12 @@ mock.module("server-only", () => ({}));
 const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
 const serviceRoleClient = createSupabaseAdminClient();
 
-const { createRoleAction, updateRoleAction, deleteRoleAction } =
-  await import("./actions");
+const {
+  createRoleAction,
+  updateRoleAction,
+  deleteRoleAction,
+  updateRolePermissionsAction,
+} = await import("./actions");
 
 afterEach(() => {
   revalidatePathMock.mockClear();
@@ -84,6 +96,17 @@ async function createCustomRole(
     },
   };
 }
+
+// The seven accounts with no administration access at all.
+const ROLES_WITHOUT_ADMINISTRATION = [
+  ["event_coordinator", SEEDED_USERS.coordinator],
+  ["finance", SEEDED_USERS.finance],
+  ["board", SEEDED_USERS.board],
+  ["volunteer", SEEDED_USERS.volunteer],
+  ["multi-role (event_coordinator + volunteer)", SEEDED_USERS.multi],
+  ["no-role", SEEDED_USERS.noAccess],
+  ["deactivated (former)", SEEDED_USERS.former],
+] as const;
 
 describe("administration/roles actions (integration)", () => {
   test("validates the role name before checking permission", async () => {
@@ -297,17 +320,6 @@ describe("administration/roles actions (integration)", () => {
     await user.cleanup();
   });
 
-  // The seven accounts with no administration access at all.
-  const ROLES_WITHOUT_ADMINISTRATION = [
-    ["event_coordinator", SEEDED_USERS.coordinator],
-    ["finance", SEEDED_USERS.finance],
-    ["board", SEEDED_USERS.board],
-    ["volunteer", SEEDED_USERS.volunteer],
-    ["multi-role (event_coordinator + volunteer)", SEEDED_USERS.multi],
-    ["no-role", SEEDED_USERS.noAccess],
-    ["deactivated (former)", SEEDED_USERS.former],
-  ] as const;
-
   for (const [label, email] of ROLES_WITHOUT_ADMINISTRATION) {
     test(`${label} account cannot create, rename or delete a role`, async () => {
       const role = await createCustomRole();
@@ -323,6 +335,124 @@ describe("administration/roles actions (integration)", () => {
 
       // The denied rename/delete didn't land.
       expect(await roleByName(role.name)).toMatchObject({ id: role.id });
+
+      await role.cleanup();
+    });
+  }
+});
+
+async function resourceId(key: string): Promise<string> {
+  const { data, error } = await adminClient
+    .from("resources")
+    .select("id")
+    .eq("key", key)
+    .single();
+  if (error || !data) throw error ?? new Error(`resource ${key} not found`);
+  return data.id as string;
+}
+
+async function levelFor(roleId: string, resId: string) {
+  const { data, error } = await adminClient
+    .from("role_permissions")
+    .select("level")
+    .eq("role_id", roleId)
+    .eq("resource_id", resId)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.level as string | undefined;
+}
+
+describe("administration/roles permissions matrix (integration)", () => {
+  test("an empty update list succeeds without checking permission", async () => {
+    currentSupabase = anonClient();
+    expect(await updateRolePermissionsAction([])).toEqual({ success: true });
+  });
+
+  test("validates every level before checking permission", async () => {
+    const role = await createCustomRole();
+    const administration = await resourceId("administration");
+    currentSupabase = anonClient();
+
+    expect(
+      await updateRolePermissionsAction([
+        { role_id: role.id, resource_id: administration, level: "superadmin" },
+      ]),
+    ).toEqual({ error: "Unknown permission level." });
+
+    // The invalid entry wasn't reached in isolation -- a batch with one bad
+    // level rejects the whole call, none of it applied.
+    expect(
+      await updateRolePermissionsAction([
+        { role_id: role.id, resource_id: administration, level: "manage" },
+        { role_id: role.id, resource_id: administration, level: "bogus" },
+      ]),
+    ).toEqual({ error: "Unknown permission level." });
+    expect(await levelFor(role.id, administration)).toBeUndefined();
+
+    await role.cleanup();
+  });
+
+  test("requires administration:manage to update permissions", async () => {
+    const role = await createCustomRole();
+    const administration = await resourceId("administration");
+    currentSupabase = anonClient();
+
+    expect(
+      await updateRolePermissionsAction([
+        { role_id: role.id, resource_id: administration, level: "manage" },
+      ]),
+    ).toEqual(DENIED);
+    expect(await levelFor(role.id, administration)).toBeUndefined();
+
+    await role.cleanup();
+  });
+
+  test("admin can set and change a role's permission level on a resource", async () => {
+    const role = await createCustomRole();
+    const administration = await resourceId("administration");
+    const finance = await resourceId("finance");
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+    revalidatePathMock.mockClear();
+
+    expect(
+      await updateRolePermissionsAction([
+        { role_id: role.id, resource_id: administration, level: "manage" },
+        { role_id: role.id, resource_id: finance, level: "view" },
+      ]),
+    ).toEqual({ success: true });
+    // One page since #946: the matrix is a tab on Roles, so the path it
+    // revalidates is the Roles path, not a Permissions path of its own.
+    expect(revalidatePathMock).toHaveBeenCalledWith(
+      "/portal/administration/roles",
+    );
+    expect(await levelFor(role.id, administration)).toBe("manage");
+    expect(await levelFor(role.id, finance)).toBe("view");
+
+    // Upsert on (role_id, resource_id): re-applying changes the level rather
+    // than erroring or duplicating the row.
+    expect(
+      await updateRolePermissionsAction([
+        { role_id: role.id, resource_id: administration, level: "none" },
+      ]),
+    ).toEqual({ success: true });
+    expect(await levelFor(role.id, administration)).toBe("none");
+    expect(await levelFor(role.id, finance)).toBe("view");
+
+    await role.cleanup();
+  });
+
+  for (const [label, email] of ROLES_WITHOUT_ADMINISTRATION) {
+    test(`${label} account cannot update the permissions matrix`, async () => {
+      const role = await createCustomRole();
+      const administration = await resourceId("administration");
+      currentSupabase = await signInAs(email);
+
+      expect(
+        await updateRolePermissionsAction([
+          { role_id: role.id, resource_id: administration, level: "manage" },
+        ]),
+      ).toEqual(DENIED);
+      expect(await levelFor(role.id, administration)).toBeUndefined();
 
       await role.cleanup();
     });
