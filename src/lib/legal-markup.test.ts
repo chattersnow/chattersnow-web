@@ -35,13 +35,15 @@ describe("parseInline", () => {
   });
 
   test("bold and links mix in one line", () => {
-    expect(parseInline("**Gear** at [/gears](/gears) is free.")).toEqual([
+    expect(
+      parseInline("**Gear** at [/inventory](/inventory) is free."),
+    ).toEqual([
       { kind: "strong", runs: [{ kind: "text", text: "Gear" }] },
       { kind: "text", text: " at " },
       {
         kind: "link",
-        href: "/gears",
-        runs: [{ kind: "text", text: "/gears" }],
+        href: "/inventory",
+        runs: [{ kind: "text", text: "/inventory" }],
       },
       { kind: "text", text: " is free." },
     ]);
@@ -128,7 +130,7 @@ describe("isPublishableHref", () => {
   test.each([
     ["mailto:privacy@example.org", true],
     ["https://example.org/policy", true],
-    ["/gears/library", true],
+    ["/inventory/library", true],
     ["#other-agreements", true],
     ["#", false],
     ["mailto:", false],

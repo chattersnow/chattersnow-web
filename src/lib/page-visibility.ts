@@ -116,6 +116,11 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
     description:
       "The {collection_public:lower} and the {item_plural:lower} donation pages.",
     defaultVisible: true,
+    // The only slot whose gate is spelled out because its key and its route
+    // segment disagree: the section moved to `/inventory` in #897 while the
+    // key stayed `gears`, since renaming the key is a data migration over
+    // every tenant's `page_visibility.*` rows for a string nobody sees.
+    gate: "inventory/layout.tsx",
     module: "inventory",
   },
   // The one slot that gates a single route rather than a section, and the
@@ -131,7 +136,7 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
     description:
       "The ski and snowboard sizing charts under {item_plural}. Written for snow sports specifically, so it stays hidden until an organization says the guide is theirs.",
     defaultVisible: false,
-    gate: "gears/sizing/page.tsx",
+    gate: "inventory/sizing/page.tsx",
     module: "inventory",
   },
   {

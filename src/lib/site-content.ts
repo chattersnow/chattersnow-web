@@ -118,7 +118,7 @@ export const CONTENT_PAGES: readonly ContentPage[] = [
   {
     key: "gears",
     label: "Gear",
-    route: "/gears/library",
+    route: "/inventory/library",
     visibilityKey: "gears",
   },
   {
@@ -218,25 +218,25 @@ export const CONTENT_SECTIONS: readonly ContentSection[] = [
     key: "gears:donate",
     page: "gears",
     label: "How donating works",
-    route: "/gears/donate",
+    route: "/inventory/donate",
   },
   {
     key: "gears:request",
     page: "gears",
     label: "Requesting gear",
-    route: "/gears/donate",
+    route: "/inventory/donate",
   },
   {
     key: "gears:accept",
     page: "gears",
     label: "What we accept",
-    route: "/gears/donate",
+    route: "/inventory/donate",
   },
   {
     key: "gears:drives",
     page: "gears",
     label: "Gear drives",
-    route: "/gears/donate",
+    route: "/inventory/donate",
   },
 
   { key: "get_involved:opening", page: "get_involved", label: "Opening" },

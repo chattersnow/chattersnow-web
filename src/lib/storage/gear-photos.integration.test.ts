@@ -181,7 +181,7 @@ describe("gear-photos reads and deletes", () => {
 
     const { data } = admin.storage.from(GEAR_PHOTOS_BUCKET).getPublicUrl(name);
     // A plain fetch, not a Supabase client: this asserts the anonymous path
-    // that /gears and next/image actually take.
+    // that /inventory and next/image actually take.
     const response = await fetch(data.publicUrl);
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("image/jpeg");

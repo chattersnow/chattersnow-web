@@ -537,7 +537,7 @@ deletes tenant data.
 
 Those three functions are all about a signed-in person in a tenant, and the
 public site has neither a session nor a permission — so gating them alone left a
-tenant with Inventory off still publishing a gear library at `/gears`, with a
+tenant with Inventory off still publishing a gear library at `/inventory`, with a
 working request form. The public surface has its own choke point and modules sit
 above it:
 
