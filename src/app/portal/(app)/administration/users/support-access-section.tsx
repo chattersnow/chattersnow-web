@@ -31,7 +31,12 @@ import {
 import { EmptyState } from "@/components/portal/empty-state";
 import { runAction } from "@/components/portal/action-toast";
 import { Spinner } from "@/components/ui/spinner";
-import { formatDateTime, formatRoleLabel } from "@/lib/format";
+import {
+  formatDateTime,
+  formatRoleLabel,
+  roleDisplayName,
+  roleLabelMap,
+} from "@/lib/format";
 import {
   grantSupportAccessAction,
   revokeSupportAccessAction,
@@ -62,6 +67,11 @@ export function SupportAccessSection({
   canManage: boolean;
 }) {
   const router = useRouter();
+  // A grant carries role *names*; their wording is the tenant's (#910).
+  const roleLabels = useMemo(
+    () => roleLabelMap(availableRoles),
+    [availableRoles],
+  );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [email, setEmail] = useState("");
@@ -135,7 +145,8 @@ export function SupportAccessSection({
       {
         key: "roles",
         label: "Role",
-        render: (grant) => grant.roles.map(formatRoleLabel).join(", "),
+        render: (grant) =>
+          grant.roles.map((r) => formatRoleLabel(r, roleLabels)).join(", "),
       },
       {
         key: "expires",
@@ -171,7 +182,7 @@ export function SupportAccessSection({
           ),
       },
     ],
-    [canManage, isPending],
+    [canManage, isPending, roleLabels],
   );
 
   return (
@@ -237,7 +248,7 @@ export function SupportAccessSection({
                 <SelectContent>
                   {availableRoles.map((option) => (
                     <SelectItem key={option.id} value={option.name}>
-                      {formatRoleLabel(option.name)}
+                      {roleDisplayName(option)}
                     </SelectItem>
                   ))}
                 </SelectContent>

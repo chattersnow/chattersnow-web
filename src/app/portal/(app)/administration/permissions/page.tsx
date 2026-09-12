@@ -18,7 +18,7 @@ export default async function PermissionsPage() {
     { data: rolePermissions, error: rolePermissionsError },
     modules,
   ] = await Promise.all([
-    supabase.from("roles").select("id, name, description").order("name"),
+    supabase.from("roles").select("id, name, label, description").order("name"),
     supabase
       .from("resources")
       .select("id, key, section, label, description, sort_order, module_key")

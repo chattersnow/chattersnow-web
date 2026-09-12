@@ -14,7 +14,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import { formatRoleLabel } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
@@ -24,6 +30,7 @@ export function NewRoleDialog() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
+  const [label, setLabel] = useState("");
   const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -32,6 +39,7 @@ export function NewRoleDialog() {
     setOpen(nextOpen);
     if (!nextOpen) {
       setName("");
+      setLabel("");
       setDescription("");
       setError(null);
     }
@@ -41,7 +49,7 @@ export function NewRoleDialog() {
     event.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result = await createRoleAction(name, description);
+      const result = await createRoleAction(name, description, label);
       if ("error" in result) {
         setError(result.error);
         return;
@@ -66,7 +74,7 @@ export function NewRoleDialog() {
         <form onSubmit={handleSubmit}>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="role-name">Name</FieldLabel>
+              <FieldLabel htmlFor="role-name">Key</FieldLabel>
               <Input
                 id="role-name"
                 value={name}
@@ -74,6 +82,22 @@ export function NewRoleDialog() {
                 placeholder="e.g. program_manager"
                 required
               />
+              <FieldDescription>
+                The identifier this role is stored under.
+              </FieldDescription>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="role-label">Display name</FieldLabel>
+              <Input
+                id="role-label"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                placeholder={name.trim() ? formatRoleLabel(name.trim()) : ""}
+              />
+              <FieldDescription>
+                What this role is called throughout the portal. Leave it empty
+                to use the key.
+              </FieldDescription>
             </Field>
             <Field>
               <FieldLabel htmlFor="role-description">Description</FieldLabel>
