@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSiteImageUrls } from "@/lib/site-images";
 import { getPublicSite } from "@/lib/public-site";
 import { isPageVisible } from "@/lib/page-visibility";
+import { EVENT_ITEM_TYPE } from "@/lib/calendar-vocabulary";
 import { nowMs } from "@/lib/time";
 import { MAX_HOME_UPCOMING_COUNT, getSiteLayout } from "@/lib/site-layout";
 import {
@@ -59,13 +60,16 @@ export default async function Home() {
       .limit(MAX_HOME_UPCOMING_COUNT)
       .returns<Omit<HomeUpcomingEvent, "programs">[]>(),
     // `public_calendar_items` is a union of the calendar table and the events
-    // table, so every published event is already in it as `chatter_event`.
+    // table, so every published event is already in it as EVENT_ITEM_TYPE.
     // Without this filter the top-up prints the same event twice -- once as
-    // its own card and once as somebody's community item (#846).
+    // its own card and once as somebody's community item (#846). The value is
+    // imported rather than written out: this filter shipped with the literal
+    // `chatter_event`, which #834 had renamed hours earlier, so it matched
+    // every row and excluded none.
     supabase
       .from("public_calendar_items")
       .select(HOME_COMMUNITY_ITEM_COLUMNS)
-      .neq("item_type", "chatter_event")
+      .neq("item_type", EVENT_ITEM_TYPE)
       .or(stillUpcoming)
       .order("starts_at", { ascending: true })
       .limit(MAX_HOME_UPCOMING_COUNT)

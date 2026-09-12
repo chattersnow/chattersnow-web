@@ -19,7 +19,8 @@ import {
   needsDecision,
   ITEM_TYPES,
 } from "./calendar-shared";
-import { EVENT_ITEM_TYPE, type CalendarEntry } from "./calendar-entries";
+import { EVENT_ITEM_TYPE } from "@/lib/calendar-vocabulary";
+import type { CalendarEntry } from "./calendar-entries";
 
 const dayHeadingFormatter = new Intl.DateTimeFormat("en-US", {
   weekday: "long",
