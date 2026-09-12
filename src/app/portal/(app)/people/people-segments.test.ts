@@ -132,7 +132,7 @@ describe("resolveSegment", () => {
   // every bookmark, every test and the nav tree's own hrefs.
   test("but the route is not renamed", () => {
     expect(resolveSegment(ATTENDEES_SEGMENT, STUDIO).basePath).toBe(
-      "/portal/attendees",
+      "/portal/people/attendees",
     );
     expect(resolveSegment(ATTENDEES_SEGMENT, STUDIO).filterColumn).toBe(
       "is_attendee",

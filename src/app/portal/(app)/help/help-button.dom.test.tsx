@@ -63,9 +63,10 @@ describe("HelpButton", () => {
   });
 
   test("falls back to portal basics when no entry matches", async () => {
-    // Donors is one of the few routes left with no entry of its own: it's a
-    // lens over the People directory, which #615's finding 26 folds back in.
-    pathname = "/portal/donors";
+    // Artwork is one of the few sections left with no entry of its own. This
+    // used to be /portal/donors, until #957 folded that into /portal/people,
+    // which has an entry the prefix match would find.
+    pathname = "/portal/artwork";
     const user = userEvent.setup();
     renderHelpButton();
 

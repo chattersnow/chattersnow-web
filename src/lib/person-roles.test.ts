@@ -16,7 +16,10 @@ import {
   withPersonRoleTerms,
 } from "./person-roles";
 import { LEXICON_TERMS } from "./lexicon";
-import { NAV_ITEMS, visibleNavItems } from "./portal/nav";
+import {
+  PEOPLE_SEGMENTS,
+  segmentNavLabel,
+} from "@/app/portal/(app)/people/people-segments";
 
 /** A shop: clients and suppliers, and nothing that fundraises. */
 const SHOP = personRoleLabelsFromValue({
@@ -158,19 +161,19 @@ describe("the words reach the template engine", () => {
  * The ticket's own acceptance: the nav, which is where "Donors" sat whether or
  * not the tenant fundraised.
  */
-describe("the People section of the sidebar", () => {
-  const everything = new Proxy({}, { get: () => "manage" }) as Parameters<
-    typeof visibleNavItems
-  >[0];
-
-  const peopleSubItems = (vocabulary = DEFAULT_VOCABULARY) =>
-    visibleNavItems(everything, vocabulary)
-      .find((item) => item.value === "people")
-      ?.subItems?.map((sub) => sub.label);
+describe("the People segment strip", () => {
+  // #911's acceptance moved with the segments: the tenant's words used to
+  // reach the sidebar, where "Donors" sat whether or not the tenant
+  // fundraised. #957 collapsed those eight entries into one, so the strip on
+  // /portal/people is where the words land now.
+  const segmentLabels = (vocabulary = DEFAULT_VOCABULARY) =>
+    PEOPLE_SEGMENTS.map((segment) => segmentNavLabel(segment, vocabulary));
 
   test("a tenant that sets nothing reads exactly what it always did", () => {
-    expect(peopleSubItems()).toEqual([
-      "People",
+    expect(segmentLabels()).toEqual([
+      // The full list, which the strip calls All rather than repeating the
+      // heading above it.
+      "All",
       "Donors",
       "Sponsors",
       "Volunteers",
@@ -182,8 +185,8 @@ describe("the People section of the sidebar", () => {
   });
 
   test("a tenant's own words rename it", () => {
-    expect(peopleSubItems(withPersonRoleTerms(DEFAULT_LEXICON, SHOP))).toEqual([
-      "People",
+    expect(segmentLabels(withPersonRoleTerms(DEFAULT_LEXICON, SHOP))).toEqual([
+      "All",
       "Donors",
       "Sponsors",
       "Volunteers",
@@ -197,11 +200,9 @@ describe("the People section of the sidebar", () => {
   // The keys are the platform's: the routes, the flags on people_with_roles
   // and person_role_tags are all written against them.
   test("but no route or key is renamed", () => {
-    const people = NAV_ITEMS.find((item) => item.value === "people");
-
-    expect(people?.subItems?.map((sub) => sub.href)).toContain(
-      "/portal/donors",
+    expect(PEOPLE_SEGMENTS.map((segment) => segment.basePath)).toContain(
+      "/portal/people/donors",
     );
-    expect(people?.subItems?.map((sub) => sub.value)).toContain("staff");
+    expect(PEOPLE_SEGMENTS.map((segment) => segment.value)).toContain("staff");
   });
 });

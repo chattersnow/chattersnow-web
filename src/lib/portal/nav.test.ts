@@ -135,23 +135,34 @@ describe("Volunteers section", () => {
 });
 
 describe("People section", () => {
-  test("owns its segments even though they sit outside /portal/people", () => {
-    // Donors, Sponsors, Attendees, and Organizations are top-level routes, so
-    // a basePath prefix alone would highlight nothing while the user is on
-    // one of them.
+  test("owns every segment, all of which now sit under its basePath", () => {
+    // #957 moved the six that used to be top-level routes (/portal/donors and
+    // friends) in beside the volunteer one, so one basePath prefix claims the
+    // lot -- which is what let the eight sidebar entries collapse to one.
     for (const path of [
-      "/portal/donors",
-      "/portal/sponsors",
-      "/portal/attendees",
-      "/portal/organizations",
+      "/portal/people",
+      "/portal/people/donors",
+      "/portal/people/sponsors",
+      "/portal/people/volunteers",
+      "/portal/people/attendees",
+      "/portal/people/staff",
+      "/portal/people/partners",
+      "/portal/people/organizations",
     ]) {
       expect(activeSectionFor(path)).toBe("people");
     }
   });
 
-  test("still owns the directory and its detail routes", () => {
-    expect(activeSectionFor("/portal/people")).toBe("people");
+  test("still owns the directory's detail and duplicate routes", () => {
     expect(activeSectionFor("/portal/people/abc-123")).toBe("people");
+    expect(activeSectionFor("/portal/people/duplicates")).toBe("people");
+  });
+
+  test("is one entry with no sub-items", () => {
+    // The segments are a strip on the page, not eight links in the sidebar
+    // (#957). A sub-item here would be a second way to do the same thing.
+    const people = NAV_ITEMS.find((item) => item.value === "people")!;
+    expect(people.subItems).toBeUndefined();
   });
 
   test("owns the volunteer directory, which Volunteers only cross-links", () => {
@@ -159,25 +170,8 @@ describe("People section", () => {
     // basePath, so the section the URL actually lives under wins over the
     // Volunteers section that merely lists the same href.
     expect(activeSectionFor("/portal/people/volunteers")).toBe("people");
-    const people = NAV_ITEMS.find((item) => item.value === "people")!;
-    expect(activeSubItemFor("/portal/people/volunteers", people)).toBe(
-      "volunteers",
-    );
-  });
-
-  test("owns the partners segment", () => {
-    expect(activeSectionFor("/portal/partners")).toBe("people");
-  });
-
-  test("picks the segment the user is actually on", () => {
-    const people = NAV_ITEMS.find((item) => item.value === "people")!;
-    expect(activeSubItemFor("/portal/donors", people)).toBe("donors");
-    expect(activeSubItemFor("/portal/organizations", people)).toBe(
-      "organizations",
-    );
-    // A person's detail page belongs to the directory, not to whichever
-    // segment linked to it.
-    expect(activeSubItemFor("/portal/people/abc-123", people)).toBe(
+    const volunteers = NAV_ITEMS.find((item) => item.value === "volunteers")!;
+    expect(activeSubItemFor("/portal/people/volunteers", volunteers)).toBe(
       "directory",
     );
   });

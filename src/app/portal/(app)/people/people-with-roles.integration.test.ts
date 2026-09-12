@@ -37,7 +37,7 @@ describe("people_with_roles", () => {
     cleanups.push(event.cleanup);
 
     // The bug #620 fixed and this model makes structural: linking an
-    // existing person used to leave is_sponsor false, and /portal/sponsors
+    // existing person used to leave is_sponsor false, and the sponsors segment
     // was missing sponsors.
     expect((await flagsFor(person.id)).is_sponsor).toBe(false);
 

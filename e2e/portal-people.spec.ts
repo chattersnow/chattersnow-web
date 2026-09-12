@@ -87,49 +87,45 @@ test.describe("portal people directory", () => {
     ).toHaveCount(0);
   });
 
-  test("filters the directory by role and clears filters", async ({ page }) => {
-    // Apply the role filter via URL: the sheet's form-submit path is
-    // already covered by the search test, and a click issued right after
-    // the form's native GET navigation can be swallowed while the portal
-    // page re-hydrates. page.goto waits for the load event, after which
-    // sheet triggers respond reliably (same pattern as the other specs).
-    // Both assertions are search-scoped so the directory's pagination can't
-    // decide them: at ten rows a page, a name being absent otherwise proves
-    // nothing about the filter -- it may just be on page 4. Searching a
+  test("narrows the directory by segment", async ({ page }) => {
+    // The role facet the Filters sheet used to hold became the segment strip
+    // in #957. Both assertions are search-scoped so the directory's
+    // pagination can't decide them: at ten rows a page, a name being absent
+    // otherwise proves nothing -- it may just be on page 4. Searching a
     // non-sponsor who *does* match the text is the stronger claim anyway:
-    // only the role filter can be what removes her.
-    await page.goto("/portal/people?role=is_sponsor&search=Summit");
+    // only the segment can be what removes her.
+    await page.goto("/portal/people/sponsors?search=Summit");
     await expect(
       page.getByRole("row").filter({ hasText: "Summit Outdoor Co." }),
     ).toBeVisible();
 
-    await page.goto("/portal/people?role=is_sponsor&search=Priya");
+    await page.goto("/portal/people/sponsors?search=Priya");
     await expect(
       page.getByRole("row").filter({ hasText: "Priya Natarajan" }),
     ).toHaveCount(0);
+  });
 
-    await page.goto("/portal/people?role=is_sponsor");
-
-    await page.getByRole("button", { name: "Filters" }).click();
-    const filters = modal(page);
-    await expect(
-      filters.getByRole("heading", { name: "Filters" }),
-    ).toBeVisible();
-    // The Clear control is a Next Link rendered through Base UI's Button
-    // (nativeButton={false}), which gives the anchor role="button".
-    await filters.getByRole("button", { name: "Clear" }).click();
+  test("the strip goes back to everybody, and the old ?role= still lands", async ({
+    page,
+  }) => {
+    await page.goto("/portal/people/sponsors");
+    await page
+      .getByRole("navigation", { name: "People segments" })
+      .getByRole("link", { name: "All" })
+      .click();
     await expect(page).toHaveURL(/\/portal\/people$/);
-    // Clear navigates client-side (Next Link), so the sheet stays open and
-    // the table behind the modal is aria-hidden — invisible to role-based
-    // locators. Close the sheet before asserting the unfiltered table.
-    await page.keyboard.press("Escape");
-    await expect(filters).not.toBeVisible();
-    // A non-sponsor row proves the role filter is gone. Priya can't anchor
-    // this any more (she's past page 1 of the paginated directory), so use
-    // the alphabetically-first seeded non-sponsor instead.
+    // A non-sponsor row proves the segment is gone. Priya is past page 1 of
+    // the paginated directory, so use the alphabetically-first seeded
+    // non-sponsor instead.
     await expect(
       page.getByRole("row").filter({ hasText: "Alex Chen" }),
     ).toBeVisible();
+
+    // `?role=` is in bookmarks and in links written before the strip existed,
+    // so it aliases to the segment it names rather than being ignored --
+    // keeping whatever else was on the URL.
+    await page.goto("/portal/people?role=is_sponsor&search=Summit");
+    await expect(page).toHaveURL(/\/portal\/people\/sponsors\?search=Summit$/);
   });
 
   test("adds a person and edits them from their detail view", async ({

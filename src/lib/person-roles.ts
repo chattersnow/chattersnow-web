@@ -31,7 +31,7 @@ import { DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
  * the lexicon names what an organization lends, this names who it works with.
  *
  * What this deliberately does not rename: the `is_*` columns, the
- * `person_role_tags.role` values, the `/portal/donors` routes. A URL is not a
+ * `person_role_tags.role` values, the `/portal/people/donors` routes. A URL is not a
  * label, and renaming one per tenant buys nothing.
  */
 export const PERSON_ROLE_KEYS = [

@@ -14,6 +14,40 @@ const PORTAL_ROOT = join(import.meta.dir, "(app)");
  */
 const INTENTIONALLY_UNGATED = new Set(["home", "entry", "account"]);
 
+/**
+ * Routes whose page only redirects somewhere else. They render nothing and
+ * read nothing, so the guard that matters is the destination's -- and adding
+ * one here would only decide which of two identical denials a reader sees,
+ * at the cost of a permission round trip on a route that returns a 307.
+ *
+ * The six People segments moved under /portal/people in #957 and left these
+ * behind; their destinations sit under people/layout.tsx, which requires
+ * `people:view`. Each one is checked below to still *be* a redirect stub, so
+ * this list cannot quietly come to cover a real page.
+ */
+const REDIRECT_STUBS = new Set([
+  "donors",
+  "sponsors",
+  "attendees",
+  "staff",
+  "partners",
+  "organizations",
+]);
+
+/** A page that hands the request on rather than rendering anything. */
+function isRedirectStub(routeDir: string) {
+  const page = join(routeDir, "page.tsx");
+  if (!existsSync(page)) return false;
+  const source = readFileSync(page, "utf8");
+  return (
+    /\bredirect\(/.test(source) &&
+    // No JSX element anywhere: a page that renders is a page, whatever else
+    // it also does. Closing and self-closing tags rather than `<Name`, which
+    // a type parameter like `Promise<Record<...>>` also looks like.
+    !/<\/[A-Za-z]|\/>/.test(source)
+  );
+}
+
 const GUARD = /(require(Any)?(Permission|Role)|deniedRedirectHref)\s*\(/;
 
 /** Every route directory under `(app)`, at any depth, that renders a page. */
@@ -64,8 +98,15 @@ describe("portal route guards", () => {
   // Route hiding is not authorization (spec section 7), but a missing guard is
   // still how /portal/attendees shipped as the one people page anyone signed
   // in could open. This sweep is what would have caught it.
+  for (const route of REDIRECT_STUBS) {
+    test(`/portal/${route} is still nothing but a redirect`, () => {
+      expect(isRedirectStub(join(PORTAL_ROOT, route))).toBe(true);
+    });
+  }
+
   for (const route of routes) {
     if (INTENTIONALLY_UNGATED.has(route.split(/[/\\]/)[0])) continue;
+    if (REDIRECT_STUBS.has(route)) continue;
     test(`/portal/${route} checks a permission before rendering`, () => {
       expect(isGuarded(join(PORTAL_ROOT, route))).toBe(true);
     });

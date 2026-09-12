@@ -27,6 +27,8 @@ export type SegmentStat = {
  * fifth copy.
  */
 export type PeopleSegment = {
+  /** Stable id, and the last path segment for everything but the full list. */
+  value: string;
   /** Route this segment lives at, used for pagination and filter links. */
   basePath: string;
   title: string;
@@ -38,8 +40,14 @@ export type PeopleSegment = {
   filterColumn?: RoleKey;
   /** Narrows the segment to one entity type, which roles cannot express. */
   personType?: PersonType;
-  /** The full directory offers a Role filter; a segment already is one. */
-  showRoleFilter?: boolean;
+  /**
+   * The one segment that lists everybody. It offers no filter of its own since
+   * #957: the strip is the role facet, and a facet that duplicated it was the
+   * two-ways-to-do-one-thing the ticket asked to avoid. What it does have that
+   * the others do not is the duplicates queue -- a duplicate pair can straddle
+   * two segments, so it belongs on the page that lists both halves.
+   */
+  isAllPeople?: boolean;
   newPerson?: {
     triggerLabel: string;
     defaultRole?: RoleKey;
@@ -122,9 +130,10 @@ async function attendeeStats(
 }
 
 export const PEOPLE_SEGMENT: PeopleSegment = {
+  value: "people",
   basePath: "/portal/people",
   title: "People",
-  showRoleFilter: true,
+  isAllPeople: true,
   newPerson: { triggerLabel: "New Person" },
   noun: "person",
   nounPlural: "people",
@@ -135,7 +144,8 @@ export const PEOPLE_SEGMENT: PeopleSegment = {
 };
 
 export const DONORS_SEGMENT: PeopleSegment = {
-  basePath: "/portal/donors",
+  value: "donors",
+  basePath: "/portal/people/donors",
   title: "{donor_plural}",
   filterColumn: "is_donor",
   newPerson: { triggerLabel: "New {donor}", defaultRole: "is_donor" },
@@ -152,7 +162,8 @@ export const DONORS_SEGMENT: PeopleSegment = {
 };
 
 export const SPONSORS_SEGMENT: PeopleSegment = {
-  basePath: "/portal/sponsors",
+  value: "sponsors",
+  basePath: "/portal/people/sponsors",
   title: "{sponsor_plural}",
   filterColumn: "is_sponsor",
   newPerson: { triggerLabel: "New {sponsor}", defaultRole: "is_sponsor" },
@@ -169,9 +180,11 @@ export const SPONSORS_SEGMENT: PeopleSegment = {
 };
 
 export const VOLUNTEERS_SEGMENT: PeopleSegment = {
+  value: "volunteers",
   // Not /portal/volunteers: that is the volunteer *programme* (role types,
   // participation, applications). This is the directory filtered to people who
   // volunteer, so it lives under People and inherits its people:view guard.
+  // The other six joined it under /portal/people in #957.
   basePath: "/portal/people/volunteers",
   title: "{volunteer_plural}",
   filterColumn: "is_volunteer",
@@ -189,7 +202,8 @@ export const VOLUNTEERS_SEGMENT: PeopleSegment = {
 };
 
 export const ATTENDEES_SEGMENT: PeopleSegment = {
-  basePath: "/portal/attendees",
+  value: "attendees",
+  basePath: "/portal/people/attendees",
   title: "{attendee_plural}",
   filterColumn: "is_attendee",
   newPerson: { triggerLabel: "New {attendee}", defaultRole: "is_attendee" },
@@ -204,7 +218,8 @@ export const ATTENDEES_SEGMENT: PeopleSegment = {
 };
 
 export const STAFF_SEGMENT: PeopleSegment = {
-  basePath: "/portal/staff",
+  value: "staff",
+  basePath: "/portal/people/staff",
   title: "{staff_plural}",
   filterColumn: "is_staff",
   newPerson: { triggerLabel: "New {staff}", defaultRole: "is_staff" },
@@ -221,7 +236,8 @@ export const STAFF_SEGMENT: PeopleSegment = {
 };
 
 export const PARTNERS_SEGMENT: PeopleSegment = {
-  basePath: "/portal/partners",
+  value: "partners",
+  basePath: "/portal/people/partners",
   title: "{partner_plural}",
   filterColumn: "is_partner",
   newPerson: {
@@ -244,7 +260,8 @@ export const PARTNERS_SEGMENT: PeopleSegment = {
 };
 
 export const ORGANIZATIONS_SEGMENT: PeopleSegment = {
-  basePath: "/portal/organizations",
+  value: "organizations",
+  basePath: "/portal/people/organizations",
   title: "Organizations",
   personType: "organization",
   newPerson: {
@@ -263,6 +280,50 @@ export const ORGANIZATIONS_SEGMENT: PeopleSegment = {
   emptyDescriptionView:
     "Organizations appear here once a person record is marked as one.",
 };
+
+/**
+ * The strip, in the order it reads (#957).
+ *
+ * All first, then the six role segments in `PERSON_ROLES` order, then
+ * Organizations -- which is last because it is the odd one out: #625 split
+ * `is_organization` out of the role flags into a `person_type`, so it narrows
+ * by what kind of record a row is rather than by what the person does. It is
+ * still a view of the same directory, which is why it is here at all.
+ */
+export const PEOPLE_SEGMENTS: readonly PeopleSegment[] = [
+  PEOPLE_SEGMENT,
+  DONORS_SEGMENT,
+  SPONSORS_SEGMENT,
+  VOLUNTEERS_SEGMENT,
+  ATTENDEES_SEGMENT,
+  STAFF_SEGMENT,
+  PARTNERS_SEGMENT,
+  ORGANIZATIONS_SEGMENT,
+];
+
+/**
+ * What the strip calls a segment, in the tenant's own words (#911).
+ *
+ * "All" rather than the full segment's own title: with the other seven beside
+ * it, "People" would read as one view among them rather than as the page they
+ * are all views of -- and the heading above already says People.
+ */
+export function segmentNavLabel(
+  segment: PeopleSegment,
+  vocabulary: Lexicon,
+): string {
+  return segment.isAllPeople ? "All" : applyLexicon(segment.title, vocabulary);
+}
+
+/**
+ * The segment a `?role=` value names, for the alias `/portal/people` keeps so
+ * that links written before #957 still land somewhere sensible.
+ */
+export function segmentForRole(role: string): PeopleSegment | undefined {
+  return PEOPLE_SEGMENTS.find(
+    (segment) => segment.filterColumn === role && !segment.isAllPeople,
+  );
+}
 
 /**
  * A segment's "you can add one here" copy, with its cross-section hint dropped
