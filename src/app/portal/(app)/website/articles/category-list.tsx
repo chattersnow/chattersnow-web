@@ -3,7 +3,8 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowLeft, ArrowUp, EyeOff, Plus } from "lucide-react";
+import { ArrowDown, ArrowUp, EyeOff, Plus } from "lucide-react";
+import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -106,15 +107,9 @@ export function CategoryList({
 
   return (
     <>
-      <Link
-        href={SITE_CONTENT}
-        className="app-muted inline-flex items-center gap-1 text-sm hover:text-foreground"
-      >
-        <ArrowLeft className="size-3.5" />
-        Site Content
-      </Link>
+      <PortalBreadcrumbs current="Articles" />
 
-      <div className="mt-2 w-fit">
+      <div className="w-fit">
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
           Articles
         </h1>

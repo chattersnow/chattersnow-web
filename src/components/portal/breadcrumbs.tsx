@@ -61,8 +61,18 @@ function trailFor(
 export function PortalBreadcrumbs({
   /** The record this page is about, as the page's own heading names it. */
   current,
+  onNavigate,
 }: {
   current: string;
+  /**
+   * Called before a crumb navigates, with the href it is heading for. Call
+   * `preventDefault()` on the event to stop it -- how the article editor
+   * keeps its unsaved-changes prompt now that the trail replaced the single
+   * back link it used to guard (#948). The href is passed so the prompt's
+   * "Discard changes" can go where the reader was actually going, rather
+   * than to the one destination the back link had.
+   */
+  onNavigate?: (href: string, event: React.MouseEvent) => void;
 }) {
   const pathname = usePathname();
   const crumbs = trailFor(pathname, current, useLexicon());
@@ -83,6 +93,7 @@ export function PortalBreadcrumbs({
               {crumb.href && !isLast ? (
                 <Link
                   href={crumb.href}
+                  onClick={(event) => onNavigate?.(crumb.href!, event)}
                   className="rounded-sm hover:text-foreground hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
                 >
                   <LinkPendingPulse>{crumb.label}</LinkPendingPulse>

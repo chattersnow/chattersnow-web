@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { Button } from "@/components/ui/button";
+import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Card, CardContent } from "@/components/ui/card";
 import { listServicesWithAssetCounts } from "../queries";
 import { NewServiceDialog } from "./new-service-dialog";
@@ -18,15 +16,7 @@ export default async function ServicesPage() {
 
   return (
     <>
-      <Button
-        variant="ghost"
-        size="sm"
-        nativeButton={false}
-        className="mb-2"
-        render={<Link href="/portal/technology" />}
-      >
-        <ArrowLeft /> Assets
-      </Button>
+      <PortalBreadcrumbs current="Services" />
       <div className="w-fit">
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
           Services

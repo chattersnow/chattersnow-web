@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { SortHeaderLink } from "@/components/portal/sort-header-link";
 import { Card, CardContent } from "@/components/ui/card";
@@ -218,6 +219,7 @@ export default async function FinanceDonationsPage({
 
   return (
     <>
+      <PortalBreadcrumbs current="Donations" />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="w-fit">
           <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">

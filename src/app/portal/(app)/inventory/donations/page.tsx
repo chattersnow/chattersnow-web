@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { AddDonationModal } from "../../home/add-donation-modal";
 import { FiltersSheet } from "@/components/filters-sheet";
 import { FilterSubmitButton } from "@/components/filter-submit-button";
@@ -127,6 +128,7 @@ export default async function InventoryDonationsPage({
 
   return (
     <>
+      <PortalBreadcrumbs current="Donations" />
       <div className="w-fit">
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
           Donations
