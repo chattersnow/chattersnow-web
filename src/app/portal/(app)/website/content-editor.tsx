@@ -258,10 +258,27 @@ export function ContentEditor({
                 {page.label} is hidden from the public site, so nothing written
                 here is visible yet.{" "}
                 <Link
-                  href="/portal/administration/system-settings"
+                  href="/portal/administration/system-settings?tab=visibility"
                   className="underline underline-offset-4"
                 >
                   Change that in System Settings
+                </Link>
+                .
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {page.key === "legal" && (
+            <Alert className="mb-6">
+              <Info />
+              <AlertDescription>
+                Writing a document here does not put it in force. Which of the
+                three this organization actually serves is set in{" "}
+                <Link
+                  href="/portal/administration/system-settings?tab=legal"
+                  className="underline underline-offset-4"
+                >
+                  System Settings &rarr; Legal documents
                 </Link>
                 .
               </AlertDescription>
@@ -301,7 +318,7 @@ export function ContentEditor({
                           </Link>
                           , or change where the page reads from in{" "}
                           <Link
-                            href="/portal/administration/system-settings"
+                            href="/portal/administration/system-settings?tab=layout"
                             className="underline underline-offset-4"
                           >
                             System Settings

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TabsContent } from "@/components/ui/tabs";
 import {
   getTenantModules,
   getTenantPageVisibility,
@@ -12,6 +12,7 @@ import { LAYOUT_SLOTS, getTenantLayoutValues } from "@/lib/site-layout";
 import { LEGAL_DOCUMENTS } from "@/lib/legal-documents";
 import { getTenantLegalPublication } from "@/lib/legal-publication";
 import { SystemSettingsForm } from "./system-settings-form";
+import { SystemSettingsTabs } from "./system-settings-tabs";
 import { PageVisibilityPanel } from "./page-visibility-panel";
 import {
   LegalDocumentsPanel,
@@ -172,23 +173,7 @@ export default async function SystemSettingsPage() {
         <div className="rainbow-accent mt-3 w-full" />
       </div>
 
-      <Tabs defaultValue="organization" className="mt-6">
-        <div className="rainbow-surface flex flex-wrap items-center gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
-          <TabsList
-            variant="line"
-            className="flex-wrap group-data-horizontal/tabs:h-auto"
-          >
-            <TabsTrigger value="organization">Organization</TabsTrigger>
-            <TabsTrigger value="workflow">Workflow settings</TabsTrigger>
-            <TabsTrigger value="branding">Branding</TabsTrigger>
-            <TabsTrigger value="layout">Layout</TabsTrigger>
-            <TabsTrigger value="visibility">Page visibility</TabsTrigger>
-            <TabsTrigger value="legal">Legal documents</TabsTrigger>
-            <TabsTrigger value="notifications">Notifications</TabsTrigger>
-            <TabsTrigger value="data">Data</TabsTrigger>
-          </TabsList>
-        </div>
-
+      <SystemSettingsTabs>
         <TabsContent value="organization" className="mt-6 space-y-4">
           <p className="app-muted max-w-3xl text-sm leading-relaxed">
             Organization-wide settings that the rest of the portal reads. The
@@ -322,7 +307,7 @@ export default async function SystemSettingsPage() {
         <TabsContent value="data" className="mt-6 space-y-4">
           <DataPanel orgName={orgName} />
         </TabsContent>
-      </Tabs>
+      </SystemSettingsTabs>
     </>
   );
 }

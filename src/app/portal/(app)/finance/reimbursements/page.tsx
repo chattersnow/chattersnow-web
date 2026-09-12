@@ -275,7 +275,7 @@ export default async function ReimbursementsPage({
                   The threshold is a setting, not a fixed rule — admin or board
                   can change it anytime in{" "}
                   <Link
-                    href="/portal/administration/system-settings"
+                    href="/portal/administration/system-settings?tab=workflow"
                     className="underline hover:text-foreground"
                   >
                     Administration &gt; System Settings

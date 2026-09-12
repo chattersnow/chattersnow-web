@@ -134,7 +134,7 @@ export function CategoryList({
             The Learn section is switched off, so none of these pages is
             reachable on the public site. Turn it on in{" "}
             <Link
-              href="/portal/administration/system-settings"
+              href="/portal/administration/system-settings?tab=visibility"
               className="underline underline-offset-4"
             >
               System Settings
