@@ -31,12 +31,19 @@ import {
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import {
+  useControlledOpen,
+  type ControlledOpenProps,
+} from "@/components/portal/use-controlled-open";
 
 export function NewExpenseDialog({
   events,
   defaultEventId,
   lockEventSelection,
   triggerLabel = "New Expense",
+  open: controlledOpen,
+  onOpenChange,
+  withTrigger = true,
   onSaved,
 }: {
   events?: EventOption[];
@@ -44,9 +51,9 @@ export function NewExpenseDialog({
   lockEventSelection?: boolean;
   triggerLabel?: string;
   onSaved?: () => void;
-}) {
+} & ControlledOpenProps) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useControlledOpen(controlledOpen, onOpenChange);
   const [form, setForm] = useState<ExpenseFormState>(() =>
     emptyExpenseForm(defaultEventId),
   );
@@ -137,13 +144,15 @@ export function NewExpenseDialog({
         }}
       />
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogTrigger
-          render={
-            <Button type="button" className="shrink-0 whitespace-nowrap" />
-          }
-        >
-          {triggerLabel}
-        </DialogTrigger>
+        {withTrigger ? (
+          <DialogTrigger
+            render={
+              <Button type="button" className="shrink-0 whitespace-nowrap" />
+            }
+          >
+            {triggerLabel}
+          </DialogTrigger>
+        ) : null}
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Add expense</DialogTitle>

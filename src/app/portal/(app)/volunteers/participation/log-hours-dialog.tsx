@@ -34,6 +34,10 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import {
+  useControlledOpen,
+  type ControlledOpenProps,
+} from "@/components/portal/use-controlled-open";
 
 const NONE_VALUE = "none";
 
@@ -51,14 +55,17 @@ export function LogHoursDialog({
   canManage,
   selfPerson,
   triggerLabel = "Log hours",
+  open: controlledOpen,
+  onOpenChange,
+  withTrigger = true,
 }: {
   canManage: boolean;
   selfPerson: PickedPerson | null;
   triggerLabel?: string;
-}) {
+} & ControlledOpenProps) {
   const router = useRouter();
   const lockedToSelf = !canManage && selfPerson !== null;
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useControlledOpen(controlledOpen, onOpenChange);
   const [people, setPeople] = useState<PersonListItem[]>([]);
   const [events, setEvents] = useState<EventOption[]>([]);
   const [roleTypes, setRoleTypes] = useState<RoleType[]>([]);
@@ -135,11 +142,15 @@ export function LogHoursDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
-      >
-        {triggerLabel}
-      </DialogTrigger>
+      {withTrigger ? (
+        <DialogTrigger
+          render={
+            <Button type="button" className="shrink-0 whitespace-nowrap" />
+          }
+        >
+          {triggerLabel}
+        </DialogTrigger>
+      ) : null}
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Log volunteer hours</DialogTitle>
