@@ -23,17 +23,17 @@ Owned by Chatter Snow, Inc. outright.
 
 ## Where the line falls in this repository
 
-| Path                             | Category         | Notes                                                         |
-| -------------------------------- | ---------------- | ------------------------------------------------------------- |
-| `supabase/migrations/**`         | Core             | Schema, RLS, permission model, RPCs                           |
-| `src/app/portal/**`              | Core             | Portal modules and their UI                                   |
-| `src/components/ui/**`           | Core             | Generic component library                                     |
-| `src/lib/**`                     | Core             | Domain logic: inventory, fiscal year, permissions, formatting |
-| `src/app/(public)/**`            | Mixed            | Page _structure_ is Core; the copy inside it is Organization  |
-| `public/**` (logos, photography) | Organization     | Brand assets and program photography                          |
-| `docs/technical-spec.md`         | Core             | Describes the platform                                        |
-| Seed data, demo accounts         | Mixed            | Generic fixtures are Core; Chatter records are Organization   |
-| Any row in any database table    | **Organization** | Always. No exceptions.                                        |
+| Path                                     | Category         | Notes                                                         |
+| ---------------------------------------- | ---------------- | ------------------------------------------------------------- |
+| `supabase/migrations/**`                 | Core             | Schema, RLS, permission model, RPCs                           |
+| `src/app/portal/**`                      | Core             | Portal modules and their UI                                   |
+| `src/components/ui/**`                   | Core             | Generic component library                                     |
+| `src/lib/**`                             | Core             | Domain logic: inventory, fiscal year, permissions, formatting |
+| `src/app/(public)/**`                    | Mixed            | Page _structure_ is Core; the copy inside it is Organization  |
+| `public/**` (logos, photography)         | Organization     | Brand assets and program photography                          |
+| `docs/technical-spec.md`, `docs/spec/**` | Core             | Describes the platform                                        |
+| Seed data, demo accounts                 | Mixed            | Generic fixtures are Core; Chatter records are Organization   |
+| Any row in any database table            | **Organization** | Always. No exceptions.                                        |
 
 Operational data is never Core, never a product asset, and never used to seed,
 demo, test, or populate anything commercial. That includes people, donors,
