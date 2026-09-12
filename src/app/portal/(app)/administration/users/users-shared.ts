@@ -23,6 +23,8 @@ export type PortalUser = {
 export type PortalRoleOption = {
   id: string;
   name: string;
+  /** The tenant's own wording for the role; null means derive it (#910). */
+  label: string | null;
   description: string | null;
 };
 

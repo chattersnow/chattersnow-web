@@ -8,6 +8,8 @@ import {
   formatNumber,
   formatRoleLabel,
   personDisplayName,
+  roleDisplayName,
+  roleLabelMap,
 } from "./format";
 
 describe("formatRoleLabel", () => {
@@ -21,6 +23,45 @@ describe("formatRoleLabel", () => {
 
   test("an empty string stays empty", () => {
     expect(formatRoleLabel("")).toBe("");
+  });
+
+  test("a tenant's label wins over the derived wording", () => {
+    expect(
+      formatRoleLabel("event_coordinator", {
+        event_coordinator: "Studio manager",
+      }),
+    ).toBe("Studio manager");
+  });
+
+  test("a name the map doesn't carry falls back to the derived wording", () => {
+    expect(formatRoleLabel("board", { volunteer: "Helper" })).toBe("Board");
+  });
+});
+
+describe("roleDisplayName", () => {
+  test("the row's own label wins", () => {
+    expect(
+      roleDisplayName({ name: "event_coordinator", label: "Studio manager" }),
+    ).toBe("Studio manager");
+  });
+
+  test("a null or whitespace label falls back to the derived wording", () => {
+    expect(roleDisplayName({ name: "event_coordinator", label: null })).toBe(
+      "Event coordinator",
+    );
+    expect(roleDisplayName({ name: "board", label: "   " })).toBe("Board");
+  });
+});
+
+describe("roleLabelMap", () => {
+  test("keys by name and drops roles with no label of their own", () => {
+    expect(
+      roleLabelMap([
+        { name: "board", label: "Trustees" },
+        { name: "volunteer", label: null },
+        { name: "finance", label: "  " },
+      ]),
+    ).toEqual({ board: "Trustees" });
   });
 });
 

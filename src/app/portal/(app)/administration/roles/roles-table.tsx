@@ -6,7 +6,7 @@ import {
   type PortalDataTableColumn,
 } from "@/components/portal/data-table";
 import { Card, CardContent } from "@/components/ui/card";
-import { formatRoleLabel } from "@/lib/format";
+import { roleDisplayName } from "@/lib/format";
 import { RoleDetailsDialog, type RoleRow } from "./role-details-dialog";
 import { EmptyState } from "@/components/portal/empty-state";
 
@@ -16,14 +16,15 @@ export function RolesTable({ roles }: { roles: RoleRow[] }) {
       {
         key: "name",
         label: "Role",
-        // On the label rather than the stored name: "board_member" reads as
-        // "Board member" in the cell, and that is the order a reader expects
-        // to get back.
-        sortValue: (role) => formatRoleLabel(role.name),
+        // On the display name rather than the stored key: "board_member" reads
+        // as "Board member" in the cell -- or as whatever this organization
+        // calls it (#910) -- and that is the order a reader expects to get
+        // back.
+        sortValue: (role) => roleDisplayName(role),
         cellClassName: "max-w-xs font-medium",
         render: (role) => (
-          <span className="block truncate" title={formatRoleLabel(role.name)}>
-            {formatRoleLabel(role.name)}
+          <span className="block truncate" title={roleDisplayName(role)}>
+            {roleDisplayName(role)}
           </span>
         ),
       },
