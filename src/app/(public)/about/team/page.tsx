@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import { UserRound } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SiteImage } from "@/components/site-image";
-import { resolveImageUrl } from "@/lib/inventory";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSiteImageUrls } from "@/lib/site-images";
 import { getPublicSite, publicTitle } from "@/lib/public-site";
+import { resolvePhoto, TEAM_PHOTO_FIELD } from "@/lib/site-content";
 
 export async function generateMetadata(): Promise<Metadata> {
   const supabase = await createSupabaseServerClient();
@@ -28,18 +28,6 @@ export default async function TeamPage() {
     getPublicSite(supabase),
   ]);
 
-  // A member's photo is their own URL if set, else the image slot named for
-  // them, else the shared team placeholder slot.
-  function photoFor(member: TeamMember): string | null {
-    const own = member.photo_url?.trim();
-    if (own) return resolveImageUrl(own);
-    return (
-      (member.photo_slot ? siteImages[member.photo_slot] : null) ??
-      siteImages.about_team_photo ??
-      null
-    );
-  }
-
   return (
     <div>
       <div className="w-fit">
@@ -60,7 +48,9 @@ export default async function TeamPage() {
           <Card key={member.name}>
             <CardHeader>
               <SiteImage
-                url={photoFor(member)}
+                // The same call the editor's photo control makes, so what an
+                // administrator was shown is what this renders (#922).
+                url={resolvePhoto(TEAM_PHOTO_FIELD, member, siteImages).url}
                 alt={member.name}
                 icon={UserRound}
               />
