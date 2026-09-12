@@ -31,6 +31,7 @@ function tenant(overrides: Partial<Tenant> = {}): Tenant {
     name: "Chatter Snow",
     slug: "chatter-snow",
     plan: "internal",
+    custom_domain: null,
     ...overrides,
   };
 }
@@ -98,6 +99,25 @@ describe("TenantSwitcher", () => {
     expect(
       screen.getByRole("button", { name: "Current account: Chatter Snow" }),
     ).toBeInTheDocument();
+  });
+
+  test("collapses to a plain link, naming the host's tenant, when the host pins it", () => {
+    // #956: on a host that belongs to an organization, that organization is
+    // the only one this session can be in. A menu would appear to switch and
+    // then silently undo itself on the next request -- and the name has to
+    // come from the current selection, not from whichever tenant sorted first.
+    render(
+      <TenantSwitcher
+        tenants={[tenant(), OTHER]}
+        currentTenantId={OTHER.id}
+        hostPinned
+      />,
+    );
+
+    expect(
+      screen.getByRole("link", { name: "Second Nonprofit" }),
+    ).toHaveAttribute("href", "/portal/home");
+    expect(screen.queryByRole("button")).toBeNull();
   });
 
   test("says a choice is owed rather than naming a tenant it is not scoped to", () => {

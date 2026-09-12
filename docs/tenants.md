@@ -409,6 +409,15 @@ Before it can be granted, the staff member's account has to exist: they sign
 in once (they land on the "no organization" screen), and the tenant admin
 enters that email.
 
+Once it is granted, **work the grant on the tenant's own portal host**. Since
+#956 a portal session is scoped to the organization that owns the host it is
+served from, so a support grant in `example-nonprofit` is exercised at
+`portal.example.org`, not from `portal.rickiecruz.com`. Session cookies are
+host-only, so this was already a separate sign-in in practice; what changed is
+that the platform host no longer offers a switcher into the tenant. A tenant
+with no `custom_domain` yet has no host of its own, which leaves its portal
+unpinned and reachable the way it always was.
+
 The operator can _see_ whether a tenant currently has support open, on
 Administration → Platform — read-only, and deliberately so: who is in and
 until when is the operator's business, letting themselves in is not.
@@ -425,6 +434,36 @@ bun run tenant:support example-nonprofit --email staff@platform.org \
 It writes the same membership row the UI would, so it shows on the tenant's
 Support access list and in their audit log, and the isolation suite covers
 it like any other membership.
+
+## One host, one tenant
+
+A portal session is scoped to the organization that owns the host it was
+served from (#956). On `portal.example.org`, an account that belongs to
+Example Nonprofit gets Example Nonprofit — and an account that does not gets a
+"wrong organization" screen naming both, a link to the portal of one it _is_
+in, and a sign-out button. Nothing below the shell renders.
+
+Until #956 the portal ignored the host entirely. Nothing leaked —
+`current_tenant_id()` is membership-based, so every account only ever saw its
+own organization — but signing in on the public demo's domain with a paying
+tenant's credentials served that tenant's operations portal, which is not a
+thing any of the three hosts should be able to do.
+
+Three consequences worth knowing:
+
+- **The tenant switcher disappears on a host that owns a tenant.** It only
+  appears where the host settles nothing — a local run, a preview, or a tenant
+  with no `custom_domain` yet. Elsewhere the address bar is the switcher.
+- **The rule is inert on a host no tenant claims.** That is deliberate and it
+  is what keeps local development, CI and a freshly provisioned tenant working:
+  a tenant whose DNS is not set up yet is reachable from whatever host its
+  invite was sent from, exactly as before.
+- **The database was not changed.** `current_tenant_id()` still answers from
+  membership plus the user's selection, and the pin is applied by writing that
+  selection. Teaching the function to read the request host instead would have
+  split the session in two: `storage.objects`' policies call the same function,
+  but storage-api never receives `x-tenant-host`, so a gear photo would be
+  minted in one tenant and refused in another.
 
 ## Users that belong to several tenants
 
@@ -853,7 +892,7 @@ deployment can reach whether or not the button was drawn.
 One consequence worth knowing before you go looking for the button: it is
 absent on `uat.chattersnow.org` and on preview and local runs, because
 `TENANT_HOST_OVERRIDE` resolves those to Chatter Snow's own tenant. The demo is
-exercised on `demo.chattersnow.org`.
+exercised on `demo.rickiecruz.com`.
 
 ### The rollout order is load-bearing
 
@@ -866,8 +905,9 @@ catalogue, sponsors, programs, branding and the organization's own name;
 `page_visibility` would come back empty so `/programs`, `/learn` and `/support`
 would 404; every anonymous intake RPC would fail; and `default_tenant_id()`
 would return null so any sessionless insert would violate `not null`. The
-portal is unaffected throughout — `current_tenant_id()` is membership-based and
-never consults the host.
+portal keeps working throughout: `current_tenant_id()` is membership-based and
+never consults the host, and the host rule the portal shell added in #956 is
+inert on a host no tenant claims (see “One host, one tenant” below).
 
 The failure is invisible until it isn't, so the domain goes first and is
 verified **positively** while the fallback is still masking any mistake:

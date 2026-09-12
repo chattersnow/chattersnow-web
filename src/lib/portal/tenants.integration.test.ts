@@ -15,11 +15,14 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import {
   SEEDED_USERS,
   serviceRoleClient,
+  signIn,
   signInAs,
 } from "../../../test/integration-setup";
 import { SEEDED_USER_IDS } from "../../../test/seed-fixtures";
 
 const service = serviceRoleClient();
+
+const SECOND_HOST = `it-${crypto.randomUUID().slice(0, 8)}.example.test`;
 
 let chatterTenantId: string;
 let secondTenantId: string;
@@ -45,6 +48,10 @@ beforeAll(async () => {
       name: "Integration Test Org",
       slug: `it-${crypto.randomUUID().slice(0, 8)}`,
       plan: "white_label",
+      // A domain of its own, so the host-resolution tests below have a host
+      // that belongs to somebody. Harmless to the rest of the file: every
+      // other client here sends no host at all.
+      custom_domain: SECOND_HOST,
     })
     .select("id")
     .single();
@@ -346,6 +353,62 @@ describe("a user in more than one tenant", () => {
 
     const { data } = await multi.rpc("current_tenant_id");
     expect(data).toBe(chatterTenantId);
+  });
+});
+
+// The portal pins a session to the tenant that owns the request host (#956).
+// The rule itself is decided in the application (`decideHostTenant`), so what
+// has to hold here is the data it decides from -- and the commitment that the
+// database was deliberately left alone.
+describe("a signed-in request on another tenant's host", () => {
+  test("still resolves its own tenant from its membership", async () => {
+    // The commitment. current_tenant_id() is what 262 RLS policies and
+    // has_permission() answer from, and it is also what storage.objects'
+    // policies answer from -- and storage-api never sees x-tenant-host. Had
+    // the host been taught to this function instead, PostgREST would follow
+    // the header and storage would not, and a gear-photo upload would be
+    // minted in one tenant and refused in another.
+    const finance = await signIn(SEEDED_USERS.finance, "password123", {
+      host: SECOND_HOST,
+    });
+
+    const { data, error } = await finance.rpc("current_tenant_id");
+    expect(error).toBeNull();
+    expect(data).toBe(chatterTenantId);
+  });
+
+  test("can see whose host it is", async () => {
+    // public_tenant used to be read only by the public site and the login
+    // page. The portal shell reads it on every request now, so an authenticated
+    // session has to be able to -- otherwise the refusal silently never fires
+    // and the bug comes back without a failing test.
+    const finance = await signIn(SEEDED_USERS.finance, "password123", {
+      host: SECOND_HOST,
+    });
+
+    const { data, error } = await finance
+      .from("public_tenant")
+      .select("id, name")
+      .maybeSingle();
+    expect(error).toBeNull();
+    expect(data?.id).toBe(secondTenantId);
+  });
+
+  test("reads the domain of every tenant it belongs to, and no others", async () => {
+    // The refusal screen's only useful offer is a link to a host the account
+    // can actually get into, which needs custom_domain in the portal's own
+    // tenant read. The `tenants select` policy is what keeps that from being
+    // a disclosure: it scopes the rows to my_tenant_ids() regardless of host.
+    const finance = await signIn(SEEDED_USERS.finance, "password123", {
+      host: SECOND_HOST,
+    });
+
+    const { data, error } = await finance
+      .from("tenants")
+      .select("id, custom_domain");
+    expect(error).toBeNull();
+    expect((data ?? []).map((row) => row.id)).toEqual([chatterTenantId]);
+    expect(data?.[0]).toHaveProperty("custom_domain");
   });
 });
 

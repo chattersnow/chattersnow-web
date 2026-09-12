@@ -81,6 +81,27 @@ export function stripPortalPrefix(pathname: string): string {
   return pathname.slice(PORTAL_PATH_PREFIX.length) || "/";
 }
 
+/**
+ * The portal of the tenant that owns `custom_domain`, or null when it owns no
+ * domain (#956).
+ *
+ * Always the canonical `/portal/home` path rather than a host-aware one,
+ * because that form resolves correctly on all three shapes a tenant's domain
+ * takes and this is the one place that has to serve every tenant's:
+ *
+ *   - an apex listed in PORTAL_REDIRECT_HOSTS -- 308s to `portal.<apex>/home`;
+ *   - an apex that is not listed, or any other subdomain (the demo's
+ *     `demo.rickiecruz.com`) -- serves `/portal/home` as a plain path;
+ *   - a `portal.` host of its own (the platform tenant) -- the proxy 307s the
+ *     redundant prefix away.
+ *
+ * A tenant with no domain yet is reachable only on whatever host the operator
+ * sent its invite from, which is not something this can name, hence null.
+ */
+export function tenantPortalUrl(customDomain: string | null): string | null {
+  return customDomain ? `https://${customDomain}/portal/home` : null;
+}
+
 /** Where the portal login's link back to the organization's public site goes. */
 export type PublicSiteLink = { href: string; label: string };
 

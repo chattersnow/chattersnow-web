@@ -113,10 +113,11 @@ test.describe("a host that resolves to no tenant", () => {
     expect((await page.title()).trim()).not.toBe("");
   });
 
-  test("the portal is not affected by the host", async ({ page }) => {
-    // Still running with the second tenant active. current_tenant_id() is
-    // membership-based and never consults the host, which is what lets
-    // portal.<anything> work before its domain is configured.
+  test("the portal is not affected by an unresolved host", async ({ page }) => {
+    // Still running with the second tenant active, so nothing claims this
+    // host. The portal is pinned to the host's tenant since #956, but only
+    // where a host has one -- an unresolved host leaves the rule inert, which
+    // is what lets portal.<anything> work before its domain is configured.
     const response = await page.goto("/portal/login");
     expect(response?.status()).toBe(200);
   });
