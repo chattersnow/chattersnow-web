@@ -63,7 +63,13 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
     key: "learn",
     label: "Learn",
     description:
-      "The Learn section and all of its guides (etiquette, gear and sizing, budget, and the rest).",
+      "The Learn section and every article category your organization has published in it.",
+    // Off by default because a tenant that has written no articles would
+    // otherwise carry a nav entry to an empty section (#894). It is no longer
+    // off because the guides belonged to somebody else -- since #894 they are
+    // the tenant's own rows -- so this is a switch to turn on once there is
+    // something behind it, rather than a gate on another organization's
+    // content.
     defaultVisible: false,
   },
   {

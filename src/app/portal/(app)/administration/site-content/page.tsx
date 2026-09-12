@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import {
   getCurrentUserPermissions,
   hasPermission,
@@ -149,6 +150,20 @@ export default async function SiteContentPage({
       <p className="app-muted mt-6 max-w-3xl text-sm leading-relaxed">
         The words and photos on the public website, page by page. Saving keeps a
         draft; nothing reaches the public site until you publish it.
+      </p>
+
+      {/* Articles are a collection rather than a slot -- a tenant creates as
+          many as it likes -- so they have their own surface instead of a page
+          in the switcher below (#894). */}
+      <p className="app-muted mt-2 max-w-3xl text-sm leading-relaxed">
+        The guides in the Learn section are written{" "}
+        <Link
+          href="/portal/administration/site-content/articles"
+          className="underline underline-offset-4"
+        >
+          under Articles
+        </Link>
+        , where categories and articles are added rather than filled in.
       </p>
 
       {/* The page switcher lives inside the editor because leaving it here
