@@ -55,13 +55,17 @@ bun run tenant:provision \
 `provision_tenant()` creates the tenant and everything it needs to be signed
 into:
 
-- the five seeded roles (`admin`, `event_coordinator`, `finance`, `board`,
-  `volunteer`) with the **whole** permission matrix, copied from the template
-  tenant -- the oldest tenant on the `internal` plan -- for those five
-  roles only. Every migration that seeds `role_permissions` does so by role
-  name across all tenants, so the template's matrix is always the current
-  platform default and provisioning never has to be updated when a resource
-  is added. Custom roles the template added itself are not copied;
+- **every role the template tenant holds** -- the oldest tenant on the
+  `internal` plan -- with its label and its **whole** permission matrix. Every
+  migration that seeds `role_permissions` does so by role name across all
+  tenants, so the template's matrix is always the current platform default and
+  provisioning never has to be updated when a resource is added. Roles the
+  template added itself are copied too (#910): the template tenant is where the
+  platform's starter set is curated, so a role an operator adds there is a
+  default for new organizations, and one they retire there is one a new tenant
+  should not be given. `admin` is the hard requirement -- provisioning refuses
+  a template without it. A new tenant can then relabel or retire anything but
+  `admin` from Administration > Roles;
 - the catalog defaults a fresh database gets from migrations: the inventory
   category vocabulary, the agenda templates and the content brief templates,
   current versions included;

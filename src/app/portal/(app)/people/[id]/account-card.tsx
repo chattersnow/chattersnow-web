@@ -10,7 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/portal/empty-state";
 import { Spinner } from "@/components/ui/spinner";
-import { formatInstantDate, formatRoleLabel } from "@/lib/format";
+import {
+  formatInstantDate,
+  formatRoleLabel,
+  type RoleLabels,
+} from "@/lib/format";
 import type { PersonAccount, LinkableAccount } from "./person-account";
 
 /**
@@ -24,10 +28,13 @@ export function AccountCard({
   personId,
   account,
   linkable,
+  roleLabels,
 }: {
   personId: string;
   account: PersonAccount | null;
   linkable: LinkableAccount[];
+  /** name -> the tenant's wording, for the role names on the account (#910). */
+  roleLabels: RoleLabels;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +73,7 @@ export function AccountCard({
               ) : (
                 account.roles.map((role) => (
                   <Badge key={role} variant="outline">
-                    {formatRoleLabel(role)}
+                    {formatRoleLabel(role, roleLabels)}
                   </Badge>
                 ))
               )}

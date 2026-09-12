@@ -25,9 +25,12 @@ const run = crypto.randomUUID().slice(0, 8);
 const A_HOST = `seed-${run}.example.test`;
 const B_HOST = `prov-${run}.example.test`;
 const SLUG = `prov-${run}`;
+/** A role added to the template tenant, to prove provisioning copies it (#910). */
+const TEMPLATE_CUSTOM_ROLE = `studio_manager_${run}`;
 
 let tenantA: string;
 let tenantB: string;
+let templateCustomRoleId: string;
 const adminEmail = uniqueEmail("prov-admin");
 const supportEmail = uniqueEmail("prov-support");
 const memberEmail = uniqueEmail("prov-member");
@@ -49,6 +52,15 @@ async function must(
   const { data, error } = await query;
   if (error) throw new Error(`${what}: ${JSON.stringify(error)}`);
   return data;
+}
+
+/** How many roles the template tenant holds, which is what a new tenant gets (#910). */
+async function templateRoleCount(): Promise<number> {
+  const { count } = await service
+    .from("roles")
+    .select("id", { count: "exact", head: true })
+    .eq("tenant_id", tenantA);
+  return count ?? 0;
 }
 
 async function createUser(email: string) {
@@ -89,6 +101,41 @@ beforeAll(async () => {
       .eq("id", tenantA)
       .select("id"),
     "tenant A host",
+  );
+
+  // #910: provisioning copies every role the template holds, not five by
+  // name, so the template gets one of its own -- with a label, which is the
+  // other half of what has to survive the copy.
+  templateCustomRoleId = (
+    await must(
+      service
+        .from("roles")
+        .insert({
+          tenant_id: tenantA,
+          name: TEMPLATE_CUSTOM_ROLE,
+          label: "Studio manager",
+          description: "Added to the template for the provisioning test",
+        })
+        .select("id")
+        .single(),
+      "template custom role",
+    )
+  ).id;
+  await must(
+    service
+      .from("role_permissions")
+      .insert({
+        role_id: templateCustomRoleId,
+        resource_id: (
+          await must(
+            service.from("resources").select("id").eq("key", "events").single(),
+            "events resource",
+          )
+        ).id,
+        level: "manage",
+      })
+      .select("id"),
+    "template custom role permission",
   );
 
   // What the template calls the six person roles is a platform default a new
@@ -133,6 +180,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await service.from("roles").delete().eq("id", templateCustomRoleId);
   await service
     .from("app_settings")
     .delete()
@@ -162,48 +210,42 @@ describe("provisioning", () => {
     expect(error).not.toBeNull();
   });
 
-  test("seeds the five roles with the template's whole permission matrix", async () => {
-    const roles = await must(
-      service.from("roles").select("name").eq("tenant_id", tenantB),
-      "roles",
-    );
-    expect(roles.map((r: { name: string }) => r.name).sort()).toEqual([
-      "admin",
-      "board",
-      "event_coordinator",
-      "finance",
-      "volunteer",
-    ]);
+  // #910. It used to copy five roles by name and drop anything the template
+  // had added itself, which is backwards now that the template tenant is where
+  // the platform's defaults are curated: a role an operator adds there is a
+  // default, and one they retire there is one a new tenant should not get.
+  test("copies every role the template holds, labels and matrix included", async () => {
+    const names = async (tenantId: string) =>
+      (
+        await must(
+          service.from("roles").select("name").eq("tenant_id", tenantId),
+          "roles",
+        )
+      )
+        .map((r: { name: string }) => r.name)
+        .sort();
 
-    const count = async (tenantId: string) => (
-      await must(
-        service
-          .from("role_permissions")
-          .select("id, roles!inner(name)", { count: "exact", head: true })
-          .eq("tenant_id", tenantId)
-          .in("roles.name", [
-            "admin",
-            "board",
-            "event_coordinator",
-            "finance",
-            "volunteer",
-          ]),
-        "matrix",
-      ),
+    expect(await names(tenantB)).toEqual(await names(tenantA));
+    expect(await names(tenantB)).toContain(TEMPLATE_CUSTOM_ROLE);
+
+    const copied = await must(
+      service
+        .from("roles")
+        .select("label, description")
+        .eq("tenant_id", tenantB)
+        .eq("name", TEMPLATE_CUSTOM_ROLE)
+        .single(),
+      "copied custom role",
+    );
+    expect(copied.label).toBe("Studio manager");
+
+    const count = async (tenantId: string) =>
       (
         await service
           .from("role_permissions")
-          .select("id, roles!inner(name)", { count: "exact", head: true })
+          .select("id", { count: "exact", head: true })
           .eq("tenant_id", tenantId)
-          .in("roles.name", [
-            "admin",
-            "board",
-            "event_coordinator",
-            "finance",
-            "volunteer",
-          ])
-      ).count
-    );
+      ).count;
     expect(await count(tenantB)).toBe(await count(tenantA));
     expect(await count(tenantB)).toBeGreaterThan(100);
   });
@@ -789,7 +831,7 @@ describe("export and deletion", () => {
     );
     expect(snapshot.tenant.slug).toBe(SLUG);
     expect(snapshot.tables.site_content).toHaveLength(1);
-    expect(snapshot.tables.roles).toHaveLength(5);
+    expect(snapshot.tables.roles).toHaveLength(await templateRoleCount());
     expect(
       snapshot.memberships.map((m: { email: string }) => m.email),
     ).toContain(adminEmail);
@@ -834,7 +876,7 @@ describe("export and deletion", () => {
       service.rpc("delete_tenant", { p_tenant_id: tenantB }),
       "delete",
     );
-    expect(result.deleted.roles).toBe(5);
+    expect(result.deleted.roles).toBe(await templateRoleCount());
     expect(result.deleted.site_content).toBe(1);
 
     expect(

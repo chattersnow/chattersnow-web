@@ -39,12 +39,17 @@ import {
   PERMISSION_LEVELS,
   type PermissionLevel,
 } from "@/lib/auth/permissions";
-import { formatRoleLabel } from "@/lib/format";
+import { roleDisplayName } from "@/lib/format";
 import { updateRolePermissionsAction } from "./actions";
 import { Spinner } from "@/components/ui/spinner";
 import { runAction } from "@/components/portal/action-toast";
 
-type Role = { id: string; name: string; description: string | null };
+type Role = {
+  id: string;
+  name: string;
+  label: string | null;
+  description: string | null;
+};
 type Resource = {
   id: string;
   key: string;
@@ -58,7 +63,7 @@ type RolePermission = { role_id: string; resource_id: string; level: string };
 type ChangedCell = {
   roleId: string;
   resourceId: string;
-  roleName: string;
+  roleLabel: string;
   resourceLabel: string;
   from: PermissionLevel;
   to: PermissionLevel;
@@ -138,7 +143,7 @@ export function PermissionsMatrix({
       rows.push({
         roleId,
         resourceId,
-        roleName: role.name,
+        roleLabel: roleDisplayName(role),
         resourceLabel: resource.label,
         from,
         to,
@@ -241,7 +246,7 @@ export function PermissionsMatrix({
             <SelectContent>
               {roles.map((role) => (
                 <SelectItem key={role.id} value={role.id}>
-                  {formatRoleLabel(role.name)}
+                  {roleDisplayName(role)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -360,7 +365,7 @@ export function PermissionsMatrix({
                                   <SelectTrigger
                                     className="h-8 w-28"
                                     disabled={isSaving}
-                                    aria-label={`Permission for ${formatRoleLabel(selectedRole.name)} on ${resource.label}`}
+                                    aria-label={`Permission for ${roleDisplayName(selectedRole)} on ${resource.label}`}
                                   >
                                     <SelectValue />
                                   </SelectTrigger>
@@ -401,7 +406,7 @@ export function PermissionsMatrix({
                 className="flex items-center justify-between gap-4 border-b py-2 text-sm last:border-b-0"
               >
                 <span>
-                  {formatRoleLabel(c.roleName)} · {c.resourceLabel}
+                  {c.roleLabel} · {c.resourceLabel}
                 </span>
                 <span className="flex shrink-0 items-center gap-1.5">
                   <Badge variant="secondary">{LEVEL_LABELS[c.from]}</Badge>

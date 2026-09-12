@@ -3,9 +3,9 @@
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Eye, Pencil } from "lucide-react";
-import { deleteRoleAction, renameRoleAction } from "./actions";
-import { isSeededRole } from "./seeded-roles";
-import { formatRoleLabel } from "@/lib/format";
+import { deleteRoleAction, updateRoleAction } from "./actions";
+import { isPlatformRole, isProtectedRole } from "./protected-roles";
+import { formatRoleLabel, roleDisplayName } from "@/lib/format";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,7 +18,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
@@ -40,24 +45,39 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 
-export type RoleRow = { id: string; name: string; description: string | null };
+export type RoleRow = {
+  id: string;
+  name: string;
+  label: string | null;
+  description: string | null;
+};
 
-type FormState = { name: string; description: string };
+type FormState = { name: string; label: string; description: string };
 
 function formStateFor(role: RoleRow): FormState {
-  return { name: role.name, description: role.description ?? "" };
+  return {
+    name: role.name,
+    label: role.label ?? "",
+    description: role.description ?? "",
+  };
 }
 
 function isDirty(form: FormState, role: RoleRow) {
   const baseline = formStateFor(role);
   return (
-    form.name !== baseline.name || form.description !== baseline.description
+    form.name !== baseline.name ||
+    form.label !== baseline.label ||
+    form.description !== baseline.description
   );
 }
 
 export function RoleDetailsDialog({ role }: { role: RoleRow }) {
   const router = useRouter();
-  const protectedRole = isSeededRole(role.name);
+  // The name is a platform key on the roles the platform seeded; the display
+  // name and the role itself are the tenant's, except for `admin` (#910).
+  const nameLocked = isPlatformRole(role.name);
+  const undeletable = isProtectedRole(role.name);
+  const title = roleDisplayName(role);
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [form, setForm] = useState<FormState>(() => formStateFor(role));
@@ -109,17 +129,18 @@ export function RoleDetailsDialog({ role }: { role: RoleRow }) {
     event.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result = await renameRoleAction(
+      const result = await updateRoleAction(
         role.id,
         form.name,
         form.description,
+        form.label,
       );
       if ("error" in result) {
         setError(result.error);
         return;
       }
       setMode("view");
-      toast.success("Role deleted.");
+      toast.success("Role saved.");
       router.refresh();
     });
   }
@@ -152,7 +173,7 @@ export function RoleDetailsDialog({ role }: { role: RoleRow }) {
                     type="button"
                     variant="ghost"
                     size="icon-sm"
-                    aria-label={`View ${role.name}`}
+                    aria-label={`View ${title}`}
                   />
                 }
               />
@@ -160,7 +181,7 @@ export function RoleDetailsDialog({ role }: { role: RoleRow }) {
           >
             <Eye />
           </SheetTrigger>
-          <TooltipContent>{`View ${role.name}`}</TooltipContent>
+          <TooltipContent>{`View ${title}`}</TooltipContent>
         </Tooltip>
         <SheetContent side="right" showCloseButton={false}>
           <SheetHeader className="flex-row items-start gap-2 space-y-0">
@@ -223,8 +244,11 @@ export function RoleDetailsDialog({ role }: { role: RoleRow }) {
           {mode === "view" ? (
             <div className="flex-1 overflow-y-auto px-4 pb-4">
               <FieldGroup>
-                <ReadOnlyField label="Role name" htmlFor="role-name">
-                  {formatRoleLabel(role.name)}
+                <ReadOnlyField label="Display name" htmlFor="role-label">
+                  {title}
+                </ReadOnlyField>
+                <ReadOnlyField label="Role key" htmlFor="role-name">
+                  {role.name}
                 </ReadOnlyField>
                 <ReadOnlyField label="Description" htmlFor="role-description">
                   {role.description || "—"}
@@ -240,19 +264,35 @@ export function RoleDetailsDialog({ role }: { role: RoleRow }) {
               <div className="flex-1 overflow-y-auto px-4 pb-4">
                 <FieldGroup>
                   <Field>
-                    <FieldLabel htmlFor="role-edit-name">Role name</FieldLabel>
+                    <FieldLabel htmlFor="role-edit-label">
+                      Display name
+                    </FieldLabel>
+                    <Input
+                      id="role-edit-label"
+                      value={form.label}
+                      placeholder={formatRoleLabel(role.name)}
+                      onChange={(event) => update("label", event.target.value)}
+                    />
+                    <FieldDescription>
+                      What this role is called throughout the portal. Leave it
+                      empty to use {formatRoleLabel(role.name)}.
+                    </FieldDescription>
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor="role-edit-name">Role key</FieldLabel>
                     <Input
                       id="role-edit-name"
                       required
                       value={form.name}
                       onChange={(event) => update("name", event.target.value)}
-                      disabled={protectedRole}
-                      title={
-                        protectedRole
-                          ? "Built-in roles can't be renamed."
-                          : undefined
-                      }
+                      disabled={nameLocked}
                     />
+                    <FieldDescription>
+                      {nameLocked
+                        ? "Built-in roles keep their key: the platform grants permissions by it. The display name above is yours to change."
+                        : "The identifier this role is stored under. Permissions follow it, so changing it affects nothing else."}
+                    </FieldDescription>
                   </Field>
 
                   <Field>
@@ -283,9 +323,9 @@ export function RoleDetailsDialog({ role }: { role: RoleRow }) {
               <Button
                 type="button"
                 variant="destructive"
-                disabled={protectedRole || isPending}
+                disabled={undeletable || isPending}
                 title={
-                  protectedRole ? "Built-in roles can't be deleted." : undefined
+                  undeletable ? "The admin role can't be deleted." : undefined
                 }
                 onClick={() => setDeleteConfirmOpen(true)}
               >
