@@ -9,6 +9,9 @@ instead of a super-admin -- is §6 of the spec, in
 [`docs/spec/multi-tenancy.md`](spec/multi-tenancy.md), and in the planning
 repo's `decisions/2026-09-05-multi-tenancy-model.md`.
 
+The platform itself is **Coven**, sold to small nonprofits and small
+businesses; a tenant is one customer organization of it.
+
 This is no longer hypothetical. Three tenants are live, and **Chatter Snow is
 simply the first of them**, not the product:
 

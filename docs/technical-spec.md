@@ -1,11 +1,11 @@
-# Nonprofit Website and Operations Portal
+# Coven — Website and Operations Portal
 
 ## Technical Specification
 
 - **Status:** Draft for team review
 - **Version:** 0.10
 - **Date:** 2026-09-10
-- **Owner:** the platform (Chatter Snow is its first tenant)
+- **Owner:** the platform, which ships as **Coven** (Chatter Snow is its first tenant)
 - **Repository:** `chattersnow-web`
 - **Hosts:** see §3.1
 
@@ -43,9 +43,11 @@ split and resolves through the index above.
 
 ## 1. Purpose
 
-A nonprofit needs a public website for sharing its mission and programs, plus a secure admin portal for managing events, donations, inventory, expenses, and operational summaries.
+A small organization needs a public website for sharing what it does, plus a secure admin portal for managing events, money, inventory, people, and operational summaries. That is true of a nonprofit sharing its mission and programs, and equally of a small business — the records are the same shape, and the words differ.
 
-This began as Chatter Snow's own site and is now a **multi-tenant platform** serving that need for any number of organizations from one application and one database ([§6, "Multi-tenancy"](spec/multi-tenancy.md#6-data-model-multi-tenancy)). **Chatter Snow is the first tenant, not the product.** Read every requirement below as a requirement of the platform, satisfied per tenant: "the organization's mission", not "Chatter Snow's mission". Where Chatter Snow appears by name it is an example of a tenant's data, and belongs in that tenant's rows rather than in platform code — `docs/licensing.md` draws the line, and `docs/tenants.md` is the operator's runbook.
+This began as Chatter Snow's own site and is now a **multi-tenant platform**, named **Coven**, serving that need for any number of organizations from one application and one database ([§6, "Multi-tenancy"](spec/multi-tenancy.md#6-data-model-multi-tenancy)). Its market is small nonprofits and small businesses. **Chatter Snow is the first tenant, not the product.** Read every requirement below as a requirement of the platform, satisfied per tenant: "the organization's mission", not "Chatter Snow's mission". Where Chatter Snow appears by name it is an example of a tenant's data, and belongs in that tenant's rows rather than in platform code — `docs/licensing.md` draws the line, and `docs/tenants.md` is the operator's runbook.
+
+Nonprofit vocabulary — donors, programs, volunteers, a board — is the default wording of a platform whose first tenant is a nonprofit, not a statement about who may be a tenant. A business tenant reads the same tables as customers, services, staff and owners. Where a word reaches navigation, it is data (`lexicon.*`, §6 multi-tenancy); everywhere else it is Site Content. Requirements below that name a nonprofit-only concept — §5.12 governance and nonprofit-status tracking above all — are module entitlements a tenant may not hold, not assumptions the platform makes.
 
 The product has two distinct audiences:
 
