@@ -6,7 +6,11 @@ import {
   type PortalDataTableColumn,
 } from "@/components/portal/data-table";
 import { ProgramDetailsDialog } from "./program-details-dialog";
-import { ProgramStatusBadge, type ProgramRow } from "./program-badges";
+import {
+  ProgramPublicBadge,
+  ProgramStatusBadge,
+  type ProgramRow,
+} from "./program-badges";
 
 export function ProgramsTable({
   programs,
@@ -39,6 +43,16 @@ export function ProgramsTable({
         label: "Status",
         sortValue: (program) => program.status,
         render: (program) => <ProgramStatusBadge status={program.status} />,
+      },
+      {
+        key: "is_public",
+        label: "Public site",
+        // Public first when sorted, since the question the column answers is
+        // "what is on the website".
+        sortValue: (program) => (program.is_public ? 0 : 1),
+        render: (program) => (
+          <ProgramPublicBadge isPublic={program.is_public} />
+        ),
       },
       {
         key: "actions",

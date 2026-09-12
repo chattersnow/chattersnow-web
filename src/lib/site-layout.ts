@@ -50,9 +50,21 @@ export type LayoutSlot = {
 export const HOME_UPCOMING_COUNT_SLOT = "home_upcoming_count";
 export const HOME_UPCOMING_CARDS_SLOT = "home_upcoming_cards";
 export const HOME_UPCOMING_COMMUNITY_SLOT = "home_upcoming_community";
+export const PROGRAMS_SOURCE_SLOT = "programs_source";
 
 /** The two ways the home page can present an upcoming event. */
 export type HomeUpcomingCards = "fliers" | "compact";
+
+/**
+ * Where the public Programs page gets its program cards (#898).
+ *
+ * `content` is the copy in `programs.items`, where it has always come from,
+ * and stays the default. `module` reads the tenant's own `programs` rows --
+ * the ones it marked for the public site -- so an operator maintaining that
+ * list in Programs is not also maintaining it in Site Content. The pillars
+ * themselves are copy either way.
+ */
+export type ProgramsSource = "content" | "module";
 
 export const LAYOUT_SLOTS: LayoutSlot[] = [
   {
@@ -93,6 +105,18 @@ export const LAYOUT_SLOTS: LayoutSlot[] = [
       { value: false, label: "Not included" },
     ],
   },
+  {
+    key: PROGRAMS_SOURCE_SLOT,
+    label: "Where the Programs page gets its programs",
+    description:
+      "Site Content keeps the program cards as copy you write on the Site Content page. The Programs module reads the programs you manage in Programs, showing only the ones marked for the public site. Either way, the pillar headings stay in Site Content.",
+    control: "select",
+    defaultValue: "content",
+    options: [
+      { value: "content", label: "Site Content", hint: "Default" },
+      { value: "module", label: "Programs module" },
+    ],
+  },
 ];
 
 const SLOTS_BY_KEY = new Map(LAYOUT_SLOTS.map((slot) => [slot.key, slot]));
@@ -126,6 +150,8 @@ export type SiteLayout = {
   homeUpcomingCards: HomeUpcomingCards;
   /** Whether unfilled slots may be topped up from the community calendar. */
   homeUpcomingCommunity: boolean;
+  /** Whether the Programs page renders copy or the tenant's own program rows. */
+  programsSource: ProgramsSource;
 };
 
 export type LayoutRow = { slot: string; value: unknown };
@@ -157,6 +183,7 @@ export function resolveLayout(rows: readonly LayoutRow[]): SiteLayout {
     homeUpcomingCount: values[HOME_UPCOMING_COUNT_SLOT] as number,
     homeUpcomingCards: values[HOME_UPCOMING_CARDS_SLOT] as HomeUpcomingCards,
     homeUpcomingCommunity: values[HOME_UPCOMING_COMMUNITY_SLOT] as boolean,
+    programsSource: values[PROGRAMS_SOURCE_SLOT] as ProgramsSource,
   };
 }
 

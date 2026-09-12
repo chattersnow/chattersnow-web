@@ -96,6 +96,7 @@ const aPublic = {
   gearItemId: "",
   volunteerRoleTypeId: "",
   sponsorId: "",
+  publicProgramId: "",
   siteContentKey: `home.isolation_probe_${run}`,
 };
 // One `<prefix>.<token>` app_settings / site_content key per tenant, so the
@@ -243,7 +244,8 @@ beforeAll(async () => {
     await must(
       bAdmin
         .from("programs")
-        .insert({ name: `Isolation ${run}` })
+        // Public, so it is also B's marker row for `public_programs` (#898).
+        .insert({ name: `Isolation ${run}`, is_public: true })
         .select("id")
         .single(),
       "b program",
@@ -606,6 +608,18 @@ beforeAll(async () => {
       "a public event program",
     )
   ).program_id as string;
+  aPublic.publicProgramId = (
+    await must(
+      service
+        .from("programs")
+        .select("id")
+        .eq("tenant_id", tenantA)
+        .eq("is_public", true)
+        .limit(1)
+        .single(),
+      "a public program",
+    )
+  ).id as string;
   aPublic.sponsorId = (
     await must(
       service
@@ -1489,6 +1503,12 @@ describe("every anon-readable view follows the host", () => {
       column: "id",
       inA: () => aPublic.gearItemId,
       inB: () => b.gearItemId,
+    },
+    {
+      view: "public_programs",
+      column: "id",
+      inA: () => aPublic.publicProgramId,
+      inB: () => b.programId,
     },
     {
       view: "public_volunteer_role_types",

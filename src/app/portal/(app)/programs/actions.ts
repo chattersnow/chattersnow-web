@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { parseProgramForm } from "./program-form";
+import { parseProgramForm, type ProgramFormData } from "./program-form";
 import { checkPermission } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
 
@@ -12,6 +12,31 @@ function friendlyError(error: { code?: string }, fallback: string) {
   return error.code === "23505"
     ? "A program with this name already exists."
     : fallback;
+}
+
+/** The column names, once, so create and update cannot drift apart. */
+function programRow(data: ProgramFormData) {
+  return {
+    name: data.name,
+    description: data.description,
+    status: data.status,
+    is_public: data.isPublic,
+    pillar: data.pillar,
+    emoji: data.emoji,
+    sort_order: data.sortOrder,
+  };
+}
+
+/**
+ * The public Programs page renders these rows when the tenant has pointed it
+ * at the module (#898), so a save has to reach it as well as the portal. It is
+ * revalidated unconditionally: reading `layout.programs_source` first to find
+ * out whether it matters would cost a query on every save to save nothing.
+ */
+function revalidateProgramSurfaces() {
+  revalidatePath("/portal/programs");
+  revalidatePath("/portal/events");
+  revalidatePath("/programs");
 }
 
 export async function createProgramAction(
@@ -28,11 +53,10 @@ export async function createProgramAction(
 
   const parsed = parseProgramForm(formData);
   if ("error" in parsed) return parsed;
-  const { name, description, status } = parsed.data;
 
   const { error } = await supabase
     .from("programs")
-    .insert({ name, description, status });
+    .insert(programRow(parsed.data));
 
   if (error) {
     return {
@@ -43,8 +67,7 @@ export async function createProgramAction(
     };
   }
 
-  revalidatePath("/portal/programs");
-  revalidatePath("/portal/events");
+  revalidateProgramSurfaces();
   return { success: true };
 }
 
@@ -63,11 +86,10 @@ export async function updateProgramAction(
 
   const parsed = parseProgramForm(formData);
   if ("error" in parsed) return parsed;
-  const { name, description, status } = parsed.data;
 
   const { error } = await supabase
     .from("programs")
-    .update({ name, description, status })
+    .update(programRow(parsed.data))
     .eq("id", id);
 
   if (error) {
@@ -79,9 +101,31 @@ export async function updateProgramAction(
     };
   }
 
-  revalidatePath("/portal/programs");
-  revalidatePath("/portal/events");
+  revalidateProgramSurfaces();
   return { success: true };
+}
+
+/**
+ * The pillar labels the public Programs page groups by, for the form's picker.
+ *
+ * Through an RPC rather than reading `site_content` directly: that table's
+ * select policy requires `site_content:view`, which only `admin` holds, while
+ * an `event_coordinator` manages programs. A free-text pillar field instead
+ * would mean a typo silently ungroups a program on the live site.
+ */
+export async function listProgramPillarsAction(): Promise<
+  { data: string[] } | { error: string }
+> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "programs", "manage");
+  if (permissionError) return permissionError;
+
+  const { data, error } = await supabase.rpc("list_program_pillars");
+
+  if (error) {
+    return { error: "Could not load the pillars. Please try again." };
+  }
+  return { data: (data ?? []) as string[] };
 }
 
 export type Program = { id: string; name: string; status: string };
