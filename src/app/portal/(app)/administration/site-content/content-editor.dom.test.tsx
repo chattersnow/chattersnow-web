@@ -597,6 +597,110 @@ describe("image slots", () => {
   });
 });
 
+// The publish dialog was built for copy: the sentence being replaced struck
+// through above the sentence replacing it. For a photo that produced two
+// near-identical sixty-character Drive URLs, one struck through, answering
+// nothing about whether this is the right picture -- and hiding the only one
+// the publisher cannot see anywhere else, the one coming off the site (#923).
+describe("publishing a photo", () => {
+  const OLD_PHOTO_URL = "https://example.test/carousel-1-old.jpg";
+
+  /** A photo slot whose published picture and pending draft differ. */
+  function replacingPhoto(published: unknown, draft: unknown): EditorSlot {
+    return {
+      slot: CAROUSEL,
+      value: draft,
+      published,
+      overridden: published !== null,
+      hasDraft: true,
+      draftUpdatedAt: "2026-09-07T10:00:00Z",
+      draftUpdatedBy: "Robin",
+      publishedAt: "2026-09-01T10:00:00Z",
+      publishedBy: "Alex",
+      starter: null,
+    };
+  }
+
+  /** The pictures in the dialog, by what they point at. The previews are
+   * decorative, so they carry no accessible name to find them by (#918). */
+  function pictures(dialog: HTMLElement): (string | null)[] {
+    return [...dialog.querySelectorAll("img")].map((img) =>
+      img.getAttribute("src"),
+    );
+  }
+
+  async function openPublishDialog(): Promise<HTMLElement> {
+    await userEvent.click(publishBar());
+    return screen.findByRole("dialog");
+  }
+
+  test("shows the picture coming off the site beside the one going on", async () => {
+    renderEditor([replacingPhoto(OLD_PHOTO_URL, PHOTO_URL)]);
+
+    const dialog = await openPublishDialog();
+
+    expect(pictures(dialog)).toEqual([OLD_PHOTO_URL, PHOTO_URL]);
+    expect(within(dialog).getByText("Now on the site")).toBeInTheDocument();
+    expect(within(dialog).getByText("After publishing")).toBeInTheDocument();
+    // Both at the slot's own aspect, so the two are the crop the page applies
+    // rather than two different crops of two pictures.
+    for (const img of dialog.querySelectorAll("img")) {
+      expect(img.parentElement?.style.aspectRatio).toBe("21 / 9");
+    }
+  });
+
+  test("shows the outgoing picture when the photo is being cleared", async () => {
+    renderEditor([replacingPhoto(OLD_PHOTO_URL, null)]);
+
+    const dialog = await openPublishDialog();
+
+    expect(pictures(dialog)).toEqual([OLD_PHOTO_URL]);
+    expect(
+      within(dialog).getByText("The placeholder icon will be shown instead."),
+    ).toBeInTheDocument();
+  });
+
+  test("says so when there is no published photo to replace", async () => {
+    renderEditor([replacingPhoto(null, PHOTO_URL)]);
+
+    const dialog = await openPublishDialog();
+
+    expect(pictures(dialog)).toEqual([PHOTO_URL]);
+    expect(
+      within(dialog).getByText("No photo is published here yet."),
+    ).toBeInTheDocument();
+  });
+
+  // A Drive *folder* link is a valid URL that serves HTML, so nothing but the
+  // failed load can tell an editor that the picture is not there.
+  test("falls back to the link when a picture will not draw", async () => {
+    renderEditor([replacingPhoto(OLD_PHOTO_URL, PHOTO_URL)]);
+
+    const dialog = await openPublishDialog();
+    fireEvent.error(dialog.querySelectorAll("img")[0]!);
+
+    expect(pictures(dialog)).toEqual([PHOTO_URL]);
+    expect(within(dialog).getByText(OLD_PHOTO_URL)).toBeInTheDocument();
+  });
+
+  test("shows copy and photos each in their own form, in one list", async () => {
+    renderEditor([
+      editorSlot(HEADING, `${DEFAULT_HEADING}!`, false, true),
+      replacingPhoto(OLD_PHOTO_URL, PHOTO_URL),
+    ]);
+
+    const dialog = await openPublishDialog();
+
+    expect(dialog).toHaveTextContent("Publish 2 changes?");
+    expect(within(dialog).getByText(DEFAULT_HEADING)).toBeInTheDocument();
+    expect(within(dialog).getByText(`${DEFAULT_HEADING}!`)).toBeInTheDocument();
+    expect(pictures(dialog)).toEqual([OLD_PHOTO_URL, PHOTO_URL]);
+    // The photo's URLs are not in the list as text: that is what the pictures
+    // replaced.
+    expect(within(dialog).queryByText(PHOTO_URL)).toBeNull();
+  });
+});
+
 describe("searching every page at once", () => {
   test("finds a slot on another page and asks before leaving for it", async () => {
     renderEditor([editorSlot(HEADING, DEFAULT_HEADING)]);

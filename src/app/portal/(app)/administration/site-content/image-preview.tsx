@@ -5,6 +5,7 @@ import Image from "next/image";
 import { ExternalLink } from "lucide-react";
 import { FieldDescription } from "@/components/ui/field";
 import { isRenderableImageSrc, resolveImageUrl } from "@/lib/inventory";
+import { cn } from "@/lib/utils";
 
 /**
  * A URL's state as a preview: whether it can be drawn at all, and whether the
@@ -40,18 +41,24 @@ export function useImagePreview(value: string | null): {
  * editor shows the crop the page will apply: a face that survives a square
  * thumbnail can still lose its head in the team page's 21:9 band.
  *
- * Sized by height, so the aspect sets the width and every slot costs the same
- * seven rems of a form that is already thousands of pixels long (#918).
+ * Sized by height by default, so the aspect sets the width and every slot
+ * costs the same seven rems of a form that is already thousands of pixels
+ * long (#918). `className` overrides that where the picture is the point
+ * rather than a thumbnail beside a link box -- the publish dialog gives each
+ * of its two pictures half the width instead (#923).
  */
 export function ImagePreviewBox({
   url,
   ratio,
   onError,
+  className,
 }: {
   url: string;
   /** The aspect the public site crops this picture to, as a CSS ratio. */
   ratio: string;
   onError: () => void;
+  /** Sizing for the box itself, merged over the default `h-28 w-auto`. */
+  className?: string;
 }) {
   return (
     // The wrapper is load-bearing: `Field`'s `*:w-full` stretches every direct
@@ -59,7 +66,10 @@ export function ImagePreviewBox({
     // 96px band matching no slot on the site (#918).
     <div>
       <div
-        className="relative h-28 w-auto max-w-full overflow-hidden rounded-lg bg-muted"
+        className={cn(
+          "relative h-28 w-auto max-w-full overflow-hidden rounded-lg bg-muted",
+          className,
+        )}
         style={{ aspectRatio: ratio }}
       >
         <Image
