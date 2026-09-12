@@ -122,7 +122,22 @@ async function seedEventFixture(admin: AdminClient) {
 
 /** The phase strip's tab for `label`. */
 function phaseTab(page: import("@playwright/test").Page, label: string) {
-  return page.getByRole("tab", { name: new RegExp(`^${label}`) });
+  // Scoped to the phase tablist by name: #958 put a second strip under it for
+  // the phase's cards, and "Overview" is both a phase and (as "Event
+  // details") a card in it.
+  return page
+    .getByRole("tablist", { name: "Event phases" })
+    .getByRole("tab", { name: new RegExp(`^${label}`) });
+}
+
+/**
+ * The card strip's tab for `title`, within the phase on screen (#958). Each
+ * phase shows one card at a time; this is how a test reaches the others.
+ */
+function cardTab(page: import("@playwright/test").Page, title: string) {
+  return page
+    .getByRole("tablist", { name: /cards$/ })
+    .getByRole("tab", { name: title, exact: true });
 }
 
 /** A phase card, addressed by its own title rather than any text inside it. */
@@ -168,12 +183,24 @@ test.describe("portal event detail", () => {
       await expect(page).toHaveURL(/[?&]phase=during/);
       await expect(card(page, "Attendance")).toBeVisible();
 
+      // Moving phase resets the card in the same write, so the URL never
+      // names a card the phase on screen does not have.
       await phaseTab(page, "After").click();
       await expect(page).toHaveURL(/[?&]phase=after/);
-      await expect(card(page, "Impact")).toBeVisible();
+      await expect(page).toHaveURL(/[?&]card=report/);
+      await expect(card(page, "Report")).toBeVisible();
 
-      // The tab is history, not component state -- Back returns to the
-      // previous phase rather than leaving the event.
+      // The card is in the URL too, so one of six is directly addressable.
+      await cardTab(page, "Impact").click();
+      await expect(page).toHaveURL(/[?&]card=impact/);
+      await expect(card(page, "Impact")).toBeVisible();
+      await expect(card(page, "Report")).toHaveCount(0);
+
+      // Both levels are history, not component state -- Back returns to the
+      // previous card and then to the previous phase, rather than leaving
+      // the event.
+      await page.goBack();
+      await expect(page).toHaveURL(/[?&]card=report/);
       await page.goBack();
       await expect(page).toHaveURL(/[?&]phase=during/);
       await expect(card(page, "Attendance")).toBeVisible();
@@ -183,8 +210,16 @@ test.describe("portal event detail", () => {
       await expect(page).toHaveURL(/[?&]phase=during/);
       await expect(card(page, "Attendance")).toBeVisible();
 
+      // A ?card= belonging to another phase reads as absent rather than as a
+      // card this phase cannot show: one parameter serves all four strips.
+      await page.goto(
+        `/portal/events/${fixture.eventId}?phase=after&card=registrants`,
+      );
+      await expect(card(page, "Report")).toBeVisible();
+
       // ?tab= stays the deep-link entry point: it resolves to the phase that
-      // holds the card. Registrants lives on During.
+      // holds the card, and since #958 to the card itself. Registrants lives
+      // on During.
       await page.goto(`/portal/events/${fixture.eventId}?tab=registrants`);
       await expect(card(page, "Registrants")).toBeVisible();
       await expect(page.getByText(fixture.registrantName)).toBeVisible();
@@ -236,6 +271,7 @@ test.describe("portal event detail", () => {
       // just typed -- the derivation #649 shipped a bug in because no test
       // ever called it. Participants is the typed headcount when there is one.
       await phaseTab(page, "After").click();
+      await cardTab(page, "Impact").click();
       const impact = card(page, "Impact");
       const participants = impact
         .locator('[data-slot="card"]')
@@ -270,6 +306,7 @@ test.describe("portal event detail", () => {
       ).toBeVisible();
 
       await phaseTab(page, "After").click();
+      // Report is the card After opens on.
       const report = card(page, "Report");
       await report.getByRole("button", { name: "Submit report" }).click();
 
@@ -310,7 +347,9 @@ test.describe("portal event detail", () => {
     const fixture = await seedEventFixture(admin);
 
     try {
-      await openEvent(page, fixture, "?phase=during");
+      // Straight to the card, which is what a link from elsewhere in the
+      // portal can now do.
+      await openEvent(page, fixture, "?phase=during&card=registrants");
 
       const registrants = card(page, "Registrants");
       await registrants
@@ -332,6 +371,7 @@ test.describe("portal event detail", () => {
       // The walk-in arrives already checked in, so the Attendance card's
       // check-in reference -- the same derived figures the Impact card reads
       // -- has to agree with the door.
+      await cardTab(page, "Attendance").click();
       const attendance = card(page, "Attendance");
       const checkedIn = attendance
         .locator('[data-slot="card"]')

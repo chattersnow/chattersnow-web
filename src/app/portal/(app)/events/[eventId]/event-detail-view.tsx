@@ -54,16 +54,6 @@ const SELF_MANAGED_EDIT_TABS: ReadonlySet<TabValue> = new Set([
   "giveaway",
 ]);
 
-// Form-style cards small enough to share a row on large screens; everything
-// else holds tables that need the full width.
-const HALF_WIDTH_TABS: ReadonlySet<TabValue> = new Set([
-  "overview",
-  "checklist",
-  "planning",
-  "logistics",
-  "attendance",
-]);
-
 const CARD_TITLES: Partial<Record<TabValue, string>> = {
   overview: "Event details",
   planning: "Registration & planning",
@@ -296,6 +286,32 @@ function EventDetailContent({
     fallback: available(preferred) ? preferred : (phases[0]?.key ?? "basic"),
     isValid: available,
   });
+
+  // The card within the phase (#958). Resolved against the phase actually on
+  // screen, not the whole catalog: `?card=` is one parameter shared by four
+  // phases, so a value belonging to another phase has to read as absent
+  // rather than as a card this phase cannot show. Same order as the phase
+  // above it -- permissions first, then the URL -- since `phase.tabs` has
+  // already had this reader's ungated cards removed (#903).
+  const cardsHere = phases.find((phase) => phase.key === phaseKey)?.tabs ?? [];
+  const inThisPhase = (value: string): value is TabValue =>
+    cardsHere.some((tab) => tab.value === value);
+  const [cardValue, setCardValue] = useUrlTabState<TabValue>({
+    param: "card",
+    // `?tab=` remains the deep-link entry point -- the notification bell and
+    // the outstanding-tasks sheet both use it -- and it names a card, so it
+    // picks the card as well as the phase it opened.
+    fallback:
+      initialTab && inThisPhase(initialTab)
+        ? initialTab
+        : (cardsHere[0]?.value ?? "overview"),
+    isValid: inThisPhase,
+  });
+
+  /** The card a phase opens on when the reader arrives from the phase strip. */
+  const firstCardOf = (key: PhaseKey): TabValue =>
+    phases.find((phase) => phase.key === key)?.tabs[0]?.value ?? "overview";
+
   return (
     <>
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -322,11 +338,25 @@ function EventDetailContent({
 
       <Tabs
         value={phaseKey}
-        onValueChange={(value) => setPhaseKey(value as PhaseKey)}
+        onValueChange={(value) =>
+          // The card too, in the same write: `?card=` is shared by every
+          // phase, so moving to After while it still said `registrants` would
+          // leave the URL naming a card that phase does not have. Two setter
+          // calls could not do it -- see useUrlTabState.
+          setPhaseKey(value as PhaseKey, {
+            card: firstCardOf(value as PhaseKey),
+          })
+        }
         className="mt-6"
       >
         <div className="rainbow-surface rounded-xl border border-[var(--line)] p-4 shadow-md">
-          <TabsList variant="line" className="flex-wrap">
+          {/* Named because the card strip below is a second tablist on the
+              same page, and "Overview" is a phase and a card. */}
+          <TabsList
+            variant="line"
+            aria-label="Event phases"
+            className="flex-wrap"
+          >
             {phases.map((phase) => (
               <TabsTrigger key={phase.key} value={phase.key}>
                 {phase.key === "basic" ? "Overview" : phase.label}
@@ -345,7 +375,35 @@ function EventDetailContent({
               eventId={event.id}
               resources={phase.sharedData}
             >
-              <div className="grid items-start gap-6 lg:grid-cols-2">
+              {/* The second level (#958). Each phase used to render all of
+                  its cards as one stacked column -- six of them on During and
+                  After, several holding their own table and toolbar, so the
+                  phase tabs solved the tab count and pushed the crowding down
+                  a level rather than resolving it. Cards are for parts of one
+                  view, and six independent tables are not one view.
+
+                  Pills under the phase strip's underline, so the two levels
+                  do not read as one repeated control. */}
+              <Tabs
+                value={cardValue}
+                onValueChange={(value) => setCardValue(value as TabValue)}
+              >
+                <TabsList
+                  variant="default"
+                  aria-label={`${phase.label} cards`}
+                  className="h-auto flex-wrap"
+                >
+                  {phase.tabs.map((t) => (
+                    <TabsTrigger key={t.value} value={t.value}>
+                      {/* The card's own title, not the catalog label: the
+                          basic phase is called Overview in the strip above,
+                          and a card of the same name under it would be two
+                          controls reading as one. */}
+                      {CARD_TITLES[t.value] ?? t.label}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+
                 {phase.tabs.map((t) => {
                   const entry = entryFor(t.value);
                   const editToggle =
@@ -353,14 +411,7 @@ function EventDetailContent({
                     SELF_MANAGED_EDIT_TABS.has(t.value);
                   const TabCard = editToggle ? EditableTabCard : PlainTabCard;
                   return (
-                    <div
-                      key={t.value}
-                      className={
-                        HALF_WIDTH_TABS.has(t.value)
-                          ? undefined
-                          : "lg:col-span-2"
-                      }
-                    >
+                    <TabsContent key={t.value} value={t.value} className="mt-4">
                       <TabCard
                         entry={entry}
                         title={CARD_TITLES[t.value] ?? t.label}
@@ -368,10 +419,10 @@ function EventDetailContent({
                         programs={programs}
                         canManage={canManage}
                       />
-                    </div>
+                    </TabsContent>
                   );
                 })}
-              </div>
+              </Tabs>
             </EventPhaseDataProvider>
           </TabsContent>
         ))}
