@@ -1,9 +1,9 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
+import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -86,15 +86,9 @@ export function PackManager({
 
   return (
     <>
-      <Link
-        href={ARTICLES}
-        className="app-muted inline-flex items-center gap-1 text-sm hover:text-foreground"
-      >
-        <ArrowLeft className="size-3.5" />
-        Articles
-      </Link>
+      <PortalBreadcrumbs current="Content packs" />
 
-      <div className="mt-2 w-fit">
+      <div className="w-fit">
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
           Content packs
         </h1>

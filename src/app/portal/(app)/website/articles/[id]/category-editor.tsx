@@ -3,13 +3,8 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  ArrowDown,
-  ArrowLeft,
-  ArrowUp,
-  ExternalLink,
-  Plus,
-} from "lucide-react";
+import { ArrowDown, ArrowUp, ExternalLink, Plus } from "lucide-react";
+import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -136,6 +131,7 @@ export function CategoryEditor({
   );
   const dirty = signature({ ...body, slug }, drafts) !== initial;
   const guard = useUnsavedChangesGuard(canEdit && dirty);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
 
   const unpublished =
     dirty || category.hasDraft || drafts.some((article) => article.hasDraft);
@@ -162,19 +158,19 @@ export function CategoryEditor({
 
   return (
     <>
-      <Link
-        href={ARTICLES}
-        className="app-muted inline-flex items-center gap-1 text-sm hover:text-foreground"
-        onClick={(event) => {
+      {/* The trail carries the guard the single back link used to (#948), and
+          remembers which hop was intercepted so discarding lands where the
+          reader was going rather than always on Articles. */}
+      <PortalBreadcrumbs
+        current={body.title || category.slug}
+        onNavigate={(href, event) => {
           if (guard.allowOpenChange(false)) return;
           event.preventDefault();
+          setPendingHref(href);
         }}
-      >
-        <ArrowLeft className="size-3.5" />
-        Articles
-      </Link>
+      />
 
-      <div className="mt-2 flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <h1 className="brand-display text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
           {body.title || category.slug}
         </h1>
@@ -431,7 +427,7 @@ export function CategoryEditor({
       <DiscardChangesDialog
         guard={guard}
         subject="this category"
-        onDiscard={() => router.push(ARTICLES)}
+        onDiscard={() => router.push(pendingHref ?? ARTICLES)}
       />
     </>
   );
