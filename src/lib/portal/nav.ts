@@ -29,6 +29,19 @@ export type NavSubItem = {
   /** Any one of these is enough, the way `hasAnyPermission` reads them. */
   access: readonly PermissionCheck[];
   /**
+   * Optional heading this sub-item files under, for sections whose list has
+   * grown past scanning (#942). A lexicon template like `label`.
+   *
+   * Grouping is derived rather than declared: `navSubGroups` walks the list
+   * once and starts a new group whenever this value changes, so sub-items
+   * sharing a group must be adjacent -- `nav.test.ts` asserts it. That keeps
+   * one ordered array as the source of truth, so `visibleNavItems`,
+   * `activeSubItemFor` and `firstAccessibleHref` need no knowledge of groups,
+   * and a group whose every item is filtered out disappears on its own rather
+   * than leaving a heading over nothing.
+   */
+  group?: string;
+  /**
    * An extra condition that must hold *as well as* `access`, for a cross-link
    * whose route guard is not the section it is filed under (#903).
    *
@@ -457,39 +470,43 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: "Administration",
     href: "/portal/administration/users",
     basePath: "/portal/administration",
+    // Grouped and reordered (#942). Nine flat entries spanned identity, org
+    // configuration, website copy, an IT asset registry, cross-tenant operator
+    // tooling and compliance -- six jobs with no heading to tell them apart.
+    // The order also split the one job it had: Access Management sat between
+    // Roles and Permissions, which are two halves of defining a role.
+    //
+    // Three of these are proposed to leave the section entirely (#943, #944,
+    // #945). The groups are chosen so that when they do, what remains is
+    // already correct: "Technology & platform" empties, Site Content leaves
+    // Organization, and the other two groups are untouched.
     subItems: [
       {
         value: "users",
         label: "Users",
         href: "/portal/administration/users",
+        group: "Access & identity",
         access: [{ resource: "administration", level: "manage" }],
       },
       {
         value: "roles",
         label: "Roles",
         href: "/portal/administration/roles",
+        group: "Access & identity",
         access: [{ resource: "administration", level: "manage" }],
-      },
-      {
-        value: "access-management",
-        label: "Access Management",
-        href: "/portal/administration/access-management",
-        access: [
-          { resource: "administration", level: "manage" },
-          { resource: "access_management_assets", level: "view" },
-          { resource: "access_management_reviews", level: "view" },
-        ],
       },
       {
         value: "permissions",
         label: "Permissions",
         href: "/portal/administration/permissions",
+        group: "Access & identity",
         access: [{ resource: "administration", level: "manage" }],
       },
       {
         value: "system-settings",
         label: "System Settings",
         href: "/portal/administration/system-settings",
+        group: "Organization",
         access: [
           { resource: "administration", level: "manage" },
           { resource: "system_settings", level: "manage" },
@@ -499,7 +516,19 @@ export const NAV_ITEMS: readonly NavItem[] = [
         value: "site-content",
         label: "Site Content",
         href: "/portal/administration/site-content",
+        group: "Organization",
         access: [{ resource: "site_content", level: "view" }],
+      },
+      {
+        value: "access-management",
+        label: "Access Management",
+        href: "/portal/administration/access-management",
+        group: "Technology & platform",
+        access: [
+          { resource: "administration", level: "manage" },
+          { resource: "access_management_assets", level: "view" },
+          { resource: "access_management_reviews", level: "view" },
+        ],
       },
       // Gated on its own resource, which the platform RPCs only honour inside
       // a tenant on the internal plan (#707 Phase 5c). The plan half of that
@@ -512,12 +541,14 @@ export const NAV_ITEMS: readonly NavItem[] = [
         value: "platform",
         label: "Platform",
         href: "/portal/administration/platform",
+        group: "Technology & platform",
         access: [{ resource: "platform_tenants", level: "manage" }],
       },
       {
         value: "audit-log",
         label: "Audit Log",
         href: "/portal/administration/audit-log",
+        group: "Oversight",
         access: [{ resource: "administration", level: "manage" }],
       },
       // administration:manage rather than a resource of its own: the audience is
@@ -528,6 +559,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
         value: "data-retention",
         label: "Data Retention",
         href: "/portal/administration/data-retention",
+        group: "Oversight",
         access: [{ resource: "administration", level: "manage" }],
       },
     ],
@@ -581,6 +613,34 @@ export function activeSubItemFor(
   return best?.value;
 }
 
+export type NavSubGroup = {
+  /** Undefined for sub-items filed under no group. */
+  label?: string;
+  items: NavSubItem[];
+};
+
+/**
+ * A section's sub-items split into the groups the sidebar renders, in order.
+ *
+ * Runs are contiguous by construction: a new group starts wherever `group`
+ * changes, so an ungrouped section comes back as one unlabelled group and
+ * nothing has to special-case it. Callers pass the *already filtered* list
+ * from `visibleNavItems`, which is what makes an empty group impossible --
+ * a heading only exists if at least one item under it survived.
+ */
+export function navSubGroups(subItems: readonly NavSubItem[]): NavSubGroup[] {
+  const groups: NavSubGroup[] = [];
+  for (const sub of subItems) {
+    const last = groups[groups.length - 1];
+    if (last && last.label === sub.group) {
+      last.items.push(sub);
+    } else {
+      groups.push({ label: sub.group, items: [sub] });
+    }
+  }
+  return groups;
+}
+
 /**
  * The nav tree reduced to what `permissions` can actually reach: sections with
  * no reachable sub-item are dropped, unreachable sub-items are removed, and a
@@ -617,6 +677,10 @@ export function visibleNavItems(
           ? subItems.map((sub) => ({
               ...sub,
               label: applyLexicon(sub.label, lexicon),
+              // Group headings are user-facing copy like any other label, so
+              // a tenant that renames `{collection}` sees its own word in the
+              // heading too rather than braces.
+              ...(sub.group ? { group: applyLexicon(sub.group, lexicon) } : {}),
             }))
           : undefined,
     };

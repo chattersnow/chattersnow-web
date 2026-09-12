@@ -36,6 +36,7 @@ import { type PermissionMap } from "@/lib/auth/permissions";
 import {
   activeSectionFor,
   activeSubItemFor,
+  navSubGroups,
   visibleNavItems,
 } from "@/lib/portal/nav";
 import { DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
@@ -141,16 +142,46 @@ export function PortalNav({
 
             {item.subItems && isOpen && !isLink ? (
               <SidebarMenuSub id={submenuId}>
-                {item.subItems.map((sub) => (
-                  <SidebarMenuSubItem key={sub.value}>
-                    <SidebarMenuSubButton
-                      isActive={activeSub === sub.value}
-                      render={<Link href={sub.href} />}
-                    >
-                      <span>{sub.label}</span>
-                    </SidebarMenuSubButton>
-                  </SidebarMenuSubItem>
-                ))}
+                {navSubGroups(item.subItems).map((group) => {
+                  const items = group.items.map((sub) => (
+                    <SidebarMenuSubItem key={sub.value}>
+                      <SidebarMenuSubButton
+                        isActive={activeSub === sub.value}
+                        render={<Link href={sub.href} />}
+                      >
+                        <span>{sub.label}</span>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                  ));
+                  if (!group.label) return items;
+                  // A labelled group is a real group, not a heading floated
+                  // above some links: `role="group"` with `aria-labelledby`
+                  // means a screen reader announces "Oversight" on entering
+                  // it instead of reading the heading as one more list item.
+                  // The heading itself is a div, never a button -- it is not
+                  // a focus stop, and the tab path through the sidebar is
+                  // already long.
+                  // Keyed off the first item's value rather than a slug of
+                  // the label: it is already unique and already kebab-case.
+                  const headingId = `${submenuId}-group-${group.items[0].value}`;
+                  return (
+                    <li key={group.label} className="mt-2 first:mt-0">
+                      <div
+                        id={headingId}
+                        className="px-2 py-1 text-[0.6875rem] font-medium tracking-wide text-sidebar-foreground/60 uppercase"
+                      >
+                        {group.label}
+                      </div>
+                      <ul
+                        role="group"
+                        aria-labelledby={headingId}
+                        className="flex min-w-0 flex-col gap-1"
+                      >
+                        {items}
+                      </ul>
+                    </li>
+                  );
+                })}
               </SidebarMenuSub>
             ) : null}
           </SidebarMenuItem>
