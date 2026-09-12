@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Card, CardContent } from "@/components/ui/card";
@@ -62,6 +63,15 @@ export default async function AccountPage() {
     );
   });
 
+  // The org-wide switch is one of two places "notifications" means something
+  // (#950), and this page is the other. Named only for a reader who can
+  // actually open it: the same pair the system-settings layout admits, since
+  // a board member holds only the second.
+  const canReachOrgNotifications = hasAnyPermission(permissions, [
+    { resource: "administration", level: "manage" },
+    { resource: "system_settings", level: "manage" },
+  ]);
+
   const fallbackName = personDisplayName(
     {
       name:
@@ -103,6 +113,19 @@ export default async function AccountPage() {
               <p className="app-eyebrow">Email notifications</p>
               <p className="app-muted mt-1 text-sm">
                 Nothing is sent unless you turn it on here.
+                {canReachOrgNotifications && (
+                  <>
+                    {" "}
+                    Which emails this organization sends at all is set in{" "}
+                    <Link
+                      href="/portal/administration/organization-settings?tab=notifications"
+                      className="underline underline-offset-4"
+                    >
+                      Organization Settings &rarr; Notifications
+                    </Link>
+                    , and that switch overrides every choice below.
+                  </>
+                )}
               </p>
             </div>
             <NotificationPreferences

@@ -2,10 +2,24 @@ import { cache } from "react";
 import { notFound } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { applyLexicon, type Lexicon } from "@/lib/lexicon";
 
 export type PublicPageSlot = {
+  /**
+   * The `app_settings` key this slot is stored under, and an internal
+   * identifier -- never shown to anyone. `gears` reads like a product name and
+   * is not one: it is the key that has always named this section, kept because
+   * renaming it is a data migration that no administrator would ever see the
+   * result of (#896).
+   */
   key: string;
+  /**
+   * Shown in Website > Page visibility. May carry `{term}` placeholders
+   * from the lexicon registry; `namedSlots()` resolves them, and the panel
+   * renders what it returns rather than this.
+   */
   label: string;
+  /** A lexicon template, like `label`. */
   description: string;
   /**
    * Applied when no `page_visibility.<key>` row exists in app_settings.
@@ -16,12 +30,14 @@ export type PublicPageSlot = {
    */
   defaultVisible: boolean;
   /**
-   * The file under `src/app/(public)` that calls `requireVisiblePage()` for
-   * this slot. Defaults to `<key>/layout.tsx`, which is where a section-wide
-   * slot belongs. A slot covering a single route names that route's page
-   * instead, and page-visibility.test.ts checks whichever file this resolves
-   * to -- registering a slot without gating it hides the nav link and leaves
-   * the URL live.
+   * The file under `src/app` that calls `requireVisiblePage()` for this slot.
+   * Defaults to `(public)/<key>/layout.tsx`, which is where a section-wide slot
+   * belongs. A slot covering a single route names that route's page instead,
+   * and a route outside the `(public)` group names its own path -- `links` is
+   * outside it, because that group's layout is the site header and footer the
+   * page deliberately does without (#937). page-visibility.test.ts checks
+   * whichever file this resolves to: registering a slot without gating it
+   * hides the nav link and leaves the URL live.
    */
   gate?: string;
   /**
@@ -40,7 +56,7 @@ export type PublicPageSlot = {
 
 /**
  * Registry of every public site section the board can show or hide from
- * Administration > System Settings. Adding an entry here is enough to wire a
+ * Website > Page visibility. Adding an entry here is enough to wire a
  * section up in the admin UI and in the gate -- no migration needed, since
  * every slot is just a keyed row in app_settings (same approach as
  * BRAND_COLOR_TOKENS in src/lib/branding.ts).
@@ -63,7 +79,13 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
     key: "learn",
     label: "Learn",
     description:
-      "The Learn section and all of its guides (etiquette, gear and sizing, budget, and the rest).",
+      "The Learn section and every article category your organization has published in it.",
+    // Off by default because a tenant that has written no articles would
+    // otherwise carry a nav entry to an empty section (#894). It is no longer
+    // off because the guides belonged to somebody else -- since #894 they are
+    // the tenant's own rows -- so this is a switch to turn on once there is
+    // something behind it, rather than a gate on another organization's
+    // content.
     defaultVisible: false,
   },
   {
@@ -92,9 +114,15 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
   },
   {
     key: "gears",
-    label: "Gear",
-    description: "The gear library and the gear donation pages.",
+    label: "{item_plural}",
+    description:
+      "The {collection_public:lower} and the {item_plural:lower} donation pages.",
     defaultVisible: true,
+    // The only slot whose gate is spelled out because its key and its route
+    // segment disagree: the section moved to `/inventory` in #897 while the
+    // key stayed `gears`, since renaming the key is a data migration over
+    // every tenant's `page_visibility.*` rows for a string nobody sees.
+    gate: "(public)/inventory/layout.tsx",
     module: "inventory",
   },
   // The one slot that gates a single route rather than a section, and the
@@ -108,9 +136,9 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
     key: "gears-sizing",
     label: "Sizing Guide",
     description:
-      "The ski and snowboard sizing charts under Gear. Written for snow sports specifically, so it stays hidden until an organization says the guide is theirs.",
+      "The ski and snowboard sizing charts under {item_plural}. Written for snow sports specifically, so it stays hidden until an organization says the guide is theirs.",
     defaultVisible: false,
-    gate: "gears/sizing/page.tsx",
+    gate: "(public)/inventory/sizing/page.tsx",
     module: "inventory",
   },
   {
@@ -133,7 +161,7 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
     description:
       "The volunteer page under Get Involved, its application form and the reference-code status lookup.",
     defaultVisible: true,
-    gate: "get-involved/volunteer/layout.tsx",
+    gate: "(public)/get-involved/volunteer/layout.tsx",
     module: "volunteers",
   },
   {
@@ -157,9 +185,42 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
     description:
       "The brand and design guide at /brand, for sharing with partners, sponsors and press. Derived from the colours, logo and copy set elsewhere in Administration, so turn it on once those are yours.",
     defaultVisible: false,
-    gate: "brand/page.tsx",
+    gate: "(public)/brand/page.tsx",
+  },
+  // The link-in-bio page (#937): the one URL a social profile's bio points at,
+  // and a stack of whatever the organization is currently asking people to do.
+  //
+  // No module -- it is a page about the organization itself, like About and
+  // Brand, not a feature the platform sells. Off by default like every new
+  // section, and unusually consequential here: it is not in the nav, so an
+  // organization that has not written its links has no way to stumble onto the
+  // page, and publishing the registry's example row under their own name would
+  // be the only thing anyone arriving from Instagram ever saw.
+  {
+    key: "links",
+    label: "Links",
+    description:
+      "The page at /links, for the single link a social profile allows in its bio. Not shown anywhere in the site's navigation -- the link you publish is the only way to it. Turn it on once the links are yours.",
+    defaultVisible: false,
+    gate: "links/layout.tsx",
   },
 ];
+
+/**
+ * The registry with this organization's own words in it (#896), for the
+ * Administration panel -- the one place these labels are read.
+ *
+ * Done here rather than in the panel because the panel is a client component
+ * that receives the slot list as a prop, and a template that reached it
+ * unresolved would render braces at an administrator.
+ */
+export function namedSlots(lexicon: Lexicon): PublicPageSlot[] {
+  return PUBLIC_PAGE_SLOTS.map((slot) => ({
+    ...slot,
+    label: applyLexicon(slot.label, lexicon),
+    description: applyLexicon(slot.description, lexicon),
+  }));
+}
 
 export const PAGE_VISIBILITY_PREFIX = "page_visibility.";
 
@@ -272,7 +333,7 @@ export const getPageVisibility = cache(
 
 /**
  * The same flags for the tenant the signed-in admin has selected, for the
- * System Settings panel. Read straight from `app_settings` -- RLS scopes it to
+ * Page visibility panel. Read straight from `app_settings` -- RLS scopes it to
  * the current tenant -- rather than through `public_page_visibility`, which
  * answers for the *request host* and so shows a portal admin whichever tenant
  * owns `portal.<domain>` rather than the one they are editing. Same split as

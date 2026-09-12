@@ -13,6 +13,7 @@ import {
   type SiteContent,
   type SiteContentRow,
 } from "@/lib/site-content";
+import { getPublicLexicon, type Lexicon } from "@/lib/lexicon";
 
 /**
  * Everything the public site needs to know about the organization it is
@@ -41,6 +42,13 @@ export type PublicSite = {
   name: string | null;
   branding: Branding;
   content: SiteContent;
+  /**
+   * What this organization calls the things it lends (#896). Read here rather
+   * than per-page because the layout needs it before anything else does: the
+   * nav is the surface that could not be renamed before, and it renders above
+   * every page's own copy.
+   */
+  lexicon: Lexicon;
 };
 
 /**
@@ -66,9 +74,10 @@ export const NOT_FOUND_TITLE = "Not found";
 
 export const getPublicSite = cache(
   async (supabase: SupabaseClient): Promise<PublicSite> => {
-    const [tenantResult, branding, contentResult] = await Promise.all([
+    const [tenantResult, branding, lexicon, contentResult] = await Promise.all([
       getPublicTenant(supabase),
       getPublicBranding(supabase),
+      getPublicLexicon(supabase),
       supabase.from("public_site_content").select("key, value"),
     ]);
 
@@ -89,8 +98,10 @@ export const getPublicSite = cache(
       tenant,
       name: tenant?.name ?? null,
       branding,
+      lexicon,
       content: resolveSiteContent(
         (contentResult.data ?? []) as SiteContentRow[],
+        lexicon,
       ),
     };
   },

@@ -3,7 +3,11 @@ import {
   getCurrentUserPermissions,
   hasPermission,
 } from "@/lib/auth/permissions";
-import { listUsersAction } from "../../administration/users/actions";
+import {
+  listRolesAction,
+  listUsersAction,
+} from "../../administration/users/actions";
+import { roleLabelMap } from "@/lib/format";
 import type { PersonListItem } from "../actions";
 import {
   isOrganization,
@@ -43,6 +47,11 @@ export async function PersonCoreCards({ person }: { person: PersonRow }) {
   const portalUsersPromise = canManageAccounts
     ? listUsersAction()
     : Promise.resolve(null);
+  // list_portal_users() reports role *names*; the account card renders the
+  // tenant's own wording for them (#910).
+  const rolesPromise = canManageAccounts
+    ? listRolesAction()
+    : Promise.resolve(null);
 
   const [{ data: peopleOptions }, { data: memberships }] = await Promise.all([
     supabase
@@ -64,7 +73,11 @@ export async function PersonCoreCards({ person }: { person: PersonRow }) {
   const membershipRows = (memberships ??
     []) as unknown as OrganizationMembership[];
 
-  const portalUsers = await portalUsersPromise;
+  const [portalUsers, roles] = await Promise.all([
+    portalUsersPromise,
+    rolesPromise,
+  ]);
+  const roleLabels = roleLabelMap(roles && "data" in roles ? roles.data : []);
   const { account, linkable } = resolvePersonAccount(
     person.id,
     person.email,
@@ -97,6 +110,7 @@ export async function PersonCoreCards({ person }: { person: PersonRow }) {
           personId={person.id}
           account={account}
           linkable={linkable}
+          roleLabels={roleLabels}
         />
       )}
     </>

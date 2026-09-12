@@ -18,15 +18,33 @@
  * is the honest thing for a site nobody has written yet to look like.
  *
  * Only the slots that *named or described* an organization were rewritten.
- * "Gear library", "Get in touch" and "Meet the team" are product chrome that
- * happens to live in a slot, and replacing them with prompts would make an
- * unwritten site worse rather than more neutral.
+ * "Get in touch" and "Meet the team" are product chrome that happens to live
+ * in a slot -- every organization has a contact page and a team -- and
+ * replacing them with prompts would make an unwritten site worse rather than
+ * more neutral.
  *
- * What is deliberately *not* a slot: the Learn guides and the sizing tables
- * (generic snow-sports material any organization can publish as-is), the
- * form labels and validation messages (product chrome), and the structure of
- * the pages themselves. The legal documents are a special case -- see
- * `document` below.
+ * "Gear library" was filed under that heading too, and that was the wrong line
+ * (#896). It is not chrome: it names *what the organization lends*, which is
+ * exactly the thing that differs between tenants. So a default may carry a
+ * `{term}` placeholder from the lexicon registry in `src/lib/lexicon.ts`, and
+ * `resolveSiteContent` resolves it against the tenant's own words -- an
+ * organization that has said it runs a tool library does not then have to
+ * retype every heading that contains the word. Placeholders are resolved in
+ * *defaults only*: a stored value is the tenant's own writing, and a brace in
+ * it is a brace they typed.
+ *
+ * What is deliberately *not* a slot: the sizing tables (Chatter Snow's, gated
+ * to that tenant by #831), the form labels and validation messages (product
+ * chrome), and the structure of the pages themselves. The legal documents are
+ * a special case -- see `document` below.
+ *
+ * The Learn guides were on that list until #894, described as "generic
+ * snow-sports material any organization can publish as-is". That did not hold:
+ * `mountain-basics` and `park-riding-safety` are generic *within snow sports*,
+ * and this is not a snow-sports platform. They are now a collection of their
+ * own -- `article_categories` and `articles`, modelled in
+ * `src/lib/articles.ts` -- because a registry of fixed keys cannot hold an
+ * unbounded number of rows a tenant creates.
  *
  * The photos are slots too (#812): an `image` slot is the picture that sits
  * beside a section's copy, keyed `site_images.<slot>` and stored in the same
@@ -41,7 +59,14 @@
  * `src/lib/public-site.ts`.
  */
 
-import { isRenderableImageSrc } from "@/lib/inventory";
+import { isRenderableImageSrc, resolveImageUrl } from "@/lib/inventory";
+import { isPublishableHref } from "@/lib/legal-markup";
+import {
+  DEFAULT_LEXICON,
+  applyLexicon,
+  applyLexiconAll,
+  type Lexicon,
+} from "@/lib/lexicon";
 
 export type ContentPage = {
   key: string;
@@ -94,7 +119,7 @@ export const CONTENT_PAGES: readonly ContentPage[] = [
   {
     key: "gears",
     label: "Gear",
-    route: "/gears/library",
+    route: "/inventory/library",
     visibilityKey: "gears",
   },
   {
@@ -116,6 +141,7 @@ export const CONTENT_PAGES: readonly ContentPage[] = [
     visibilityKey: "contact",
   },
   { key: "brand", label: "Brand", route: "/brand", visibilityKey: "brand" },
+  { key: "links", label: "Links", route: "/links", visibilityKey: "links" },
   { key: "legal", label: "Legal documents", route: "/privacy" },
 ] as const;
 
@@ -194,25 +220,25 @@ export const CONTENT_SECTIONS: readonly ContentSection[] = [
     key: "gears:donate",
     page: "gears",
     label: "How donating works",
-    route: "/gears/donate",
+    route: "/inventory/donate",
   },
   {
     key: "gears:request",
     page: "gears",
     label: "Requesting gear",
-    route: "/gears/donate",
+    route: "/inventory/donate",
   },
   {
     key: "gears:accept",
     page: "gears",
     label: "What we accept",
-    route: "/gears/donate",
+    route: "/inventory/donate",
   },
   {
     key: "gears:drives",
     page: "gears",
     label: "Gear drives",
-    route: "/gears/donate",
+    route: "/inventory/donate",
   },
 
   { key: "get_involved:opening", page: "get_involved", label: "Opening" },
@@ -275,23 +301,74 @@ export const CONTENT_SECTIONS: readonly ContentSection[] = [
   },
 
   {
+    key: "links:page",
+    page: "links",
+    label: "Links",
+    description:
+      "The page a social profile's single bio link points at. Everything here is a whole page of its own -- it is not shown in the site's navigation, so the only way anyone reaches it is the link you publish.",
+  },
+
+  {
     key: "legal:documents",
     page: "legal",
     label: "Documents",
     description:
-      "The text of each document. Whether it is served at all is a separate decision, in Administration > System Settings > Legal documents: the terms and the code of conduct are published once your organization has adopted them, and the privacy policy always is (#859).",
+      "The text of each document. Whether it is served at all is a separate decision, in Website > Legal documents: the terms and the code of conduct are published once your organization has adopted them, and the privacy policy always is (#859).",
   },
 ] as const;
 
-export type ListField = {
+type ListFieldBase = {
   key: string;
   label: string;
-  kind: "text" | "paragraphs";
   /** Left blank in the editor when unset; a text field is otherwise required. */
   optional?: boolean;
 };
 
-export type ListItem = Record<string, string | string[]>;
+/**
+ * A `photo` field: the one control a row's picture is set from.
+ *
+ * The field stores a URL, and the image slot it may point at instead lives in
+ * a *sibling* field, because the site's precedence -- the row's own URL, then
+ * the slot it names, then a shared fallback -- is load-bearing for a tenant
+ * who set a link directly. Those two used to be asked as two independent
+ * free-text boxes, with the precedence documented nowhere near them and the
+ * slot name typed by hand: a typo fell through to the fallback silently, and
+ * neither box previewed anything (#922).
+ */
+export type PhotoListField = ListFieldBase & {
+  kind: "photo";
+  /** The sibling field holding the chosen image slot's short name. */
+  slotField: string;
+  /**
+   * Image slots whose short name starts with this are the choices offered.
+   * The registry is the source of truth for those names, so the editor can
+   * offer a select over real slots rather than a box to mistype one into.
+   */
+  slotPrefix: string;
+  /** The image slot used when the row names neither a URL nor a slot. */
+  fallbackSlot: string;
+  /** The aspect the public site crops the photo to, as a CSS ratio. */
+  ratio: string;
+};
+
+export type ListField =
+  | (ListFieldBase & {
+      /**
+       * `url` is a text field the editor offers as a URL box and that
+       * `isPublishableHref()` has to accept, so a destination an editor typed
+       * wrong -- or a scheme nobody should be able to publish -- is refused on
+       * the way in rather than rendered as an `href` on a public page (#937).
+       *
+       * `boolean` is a switch. It exists because a list whose rows are *shown
+       * or hidden* rather than added and removed has no way to say so
+       * otherwise, and deleting a row to hide it for a month is not the same
+       * thing.
+       */
+      kind: "text" | "paragraphs" | "url" | "boolean";
+    })
+  | PhotoListField;
+
+export type ListItem = Record<string, string | string[] | boolean>;
 
 /** One section of a structured legal document. */
 export type LegalDocumentSection = {
@@ -419,6 +496,25 @@ export type ContentSlot = SlotBase &
 const BULLET: readonly ListField[] = [
   { key: "text", label: "Item", kind: "text" },
 ];
+
+/**
+ * The photo a team member on the Meet the Team page shows.
+ *
+ * Named rather than inlined in the slot below because the public page imports
+ * it too: it resolves a member's picture with `resolvePhoto()`, the same call
+ * the editor's preview makes, so the two cannot disagree about which source
+ * wins (#922).
+ */
+export const TEAM_PHOTO_FIELD: PhotoListField = {
+  key: "photo_url",
+  label: "Photo",
+  kind: "photo",
+  optional: true,
+  slotField: "photo_slot",
+  slotPrefix: "about_team_photo_",
+  fallbackSlot: "about_team_photo",
+  ratio: "1/1",
+};
 
 /** The `app_settings`-era prefix every image slot key still carries, so `public_site_images` can strip it. */
 export const IMAGE_SLOT_KEY_PREFIX = "site_images.";
@@ -804,12 +900,14 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     page: "about_team",
     section: "about_team:team",
     label: "Team members",
-    description:
-      "A photo URL overrides the image slot. Leave both blank for the shared team placeholder.",
     type: "list",
     fields: [
       { key: "name", label: "Name", kind: "text" },
-      { key: "photo_url", label: "Photo URL", kind: "text", optional: true },
+      TEAM_PHOTO_FIELD,
+      // Declared so the row's shape is validated and a new row carries the
+      // key, but never rendered on its own: the `photo` field above owns it,
+      // and the editor skips any field another field claims as its
+      // `slotField`.
       {
         key: "photo_slot",
         label: "Image slot",
@@ -832,7 +930,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "about_team",
     "about_team:team",
     "Team photo — Cass Lainez",
-    "Cass Lainez's photo on the Meet the Team page. A team member's Image slot field names it as about_team_photo_cass.",
+    "Cass Lainez's photo on the Meet the Team page, chosen in a team member's Photo field.",
     "1/1",
   ),
   image(
@@ -840,7 +938,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "about_team",
     "about_team:team",
     "Team photo — Rickie Cruz",
-    "Rickie Cruz's photo on the Meet the Team page. A team member's Image slot field names it as about_team_photo_rickie.",
+    "Rickie Cruz's photo on the Meet the Team page, chosen in a team member's Photo field.",
     "1/1",
   ),
   image(
@@ -848,7 +946,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "about_team",
     "about_team:team",
     "Team photo — Sofie Chavez",
-    "Sofie Chavez's photo on the Meet the Team page. A team member's Image slot field names it as about_team_photo_sofie.",
+    "Sofie Chavez's photo on the Meet the Team page, chosen in a team member's Photo field.",
     "1/1",
   ),
   image(
@@ -939,6 +1037,20 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     ],
   },
   {
+    // Read only when the Programs page is drawing its cards from the Programs
+    // module (#898) and the tenant has marked none of them public. In Site
+    // Content mode the list below is the page, and an empty one is an empty
+    // list nobody wrote -- there is nothing to say about it.
+    key: "programs.empty",
+    page: "programs",
+    section: "programs:items",
+    label: "No programs text",
+    description:
+      "Shown when the page reads the Programs module and no program is marked for the public site.",
+    type: "text",
+    default: "Programs are being finalized. Check back soon.",
+  },
+  {
     key: "programs.items",
     page: "programs",
     section: "programs:items",
@@ -996,7 +1108,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "gears:library",
     label: "Library heading",
     type: "text",
-    default: "Gear library",
+    default: "{collection_public}",
   },
   {
     key: "gears.library_intro",
@@ -1004,7 +1116,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "gears:library",
     label: "Library introduction",
     type: "text",
-    default: "Browse gear currently available to the community.",
+    default: "Browse {item_plural:lower} currently available to the community.",
   },
   {
     key: "gears.donate_heading",
@@ -1012,7 +1124,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "gears:donate",
     label: "How it works heading",
     type: "text",
-    default: "How the gear program works",
+    default: "How the {collection_public:lower} works",
   },
   {
     key: "gears.donate_intro",
@@ -1021,7 +1133,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "How it works",
     type: "text",
     default:
-      "Describe how your gear program works: what you collect, who can borrow it, and how a request is fulfilled.",
+      "Describe how your {collection_public:lower} works: what you collect, who can borrow it, and how a request is fulfilled.",
   },
   {
     key: "gears.request_heading",
@@ -1038,7 +1150,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "Request",
     type: "text",
     default:
-      "If your size or item isn't currently in the library, send us a message and we'll do our best to match you with available gear.",
+      "If your size or item isn't currently in the {collection_public:lower}, send us a message and we'll do our best to match you with available {item_plural:lower}.",
   },
   {
     key: "gears.accept_heading",
@@ -1046,7 +1158,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "gears:accept",
     label: "Donate heading",
     type: "text",
-    default: "Donate gear",
+    default: "Donate {item_plural:lower}",
   },
   {
     key: "gears.accept_title",
@@ -1054,7 +1166,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "gears:accept",
     label: "What we accept",
     type: "text",
-    default: "We accept gently used gear",
+    default: "We accept gently used {item_plural:lower}",
   },
   {
     key: "gears.accept_items",
@@ -1063,12 +1175,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "Accepted items",
     type: "list",
     fields: BULLET,
-    default: [
-      { text: "Skis & snowboards" },
-      { text: "Boots & bindings" },
-      { text: "Outerwear (jackets, pants)" },
-      { text: "Gloves & accessories" },
-    ],
+    default: [{ text: "A kind of {item:lower} you accept" }],
   },
   {
     key: "gears.dropoff_body",
@@ -1077,7 +1184,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "How to drop off",
     type: "text",
     default:
-      "Drop items off in person at any event, or contact us to arrange a drop-off, mail-in, or collection.",
+      "Drop {item_plural:lower} off in person at any event, or contact us to arrange a drop-off, mail-in, or collection.",
   },
   {
     key: "gears.drives_heading",
@@ -1085,7 +1192,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "gears:drives",
     label: "Gear drives heading",
     type: "text",
-    default: "Gear drives",
+    default: "Donation drives",
   },
   {
     key: "gears.drives_body",
@@ -1095,7 +1202,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     description: "A link to Events follows it.",
     type: "text",
     default:
-      "We periodically run gear drives and swap events where the community can donate, trade, and pick up gear in person. See",
+      "We periodically run donation drives and swap events where the community can donate, trade, and pick up {item_plural:lower} in person. See",
   },
   image(
     "gear_placeholder",
@@ -1153,7 +1260,8 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "get_involved:sponsor",
     label: "Sponsor",
     type: "text",
-    default: "Sponsorships help fund events, gear, and programs.",
+    default:
+      "Sponsorships help fund events, {item_plural:lower}, and programs.",
   },
   {
     key: "get_involved.gear_heading",
@@ -1161,7 +1269,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "get_involved:gear",
     label: "Donate gear heading",
     type: "text",
-    default: "Donate gear",
+    default: "Donate {item_plural:lower}",
   },
   {
     key: "get_involved.gear_body",
@@ -1171,7 +1279,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     description: "A link to the Gear page follows it.",
     type: "text",
     default:
-      "Have gear you're not using? Donating it helps another rider get on the mountain. See what we accept on our",
+      "Have {item_plural:lower} you're not using? Donating them helps someone in the community take part. See what we accept on our",
   },
   {
     key: "get_involved.attend_heading",
@@ -1390,7 +1498,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     description: "A link to the Gear page follows it.",
     type: "text",
     default:
-      "We accept gently used ski and snowboard gear, which we redistribute through our gear program. See what we accept and how to donate on our",
+      "We accept gently used {item_plural:lower}, which we redistribute through our {collection_public:lower}. See what we accept and how to donate on our",
   },
   {
     key: "support.sponsorship_heading",
@@ -1433,6 +1541,24 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "Sponsorship button",
     type: "text",
     default: "Talk to us about sponsoring",
+  },
+  {
+    key: "support.sponsor_wall_heading",
+    page: "support",
+    section: "support:sponsorship",
+    label: "Sponsor wall heading",
+    type: "text",
+    default: "Past sponsors",
+    description:
+      "Heads the logos of everyone your organization has publicly credited as a sponsor. The wall itself is not edited here -- it is every sponsor marked public on a published event, so it keeps itself current.",
+  },
+  {
+    key: "support.sponsor_wall_intro",
+    page: "support",
+    section: "support:sponsorship",
+    label: "Sponsor wall introduction",
+    type: "text",
+    default: "Organizations that have supported our events.",
   },
   image(
     "donations_photo",
@@ -1575,6 +1701,60 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     ],
   },
 
+  // Links -----------------------------------------------------------------------
+  //
+  // The link-in-bio page (#937). Instagram allows one link in a profile, so
+  // this is the page it points at and the list below is what the organization
+  // is currently asking people to do. It is edited far more often than the
+  // rest of the site -- a gear drive this month, a fundraiser the next -- which
+  // is the whole reason it is content rather than a route per campaign.
+  {
+    key: "links.heading",
+    page: "links",
+    section: "links:page",
+    label: "Heading",
+    type: "text",
+    default: "Find us here",
+  },
+  {
+    key: "links.intro",
+    page: "links",
+    section: "links:page",
+    label: "Introduction",
+    description:
+      "One line under the heading, for people arriving from a social profile. Leave blank for none.",
+    type: "text",
+    default: "",
+  },
+  {
+    key: "links.items",
+    page: "links",
+    section: "links:page",
+    label: "Links",
+    description:
+      "In the order they appear on the page. A link that is switched off keeps its place here and is not published, so a seasonal one can be turned back on rather than retyped.",
+    type: "list",
+    fields: [
+      { key: "label", label: "Button text", kind: "text" },
+      { key: "url", label: "Destination", kind: "url" },
+      {
+        key: "description",
+        label: "Supporting line",
+        kind: "text",
+        optional: true,
+      },
+      { key: "published", label: "Published", kind: "boolean" },
+    ],
+    default: [
+      {
+        label: "Upcoming events",
+        url: "/events",
+        description: "Where to find us next.",
+        published: true,
+      },
+    ],
+  },
+
   // Legal -----------------------------------------------------------------------
   {
     key: "legal.privacy",
@@ -1631,6 +1811,75 @@ export function slotsForSection(section: string): ContentSlot[] {
   return SITE_CONTENT_SLOTS.filter((slot) => slot.section === section);
 }
 
+/** An image slot's editor label, by the short name a page reads it under. */
+export function imageSlotLabel(name: string): string | undefined {
+  return contentSlot(`${IMAGE_SLOT_KEY_PREFIX}${name}`)?.label;
+}
+
+/**
+ * The image slots a `photo` field offers, in registry order.
+ *
+ * The editor builds a select from this, so a slot that does not exist cannot
+ * be named (#922). The fallback slot is deliberately not one of the choices:
+ * it is already what choosing nothing means.
+ */
+export function photoSlotChoices(
+  field: PhotoListField,
+): { name: string; label: string }[] {
+  return SITE_CONTENT_SLOTS.filter(
+    (slot) =>
+      slot.type === "image" &&
+      imageSlotName(slot.key).startsWith(field.slotPrefix),
+  ).map((slot) => ({ name: imageSlotName(slot.key), label: slot.label }));
+}
+
+/** Where the picture a row shows came from. */
+export type PhotoSource = "url" | "slot" | "fallback" | "none";
+
+export type ResolvedPhoto = {
+  /** Renderable, or null when nothing is set anywhere: the placeholder icon. */
+  url: string | null;
+  from: PhotoSource;
+  /** The slot it came from, for `slot` and `fallback`. */
+  slot?: string;
+};
+
+/**
+ * The picture a `photo` field resolves to: the row's own link, else the image
+ * slot it names, else the shared fallback slot.
+ *
+ * The public page and the editor's preview both call this, so the precedence
+ * cannot drift between the two -- which is the whole reason the editor can
+ * claim to show what the site will show (#922). `images` is keyed by short
+ * slot name, the shape `getSiteImageUrls()` returns; values may be raw or
+ * already resolved, since `resolveImageUrl()` is idempotent.
+ */
+export function resolvePhoto(
+  field: PhotoListField,
+  /** The row, in whatever shape its caller reads list items as. */
+  item: Readonly<Record<string, unknown>>,
+  images: Readonly<Record<string, string | null | undefined>>,
+): ResolvedPhoto {
+  const text = (key: string): string => {
+    const value = item[key];
+    return typeof value === "string" ? value.trim() : "";
+  };
+  const own = text(field.key);
+  if (own) return { url: resolveImageUrl(own), from: "url" };
+  const slot = text(field.slotField);
+  const named = slot ? (images[slot] ?? null) : null;
+  if (named) return { url: resolveImageUrl(named), from: "slot", slot };
+  const shared = images[field.fallbackSlot] ?? null;
+  if (shared) {
+    return {
+      url: resolveImageUrl(shared),
+      from: "fallback",
+      slot: field.fallbackSlot,
+    };
+  }
+  return { url: null, from: "none" };
+}
+
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((v) => typeof v === "string");
 }
@@ -1640,8 +1889,34 @@ function isListItem(value: unknown, fields: readonly ListField[]): boolean {
   const item = value as Record<string, unknown>;
   return fields.every((field) => {
     const v = item[field.key];
-    if (v === undefined) return Boolean(field.optional);
-    return field.kind === "text" ? typeof v === "string" : isStringArray(v);
+    // A switch is the one field `optional` says nothing useful about: it
+    // cannot be left blank, only left unset, and a row stored before the
+    // field existed has no key for it. Rejecting those rows would send the
+    // whole slot back to its registry default -- every link an organization
+    // had written replaced by the example one -- over a field that has a
+    // perfectly good answer without them.
+    if (v === undefined)
+      return field.kind === "boolean" || Boolean(field.optional);
+    switch (field.kind) {
+      case "text":
+        return typeof v === "string";
+      case "paragraphs":
+        return isStringArray(v);
+      case "boolean":
+        return typeof v === "boolean";
+      case "url":
+        // Publishable, not merely a string -- the same stance `image` takes two
+        // cases down. An optional url may be blank; a set one has to be a
+        // destination the site will actually put in an `href`.
+        if (typeof v !== "string") return false;
+        return field.optional && v === "" ? true : isPublishableHref(v);
+      case "photo":
+        // Renderable when set, the stance an `image` slot takes, so a photo
+        // that would 404 is refused on the way in rather than on the page.
+        // Blank is the ordinary case: it means "use the slot instead".
+        if (typeof v !== "string") return false;
+        return v === "" ? true : isRenderableImageSrc(v);
+    }
   });
 }
 
@@ -1691,6 +1966,39 @@ export function isValidSlotValue(slot: ContentSlot, value: unknown): boolean {
   }
 }
 
+/**
+ * A slot's default with the tenant's own words in it (#896).
+ *
+ * Only `text`, `paragraphs` and `list` carry copy; `image` and `document`
+ * default to null, and a document's text is the separate neutral default in
+ * `src/lib/legal-defaults.ts`.
+ */
+export function lexiconDefault(slot: ContentSlot, lexicon: Lexicon): unknown {
+  switch (slot.type) {
+    case "text":
+      return applyLexicon(slot.default, lexicon);
+    case "paragraphs":
+      return applyLexiconAll(slot.default, lexicon);
+    case "list":
+      return slot.default.map((item) =>
+        Object.fromEntries(
+          Object.entries(item).map(([field, value]) => [
+            field,
+            // A boolean field has no words in it, so it passes through
+            // untouched rather than through a string substitution.
+            typeof value === "boolean"
+              ? value
+              : typeof value === "string"
+                ? applyLexicon(value, lexicon)
+                : applyLexiconAll(value, lexicon),
+          ]),
+        ),
+      );
+    default:
+      return slot.default;
+  }
+}
+
 /** Typed reads over the resolved content, falling back to each slot's default. */
 export type SiteContent = {
   text(key: string): string;
@@ -1705,9 +2013,18 @@ export type SiteContent = {
 
 export type SiteContentRow = { key: string; value: unknown };
 
-/** Folds the tenant's rows over the registry defaults. Pure. */
+/**
+ * Folds the tenant's rows over the registry defaults. Pure.
+ *
+ * The lexicon is the tenant's words for what it lends (#896), and it reaches
+ * the defaults only -- see the note at the top of this file. It falls back to
+ * the platform's own words, so a caller with no tenant to speak for (a test,
+ * `DEFAULT_SITE_CONTENT`) still reads a complete site rather than one with
+ * braces in it.
+ */
 export function resolveSiteContent(
   rows: readonly SiteContentRow[],
+  lexicon: Lexicon = DEFAULT_LEXICON,
 ): SiteContent {
   const values = new Map<string, unknown>();
   for (const row of rows) {
@@ -1722,7 +2039,9 @@ export function resolveSiteContent(
     if (!slot || slot.type !== type) {
       throw new Error(`Unknown ${type} content slot: ${key}`);
     }
-    return (values.has(key) ? values.get(key) : slot.default) as T;
+    return (
+      values.has(key) ? values.get(key) : lexiconDefault(slot, lexicon)
+    ) as T;
   }
 
   return {

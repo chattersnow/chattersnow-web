@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { AddDonationModal } from "../../home/add-donation-modal";
 import { FiltersSheet } from "@/components/filters-sheet";
 import { FilterSubmitButton } from "@/components/filter-submit-button";
@@ -32,7 +33,7 @@ const selectClassName =
   "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
 export const metadata: Metadata = {
-  title: "Gear Donations",
+  title: "Donations · Inventory",
 };
 
 export default async function InventoryDonationsPage({
@@ -127,6 +128,7 @@ export default async function InventoryDonationsPage({
 
   return (
     <>
+      <PortalBreadcrumbs current="Donations" />
       <div className="w-fit">
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
           Donations

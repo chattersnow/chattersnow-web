@@ -1,3 +1,4 @@
+import { EVENT_CATEGORY, EVENT_ITEM_TYPE } from "@/lib/calendar-vocabulary";
 import type { CalendarItemRow } from "./calendar-shared";
 
 /**
@@ -77,12 +78,6 @@ export function eventEntry(event: CalendarEventRow): CalendarEntry {
     event,
   };
 }
-
-/** The item_type an event is tagged with, matching `public_calendar_items` (#359). */
-export const EVENT_ITEM_TYPE = "own_event";
-
-/** The category an event is tagged with, matching `public_calendar_items` (#359). */
-export const EVENT_CATEGORY = "own_events";
 
 /** The URL filters the calendar page resolves, as they reach the events fetch. */
 export type CalendarFilters = {

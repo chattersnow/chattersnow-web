@@ -1,38 +1,17 @@
-import type { Metadata } from "next";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { PlatformTenants } from "./platform-tenants";
-import type { PlatformTenant } from "./platform-shared";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "Platform",
-};
-
-export default async function PlatformPage() {
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.rpc("platform_list_tenants");
-
-  return (
-    <>
-      <div className="w-fit">
-        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-          Platform
-        </h1>
-        <div className="rainbow-accent mt-3 w-full" />
-      </div>
-
-      <p className="app-muted mt-6 max-w-3xl text-sm leading-relaxed">
-        The organizations on this platform and their metadata — name, domain,
-        plan and status.
-      </p>
-
-      <div className="mt-6">
-        <PlatformTenants
-          initialTenants={(data ?? []) as PlatformTenant[]}
-          loadError={
-            error ? "Could not load tenants. Reload to try again." : null
-          }
-        />
-      </div>
-    </>
-  );
+/**
+ * Platform moved to its own top-level section in #945.
+ *
+ * A route rather than a `next.config.ts` redirect, for the reason given in
+ * administration/access-management/page.tsx: the portal is served both as
+ * `/portal/...` paths and prefix-free on a `portal.` host.
+ *
+ * Deliberately not guarded. It renders nothing and reads nothing -- it hands
+ * the request to /portal/platform, whose own layout refuses anyone without
+ * `platform_tenants:manage`. Guarding here too would only decide which of two
+ * identical denials an operator-less visitor sees.
+ */
+export default function PlatformMovedPage() {
+  redirect("/portal/platform");
 }

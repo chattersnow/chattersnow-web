@@ -1,7 +1,12 @@
 import { describe, expect, mock, test } from "bun:test";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
-let pathname = "/portal/people/person-1";
+let pathname = "/portal/home";
+
+// Spread the real module: something in the nav tree's import graph reaches
+// for `redirect`, and replacing next/navigation wholesale breaks the import
+// rather than the test.
 const actualNavigation = await import("next/navigation");
 mock.module("next/navigation", () => ({
   ...actualNavigation,
@@ -10,69 +15,84 @@ mock.module("next/navigation", () => ({
 
 const { PortalBreadcrumbs } = await import("./breadcrumbs");
 
-function trail(path: string, current: string) {
-  pathname = path;
-  const { unmount } = render(<PortalBreadcrumbs current={current} />);
-  const items = screen
-    .getByRole("navigation", { name: "Breadcrumb" })
-    .querySelectorAll("li");
-  const labels = Array.from(items).map((li) => li.textContent?.trim());
-  unmount();
-  return labels;
+/** The trail as a reader reads it, so a test says what the page shows. */
+function trail() {
+  return within(screen.getByRole("navigation", { name: "Breadcrumb" }))
+    .getAllByRole("listitem")
+    .map((item) => item.textContent?.trim())
+    .join(" › ");
 }
 
 describe("PortalBreadcrumbs", () => {
-  test("names the section for a flat detail route", () => {
-    expect(trail("/portal/people/person-1", "Ada Lovelace")).toEqual([
-      "People",
-      "Ada Lovelace",
-    ]);
+  test("names the section a page lives in", () => {
+    // #948's reason for existing: "Roles" is a page in two sections with the
+    // same h1 in each, and the page itself had no way to say which.
+    pathname = "/portal/administration/roles";
+    render(<PortalBreadcrumbs current="Roles" />);
+    expect(trail()).toBe("Administration › Roles");
   });
 
-  test("gives a three-level route the full trail, not one hop back", () => {
-    expect(
-      trail(
-        "/portal/administration/access-management/assets/asset-1",
-        "Mailchimp",
-      ),
-    ).toEqual(["Administration", "Access Management", "Mailchimp"]);
+  test("the other half of the pair reads differently", () => {
+    pathname = "/portal/volunteers/roles";
+    render(<PortalBreadcrumbs current="Roles" />);
+    expect(trail()).toBe("Volunteers › Roles");
   });
 
-  test("disambiguates the two Donations pages by their section", () => {
-    expect(trail("/portal/inventory/donations/d-1", "Ada Lovelace")).toEqual([
-      "Inventory",
-      "Donations",
-      "Ada Lovelace",
-    ]);
-    expect(trail("/portal/finance/donations", "Donations")).toEqual([
-      "Finance",
-      "Donations",
-    ]);
+  test("carries the record on a three-level route", () => {
+    pathname = "/portal/website/articles/abc-123";
+    render(<PortalBreadcrumbs current="Getting started" />);
+    expect(trail()).toBe("Website › Articles › Getting started");
   });
 
-  test("drops a sub-item that just repeats its section's name", () => {
-    // Calendar's first sub-item is also called Calendar; "Calendar > Calendar
-    // > X" adds a step that says nothing.
-    expect(trail("/portal/calendar/item-1", "Spring launch post")).toEqual([
-      "Calendar",
-      "Spring launch post",
-    ]);
+  test("drops a leaf that repeats its parent", () => {
+    // A list page's `current` is the sub-item's own name, and
+    // "Finance › Donations › Donations" is noise.
+    pathname = "/portal/finance/donations";
+    render(<PortalBreadcrumbs current="Donations" />);
+    expect(trail()).toBe("Finance › Donations");
   });
 
-  test("marks the current page and links only the ancestors", () => {
-    pathname = "/portal/governance/meetings/m-1";
-    render(<PortalBreadcrumbs current="March 3, 2026" />);
-    expect(screen.getByRole("link", { name: "Governance" })).toHaveAttribute(
+  test("every crumb but the last is a link", () => {
+    pathname = "/portal/website/articles/abc-123";
+    render(<PortalBreadcrumbs current="Getting started" />);
+    const nav = within(screen.getByRole("navigation", { name: "Breadcrumb" }));
+
+    expect(nav.getByRole("link", { name: "Website" })).toHaveAttribute(
       "href",
-      "/portal/governance/board-members",
+      "/portal/website",
     );
-    expect(screen.getByRole("link", { name: "Meetings" })).toBeInTheDocument();
+    expect(nav.getByRole("link", { name: "Articles" })).toHaveAttribute(
+      "href",
+      "/portal/website/articles",
+    );
     expect(
-      screen.queryByRole("link", { name: "March 3, 2026" }),
+      nav.queryByRole("link", { name: "Getting started" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("March 3, 2026")).toHaveAttribute(
-      "aria-current",
-      "page",
+  });
+
+  // The trail replaced a single back link that carried an unsaved-changes
+  // prompt, so it has to be interceptable -- and the href is what lets the
+  // prompt's "Discard changes" go where the reader was actually going,
+  // rather than to the one destination the back link had (#948).
+  test("hands each crumb's href to onNavigate, which can stop the click", async () => {
+    const user = userEvent.setup();
+    const seen: string[] = [];
+    pathname = "/portal/website/articles/abc-123";
+
+    render(
+      <PortalBreadcrumbs
+        current="Getting started"
+        onNavigate={(href, event) => {
+          seen.push(href);
+          event.preventDefault();
+        }}
+      />,
     );
+
+    const nav = within(screen.getByRole("navigation", { name: "Breadcrumb" }));
+    await user.click(nav.getByRole("link", { name: "Articles" }));
+    await user.click(nav.getByRole("link", { name: "Website" }));
+
+    expect(seen).toEqual(["/portal/website/articles", "/portal/website"]);
   });
 });

@@ -4,19 +4,18 @@ import { requireAnyPermission } from "@/lib/auth/permissions";
 /**
  * The gate on everything under /portal/administration.
  *
- * It is the union of what its children admit rather than a narrower gate of
- * its own, because two sections under this prefix are reachable without
- * `administration` itself and both were links the sidebar rendered and this
- * layout refused (#903). Access Management is its own **module** since #900
- * and admits its two resources at `view`; Platform admits
- * `platform_tenants:manage` alone, which is deliberately the whole operator
- * gate -- my_permissions() reports that resource as `none` unless
- * is_platform_operator() holds.
+ * This used to be a six-resource union, because four sections filed here were
+ * reachable without `administration` itself and each had to be admitted by
+ * name -- twice after the sidebar rendered a link this layout refused (#903).
+ * Three of them have since left for their own top-level sections: Access
+ * Management in #943 (a peer module rather than part of Administration), Site
+ * Content in #944 (website authoring), and Platform in #945 (a different
+ * product level -- every organization, not this one).
  *
- * Widening here gives nothing away. Every child of this route re-checks on its
- * own (access-management/layout.tsx, platform/layout.tsx and the rest), so
- * this is the outer of two gates, and a reader let in by one section's
- * resource still gets nothing from any other section.
+ * What is left is two resources for the two audiences that actually
+ * administer an organization: an `admin`, and a board member, who holds
+ * `system_settings:manage` and reaches Organization Settings alone. Each child still
+ * re-checks on its own, so this stays the outer of two gates.
  */
 export default async function AdministrationLayout({
   children,
@@ -29,10 +28,6 @@ export default async function AdministrationLayout({
     [
       { resource: "administration", level: "manage" },
       { resource: "system_settings", level: "manage" },
-      { resource: "site_content", level: "view" },
-      { resource: "access_management_assets", level: "view" },
-      { resource: "access_management_reviews", level: "view" },
-      { resource: "platform_tenants", level: "manage" },
     ],
     "Administration",
   );

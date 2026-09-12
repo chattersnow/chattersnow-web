@@ -8,17 +8,19 @@ import {
   PUBLIC_PAGE_SLOTS,
 } from "@/lib/page-visibility";
 import { LAYOUT_PREFIX, LAYOUT_SLOTS } from "@/lib/site-layout";
+import { LEXICON_PREFIX, LEXICON_SETTING_KEYS } from "@/lib/lexicon";
 import { IMAGE_SLOT_KEY_PREFIX, SITE_CONTENT_SLOTS } from "@/lib/site-content";
 
 /**
  * The `app_settings` and `site_content` key namespaces that `anon` can read
  * (#888).
  *
- * Five of the views serving the public site match a key **prefix** rather than
+ * Six of the views serving the public site match a key **prefix** rather than
  * an enumerated list of keys -- `public_branding` over `brand.%`,
  * `public_page_visibility` over `page_visibility.%`, `public_site_layout` over
- * `layout.%`, `public_legal_publication` over `legal_publication.%`, and
- * `public_site_images` over `site_images.%`. That is deliberate: which slots
+ * `layout.%`, `public_legal_publication` over `legal_publication.%`,
+ * `public_lexicon` over `lexicon.%` (#896), and `public_site_images` over
+ * `site_images.%`. That is deliberate: which slots
  * exist is decided by the TypeScript registries below rather than by a
  * migration, so adding one is a registry entry and not a schema change.
  *
@@ -90,6 +92,13 @@ export const RESERVED_NAMESPACES: readonly ReservedNamespace[] = [
     ),
   },
   {
+    prefix: LEXICON_PREFIX,
+    table: "app_settings",
+    view: "public_lexicon",
+    registry: "src/lib/lexicon.ts",
+    keys: LEXICON_SETTING_KEYS,
+  },
+  {
     prefix: IMAGE_SLOT_KEY_PREFIX,
     table: "site_content",
     view: "public_site_images",
@@ -105,7 +114,7 @@ export const RESERVED_NAMESPACES: readonly ReservedNamespace[] = [
  * has no predicate, so a row is public wherever in the table it sits. That
  * makes it the wider rule, and it subsumes the `site_images.` namespace above
  * -- which is listed anyway, because it is one of the five prefixes the views
- * and `docs/technical-spec.md` name and a reader should find it here.
+ * and `docs/spec/multi-tenancy.md` name and a reader should find it here.
  *
  * The asymmetry with `app_settings` is the point: there, a key outside every
  * reserved namespace is an ordinary private setting and none of this module's

@@ -5,8 +5,12 @@
 The operator's runbook for tenants (#707 Phase 4): how an organization is
 provisioned, put on its own domain, branded, supported, exported and deleted.
 The model behind it -- `tenants`, `tenant_id` on every table, membership
-instead of a super-admin -- is in `docs/technical-spec.md` §6 and in the
-planning repo's `decisions/2026-09-05-multi-tenancy-model.md`.
+instead of a super-admin -- is §6 of the spec, in
+[`docs/spec/multi-tenancy.md`](spec/multi-tenancy.md), and in the planning
+repo's `decisions/2026-09-05-multi-tenancy-model.md`.
+
+The platform itself is **Coven**, sold to small nonprofits and small
+businesses; a tenant is one customer organization of it.
 
 This is no longer hypothetical. Three tenants are live, and **Chatter Snow is
 simply the first of them**, not the product:
@@ -55,13 +59,17 @@ bun run tenant:provision \
 `provision_tenant()` creates the tenant and everything it needs to be signed
 into:
 
-- the five seeded roles (`admin`, `event_coordinator`, `finance`, `board`,
-  `volunteer`) with the **whole** permission matrix, copied from the template
-  tenant -- the oldest tenant on the `internal` plan -- for those five
-  roles only. Every migration that seeds `role_permissions` does so by role
-  name across all tenants, so the template's matrix is always the current
-  platform default and provisioning never has to be updated when a resource
-  is added. Custom roles the template added itself are not copied;
+- **every role the template tenant holds** -- the oldest tenant on the
+  `internal` plan -- with its label and its **whole** permission matrix. Every
+  migration that seeds `role_permissions` does so by role name across all
+  tenants, so the template's matrix is always the current platform default and
+  provisioning never has to be updated when a resource is added. Roles the
+  template added itself are copied too (#910): the template tenant is where the
+  platform's starter set is curated, so a role an operator adds there is a
+  default for new organizations, and one they retire there is one a new tenant
+  should not be given. `admin` is the hard requirement -- provisioning refuses
+  a template without it. A new tenant can then relabel or retire anything but
+  `admin` from Administration > Roles;
 - the catalog defaults a fresh database gets from migrations: the inventory
   category vocabulary, the agenda templates and the content brief templates,
   current versions included;
@@ -70,7 +78,10 @@ into:
   the platform sold that organization. See "Modules" below;
 - the platform-default settings (`finance.*`, `content.*`, `org.*`), and
   nothing else from the template's `app_settings` -- not its page visibility
-  or branding, and nothing from `site_content` (copy or photos);
+  or branding, nothing from `site_content` (copy or photos), and no articles
+  -- a new tenant's Learn section is empty until it writes its own (#894),
+  unless a content pack is named (see "Content packs" below), in which case
+  that pack's categories and articles arrive as **drafts**;
 - a staged `pending_role_grants` row for `--admin`, which
   `claim_pending_role_grants()` turns into the admin role and the membership
   the first time that address signs in.
@@ -296,10 +307,23 @@ it again when they finish.
 
 Both are the tenant admin's, not the operator's:
 
-- **Administration → System Settings → Branding**: the colour tokens, the
+- **Administration → Organization Settings → Branding**: the colour tokens, the
   accent gradient and the logo, stored as `brand.*` rows in `app_settings`
   and applied as a `<style>` over `globals.css` (`src/lib/branding.ts`). Blank
   means the platform default, which is Chatter Snow's palette.
+- **Administration → Organization Settings → General**: the words this
+  organization uses for what it lends (#896). The platform says "Inventory"
+  and "Items"; an organization that runs a gear library, a tool library or a
+  pantry says so here, and the public navigation, the portal sidebar, the
+  page-visibility panel, the contact form's topic and every unwritten line of
+  site copy follow. Four terms, registered in `src/lib/lexicon.ts` and stored
+  one `app_settings` row each under `lexicon.*` (read through `public_lexicon`
+  by host and `tenant_lexicon` by session); a blank field means the platform's
+  own word. Chatter Snow's four rows are seeded by
+  `20260912030000_per_tenant_lexicon.sql`, which is why nothing on its site
+  changed when this shipped. The registry is meant to stay at four or five
+  terms -- it names what an organization lends, not its whole vocabulary.
+
 - **Administration → Site Content**: every organization-specific line of copy
   on the public site, page by page, stored in `site_content`. The registry of
   slots and Chatter Snow's copy as each default is `src/lib/site-content.ts`;
@@ -314,7 +338,7 @@ Both are the tenant admin's, not the operator's:
   three documents are its tenant's rows
   (`20260909020000_chatter_snow_owns_its_legal_documents.sql`). Whether each of the
   three is served is a separate per-tenant decision, in **Administration →
-  System Settings → Legal documents** (#859): the terms and the code of conduct
+  Website → Legal documents** (#859): the terms and the code of conduct
   404 and stay out of the footer until that organization puts them in force,
   and the privacy policy is always served because the public forms are always
   collecting. It is one `app_settings` row per document
@@ -325,8 +349,54 @@ Both are the tenant admin's, not the operator's:
   placeholder icon), edited beside the copy they sit next to and published
   the same way; a new tenant starts with placeholders everywhere.
 
+- **Administration → Site Content → Articles**: the guides in the Learn
+  section, which are a _collection_ rather than slots -- an organization
+  creates as many categories and articles as it wants, and the platform ships
+  none (#894). A category is a page at `/learn/<address>`; an article is a
+  heading, an introduction, a list of points, body paragraphs, further-reading
+  links and a disclaimer, and nothing more -- this is not a rich text editor.
+  Saving keeps a draft and publishing moves the whole category at once, so a
+  reader never sees half a reordered page; removing an article is itself a
+  publish, for the same reason. Chatter Snow's eight snow-sports categories
+  are its own rows
+  (`20260912010000_chatter_snow_owns_its_learn_articles.sql`), not a platform
+  default any other tenant inherits.
+
+- **Administration → Site Content → Articles → Content packs** (platform
+  tenant only): a **pack** is a named set of the platform tenant's own article
+  categories, offered to the other organizations (#895). It is a label on the
+  platform's articles rather than a second content system: the platform writes
+  articles exactly as any tenant does, and the pack is the subset it is willing
+  to hand over. A pack is invisible until it is switched to _Offered_, and only
+  its **published** categories and articles are ever copied.
+
+  Other tenants see the offered packs on their own Articles screen and adopt
+  one with a button; provisioning offers the same packs (`--pack` on
+  `bun run tenant:provision`, checkboxes on the Platform screen).
+
+  **Adoption is a copy.** The adopting organization gets its own rows, as
+  drafts, and owns them from that moment — nobody's published page is rewritten
+  by a platform edit, which is the same reason #858 made the platform's legal
+  document a _default_ rather than the tenant's document. The price is accepted
+  rather than designed around: **a pack improved after adoption does not reach
+  anyone who already took it.** There is no versioning, no diff and no upstream
+  update, and `content_pack_adoptions` records what was copied with the pack's
+  key and name as plain text precisely because there is nothing left to link
+  to.
+
+  Adoption refuses rather than renaming when a category's address is already in
+  use — an address is identity, and it also stops a second adoption silently
+  duplicating a pack. Rename or remove the colliding page and adopt again.
+
+  No pack ships with the platform. Chatter Snow's snow-sports writing is
+  Organization Material under `decisions/2026-09-05-portal-ip-ownership.md`, so
+  it stays Chatter Snow's rows and is not the first pack.
+
 The `site_content` resource is separate from `administration`, so writing
-for the site can be granted to a role without handing it the rest.
+for the site -- articles included -- can be granted to a role without handing
+it the rest. Authoring a pack is `platform_tenants:manage`, which resolves only
+inside the platform tenant; adopting one is `site_content:manage`, the
+permission that already decides who may put words on the public site.
 
 ## Support access
 
@@ -342,6 +412,15 @@ any direct write to a support row.
 Before it can be granted, the staff member's account has to exist: they sign
 in once (they land on the "no organization" screen), and the tenant admin
 enters that email.
+
+Once it is granted, **work the grant on the tenant's own portal host**. Since
+#956 a portal session is scoped to the organization that owns the host it is
+served from, so a support grant in `example-nonprofit` is exercised at
+`portal.example.org`, not from `portal.rickiecruz.com`. Session cookies are
+host-only, so this was already a separate sign-in in practice; what changed is
+that the platform host no longer offers a switcher into the tenant. A tenant
+with no `custom_domain` yet has no host of its own, which leaves its portal
+unpinned and reachable the way it always was.
 
 The operator can _see_ whether a tenant currently has support open, on
 Administration → Platform — read-only, and deliberately so: who is in and
@@ -360,6 +439,36 @@ It writes the same membership row the UI would, so it shows on the tenant's
 Support access list and in their audit log, and the isolation suite covers
 it like any other membership.
 
+## One host, one tenant
+
+A portal session is scoped to the organization that owns the host it was
+served from (#956). On `portal.example.org`, an account that belongs to
+Example Nonprofit gets Example Nonprofit — and an account that does not gets a
+"wrong organization" screen naming both, a link to the portal of one it _is_
+in, and a sign-out button. Nothing below the shell renders.
+
+Until #956 the portal ignored the host entirely. Nothing leaked —
+`current_tenant_id()` is membership-based, so every account only ever saw its
+own organization — but signing in on the public demo's domain with a paying
+tenant's credentials served that tenant's operations portal, which is not a
+thing any of the three hosts should be able to do.
+
+Three consequences worth knowing:
+
+- **The tenant switcher disappears on a host that owns a tenant.** It only
+  appears where the host settles nothing — a local run, a preview, or a tenant
+  with no `custom_domain` yet. Elsewhere the address bar is the switcher.
+- **The rule is inert on a host no tenant claims.** That is deliberate and it
+  is what keeps local development, CI and a freshly provisioned tenant working:
+  a tenant whose DNS is not set up yet is reachable from whatever host its
+  invite was sent from, exactly as before.
+- **The database was not changed.** `current_tenant_id()` still answers from
+  membership plus the user's selection, and the pin is applied by writing that
+  selection. Teaching the function to read the request host instead would have
+  split the session in two: `storage.objects`' policies call the same function,
+  but storage-api never receives `x-tenant-host`, so a gear photo would be
+  minted in one tenant and refused in another.
+
 ## Users that belong to several tenants
 
 An account is platform-wide; a membership is per tenant. Deactivation
@@ -372,7 +481,7 @@ drops its roles and membership here and touches nothing else
 
 ## Export
 
-A tenant's admin downloads everything from Administration → System Settings
+A tenant's admin downloads everything from Administration → Organization Settings
 → Data (`export_current_tenant_data()`); the operator can do it for any
 tenant:
 
@@ -475,7 +584,7 @@ deletes tenant data.
 
 Those three functions are all about a signed-in person in a tenant, and the
 public site has neither a session nor a permission — so gating them alone left a
-tenant with Inventory off still publishing a gear library at `/gears`, with a
+tenant with Inventory off still publishing a gear library at `/inventory`, with a
 working request form. The public surface has its own choke point and modules sit
 above it:
 
@@ -522,7 +631,7 @@ the section stays the board's.
 About, Learn and Brand have no module at all: they are the organization's own
 pages whatever it is paying for.
 
-In Administration → System Settings → Page visibility, a slot whose module is
+In Website → Page visibility, a slot whose module is
 off renders read-only and off, saying the section is not part of this
 organization's plan. Site Content marks the same pages unpublishable, from the
 same read.
@@ -787,7 +896,7 @@ deployment can reach whether or not the button was drawn.
 One consequence worth knowing before you go looking for the button: it is
 absent on `uat.chattersnow.org` and on preview and local runs, because
 `TENANT_HOST_OVERRIDE` resolves those to Chatter Snow's own tenant. The demo is
-exercised on `demo.chattersnow.org`.
+exercised on `demo.rickiecruz.com`.
 
 ### The rollout order is load-bearing
 
@@ -800,8 +909,9 @@ catalogue, sponsors, programs, branding and the organization's own name;
 `page_visibility` would come back empty so `/programs`, `/learn` and `/support`
 would 404; every anonymous intake RPC would fail; and `default_tenant_id()`
 would return null so any sessionless insert would violate `not null`. The
-portal is unaffected throughout — `current_tenant_id()` is membership-based and
-never consults the host.
+portal keeps working throughout: `current_tenant_id()` is membership-based and
+never consults the host, and the host rule the portal shell added in #956 is
+inert on a host no tenant claims (see “One host, one tenant” below).
 
 The failure is invisible until it isn't, so the domain goes first and is
 verified **positively** while the fallback is still masking any mistake:

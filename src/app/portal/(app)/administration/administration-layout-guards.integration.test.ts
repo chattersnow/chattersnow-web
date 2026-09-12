@@ -43,12 +43,13 @@ mock.module("@/lib/supabase/server", () => ({
 const { default: AdministrationLayout } = await import("./layout");
 const { default: UsersLayout } = await import("./users/layout");
 const { default: RolesLayout } = await import("./roles/layout");
-const { default: PermissionsLayout } = await import("./permissions/layout");
-const { default: SystemSettingsLayout } =
-  await import("./system-settings/layout");
+const { default: OrganizationSettingsLayout } =
+  await import("./organization-settings/layout");
 const { default: AuditLogLayout } = await import("./audit-log/layout");
-const { default: AccessManagementLayout } =
-  await import("./access-management/layout");
+// Technology (formerly Administration -> Access Management) left this section
+// in #943. Its guard is unchanged and still admits administration:manage, so
+// it is exercised here from its new home.
+const { default: TechnologyLayout } = await import("../technology/layout");
 
 type Layout = (props: { children: ReactNode }) => Promise<ReactNode>;
 
@@ -88,9 +89,11 @@ async function expectDenied(layout: Layout, email: string) {
   expect(redirectMock).toHaveBeenCalledWith(deniedHref);
 }
 
-// users/roles/permissions/audit-log all guard on administration:manage
-// alone, per their layout.tsx files -- only the admin role holds that.
-// access-management also accepts access_management_assets/reviews:view as
+// users/roles/audit-log all guard on administration:manage alone, per their
+// layout.tsx files -- only the admin role holds that. The permissions layout
+// left this list with the page it guarded (#946): the matrix is a tab on
+// Roles now, so RolesLayout is the guard that stands in front of it.
+// technology also accepts access_management_assets/reviews:view as
 // alternatives (see its layout.tsx), but no seeded role holds either by
 // default (20260828100000_add_access_management_resources.sql grants only
 // admin), so it behaves identically to the administration-manage-only
@@ -98,9 +101,8 @@ async function expectDenied(layout: Layout, email: string) {
 describe.each([
   ["administration/users", () => UsersLayout],
   ["administration/roles", () => RolesLayout],
-  ["administration/permissions", () => PermissionsLayout],
   ["administration/audit-log", () => AuditLogLayout],
-  ["administration/access-management", () => AccessManagementLayout],
+  ["technology", () => TechnologyLayout],
 ])("%s layout guard (integration)", (_name, getLayout) => {
   test("admin (administration manage) renders the page", async () => {
     await expectAllowed(getLayout(), SEEDED_USERS.admin);
@@ -131,13 +133,14 @@ describe.each([
   });
 });
 
-// administration/layout.tsx and system-settings/layout.tsx both accept
+// administration/layout.tsx and organization-settings/layout.tsx both accept
 // system_settings:manage as an alternative to administration:manage, so
 // board (which holds the former but not the latter) must get through too --
-// unlike the four resources above.
+// unlike the four resources above. The page was System Settings until #992;
+// the gate is unchanged, and so is the resource key behind it.
 describe.each([
   ["administration (top-level)", () => AdministrationLayout],
-  ["administration/system-settings", () => SystemSettingsLayout],
+  ["administration/organization-settings", () => OrganizationSettingsLayout],
 ])("%s layout guard (integration)", (_name, getLayout) => {
   test("admin (administration manage) renders the page", async () => {
     await expectAllowed(getLayout(), SEEDED_USERS.admin);

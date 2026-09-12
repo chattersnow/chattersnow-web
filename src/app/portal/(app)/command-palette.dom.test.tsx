@@ -21,6 +21,26 @@ mock.module("./command-palette-actions", () => ({
   searchPeopleAction: searchPeopleMock,
 }));
 
+// The palette now mounts the quick-action dialogs so it can open one in
+// place (#979), and each loads its own option data on open through a Server
+// Action -- spread the real modules so the create actions they also import
+// stay in place, the same way the sidebar's test does.
+const EventActions = await import("./events/actions");
+const PeopleActions = await import("./people/actions");
+const ProgramActions = await import("./programs/actions");
+mock.module("./events/actions", () => ({
+  ...EventActions,
+  listEventOptionsAction: async () => ({ data: [] }),
+}));
+mock.module("./people/actions", () => ({
+  ...PeopleActions,
+  listPeopleAction: async () => ({ data: [] }),
+}));
+mock.module("./programs/actions", () => ({
+  ...ProgramActions,
+  listProgramsAction: async () => ({ data: [] }),
+}));
+
 const { CommandPalette } = await import("./command-palette");
 
 const ADMIN: PermissionMap = {
@@ -95,6 +115,35 @@ describe("CommandPalette", () => {
       "ada",
     );
     expect(searchPeopleMock).not.toHaveBeenCalled();
+  });
+
+  // Issue #979. The sidebar group these six live in now starts collapsed, so
+  // the palette is the surface that keeps them reachable without a click into
+  // a disclosure -- which only works if it can open one where the reader is.
+  test("opens a quick action in place rather than navigating", async () => {
+    const user = await openPalette();
+    await user.type(
+      screen.getByRole("combobox", { name: "Search pages and people" }),
+      "log donation",
+    );
+
+    const option = await screen.findByRole("option", { name: /Log donation/ });
+    await user.click(option);
+
+    expect(
+      await screen.findByRole("heading", { name: "Add donation" }),
+    ).toBeInTheDocument();
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  test("offers only the actions the permissions allow", async () => {
+    await openPalette({ volunteers: "manage" });
+    expect(
+      await screen.findByRole("option", { name: /Log volunteer hours/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: /Log donation/ }),
+    ).not.toBeInTheDocument();
   });
 
   // Issue #567. Every assertion above drives the palette with the mouse, so

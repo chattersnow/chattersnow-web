@@ -43,10 +43,13 @@ import { getContentWorkSummary } from "./home/queries";
 import { ensureCurrentPerson } from "@/lib/auth/current-person";
 import {
   currentTenant,
+  decideHostTenant,
   getTenantContext,
   isDemoTenant,
 } from "@/lib/portal/tenants";
 import { getTenantBranding } from "@/lib/tenant-branding";
+import { getPortalVocabulary } from "@/lib/tenant-person-roles";
+import { LexiconProvider } from "@/components/lexicon-context";
 import { ensureMyOnboarding } from "@/lib/portal/onboarding";
 import { personDisplayName } from "@/lib/format";
 import { IdleTimeout } from "./idle-timeout";
@@ -57,6 +60,7 @@ import { NoTenant } from "./no-tenant";
 import { NotificationsMenu } from "./notifications-menu";
 import { PortalNav } from "./portal-nav";
 import { TenantSwitcher } from "./tenant-switcher";
+import { WrongOrganization } from "./wrong-organization";
 import { SidebarQuickActions } from "./sidebar-quick-actions";
 import { CURRENT_RELEASE, RELEASE_NOTES } from "./welcome/releases";
 import { WelcomeDialog } from "./welcome/welcome-dialog";
@@ -100,7 +104,45 @@ export default async function PortalAppLayout({
   if (tenantContext.resolved && tenantContext.tenants.length === 0) {
     return <NoTenant />;
   }
+
+  // One host, one tenant (#956). Ordering is load-bearing in both directions:
+  // NoTenant above explains "member of nothing" better than this can, and
+  // ChooseTenant below would loop forever on a host whose tenant the account
+  // is not in -- see decideHostTenant's own comment.
+  const hostDecision = decideHostTenant(tenantContext);
+  if (hostDecision.kind === "refuse") {
+    return (
+      <WrongOrganization
+        hostTenantName={hostDecision.hostTenant.name}
+        tenants={tenantContext.tenants}
+      />
+    );
+  }
+  if (hostDecision.kind === "align") {
+    // The selection, not the host, is what current_tenant_id() answers from --
+    // and it is what storage.objects' policies answer from too, which is why
+    // the host is applied by writing it here rather than by teaching
+    // current_tenant_id() to read the request header. PostgREST would follow
+    // the header and storage-api, which never sees it, would not; a session
+    // has to have one tenant, not two.
+    const { error } = await supabase.rpc("set_current_tenant", {
+      p_tenant_id: hostDecision.hostTenant.id,
+    });
+    // Only redirect on success. A failed write with a redirect is an infinite
+    // loop, and this account is a member either way -- serving them the
+    // portal they already had beats bouncing them forever over a blip.
+    if (!error) {
+      // Re-enter rather than re-read: a layout and the page beneath it render
+      // in parallel, so the page's own queries can be in flight before the
+      // write above lands. Only a fresh request guarantees the whole tree is
+      // scoped to the tenant this host is for.
+      const requestHeaders = await headers();
+      redirect(safePortalDestination(requestHeaders.get(PORTAL_PATH_HEADER)));
+    }
+  }
+
   if (
+    hostDecision.kind === "unenforced" &&
     tenantContext.resolved &&
     tenantContext.tenants.length > 1 &&
     tenantContext.currentTenantId === null
@@ -244,7 +286,18 @@ export default async function PortalAppLayout({
 
   const cookieStore = await cookies();
   const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false";
-  const branding = await getTenantBranding(supabase);
+  // Left undefined until the reader has actually toggled the quick-actions
+  // group, so SidebarQuickActions can fall back to its own rule (#979) rather
+  // than to a default that ignores how many actions the role even has.
+  const quickActionsCookie = cookieStore.get("quick_actions_state")?.value;
+  // One vocabulary for the whole shell: what this organization calls what it
+  // lends (#896) and what it calls the people it works with (#911). The nav
+  // tree, the command palette and the breadcrumbs all hold templates and none
+  // of them should have to know which setting a word came from.
+  const [branding, lexicon] = await Promise.all([
+    getTenantBranding(supabase),
+    getPortalVocabulary(supabase),
+  ]);
 
   return (
     <TooltipProvider>
@@ -260,9 +313,9 @@ export default async function PortalAppLayout({
         <SidebarProvider defaultOpen={sidebarOpen}>
           {/* Before <Sidebar>, not inside <SidebarInset>. Reaching the page
               content otherwise costs 25-40 tab stops on every navigation: the
-              logo, up to 6 quick actions, 14 nav items with the open section
-              expanded, account, log out, then the whole header. It used to sit
-              inside the inset, which renders after the sidebar -- so a
+              logo, the collapsed quick-actions row, 14 nav items with the open
+              section expanded, account, log out, then the whole header. It used
+              to sit inside the inset, which renders after the sidebar -- so a
               keyboard user tabbed through everything it was meant to skip
               before they could reach it (issue #595). */}
           <SkipLink href="#portal-main" />
@@ -272,14 +325,18 @@ export default async function PortalAppLayout({
                 tenants={tenantContext.tenants}
                 currentTenantId={tenantContext.currentTenantId}
                 logoUrl={branding.logoUrl}
+                hostPinned={hostDecision.kind !== "unenforced"}
               />
             </SidebarHeader>
             <SidebarContent>
               <SidebarQuickActions
                 permissions={permissions}
                 currentPerson={currentPerson}
+                defaultOpen={
+                  quickActionsCookie ? quickActionsCookie === "true" : undefined
+                }
               />
-              <PortalNav permissions={permissions} />
+              <PortalNav permissions={permissions} lexicon={lexicon} />
             </SidebarContent>
             <SidebarFooter>
               {/* Not in PortalNav: that list is permission-scoped module nav,
@@ -321,7 +378,11 @@ export default async function PortalAppLayout({
                     Hi, {displayName}
                   </Link>
                 )}
-                <CommandPalette permissions={permissions} />
+                <CommandPalette
+                  permissions={permissions}
+                  lexicon={lexicon}
+                  currentPerson={currentPerson}
+                />
                 <ThemeToggle className="size-10 rounded-full" />
                 <HelpButton />
                 <NotificationsMenu items={attentionItems} />
@@ -337,9 +398,13 @@ export default async function PortalAppLayout({
             >
               <div className="mx-auto max-w-6xl">
                 {/* The tenant's own mark for the inventory placeholders, which
-                    sit too deep -- and in a client modal -- to be handed it. */}
+                    sit too deep -- and in a client modal -- to be handed it.
+                    Its words likewise: the breadcrumbs on a few dozen pages
+                    read the nav tree, which holds lexicon templates (#896). */}
                 <BrandLogoProvider logoUrl={branding.logoUrl}>
-                  {children}
+                  <LexiconProvider lexicon={lexicon}>
+                    {children}
+                  </LexiconProvider>
                 </BrandLogoProvider>
               </div>
             </main>

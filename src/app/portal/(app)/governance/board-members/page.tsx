@@ -10,7 +10,7 @@ import type { BoardMemberRow } from "./board-members-shared";
 import type { PersonListItem } from "../../people/actions";
 
 export const metadata: Metadata = {
-  title: "Governance",
+  title: "Board Members",
 };
 
 export default async function BoardMembersPage() {

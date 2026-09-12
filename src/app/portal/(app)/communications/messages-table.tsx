@@ -23,7 +23,8 @@ import {
   type ContactMessage,
   type ContactMessageStatus,
 } from "./message-types";
-import { CONTACT_TOPIC_LABELS } from "@/lib/contact-topics";
+import { contactTopicLabel } from "@/lib/contact-topics";
+import { useLexicon } from "@/components/lexicon-context";
 import { formatInstantDate } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
 
@@ -70,6 +71,7 @@ export function MessagesTable({
     statusFilter !== null,
   ].filter(Boolean).length;
 
+  const lexicon = useLexicon();
   const columns = useMemo<PortalDataTableColumn<ContactMessage>[]>(
     () => [
       {
@@ -90,11 +92,9 @@ export function MessagesTable({
         key: "topic",
         label: "Topic",
         // On the label the cell shows, not the stored topic key.
-        sortValue: (message) =>
-          CONTACT_TOPIC_LABELS[message.topic] ?? message.topic,
+        sortValue: (message) => contactTopicLabel(message.topic, lexicon),
         cellClassName: "app-muted",
-        render: (message) =>
-          CONTACT_TOPIC_LABELS[message.topic] ?? message.topic,
+        render: (message) => contactTopicLabel(message.topic, lexicon),
       },
       {
         key: "created_at",
@@ -127,7 +127,7 @@ export function MessagesTable({
         ),
       },
     ],
-    [canManage, linkedMessageId],
+    [canManage, linkedMessageId, lexicon],
   );
 
   if (messages.length === 0) {

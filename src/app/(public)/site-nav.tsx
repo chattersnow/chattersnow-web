@@ -7,6 +7,7 @@ import { MenuIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { type NavGroup, isSlotVisible, visibleGroups } from "@/lib/public-nav";
+import { DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -87,6 +88,7 @@ function MobileSubNavLink({
 export function SiteNav({
   hiddenSlots = [],
   supportLabel,
+  lexicon = DEFAULT_LEXICON,
 }: {
   hiddenSlots?: readonly string[];
   /**
@@ -94,11 +96,17 @@ export function SiteNav({
    * one nav label that is site content rather than structure (#707 Phase 4).
    */
   supportLabel?: string;
+  /**
+   * This organization's words for what it lends (#896). The Gear group's
+   * labels are templates, so without it the nav would read the platform's
+   * "Items" and "Library" on a site that calls them something else.
+   */
+  lexicon?: Lexicon;
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const closeMobile = () => setMobileOpen(false);
-  const groups = visibleGroups(hiddenSlots).map((group) =>
+  const groups = visibleGroups(hiddenSlots, lexicon).map((group) =>
     group.links && supportLabel
       ? {
           ...group,

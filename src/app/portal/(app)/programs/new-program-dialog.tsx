@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { ProgramPublicFields } from "./program-public-fields";
 import { toast } from "@/components/ui/toast";
 
 const STATUSES = [
@@ -34,7 +35,16 @@ const STATUSES = [
 ];
 
 function getInitialFormState() {
-  return { name: "", description: "", status: "pilot" };
+  return {
+    name: "",
+    description: "",
+    status: "pilot",
+    // A new program is not on the public site until someone says so (#360).
+    isPublic: false,
+    pillar: "",
+    emoji: "",
+    sortOrder: "",
+  };
 }
 
 export function NewProgramDialog() {
@@ -67,6 +77,10 @@ export function NewProgramDialog() {
     formData.set("name", form.name);
     formData.set("description", form.description);
     formData.set("status", form.status);
+    formData.set("is_public", String(form.isPublic));
+    formData.set("pillar", form.pillar);
+    formData.set("emoji", form.emoji);
+    formData.set("sort_order", form.sortOrder);
 
     startTransition(async () => {
       const result = await createProgramAction(formData);
@@ -139,6 +153,13 @@ export function NewProgramDialog() {
                 </SelectContent>
               </Select>
             </Field>
+
+            <ProgramPublicFields
+              idPrefix="new-program"
+              status={form.status}
+              values={form}
+              onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
+            />
 
             {error && (
               <Alert variant="destructive">

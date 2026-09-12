@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import {
   getCurrentUserPermissions,
   hasPermission,
@@ -11,7 +12,7 @@ import { RoleTypesTable } from "./role-types-table";
 import type { RoleTypeRow } from "./role-type-details-sheet";
 
 export const metadata: Metadata = {
-  title: "Volunteer Roles",
+  title: "Roles · Volunteers",
 };
 
 export default async function VolunteerRolesPage() {
@@ -26,6 +27,7 @@ export default async function VolunteerRolesPage() {
 
   return (
     <>
+      <PortalBreadcrumbs current="Roles" />
       <div className="w-fit">
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
           Roles

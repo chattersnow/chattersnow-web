@@ -10,10 +10,20 @@
  */
 
 import { LEGAL_DOCUMENTS } from "@/lib/legal-documents";
+import { DEFAULT_LEXICON, applyLexicon, type Lexicon } from "@/lib/lexicon";
 
-export type NavLink = { label: string; href: string; slot?: string };
+export type NavLink = {
+  /**
+   * May carry `{term}` placeholders from the lexicon registry (#896).
+   * `visibleGroups()` resolves them; nothing else should render this raw.
+   */
+  label: string;
+  href: string;
+  slot?: string;
+};
 
 export type NavGroup = {
+  /** A lexicon template, like `NavLink.label`. */
   label: string;
   /**
    * The section's landing page. Used as the footer link and as the mobile
@@ -23,7 +33,7 @@ export type NavGroup = {
   href: string;
   /**
    * Ties the group to an entry in PUBLIC_PAGE_SLOTS, so a section the board has
-   * hidden from Administration > System Settings drops out of the nav and the
+   * hidden from Website > Page visibility drops out of the nav and the
    * footer together. A group with no slot is always shown.
    */
   slot?: string;
@@ -37,8 +47,8 @@ export type NavGroup = {
  * Base UI NavigationMenuTrigger opens its panel instead of navigating, so
  * without one the landing page is unreachable from the desktop nav.
  *
- * `/about` and `/gears` deliberately have no such entry: both redirect to a
- * child that is already listed (`/about/story`, `/gears/library`), so an
+ * `/about` and `/inventory` deliberately have no such entry: both redirect to a
+ * child that is already listed (`/about/story`, `/inventory/library`), so an
  * overview item would be a second route to the same page.
  */
 export const NAV_GROUPS: readonly NavGroup[] = [
@@ -64,16 +74,25 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   { label: "Programs", href: "/programs", slot: "programs" },
   { label: "Learn", href: "/learn", slot: "learn" },
   {
-    label: "Gear",
-    href: "/gears",
+    // The one group whose labels are a tenant's word rather than the
+    // platform's (#896): a nonprofit that lends tools, instruments or food
+    // reads the same tables and calls this something else. `gears` here and
+    // below is the internal slot key, not a product name -- it is not renamed
+    // and does not appear on screen.
+    label: "{item_plural}",
+    href: "/inventory",
     slot: "gears",
     links: [
-      { label: "Gear Library", href: "/gears/library" },
-      { label: "Sizing Guide", href: "/gears/sizing", slot: "gears-sizing" },
+      { label: "{collection_public}", href: "/inventory/library" },
+      {
+        label: "Sizing Guide",
+        href: "/inventory/sizing",
+        slot: "gears-sizing",
+      },
       // Was four separate entries pointing at #how-it-works, #request, #donate
       // and #gear-drives -- four rows in the menu that all land on the same
       // page. The page's own headings do that job once you are on it.
-      { label: "Donate or Request Gear", href: "/gears/donate" },
+      { label: "Donate or Request {item_plural}", href: "/inventory/donate" },
     ],
   },
   {
@@ -124,18 +143,35 @@ export const LEGAL_LINKS: readonly NavLink[] = LEGAL_DOCUMENTS.map(
 );
 
 /**
- * Drops every group and sub-link belonging to a hidden section. A group is
- * removed when its own slot is hidden, and also when filtering its sub-links
- * leaves it empty -- otherwise the board hiding the last page in a group would
- * leave an empty dropdown behind.
+ * Drops every group and sub-link belonging to a hidden section, and resolves
+ * the lexicon placeholders in what is left. A group is removed when its own
+ * slot is hidden, and also when filtering its sub-links leaves it empty --
+ * otherwise the board hiding the last page in a group would leave an empty
+ * dropdown behind.
+ *
+ * The lexicon is resolved here rather than at each of the three call sites
+ * (the header, the mobile sheet and the footer) because this is the one
+ * function all three already go through, and a label that reached a caller
+ * unresolved would render braces at them. It defaults to the platform's own
+ * words so a caller that has no tenant still gets readable navigation.
  */
-export function visibleGroups(hidden: readonly string[]): NavGroup[] {
+export function visibleGroups(
+  hidden: readonly string[],
+  lexicon: Lexicon = DEFAULT_LEXICON,
+): NavGroup[] {
   const isHidden = (slot?: string) => Boolean(slot && hidden.includes(slot));
+  const named = <T extends { label: string }>(entry: T): T => ({
+    ...entry,
+    label: applyLexicon(entry.label, lexicon),
+  });
 
   return NAV_GROUPS.filter((group) => !isHidden(group.slot))
     .map((group) => {
-      if (!group.links) return group;
-      return { ...group, links: group.links.filter((l) => !isHidden(l.slot)) };
+      if (!group.links) return named(group);
+      return named({
+        ...group,
+        links: group.links.filter((l) => !isHidden(l.slot)).map(named),
+      });
     })
     .filter((group) => group.links === undefined || group.links.length > 0);
 }
@@ -151,7 +187,7 @@ export function isSlotVisible(hidden: readonly string[], slot: string) {
  * which path, and a duplicate of that is exactly the drift the tree was
  * introduced to end.
  *
- * A nested slot matches alongside its parent: `/gears/sizing` is under both
+ * A nested slot matches alongside its parent: `/inventory/sizing` is under both
  * `gears` and `gears-sizing`, and the page is unreachable when either is off.
  * In-page anchors and ungated routes (the legal notices) match nothing.
  */

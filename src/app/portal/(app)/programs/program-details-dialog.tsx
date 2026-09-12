@@ -9,7 +9,12 @@ import {
   updateProgramAction,
   type ProgramEvent,
 } from "./actions";
-import { ProgramStatusBadge, type ProgramRow } from "./program-badges";
+import {
+  ProgramPublicBadge,
+  ProgramStatusBadge,
+  type ProgramRow,
+} from "./program-badges";
+import { ProgramPublicFields } from "./program-public-fields";
 import { StatusBadge, VisibilityBadge } from "../events/event-badges";
 import {
   AlertDialog,
@@ -64,22 +69,32 @@ const STATUSES = [
   { value: "retired", label: "Retired" },
 ];
 
-type FormState = { name: string; description: string; status: string };
+type FormState = {
+  name: string;
+  description: string;
+  status: string;
+  isPublic: boolean;
+  pillar: string;
+  emoji: string;
+  sortOrder: string;
+};
 
 function formStateFor(program: ProgramRow): FormState {
   return {
     name: program.name,
     description: program.description ?? "",
     status: program.status,
+    isPublic: program.is_public,
+    pillar: program.pillar ?? "",
+    emoji: program.emoji ?? "",
+    sortOrder: program.sort_order === null ? "" : String(program.sort_order),
   };
 }
 
 function isDirty(form: FormState, program: ProgramRow) {
   const baseline = formStateFor(program);
-  return (
-    form.name !== baseline.name ||
-    form.description !== baseline.description ||
-    form.status !== baseline.status
+  return (Object.keys(baseline) as (keyof FormState)[]).some(
+    (key) => form[key] !== baseline[key],
   );
 }
 
@@ -191,6 +206,10 @@ export function ProgramDetailsDialog({
     formData.set("name", form.name);
     formData.set("description", form.description);
     formData.set("status", form.status);
+    formData.set("is_public", String(form.isPublic));
+    formData.set("pillar", form.pillar);
+    formData.set("emoji", form.emoji);
+    formData.set("sort_order", form.sortOrder);
 
     startTransition(async () => {
       const result = await updateProgramAction(program.id, formData);
@@ -305,6 +324,24 @@ export function ProgramDetailsDialog({
                 </Field>
 
                 <Field>
+                  <FieldLabel htmlFor="program-public">Public site</FieldLabel>
+                  <div id="program-public" className="flex flex-col gap-2">
+                    <ProgramPublicBadge isPublic={program.is_public} />
+                    {program.is_public && (
+                      <p className="app-muted text-sm leading-relaxed">
+                        {program.pillar
+                          ? `Listed under ${program.pillar}`
+                          : "Listed after the grouped programs"}
+                        {program.sort_order === null
+                          ? ""
+                          : `, in position ${program.sort_order}`}
+                        .
+                      </p>
+                    )}
+                  </div>
+                </Field>
+
+                <Field>
                   <FieldLabel htmlFor="program-events">
                     Events{events ? ` (${events.length})` : ""}
                   </FieldLabel>
@@ -401,6 +438,15 @@ export function ProgramDetailsDialog({
                       </SelectContent>
                     </Select>
                   </Field>
+
+                  <ProgramPublicFields
+                    idPrefix="program-edit"
+                    status={form.status}
+                    values={form}
+                    onChange={(patch) =>
+                      setForm((prev) => ({ ...prev, ...patch }))
+                    }
+                  />
 
                   {error && (
                     <Alert variant="destructive">

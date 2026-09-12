@@ -1,0 +1,19 @@
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireAnyPermission } from "@/lib/auth/permissions";
+
+export default async function AdministrationOrganizationSettingsLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const supabase = await createSupabaseServerClient();
+  await requireAnyPermission(
+    supabase,
+    [
+      { resource: "administration", level: "manage" },
+      { resource: "system_settings", level: "manage" },
+    ],
+    "Organization Settings",
+  );
+  return children;
+}

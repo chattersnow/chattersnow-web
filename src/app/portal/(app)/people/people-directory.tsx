@@ -29,21 +29,19 @@ import {
   quoteOrValue,
   totalPagesFor,
 } from "@/lib/pagination";
-import { ActiveFilters, type ActiveFilter } from "@/components/active-filters";
-import { FiltersSheet } from "@/components/filters-sheet";
 import { SearchField } from "@/components/search-field";
-import { FilterSubmitButton } from "@/components/filter-submit-button";
 import { LinkPendingPulse } from "@/components/link-pending";
 import { StatTile } from "../home/stat-tile";
 import { NewPersonDialog } from "./new-person-dialog";
+import { PEOPLE_WITH_ROLES, rolesFor, type PersonRow } from "./people-shared";
+import { getPortalVocabulary } from "@/lib/tenant-person-roles";
 import {
-  PEOPLE_WITH_ROLES,
-  ROLE_OPTIONS,
-  rolesFor,
-  type PersonRow,
-  type RoleKey,
-} from "./people-shared";
-import { emptyManageDescription, type PeopleSegment } from "./people-segments";
+  emptyManageDescription,
+  resolveSegment,
+  resolveStats,
+  type PeopleSegment,
+} from "./people-segments";
+import { PeopleSegmentNav } from "./people-segment-nav";
 
 /**
  * Every column the directory table and its row links need. `primary_contact`
@@ -54,13 +52,6 @@ import { emptyManageDescription, type PeopleSegment } from "./people-segments";
  */
 const PERSON_COLUMNS =
   "id, name, email, phone, pronouns, instagram_handle, notes, logo_url, website, auth_user_id, is_donor, is_sponsor, is_volunteer, is_attendee, is_staff, is_partner, person_type, riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain, primary_contact_person_id, primary_contact(id, name, email, phone)";
-
-const selectClassName =
-  "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
-
-function isRoleKey(value: string | undefined): value is RoleKey {
-  return !!value && ROLE_OPTIONS.some((option) => option.key === value);
-}
 
 /**
  * The shared body behind /portal/people and its role segments. Donors,
@@ -86,7 +77,7 @@ const COLUMNS: { key: SortColumn; label: string; hideBelow?: HideBelow }[] = [
 ];
 
 export async function PeopleDirectory({
-  segment,
+  segment: segmentTemplate,
   searchParams,
 }: {
   segment: PeopleSegment;
@@ -95,6 +86,11 @@ export async function PeopleDirectory({
   const supabase = await createSupabaseServerClient();
   const permissions = await getCurrentUserPermissions(supabase);
   const canManage = hasPermission(permissions, "people", "manage");
+  // Every word this page shows -- the heading, the New button, the role facet,
+  // the Roles column, both empty states -- is the tenant's (#911). The keys it
+  // filters and sorts on are not.
+  const vocabulary = await getPortalVocabulary(supabase);
+  const segment = resolveSegment(segmentTemplate, vocabulary);
 
   const params = await searchParams;
   const raw = (key: string) => {
@@ -103,11 +99,6 @@ export async function PeopleDirectory({
   };
 
   const search = raw("search") || "";
-  const roleRaw = raw("role");
-  // Only the full directory offers the facet; a segment is already one, so a
-  // stray ?role= on /portal/donors is ignored rather than silently narrowing.
-  const roleFilter: RoleKey | "all" =
-    segment.showRoleFilter && isRoleKey(roleRaw) ? roleRaw : "all";
   const sortParam = raw("sort");
   const sort: SortColumn = isSortColumn(sortParam) ? sortParam : "name";
   const dir: "asc" | "desc" = raw("dir") === "desc" ? "desc" : "asc";
@@ -123,7 +114,6 @@ export async function PeopleDirectory({
 
   if (segment.filterColumn) query = query.eq(segment.filterColumn, true);
   if (segment.personType) query = query.eq("person_type", segment.personType);
-  if (roleFilter !== "all") query = query.eq(roleFilter, true);
   if (search) {
     const pattern = quoteOrValue(`%${escapeLikePattern(search)}%`);
     query = query.or(
@@ -143,11 +133,11 @@ export async function PeopleDirectory({
         .order("name", { ascending: true }),
       segment.stats ? segment.stats(supabase) : Promise.resolve(null),
     ]);
+  const segmentStats = stats && resolveStats(stats, vocabulary);
   const peopleRows = (people ?? []) as unknown as PersonRow[];
 
   const filterParams = new URLSearchParams();
   if (search) filterParams.set("search", search);
-  if (roleFilter !== "all") filterParams.set("role", roleFilter);
   // On filterParams rather than in each href, so sorting and paging both
   // carry the reader's choice without either having to remember to.
   if (perPage !== PAGE_SIZE) filterParams.set("perPage", String(perPage));
@@ -183,21 +173,7 @@ export async function PeopleDirectory({
   }
 
   const totalPages = totalPagesFor(count, perPage);
-  const hasActiveFilters = !!search || roleFilter !== "all";
-  const activeFilterCount = [roleFilter !== "all"].filter(Boolean).length;
-  const appliedFilters: ActiveFilter[] = [];
-  if (search) {
-    appliedFilters.push({ param: "search", label: "Search", value: search });
-  }
-  if (roleFilter !== "all") {
-    appliedFilters.push({
-      param: "role",
-      label: "Role",
-      value:
-        ROLE_OPTIONS.find((option) => option.key === roleFilter)?.label ??
-        roleFilter,
-    });
-  }
+  const hasActiveFilters = !!search;
 
   return (
     <>
@@ -208,9 +184,11 @@ export async function PeopleDirectory({
         <div className="rainbow-accent mt-3 w-full" />
       </div>
 
-      {stats && stats.length > 0 && (
+      <PeopleSegmentNav active={segment.value} vocabulary={vocabulary} />
+
+      {segmentStats && segmentStats.length > 0 && (
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          {stats.map((stat) => (
+          {segmentStats.map((stat) => (
             <StatTile
               key={stat.label}
               label={stat.label}
@@ -222,73 +200,23 @@ export async function PeopleDirectory({
       )}
 
       <div className="mt-6 space-y-4">
-        <div
-          className={`rainbow-surface flex flex-wrap items-center gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md ${
-            segment.showRoleFilter ? "justify-end" : "justify-between"
-          }`}
-        >
+        <div className="rainbow-surface flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
           <SearchField
             action={segment.basePath}
             defaultValue={search}
             placeholder="Search name, email, phone..."
-            preserve={segment.showRoleFilter ? { role: roleFilter } : undefined}
           />
 
-          {segment.showRoleFilter && (
-            <FiltersSheet activeCount={activeFilterCount}>
-              <form method="get" className="flex flex-col gap-4">
-                {/* Search lives in the toolbar now; carry it through so
-                    applying a filter here doesn't drop the current query. */}
-                <input type="hidden" name="search" value={search} />
-
-                <div className="flex flex-col gap-1">
-                  <label
-                    htmlFor="role"
-                    className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-                  >
-                    Role
-                  </label>
-                  <select
-                    id="role"
-                    name="role"
-                    defaultValue={roleFilter}
-                    className={selectClassName}
-                  >
-                    <option value="all">All people</option>
-                    {ROLE_OPTIONS.map((option) => (
-                      <option key={option.key} value={option.key}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <FilterSubmitButton />
-                  {hasActiveFilters && (
-                    <Button
-                      variant="ghost"
-                      nativeButton={false}
-                      render={<Link href={segment.basePath} />}
-                    >
-                      <LinkPendingPulse>Clear</LinkPendingPulse>
-                    </Button>
-                  )}
-                </div>
-              </form>
-            </FiltersSheet>
-          )}
-
-          {/* Only on the full directory: the role segments (Donors, Sponsors,
-              ...) are filtered views, and a duplicate pair can straddle two of
-              them, so the queue belongs on the one page that lists everybody. */}
-          {canManage && segment.showRoleFilter && (
+          {/* Only on the full list: a duplicate pair can straddle two
+              segments, so the queue belongs on the one page holding both
+              halves of it. */}
+          {canManage && segment.isAllPeople && (
             <Button
               variant="outline"
               nativeButton={false}
               render={<Link href="/portal/people/duplicates" />}
             >
-              Find duplicates
+              <LinkPendingPulse>Find duplicates</LinkPendingPulse>
             </Button>
           )}
 
@@ -302,21 +230,13 @@ export async function PeopleDirectory({
           )}
         </div>
 
-        {segment.showRoleFilter && (
-          <ActiveFilters
-            action={segment.basePath}
-            filters={appliedFilters}
-            params={{ search, role: roleFilter }}
-          />
-        )}
-
         <Card>
           <CardContent className="px-0">
             {peopleRows.length === 0 ? (
               <EmptyState
                 title={
                   hasActiveFilters
-                    ? `No ${segment.noun}s match your filters`
+                    ? `No ${segment.nounPlural} match your filters`
                     : segment.emptyTitle
                 }
                 description={
@@ -374,7 +294,7 @@ export async function PeopleDirectory({
                         </Link>
                       </TableCell>
                       <TableCell className="app-muted">
-                        {rolesFor(person).join(", ") || "—"}
+                        {rolesFor(person, vocabulary).join(", ") || "—"}
                       </TableCell>
                       <TableCell hideBelow="md" className="app-muted">
                         {person.email ?? "—"}

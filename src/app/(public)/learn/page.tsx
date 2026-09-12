@@ -6,9 +6,9 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { LEARN_CATEGORIES } from "./learn-data";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getPublicArticleCategories } from "@/lib/public-articles";
 import { getPublicSite, publicTitle } from "@/lib/public-site";
 import { isPageVisible } from "@/lib/page-visibility";
 
@@ -19,9 +19,10 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function LearnPage() {
   const supabase = await createSupabaseServerClient();
-  const [{ content }, sizingVisible] = await Promise.all([
+  const [{ content }, sizingVisible, categories] = await Promise.all([
     getPublicSite(supabase),
     isPageVisible("gears-sizing"),
+    getPublicArticleCategories(supabase),
   ]);
   return (
     <div>
@@ -38,7 +39,7 @@ export default async function LearnPage() {
             with the words unlinked rather than a dangling clause. */}
         {sizingVisible ? (
           <Link
-            href="/gears/sizing"
+            href="/inventory/sizing"
             className="underline underline-offset-4 hover:text-foreground"
           >
             sizing guide
@@ -49,18 +50,27 @@ export default async function LearnPage() {
         .
       </p>
 
-      <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {LEARN_CATEGORIES.map((category) => (
-          <Link key={category.slug} href={`/learn/${category.slug}`}>
-            <Card className="h-full transition-colors hover:bg-muted/50">
-              <CardHeader>
-                <CardTitle>{category.title}</CardTitle>
-                <CardDescription>{category.description}</CardDescription>
-              </CardHeader>
-            </Card>
-          </Link>
-        ))}
-      </div>
+      {categories.length > 0 ? (
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {categories.map((category) => (
+            <Link key={category.slug} href={`/learn/${category.slug}`}>
+              <Card className="h-full transition-colors hover:bg-muted/50">
+                <CardHeader>
+                  <CardTitle>{category.title}</CardTitle>
+                  <CardDescription>{category.description}</CardDescription>
+                </CardHeader>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        /* An organization that has published no articles gets an empty section
+           rather than somebody else's guides, which is the whole point of
+           #894. Said out loud rather than rendered as a blank gap. */
+        <p className="app-muted mt-10 text-sm italic">
+          There are no guides here yet.
+        </p>
+      )}
     </div>
   );
 }

@@ -33,6 +33,10 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import {
+  useControlledOpen,
+  type ControlledOpenProps,
+} from "@/components/portal/use-controlled-open";
 
 const VISIBILITIES = [
   { value: "private", label: "Private" },
@@ -62,12 +66,15 @@ function getInitialFormState() {
 export function NewEventDialog({
   programs,
   triggerLabel = "New Event",
+  open: controlledOpen,
+  onOpenChange,
+  withTrigger = true,
 }: {
   programs?: Program[];
   triggerLabel?: string;
-}) {
+} & ControlledOpenProps) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useControlledOpen(controlledOpen, onOpenChange);
   // Callers that already query programs server-side pass them in; the sidebar
   // quick action has no such query, so fall back to loading them on open
   // rather than leaving the picker stuck on "No program".
@@ -140,11 +147,15 @@ export function NewEventDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
-      >
-        {triggerLabel}
-      </DialogTrigger>
+      {withTrigger ? (
+        <DialogTrigger
+          render={
+            <Button type="button" className="shrink-0 whitespace-nowrap" />
+          }
+        >
+          {triggerLabel}
+        </DialogTrigger>
+      ) : null}
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Create event</DialogTitle>

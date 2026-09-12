@@ -13,7 +13,7 @@ import {
 } from "./actions";
 
 export const metadata: Metadata = {
-  title: "Administration",
+  title: "Users",
 };
 
 export default async function UsersPage() {

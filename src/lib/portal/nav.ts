@@ -3,6 +3,8 @@ import {
   type PermissionCheck,
   type PermissionMap,
 } from "@/lib/auth/permissions";
+import { applyLexicon, type Lexicon } from "@/lib/lexicon";
+import { DEFAULT_VOCABULARY } from "@/lib/person-roles";
 
 /**
  * The portal's navigation tree, shared by the sidebar (which renders it) and
@@ -17,10 +19,29 @@ import {
  */
 export type NavSubItem = {
   value: string;
+  /**
+   * May carry `{term}` placeholders from the lexicon registry in
+   * `src/lib/lexicon.ts` (#896). Whatever renders a label resolves it against
+   * the current tenant's words -- `useLexicon()` in the portal shell -- so
+   * nothing should print this raw.
+   */
   label: string;
   href: string;
   /** Any one of these is enough, the way `hasAnyPermission` reads them. */
   access: readonly PermissionCheck[];
+  /**
+   * Optional heading this sub-item files under, for sections whose list has
+   * grown past scanning (#942). A lexicon template like `label`.
+   *
+   * Grouping is derived rather than declared: `navGroups` walks the list
+   * once and starts a new group whenever this value changes, so sub-items
+   * sharing a group must be adjacent -- `nav.test.ts` asserts it. That keeps
+   * one ordered array as the source of truth, so `visibleNavItems`,
+   * `activeSubItemFor` and `firstAccessibleHref` need no knowledge of groups,
+   * and a group whose every item is filtered out disappears on its own rather
+   * than leaving a heading over nothing.
+   */
+  group?: string;
   /**
    * An extra condition that must hold *as well as* `access`, for a cross-link
    * whose route guard is not the section it is filed under (#903).
@@ -38,14 +59,38 @@ export type NavSubItem = {
 
 export type NavItem = {
   value: string;
+  /** A lexicon template, like `NavSubItem.label`. */
   label: string;
   href: string;
   basePath?: string;
   /** Omit for items always visible regardless of permissions (e.g. Dashboard). */
   access?: readonly PermissionCheck[];
+  /**
+   * Optional heading this section files under (#954). Same contract as
+   * `NavSubItem.group`, read by the same `navGroups` helper: sections sharing
+   * a group must be adjacent, and a group whose every section is filtered out
+   * disappears rather than leaving a heading over nothing.
+   *
+   * Dashboard deliberately carries none -- it is the landing page rather than
+   * one of the subject areas, and sits above the first heading.
+   */
+  group?: string;
   subItems?: readonly NavSubItem[];
 };
 
+// Grouped and reordered (#954). Twelve sections sat in one ungrouped column
+// ordered neither alphabetically, nor by frequency, nor by the module
+// catalog's own sort_order -- so a section's position carried no meaning, and
+// a plain link (Messages) looked exactly like a ten-page subsystem
+// (Governance). The four headings are the first deliberate order the sidebar
+// has had.
+//
+// This also absorbs the cost of #943, #944 and #945: the three sections they
+// promote out of Administration land inside "Organization" rather than
+// extending a flat list, so the sidebar stays four headings wide.
+//
+// Dashboard is deliberately ungrouped, above the first heading: it is the
+// landing page, not one of the subject areas.
 export const NAV_ITEMS: readonly NavItem[] = [
   {
     value: "overview",
@@ -55,35 +100,14 @@ export const NAV_ITEMS: readonly NavItem[] = [
   {
     value: "events",
     label: "Events",
+    group: "Delivery",
     href: "/portal/events",
     access: [{ resource: "events", level: "view" }],
   },
   {
-    value: "artwork",
-    label: "Artwork",
-    href: "/portal/artwork",
-    basePath: "/portal/artwork",
-    // Its own section rather than a child of Events (#870): the queue is
-    // gated on artwork_submissions alone, so a curator who holds nothing else
-    // can still reach it.
-    subItems: [
-      {
-        value: "submissions",
-        label: "Submissions",
-        href: "/portal/artwork",
-        access: [{ resource: "artwork_submissions", level: "view" }],
-      },
-      {
-        value: "calls",
-        label: "Calls",
-        href: "/portal/artwork/calls",
-        access: [{ resource: "artwork_submissions", level: "manage" }],
-      },
-    ],
-  },
-  {
     value: "calendar",
     label: "Calendar",
+    group: "Delivery",
     href: "/portal/calendar",
     basePath: "/portal/calendar",
     subItems: [
@@ -138,6 +162,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   {
     value: "programs",
     label: "Programs",
+    group: "Delivery",
     href: "/portal/programs",
     basePath: "/portal/programs",
     subItems: [
@@ -156,52 +181,51 @@ export const NAV_ITEMS: readonly NavItem[] = [
     ],
   },
   {
-    value: "inventory",
-    label: "Inventory",
-    href: "/portal/inventory/items",
-    basePath: "/portal/inventory",
+    value: "artwork",
+    label: "Artwork",
+    group: "Delivery",
+    href: "/portal/artwork",
+    basePath: "/portal/artwork",
+    // Its own section rather than a child of Events (#870): the queue is
+    // gated on artwork_submissions alone, so a curator who holds nothing else
+    // can still reach it.
     subItems: [
       {
-        value: "items",
-        label: "Items",
-        href: "/portal/inventory/items",
-        access: [{ resource: "inventory", level: "view" }],
+        value: "submissions",
+        label: "Submissions",
+        href: "/portal/artwork",
+        access: [{ resource: "artwork_submissions", level: "view" }],
       },
       {
-        value: "donations",
-        label: "Donations",
-        href: "/portal/inventory/donations",
-        access: [
-          { resource: "inventory", level: "view" },
-          { resource: "inventory_intake", level: "manage" },
-        ],
-      },
-      {
-        value: "distribution",
-        label: "Distribution",
-        href: "/portal/inventory/distribution",
-        access: [
-          { resource: "inventory", level: "view" },
-          { resource: "inventory_intake", level: "manage" },
-        ],
-      },
-      {
-        value: "categories",
-        label: "Item Categories",
-        href: "/portal/inventory/categories",
-        access: [{ resource: "inventory", level: "view" }],
-      },
-      {
-        value: "reports",
-        label: "Inventory Reports",
-        href: "/portal/inventory/reports",
-        access: [{ resource: "inventory_reports", level: "view" }],
+        value: "calls",
+        label: "Calls",
+        href: "/portal/artwork/calls",
+        access: [{ resource: "artwork_submissions", level: "manage" }],
       },
     ],
   },
   {
+    // One entry, eight segments (#957). Donors, Sponsors, Attendees, Staff,
+    // Partners and Organizations were sub-items here pointing at six
+    // top-level routes outside People's own path -- #622 consolidated the
+    // sidebar and left the routes behind, leaving the only section in the
+    // portal with more navigation than content. They are one directory seen
+    // through eight filters, so they are segments of /portal/people and the
+    // strip on that page is where a reader picks one.
+    value: "people",
+    label: "People",
+    group: "People",
+    href: "/portal/people",
+    basePath: "/portal/people",
+    // On the section itself now that it has no sub-items to inherit the gate
+    // from: visibleNavItems keeps an access-less section unconditionally,
+    // which is right for Dashboard and wrong for this.
+    access: [{ resource: "people", level: "view" }],
+  },
+  {
     value: "volunteers",
     label: "Volunteers",
+    group: "People",
     href: "/portal/volunteers/roles",
     basePath: "/portal/volunteers",
     subItems: [
@@ -244,29 +268,130 @@ export const NAV_ITEMS: readonly NavItem[] = [
   {
     value: "messages",
     label: "Messages",
+    group: "People",
     href: "/portal/communications",
     access: [{ resource: "communications", level: "view" }],
   },
   {
+    // The one section named in the tenant's own words rather than the
+    // platform's (#896): Chatter Snow runs a gear library, and a nonprofit
+    // lending tools or distributing food reads the same tables. `inventory`
+    // here is the section value and the permission resource -- both internal,
+    // neither renamed.
+    value: "inventory",
+    label: "{collection}",
+    group: "Resources",
+    href: "/portal/inventory/items",
+    basePath: "/portal/inventory",
+    subItems: [
+      {
+        value: "items",
+        label: "{item_plural}",
+        href: "/portal/inventory/items",
+        access: [{ resource: "inventory", level: "view" }],
+      },
+      {
+        value: "donations",
+        label: "Donations",
+        href: "/portal/inventory/donations",
+        access: [
+          { resource: "inventory", level: "view" },
+          { resource: "inventory_intake", level: "manage" },
+        ],
+      },
+      {
+        value: "distribution",
+        label: "Distribution",
+        href: "/portal/inventory/distribution",
+        access: [
+          { resource: "inventory", level: "view" },
+          { resource: "inventory_intake", level: "manage" },
+        ],
+      },
+      {
+        value: "categories",
+        // `{collection} Categories`, not `{item} Categories`: a tenant whose
+        // singular is "Gear item" would read "Gear item Categories".
+        label: "{collection} Categories",
+        href: "/portal/inventory/categories",
+        access: [{ resource: "inventory", level: "view" }],
+      },
+      {
+        value: "reports",
+        label: "{collection} Reports",
+        href: "/portal/inventory/reports",
+        access: [{ resource: "inventory_reports", level: "view" }],
+      },
+    ],
+  },
+  {
     value: "finance",
     label: "Finance",
+    group: "Resources",
     href: "/portal/finance/expenses",
     basePath: "/portal/finance",
+    // Grouped and reordered (#988). Finance's problem was never the item
+    // count: Sales, Sales Register and Products took three of the eight slots
+    // -- 37% of the section -- for one subject, rendered as three peers even
+    // though the routes say parent and children (finance/sales,
+    // finance/sales/register, finance/sales/products). The sidebar gave no
+    // hint that Register and Products belong to Sales rather than to Finance.
+    //
+    // They are not three views of one object, so they are not tabs: the
+    // register is a till, Products is a catalog, Sales is a ledger of what the
+    // till recorded. Under docs/portal-navigation.md they are different jobs
+    // and stay separate destinations -- they just needed to sit under Sales
+    // rather than beside it. `NavItem` has no third level and inventing one
+    // would be an eighth navigation pattern, so the group heading does the
+    // work the nesting would.
+    //
+    // Reimbursements stays here (#951) even though the entitlement catalog
+    // makes it a peer module of `finance`, the same shape #943 promoted
+    // Access Management out of Administration for. The answer differs because
+    // the sections do: Administration was a misc drawer with a six-resource
+    // union gate, while Finance is one job with one audience, and a
+    // reimbursement is money out under the same approval thresholds.
+    //
+    // The section's href stays /portal/finance/expenses, so reordering moves
+    // nobody's landing page: visibleNavItems keeps item.href whenever a
+    // reachable sub-item still has it.
     subItems: [
+      {
+        // Donations is one of two pages by that name -- inventory/donations is
+        // the other (#949 gave them distinct titles, #948 breadcrumbs). This
+        // heading is the last piece: the sidebar now says which is which.
+        value: "donations",
+        label: "Donations",
+        href: "/portal/finance/donations",
+        group: "Money in",
+        access: [{ resource: "finance", level: "manage" }],
+      },
+      {
+        value: "revenue",
+        label: "Revenue",
+        href: "/portal/finance/revenue",
+        group: "Money in",
+        access: [{ resource: "finance", level: "manage" }],
+      },
       {
         value: "expenses",
         label: "Expenses",
         href: "/portal/finance/expenses",
+        group: "Money out",
         access: [
           { resource: "finance", level: "manage" },
           { resource: "finance_approvals", level: "manage" },
         ],
       },
       {
-        value: "revenue",
-        label: "Revenue",
-        href: "/portal/finance/revenue",
-        access: [{ resource: "finance", level: "manage" }],
+        value: "reimbursements",
+        label: "Reimbursements",
+        href: "/portal/finance/reimbursements",
+        group: "Money out",
+        access: [
+          { resource: "reimbursements", level: "manage" },
+          { resource: "reimbursement_approvals", level: "manage" },
+        ],
       },
       // Sales before Register before Products: the ledger is the section's
       // read-only landing place and the only one a `sales:view` holder can
@@ -276,35 +401,27 @@ export const NAV_ITEMS: readonly NavItem[] = [
         value: "sales",
         label: "Sales",
         href: "/portal/finance/sales",
+        group: "Sales",
         access: [{ resource: "sales", level: "view" }],
       },
       {
         value: "register",
         label: "Sales Register",
         href: "/portal/finance/sales/register",
+        group: "Sales",
         access: [{ resource: "sales", level: "manage" }],
       },
       {
         value: "products",
         label: "Products",
         href: "/portal/finance/sales/products",
+        group: "Sales",
         access: [{ resource: "sales", level: "manage" }],
       },
-      {
-        value: "donations",
-        label: "Donations",
-        href: "/portal/finance/donations",
-        access: [{ resource: "finance", level: "manage" }],
-      },
-      {
-        value: "reimbursements",
-        label: "Reimbursements",
-        href: "/portal/finance/reimbursements",
-        access: [
-          { resource: "reimbursements", level: "manage" },
-          { resource: "reimbursement_approvals", level: "manage" },
-        ],
-      },
+      // Deliberately ungrouped, and last. It is the one entry with a different
+      // audience -- `board` holds finance_reports:view and reaches nothing
+      // else in the section -- and a heading over a single item says less than
+      // its absence does.
       {
         value: "reports",
         label: "Financial Reports",
@@ -313,126 +430,247 @@ export const NAV_ITEMS: readonly NavItem[] = [
       },
     ],
   },
+  // Promoted out of Administration (#943). `access_management` is a peer
+  // module in the entitlement catalog, not part of Administration: a tenant
+  // can be sold it without Administration, yet the only way in was through
+  // Administration's disclosure, and the section gate had to be widened to
+  // admit it (#903).
+  //
+  // Named "Technology" rather than "Access Management": the old label read as
+  // RBAC while the section is a registry of vendor accounts, domains and MFA
+  // status -- and it sat two rows from Roles and Permissions, which are the
+  // actual access control.
+  // Promoted out of Administration (#944). Site Content is a website CMS
+  // filed as an administration setting: 15 pages, 35 sections and 121 content
+  // slots, plus the Learn articles and a draft -> publish workflow, with its
+  // own page switcher, cross-page search and outline. Three levels of
+  // navigation inside one sub-item.
+  //
+  // It was also the only Administration entry whose gate admitted a reader
+  // holding nothing else. The job is writing the public website and the
+  // audience is comms, not admins.
+  // Promoted out of Administration (#945). Platform is the console for
+  // administering *every* organization on the platform -- provisioning
+  // tenants, custom domains, module entitlements -- and it sat as the seventh
+  // bullet under a single tenant's own Administration disclosure. Those are
+  // two different product levels one triangle apart.
+  //
+  // Unlike #943 this is not a module argument: `platform_tenants` maps to the
+  // `administration` module. It needs no nav logic of its own to stay hidden
+  // either -- my_permissions() reports the resource as `none` unless
+  // is_platform_operator() holds, which carries the internal-plan and
+  // membership-kind conditions too, so visibleNavItems drops the section for
+  // everyone else. It did until #795, when the resource was granted to every
+  // tenant's `admin` role as an inert grant and the nav dutifully showed a
+  // link to a page that then refused to load.
   {
-    value: "people",
-    label: "People",
-    href: "/portal/people",
-    basePath: "/portal/people",
+    value: "platform",
+    label: "Platform",
+    group: "Organization",
+    href: "/portal/platform",
+    basePath: "/portal/platform",
+    access: [{ resource: "platform_tenants", level: "manage" }],
+  },
+  {
+    value: "website",
+    label: "Website",
+    group: "Organization",
+    href: "/portal/website",
+    basePath: "/portal/website",
     subItems: [
       {
-        value: "directory",
-        label: "People",
-        href: "/portal/people",
-        access: [{ resource: "people", level: "view" }],
+        value: "pages",
+        label: "Pages",
+        href: "/portal/website",
+        group: "Content",
+        access: [{ resource: "site_content", level: "view" }],
+      },
+      // Both of these were reachable only from a link inside their parent --
+      // two of the four routes the IA audit found outside every navigation
+      // surface.
+      {
+        value: "articles",
+        label: "Articles",
+        href: "/portal/website/articles",
+        group: "Content",
+        access: [{ resource: "site_content", level: "view" }],
+      },
+      // Operator-only, and it takes both checks to say so. `access` is the
+      // section's own gate, which website/layout.tsx actually enforces;
+      // `alsoRequires` is the extra condition the page enforces itself, since
+      // it notFound()s without `platform_tenants:manage`.
+      //
+      // Gating on platform_tenants alone would have the nav offering a link
+      // the layout above it refuses -- the shape #903 fixed, and the one
+      // nav-guards.test.ts exists to catch.
+      {
+        value: "content-packs",
+        label: "Content Packs",
+        href: "/portal/website/articles/packs",
+        group: "Content",
+        access: [{ resource: "site_content", level: "view" }],
+        alsoRequires: [{ resource: "platform_tenants", level: "manage" }],
+      },
+      // The three settings panels #990 moved out of System Settings, grouped
+      // because they are a different job from writing the copy above -- and
+      // because they are what a different reader comes here for. `board` holds
+      // system_settings:manage and no site_content at all, so this group is
+      // the whole of the Website section as they see it, with no "Content"
+      // heading over anything (navGroups drops a heading whose every item is
+      // filtered out).
+      //
+      // system_settings:manage rather than site_content:view: that is the
+      // resource `writeAppSetting` checks, and a link shown to a reader whose
+      // every save would fail is the dead end nav-guards.test.ts exists to
+      // catch. The section gate above is a union of the two so that both
+      // audiences get in.
+      {
+        value: "page-layout",
+        label: "Layout",
+        href: "/portal/website/page-layout",
+        group: "Site settings",
+        access: [{ resource: "system_settings", level: "manage" }],
       },
       {
-        value: "donors",
-        label: "Donors",
-        href: "/portal/donors",
-        access: [{ resource: "people", level: "view" }],
+        value: "page-visibility",
+        label: "Page visibility",
+        href: "/portal/website/page-visibility",
+        group: "Site settings",
+        access: [{ resource: "system_settings", level: "manage" }],
       },
       {
-        value: "sponsors",
-        label: "Sponsors",
-        href: "/portal/sponsors",
-        access: [{ resource: "people", level: "view" }],
+        value: "legal-documents",
+        label: "Legal documents",
+        href: "/portal/website/legal-documents",
+        group: "Site settings",
+        access: [{ resource: "system_settings", level: "manage" }],
       },
+    ],
+  },
+  {
+    value: "technology",
+    label: "Technology",
+    group: "Organization",
+    href: "/portal/technology",
+    basePath: "/portal/technology",
+    subItems: [
       {
-        value: "volunteers",
-        label: "Volunteers",
-        href: "/portal/people/volunteers",
-        access: [{ resource: "people", level: "view" }],
+        value: "assets",
+        label: "Assets",
+        href: "/portal/technology",
+        access: [
+          { resource: "administration", level: "manage" },
+          { resource: "access_management_assets", level: "view" },
+          { resource: "access_management_reviews", level: "view" },
+        ],
       },
+      // Was reachable only from a link inside the assets page -- one of the
+      // four routes the IA audit found outside every navigation surface.
       {
-        value: "attendees",
-        label: "Attendees",
-        href: "/portal/attendees",
-        access: [{ resource: "people", level: "view" }],
-      },
-      {
-        value: "staff",
-        label: "Staff",
-        href: "/portal/staff",
-        access: [{ resource: "people", level: "view" }],
-      },
-      {
-        value: "partners",
-        label: "Partners",
-        href: "/portal/partners",
-        access: [{ resource: "people", level: "view" }],
-      },
-      {
-        value: "organizations",
-        label: "Organizations",
-        href: "/portal/organizations",
-        access: [{ resource: "people", level: "view" }],
+        value: "services",
+        label: "Services",
+        href: "/portal/technology/services",
+        access: [
+          { resource: "administration", level: "manage" },
+          { resource: "access_management_assets", level: "view" },
+          { resource: "access_management_reviews", level: "view" },
+        ],
       },
     ],
   },
   {
     value: "governance",
     label: "Governance",
+    group: "Organization",
     href: "/portal/governance/board-members",
     basePath: "/portal/governance",
+    // Grouped and reordered (#987). Ten entries, all gated on
+    // governance:manage, presented flat in an order that was neither
+    // alphabetical nor thematic: Resolutions sat eighth, four places from
+    // Meetings, which is where resolutions are made. Nothing here is misfiled
+    // the way Access Management and Site Content were under Administration
+    // (#943, #944) -- every one of the ten is something a board does, gated on
+    // the resource named after the section, living under its path. The list
+    // was simply ten items long, so this is three headings and one move.
+    //
+    // Partnerships and Grants stay (#951): both are pipelines -- prospect,
+    // stages, close -- not ledgers, and `board` holds governance:manage with
+    // finance: none, so filing them under Finance would take both away from
+    // the readers who use them. The finance module's description claiming
+    // "grants" is the thing that is wrong.
     subItems: [
       {
         value: "board-members",
         label: "Board Members",
         href: "/portal/governance/board-members",
+        group: "Board proceedings",
         access: [{ resource: "governance", level: "manage" }],
       },
       {
         value: "meetings",
         label: "Meetings",
         href: "/portal/governance/meetings",
+        group: "Board proceedings",
         access: [{ resource: "governance", level: "manage" }],
       },
+      {
+        // Moved up from eighth to sit beside Meetings, which is where a
+        // resolution is made.
+        value: "resolutions",
+        label: "Resolutions",
+        href: "/portal/governance/resolutions",
+        group: "Board proceedings",
+        access: [{ resource: "governance", level: "manage" }],
+      },
+      // Five items, the largest group, and the one a reader scans least often
+      // -- the right place for the long tail.
       {
         value: "bylaws",
         label: "Bylaws",
         href: "/portal/governance/bylaws",
+        group: "Standing obligations",
         access: [{ resource: "governance", level: "manage" }],
       },
       {
         value: "policies",
         label: "Policies",
         href: "/portal/governance/policies",
+        group: "Standing obligations",
         access: [{ resource: "governance", level: "manage" }],
       },
       {
         value: "conflict-of-interest",
         label: "Conflict of Interest",
         href: "/portal/governance/conflict-of-interest",
+        group: "Standing obligations",
         access: [{ resource: "governance", level: "manage" }],
       },
       {
         value: "annual-requirements",
         label: "Annual Requirements",
         href: "/portal/governance/annual-requirements",
+        group: "Standing obligations",
         access: [{ resource: "governance", level: "manage" }],
       },
       {
         value: "nonprofit-status",
         label: "Nonprofit Status",
         href: "/portal/governance/nonprofit-status",
-        access: [{ resource: "governance", level: "manage" }],
-      },
-      {
-        value: "resolutions",
-        label: "Resolutions",
-        href: "/portal/governance/resolutions",
+        group: "Standing obligations",
         access: [{ resource: "governance", level: "manage" }],
       },
       {
         value: "partnerships",
         label: "Partnerships",
         href: "/portal/governance/partnerships",
+        group: "External relationships",
         access: [{ resource: "governance", level: "manage" }],
       },
       {
         value: "grants",
         label: "Grants",
         href: "/portal/governance/grants",
+        group: "External relationships",
         access: [{ resource: "governance", level: "manage" }],
       },
     ],
@@ -440,69 +678,58 @@ export const NAV_ITEMS: readonly NavItem[] = [
   {
     value: "administration",
     label: "Administration",
+    group: "Organization",
     href: "/portal/administration/users",
     basePath: "/portal/administration",
+    // Grouped and reordered (#942). Nine flat entries spanned identity, org
+    // configuration, website copy, an IT asset registry, cross-tenant operator
+    // tooling and compliance -- six jobs with no heading to tell them apart.
+    // The order also split the one job it had: Access Management sat between
+    // Roles and Permissions, which are two halves of defining a role.
+    //
+    // Three of these are proposed to leave the section entirely (#943, #944,
+    // #945). The groups are chosen so that when they do, what remains is
+    // already correct: "Technology & platform" empties, Site Content leaves
+    // Organization, and the other two groups are untouched.
     subItems: [
       {
         value: "users",
         label: "Users",
         href: "/portal/administration/users",
+        group: "Access & identity",
         access: [{ resource: "administration", level: "manage" }],
       },
       {
+        // Permissions was a third entry here until #946 folded it in as a tab:
+        // a role's name and a role's access are one object, and Access
+        // Management sitting between the two entries made that unguessable.
         value: "roles",
         label: "Roles",
         href: "/portal/administration/roles",
+        group: "Access & identity",
         access: [{ resource: "administration", level: "manage" }],
       },
       {
-        value: "access-management",
-        label: "Access Management",
-        href: "/portal/administration/access-management",
-        access: [
-          { resource: "administration", level: "manage" },
-          { resource: "access_management_assets", level: "view" },
-          { resource: "access_management_reviews", level: "view" },
-        ],
-      },
-      {
-        value: "permissions",
-        label: "Permissions",
-        href: "/portal/administration/permissions",
-        access: [{ resource: "administration", level: "manage" }],
-      },
-      {
-        value: "system-settings",
-        label: "System Settings",
-        href: "/portal/administration/system-settings",
+        // Renamed from System Settings by #992: nothing on the page was about
+        // "the system", and once #990 took Layout, Page visibility and Legal
+        // documents to Website, the five that remain are all org-wide
+        // defaults and identity. The resource key stays `system_settings` --
+        // it is an identifier in role_permissions rows in every environment,
+        // not a label.
+        value: "organization-settings",
+        label: "Organization Settings",
+        href: "/portal/administration/organization-settings",
+        group: "Organization",
         access: [
           { resource: "administration", level: "manage" },
           { resource: "system_settings", level: "manage" },
         ],
       },
       {
-        value: "site-content",
-        label: "Site Content",
-        href: "/portal/administration/site-content",
-        access: [{ resource: "site_content", level: "view" }],
-      },
-      // Gated on its own resource, which the platform RPCs only honour inside
-      // a tenant on the internal plan (#707 Phase 5c). The plan half of that
-      // gate is enforced in my_permissions(), which reports `platform_tenants`
-      // as `none` unless is_platform_operator() holds -- so this needs no nav
-      // logic of its own to stay hidden. It did until #795: the resource was
-      // granted to every tenant's `admin` role as an inert grant, and the nav
-      // dutifully showed a link to a page that then refused to load.
-      {
-        value: "platform",
-        label: "Platform",
-        href: "/portal/administration/platform",
-        access: [{ resource: "platform_tenants", level: "manage" }],
-      },
-      {
         value: "audit-log",
         label: "Audit Log",
         href: "/portal/administration/audit-log",
+        group: "Oversight",
         access: [{ resource: "administration", level: "manage" }],
       },
       // administration:manage rather than a resource of its own: the audience is
@@ -513,6 +740,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
         value: "data-retention",
         label: "Data Retention",
         href: "/portal/administration/data-retention",
+        group: "Oversight",
         access: [{ resource: "administration", level: "manage" }],
       },
     ],
@@ -537,9 +765,10 @@ export function activeSectionFor(pathname: string): string | undefined {
       return item.value;
     }
   }
-  // People's other segments live at their own top-level routes (/portal/donors
-  // and friends) rather than under /portal/people, so a basePath prefix alone
-  // would leave the sidebar highlighting nothing while the user is on one.
+  // A section can still cross-link to a page another section owns -- the
+  // volunteer directory is listed under Volunteers as well as living under
+  // People -- so a sub-item match is the fallback when no basePath claims the
+  // path outright.
   for (const item of NAV_ITEMS) {
     if (
       item.subItems?.some(
@@ -566,12 +795,47 @@ export function activeSubItemFor(
   return best?.value;
 }
 
+export type NavGroup<T> = {
+  /** Undefined for entries filed under no group. */
+  label?: string;
+  items: T[];
+};
+
+/**
+ * Nav entries split into the groups the sidebar renders, in order. Generic
+ * because both levels group the same way: sections at the top level (#954)
+ * and a section's sub-items below it (#942).
+ *
+ * Runs are contiguous by construction: a new group starts wherever `group`
+ * changes, so an ungrouped list comes back as one unlabelled group and
+ * nothing has to special-case it. Callers pass the *already filtered* list
+ * from `visibleNavItems`, which is what makes an empty group impossible --
+ * a heading only exists if at least one item under it survived.
+ */
+export function navGroups<T extends { group?: string }>(
+  items: readonly T[],
+): NavGroup<T>[] {
+  const groups: NavGroup<T>[] = [];
+  for (const item of items) {
+    const last = groups[groups.length - 1];
+    if (last && last.label === item.group) {
+      last.items.push(item);
+    } else {
+      groups.push({ label: item.group, items: [item] });
+    }
+  }
+  return groups;
+}
+
 /**
  * The nav tree reduced to what `permissions` can actually reach: sections with
  * no reachable sub-item are dropped, unreachable sub-items are removed, and a
  * section's href is rewritten to its first reachable sub-item.
  */
-export function visibleNavItems(permissions: PermissionMap): NavItem[] {
+export function visibleNavItems(
+  permissions: PermissionMap,
+  lexicon: Lexicon = DEFAULT_VOCABULARY,
+): NavItem[] {
   const reachable = (sub: NavSubItem) =>
     hasAnyPermission(permissions, sub.access) &&
     (!sub.alsoRequires || hasAnyPermission(permissions, sub.alsoRequires));
@@ -590,7 +854,22 @@ export function visibleNavItems(permissions: PermissionMap): NavItem[] {
     return {
       ...item,
       href,
-      subItems: subItems && subItems.length > 0 ? subItems : undefined,
+      // Resolved here rather than at each renderer: the sidebar, the command
+      // palette and the section index routes all come through this function,
+      // and a template that escaped one of them would print braces (#896).
+      label: applyLexicon(item.label, lexicon),
+      ...(item.group ? { group: applyLexicon(item.group, lexicon) } : {}),
+      subItems:
+        subItems && subItems.length > 0
+          ? subItems.map((sub) => ({
+              ...sub,
+              label: applyLexicon(sub.label, lexicon),
+              // Group headings are user-facing copy like any other label, so
+              // a tenant that renames `{collection}` sees its own word in the
+              // heading too rather than braces.
+              ...(sub.group ? { group: applyLexicon(sub.group, lexicon) } : {}),
+            }))
+          : undefined,
     };
   });
 }

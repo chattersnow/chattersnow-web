@@ -29,7 +29,7 @@ import {
   PortalDataTable,
   type PortalDataTableColumn,
 } from "@/components/portal/data-table";
-import { formatRoleLabel } from "@/lib/format";
+import { formatRoleLabel, roleDisplayName, roleLabelMap } from "@/lib/format";
 import {
   assignRoleAction,
   deactivateUserAction,
@@ -63,6 +63,12 @@ export function UsersTable({
   availableRoles: PortalRoleOption[];
 }) {
   const router = useRouter();
+  // list_portal_users() returns role *names*, so the tenant's own wording for
+  // each has to come from the role list the page already queried (#910).
+  const roleLabels = useMemo(
+    () => roleLabelMap(availableRoles),
+    [availableRoles],
+  );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [addingFor, setAddingFor] = useState<string | null>(null);
@@ -113,7 +119,7 @@ export function UsersTable({
     setRevokeTarget(null);
     submit(
       () => revokeRoleAction(target.user.user_id, target.role),
-      `${formatRoleLabel(target.role)} removed from ${portalUserDisplayName(target.user)}.`,
+      `${formatRoleLabel(target.role, roleLabels)} removed from ${portalUserDisplayName(target.user)}.`,
     );
   }
 
@@ -220,7 +226,7 @@ export function UsersTable({
                       variant="secondary"
                       className="gap-1 pr-1"
                     >
-                      {formatRoleLabel(role)}
+                      {formatRoleLabel(role, roleLabels)}
                       <button
                         type="button"
                         disabled={isPending || lockedSelfAdmin}
@@ -236,7 +242,7 @@ export function UsersTable({
                       >
                         <X className="size-3.5" />
                         <span className="sr-only">
-                          Remove {formatRoleLabel(role)}
+                          Remove {formatRoleLabel(role, roleLabels)}
                         </span>
                       </button>
                     </Badge>
@@ -278,7 +284,7 @@ export function UsersTable({
                 <SelectContent>
                   {assignableRoles.map((role) => (
                     <SelectItem key={role.id} value={role.name}>
-                      {formatRoleLabel(role.name)}
+                      {roleDisplayName(role)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -290,7 +296,7 @@ export function UsersTable({
                 onClick={() =>
                   submit(
                     () => assignRoleAction(portalUser.user_id, pendingRole),
-                    `${formatRoleLabel(pendingRole)} granted to ${portalUserDisplayName(portalUser)}.`,
+                    `${formatRoleLabel(pendingRole, roleLabels)} granted to ${portalUserDisplayName(portalUser)}.`,
                   )
                 }
               >
@@ -382,7 +388,15 @@ export function UsersTable({
         },
       },
     ],
-    [availableRoles, currentUserId, isPending, addingFor, pendingRole, submit],
+    [
+      availableRoles,
+      roleLabels,
+      currentUserId,
+      isPending,
+      addingFor,
+      pendingRole,
+      submit,
+    ],
   );
 
   if (users.length === 0) {
@@ -425,7 +439,7 @@ export function UsersTable({
           <AlertDialogHeader>
             <AlertDialogTitle>
               {revokeTarget
-                ? `Remove the ${formatRoleLabel(revokeTarget.role)} role?`
+                ? `Remove the ${formatRoleLabel(revokeTarget.role, roleLabels)} role?`
                 : "Remove role?"}
             </AlertDialogTitle>
             <AlertDialogDescription>

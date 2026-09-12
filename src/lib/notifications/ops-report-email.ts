@@ -22,7 +22,9 @@ export function renderOpsReport(
   siteUrl: string,
 ): RenderedEmail {
   const origin = siteUrl.replace(/\/+$/, "");
-  const settingsUrl = `${origin}/portal/administration/system-settings`;
+  // The tab, not just the page: the recipient list this email is asking
+  // about is one of eight panels, and #947 gave each one a URL.
+  const settingsUrl = `${origin}/portal/administration/organization-settings?tab=notifications`;
 
   return {
     subject: subjectFor(report),

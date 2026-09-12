@@ -10,8 +10,15 @@ import { cookies, headers } from "next/headers";
  * request headers to SQL, and `public_tenant_id()` (multi-tenancy Phase 3,
  * #707) resolves this one against `tenants.custom_domain`, so the public_*
  * views and the anon intake RPCs answer for the site that was actually
- * visited. Signed-in reads never consult it: they go through
- * `current_tenant_id()`, which is membership-checked.
+ * visited.
+ *
+ * Signed-in *data* still never comes from it: every policy predicate and
+ * `has_permission()` go through `current_tenant_id()`, which is
+ * membership-checked. Since #956 the portal shell does read the host's tenant
+ * -- to refuse a session on an organization's host that the account is not in,
+ * and to scope a multi-tenant account to the organization whose address it
+ * typed -- but it can only ever narrow to a tenant the account already holds a
+ * live membership in. Nothing here grants access.
  */
 export const TENANT_HOST_HEADER = "x-tenant-host";
 
@@ -28,8 +35,9 @@ export const TENANT_HOST_HEADER = "x-tenant-host";
  *
  * Server-only (no `NEXT_PUBLIC_`) and only ever compared against
  * `custom_domain`, so the worst a wrong value can do is serve the wrong
- * tenant's *public* pages -- exactly what visiting that tenant's site does.
- * Nothing session-scoped consults it.
+ * tenant's *public* pages -- exactly what visiting that tenant's site does --
+ * and, since #956, send a portal session to the "wrong organization" screen.
+ * It cannot widen anyone's access, only narrow it.
  */
 export function tenantHost(requestHost: string | null): string | null {
   const override = process.env.TENANT_HOST_OVERRIDE?.trim();

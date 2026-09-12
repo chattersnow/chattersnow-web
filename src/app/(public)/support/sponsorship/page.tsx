@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SiteImage } from "@/components/site-image";
+import { SponsorWall, type PublicSponsor } from "@/components/sponsor-wall";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSiteImageUrls } from "@/lib/site-images";
 import { isPageVisible } from "@/lib/page-visibility";
@@ -15,13 +16,23 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function SponsorshipPage() {
   const supabase = await createSupabaseServerClient();
-  const [siteImages, { content }, brandVisible] = await Promise.all([
-    getSiteImageUrls(supabase),
-    getPublicSite(supabase),
-    // /brand is hidden by default, so this link is gated the same way the
-    // homepage's Donate button is -- an in-page CTA into a hidden section 404s.
-    isPageVisible("brand"),
-  ]);
+  const [siteImages, { content }, brandVisible, { data: sponsors }] =
+    await Promise.all([
+      getSiteImageUrls(supabase),
+      getPublicSite(supabase),
+      // /brand is hidden by default, so this link is gated the same way the
+      // homepage's Donate button is -- an in-page CTA into a hidden section 404s.
+      isPageVisible("brand"),
+      // Derived from the sponsorships staff already mark public on an event
+      // (#914), so the wall keeps itself current as events age out. Ordered by
+      // name here rather than in the view, which orders only to pick one row
+      // per sponsor.
+      supabase
+        .from("public_sponsor_wall")
+        .select("sponsor_id, name, logo_url, website")
+        .order("name")
+        .returns<PublicSponsor[]>(),
+    ]);
   const imageAlt = content.text("org.image_alt");
 
   return (
@@ -56,6 +67,20 @@ export default async function SponsorshipPage() {
             </Card>
           ))}
       </section>
+
+      {sponsors && sponsors.length > 0 && (
+        <section>
+          <h2 className="brand-display text-2xl font-semibold tracking-[-0.02em]">
+            {content.text("support.sponsor_wall_heading")}
+          </h2>
+          <p className="app-muted mt-2 max-w-3xl text-sm leading-relaxed">
+            {content.text("support.sponsor_wall_intro")}
+          </p>
+          <div className="mt-6">
+            <SponsorWall sponsors={sponsors} />
+          </div>
+        </section>
+      )}
 
       <Button
         variant="rainbow"

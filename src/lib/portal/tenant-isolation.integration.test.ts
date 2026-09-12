@@ -96,6 +96,8 @@ const aPublic = {
   gearItemId: "",
   volunteerRoleTypeId: "",
   sponsorId: "",
+  sponsorPersonId: "",
+  publicProgramId: "",
   siteContentKey: `home.isolation_probe_${run}`,
 };
 // One `<prefix>.<token>` app_settings / site_content key per tenant, so the
@@ -243,7 +245,8 @@ beforeAll(async () => {
     await must(
       bAdmin
         .from("programs")
-        .insert({ name: `Isolation ${run}` })
+        // Public, so it is also B's marker row for `public_programs` (#898).
+        .insert({ name: `Isolation ${run}`, is_public: true })
         .select("id")
         .single(),
       "b program",
@@ -606,20 +609,34 @@ beforeAll(async () => {
       "a public event program",
     )
   ).program_id as string;
-  aPublic.sponsorId = (
+  aPublic.publicProgramId = (
     await must(
       service
-        .from("event_sponsors")
-        .select("id, events!inner(visibility, status)")
+        .from("programs")
+        .select("id")
         .eq("tenant_id", tenantA)
         .eq("is_public", true)
-        .eq("events.visibility", "public")
-        .eq("events.status", "published")
         .limit(1)
         .single(),
-      "a public event sponsor",
+      "a public program",
     )
   ).id as string;
+  const aPublicSponsor = await must(
+    service
+      .from("event_sponsors")
+      .select("id, person_id, events!inner(visibility, status)")
+      .eq("tenant_id", tenantA)
+      .eq("is_public", true)
+      .eq("events.visibility", "public")
+      .eq("events.status", "published")
+      .limit(1)
+      .single(),
+    "a public event sponsor",
+  );
+  aPublic.sponsorId = aPublicSponsor.id as string;
+  // public_sponsor_wall is keyed on the person rather than the sponsorship
+  // (#914), so the probe needs the other end of the same row.
+  aPublic.sponsorPersonId = aPublicSponsor.person_id as string;
   aPublic.gearItemId = (
     await must(
       service
@@ -1485,10 +1502,22 @@ describe("every anon-readable view follows the host", () => {
       inB: () => b.sponsorId,
     },
     {
+      view: "public_sponsor_wall",
+      column: "sponsor_id",
+      inA: () => aPublic.sponsorPersonId,
+      inB: () => b.personId,
+    },
+    {
       view: "public_gear_catalog",
       column: "id",
       inA: () => aPublic.gearItemId,
       inB: () => b.gearItemId,
+    },
+    {
+      view: "public_programs",
+      column: "id",
+      inA: () => aPublic.publicProgramId,
+      inB: () => b.programId,
     },
     {
       view: "public_volunteer_role_types",

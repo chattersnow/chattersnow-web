@@ -42,7 +42,7 @@ import {
   PortalDataTable,
   type PortalDataTableColumn,
 } from "@/components/portal/data-table";
-import { formatRoleLabel } from "@/lib/format";
+import { formatRoleLabel, roleDisplayName, roleLabelMap } from "@/lib/format";
 import {
   createInviteLinkAction,
   createPendingGrantAction,
@@ -88,6 +88,11 @@ export function PendingAccessSection({
   availableRoles: PortalRoleOption[];
 }) {
   const router = useRouter();
+  // A grant carries the role's *name*; its wording is the tenant's (#910).
+  const roleLabels = useMemo(
+    () => roleLabelMap(availableRoles),
+    [availableRoles],
+  );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [email, setEmail] = useState("");
@@ -180,8 +185,8 @@ export function PendingAccessSection({
       {
         key: "role",
         label: "Role",
-        sortValue: (grant) => formatRoleLabel(grant.roles.name),
-        render: (grant) => formatRoleLabel(grant.roles.name),
+        sortValue: (grant) => formatRoleLabel(grant.roles.name, roleLabels),
+        render: (grant) => formatRoleLabel(grant.roles.name, roleLabels),
       },
       {
         key: "status",
@@ -219,7 +224,7 @@ export function PendingAccessSection({
           ),
       },
     ],
-    [isPending, handleInvite],
+    [isPending, handleInvite, roleLabels],
   );
 
   return (
@@ -266,7 +271,7 @@ export function PendingAccessSection({
               <SelectContent>
                 {availableRoles.map((option) => (
                   <SelectItem key={option.id} value={option.name}>
-                    {formatRoleLabel(option.name)}
+                    {roleDisplayName(option)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -318,7 +323,8 @@ export function PendingAccessSection({
               {revokeTarget && (
                 <>
                   {revokeTarget.name ?? revokeTarget.email} will no longer
-                  receive the {formatRoleLabel(revokeTarget.roles.name)} role
+                  receive the{" "}
+                  {formatRoleLabel(revokeTarget.roles.name, roleLabels)} role
                   when they sign in.
                 </>
               )}

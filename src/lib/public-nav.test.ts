@@ -35,8 +35,14 @@ describe("NAV_GROUPS", () => {
    * and Sponsorship (#845). Its value is its URL: it gets pasted into an email
    * to a sponsor or a print shop, not browsed to, and a header entry for it
    * would compete with Events and Programs for no one's benefit.
+   *
+   * `links` is reached from a social profile's bio and nowhere else (#937). It
+   * is a stack of buttons to About, Events and Support, so a nav entry for it
+   * would be a menu item offering the menu -- and the page itself deliberately
+   * renders outside the `(public)` layout so that its visitors do not get the
+   * header nav either.
    */
-  const REACHED_OUTSIDE_THE_NAV = new Set(["brand"]);
+  const REACHED_OUTSIDE_THE_NAV = new Set(["brand", "links"]);
 
   // The nav and the footer render from this one list, so a section missing here
   // is missing from both. The old footer had its own list and had already
@@ -83,10 +89,10 @@ describe("NAV_GROUPS", () => {
 
   // A NavigationMenuTrigger opens its panel instead of navigating, so a group
   // whose landing page is a distinct page needs it listed as a child or the
-  // page is unreachable from the nav. /about and /gears are exempt: both
+  // page is unreachable from the nav. /about and /inventory are exempt: both
   // redirect to a child that is already listed.
   test("a dropdown group reaches its own landing page", () => {
-    const redirectsToAChild = ["/about", "/gears"];
+    const redirectsToAChild = ["/about", "/inventory"];
 
     for (const group of NAV_GROUPS) {
       if (!group.links || redirectsToAChild.includes(group.href)) continue;
@@ -107,7 +113,7 @@ describe("NAV_GROUPS", () => {
     }
   });
 
-  // The four #anchor entries into /gears/donate presented one page as four
+  // The four #anchor entries into /inventory/donate presented one page as four
   // destinations; collapsing them is why the Gear menu is three items.
   test("no group links to a fragment of another page", () => {
     for (const group of NAV_GROUPS) {
@@ -130,7 +136,9 @@ describe("visibleGroups", () => {
   test("drops the groups the board has hidden", () => {
     const labels = visibleGroups(HIDDEN).map((group) => group.label);
 
-    expect(labels).toEqual(["Events", "Gear", "Get Involved", "Contact"]);
+    // "Items" rather than "Gear": the group is named from the lexicon (#896),
+    // and this call passes none, so it reads the platform's own word.
+    expect(labels).toEqual(["Events", "Items", "Get Involved", "Contact"]);
   });
 
   // The reduced nav still has to reach the section landing pages.
@@ -193,21 +201,21 @@ describe("slotsForHref", () => {
   test("resolves a section landing page and its children to that slot", () => {
     expect(slotsForHref("/programs")).toEqual(["programs"]);
     expect(slotsForHref("/learn/getting-started")).toEqual(["learn"]);
-    expect(slotsForHref("/gears/library")).toEqual(["gears"]);
+    expect(slotsForHref("/inventory/library")).toEqual(["gears"]);
   });
 
   // The sizing guide lives under Gear and has its own slot, so it depends on
   // both -- hiding either has to take the link with it.
   test("returns a nested slot alongside its parent", () => {
-    expect(slotsForHref("/gears/sizing").sort()).toEqual([
+    expect(slotsForHref("/inventory/sizing").sort()).toEqual([
       "gears",
       "gears-sizing",
     ]);
   });
 
-  // A prefix match on the raw string would put /gears-something under /gears.
+  // A prefix match on the raw string would put /inventory-something under /inventory.
   test("matches on path segments, not on string prefixes", () => {
-    expect(slotsForHref("/gears-and-more")).toEqual([]);
+    expect(slotsForHref("/inventory-and-more")).toEqual([]);
   });
 
   test("an in-page anchor and an ungated route belong to no slot", () => {
@@ -218,7 +226,7 @@ describe("slotsForHref", () => {
 
 describe("isHrefVisible", () => {
   test("keeps a link into a live section", () => {
-    expect(isHrefVisible(HIDDEN, "/gears/sizing")).toBe(true);
+    expect(isHrefVisible(HIDDEN, "/inventory/sizing")).toBe(true);
   });
 
   test("drops a link into a hidden section", () => {
@@ -227,12 +235,12 @@ describe("isHrefVisible", () => {
   });
 
   test("drops a link whose own slot is hidden even though its parent is live", () => {
-    expect(isHrefVisible(["gears-sizing"], "/gears/sizing")).toBe(false);
-    expect(isHrefVisible(["gears-sizing"], "/gears/library")).toBe(true);
+    expect(isHrefVisible(["gears-sizing"], "/inventory/sizing")).toBe(false);
+    expect(isHrefVisible(["gears-sizing"], "/inventory/library")).toBe(true);
   });
 
   test("drops a link whose parent section is hidden even though its own slot is live", () => {
-    expect(isHrefVisible(["gears"], "/gears/sizing")).toBe(false);
+    expect(isHrefVisible(["gears"], "/inventory/sizing")).toBe(false);
   });
 
   test("never drops an anchor or an ungated route", () => {

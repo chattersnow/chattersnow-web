@@ -1304,7 +1304,13 @@ end $$;
 -- -- are already the right words for any organization and are left to the
 -- registry, so local keeps exercising the defaults rather than shadowing them.
 -- The list slots are left alone for the same reason: their prompts are what an
--- unconfigured tenant sees, and it is useful to see it.
+-- unconfigured tenant sees, and it is useful to see it. `programs.pillars` and
+-- `programs.items` are the exception, and #898 is why: the pillars stopped
+-- being copy alone the moment the Programs page could group the *module's*
+-- programs under them, so a local database needs pillar labels a seeded
+-- program can actually name. They come as a pair -- seeding pillars alone
+-- would leave the registry's placeholder item naming a pillar that no longer
+-- exists, and Site Content mode would render nothing.
 --
 -- tenant_id is omitted deliberately: site_content defaults it to
 -- default_tenant_id(), so this stays correct whatever the initial tenant is
@@ -1324,6 +1330,8 @@ insert into public.site_content (key, value, published_at) values
   ('about_mission.closing', '"None of this describes a real organization, and it is not meant to."', now()),
   ('about_mission.why_body', '["A platform that ships with no content at all is hard to develop against, and one that ships with a client''s content is worse. Example Nonprofit is the third option."]', now()),
   ('programs.intro', '"Sample programs, seeded locally so the Programs page has something to lay out."', now()),
+  ('programs.pillars', '[{"label":"Access","description":"Removing what stops people taking part."},{"label":"Community","description":"Bringing people who would not otherwise meet into the same room."}]', now()),
+  ('programs.items', '[{"pillar":"Access","emoji":"\u2744\ufe0f","name":"Sample access program","description":"Copy-driven program card, rendered when the Programs page reads Site Content."},{"pillar":"Community","emoji":"\ud83e\udd1d","name":"Sample community program","description":"The second copy-driven card, so both pillars have something under them."}]', now()),
   ('gears.donate_intro', '"Sample gear-program copy. Example Nonprofit collects gently used equipment, lends it out, and takes it back at the end of the season."', now()),
   ('get_involved.intro', '"Sample copy for the ways someone could get involved with a fictional organization."', now()),
   ('get_involved.partner_body', '"Example Nonprofit has no real partners. This slot is seeded so the page renders."', now()),
@@ -1333,6 +1341,98 @@ insert into public.site_content (key, value, published_at) values
   ('support.sponsorship_intro', '"Sample sponsorship copy, seeded so the page has a body."', now())
 on conflict (tenant_id, key) do update
   set value = excluded.value, published_at = excluded.published_at;
+
+-- Articles (#894). /learn is a tenant-owned collection rather than eight
+-- compiled data files, so local and CI need rows or the Learn specs and the
+-- a11y route sweep find an empty section and no /learn/<slug> to crawl.
+--
+-- Deliberately Example Nonprofit's own generic material rather than a copy of
+-- the snow-sports guides this ticket moved into Chatter Snow's rows: the whole
+-- argument of #894 is that one client's writing is not every tenant's content,
+-- and seeding it here would put it straight back into every fresh database.
+-- Three categories with a few articles each is enough to exercise the index
+-- cards, the in-page nav, every field of an article body, and the visibility
+-- filter on an internal link.
+--
+-- tenant_id is omitted deliberately, like the site_content block above: both
+-- tables default it to default_tenant_id().
+--
+-- Local and CI only -- seed.sql never runs against a hosted project.
+with category_rows as (
+  insert into public.article_categories (slug, position, value)
+  values
+    ('getting-started', 0, '{"title":"Getting Started","description":"What a first visit looks like, and what to bring."}'::jsonb),
+    ('how-we-work', 1, '{"title":"How We Work","description":"How the programs run, who they are for, and how to take part."}'::jsonb),
+    ('volunteering', 2, '{"title":"Volunteering","description":"What volunteering with a small nonprofit actually involves."}'::jsonb)
+  on conflict (tenant_id, slug) do update set value = excluded.value, position = excluded.position
+  returning id, tenant_id, slug
+)
+insert into public.articles (tenant_id, category_id, anchor, position, value)
+select category_rows.tenant_id, category_rows.id, a.anchor, a.position, a.value
+from category_rows
+join (values
+  ('getting-started', 'your-first-visit', 0, '{"title":"Your first visit","description":"Most of a first visit is logistics: where to go, when to arrive, and who to ask.","paragraphs":["Nothing on this page describes a real organization. Example Nonprofit exists so that the local stack and CI have a tenant with real-shaped content to render.","Articles are edited from Administration > Site Content, saved as drafts, and published when they are ready."],"list":[{"label":"Arrive early","text":"Give yourself time to find the place and sign in before anything starts."},{"label":"Bring identification","text":"A first visit usually involves a form and somebody checking it."},{"label":"Ask questions","text":"Nobody expects a first-time visitor to already know how any of it works."}],"links":[{"label":"Get involved","href":"/get-involved","internal":true},{"label":"Example external reference","href":"https://example.org/"}],"disclaimer":"Seed content for local development. None of it is advice and none of it is real."}'::jsonb),
+  ('getting-started', 'what-to-bring', 1, '{"title":"What to bring","description":"A short packing list, which is mostly a list of things people forget.","paragraphs":["A list slot and a paragraph slot render differently, and both are exercised here so the layout is visible locally."],"list":[{"label":"Water","text":"More than you think, whatever the weather is doing."},{"label":"Something to write with","text":"Half of a first day is forms."}],"links":[{"label":"Contact us","href":"/contact","internal":true}],"disclaimer":"Seed content for local development."}'::jsonb),
+  ('how-we-work', 'programs-overview', 0, '{"title":"Programs overview","description":"What the programs are, in the shape a real organization would describe them.","paragraphs":["Programs are the unit of work: each one has a purpose, an audience and a season.","A program page and an article about that program are different things -- the article is the explanation, the program is the record."],"list":[{"label":"Access","text":"Removing the cost barrier to taking part."},{"label":"Community","text":"Bringing people who would not otherwise meet into the same room."}],"links":[{"label":"Programs","href":"/programs","internal":true}],"disclaimer":"Seed content for local development."}'::jsonb),
+  ('how-we-work', 'how-decisions-get-made', 1, '{"title":"How decisions get made","description":"Who decides what, and where those decisions are written down.","paragraphs":["A small board, meeting on a schedule, recording what it decided. That is most of governance at this size.","This article exists so a category with more than one article renders its in-page navigation."],"list":[],"links":[],"disclaimer":"Seed content for local development."}'::jsonb),
+  ('volunteering', 'what-volunteering-involves', 0, '{"title":"What volunteering involves","description":"The honest version: some of it is setup and cleanup.","paragraphs":["Volunteering at a small organization is less specialized than it sounds. Most roles are learned on the day.","An article with no list and no links still has to render correctly, which is what this one checks."],"list":[],"links":[{"label":"Volunteer","href":"/get-involved/volunteer","internal":true}],"disclaimer":"Seed content for local development."}'::jsonb)
+) as a(category_slug, anchor, position, value) on a.category_slug = category_rows.slug
+on conflict (tenant_id, category_id, anchor) do update
+  set value = excluded.value, position = excluded.position;
+
+-- Module mode for the Programs page (#898). The page reads Site Content until
+-- a tenant changes `layout.programs_source`, so these rows change nothing on
+-- their own -- they are here so that flipping the setting locally, or in the
+-- e2e case that flips it, lands on a populated page rather than the empty
+-- state.
+--
+-- Three rows, covering the three shapes the page has to render: two under
+-- pillars that exist in the copy above, ordered by `sort_order`, and one with
+-- no pillar at all, which belongs in the trailing ungrouped section rather
+-- than nowhere. Every other seeded program stays unpublished, which is also
+-- the check that `is_public` defaults to false.
+--
+-- Local and CI only -- seed.sql never runs against a hosted project.
+update public.programs
+set is_public = true, pillar = 'Access', emoji = '❄️', sort_order = 1
+where name = 'Winter Access Program';
+
+update public.programs
+set is_public = true, pillar = 'Community', emoji = '🤝', sort_order = 2
+where name = 'Youth Outdoor Mentorship';
+
+update public.programs
+set is_public = true, pillar = null, sort_order = null
+where name = 'Community Gear Library';
+
+-- A content pack (#895), so the platform tenant's pack screen has something in
+-- it locally and the a11y sweep scans a populated page rather than an empty
+-- one. The seeded tenant is on the `internal` plan, which makes it the platform
+-- tenant and therefore the only tenant that can author one.
+--
+-- Nothing adopts it here: `available_content_packs()` never offers a tenant its
+-- own pack, and this database has one tenant. Adoption is exercised by
+-- `packs/actions.integration.test.ts`, which provisions a second tenant to do
+-- it -- which is also the reason `content_pack_adoptions` is seeded with
+-- nothing: a row in it means one tenant copied another's pack, and a single
+-- tenant cannot produce one.
+--
+-- Local and CI only -- seed.sql never runs against a hosted project.
+with pack as (
+  insert into public.content_packs (key, name, description, is_offered)
+  values (
+    'getting-started',
+    'Getting started',
+    'A short introduction any organization can put on its Learn section and then rewrite in its own words.'
+  , true)
+  on conflict (tenant_id, key) do update
+    set name = excluded.name, description = excluded.description, is_offered = excluded.is_offered
+  returning id, tenant_id
+)
+update public.article_categories c
+set pack_id = pack.id
+from pack
+where c.tenant_id = pack.tenant_id and c.slug = 'getting-started';
 
 -- Page visibility (issue #584). Production deliberately has no
 -- `page_visibility.*` rows, so the sections still awaiting board approval fall
@@ -1347,7 +1447,11 @@ insert into public.app_settings (key, value) values
   -- are: it is one organization's snow-sports content, not platform chrome
   -- (#795 Phase 3). e2e/gears.spec.ts, e2e/skip-link.spec.ts and the a11y
   -- route sweep all visit /gears/sizing, so local and CI turn it on.
-  ('page_visibility.gears-sizing', to_jsonb(true))
+  ('page_visibility.gears-sizing', to_jsonb(true)),
+  -- The link-in-bio page (#937). Off by default like every new section, and
+  -- it is not in the nav either, so without this the a11y route sweep and
+  -- e2e/links.spec.ts would both be scanning a 404 rather than the page.
+  ('page_visibility.links', to_jsonb(true))
 on conflict (tenant_id, key) do update set value = excluded.value;
 
 -- Fiscal year (20260905030000). The migration already seeds July as a

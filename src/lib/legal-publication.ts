@@ -51,7 +51,7 @@ export const getLegalPublication = cache(
 
 /**
  * The same state for the tenant the signed-in admin has selected, for the
- * System Settings panel. Read straight from `app_settings` -- RLS scopes it to
+ * Legal documents panel. Read straight from `app_settings` -- RLS scopes it to
  * the current tenant -- rather than through `public_legal_publication`, which
  * answers for the *request host*. Same split as `getTenantLayoutValues` and
  * `getSiteLayout`, and for the same reason.

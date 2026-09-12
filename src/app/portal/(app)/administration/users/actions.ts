@@ -54,7 +54,7 @@ export async function listRolesAction(): Promise<
 
   const { data, error } = await supabase
     .from("roles")
-    .select("id, name, description")
+    .select("id, name, label, description")
     .order("name");
 
   if (error) {

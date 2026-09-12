@@ -23,6 +23,7 @@ import {
   rolesFor,
   type PersonRow,
 } from "../people-shared";
+import { useLexicon } from "@/components/lexicon-context";
 import {
   experienceLevelLabel,
   ridesSki,
@@ -83,6 +84,7 @@ export function ProfileCard({
   canDeleteRiderProfile?: boolean;
 }) {
   const router = useRouter();
+  const vocabulary = useLexicon();
   const formId = `person-profile-form-${person.id}`;
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [form, setForm] = useState<PersonFormState>(() => formStateFor(person));
@@ -176,7 +178,7 @@ export function ProfileCard({
         {mode === "view" ? (
           <div className="flex flex-col gap-3 text-sm">
             <div className="flex flex-wrap gap-2">
-              {rolesFor(person).map((role) => (
+              {rolesFor(person, vocabulary).map((role) => (
                 <Badge key={role} variant="secondary">
                   {role}
                 </Badge>

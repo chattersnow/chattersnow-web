@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { formatCalendarDate, formatInstantDate } from "@/lib/format";
 import { signupRoleLabel, type ShiftRoleRef } from "@/lib/volunteer-roles";
+import { getPortalVocabulary } from "@/lib/tenant-person-roles";
 import { HistoryCard, HistoryGroups, HistorySection } from "./history-card";
 
 type EventRef = { id: string; name: string } | null;
@@ -41,27 +42,32 @@ export async function VolunteerCard({
   actions?: ReactNode;
 }) {
   const supabase = await createSupabaseServerClient();
-  const [{ data: signupData }, { data: hoursData }, { data: applicationData }] =
-    await Promise.all([
-      supabase
-        .from("event_volunteers")
-        .select(
-          "id, role, shift_id, role_type:volunteer_role_types(name), event:events(id, name), shift:event_shifts(id, role_type:volunteer_role_types(name))",
-        )
-        .eq("person_id", personId),
-      supabase
-        .from("volunteer_hours")
-        .select(
-          "id, hours, logged_date, event_id, event:events(name), volunteer_role_type:volunteer_role_types(name)",
-        )
-        .eq("person_id", personId)
-        .order("logged_date", { ascending: false }),
-      supabase
-        .from("volunteer_applications")
-        .select("id, status, role_interest, created_at")
-        .eq("person_id", personId)
-        .order("created_at", { ascending: false }),
-    ]);
+  const [
+    { data: signupData },
+    { data: hoursData },
+    { data: applicationData },
+    vocabulary,
+  ] = await Promise.all([
+    supabase
+      .from("event_volunteers")
+      .select(
+        "id, role, shift_id, role_type:volunteer_role_types(name), event:events(id, name), shift:event_shifts(id, role_type:volunteer_role_types(name))",
+      )
+      .eq("person_id", personId),
+    supabase
+      .from("volunteer_hours")
+      .select(
+        "id, hours, logged_date, event_id, event:events(name), volunteer_role_type:volunteer_role_types(name)",
+      )
+      .eq("person_id", personId)
+      .order("logged_date", { ascending: false }),
+    supabase
+      .from("volunteer_applications")
+      .select("id, status, role_interest, created_at")
+      .eq("person_id", personId)
+      .order("created_at", { ascending: false }),
+    getPortalVocabulary(supabase),
+  ]);
 
   const signups = (signupData ?? []) as unknown as Signup[];
   const hours = (hoursData ?? []) as unknown as HoursEntry[];
@@ -86,11 +92,11 @@ export async function VolunteerCard({
 
   return (
     <HistoryCard
-      title="Volunteer activity"
+      title={`${vocabulary.volunteer} activity`}
       isEmpty={
         signups.length === 0 && hours.length === 0 && applications.length === 0
       }
-      emptyTitle="No volunteer activity recorded"
+      emptyTitle={`No ${vocabulary.volunteer.toLocaleLowerCase()} activity recorded`}
       emptyDescription="Applications, event sign-ups, and logged hours appear here once this person volunteers."
       actions={actions}
     >

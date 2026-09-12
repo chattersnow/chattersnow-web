@@ -8,7 +8,8 @@
 // or through the package.json aliases, which read .env.local:
 //
 //   bun run tenant:provision --name "Example Nonprofit" --slug example \
-//       --domain example.org --admin person@example.org [--plan white_label]
+//       --domain example.org --admin person@example.org [--plan white_label] \
+//       [--pack starter --pack safety]
 //   bun run tenant:list
 //   bun run tenant:export <slug> [--out path.json]
 //   bun run tenant:plan <slug> --plan <internal|demo|white_label>
@@ -87,6 +88,9 @@ const { values, positionals } = parseArgs({
     template: { type: "string" },
     out: { type: "string" },
     confirm: { type: "string" },
+    // Repeatable: each --pack names a content pack the new tenant receives as
+    // drafts (#895).
+    pack: { type: "string", multiple: true },
     enable: { type: "string" },
     disable: { type: "string" },
     email: { type: "string" },
@@ -155,6 +159,11 @@ async function provision() {
   const slug = required(values.slug, "slug");
   const admin = required(values.admin, "admin");
   const domain = values.domain?.toLowerCase() ?? null;
+  // Copied in as drafts, so a pack never puts words on a new organization's
+  // public site without somebody there reading them first (#895). An unknown
+  // key fails the whole call rather than being skipped: "nothing happened" is
+  // the worst answer to a typo in a one-shot command.
+  const packs = values.pack?.length ? values.pack : null;
 
   const { data, error } = await service.rpc("provision_tenant", {
     p_name: name,
@@ -163,10 +172,16 @@ async function provision() {
     p_plan: values.plan ?? "white_label",
     p_admin_email: admin,
     p_template_tenant_id: values.template ?? null,
+    p_pack_keys: packs,
   });
   if (error) fail(`Provisioning failed: ${error.message}`);
 
   console.log(`Provisioned "${name}" (${slug}) as tenant ${data}.`);
+  if (packs) {
+    console.log(
+      `Content packs copied in as drafts: ${packs.join(", ")}. Nothing is on their public site until they publish each category.`,
+    );
+  }
 
   // Everything below is a convenience on top of a tenant that already exists.
   // The admin's role is staged as a pending_role_grants row inside

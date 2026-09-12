@@ -1,6 +1,48 @@
-export function formatRoleLabel(name: string): string {
+/**
+ * How a role is named on screen (#910).
+ *
+ * `roles.name` is a platform key, not a display string: migrations seed the
+ * permission matrix with `join roles r on r.name = '<role>'` across every
+ * tenant, so it must stay the same word everywhere. `roles.label` is the
+ * tenant's own wording for it, and is null until somebody sets one -- a
+ * studio renames "Event coordinator" to "Studio manager" without a migration,
+ * while a tenant that never touches it keeps the derived wording and picks up
+ * any later change to the platform's default phrasing for free.
+ *
+ * Two call shapes, because two kinds of surface exist. Screens holding the
+ * role row use `roleDisplayName(role)`. Screens holding only names --
+ * `my_roles()` and `list_portal_users().roles` return `text[]` of names --
+ * pass the map their page already queried: `formatRoleLabel(name, labels)`.
+ * Both fall back to the derived wording, so a surface that has no map yet
+ * degrades to today's behaviour rather than to a blank.
+ */
+export type RoleLabels = Record<string, string>;
+
+export type LabeledRole = { name: string; label?: string | null };
+
+export function formatRoleLabel(
+  name: string,
+  labels?: RoleLabels | null,
+): string {
+  const label = labels?.[name]?.trim();
+  if (label) return label;
   const spaced = name.replace(/_/g, " ");
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+/** The display name for a role row that carries its own label. */
+export function roleDisplayName(role: LabeledRole): string {
+  return role.label?.trim() || formatRoleLabel(role.name);
+}
+
+/** A name -> label lookup for the surfaces that only receive role names. */
+export function roleLabelMap(roles: readonly LabeledRole[]): RoleLabels {
+  const map: RoleLabels = {};
+  for (const role of roles) {
+    const label = role.label?.trim();
+    if (label) map[role.name] = label;
+  }
+  return map;
 }
 
 export type DisplayNamePerson = {

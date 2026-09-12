@@ -78,7 +78,7 @@ const selectClassName =
   "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
 export const metadata: Metadata = {
-  title: "Finance",
+  title: "Expenses",
 };
 
 export default async function ExpensesPage({
@@ -264,10 +264,10 @@ export default async function ExpensesPage({
                   The threshold is a setting, not a fixed rule — admin or board
                   can change it anytime in{" "}
                   <Link
-                    href="/portal/administration/system-settings"
+                    href="/portal/administration/organization-settings?tab=workflow"
                     className="underline hover:text-foreground"
                   >
-                    Administration &gt; System Settings
+                    Administration &gt; Organization Settings
                   </Link>
                   , and it takes effect here immediately, without a code change.
                 </li>

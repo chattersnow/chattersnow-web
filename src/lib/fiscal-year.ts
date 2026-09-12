@@ -12,7 +12,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * The boundary is a setting, not a constant: the bylaws put the fiscal year in
  * the Board's hands, so it has to be changeable without a deploy. It lives in
  * app_settings under FISCAL_YEAR_SETTING_KEY, edited at Administration >
- * System Settings > Organization.
+ * Administration > Organization Settings > General.
  *
  * Everything here except `getFiscalYearStartMonth` is pure and takes the start
  * month as an argument, so the math is unit-testable without a database and a

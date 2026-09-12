@@ -272,7 +272,7 @@ export async function getAccessManagementAttentionSummary(
       key: "access_management_reviews_due",
       label: `${reviewsDueCount} asset review${reviewsDueCount === 1 ? "" : "s"} due`,
       count: reviewsDueCount ?? 0,
-      href: "/portal/administration/access-management?filter=reviews_due",
+      href: "/portal/technology?filter=reviews_due",
       severity: "attention",
     });
   }
@@ -288,7 +288,7 @@ export async function getAccessManagementAttentionSummary(
       key: "access_management_critical_no_mfa",
       label: `${criticalNoMfaCount} critical asset${criticalNoMfaCount === 1 ? "" : "s"} without MFA enabled`,
       count: criticalNoMfaCount ?? 0,
-      href: "/portal/administration/access-management?filter=critical_no_mfa",
+      href: "/portal/technology?filter=critical_no_mfa",
       severity: "urgent",
     });
   }
@@ -323,7 +323,7 @@ export async function getAccessManagementAttentionSummary(
         key: "access_management_single_administrator",
         label: `${singleAdministratorCount} asset${singleAdministratorCount === 1 ? "" : "s"} with only one administrator`,
         count: singleAdministratorCount,
-        href: "/portal/administration/access-management?filter=single_administrator",
+        href: "/portal/technology?filter=single_administrator",
         severity: "urgent",
       });
     }

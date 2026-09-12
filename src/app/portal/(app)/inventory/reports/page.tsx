@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Fragment } from "react";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getTenantLexicon } from "@/lib/tenant-lexicon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -35,14 +36,18 @@ function toDateInput(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
-export const metadata: Metadata = {
-  title: "Inventory Reports",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const supabase = await createSupabaseServerClient();
+  return {
+    title: `${(await getTenantLexicon(supabase)).collection} Reports`,
+  };
+}
 
 export default async function InventoryReportsPage({
   searchParams,
 }: InventoryReportsPageProps) {
   const supabase = await createSupabaseServerClient();
+  const lexicon = await getTenantLexicon(supabase);
 
   const params = await searchParams;
   const raw = (key: string) => {
@@ -107,7 +112,7 @@ export default async function InventoryReportsPage({
     <>
       <div className="w-fit">
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-          Inventory Reports
+          {lexicon.collection} Reports
         </h1>
         <div className="rainbow-accent mt-3 w-full" />
       </div>

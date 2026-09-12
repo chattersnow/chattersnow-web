@@ -6,8 +6,8 @@ import { signIn } from "./helpers/auth";
 // theme toggle) between the top of the document and the content. The three
 // routes below cover the three ways a public page gets its <main>: /home
 // hand-rolls one, /about gets it from a layout wrapping PageShell, and
-// /gears/sizing used to nest its own inside the /gears PageShell.
-const ROUTES = ["/home", "/about", "/gears/sizing"];
+// /inventory/sizing used to nest its own inside the /inventory PageShell.
+const ROUTES = ["/home", "/about", "/inventory/sizing"];
 
 /**
  * Tabs to the first focusable element that belongs to the app. `next dev`

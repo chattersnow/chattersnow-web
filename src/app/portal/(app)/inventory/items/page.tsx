@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getTenantLexicon } from "@/lib/tenant-lexicon";
 import { Button } from "@/components/ui/button";
 import { ActiveFilters, type ActiveFilter } from "@/components/active-filters";
 import { FiltersSheet } from "@/components/filters-sheet";
@@ -42,14 +43,17 @@ type InventoryPageProps = {
 const selectClassName =
   "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
-export const metadata: Metadata = {
-  title: "Inventory",
-};
+// The section is named in the tenant's own words (#896), so the tab is too.
+export async function generateMetadata(): Promise<Metadata> {
+  const supabase = await createSupabaseServerClient();
+  return { title: (await getTenantLexicon(supabase)).collection };
+}
 
 export default async function InventoryPage({
   searchParams,
 }: InventoryPageProps) {
   const supabase = await createSupabaseServerClient();
+  const lexicon = await getTenantLexicon(supabase);
 
   const params = await searchParams;
   const raw = (key: string) => {
@@ -269,7 +273,7 @@ export default async function InventoryPage({
     <>
       <div className="w-fit">
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-          Inventory
+          {lexicon.collection}
         </h1>
         <div className="rainbow-accent mt-3 w-full" />
       </div>

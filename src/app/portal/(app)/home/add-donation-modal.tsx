@@ -44,6 +44,10 @@ import { PhotoUploadField } from "@/components/portal/photo-upload-field";
 import { listInventoryCategoriesAction } from "../inventory/categories/actions";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import {
+  useControlledOpen,
+  type ControlledOpenProps,
+} from "@/components/portal/use-controlled-open";
 
 const SOURCE_TYPES = [
   { value: "individual", label: "Individual" },
@@ -118,6 +122,9 @@ function createEmptyItem(): ItemDraft {
 
 export function AddDonationModal({
   triggerLabel = "Record donation",
+  open: controlledOpen,
+  onOpenChange,
+  withTrigger = true,
   eventId,
   events,
   onSaved,
@@ -126,9 +133,9 @@ export function AddDonationModal({
   eventId?: string;
   events?: { id: string; name: string }[];
   onSaved?: () => void;
-}) {
+} & ControlledOpenProps) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useControlledOpen(controlledOpen, onOpenChange);
   const [step, setStep] = useState<Step>("donor");
   const [donor, setDonor] = useState<DonorState>(initialDonorState);
   const [items, setItems] = useState<ItemDraft[]>([createEmptyItem()]);
@@ -288,11 +295,15 @@ export function AddDonationModal({
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
-      <SheetTrigger
-        render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
-      >
-        {triggerLabel}
-      </SheetTrigger>
+      {withTrigger ? (
+        <SheetTrigger
+          render={
+            <Button type="button" className="shrink-0 whitespace-nowrap" />
+          }
+        >
+          {triggerLabel}
+        </SheetTrigger>
+      ) : null}
       <SheetContent side="right" size="lg">
         <SheetHeader>
           <SheetTitle>Record a donation</SheetTitle>

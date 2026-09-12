@@ -1,136 +1,103 @@
-import { Fragment, type ReactNode } from "react";
+"use client";
+
+import { useState } from "react";
+import { ChevronDown } from "lucide-react";
 import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
 } from "@/components/ui/sidebar";
-import { NewEventDialog } from "./events/new-event-dialog";
-import { AddDonationModal } from "./home/add-donation-modal";
-import { RecordDistributionModal } from "./home/record-distribution-modal";
-import { NewDonationDialog } from "./finance/donations/new-donation-dialog";
-import { NewExpenseDialog } from "./finance/expenses/new-expense-dialog";
-import { LogHoursDialog } from "./volunteers/participation/log-hours-dialog";
-import type { PickedPerson } from "./people/person-picker";
-import type { EnsuredPerson } from "@/lib/auth/current-person";
 import {
-  hasAnyPermission,
-  hasPermission,
-  type PermissionCheck,
-  type PermissionMap,
-} from "@/lib/auth/permissions";
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
+import {
+  QuickActionDialog,
+  permittedQuickActions,
+  selfPersonFor,
+} from "./quick-actions";
+import type { EnsuredPerson } from "@/lib/auth/current-person";
+import { hasPermission, type PermissionMap } from "@/lib/auth/permissions";
 
-type QuickAction = {
-  key: string;
-  /** Same shape PortalNav uses to filter NAV_ITEMS: any one check passing
-   *  shows the action. Each gate mirrors what the underlying Server Action
-   *  already enforces, so a visible button is always a permitted one. */
-  access: readonly PermissionCheck[];
-  render: () => ReactNode;
-};
+const COOKIE_NAME = "quick_actions_state";
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 
 /**
- * Ordered by how often the work happens, highest first -- permissions narrow
- * the list per role, so most people see one to three of these. Event-scoped
- * actions (check in, add sponsor) are deliberately absent: they need an event
- * chosen first and are offered in context on the dashboard's "Happening now"
- * card instead.
+ * Above which count the group starts closed. An admin passes every gate and
+ * got all six -- roughly 330px of stacked buttons that pushed the nav tree
+ * below the fold on a laptop (#979). One or two actions crowd nothing, and
+ * collapsing a single row behind a click only costs a click, so the threshold
+ * decides rather than a flat default. Either way the reader's own choice, once
+ * they make one, outranks it.
  */
-function buildQuickActions(
-  selfPerson: PickedPerson | null,
-  canManageVolunteers: boolean,
-): QuickAction[] {
-  return [
-    {
-      key: "gear-donation",
-      access: [{ resource: "inventory_intake", level: "manage" }],
-      render: () => <AddDonationModal triggerLabel="Record gear donation" />,
-    },
-    {
-      key: "distribution",
-      access: [
-        { resource: "inventory", level: "manage" },
-        { resource: "inventory_intake", level: "manage" },
-      ],
-      render: () => (
-        <RecordDistributionModal triggerLabel="Record distribution" />
-      ),
-    },
-    {
-      key: "volunteer-hours",
-      access: [
-        { resource: "volunteers", level: "manage" },
-        { resource: "volunteer_hours_logging", level: "manage" },
-      ],
-      render: () => (
-        <LogHoursDialog
-          selfPerson={selfPerson}
-          canManage={canManageVolunteers}
-          triggerLabel="Log volunteer hours"
-        />
-      ),
-    },
-    {
-      key: "expense",
-      // createExpenseAction gates on event_expenses, not finance -- which is
-      // why event coordinators get this even though the Finance section is
-      // closed to them (their expenses show on the event's Expenses tab).
-      access: [{ resource: "event_expenses", level: "manage" }],
-      render: () => <NewExpenseDialog triggerLabel="Add expense" />,
-    },
-    {
-      key: "money-donation",
-      access: [{ resource: "finance", level: "manage" }],
-      render: () => <NewDonationDialog triggerLabel="Log donation" />,
-    },
-    {
-      key: "new-event",
-      access: [{ resource: "events", level: "manage" }],
-      render: () => <NewEventDialog triggerLabel="New event" />,
-    },
-  ];
-}
+const CROWDS_THE_NAV_ABOVE = 2;
 
 export function SidebarQuickActions({
   permissions,
   currentPerson,
+  defaultOpen,
 }: {
   permissions: PermissionMap;
   currentPerson?: EnsuredPerson | null;
+  /** The reader's remembered choice, or undefined before they have made one. */
+  defaultOpen?: boolean;
 }) {
-  // LogHoursDialog wants a PickedPerson so it can pre-fill the picker with the
-  // signed-in user; the layout already resolved an EnsuredPerson, which keys
-  // the id differently and carries no phone.
-  const selfPerson: PickedPerson | null = currentPerson
-    ? {
-        id: currentPerson.person_id,
-        name: currentPerson.name,
-        preferred_name: currentPerson.preferred_name,
-        email: currentPerson.email,
-        phone: null,
-      }
-    : null;
-
-  const actions = buildQuickActions(
-    selfPerson,
-    hasPermission(permissions, "volunteers", "manage"),
-  ).filter((action) => hasAnyPermission(permissions, action.access));
+  const actions = permittedQuickActions(permissions);
+  const [open, setOpen] = useState(
+    defaultOpen ?? actions.length <= CROWDS_THE_NAV_ABOVE,
+  );
 
   if (actions.length === 0) return null;
 
+  function handleOpenChange(next: boolean) {
+    setOpen(next);
+    // Persisted the way the sidebar's own open state is (ui/sidebar.tsx): a
+    // cookie, so the layout can read it on the server and the group renders
+    // in the remembered state rather than flipping after hydration.
+    document.cookie = `${COOKIE_NAME}=${next}; path=/; max-age=${COOKIE_MAX_AGE}`;
+  }
+
+  const selfPerson = selfPersonFor(currentPerson);
+  const canManageVolunteers = hasPermission(
+    permissions,
+    "volunteers",
+    "manage",
+  );
+
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-      <SidebarGroupLabel>Quick actions</SidebarGroupLabel>
-      {/* The triggers come from dialogs that live on their own module pages,
-          where each picked its own Button variant (default, secondary, ...).
-          Six of those stacked here read as a wall of buttons and crowd the
-          nav, so normalize them to one quiet outline style. Descendant
-          selectors outrank the variant's own utility classes, which keeps the
-          override here rather than adding a variant prop to five dialogs. */}
-      <SidebarGroupContent className="flex flex-col gap-1.5 px-2 [&_button]:h-8 [&_button]:w-full [&_button]:justify-start [&_button]:border [&_button]:border-sidebar-border [&_button]:bg-transparent [&_button]:font-normal [&_button]:text-sidebar-foreground [&_button]:shadow-none [&_button:hover]:bg-sidebar-accent">
-        {actions.map((action) => (
-          <Fragment key={action.key}>{action.render()}</Fragment>
-        ))}
-      </SidebarGroupContent>
+      <Collapsible open={open} onOpenChange={handleOpenChange}>
+        <SidebarGroupLabel
+          render={<CollapsibleTrigger />}
+          className="w-full cursor-pointer justify-between"
+        >
+          Quick actions
+          <ChevronDown
+            aria-hidden
+            className={cn("transition-transform", open && "rotate-180")}
+          />
+        </SidebarGroupLabel>
+        <CollapsibleContent>
+          {/* The triggers come from dialogs that live on their own module pages,
+              where each picked its own Button variant (default, secondary, ...).
+              Six of those stacked here read as a wall of buttons and crowd the
+              nav, so normalize them to one quiet outline style. Descendant
+              selectors outrank the variant's own utility classes, which keeps the
+              override here rather than adding a variant prop to five dialogs. */}
+          <SidebarGroupContent className="flex flex-col gap-1.5 px-2 pt-1 [&_button]:h-8 [&_button]:w-full [&_button]:justify-start [&_button]:border [&_button]:border-sidebar-border [&_button]:bg-transparent [&_button]:font-normal [&_button]:text-sidebar-foreground [&_button]:shadow-none [&_button:hover]:bg-sidebar-accent">
+            {actions.map((action) => (
+              <QuickActionDialog
+                key={action.key}
+                action={action}
+                selfPerson={selfPerson}
+                canManageVolunteers={canManageVolunteers}
+              />
+            ))}
+          </SidebarGroupContent>
+        </CollapsibleContent>
+      </Collapsible>
     </SidebarGroup>
   );
 }

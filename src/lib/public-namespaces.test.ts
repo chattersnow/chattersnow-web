@@ -16,12 +16,13 @@ const content = (...keys: string[]) =>
   keys.map((key) => ({ table: "site_content" as const, key }));
 
 describe("RESERVED_NAMESPACES", () => {
-  test("covers the five prefixes the public views match on", () => {
+  test("covers the six prefixes the public views match on", () => {
     expect(RESERVED_NAMESPACES.map((namespace) => namespace.prefix)).toEqual([
       "brand.",
       "page_visibility.",
       "layout.",
       "legal_publication.",
+      "lexicon.",
       "site_images.",
     ]);
   });

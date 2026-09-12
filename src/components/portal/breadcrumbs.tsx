@@ -8,6 +8,8 @@ import {
   activeSubItemFor,
   NAV_ITEMS,
 } from "@/lib/portal/nav";
+import { useLexicon } from "@/components/lexicon-context";
+import { applyLexicon, type Lexicon } from "@/lib/lexicon";
 import { LinkPendingPulse } from "@/components/link-pending";
 
 type Crumb = { label: string; href?: string };
@@ -16,7 +18,7 @@ type Crumb = { label: string; href?: string };
  * The trail to the current record.
  *
  * Detail pages used an ad-hoc single-level back link, so a three-level route
- * like /portal/administration/access-management/assets/[assetId] gave one hop
+ * like /portal/technology/assets/[assetId] gave one hop
  * back and no trail. It also left two pairs of pages indistinguishable:
  * "Roles" is both a volunteer and an administration page, and "Donations"
  * both a finance and an inventory one, with the same h1 in each pair.
@@ -24,19 +26,28 @@ type Crumb = { label: string; href?: string };
  * The trail is derived from the shared nav tree rather than from the URL
  * segments, so the labels here are the same ones the sidebar shows.
  */
-function trailFor(pathname: string, current: string): Crumb[] {
+function trailFor(
+  pathname: string,
+  current: string,
+  lexicon: Lexicon,
+): Crumb[] {
   const sectionValue = activeSectionFor(pathname);
   const section = NAV_ITEMS.find((item) => item.value === sectionValue);
   if (!section) return [{ label: current }];
 
-  const crumbs: Crumb[] = [{ label: section.label, href: section.href }];
+  // The nav tree holds lexicon templates (#896), so every label out of it
+  // is resolved against this tenant's words before it is compared or shown
+  // -- the two de-duplication rules below compare labels, and `{collection}`
+  // would never equal the page's own heading.
+  const named = (label: string) => applyLexicon(label, lexicon);
+  const crumbs: Crumb[] = [{ label: named(section.label), href: section.href }];
 
   const subValue = activeSubItemFor(pathname, section);
   const sub = section.subItems?.find((item) => item.value === subValue);
   // A section whose first sub-item repeats its own name (Calendar > Calendar)
   // would just add a step that says nothing.
   if (sub && sub.label !== section.label) {
-    crumbs.push({ label: sub.label, href: sub.href });
+    crumbs.push({ label: named(sub.label), href: sub.href });
   }
 
   // Same rule at the leaf: on a list page the record label is the page's own
@@ -50,11 +61,21 @@ function trailFor(pathname: string, current: string): Crumb[] {
 export function PortalBreadcrumbs({
   /** The record this page is about, as the page's own heading names it. */
   current,
+  onNavigate,
 }: {
   current: string;
+  /**
+   * Called before a crumb navigates, with the href it is heading for. Call
+   * `preventDefault()` on the event to stop it -- how the article editor
+   * keeps its unsaved-changes prompt now that the trail replaced the single
+   * back link it used to guard (#948). The href is passed so the prompt's
+   * "Discard changes" can go where the reader was actually going, rather
+   * than to the one destination the back link had.
+   */
+  onNavigate?: (href: string, event: React.MouseEvent) => void;
 }) {
   const pathname = usePathname();
-  const crumbs = trailFor(pathname, current);
+  const crumbs = trailFor(pathname, current, useLexicon());
 
   return (
     <nav aria-label="Breadcrumb" className="mb-3">
@@ -72,6 +93,7 @@ export function PortalBreadcrumbs({
               {crumb.href && !isLast ? (
                 <Link
                   href={crumb.href}
+                  onClick={(event) => onNavigate?.(crumb.href!, event)}
                   className="rounded-sm hover:text-foreground hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
                 >
                   <LinkPendingPulse>{crumb.label}</LinkPendingPulse>

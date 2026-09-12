@@ -33,8 +33,11 @@ const ALL_ACTIONS = [
   /new event/i,
 ];
 
+// The group only holds its buttons while it is open -- the panel unmounts
+// when closed, which is the point of #979 -- so the permission cases open it
+// explicitly rather than depending on how many actions the role happens to get.
 function visibleActions(permissions: PermissionMap) {
-  render(<SidebarQuickActions permissions={permissions} />);
+  render(<SidebarQuickActions permissions={permissions} defaultOpen />);
   return ALL_ACTIONS.filter(
     (name) => screen.queryAllByRole("button", { name }).length > 0,
   ).map((name) => name.source);
@@ -97,6 +100,55 @@ describe("SidebarQuickActions", () => {
         finance_reports: "view",
       }),
     ).toEqual(["add expense", "log donation"]);
+  });
+
+  test("starts collapsed for a role with more than two actions", () => {
+    render(
+      <SidebarQuickActions
+        permissions={{
+          events: "manage",
+          event_expenses: "manage",
+          finance: "manage",
+          inventory: "manage",
+          inventory_intake: "manage",
+          volunteers: "manage",
+          volunteer_hours_logging: "manage",
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: /quick actions/i }),
+    ).toHaveAttribute("aria-expanded", "false");
+    expect(
+      screen.queryAllByRole("button", { name: /new event/i }),
+    ).toHaveLength(0);
+  });
+
+  test("starts open when there is nothing to decrowd", () => {
+    render(
+      <SidebarQuickActions
+        permissions={{ events: "manage", event_expenses: "manage" }}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: /quick actions/i }),
+    ).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: /new event/i })).toBeTruthy();
+  });
+
+  test("a remembered choice outranks the threshold", () => {
+    render(
+      <SidebarQuickActions
+        permissions={{ events: "manage", event_expenses: "manage" }}
+        defaultOpen={false}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: /quick actions/i }),
+    ).toHaveAttribute("aria-expanded", "false");
   });
 
   test("shows every action for an admin", () => {

@@ -6,6 +6,7 @@ import {
   HOME_UPCOMING_COUNT_SLOT,
   LAYOUT_SLOTS,
   MAX_HOME_UPCOMING_COUNT,
+  PROGRAMS_SOURCE_SLOT,
   isLayoutValue,
   layoutSettingKey,
   resolveLayout,
@@ -17,6 +18,7 @@ const DEFAULTS: SiteLayout = {
   homeUpcomingCount: 3,
   homeUpcomingCards: "fliers",
   homeUpcomingCommunity: true,
+  programsSource: "content",
 };
 
 const countSlot = LAYOUT_SLOTS.find(
@@ -38,17 +40,34 @@ describe("resolveLayout", () => {
         { slot: HOME_UPCOMING_COUNT_SLOT, value: 6 },
         { slot: HOME_UPCOMING_CARDS_SLOT, value: "compact" },
         { slot: HOME_UPCOMING_COMMUNITY_SLOT, value: false },
+        { slot: PROGRAMS_SOURCE_SLOT, value: "module" },
       ]),
     ).toEqual({
       homeUpcomingCount: 6,
       homeUpcomingCards: "compact",
       homeUpcomingCommunity: false,
+      programsSource: "module",
     });
   });
 
   test("falls back to the registry defaults when nothing is stored", () => {
     expect(resolveLayout([])).toEqual(DEFAULTS);
     expect(DEFAULT_SITE_LAYOUT).toEqual(DEFAULTS);
+  });
+
+  // The Programs page was copy-driven before #898 and every tenant that has
+  // said nothing must keep it that way: a deploy that quietly repointed the
+  // page at a module holding no public programs would blank a live section.
+  test("leaves the Programs page on Site Content until a tenant says otherwise", () => {
+    expect(resolveLayout([]).programsSource).toBe("content");
+    expect(
+      resolveLayout([{ slot: PROGRAMS_SOURCE_SLOT, value: "modules" }])
+        .programsSource,
+    ).toBe("content");
+    expect(
+      resolveLayout([{ slot: PROGRAMS_SOURCE_SLOT, value: "module" }])
+        .programsSource,
+    ).toBe("module");
   });
 
   test("resolves each slot independently", () => {

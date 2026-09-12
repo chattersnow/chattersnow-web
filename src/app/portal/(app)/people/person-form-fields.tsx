@@ -1,11 +1,8 @@
 "use client";
 
-import {
-  PERSON_TYPES,
-  ROLE_OPTIONS,
-  type PersonType,
-  type RoleKey,
-} from "./people-shared";
+import { PERSON_TYPES, type PersonType, type RoleKey } from "./people-shared";
+import { PERSON_ROLES, personRoleLabel } from "@/lib/person-roles";
+import { useLexicon } from "@/components/lexicon-context";
 import {
   EXPERIENCE_LEVELS,
   RIDING_DISCIPLINES,
@@ -87,6 +84,12 @@ export function PersonFormFields({
   ) => void;
   idPrefix: string;
 }) {
+  // What this organization calls the six roles (#911). From the shell's
+  // context rather than a prop: this form renders inside the New Person dialog
+  // on eight segment pages and inside the profile card's edit mode, and a prop
+  // threaded through all of them is one that gets dropped.
+  const vocabulary = useLexicon();
+
   function toggleRole(key: RoleKey, checked: boolean) {
     update("roles", { ...form.roles, [key]: checked });
   }
@@ -189,13 +192,13 @@ export function PersonFormFields({
       <Field>
         <FieldLabel>Roles</FieldLabel>
         <div className="flex flex-wrap gap-4">
-          {ROLE_OPTIONS.map((option) => (
-            <label key={option.key} className="flex items-center gap-2 text-sm">
+          {PERSON_ROLES.map((role) => (
+            <label key={role.key} className="flex items-center gap-2 text-sm">
               <Checkbox
-                checked={form.roles[option.key]}
-                onCheckedChange={(checked) => toggleRole(option.key, checked)}
+                checked={form.roles[role.key]}
+                onCheckedChange={(checked) => toggleRole(role.key, checked)}
               />
-              {option.label}
+              {personRoleLabel(role.key, vocabulary)}
             </label>
           ))}
         </div>

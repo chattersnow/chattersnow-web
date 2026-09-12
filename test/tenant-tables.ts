@@ -9,6 +9,15 @@
  * select policy admits rows with no tenant on purpose. It is covered by its
  * own case in the isolation suite.
  *
+ * `content_pack_adoptions` (#895) is absent for a different reason: a row in it
+ * exists only once one tenant has copied another tenant's pack, so a database
+ * with a single seeded tenant has none by construction and the per-table check
+ * below -- which requires rows in tenant A -- would be asserting against an
+ * empty table. Seeding one would mean seeding a row the application cannot
+ * produce. Its isolation is covered directly in
+ * `src/app/portal/(app)/administration/site-content/articles/packs/actions.integration.test.ts`,
+ * which provisions the second tenant that makes adoption possible at all.
+ *
  * A table added later with a `tenant_id` column belongs here too. The catalog
  * side of that -- its policies carrying the tenant predicate, its foreign
  * keys being composite -- is asserted by `tenant_isolation_gaps()` regardless
@@ -21,6 +30,8 @@ export const TENANT_TABLES = [
   "agendas",
   "annual_requirements",
   "app_settings",
+  "article_categories",
+  "articles",
   "assets",
   "board_members",
   "bylaws",
@@ -34,6 +45,7 @@ export const TENANT_TABLES = [
   "content_brief_template_versions",
   "content_brief_templates",
   "content_opportunities",
+  "content_packs",
   "content_permissions",
   "discount_codes",
   "donations",
