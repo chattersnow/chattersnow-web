@@ -330,21 +330,68 @@ export const NAV_ITEMS: readonly NavItem[] = [
     group: "Resources",
     href: "/portal/finance/expenses",
     basePath: "/portal/finance",
+    // Grouped and reordered (#988). Finance's problem was never the item
+    // count: Sales, Sales Register and Products took three of the eight slots
+    // -- 37% of the section -- for one subject, rendered as three peers even
+    // though the routes say parent and children (finance/sales,
+    // finance/sales/register, finance/sales/products). The sidebar gave no
+    // hint that Register and Products belong to Sales rather than to Finance.
+    //
+    // They are not three views of one object, so they are not tabs: the
+    // register is a till, Products is a catalog, Sales is a ledger of what the
+    // till recorded. Under docs/portal-navigation.md they are different jobs
+    // and stay separate destinations -- they just needed to sit under Sales
+    // rather than beside it. `NavItem` has no third level and inventing one
+    // would be an eighth navigation pattern, so the group heading does the
+    // work the nesting would.
+    //
+    // Reimbursements stays here (#951) even though the entitlement catalog
+    // makes it a peer module of `finance`, the same shape #943 promoted
+    // Access Management out of Administration for. The answer differs because
+    // the sections do: Administration was a misc drawer with a six-resource
+    // union gate, while Finance is one job with one audience, and a
+    // reimbursement is money out under the same approval thresholds.
+    //
+    // The section's href stays /portal/finance/expenses, so reordering moves
+    // nobody's landing page: visibleNavItems keeps item.href whenever a
+    // reachable sub-item still has it.
     subItems: [
+      {
+        // Donations is one of two pages by that name -- inventory/donations is
+        // the other (#949 gave them distinct titles, #948 breadcrumbs). This
+        // heading is the last piece: the sidebar now says which is which.
+        value: "donations",
+        label: "Donations",
+        href: "/portal/finance/donations",
+        group: "Money in",
+        access: [{ resource: "finance", level: "manage" }],
+      },
+      {
+        value: "revenue",
+        label: "Revenue",
+        href: "/portal/finance/revenue",
+        group: "Money in",
+        access: [{ resource: "finance", level: "manage" }],
+      },
       {
         value: "expenses",
         label: "Expenses",
         href: "/portal/finance/expenses",
+        group: "Money out",
         access: [
           { resource: "finance", level: "manage" },
           { resource: "finance_approvals", level: "manage" },
         ],
       },
       {
-        value: "revenue",
-        label: "Revenue",
-        href: "/portal/finance/revenue",
-        access: [{ resource: "finance", level: "manage" }],
+        value: "reimbursements",
+        label: "Reimbursements",
+        href: "/portal/finance/reimbursements",
+        group: "Money out",
+        access: [
+          { resource: "reimbursements", level: "manage" },
+          { resource: "reimbursement_approvals", level: "manage" },
+        ],
       },
       // Sales before Register before Products: the ledger is the section's
       // read-only landing place and the only one a `sales:view` holder can
@@ -354,35 +401,27 @@ export const NAV_ITEMS: readonly NavItem[] = [
         value: "sales",
         label: "Sales",
         href: "/portal/finance/sales",
+        group: "Sales",
         access: [{ resource: "sales", level: "view" }],
       },
       {
         value: "register",
         label: "Sales Register",
         href: "/portal/finance/sales/register",
+        group: "Sales",
         access: [{ resource: "sales", level: "manage" }],
       },
       {
         value: "products",
         label: "Products",
         href: "/portal/finance/sales/products",
+        group: "Sales",
         access: [{ resource: "sales", level: "manage" }],
       },
-      {
-        value: "donations",
-        label: "Donations",
-        href: "/portal/finance/donations",
-        access: [{ resource: "finance", level: "manage" }],
-      },
-      {
-        value: "reimbursements",
-        label: "Reimbursements",
-        href: "/portal/finance/reimbursements",
-        access: [
-          { resource: "reimbursements", level: "manage" },
-          { resource: "reimbursement_approvals", level: "manage" },
-        ],
-      },
+      // Deliberately ungrouped, and last. It is the one entry with a different
+      // audience -- `board` holds finance_reports:view and reaches nothing
+      // else in the section -- and a heading over a single item says less than
+      // its absence does.
       {
         value: "reports",
         label: "Financial Reports",

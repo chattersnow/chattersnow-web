@@ -306,6 +306,107 @@ describe("navGroups", () => {
     }
   });
 
+  test("groups Finance in nav order, Financial Reports ungrouped at the end", () => {
+    // #988. The three Sales pages took 37% of the section as peers although
+    // the routes say parent and children, so a heading does the nesting that
+    // NavItem has no third level for. Financial Reports carries no group on
+    // purpose: it is the one entry with a different audience -- `board` holds
+    // finance_reports:view and reaches nothing else here -- and navGroups
+    // returns a trailing ungrouped run as its own unlabelled group.
+    const finance = NAV_ITEMS.find((item) => item.value === "finance")!;
+    expect(
+      navGroups(finance.subItems!).map((group) => [
+        group.label,
+        group.items.map((sub) => sub.value),
+      ]),
+    ).toEqual([
+      ["Money in", ["donations", "revenue"]],
+      ["Money out", ["expenses", "reimbursements"]],
+      ["Sales", ["sales", "register", "products"]],
+      [undefined, ["reports"]],
+    ]);
+  });
+
+  test("grouping Finance moved no route and no gate", () => {
+    // #988 is group keys and an order, nothing else: every page keeps the href
+    // and the access it had, so no redirect was needed.
+    const finance = NAV_ITEMS.find((item) => item.value === "finance")!;
+    expect(
+      Object.fromEntries(
+        finance.subItems!.map((sub) => [
+          sub.value,
+          [sub.href, sub.access.map((a) => `${a.resource}:${a.level}`)],
+        ]),
+      ),
+    ).toEqual({
+      donations: ["/portal/finance/donations", ["finance:manage"]],
+      revenue: ["/portal/finance/revenue", ["finance:manage"]],
+      expenses: [
+        "/portal/finance/expenses",
+        ["finance:manage", "finance_approvals:manage"],
+      ],
+      reimbursements: [
+        "/portal/finance/reimbursements",
+        ["reimbursements:manage", "reimbursement_approvals:manage"],
+      ],
+      sales: ["/portal/finance/sales", ["sales:view"]],
+      register: ["/portal/finance/sales/register", ["sales:manage"]],
+      products: ["/portal/finance/sales/products", ["sales:manage"]],
+      reports: ["/portal/finance/reports", ["finance_reports:view"]],
+    });
+  });
+
+  test("reordering Finance left every landing page where it was", () => {
+    // The reorder put Donations first, but visibleNavItems keeps item.href
+    // whenever a reachable sub-item still has it -- so a finance:manage holder
+    // still lands on Expenses, not on the new first entry. Only readers who
+    // cannot open Expenses fall through to their own first reachable page, and
+    // those are unchanged too.
+    const cases: [PermissionMap, string][] = [
+      [{ finance: "manage" }, "/portal/finance/expenses"],
+      [{ finance_approvals: "manage" }, "/portal/finance/expenses"],
+      [{ finance_reports: "view" }, "/portal/finance/reports"],
+      [{ sales: "manage" }, "/portal/finance/sales"],
+      [{ reimbursements: "manage" }, "/portal/finance/reimbursements"],
+    ];
+    for (const [permissions, href] of cases) {
+      expect(firstAccessibleHref(permissions, "finance")).toBe(href);
+    }
+  });
+
+  test("a Finance group whose every item is filtered out leaves no heading", () => {
+    // event_coordinator's shape: sales:manage with finance: none. Money in and
+    // Money out must not survive as headings over nothing, and Financial
+    // Reports -- a different gate again -- must not appear either.
+    const coordinator: PermissionMap = { sales: "manage" };
+    const finance = visibleNavItems(coordinator).find(
+      (item) => item.value === "finance",
+    )!;
+    expect(
+      navGroups(finance.subItems!).map((group) => [
+        group.label,
+        group.items.map((sub) => sub.value),
+      ]),
+    ).toEqual([["Sales", ["sales", "register", "products"]]]);
+  });
+
+  test("the board member's Finance is one unlabelled entry", () => {
+    // finance_reports:view reaches Financial Reports alone. It carries no
+    // group, so the section renders as a single unlabelled run with no
+    // heading above it -- which is why leaving it ungrouped is the right call
+    // rather than an oversight.
+    const board: PermissionMap = { finance_reports: "view" };
+    const finance = visibleNavItems(board).find(
+      (item) => item.value === "finance",
+    )!;
+    expect(
+      navGroups(finance.subItems!).map((group) => [
+        group.label,
+        group.items.map((sub) => sub.value),
+      ]),
+    ).toEqual([[undefined, ["reports"]]]);
+  });
+
   test("groups Administration in nav order", () => {
     const administration = NAV_ITEMS.find(
       (item) => item.value === "administration",
