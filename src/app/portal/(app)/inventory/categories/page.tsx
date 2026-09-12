@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fragment } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getTenantLexicon } from "@/lib/tenant-lexicon";
 import {
   getCurrentUserPermissions,
   hasPermission,
@@ -21,9 +22,12 @@ import {
   type CategoryRow,
 } from "./category-details-sheet";
 
-export const metadata: Metadata = {
-  title: "Item Categories",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const supabase = await createSupabaseServerClient();
+  return {
+    title: `${(await getTenantLexicon(supabase)).collection} Categories`,
+  };
+}
 
 type GroupRow = {
   id: string;
@@ -42,6 +46,7 @@ type GroupRow = {
 
 export default async function InventoryCategoriesPage() {
   const supabase = await createSupabaseServerClient();
+  const lexicon = await getTenantLexicon(supabase);
   const permissions = await getCurrentUserPermissions(supabase);
   const canManage = hasPermission(permissions, "inventory", "manage");
 
@@ -73,7 +78,7 @@ export default async function InventoryCategoriesPage() {
     <>
       <div className="w-fit">
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-          Item categories
+          {lexicon.collection} categories
         </h1>
         <div className="rainbow-accent mt-3 w-full" />
       </div>

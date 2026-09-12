@@ -1,4 +1,5 @@
-import { CONTACT_TOPIC_LABELS } from "@/lib/contact-topics";
+import { contactTopicLabel } from "@/lib/contact-topics";
+import { DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
 import type { RenderedEmail } from "@/lib/notifications/rendered-email";
 
 /**
@@ -82,13 +83,20 @@ export function renderVolunteerApplicationEmail(
   };
 }
 
+/**
+ * The lexicon is this tenant's own words (#896). A message filed under the
+ * `gear` topic has to reach the inbox saying whatever that organization
+ * calls the things it lends -- the same word the visitor picked on the form
+ * and the portal's messages table shows.
+ */
 export function renderContactMessageEmail(
   notice: ContactMessageNotice,
   siteUrl: string,
+  lexicon: Lexicon = DEFAULT_LEXICON,
 ): RenderedEmail {
   const origin = normalizeOrigin(siteUrl);
   const url = `${origin}${contactMessageHref(notice.messageId)}`;
-  const topic = CONTACT_TOPIC_LABELS[notice.topic] ?? notice.topic;
+  const topic = contactTopicLabel(notice.topic, lexicon);
 
   const facts: Fact[] = [
     { label: "From", value: notice.name },

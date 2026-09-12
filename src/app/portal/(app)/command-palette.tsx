@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { hasPermission, type PermissionMap } from "@/lib/auth/permissions";
 import { visibleNavItems } from "@/lib/portal/nav";
+import { DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
 import { searchPeopleAction } from "./command-palette-actions";
 
 type PaletteItem = {
@@ -31,7 +32,10 @@ type PaletteGroup = { value: string; items: PaletteItem[] };
  * palette can only ever offer somewhere the user can actually go. People are
  * fetched per keystroke and gated the same way the directory pages are.
  */
-function pageItems(permissions: PermissionMap): PaletteItem[] {
+function pageItems(
+  permissions: PermissionMap,
+  lexicon: Lexicon,
+): PaletteItem[] {
   const items: PaletteItem[] = [];
   // One entry per destination. The nav tree cross-lists a page under more than
   // one section -- the volunteer directory is both People > Volunteers and
@@ -46,7 +50,7 @@ function pageItems(permissions: PermissionMap): PaletteItem[] {
     seen.add(item.value);
     items.push(item);
   };
-  for (const section of visibleNavItems(permissions)) {
+  for (const section of visibleNavItems(permissions, lexicon)) {
     if (!section.subItems) {
       push({
         value: `page:${section.href}`,
@@ -81,8 +85,12 @@ function matches(item: PaletteItem, query: string) {
 
 export function CommandPalette({
   permissions,
+  lexicon = DEFAULT_LEXICON,
 }: {
   permissions: PermissionMap;
+  /** This tenant's words, so the palette offers a section by the name
+   *  the sidebar shows it under (#896). */
+  lexicon?: Lexicon;
 }) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
@@ -91,7 +99,10 @@ export function CommandPalette({
   const [isSearching, startSearch] = React.useTransition();
 
   const canSeePeople = hasPermission(permissions, "people", "view");
-  const pages = React.useMemo(() => pageItems(permissions), [permissions]);
+  const pages = React.useMemo(
+    () => pageItems(permissions, lexicon),
+    [permissions, lexicon],
+  );
   const requestRef = React.useRef(0);
 
   React.useEffect(() => {

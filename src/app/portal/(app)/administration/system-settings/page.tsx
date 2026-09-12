@@ -3,10 +3,10 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  PUBLIC_PAGE_SLOTS,
   getTenantModules,
   getTenantPageVisibility,
   moduleBlockedSlots,
+  namedSlots,
 } from "@/lib/page-visibility";
 import { LAYOUT_SLOTS, getTenantLayoutValues } from "@/lib/site-layout";
 import { LEGAL_DOCUMENTS } from "@/lib/legal-documents";
@@ -24,6 +24,8 @@ import { BrandingPanel } from "./branding-panel";
 import { DataPanel } from "./data-panel";
 import { getFiscalYearStartMonth } from "@/lib/fiscal-year";
 import { getTenantBranding } from "@/lib/tenant-branding";
+import { getStoredLexicon, getTenantLexicon } from "@/lib/tenant-lexicon";
+import { LexiconPanel } from "./lexicon-panel";
 import { NOTIFICATION_KINDS } from "@/lib/notifications/kinds";
 import { getOrgEmailEnabled } from "@/lib/notifications/settings";
 import {
@@ -88,6 +90,8 @@ export default async function SystemSettingsPage() {
     tenantContext,
     emailEnabled,
     tenantModules,
+    lexicon,
+    storedLexicon,
   ] = await Promise.all([
     getTenantPageVisibility(supabase),
     getTenantLegalPublication(supabase),
@@ -106,6 +110,8 @@ export default async function SystemSettingsPage() {
     getTenantContext(supabase),
     getOrgEmailEnabled(supabase),
     getTenantModules(supabase),
+    getTenantLexicon(supabase),
+    getStoredLexicon(supabase),
   ]);
   const orgName = currentTenant(tenantContext)?.name ?? "this organization";
 
@@ -189,6 +195,15 @@ export default async function SystemSettingsPage() {
           <OrganizationSettingsPanel
             fiscalYearStartMonth={fiscalYearStartMonth}
           />
+          <p className="app-muted max-w-3xl text-sm leading-relaxed">
+            What this organization calls the things it lends. The platform says
+            &ldquo;inventory&rdquo; and &ldquo;items&rdquo;; yours may be a gear
+            library, a tool library or a pantry, and these words are what the
+            public navigation, this portal&rsquo;s sidebar and the unwritten
+            parts of your site copy use. Leave a field blank to keep the
+            platform&rsquo;s word.
+          </p>
+          <LexiconPanel stored={storedLexicon} />
         </TabsContent>
 
         <TabsContent value="workflow" className="mt-6 space-y-4">
@@ -234,7 +249,7 @@ export default async function SystemSettingsPage() {
             log.
           </p>
           <PageVisibilityPanel
-            slots={PUBLIC_PAGE_SLOTS}
+            slots={namedSlots(lexicon)}
             visibility={pageVisibility}
             blockedSlots={blockedSlots}
           />

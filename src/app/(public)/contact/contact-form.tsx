@@ -15,15 +15,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { contactTopics } from "@/lib/contact-topics";
+import { DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
 
-const CONTACT_TOPICS = [
-  { value: "general", label: "General inquiry" },
-  { value: "partnership", label: "Partnerships & sponsorship" },
-  { value: "volunteer", label: "Volunteering" },
-  { value: "gear", label: "Gear" },
-];
-
-export function ContactForm() {
+export function ContactForm({
+  lexicon = DEFAULT_LEXICON,
+}: {
+  /**
+   * This organization's words (#896). The topics used to be a second
+   * hardcoded list here; they are the registry in `@/lib/contact-topics`
+   * now, because one of the labels is the organization's own word and the
+   * portal has to file the message under the same one.
+   */
+  lexicon?: Lexicon;
+}) {
+  const CONTACT_TOPICS = contactTopics(lexicon);
   const searchParams = useSearchParams();
   const requestedTopic = searchParams.get("topic");
   const initialTopic = CONTACT_TOPICS.some(

@@ -5,6 +5,7 @@ import {
   getCurrentUserPermissions,
 } from "@/lib/auth/permissions";
 import { firstAccessibleHref } from "@/lib/portal/nav";
+import { getTenantLexicon } from "@/lib/tenant-lexicon";
 
 /**
  * Sends the user to the first Inventory page they can actually open, the same
@@ -14,9 +15,12 @@ import { firstAccessibleHref } from "@/lib/portal/nav";
  */
 export default async function InventoryPage() {
   const supabase = await createSupabaseServerClient();
-  const permissions = await getCurrentUserPermissions(supabase);
+  const [permissions, lexicon] = await Promise.all([
+    getCurrentUserPermissions(supabase),
+    getTenantLexicon(supabase),
+  ]);
   redirect(
     firstAccessibleHref(permissions, "inventory") ??
-      deniedRedirectHref("Inventory"),
+      deniedRedirectHref(lexicon.collection),
   );
 }

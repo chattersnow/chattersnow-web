@@ -10,7 +10,10 @@ import { isPageVisible } from "@/lib/page-visibility";
 
 export async function generateMetadata(): Promise<Metadata> {
   const supabase = await createSupabaseServerClient();
-  return { title: publicTitle(await getPublicSite(supabase), "Gear Library") };
+  const site = await getPublicSite(supabase);
+  // The tab says what this organization calls its collection (#896),
+  // matching the heading the page renders from `gears.library_heading`.
+  return { title: publicTitle(site, site.lexicon.collection_public) };
 }
 
 export default async function GearLibraryPage() {

@@ -64,28 +64,34 @@ async function seedAvailableGearItems(admin: AdminClient, count: number) {
   };
 }
 
+// The labels below are the platform's own words, not Chatter Snow's (#896).
+// The section is named from the tenant's lexicon now, and the seeded local
+// tenant -- "Example Nonprofit" -- sets none, so it reads "Items" / "Library"
+// where a tenant that has said it lends gear reads "Gear" / "Gear Library".
+// That is the point of the ticket, and exercising the unset path here is worth
+// more than restating one organization's vocabulary.
 test.describe("public gears pages", () => {
-  test("gears index redirects to the gear library", async ({ page }) => {
+  test("gears index redirects to the library", async ({ page }) => {
     await page.goto("/gears");
     await expect(page).toHaveURL(/\/gears\/library$/);
     await expect(
-      page.getByRole("heading", { level: 1, name: "Gear library" }),
+      page.getByRole("heading", { level: 1, name: "Library" }),
     ).toBeVisible();
   });
 
-  test("nav resolves to Gear Library", async ({ page }) => {
+  test("nav resolves to the library", async ({ page }) => {
     await page.goto("/home");
-    await clickNavLink(page, "Gear Library", { group: "Gear" });
+    await clickNavLink(page, "Library", { group: "Items" });
 
     await expect(page).toHaveURL(/\/gears\/library$/);
     await expect(
-      page.getByRole("heading", { level: 1, name: "Gear library" }),
+      page.getByRole("heading", { level: 1, name: "Library" }),
     ).toBeVisible();
   });
 
   test("nav resolves to Sizing Guide", async ({ page }) => {
     await page.goto("/home");
-    await clickNavLink(page, "Sizing Guide", { group: "Gear" });
+    await clickNavLink(page, "Sizing Guide", { group: "Items" });
 
     await expect(page).toHaveURL(/\/gears\/sizing$/);
     await expect(
@@ -93,25 +99,25 @@ test.describe("public gears pages", () => {
     ).toBeVisible();
   });
 
-  test("nav resolves to the gear donation page", async ({ page }) => {
+  test("nav resolves to the donation page", async ({ page }) => {
     await page.goto("/home");
-    await clickNavLink(page, "Donate or Request Gear", { group: "Gear" });
+    await clickNavLink(page, "Donate or Request Items", { group: "Items" });
 
     await expect(page).toHaveURL(/\/gears\/donate/);
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: "How the gear program works",
+        name: "How the library works",
       }),
     ).toBeVisible();
   });
 
-  test("gear library and donate copy don't imply formal membership", async ({
+  test("library and donate copy don't imply formal membership", async ({
     page,
   }) => {
     await page.goto("/gears/library");
     await expect(
-      page.getByText("Browse gear currently available to the community."),
+      page.getByText("Browse items currently available to the community."),
     ).toBeVisible();
     await expect(page.getByText(/\bmembers\b/i)).toHaveCount(0);
 
