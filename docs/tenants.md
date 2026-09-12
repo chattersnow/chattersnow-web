@@ -71,7 +71,9 @@ into:
 - the platform-default settings (`finance.*`, `content.*`, `org.*`), and
   nothing else from the template's `app_settings` -- not its page visibility
   or branding, nothing from `site_content` (copy or photos), and no articles
-  -- a new tenant's Learn section is empty until it writes its own (#894);
+  -- a new tenant's Learn section is empty until it writes its own (#894),
+  unless a content pack is named (see "Content packs" below), in which case
+  that pack's categories and articles arrive as **drafts**;
 - a staged `pending_role_grants` row for `--admin`, which
   `claim_pending_role_grants()` turns into the admin role and the membership
   the first time that address signs in.
@@ -339,9 +341,41 @@ Both are the tenant admin's, not the operator's:
   (`20260912010000_chatter_snow_owns_its_learn_articles.sql`), not a platform
   default any other tenant inherits.
 
+- **Administration → Site Content → Articles → Content packs** (platform
+  tenant only): a **pack** is a named set of the platform tenant's own article
+  categories, offered to the other organizations (#895). It is a label on the
+  platform's articles rather than a second content system: the platform writes
+  articles exactly as any tenant does, and the pack is the subset it is willing
+  to hand over. A pack is invisible until it is switched to _Offered_, and only
+  its **published** categories and articles are ever copied.
+
+  Other tenants see the offered packs on their own Articles screen and adopt
+  one with a button; provisioning offers the same packs (`--pack` on
+  `bun run tenant:provision`, checkboxes on the Platform screen).
+
+  **Adoption is a copy.** The adopting organization gets its own rows, as
+  drafts, and owns them from that moment — nobody's published page is rewritten
+  by a platform edit, which is the same reason #858 made the platform's legal
+  document a _default_ rather than the tenant's document. The price is accepted
+  rather than designed around: **a pack improved after adoption does not reach
+  anyone who already took it.** There is no versioning, no diff and no upstream
+  update, and `content_pack_adoptions` records what was copied with the pack's
+  key and name as plain text precisely because there is nothing left to link
+  to.
+
+  Adoption refuses rather than renaming when a category's address is already in
+  use — an address is identity, and it also stops a second adoption silently
+  duplicating a pack. Rename or remove the colliding page and adopt again.
+
+  No pack ships with the platform. Chatter Snow's snow-sports writing is
+  Organization Material under `decisions/2026-09-05-portal-ip-ownership.md`, so
+  it stays Chatter Snow's rows and is not the first pack.
+
 The `site_content` resource is separate from `administration`, so writing
 for the site -- articles included -- can be granted to a role without handing
-it the rest.
+it the rest. Authoring a pack is `platform_tenants:manage`, which resolves only
+inside the platform tenant; adopting one is `site_content:manage`, the
+permission that already decides who may put words on the public site.
 
 ## Support access
 

@@ -41,6 +41,8 @@ export async function provisionTenantAction(input: {
   customDomain: string;
   plan: string;
   adminEmail: string;
+  /** Keys of the content packs to copy in as drafts (#895). */
+  packKeys?: string[];
 }): Promise<{ error: string } | { success: true; link: string | null }> {
   const { supabase, denied } = await guard();
   if (denied) return denied;
@@ -57,6 +59,9 @@ export async function provisionTenantAction(input: {
     p_custom_domain: input.customDomain.trim() || null,
     p_plan: input.plan,
     p_admin_email: adminEmail || null,
+    // Packs arrive as drafts, so a new organization starts with material
+    // waiting to be read rather than a live page nobody there has seen (#895).
+    p_pack_keys: input.packKeys?.length ? input.packKeys : null,
   });
   if (error) {
     return {
