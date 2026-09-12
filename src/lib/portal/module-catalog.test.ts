@@ -150,6 +150,11 @@ for (const name of migrationFiles) {
   }
 }
 
+/** A SQL string literal's value: '' is one apostrophe, not two. */
+function unquote(literal: string): string {
+  return literal.replace(/''/g, "'");
+}
+
 const entitlements = readFileSync(join(MIGRATIONS, ENTITLEMENTS), "utf8");
 
 /** key -> is_core, from the modules seed. */
@@ -162,6 +167,60 @@ for (const body of statementsAfter(
     /\(\s*'([a-z0-9_]+)'\s*,.*?,\s*(?:true|false)\s*,\s*(true|false)\s*\)/g,
   )) {
     catalog.set(row[1], row[2] === "true");
+  }
+}
+
+/**
+ * key -> the label and description an operator actually sees, which is the
+ * seeded row as amended by every later migration (#989).
+ *
+ * Reading the seed alone would have been the bug this guards: three rows
+ * described a product that had moved, and the correction lives in its own
+ * migration because 20260910010000 has already run on the hosted project.
+ * A checker that stopped at the seed would report the stale copy as current
+ * and the fresh copy as wrong -- exactly backwards.
+ */
+const copy = new Map<string, { label: string; description: string }>();
+for (const body of statementsAfter(
+  entitlements,
+  /insert into public\.modules \([^)]*\) values/g,
+)) {
+  for (const row of valueRows(body)) {
+    const match = row.match(
+      /'([a-z0-9_]+)'\s*,\s*'((?:[^']|'')*)'\s*,\s*'((?:[^']|'')*)'/,
+    );
+    if (match) {
+      copy.set(match[1], {
+        label: unquote(match[2]),
+        description: unquote(match[3]),
+      });
+    }
+  }
+}
+
+/** How many rows a later migration rewrote, so a dead reader fails loudly. */
+let amendedRows = 0;
+for (const name of migrationFiles.filter((file) => file > ENTITLEMENTS)) {
+  const sql = readFileSync(join(MIGRATIONS, name), "utf8");
+  for (const body of statementsAfter(sql, /update public\.modules\b/g)) {
+    const key = body.match(/where\s+key\s*=\s*'([a-z0-9_]+)'/)?.[1];
+    if (!key) continue;
+    const current = copy.get(key);
+    if (!current) continue;
+    // Only the `set` clause: `where key = '...'` must not be mistaken for a
+    // column assignment, and neither must a word inside a comment.
+    const setClause = body.slice(0, body.search(/\bwhere\b/));
+    const label = setClause.match(/\blabel\s*=\s*'((?:[^']|'')*)'/)?.[1];
+    const description = setClause.match(
+      /\bdescription\s*=\s*'((?:[^']|'')*)'/,
+    )?.[1];
+    if (label === undefined && description === undefined) continue;
+    copy.set(key, {
+      label: label === undefined ? current.label : unquote(label),
+      description:
+        description === undefined ? current.description : unquote(description),
+    });
+    amendedRows++;
   }
 }
 
@@ -202,6 +261,74 @@ describe("the catalogs parse at all", () => {
   // misleading message. Pin the one that exists.
   test("a resource added after the modules migration names its own module", () => {
     expect(inlineModules.get("sales")).toBe("finance");
+  });
+});
+
+describe("what the catalog says a module is", () => {
+  // The operator screen (`platform/tenant-modules-dialog.tsx`) renders these
+  // two strings beside each tenant's switch, so they are the answer to "what
+  // does this come with?" at the moment somebody decides to sell it. #989
+  // found three rows describing a product that had moved underneath them.
+  test("every module has a label and a description", () => {
+    const bare = [...catalog.keys()]
+      .filter((key) => !copy.get(key)?.description)
+      .sort();
+    expect(
+      bare,
+      `Modules with no description: ${bare.join(", ")}. The operator toggling it sees the label and nothing else.`,
+    ).toEqual([]);
+  });
+
+  test("a later migration's correction is what the catalog reads", () => {
+    // The reader above has no second witness: if it silently stopped applying
+    // updates, every assertion below would test the seed and pass on copy
+    // nobody ships. Pin that it applied at least the ones #989 wrote.
+    expect(amendedRows).toBeGreaterThan(0);
+    expect(copy.get("access_management")?.label).toBe("Technology");
+  });
+
+  // Words that name one module's pages and nobody else's. A description that
+  // claims another module's subject is the #989 bug: the catalog told an
+  // operator grants came with Finance, while /portal/governance/grants is
+  // gated on governance:manage and `board` holds finance: none -- so a board
+  // member reached Grants and would have lost it had the catalog been
+  // believed.
+  const SUBJECTS: [string, string][] = [
+    ["grant", "governance"],
+    ["partnership", "governance"],
+    ["bylaws", "governance"],
+    ["resolution", "governance"],
+    ["sales", "finance"],
+    ["reimbursement", "reimbursements"],
+    ["incident", "events"],
+    ["brief template", "calendar"],
+  ];
+
+  test("no module's description claims another module's subject", () => {
+    const claims: string[] = [];
+    for (const [subject, owner] of SUBJECTS) {
+      for (const [key, entry] of copy) {
+        if (key === owner) continue;
+        if (entry.description.toLowerCase().includes(subject)) {
+          claims.push(`${key} claims "${subject}", which belongs to ${owner}`);
+        }
+      }
+    }
+    expect(
+      claims.sort(),
+      `Module descriptions naming another module's pages:\n${claims.join("\n")}`,
+    ).toEqual([]);
+  });
+
+  test("the module that owns each subject says so", () => {
+    // The other half: removing "grants" from Finance would be a half-fix if
+    // Governance never picked the word up, since an operator reading the
+    // catalog end to end would then find it nowhere at all.
+    const silent = SUBJECTS.filter(
+      ([subject, owner]) =>
+        !copy.get(owner)?.description.toLowerCase().includes(subject),
+    ).map(([subject, owner]) => `${owner} never mentions ${subject}`);
+    expect(silent.sort()).toEqual([]);
   });
 });
 
