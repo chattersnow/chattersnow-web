@@ -167,9 +167,22 @@ export function PortalNav({
 
                 {item.subItems && isOpen && !isLink ? (
                   <SidebarMenuSub id={submenuId}>
-                    {navGroups(item.subItems).map((group) => {
-                      const items = group.items.map((sub) => (
-                        <SidebarMenuSubItem key={sub.value}>
+                    {navGroups(item.subItems).map((group, groupIndex) => {
+                      const items = group.items.map((sub, subIndex) => (
+                        <SidebarMenuSubItem
+                          key={sub.value}
+                          // A labelled group gets its gap from the wrapper
+                          // below; an ungrouped run following one has no
+                          // wrapper to hang it on, so the first of its items
+                          // carries the same mt-2. Without it Finance's
+                          // ungrouped Financial Reports sat flush under
+                          // Products and read as a fourth Sales page (#988).
+                          className={
+                            !group.label && groupIndex > 0 && subIndex === 0
+                              ? "mt-2"
+                              : undefined
+                          }
+                        >
                           <SidebarMenuSubButton
                             isActive={activeSub === sub.value}
                             render={<Link href={sub.href} />}
