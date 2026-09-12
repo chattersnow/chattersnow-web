@@ -5,6 +5,7 @@ import {
   hasPermission,
 } from "@/lib/auth/permissions";
 import { getPageVisibility } from "@/lib/page-visibility";
+import { getTenantLayoutValues, PROGRAMS_SOURCE_SLOT } from "@/lib/site-layout";
 import {
   platformLegalDocument,
   type LegalOrgContext,
@@ -71,16 +72,18 @@ export default async function SiteContentPage({
     CONTENT_PAGES[0];
 
   const supabase = await createSupabaseServerClient();
-  const [permissions, { data }, visibility, tenants] = await Promise.all([
-    getCurrentUserPermissions(supabase),
-    supabase
-      .from("site_content")
-      .select(
-        "key, value, draft_value, has_draft, draft_updated_at, draft_updated_by, published_at, published_by",
-      ),
-    getPageVisibility(supabase),
-    getTenantContext(supabase),
-  ]);
+  const [permissions, { data }, visibility, tenants, layoutValues] =
+    await Promise.all([
+      getCurrentUserPermissions(supabase),
+      supabase
+        .from("site_content")
+        .select(
+          "key, value, draft_value, has_draft, draft_updated_at, draft_updated_by, published_at, published_by",
+        ),
+      getPageVisibility(supabase),
+      getTenantContext(supabase),
+      getTenantLayoutValues(supabase),
+    ]);
   const rows = (data ?? []) as SiteContentDraftRow[];
   const { published, draft } = resolveDraftAndPublished(rows);
   const rowsByKey = new Map(rows.map((row) => [row.key, row]));
@@ -179,6 +182,7 @@ export default async function SiteContentPage({
           // sentence live?" without thirteen round trips.
           outline={buildOutline(draft, published, draftKeys)}
           hiddenPages={hiddenPages}
+          programsFromModule={layoutValues[PROGRAMS_SOURCE_SLOT] === "module"}
           canEdit={canEdit}
         />
       </div>

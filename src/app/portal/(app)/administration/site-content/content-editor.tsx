@@ -3,7 +3,7 @@
 import { FormEvent, MouseEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { EyeOff } from "lucide-react";
+import { EyeOff, Info } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -51,6 +51,7 @@ export function ContentEditor({
   slots,
   outline,
   hiddenPages,
+  programsFromModule,
   canEdit,
 }: {
   page: ContentPage;
@@ -60,6 +61,12 @@ export function ContentEditor({
   /** Every slot on every page, so the rail can search across all of them. */
   outline: readonly OutlineEntry[];
   hiddenPages: readonly string[];
+  /**
+   * Whether this tenant's Programs page reads the Programs module rather than
+   * the copy below (#898). Only `programs:items` is affected: the heading,
+   * the introduction and the pillars are read in both modes.
+   */
+  programsFromModule: boolean;
   canEdit: boolean;
 }) {
   const router = useRouter();
@@ -259,6 +266,32 @@ export function ContentEditor({
                   key={section.key}
                   page={page}
                   section={section}
+                  notice={
+                    programsFromModule && section.key === "programs:items" ? (
+                      <Alert>
+                        <Info />
+                        <AlertDescription>
+                          The Programs page is set to list the programs from the
+                          Programs module, so this list is not what visitors
+                          see.{" "}
+                          <Link
+                            href="/portal/programs"
+                            className="underline underline-offset-4"
+                          >
+                            Edit those in Programs
+                          </Link>
+                          , or change where the page reads from in{" "}
+                          <Link
+                            href="/portal/administration/system-settings"
+                            className="underline underline-offset-4"
+                          >
+                            System Settings
+                          </Link>
+                          .
+                        </AlertDescription>
+                      </Alert>
+                    ) : undefined
+                  }
                   slots={sectionSlots}
                   values={values}
                   initial={initial}

@@ -963,6 +963,20 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     ],
   },
   {
+    // Read only when the Programs page is drawing its cards from the Programs
+    // module (#898) and the tenant has marked none of them public. In Site
+    // Content mode the list below is the page, and an empty one is an empty
+    // list nobody wrote -- there is nothing to say about it.
+    key: "programs.empty",
+    page: "programs",
+    section: "programs:items",
+    label: "No programs text",
+    description:
+      "Shown when the page reads the Programs module and no program is marked for the public site.",
+    type: "text",
+    default: "Programs are being finalized. Check back soon.",
+  },
+  {
     key: "programs.items",
     page: "programs",
     section: "programs:items",

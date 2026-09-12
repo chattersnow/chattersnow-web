@@ -206,6 +206,7 @@ function renderEditor(slots: EditorSlot[], hiddenPages: string[] = []) {
     slots: next,
     outline: outlineFor(next),
     hiddenPages,
+    programsFromModule: false,
     canEdit: true,
   });
   const view = renderWithToaster(<ContentEditor {...props(slots)} />);
