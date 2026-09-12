@@ -1447,7 +1447,11 @@ insert into public.app_settings (key, value) values
   -- are: it is one organization's snow-sports content, not platform chrome
   -- (#795 Phase 3). e2e/gears.spec.ts, e2e/skip-link.spec.ts and the a11y
   -- route sweep all visit /gears/sizing, so local and CI turn it on.
-  ('page_visibility.gears-sizing', to_jsonb(true))
+  ('page_visibility.gears-sizing', to_jsonb(true)),
+  -- The link-in-bio page (#937). Off by default like every new section, and
+  -- it is not in the nav either, so without this the a11y route sweep and
+  -- e2e/links.spec.ts would both be scanning a 404 rather than the page.
+  ('page_visibility.links', to_jsonb(true))
 on conflict (tenant_id, key) do update set value = excluded.value;
 
 -- Fiscal year (20260905030000). The migration already seeds July as a

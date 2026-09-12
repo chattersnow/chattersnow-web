@@ -129,3 +129,47 @@ describe("draftValueFor", () => {
     expect(draftValueFor(PHOTO, URL)).toBe(URL);
   });
 });
+
+const LINKS: ContentSlot = {
+  key: "links.items",
+  page: "links",
+  section: "links:page",
+  label: "Links",
+  type: "list",
+  fields: [
+    { key: "label", label: "Button text", kind: "text" },
+    { key: "url", label: "Destination", kind: "url" },
+    { key: "published", label: "Published", kind: "boolean" },
+  ],
+  default: [],
+};
+
+describe("a list carrying a switch (#937)", () => {
+  const on = [{ label: "Events", url: "/events", published: true }];
+  const off = [{ label: "Events", url: "/events", published: false }];
+
+  test("names the switch in the line rather than printing a bare value", () => {
+    expect(slotLines(LINKS, on)).toEqual(["Events — /events — Published: yes"]);
+    expect(slotLines(LINKS, off)).toEqual(["Events — /events — Published: no"]);
+  });
+
+  // The bug this guards: `false` fell out of the old truthiness filter, so
+  // switching a link off read as "nothing changed" in the publish dialog and
+  // went live without ever being listed.
+  test("switching a link off is a change the dialog can show", () => {
+    const changes = slotChanges([{ slot: LINKS, value: off, published: on }]);
+
+    expect(changes).toHaveLength(1);
+    expect(changes[0].before).toEqual(["Events — /events — Published: yes"]);
+    expect(changes[0].after).toEqual(["Events — /events — Published: no"]);
+  });
+
+  // A row stored before the switch existed has no key for it, and the page
+  // reads a missing one as shown. The diff has to say the same thing, or
+  // adding the field to an existing row would read as a change to it.
+  test("a row with no switch reads as published", () => {
+    expect(slotLines(LINKS, [{ label: "Events", url: "/events" }])).toEqual([
+      "Events — /events — Published: yes",
+    ]);
+  });
+});

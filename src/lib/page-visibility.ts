@@ -30,12 +30,14 @@ export type PublicPageSlot = {
    */
   defaultVisible: boolean;
   /**
-   * The file under `src/app/(public)` that calls `requireVisiblePage()` for
-   * this slot. Defaults to `<key>/layout.tsx`, which is where a section-wide
-   * slot belongs. A slot covering a single route names that route's page
-   * instead, and page-visibility.test.ts checks whichever file this resolves
-   * to -- registering a slot without gating it hides the nav link and leaves
-   * the URL live.
+   * The file under `src/app` that calls `requireVisiblePage()` for this slot.
+   * Defaults to `(public)/<key>/layout.tsx`, which is where a section-wide slot
+   * belongs. A slot covering a single route names that route's page instead,
+   * and a route outside the `(public)` group names its own path -- `links` is
+   * outside it, because that group's layout is the site header and footer the
+   * page deliberately does without (#937). page-visibility.test.ts checks
+   * whichever file this resolves to: registering a slot without gating it
+   * hides the nav link and leaves the URL live.
    */
   gate?: string;
   /**
@@ -120,7 +122,7 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
     // segment disagree: the section moved to `/inventory` in #897 while the
     // key stayed `gears`, since renaming the key is a data migration over
     // every tenant's `page_visibility.*` rows for a string nobody sees.
-    gate: "inventory/layout.tsx",
+    gate: "(public)/inventory/layout.tsx",
     module: "inventory",
   },
   // The one slot that gates a single route rather than a section, and the
@@ -136,7 +138,7 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
     description:
       "The ski and snowboard sizing charts under {item_plural}. Written for snow sports specifically, so it stays hidden until an organization says the guide is theirs.",
     defaultVisible: false,
-    gate: "inventory/sizing/page.tsx",
+    gate: "(public)/inventory/sizing/page.tsx",
     module: "inventory",
   },
   {
@@ -159,7 +161,7 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
     description:
       "The volunteer page under Get Involved, its application form and the reference-code status lookup.",
     defaultVisible: true,
-    gate: "get-involved/volunteer/layout.tsx",
+    gate: "(public)/get-involved/volunteer/layout.tsx",
     module: "volunteers",
   },
   {
@@ -183,7 +185,24 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
     description:
       "The brand and design guide at /brand, for sharing with partners, sponsors and press. Derived from the colours, logo and copy set elsewhere in Administration, so turn it on once those are yours.",
     defaultVisible: false,
-    gate: "brand/page.tsx",
+    gate: "(public)/brand/page.tsx",
+  },
+  // The link-in-bio page (#937): the one URL a social profile's bio points at,
+  // and a stack of whatever the organization is currently asking people to do.
+  //
+  // No module -- it is a page about the organization itself, like About and
+  // Brand, not a feature the platform sells. Off by default like every new
+  // section, and unusually consequential here: it is not in the nav, so an
+  // organization that has not written its links has no way to stumble onto the
+  // page, and publishing the registry's example row under their own name would
+  // be the only thing anyone arriving from Instagram ever saw.
+  {
+    key: "links",
+    label: "Links",
+    description:
+      "The page at /links, for the single link a social profile allows in its bio. Not shown anywhere in the site's navigation -- the link you publish is the only way to it. Turn it on once the links are yours.",
+    defaultVisible: false,
+    gate: "links/layout.tsx",
   },
 ];
 

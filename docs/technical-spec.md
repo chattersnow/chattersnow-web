@@ -139,6 +139,7 @@ The site shall allow visitors to:
 - Meet the team or leadership on an About Us sub-page.
 - Submit a contact inquiry through a form that is persisted for staff follow-up.
 - Find the organization's published contact email address and social media links.
+- Reach whatever the organization is currently asking for from a social profile's single bio link, through `/links` (#937) — an unlisted page of admin-configured buttons, each one publishable and reorderable from Administration > Site Content.
 - Learn how to support the organization.
 
 Content management is not required to be self-service in the first release. The initial implementation may use repository-managed content, while the data model should leave room for a future CMS or admin-managed content. The contact form is a public write path: it must be rate-limited, validated server-side, and must not create or expose any authenticated-only record.
@@ -775,6 +776,10 @@ src/app/
       donations/                # monetary giving — placeholder
       sponsorship/              # implemented
     contact/                    # form + published email/social — implemented
+  links/                        # link-in-bio page (#937) — one URL for a social profile's
+                                # single bio link, its buttons edited at Administration >
+                                # Site Content. Outside `(public)` on purpose: that group's
+                                # layout is the header nav and footer this page does without.
   auth/
     callback/
     confirm/
