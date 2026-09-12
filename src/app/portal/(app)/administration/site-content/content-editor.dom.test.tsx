@@ -470,6 +470,25 @@ describe("the save bar", () => {
     const rail = screen.getByRole("navigation", { name: "On this page" });
     expect(within(rail).getByText("Unsaved")).toBeInTheDocument();
   });
+
+  // The badge used to sit inside the `<label>` the box points at, so the box
+  // was called "Heading Your text" and renamed itself to "Heading Unsaved" as
+  // you typed -- a field a screen reader announces afresh mid-edit (#924).
+  test("names a slot's box by its label alone, whatever its badge says", async () => {
+    renderEditor([editorSlot(HEADING, DEFAULT_HEADING, true)]);
+
+    // An exact name, with a badge on screen beside it either way.
+    const box = screen.getByRole("textbox", { name: "Heading" });
+    expect(screen.getByText("Your text")).toBeInTheDocument();
+    expect(box).toHaveAccessibleDescription("Your text");
+
+    await userEvent.type(box, "!");
+
+    expect(box).toHaveAccessibleName("Heading");
+    expect(box).toHaveAccessibleDescription("Unsaved");
+    // Still on screen beside the field, and in the rail, as before.
+    expect(screen.getAllByText("Unsaved")).toHaveLength(2);
+  });
 });
 
 // A photo is a slot like any other since #812: it sits in its section beside
@@ -484,8 +503,11 @@ describe("image slots", () => {
   test("shows the photo the link points at, and clears it as a draft", async () => {
     renderEditor([editorSlot(CAROUSEL, PHOTO_URL, true)]);
 
-    const box = screen.getByRole("textbox", { name: /Homepage carousel/ });
+    // Named by its label alone, with "Your image" describing it rather than
+    // renaming it (#924).
+    const box = screen.getByRole("textbox", { name: CAROUSEL.label });
     expect(box).toHaveValue(PHOTO_URL);
+    expect(box).toHaveAccessibleDescription("Your image");
     // The preview is decorative -- it sits against the labelled box holding
     // the link it previews -- so it is found by what it points at (#918).
     expect(preview()).toHaveAttribute("src", PHOTO_URL);
