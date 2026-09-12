@@ -298,10 +298,17 @@ export default async function SystemSettingsPage() {
           <p className="app-muted max-w-3xl text-sm leading-relaxed">
             The organization-wide switch for every email this portal sends. It
             is a stop, not a preference: individual people choose what they want
-            on their own account pages, and this overrides all of them &mdash;
-            including the daily ops report below, which goes to a shared inbox
-            rather than to anyone&rsquo;s account. Every change here is recorded
-            in the audit log.
+            in{" "}
+            <Link
+              href="/portal/account"
+              className="underline underline-offset-4"
+            >
+              My Account &rarr; Email notifications
+            </Link>
+            , and this overrides all of them &mdash; including the daily ops
+            report below, which goes to a shared inbox rather than to
+            anyone&rsquo;s account. Every change here is recorded in the audit
+            log.
           </p>
           <NotificationsPanel
             emailEnabled={emailEnabled}
