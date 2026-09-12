@@ -51,8 +51,11 @@ export default async function DonationsPage() {
           <CardContent>
             <p className="app-muted text-sm leading-relaxed">
               {content.text("support.inkind_body")}{" "}
+              {/* The `donate` anchor is on the donate page; the section index
+                  only redirects to the catalog, where the fragment matches
+                  nothing. */}
               <Link
-                href="/gears#donate"
+                href="/inventory/donate#donate"
                 className="underline underline-offset-4 hover:text-foreground"
               >
                 Gear page

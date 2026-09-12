@@ -26,7 +26,7 @@ const SNOWBOARD_CATEGORIES = [
 ];
 
 export default async function GearSizingPage() {
-  // Gated separately from the rest of /gears: these charts are Chatter Snow's
+  // Gated separately from the rest of /inventory: these charts are Chatter Snow's
   // snow-sports guide, not chrome every tenant should publish (#795 Phase 3).
   await requireVisiblePage("gears-sizing");
 
@@ -34,7 +34,7 @@ export default async function GearSizingPage() {
 
   return (
     // No <main> here: gears/layout.tsx already wraps every page under
-    // /gears in PageShell, which supplies the <main>, the padding and the
+    // /inventory in PageShell, which supplies the <main>, the padding and the
     // max-w-6xl column. This page used to add its own, nesting one landmark
     // inside another and doubling the padding.
     <div className="space-y-12">
@@ -48,7 +48,7 @@ export default async function GearSizingPage() {
         <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
           Not sure what size to look for in the{" "}
           <Link
-            href="/gears/library"
+            href="/inventory/library"
             className="underline underline-offset-4 hover:text-foreground"
           >
             gear library

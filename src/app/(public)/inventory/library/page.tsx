@@ -51,7 +51,7 @@ export default async function GearLibraryPage() {
           size="sm"
           className="mt-4"
           nativeButton={false}
-          render={<Link href="/gears/sizing" />}
+          render={<Link href="/inventory/sizing" />}
         >
           Sizing guide
         </Button>

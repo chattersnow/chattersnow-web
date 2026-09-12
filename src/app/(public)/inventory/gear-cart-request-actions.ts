@@ -52,7 +52,7 @@ export async function requestGearItemsAction(
     };
   }
 
-  revalidatePath("/gears/library");
+  revalidatePath("/inventory/library");
   revalidatePath("/portal/inventory/items");
   return { success: true };
 }

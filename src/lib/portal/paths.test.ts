@@ -109,7 +109,7 @@ describe("portal path translation", () => {
   test("strips the prefix back off", () => {
     expect(stripPortalPrefix("/portal/home")).toBe("/home");
     expect(stripPortalPrefix("/portal")).toBe("/");
-    expect(stripPortalPrefix("/gears")).toBe("/gears");
+    expect(stripPortalPrefix("/inventory")).toBe("/inventory");
   });
 
   test("round-trips every canonical path", () => {

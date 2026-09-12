@@ -70,20 +70,38 @@ async function seedAvailableGearItems(admin: AdminClient, count: number) {
 // where a tenant that has said it lends gear reads "Gear" / "Gear Library".
 // That is the point of the ticket, and exercising the unset path here is worth
 // more than restating one organization's vocabulary.
-test.describe("public gears pages", () => {
-  test("gears index redirects to the library", async ({ page }) => {
-    await page.goto("/gears");
-    await expect(page).toHaveURL(/\/gears\/library$/);
+test.describe("public inventory pages", () => {
+  test("the section index redirects to the library", async ({ page }) => {
+    await page.goto("/inventory");
+    await expect(page).toHaveURL(/\/inventory\/library$/);
     await expect(
       page.getByRole("heading", { level: 1, name: "Library" }),
     ).toBeVisible();
+  });
+
+  // The section was at /gears until #897. Links to it are in the wild -- other
+  // sites, search results, bookmarks -- so the old paths stay answered, and
+  // they are answered here rather than in a unit test because the redirect
+  // lives in next.config.ts and only exists in a built, running app.
+  test("the old /gears paths redirect to the new segment", async ({ page }) => {
+    const moved = [
+      ["/gears", "/inventory/library"],
+      ["/gears/library", "/inventory/library"],
+      ["/gears/donate", "/inventory/donate"],
+    ];
+
+    for (const [from, to] of moved) {
+      const response = await page.goto(from);
+      expect(response?.status(), from).toBe(200);
+      expect(new URL(page.url()).pathname, from).toBe(to);
+    }
   });
 
   test("nav resolves to the library", async ({ page }) => {
     await page.goto("/home");
     await clickNavLink(page, "Library", { group: "Items" });
 
-    await expect(page).toHaveURL(/\/gears\/library$/);
+    await expect(page).toHaveURL(/\/inventory\/library$/);
     await expect(
       page.getByRole("heading", { level: 1, name: "Library" }),
     ).toBeVisible();
@@ -93,7 +111,7 @@ test.describe("public gears pages", () => {
     await page.goto("/home");
     await clickNavLink(page, "Sizing Guide", { group: "Items" });
 
-    await expect(page).toHaveURL(/\/gears\/sizing$/);
+    await expect(page).toHaveURL(/\/inventory\/sizing$/);
     await expect(
       page.getByRole("heading", { level: 1, name: "Sizing guide" }),
     ).toBeVisible();
@@ -103,7 +121,7 @@ test.describe("public gears pages", () => {
     await page.goto("/home");
     await clickNavLink(page, "Donate or Request Items", { group: "Items" });
 
-    await expect(page).toHaveURL(/\/gears\/donate/);
+    await expect(page).toHaveURL(/\/inventory\/donate/);
     await expect(
       page.getByRole("heading", {
         level: 1,
@@ -115,13 +133,13 @@ test.describe("public gears pages", () => {
   test("library and donate copy don't imply formal membership", async ({
     page,
   }) => {
-    await page.goto("/gears/library");
+    await page.goto("/inventory/library");
     await expect(
       page.getByText("Browse items currently available to the community."),
     ).toBeVisible();
     await expect(page.getByText(/\bmembers\b/i)).toHaveCount(0);
 
-    await page.goto("/gears/donate");
+    await page.goto("/inventory/donate");
     await expect(page.getByText(/community members/i)).toHaveCount(0);
     await expect(page.getByText(/where members can/i)).toHaveCount(0);
   });
@@ -132,7 +150,7 @@ test.describe("public gears pages", () => {
     const requesterEmail = `e2e-gear-${gear.suffix}@example.test`;
 
     try {
-      await page.goto("/gears/library");
+      await page.goto("/inventory/library");
 
       // Narrow the catalog to this run's own items so the checkbox counts
       // below are exact no matter what else is in the seeded catalog.

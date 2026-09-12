@@ -103,7 +103,7 @@ export default async function GetInvolvedPage() {
         <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
           {content.text("get_involved.gear_body")}{" "}
           <Link
-            href="/gears/donate#donate"
+            href="/inventory/donate#donate"
             className="underline underline-offset-4 hover:text-foreground"
           >
             Gear page

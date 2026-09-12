@@ -62,9 +62,9 @@ test.describe("module gating on the public site", () => {
     page,
   }) => {
     await setModule(true);
-    await page.goto("/gears");
+    await page.goto("/inventory");
 
-    expect(page.url()).toContain("/gears");
+    expect(page.url()).toContain("/inventory");
     await expect(
       page.getByRole("navigation").getByText("Items", { exact: true }).first(),
     ).toBeVisible();
@@ -75,7 +75,11 @@ test.describe("module gating on the public site", () => {
   }) => {
     await setModule(false);
 
-    for (const path of ["/gears", "/gears/library", "/gears/donate"]) {
+    for (const path of [
+      "/inventory",
+      "/inventory/library",
+      "/inventory/donate",
+    ]) {
       const response = await page.goto(path);
       expect(response?.status(), `${path} should be gone`).toBe(404);
     }
@@ -97,7 +101,7 @@ test.describe("module gating on the public site", () => {
     await setModule(false);
     await setVisibility("gears", true);
 
-    const response = await page.goto("/gears");
+    const response = await page.goto("/inventory");
     expect(response?.status()).toBe(404);
   });
 
@@ -109,14 +113,14 @@ test.describe("module gating on the public site", () => {
     // board's own choice to a default.
     await setVisibility("gears", false);
     await setModule(false);
-    expect((await page.goto("/gears"))?.status()).toBe(404);
+    expect((await page.goto("/inventory"))?.status()).toBe(404);
 
     await setModule(true);
     // Still 404, because the board had hidden it -- the module coming back
     // returns the decision to them rather than making it for them.
-    expect((await page.goto("/gears"))?.status()).toBe(404);
+    expect((await page.goto("/inventory"))?.status()).toBe(404);
 
     await setVisibility("gears", true);
-    expect((await page.goto("/gears"))?.status()).toBe(200);
+    expect((await page.goto("/inventory"))?.status()).toBe(200);
   });
 });

@@ -59,6 +59,23 @@ const nextConfig: NextConfig = {
       // sections are approved and permanently live.
       { source: "/about/programs", destination: "/programs", permanent: false },
       { source: "/about/donations", destination: "/support", permanent: false },
+      // `/gears/*` -> `/inventory/*` (#897). One tenant's word for what it
+      // lends is out of the URL; the label it renders under is the lexicon's
+      // job (#896). `:path*` matches zero segments too, so this covers bare
+      // `/gears`, which was itself a redirect to `/gears/library`.
+      //
+      // Permanent, unlike the two above, and for a reason that survives the
+      // visibility gate: the destination is the same content at its new
+      // address, not a different section. A 308 a browser caches forever
+      // still resolves correctly whether or not the board has the section
+      // shown -- a visitor lands on `/inventory/...`, which 404s exactly as
+      // `/gears/...` did while the section is hidden, and works the moment it
+      // is not.
+      {
+        source: "/gears/:path*",
+        destination: "/inventory/:path*",
+        permanent: true,
+      },
     ];
   },
 };
