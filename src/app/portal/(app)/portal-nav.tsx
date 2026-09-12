@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { toPortalPathname } from "@/lib/portal/paths";
 import {
+  Building2,
   CalendarDays,
   CalendarRange,
   ChevronRight,
@@ -68,6 +69,7 @@ const SECTION_ICONS: Record<string, typeof LayoutDashboard> = {
   sponsors: Handshake,
   attendees: Ticket,
   governance: Scale,
+  platform: Building2,
   website: Globe,
   technology: Server,
   administration: ShieldCheck,

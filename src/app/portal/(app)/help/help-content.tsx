@@ -2085,7 +2085,7 @@ export const helpContent: Record<string, HelpEntry> = {
       </>
     ),
   },
-  "/portal/administration/platform": {
+  "/portal/platform": {
     title: "How platform administration works",
     description:
       "Provisioning organizations, domains, and status — metadata only.",

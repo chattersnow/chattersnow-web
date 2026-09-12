@@ -449,6 +449,28 @@ export const NAV_ITEMS: readonly NavItem[] = [
   // It was also the only Administration entry whose gate admitted a reader
   // holding nothing else. The job is writing the public website and the
   // audience is comms, not admins.
+  // Promoted out of Administration (#945). Platform is the console for
+  // administering *every* organization on the platform -- provisioning
+  // tenants, custom domains, module entitlements -- and it sat as the seventh
+  // bullet under a single tenant's own Administration disclosure. Those are
+  // two different product levels one triangle apart.
+  //
+  // Unlike #943 this is not a module argument: `platform_tenants` maps to the
+  // `administration` module. It needs no nav logic of its own to stay hidden
+  // either -- my_permissions() reports the resource as `none` unless
+  // is_platform_operator() holds, which carries the internal-plan and
+  // membership-kind conditions too, so visibleNavItems drops the section for
+  // everyone else. It did until #795, when the resource was granted to every
+  // tenant's `admin` role as an inert grant and the nav dutifully showed a
+  // link to a page that then refused to load.
+  {
+    value: "platform",
+    label: "Platform",
+    group: "Organization",
+    href: "/portal/platform",
+    basePath: "/portal/platform",
+    access: [{ resource: "platform_tenants", level: "manage" }],
+  },
   {
     value: "website",
     label: "Website",
@@ -635,20 +657,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
           { resource: "administration", level: "manage" },
           { resource: "system_settings", level: "manage" },
         ],
-      },
-      // Gated on its own resource, which the platform RPCs only honour inside
-      // a tenant on the internal plan (#707 Phase 5c). The plan half of that
-      // gate is enforced in my_permissions(), which reports `platform_tenants`
-      // as `none` unless is_platform_operator() holds -- so this needs no nav
-      // logic of its own to stay hidden. It did until #795: the resource was
-      // granted to every tenant's `admin` role as an inert grant, and the nav
-      // dutifully showed a link to a page that then refused to load.
-      {
-        value: "platform",
-        label: "Platform",
-        href: "/portal/administration/platform",
-        group: "Organization",
-        access: [{ resource: "platform_tenants", level: "manage" }],
       },
       {
         value: "audit-log",

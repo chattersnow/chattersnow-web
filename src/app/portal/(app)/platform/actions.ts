@@ -73,7 +73,7 @@ export async function provisionTenantAction(input: {
     };
   }
 
-  revalidatePath("/portal/administration/platform");
+  revalidatePath("/portal/platform");
 
   // The tenant exists either way. A failure past this point is worth reporting
   // as "provisioned, link failed" rather than as a failure -- re-running
@@ -123,7 +123,7 @@ export async function setTenantDomainAction(
       ),
     };
   }
-  revalidatePath("/portal/administration/platform");
+  revalidatePath("/portal/platform");
   return { success: true };
 }
 
@@ -164,7 +164,7 @@ export async function setTenantModuleAction(
   if (error) {
     return { error: error.message ?? "Could not change that module." };
   }
-  revalidatePath("/portal/administration/platform");
+  revalidatePath("/portal/platform");
   return { success: true };
 }
 
@@ -182,6 +182,6 @@ export async function setTenantStatusAction(
   if (error) {
     return { error: error.message ?? "Could not change the status." };
   }
-  revalidatePath("/portal/administration/platform");
+  revalidatePath("/portal/platform");
   return { success: true };
 }
