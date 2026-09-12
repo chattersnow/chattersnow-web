@@ -597,8 +597,8 @@ export const helpContent: Record<string, HelpEntry> = {
                 Public items with a clear connection to your organization
               </strong>{" "}
               — the selected fiscal year&apos;s items that are public, live
-              (active or complete), and have a non-empty Chatter connection
-              recorded on their opportunity.
+              (active or complete), and have a non-empty &ldquo;Our
+              connection&rdquo; recorded on their opportunity.
             </li>
             <li>
               <strong className="text-foreground">
