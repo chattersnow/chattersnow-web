@@ -47,8 +47,8 @@ export type NavGroup = {
  * Base UI NavigationMenuTrigger opens its panel instead of navigating, so
  * without one the landing page is unreachable from the desktop nav.
  *
- * `/about` and `/gears` deliberately have no such entry: both redirect to a
- * child that is already listed (`/about/story`, `/gears/library`), so an
+ * `/about` and `/inventory` deliberately have no such entry: both redirect to a
+ * child that is already listed (`/about/story`, `/inventory/library`), so an
  * overview item would be a second route to the same page.
  */
 export const NAV_GROUPS: readonly NavGroup[] = [
@@ -80,15 +80,19 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     // below is the internal slot key, not a product name -- it is not renamed
     // and does not appear on screen.
     label: "{item_plural}",
-    href: "/gears",
+    href: "/inventory",
     slot: "gears",
     links: [
-      { label: "{collection_public}", href: "/gears/library" },
-      { label: "Sizing Guide", href: "/gears/sizing", slot: "gears-sizing" },
+      { label: "{collection_public}", href: "/inventory/library" },
+      {
+        label: "Sizing Guide",
+        href: "/inventory/sizing",
+        slot: "gears-sizing",
+      },
       // Was four separate entries pointing at #how-it-works, #request, #donate
       // and #gear-drives -- four rows in the menu that all land on the same
       // page. The page's own headings do that job once you are on it.
-      { label: "Donate or Request {item_plural}", href: "/gears/donate" },
+      { label: "Donate or Request {item_plural}", href: "/inventory/donate" },
     ],
   },
   {
@@ -183,7 +187,7 @@ export function isSlotVisible(hidden: readonly string[], slot: string) {
  * which path, and a duplicate of that is exactly the drift the tree was
  * introduced to end.
  *
- * A nested slot matches alongside its parent: `/gears/sizing` is under both
+ * A nested slot matches alongside its parent: `/inventory/sizing` is under both
  * `gears` and `gears-sizing`, and the page is unreachable when either is off.
  * In-page anchors and ungated routes (the legal notices) match nothing.
  */

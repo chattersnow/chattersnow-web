@@ -50,7 +50,7 @@ const BULLET = "- ";
  * on this site, and a leading `#` is a section of the document itself -- these
  * are long enough that "described under other agreements" wants to be a link.
  * `//host` is excluded on purpose: it is protocol-relative and leaves the site,
- * which is not what someone writing `/gears` meant. Every other scheme,
+ * which is not what someone writing `/inventory` meant. Every other scheme,
  * `javascript:` included, fails here and the link is rendered as the text the
  * author typed.
  */

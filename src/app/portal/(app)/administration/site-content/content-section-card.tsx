@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +32,7 @@ export function ContentSectionCard({
   dirtyKeys,
   canEdit,
   isPending,
+  notice,
   resetToken,
   onChange,
   onReset,
@@ -44,6 +46,12 @@ export function ContentSectionCard({
   dirtyKeys: Set<string>;
   canEdit: boolean;
   isPending: boolean;
+  /**
+   * Shown above this section's fields, for the case where the words here are
+   * not what the page renders -- today, Programs reading its cards from the
+   * Programs module instead (#898).
+   */
+  notice?: ReactNode;
   /** Bumped when a value is replaced from outside, to remount keyed editors. */
   resetToken: number;
   onChange: (key: string, value: unknown) => void;
@@ -83,6 +91,7 @@ export function ContentSectionCard({
           <p className="app-muted text-sm">{section.description}</p>
         )}
         {hasImage && <ImageSlotHint />}
+        {notice}
       </CardHeader>
       <CardContent>
         <fieldset disabled={!canEdit || isPending}>

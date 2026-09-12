@@ -21,7 +21,9 @@ export default async function ProgramsPage() {
 
   const { data: programs, error } = await supabase
     .from("programs")
-    .select("id, name, description, status")
+    .select(
+      "id, name, description, status, is_public, pillar, emoji, sort_order",
+    )
     .order("name", { ascending: true });
 
   return (

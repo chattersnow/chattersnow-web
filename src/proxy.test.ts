@@ -147,7 +147,7 @@ describe("resolvePortalRoute on the public hosts", () => {
   });
 
   test("does not touch public pages", () => {
-    expect(resolvePortalRoute(PUBLIC, "/gears")).toEqual({ kind: "pass" });
+    expect(resolvePortalRoute(PUBLIC, "/inventory")).toEqual({ kind: "pass" });
   });
 
   test("does not touch preview or local hosts", () => {

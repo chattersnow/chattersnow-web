@@ -178,7 +178,7 @@ describe("every registry template resolves", () => {
 describe("a tenant's word reaches every surface that named the concept", () => {
   test("the public nav", () => {
     const gear = visibleGroups([], TOOLS).find(
-      (group) => group.href === "/gears",
+      (group) => group.href === "/inventory",
     );
 
     expect(gear?.label).toBe("Tools");
@@ -228,7 +228,7 @@ describe("a tenant's word reaches every surface that named the concept", () => {
   test("but no internal key is renamed", () => {
     expect(PUBLIC_PAGE_SLOTS.some((slot) => slot.key === "gears")).toBe(true);
     expect(NAV_ITEMS.some((item) => item.value === "inventory")).toBe(true);
-    expect(NAV_GROUPS.some((group) => group.href === "/gears")).toBe(true);
+    expect(NAV_GROUPS.some((group) => group.href === "/inventory")).toBe(true);
     expect(CONTACT_TOPICS.some((topic) => topic.value === "gear")).toBe(true);
     expect(
       SITE_CONTENT_SLOTS.some((slot) => slot.key === "gears.library_heading"),

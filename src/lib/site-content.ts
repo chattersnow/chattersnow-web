@@ -119,7 +119,7 @@ export const CONTENT_PAGES: readonly ContentPage[] = [
   {
     key: "gears",
     label: "Gear",
-    route: "/gears/library",
+    route: "/inventory/library",
     visibilityKey: "gears",
   },
   {
@@ -220,25 +220,25 @@ export const CONTENT_SECTIONS: readonly ContentSection[] = [
     key: "gears:donate",
     page: "gears",
     label: "How donating works",
-    route: "/gears/donate",
+    route: "/inventory/donate",
   },
   {
     key: "gears:request",
     page: "gears",
     label: "Requesting gear",
-    route: "/gears/donate",
+    route: "/inventory/donate",
   },
   {
     key: "gears:accept",
     page: "gears",
     label: "What we accept",
-    route: "/gears/donate",
+    route: "/inventory/donate",
   },
   {
     key: "gears:drives",
     page: "gears",
     label: "Gear drives",
-    route: "/gears/donate",
+    route: "/inventory/donate",
   },
 
   { key: "get_involved:opening", page: "get_involved", label: "Opening" },
@@ -981,6 +981,20 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
         description: "What this group of programs is for.",
       },
     ],
+  },
+  {
+    // Read only when the Programs page is drawing its cards from the Programs
+    // module (#898) and the tenant has marked none of them public. In Site
+    // Content mode the list below is the page, and an empty one is an empty
+    // list nobody wrote -- there is nothing to say about it.
+    key: "programs.empty",
+    page: "programs",
+    section: "programs:items",
+    label: "No programs text",
+    description:
+      "Shown when the page reads the Programs module and no program is marked for the public site.",
+    type: "text",
+    default: "Programs are being finalized. Check back soon.",
   },
   {
     key: "programs.items",

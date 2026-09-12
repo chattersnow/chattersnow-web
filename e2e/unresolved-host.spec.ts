@@ -91,7 +91,7 @@ test.describe("a host that resolves to no tenant", () => {
   test("every public route 404s once nothing resolves", async ({ page }) => {
     await provisionSecondTenant();
 
-    for (const path of ["/home", "/events", "/gears"]) {
+    for (const path of ["/home", "/events", "/inventory"]) {
       const response = await page.goto(path);
       expect(response?.status(), `${path} should 404`).toBe(404);
     }

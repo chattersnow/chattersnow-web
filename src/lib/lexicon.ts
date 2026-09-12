@@ -6,7 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * "Gear" is one organization's vocabulary for the concept these tables call
  * inventory. Another reads the same rows and calls it a tool library, a
  * lending library, a pantry, an equipment room. Before this, a tenant could
- * rename the heading on `/gears/library` -- that heading is a `site_content`
+ * rename the heading on `/inventory/library` -- that heading is a `site_content`
  * slot -- and the navigation item directly above it still said "Gear", because
  * every other surface carried the word as a literal.
  *

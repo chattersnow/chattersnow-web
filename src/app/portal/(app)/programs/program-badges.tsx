@@ -9,6 +9,11 @@ export type ProgramRow = {
   name: string;
   description: string | null;
   status: string;
+  /** Whether the public Programs page lists this program (#898). */
+  is_public: boolean;
+  pillar: string | null;
+  emoji: string | null;
+  sort_order: number | null;
 };
 
 const STATUS_STYLES: Record<string, StatusTone> = {
@@ -16,6 +21,20 @@ const STATUS_STYLES: Record<string, StatusTone> = {
   pilot: "progress",
   retired: "neutral",
 };
+
+/**
+ * Whether this program is on the public site.
+ *
+ * Deliberately not folded into the status badge: publication and lifecycle are
+ * separate decisions here, and a retired program can be published (#898).
+ */
+export function ProgramPublicBadge({ isPublic }: { isPublic: boolean }) {
+  return (
+    <StatusBadge tone={isPublic ? "success" : "neutral"}>
+      {isPublic ? "Public" : "Not public"}
+    </StatusBadge>
+  );
+}
 
 export function ProgramStatusBadge({ status }: { status: string }) {
   return (

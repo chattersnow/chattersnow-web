@@ -31,6 +31,7 @@ const {
   updateProgramAction,
   listProgramsAction,
   listProgramEventsAction,
+  listProgramPillarsAction,
 } = await import("./actions");
 
 afterEach(() => {
@@ -45,18 +46,32 @@ function uniqueName() {
   return `IT Program ${crypto.randomUUID()}`;
 }
 
-function programForm(name: string, overrides: { status?: string } = {}) {
+function programForm(
+  name: string,
+  overrides: {
+    status?: string;
+    is_public?: string;
+    pillar?: string;
+    emoji?: string;
+    sort_order?: string;
+  } = {},
+) {
   const fd = new FormData();
   fd.set("name", name);
   fd.set("description", "Integration test program");
   fd.set("status", overrides.status ?? "active");
+  for (const key of ["is_public", "pillar", "emoji", "sort_order"] as const) {
+    if (overrides[key] !== undefined) fd.set(key, overrides[key]);
+  }
   return fd;
 }
 
 async function programRowFor(name: string) {
   const { data, error } = await adminClient
     .from("programs")
-    .select("id, name, status, description")
+    .select(
+      "id, name, status, description, is_public, pillar, emoji, sort_order",
+    )
     .eq("name", name)
     .maybeSingle();
   if (error) throw error;
@@ -186,6 +201,111 @@ describe("programs actions (integration)", () => {
   test("a user with no role cannot list programs", async () => {
     currentSupabase = await signInAs(SEEDED_USERS.noAccess);
     expect(await listProgramsAction()).toEqual(DENIED);
+  });
+
+  // #898/#360: the public fields, end to end. The default is the load-bearing
+  // one -- an operator who never touches the new switch must not find their
+  // programs on the public website.
+  test("a program created without the public fields is not public", async () => {
+    const name = uniqueName();
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+    expect(await createProgramAction(programForm(name))).toEqual({
+      success: true,
+    });
+    expect(await programRowFor(name)).toMatchObject({
+      is_public: false,
+      pillar: null,
+      emoji: null,
+      sort_order: null,
+    });
+
+    await cleanupProgram(name);
+  });
+
+  test("the public fields round-trip, and publishing reaches the public view", async () => {
+    const name = uniqueName();
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+    expect(
+      await createProgramAction(
+        programForm(name, {
+          is_public: "true",
+          pillar: "Access",
+          emoji: "❄️",
+          sort_order: "4",
+        }),
+      ),
+    ).toEqual({ success: true });
+
+    const created = await programRowFor(name);
+    if (!created) throw new Error("expected the created program row");
+    expect(created).toMatchObject({
+      is_public: true,
+      pillar: "Access",
+      emoji: "❄️",
+      sort_order: 4,
+    });
+
+    // The public page renders `public_programs` as `anon`, and the seeded
+    // tenant is the only one here, so the row has to be visible through it.
+    const visible = await anonClient()
+      .from("public_programs")
+      .select("name, pillar, emoji, sort_order")
+      .eq("name", name)
+      .maybeSingle();
+    expect(visible.data).toMatchObject({ pillar: "Access", sort_order: 4 });
+
+    // Saving is a publish, so the public page has to be revalidated too.
+    expect(revalidatePathMock).toHaveBeenCalledWith("/programs");
+
+    // Unpublishing takes it straight back out of the public view.
+    expect(
+      await updateProgramAction(
+        created.id as string,
+        programForm(name, { pillar: "Access" }),
+      ),
+    ).toEqual({ success: true });
+    const afterUnpublish = await anonClient()
+      .from("public_programs")
+      .select("name")
+      .eq("name", name);
+    expect(afterUnpublish.data).toEqual([]);
+
+    await cleanupProgram(name);
+  });
+
+  test("anon cannot read an unpublished program through the public view", async () => {
+    const program = await createProgram();
+
+    const { data } = await anonClient()
+      .from("public_programs")
+      .select("name")
+      .eq("id", program.id);
+    expect(data).toEqual([]);
+
+    await program.cleanup();
+  });
+
+  test("list_program_pillars is for programs:manage, and reads published copy", async () => {
+    // admin manages programs and also holds site_content:view.
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+    const asAdmin = await listProgramPillarsAction();
+    expect("data" in asAdmin && asAdmin.data).toEqual(["Access", "Community"]);
+
+    // The point of the RPC: event_coordinator manages programs and cannot read
+    // site_content at all, so a direct select would return nothing here.
+    currentSupabase = await signInAs(SEEDED_USERS.coordinator);
+    const asCoordinator = await listProgramPillarsAction();
+    expect("data" in asCoordinator && asCoordinator.data).toEqual([
+      "Access",
+      "Community",
+    ]);
+
+    // A view-only role has no business writing programs, so it is not offered
+    // the pillars either.
+    currentSupabase = await signInAs(SEEDED_USERS.board);
+    expect(await listProgramPillarsAction()).toEqual(DENIED);
   });
 
   test("listProgramEventsAction gates on events:view, not programs:view", async () => {

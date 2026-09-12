@@ -1304,7 +1304,13 @@ end $$;
 -- -- are already the right words for any organization and are left to the
 -- registry, so local keeps exercising the defaults rather than shadowing them.
 -- The list slots are left alone for the same reason: their prompts are what an
--- unconfigured tenant sees, and it is useful to see it.
+-- unconfigured tenant sees, and it is useful to see it. `programs.pillars` and
+-- `programs.items` are the exception, and #898 is why: the pillars stopped
+-- being copy alone the moment the Programs page could group the *module's*
+-- programs under them, so a local database needs pillar labels a seeded
+-- program can actually name. They come as a pair -- seeding pillars alone
+-- would leave the registry's placeholder item naming a pillar that no longer
+-- exists, and Site Content mode would render nothing.
 --
 -- tenant_id is omitted deliberately: site_content defaults it to
 -- default_tenant_id(), so this stays correct whatever the initial tenant is
@@ -1324,6 +1330,8 @@ insert into public.site_content (key, value, published_at) values
   ('about_mission.closing', '"None of this describes a real organization, and it is not meant to."', now()),
   ('about_mission.why_body', '["A platform that ships with no content at all is hard to develop against, and one that ships with a client''s content is worse. Example Nonprofit is the third option."]', now()),
   ('programs.intro', '"Sample programs, seeded locally so the Programs page has something to lay out."', now()),
+  ('programs.pillars', '[{"label":"Access","description":"Removing what stops people taking part."},{"label":"Community","description":"Bringing people who would not otherwise meet into the same room."}]', now()),
+  ('programs.items', '[{"pillar":"Access","emoji":"\u2744\ufe0f","name":"Sample access program","description":"Copy-driven program card, rendered when the Programs page reads Site Content."},{"pillar":"Community","emoji":"\ud83e\udd1d","name":"Sample community program","description":"The second copy-driven card, so both pillars have something under them."}]', now()),
   ('gears.donate_intro', '"Sample gear-program copy. Example Nonprofit collects gently used equipment, lends it out, and takes it back at the end of the season."', now()),
   ('get_involved.intro', '"Sample copy for the ways someone could get involved with a fictional organization."', now()),
   ('get_involved.partner_body', '"Example Nonprofit has no real partners. This slot is seeded so the page renders."', now()),
@@ -1371,6 +1379,31 @@ join (values
 ) as a(category_slug, anchor, position, value) on a.category_slug = category_rows.slug
 on conflict (tenant_id, category_id, anchor) do update
   set value = excluded.value, position = excluded.position;
+
+-- Module mode for the Programs page (#898). The page reads Site Content until
+-- a tenant changes `layout.programs_source`, so these rows change nothing on
+-- their own -- they are here so that flipping the setting locally, or in the
+-- e2e case that flips it, lands on a populated page rather than the empty
+-- state.
+--
+-- Three rows, covering the three shapes the page has to render: two under
+-- pillars that exist in the copy above, ordered by `sort_order`, and one with
+-- no pillar at all, which belongs in the trailing ungrouped section rather
+-- than nowhere. Every other seeded program stays unpublished, which is also
+-- the check that `is_public` defaults to false.
+--
+-- Local and CI only -- seed.sql never runs against a hosted project.
+update public.programs
+set is_public = true, pillar = 'Access', emoji = '❄️', sort_order = 1
+where name = 'Winter Access Program';
+
+update public.programs
+set is_public = true, pillar = 'Community', emoji = '🤝', sort_order = 2
+where name = 'Youth Outdoor Mentorship';
+
+update public.programs
+set is_public = true, pillar = null, sort_order = null
+where name = 'Community Gear Library';
 
 -- A content pack (#895), so the platform tenant's pack screen has something in
 -- it locally and the a11y sweep scans a populated page rather than an empty

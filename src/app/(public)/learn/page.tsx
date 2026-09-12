@@ -39,7 +39,7 @@ export default async function LearnPage() {
             with the words unlinked rather than a dangling clause. */}
         {sizingVisible ? (
           <Link
-            href="/gears/sizing"
+            href="/inventory/sizing"
             className="underline underline-offset-4 hover:text-foreground"
           >
             sizing guide
