@@ -47,7 +47,10 @@ were two sidebar entries because they look like two topics; they are one object
 
 3. **Past roughly a dozen parts spanning a lifecycle, add a second level.** This
    is Events' answer to 19 cards: four phase tabs — basic, planning, during,
-   after — each holding its own cards (`events/event-tabs-config.tsx`).
+   after — each holding its own strip of cards
+   (`events/event-tabs-config.tsx`). Both levels are in the URL, and moving
+   between phases resets the card in the same write, so the URL never names a
+   card the phase on screen does not have.
 
 The thresholds are soft. The first is not.
 
@@ -57,10 +60,14 @@ Two existing surfaces are the reference implementations. Copy them rather than
 inventing a third answer.
 
 **Event detail** (`events/[eventId]/event-detail-view.tsx`) — one sidebar entry,
-four URL-synced phases, 19 cards. Phases are resolved against the reader's
-permissions _before_ the URL value is validated, so a deep link to a phase the
-reader cannot see renders an empty page rather than a wrong one. Copy this
-whenever a tab set is permission-gated.
+four URL-synced phases, 19 cards, one card on screen at a time. Both levels are
+resolved against the reader's permissions _before_ the URL value is validated,
+so a deep link to a phase or card the reader cannot see renders that level's
+first available part rather than a wrong one. Copy this whenever a tab set is
+permission-gated, and copy the two-level shape when a phase would otherwise
+stack more than a couple of independent tables: until #958 the During and After
+phases rendered six cards each as one column, which is what "cards for parts of
+one view" is meant to prevent — six independent tables are not one view.
 
 **Site Content** (`administration/site-content/`) — one entry, a left rail
 carrying the page list, a cross-page search and an outline of the page being
@@ -71,7 +78,7 @@ because that is the question it exists to answer.
 
 | Surface             | Parts                                 | Answer                                 |
 | ------------------- | ------------------------------------- | -------------------------------------- |
-| Event detail        | 19 cards over 4 phases                | phase tabs + cards — the model         |
+| Event detail        | 19 cards over 4 phases                | phase tabs, then card tabs — the model |
 | Site Content        | 15 pages, 121 slots                   | left rail + search — the model         |
 | System Settings     | 8 configuration panels                | tabs, via `useUrlTabState`             |
 | Roles + Permissions | 2 views of one role                   | one entry, two tabs                    |

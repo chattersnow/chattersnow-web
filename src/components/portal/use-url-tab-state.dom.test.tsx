@@ -28,6 +28,12 @@ function Harness() {
       <button type="button" onClick={() => setPhase("during")}>
         During
       </button>
+      <button
+        type="button"
+        onClick={() => setPhase("during", { card: "registrants" })}
+      >
+        During, first card
+      </button>
     </>
   );
 }
@@ -93,6 +99,36 @@ describe("useUrlTabState", () => {
       await user.click(screen.getByRole("button", { name: "During" }));
       expect(pushed).toEqual([
         "/portal/events/e-1?tab=registrants&phase=during",
+      ]);
+    } finally {
+      window.history.pushState = original;
+    }
+  });
+
+  // #958 nests a card strip inside event detail's phases. Changing the phase
+  // has to reset the card, and two setter calls in a row cannot do it: both
+  // read the same render's searchParams, so the second write would drop the
+  // first. One pushState carries both.
+  test("writes companion params in the same history entry", async () => {
+    const user = userEvent.setup();
+    params = new URLSearchParams("phase=basic&card=checklist");
+    const pushed: (string | URL | null | undefined)[] = [];
+    const original = window.history.pushState.bind(window.history);
+    window.history.pushState = ((
+      _data: unknown,
+      _unused: string,
+      url?: string | URL | null,
+    ) => {
+      pushed.push(url);
+    }) as typeof window.history.pushState;
+
+    try {
+      render(<Harness />);
+      await user.click(
+        screen.getByRole("button", { name: "During, first card" }),
+      );
+      expect(pushed).toEqual([
+        "/portal/events/e-1?phase=during&card=registrants",
       ]);
     } finally {
       window.history.pushState = original;
