@@ -70,7 +70,8 @@ into:
   the platform sold that organization. See "Modules" below;
 - the platform-default settings (`finance.*`, `content.*`, `org.*`), and
   nothing else from the template's `app_settings` -- not its page visibility
-  or branding, and nothing from `site_content` (copy or photos);
+  or branding, nothing from `site_content` (copy or photos), and no articles
+  -- a new tenant's Learn section is empty until it writes its own (#894);
 - a staged `pending_role_grants` row for `--admin`, which
   `claim_pending_role_grants()` turns into the admin role and the membership
   the first time that address signs in.
@@ -325,8 +326,22 @@ Both are the tenant admin's, not the operator's:
   placeholder icon), edited beside the copy they sit next to and published
   the same way; a new tenant starts with placeholders everywhere.
 
+- **Administration → Site Content → Articles**: the guides in the Learn
+  section, which are a _collection_ rather than slots -- an organization
+  creates as many categories and articles as it wants, and the platform ships
+  none (#894). A category is a page at `/learn/<address>`; an article is a
+  heading, an introduction, a list of points, body paragraphs, further-reading
+  links and a disclaimer, and nothing more -- this is not a rich text editor.
+  Saving keeps a draft and publishing moves the whole category at once, so a
+  reader never sees half a reordered page; removing an article is itself a
+  publish, for the same reason. Chatter Snow's eight snow-sports categories
+  are its own rows
+  (`20260912010000_chatter_snow_owns_its_learn_articles.sql`), not a platform
+  default any other tenant inherits.
+
 The `site_content` resource is separate from `administration`, so writing
-for the site can be granted to a role without handing it the rest.
+for the site -- articles included -- can be granted to a role without handing
+it the rest.
 
 ## Support access
 

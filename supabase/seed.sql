@@ -1334,6 +1334,44 @@ insert into public.site_content (key, value, published_at) values
 on conflict (tenant_id, key) do update
   set value = excluded.value, published_at = excluded.published_at;
 
+-- Articles (#894). /learn is a tenant-owned collection rather than eight
+-- compiled data files, so local and CI need rows or the Learn specs and the
+-- a11y route sweep find an empty section and no /learn/<slug> to crawl.
+--
+-- Deliberately Example Nonprofit's own generic material rather than a copy of
+-- the snow-sports guides this ticket moved into Chatter Snow's rows: the whole
+-- argument of #894 is that one client's writing is not every tenant's content,
+-- and seeding it here would put it straight back into every fresh database.
+-- Three categories with a few articles each is enough to exercise the index
+-- cards, the in-page nav, every field of an article body, and the visibility
+-- filter on an internal link.
+--
+-- tenant_id is omitted deliberately, like the site_content block above: both
+-- tables default it to default_tenant_id().
+--
+-- Local and CI only -- seed.sql never runs against a hosted project.
+with category_rows as (
+  insert into public.article_categories (slug, position, value)
+  values
+    ('getting-started', 0, '{"title":"Getting Started","description":"What a first visit looks like, and what to bring."}'::jsonb),
+    ('how-we-work', 1, '{"title":"How We Work","description":"How the programs run, who they are for, and how to take part."}'::jsonb),
+    ('volunteering', 2, '{"title":"Volunteering","description":"What volunteering with a small nonprofit actually involves."}'::jsonb)
+  on conflict (tenant_id, slug) do update set value = excluded.value, position = excluded.position
+  returning id, tenant_id, slug
+)
+insert into public.articles (tenant_id, category_id, anchor, position, value)
+select category_rows.tenant_id, category_rows.id, a.anchor, a.position, a.value
+from category_rows
+join (values
+  ('getting-started', 'your-first-visit', 0, '{"title":"Your first visit","description":"Most of a first visit is logistics: where to go, when to arrive, and who to ask.","paragraphs":["Nothing on this page describes a real organization. Example Nonprofit exists so that the local stack and CI have a tenant with real-shaped content to render.","Articles are edited from Administration > Site Content, saved as drafts, and published when they are ready."],"list":[{"label":"Arrive early","text":"Give yourself time to find the place and sign in before anything starts."},{"label":"Bring identification","text":"A first visit usually involves a form and somebody checking it."},{"label":"Ask questions","text":"Nobody expects a first-time visitor to already know how any of it works."}],"links":[{"label":"Get involved","href":"/get-involved","internal":true},{"label":"Example external reference","href":"https://example.org/"}],"disclaimer":"Seed content for local development. None of it is advice and none of it is real."}'::jsonb),
+  ('getting-started', 'what-to-bring', 1, '{"title":"What to bring","description":"A short packing list, which is mostly a list of things people forget.","paragraphs":["A list slot and a paragraph slot render differently, and both are exercised here so the layout is visible locally."],"list":[{"label":"Water","text":"More than you think, whatever the weather is doing."},{"label":"Something to write with","text":"Half of a first day is forms."}],"links":[{"label":"Contact us","href":"/contact","internal":true}],"disclaimer":"Seed content for local development."}'::jsonb),
+  ('how-we-work', 'programs-overview', 0, '{"title":"Programs overview","description":"What the programs are, in the shape a real organization would describe them.","paragraphs":["Programs are the unit of work: each one has a purpose, an audience and a season.","A program page and an article about that program are different things -- the article is the explanation, the program is the record."],"list":[{"label":"Access","text":"Removing the cost barrier to taking part."},{"label":"Community","text":"Bringing people who would not otherwise meet into the same room."}],"links":[{"label":"Programs","href":"/programs","internal":true}],"disclaimer":"Seed content for local development."}'::jsonb),
+  ('how-we-work', 'how-decisions-get-made', 1, '{"title":"How decisions get made","description":"Who decides what, and where those decisions are written down.","paragraphs":["A small board, meeting on a schedule, recording what it decided. That is most of governance at this size.","This article exists so a category with more than one article renders its in-page navigation."],"list":[],"links":[],"disclaimer":"Seed content for local development."}'::jsonb),
+  ('volunteering', 'what-volunteering-involves', 0, '{"title":"What volunteering involves","description":"The honest version: some of it is setup and cleanup.","paragraphs":["Volunteering at a small organization is less specialized than it sounds. Most roles are learned on the day.","An article with no list and no links still has to render correctly, which is what this one checks."],"list":[],"links":[{"label":"Volunteer","href":"/get-involved/volunteer","internal":true}],"disclaimer":"Seed content for local development."}'::jsonb)
+) as a(category_slug, anchor, position, value) on a.category_slug = category_rows.slug
+on conflict (tenant_id, category_id, anchor) do update
+  set value = excluded.value, position = excluded.position;
+
 -- Page visibility (issue #584). Production deliberately has no
 -- `page_visibility.*` rows, so the sections still awaiting board approval fall
 -- back to `defaultVisible: false` in src/lib/page-visibility.ts and stay dark.

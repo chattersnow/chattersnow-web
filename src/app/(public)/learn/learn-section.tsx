@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { isHrefVisible } from "@/lib/public-nav";
-import type { LearnArticle } from "./learn-data";
+import type { Article } from "@/lib/articles";
 
 export function LearnSection({
   id,
@@ -41,7 +41,7 @@ export function LearnDisclaimer({ children }: { children: ReactNode }) {
  * links and in-page anchors are never filtered -- neither depends on a
  * section being live.
  */
-function visibleLinks(article: LearnArticle, hidden: readonly string[]) {
+function visibleLinks(article: Article, hidden: readonly string[]) {
   return article.links.filter(
     (link) => !link.internal || isHrefVisible(hidden, link.href),
   );
@@ -51,7 +51,7 @@ export function LearnArticleSections({
   articles,
   hidden = [],
 }: {
-  articles: readonly LearnArticle[];
+  articles: readonly Article[];
   /**
    * The sections the board has hidden. An article's "further reading" points
    * at other parts of the public site -- the sizing guide, the gear library,
@@ -71,7 +71,7 @@ export function LearnArticleSections({
         return (
           <LearnSection
             key={article.id}
-            id={article.id}
+            id={article.anchor}
             title={article.title}
             description={article.description}
           >

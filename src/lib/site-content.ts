@@ -22,11 +22,18 @@
  * happens to live in a slot, and replacing them with prompts would make an
  * unwritten site worse rather than more neutral.
  *
- * What is deliberately *not* a slot: the Learn guides and the sizing tables
- * (generic snow-sports material any organization can publish as-is), the
- * form labels and validation messages (product chrome), and the structure of
- * the pages themselves. The legal documents are a special case -- see
- * `document` below.
+ * What is deliberately *not* a slot: the sizing tables (Chatter Snow's, gated
+ * to that tenant by #831), the form labels and validation messages (product
+ * chrome), and the structure of the pages themselves. The legal documents are
+ * a special case -- see `document` below.
+ *
+ * The Learn guides were on that list until #894, described as "generic
+ * snow-sports material any organization can publish as-is". That did not hold:
+ * `mountain-basics` and `park-riding-safety` are generic *within snow sports*,
+ * and this is not a snow-sports platform. They are now a collection of their
+ * own -- `article_categories` and `articles`, modelled in
+ * `src/lib/articles.ts` -- because a registry of fixed keys cannot hold an
+ * unbounded number of rows a tenant creates.
  *
  * The photos are slots too (#812): an `image` slot is the picture that sits
  * beside a section's copy, keyed `site_images.<slot>` and stored in the same

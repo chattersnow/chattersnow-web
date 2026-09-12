@@ -21,6 +21,8 @@ export const TENANT_TABLES = [
   "agendas",
   "annual_requirements",
   "app_settings",
+  "article_categories",
+  "articles",
   "assets",
   "board_members",
   "bylaws",

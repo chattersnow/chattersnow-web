@@ -1,12 +1,24 @@
 import { test, expect } from "./helpers/test";
 import { clickNavLink } from "./helpers/nav";
 
+/**
+ * Learn is a tenant-owned article collection since #894, so these assertions
+ * are against the categories `supabase/seed.sql` gives Example Nonprofit, not
+ * against eight compiled `*-data.ts` files. Nothing here names a category the
+ * platform ships, because the platform ships none.
+ */
 test.describe("public learn page", () => {
-  test("learn page loads", async ({ page }) => {
+  test("learn page loads and lists the tenant's categories", async ({
+    page,
+  }) => {
     await page.goto("/learn");
     await expect(
       page.getByRole("heading", { level: 1, name: "Learn" }),
     ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: /Getting Started/ }),
+    ).toBeVisible();
+    await expect(page.getByText("no guides here yet")).toHaveCount(0);
   });
 
   test("nav resolves to Learn", async ({ page }) => {
@@ -19,152 +31,64 @@ test.describe("public learn page", () => {
     ).toBeVisible();
   });
 
-  test("getting started category renders its articles", async ({ page }) => {
+  test("a category card opens its page", async ({ page }) => {
+    await page.goto("/learn");
+    await page.getByRole("link", { name: /Getting Started/ }).click();
+
+    await expect(page).toHaveURL(/\/learn\/getting-started$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Getting Started" }),
+    ).toBeVisible();
+  });
+
+  test("a category renders its articles in order", async ({ page }) => {
     await page.goto("/learn/getting-started");
 
     await expect(
       page.getByRole("heading", { level: 1, name: "Getting Started" }),
     ).toBeVisible();
-    await expect(
-      page.getByRole("heading", {
-        level: 2,
-        name: "First day guide: what to expect at the mountain",
-      }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("heading", {
-        level: 2,
-        name: "Booking a lesson vs. going it alone",
-      }),
-    ).toBeVisible();
+
+    const articleHeadings = page.getByRole("heading", { level: 2 });
+    await expect(articleHeadings.first()).toHaveText("Your first visit");
+    await expect(articleHeadings.nth(1)).toHaveText("What to bring");
     await expect(page.getByText("coming soon")).toHaveCount(0);
   });
 
-  test("etiquette category renders its articles", async ({ page }) => {
-    await page.goto("/learn/etiquette");
-
-    await expect(
-      page.getByRole("heading", {
-        level: 1,
-        name: "Mountain & Lift Etiquette",
-      }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("heading", {
-        level: 2,
-        name: "Mountain & lift etiquette basics",
-      }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("heading", {
-        level: 2,
-        name: "Uphill/downhill traffic & the Responsibility Code",
-      }),
-    ).toBeVisible();
-    await expect(page.getByText("coming soon")).toHaveCount(0);
-  });
-
-  test("gear care category renders its articles", async ({ page }) => {
-    await page.goto("/learn/gear-care");
-
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Gear Care" }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("heading", {
-        level: 2,
-        name: "Gear care 101: between-trip basics",
-      }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("heading", {
-        level: 2,
-        name: "Edge tuning: what it is and when to see a shop",
-      }),
-    ).toBeVisible();
-    await expect(page.getByText("coming soon")).toHaveCount(0);
-  });
-
-  test("mountain basics category renders its articles", async ({ page }) => {
-    await page.goto("/learn/mountain-basics");
-
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Mountain Basics" }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("heading", {
-        level: 2,
-        name: "Trail ratings explained: green, blue, black & beyond",
-      }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("heading", { level: 2, name: "Reading a trail map" }),
-    ).toBeVisible();
-    await expect(page.getByText("coming soon")).toHaveCount(0);
-  });
-
-  test("budget category renders its articles", async ({ page }) => {
-    await page.goto("/learn/budget");
-
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Snow Sports on a Budget" }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("heading", {
-        level: 2,
-        name: "What skiing and snowboarding actually cost",
-      }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("heading", {
-        level: 2,
-        name: "Finding used gear without overpaying",
-      }),
-    ).toBeVisible();
-    await expect(page.getByText("coming soon")).toHaveCount(0);
-  });
-
-  test("gear and sizing category renders its articles", async ({ page }) => {
-    await page.goto("/learn/gear-and-sizing");
-
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Gear & Sizing" }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("heading", {
-        level: 2,
-        name: "Gear 101: what you actually need for your first day",
-      }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("heading", {
-        level: 2,
-        name: "Understanding binding DIN settings",
-      }),
-    ).toBeVisible();
-    await expect(page.getByText("coming soon")).toHaveCount(0);
-  });
-
-  test("community and inclusion category renders its articles", async ({
+  test("an article renders its list, links and disclaimer", async ({
     page,
   }) => {
-    await page.goto("/learn/community-and-inclusion");
+    await page.goto("/learn/getting-started");
 
+    await expect(page.getByText("Arrive early")).toBeVisible();
     await expect(
-      page.getByRole("heading", { level: 1, name: "Community & Inclusion" }),
-    ).toBeVisible();
+      page.getByRole("link", { name: "Example external reference" }),
+    ).toHaveAttribute("href", "https://example.org/");
     await expect(
-      page.getByRole("heading", {
-        level: 2,
-        name: "Finding your place in the snow sports community",
-      }),
+      page.getByText("Seed content for local development").first(),
     ).toBeVisible();
+  });
+
+  test("the in-page nav jumps to an article's anchor", async ({ page }) => {
+    await page.goto("/learn/getting-started");
+
+    await page
+      .getByRole("navigation", { name: "Getting Started articles" })
+      .getByRole("link", { name: "What to bring" })
+      .click();
+
+    await expect(page).toHaveURL(/#what-to-bring$/);
+  });
+
+  test("a category nobody has published renders the not-found page", async ({
+    page,
+  }) => {
+    await page.goto("/learn/no-such-category");
     await expect(
-      page.getByRole("heading", {
-        level: 2,
-        name: "Overcoming first-timer intimidation",
-      }),
+      page.getByRole("heading", { level: 1, name: "Page not found" }),
     ).toBeVisible();
-    await expect(page.getByText("coming soon")).toHaveCount(0);
+    // Deliberately not asserting a 404 status. A page-level `notFound()` under
+    // `(public)` serves the not-found body with a 200 in this app -- the same
+    // is true of /events/[id], which predates #894 -- so asserting the status
+    // here would be asserting a bug is fixed that this ticket did not fix.
   });
 });
