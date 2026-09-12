@@ -88,7 +88,7 @@ async function withRestoredSetting(key: string, run: () => Promise<void>) {
   }
 }
 
-describe("administration/system-settings actions (integration)", () => {
+describe("administration/organization-settings actions (integration)", () => {
   test("requires system_settings:manage to update a setting", async () => {
     currentSupabase = anonClient();
     expect(
@@ -125,7 +125,7 @@ describe("administration/system-settings actions (integration)", () => {
       await updateAppSettingAction("integration_test.probe", { foo: "bar" }),
     ).toEqual({ success: true });
     expect(revalidatePathMock).toHaveBeenCalledWith(
-      "/portal/administration/system-settings",
+      "/portal/administration/organization-settings",
     );
     expect(await settingValue("integration_test.probe")).toEqual({
       foo: "bar",

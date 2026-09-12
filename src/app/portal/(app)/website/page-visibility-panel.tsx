@@ -2,10 +2,8 @@
 
 import { useOptimistic, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import {
-  updatePageVisibilityAction,
-  type SettingActionResult,
-} from "./actions";
+import { updatePageVisibilityAction } from "./settings-actions";
+import type { SettingActionResult } from "@/lib/settings/write-app-setting";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";

@@ -24,7 +24,7 @@ export function renderOpsReport(
   const origin = siteUrl.replace(/\/+$/, "");
   // The tab, not just the page: the recipient list this email is asking
   // about is one of eight panels, and #947 gave each one a URL.
-  const settingsUrl = `${origin}/portal/administration/system-settings?tab=notifications`;
+  const settingsUrl = `${origin}/portal/administration/organization-settings?tab=notifications`;
 
   return {
     subject: subjectFor(report),

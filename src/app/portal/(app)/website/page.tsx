@@ -3,6 +3,7 @@ import Link from "next/link";
 import {
   getCurrentUserPermissions,
   hasPermission,
+  requirePermission,
 } from "@/lib/auth/permissions";
 import { getPageVisibility } from "@/lib/page-visibility";
 import { getTenantLayoutValues, PROGRAMS_SOURCE_SLOT } from "@/lib/site-layout";
@@ -72,6 +73,13 @@ export default async function SiteContentPage({
     CONTENT_PAGES[0];
 
   const supabase = await createSupabaseServerClient();
+  // The section gate above became a union when #990 moved three settings
+  // panels here, so it no longer proves `site_content:view` on its own. Say it
+  // here, or a board member -- admitted to the section on
+  // `system_settings:manage` for Page visibility -- would land in the page
+  // editor, which is exactly the CMS access widening the gate was meant to
+  // avoid granting them.
+  await requirePermission(supabase, "site_content", "view", "Pages");
   const [permissions, { data }, visibility, tenants, layoutValues] =
     await Promise.all([
       getCurrentUserPermissions(supabase),

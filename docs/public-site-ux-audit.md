@@ -61,7 +61,7 @@ Measured live, with `about` toggled **off**:
 404  /support
 ```
 
-The board turns About off in Administration → System Settings, watches it vanish from the menu, and reasonably concludes the section is dark. It is not: three pages remain publicly reachable and crawlable. For a section held back pending board approval, that is the whole point of the feature failing silently.
+The board turns About off in Website → Page visibility, watches it vanish from the menu, and reasonably concludes the section is dark. It is not: three pages remain publicly reachable and crawlable. For a section held back pending board approval, that is the whole point of the feature failing silently.
 
 This also contradicts the rule the feature's own commit message sets out — _"The gate goes in each section's layout, because a link the nav no longer renders is still a live page."_ Programs, Learn and Support follow it; the other five sections never had it applied.
 

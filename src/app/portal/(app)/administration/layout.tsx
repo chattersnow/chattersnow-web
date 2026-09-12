@@ -14,7 +14,7 @@ import { requireAnyPermission } from "@/lib/auth/permissions";
  *
  * What is left is two resources for the two audiences that actually
  * administer an organization: an `admin`, and a board member, who holds
- * `system_settings:manage` and reaches System Settings alone. Each child still
+ * `system_settings:manage` and reaches Organization Settings alone. Each child still
  * re-checks on its own, so this stays the outer of two gates.
  */
 export default async function AdministrationLayout({

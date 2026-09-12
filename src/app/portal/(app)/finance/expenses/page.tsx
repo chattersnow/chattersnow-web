@@ -264,10 +264,10 @@ export default async function ExpensesPage({
                   The threshold is a setting, not a fixed rule — admin or board
                   can change it anytime in{" "}
                   <Link
-                    href="/portal/administration/system-settings?tab=workflow"
+                    href="/portal/administration/organization-settings?tab=workflow"
                     className="underline hover:text-foreground"
                   >
-                    Administration &gt; System Settings
+                    Administration &gt; Organization Settings
                   </Link>
                   , and it takes effect here immediately, without a code change.
                 </li>

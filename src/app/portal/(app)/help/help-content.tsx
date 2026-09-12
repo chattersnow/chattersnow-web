@@ -89,10 +89,10 @@ export const helpContent: Record<string, HelpEntry> = {
             of splitting it across two. An admin or board member sets the start
             month in{" "}
             <Link
-              href="/portal/administration/system-settings"
+              href="/portal/administration/organization-settings"
               className="underline hover:text-foreground"
             >
-              System Settings
+              Organization Settings
             </Link>
             .
           </p>
@@ -617,10 +617,10 @@ export const helpContent: Record<string, HelpEntry> = {
             season&apos;s planning therefore sits in one review instead of being
             split at New Year. An admin or board member sets the start month in{" "}
             <Link
-              href="/portal/administration/system-settings"
+              href="/portal/administration/organization-settings"
               className="underline hover:text-foreground"
             >
-              System Settings
+              Organization Settings
             </Link>
             .
           </p>
@@ -1159,10 +1159,10 @@ export const helpContent: Record<string, HelpEntry> = {
             whole. &ldquo;Reset to FY2027&rdquo; returns to that default from
             any range you&apos;ve typed. The start month is set in{" "}
             <Link
-              href="/portal/administration/system-settings"
+              href="/portal/administration/organization-settings"
               className="underline hover:text-foreground"
             >
-              System Settings
+              Organization Settings
             </Link>
             .
           </p>
@@ -1826,7 +1826,7 @@ export const helpContent: Record<string, HelpEntry> = {
       </>
     ),
   },
-  "/portal/administration/system-settings": {
+  "/portal/administration/organization-settings": {
     title: "How these settings are used",
     description: "Where the fiscal year and approval thresholds take effect.",
     body: (

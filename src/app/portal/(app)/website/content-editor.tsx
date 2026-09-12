@@ -258,10 +258,10 @@ export function ContentEditor({
                 {page.label} is hidden from the public site, so nothing written
                 here is visible yet.{" "}
                 <Link
-                  href="/portal/administration/system-settings?tab=visibility"
+                  href="/portal/website/page-visibility"
                   className="underline underline-offset-4"
                 >
-                  Change that in System Settings
+                  Change that in Page visibility
                 </Link>
                 .
               </AlertDescription>
@@ -275,10 +275,10 @@ export function ContentEditor({
                 Writing a document here does not put it in force. Which of the
                 three this organization actually serves is set in{" "}
                 <Link
-                  href="/portal/administration/system-settings?tab=legal"
+                  href="/portal/website/legal-documents"
                   className="underline underline-offset-4"
                 >
-                  System Settings &rarr; Legal documents
+                  Legal documents
                 </Link>
                 .
               </AlertDescription>
@@ -318,10 +318,10 @@ export function ContentEditor({
                           </Link>
                           , or change where the page reads from in{" "}
                           <Link
-                            href="/portal/administration/system-settings?tab=layout"
+                            href="/portal/website/page-layout"
                             className="underline underline-offset-4"
                           >
-                            System Settings
+                            Layout
                           </Link>
                           .
                         </AlertDescription>

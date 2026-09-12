@@ -26,7 +26,9 @@ export function DataPanel({ orgName }: { orgName: string }) {
           </p>
           <Button
             nativeButton={false}
-            render={<a href="/portal/administration/system-settings/export" />}
+            render={
+              <a href="/portal/administration/organization-settings/export" />
+            }
           >
             <Download />
             Download export

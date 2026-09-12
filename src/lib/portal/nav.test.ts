@@ -421,9 +421,10 @@ describe("navGroups", () => {
       ["Access & identity", ["users", "roles"]],
       // Down to one item: Access Management left in #943, Site Content in
       // #944 and Platform in #945. The heading stays because it names a real
-      // distinction from identity and oversight, and #947 puts System
-      // Settings' eight panels behind it.
-      ["Organization", ["system-settings"]],
+      // distinction from identity and oversight, and #947 put the page's
+      // panels behind a tab strip -- five of them since #990, under the name
+      // #992 gave the page.
+      ["Organization", ["organization-settings"]],
       ["Oversight", ["audit-log", "data-retention"]],
     ]);
   });
@@ -441,7 +442,66 @@ describe("navGroups", () => {
         group.label,
         group.items.map((sub) => sub.value),
       ]),
-    ).toEqual([["Organization", ["system-settings"]]]);
+    ).toEqual([["Organization", ["organization-settings"]]]);
+  });
+
+  test("groups Website in nav order, the moved settings last", () => {
+    // #990 brought Layout, Page visibility and Legal documents here from
+    // System Settings. They are a different job from writing the copy above
+    // them -- and, more to the point, a different reader's job -- so they get
+    // a heading rather than extending one flat list of six.
+    const website = NAV_ITEMS.find((item) => item.value === "website")!;
+    expect(
+      navGroups(website.subItems!).map((group) => [
+        group.label,
+        group.items.map((sub) => sub.value),
+      ]),
+    ).toEqual([
+      ["Content", ["pages", "articles", "content-packs"]],
+      ["Site settings", ["page-layout", "page-visibility", "legal-documents"]],
+    ]);
+  });
+
+  test("the board's Website is the moved settings and no CMS", () => {
+    // The whole point of widening website/layout.tsx rather than granting the
+    // board site_content:view (#990). `board` holds system_settings:manage and
+    // no site_content at all, so the CMS entries filter out, the Content
+    // heading goes with them, and what is left is the three pages whose writes
+    // they can actually make.
+    //
+    // Three, not the two the ticket predicted: Layout is gated the same way,
+    // because updateLayoutSettingAction goes through writeAppSetting and
+    // checks system_settings:manage like the other two. Gating it on
+    // site_content:view instead would offer it to a reader whose every save
+    // would fail.
+    const board: PermissionMap = { system_settings: "manage" };
+    const website = visibleNavItems(board).find(
+      (item) => item.value === "website",
+    )!;
+    expect(
+      navGroups(website.subItems!).map((group) => [
+        group.label,
+        group.items.map((sub) => sub.value),
+      ]),
+    ).toEqual([
+      ["Site settings", ["page-layout", "page-visibility", "legal-documents"]],
+    ]);
+    // And the section opens on one of them rather than on the page editor.
+    expect(website.href).toBe("/portal/website/page-layout");
+  });
+
+  test("a content editor's Website is the CMS and none of the settings", () => {
+    // The other direction, and the reason the three moved entries do not ask
+    // for site_content: an editor holding it alone must not be offered pages
+    // whose switches would refuse to save.
+    const editor: PermissionMap = { site_content: "view" };
+    const website = visibleNavItems(editor).find(
+      (item) => item.value === "website",
+    )!;
+    expect(website.subItems?.map((sub) => sub.value)).toEqual([
+      "pages",
+      "articles",
+    ]);
   });
 
   test("site_content:view reaches Website and no longer reaches Administration", () => {

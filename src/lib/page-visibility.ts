@@ -14,7 +14,7 @@ export type PublicPageSlot = {
    */
   key: string;
   /**
-   * Shown in Administration > System Settings. May carry `{term}` placeholders
+   * Shown in Website > Page visibility. May carry `{term}` placeholders
    * from the lexicon registry; `namedSlots()` resolves them, and the panel
    * renders what it returns rather than this.
    */
@@ -56,7 +56,7 @@ export type PublicPageSlot = {
 
 /**
  * Registry of every public site section the board can show or hide from
- * Administration > System Settings. Adding an entry here is enough to wire a
+ * Website > Page visibility. Adding an entry here is enough to wire a
  * section up in the admin UI and in the gate -- no migration needed, since
  * every slot is just a keyed row in app_settings (same approach as
  * BRAND_COLOR_TOKENS in src/lib/branding.ts).
@@ -333,7 +333,7 @@ export const getPageVisibility = cache(
 
 /**
  * The same flags for the tenant the signed-in admin has selected, for the
- * System Settings panel. Read straight from `app_settings` -- RLS scopes it to
+ * Page visibility panel. Read straight from `app_settings` -- RLS scopes it to
  * the current tenant -- rather than through `public_page_visibility`, which
  * answers for the *request host* and so shows a portal admin whichever tenant
  * owns `portal.<domain>` rather than the one they are editing. Same split as

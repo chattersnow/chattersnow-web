@@ -313,7 +313,7 @@ export const CONTENT_SECTIONS: readonly ContentSection[] = [
     page: "legal",
     label: "Documents",
     description:
-      "The text of each document. Whether it is served at all is a separate decision, in Administration > System Settings > Legal documents: the terms and the code of conduct are published once your organization has adopted them, and the privacy policy always is (#859).",
+      "The text of each document. Whether it is served at all is a separate decision, in Website > Legal documents: the terms and the code of conduct are published once your organization has adopted them, and the privacy policy always is (#859).",
   },
 ] as const;
 

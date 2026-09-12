@@ -43,8 +43,8 @@ mock.module("@/lib/supabase/server", () => ({
 const { default: AdministrationLayout } = await import("./layout");
 const { default: UsersLayout } = await import("./users/layout");
 const { default: RolesLayout } = await import("./roles/layout");
-const { default: SystemSettingsLayout } =
-  await import("./system-settings/layout");
+const { default: OrganizationSettingsLayout } =
+  await import("./organization-settings/layout");
 const { default: AuditLogLayout } = await import("./audit-log/layout");
 // Technology (formerly Administration -> Access Management) left this section
 // in #943. Its guard is unchanged and still admits administration:manage, so
@@ -133,13 +133,14 @@ describe.each([
   });
 });
 
-// administration/layout.tsx and system-settings/layout.tsx both accept
+// administration/layout.tsx and organization-settings/layout.tsx both accept
 // system_settings:manage as an alternative to administration:manage, so
 // board (which holds the former but not the latter) must get through too --
-// unlike the four resources above.
+// unlike the four resources above. The page was System Settings until #992;
+// the gate is unchanged, and so is the resource key behind it.
 describe.each([
   ["administration (top-level)", () => AdministrationLayout],
-  ["administration/system-settings", () => SystemSettingsLayout],
+  ["administration/organization-settings", () => OrganizationSettingsLayout],
 ])("%s layout guard (integration)", (_name, getLayout) => {
   test("admin (administration manage) renders the page", async () => {
     await expectAllowed(getLayout(), SEEDED_USERS.admin);
