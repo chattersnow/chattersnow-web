@@ -508,65 +508,93 @@ export const NAV_ITEMS: readonly NavItem[] = [
     group: "Organization",
     href: "/portal/governance/board-members",
     basePath: "/portal/governance",
+    // Grouped and reordered (#987). Ten entries, all gated on
+    // governance:manage, presented flat in an order that was neither
+    // alphabetical nor thematic: Resolutions sat eighth, four places from
+    // Meetings, which is where resolutions are made. Nothing here is misfiled
+    // the way Access Management and Site Content were under Administration
+    // (#943, #944) -- every one of the ten is something a board does, gated on
+    // the resource named after the section, living under its path. The list
+    // was simply ten items long, so this is three headings and one move.
+    //
+    // Partnerships and Grants stay (#951): both are pipelines -- prospect,
+    // stages, close -- not ledgers, and `board` holds governance:manage with
+    // finance: none, so filing them under Finance would take both away from
+    // the readers who use them. The finance module's description claiming
+    // "grants" is the thing that is wrong.
     subItems: [
       {
         value: "board-members",
         label: "Board Members",
         href: "/portal/governance/board-members",
+        group: "Board proceedings",
         access: [{ resource: "governance", level: "manage" }],
       },
       {
         value: "meetings",
         label: "Meetings",
         href: "/portal/governance/meetings",
+        group: "Board proceedings",
         access: [{ resource: "governance", level: "manage" }],
       },
+      {
+        // Moved up from eighth to sit beside Meetings, which is where a
+        // resolution is made.
+        value: "resolutions",
+        label: "Resolutions",
+        href: "/portal/governance/resolutions",
+        group: "Board proceedings",
+        access: [{ resource: "governance", level: "manage" }],
+      },
+      // Five items, the largest group, and the one a reader scans least often
+      // -- the right place for the long tail.
       {
         value: "bylaws",
         label: "Bylaws",
         href: "/portal/governance/bylaws",
+        group: "Standing obligations",
         access: [{ resource: "governance", level: "manage" }],
       },
       {
         value: "policies",
         label: "Policies",
         href: "/portal/governance/policies",
+        group: "Standing obligations",
         access: [{ resource: "governance", level: "manage" }],
       },
       {
         value: "conflict-of-interest",
         label: "Conflict of Interest",
         href: "/portal/governance/conflict-of-interest",
+        group: "Standing obligations",
         access: [{ resource: "governance", level: "manage" }],
       },
       {
         value: "annual-requirements",
         label: "Annual Requirements",
         href: "/portal/governance/annual-requirements",
+        group: "Standing obligations",
         access: [{ resource: "governance", level: "manage" }],
       },
       {
         value: "nonprofit-status",
         label: "Nonprofit Status",
         href: "/portal/governance/nonprofit-status",
-        access: [{ resource: "governance", level: "manage" }],
-      },
-      {
-        value: "resolutions",
-        label: "Resolutions",
-        href: "/portal/governance/resolutions",
+        group: "Standing obligations",
         access: [{ resource: "governance", level: "manage" }],
       },
       {
         value: "partnerships",
         label: "Partnerships",
         href: "/portal/governance/partnerships",
+        group: "External relationships",
         access: [{ resource: "governance", level: "manage" }],
       },
       {
         value: "grants",
         label: "Grants",
         href: "/portal/governance/grants",
+        group: "External relationships",
         access: [{ resource: "governance", level: "manage" }],
       },
     ],

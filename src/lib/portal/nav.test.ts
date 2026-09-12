@@ -242,11 +242,68 @@ describe("navGroups", () => {
   });
 
   test("an ungrouped section is one unlabelled group", () => {
-    const governance = NAV_ITEMS.find((item) => item.value === "governance")!;
-    const groups = navGroups(governance.subItems!);
+    // Governance was this test's subject until #987 grouped it. Volunteers is
+    // the replacement: four sub-items, no group key on any of them, and no
+    // reason in the IA work to expect one.
+    const volunteers = NAV_ITEMS.find((item) => item.value === "volunteers")!;
+    const groups = navGroups(volunteers.subItems!);
     expect(groups).toHaveLength(1);
     expect(groups[0].label).toBeUndefined();
-    expect(groups[0].items).toHaveLength(governance.subItems!.length);
+    expect(groups[0].items).toHaveLength(volunteers.subItems!.length);
+  });
+
+  test("groups Governance in nav order", () => {
+    // Three headings over ten identically gated entries (#987), and the one
+    // move the grouping required: Resolutions came from eighth to sit beside
+    // Meetings. Partnerships and Grants stay here rather than moving to
+    // Finance -- both are pipelines, and `board` holds governance:manage with
+    // finance: none, so the move would take them from the readers who use them.
+    const governance = NAV_ITEMS.find((item) => item.value === "governance")!;
+    expect(
+      navGroups(governance.subItems!).map((group) => [
+        group.label,
+        group.items.map((sub) => sub.value),
+      ]),
+    ).toEqual([
+      ["Board proceedings", ["board-members", "meetings", "resolutions"]],
+      [
+        "Standing obligations",
+        [
+          "bylaws",
+          "policies",
+          "conflict-of-interest",
+          "annual-requirements",
+          "nonprofit-status",
+        ],
+      ],
+      ["External relationships", ["partnerships", "grants"]],
+    ]);
+  });
+
+  test("governance:manage keeps all three Governance headings", () => {
+    // The gate is identical on all ten, so unlike Administration there is no
+    // permission that empties a heading. The board member who holds this and
+    // nothing else sees the whole section, groups and all.
+    const board: PermissionMap = { governance: "manage" };
+    const governance = visibleNavItems(board).find(
+      (item) => item.value === "governance",
+    )!;
+    expect(navGroups(governance.subItems!).map((group) => group.label)).toEqual(
+      ["Board proceedings", "Standing obligations", "External relationships"],
+    );
+    expect(governance.subItems).toHaveLength(10);
+  });
+
+  test("grouping Governance moved no route", () => {
+    // #987 is a group key on ten existing entries: no route moves, no gate
+    // changes, no redirect. Every href still points under /portal/governance,
+    // and the section's own href still lands on Board Members.
+    const governance = NAV_ITEMS.find((item) => item.value === "governance")!;
+    expect(governance.href).toBe("/portal/governance/board-members");
+    for (const sub of governance.subItems ?? []) {
+      expect(sub.href).toBe(`/portal/governance/${sub.value}`);
+      expect(sub.access).toEqual([{ resource: "governance", level: "manage" }]);
+    }
   });
 
   test("groups Administration in nav order", () => {
