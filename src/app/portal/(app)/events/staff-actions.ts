@@ -82,7 +82,7 @@ export async function createEventStaffAction(
   }
 
   revalidatePath("/portal/events");
-  revalidatePath("/portal/staff");
+  revalidatePath("/portal/people/staff");
   return { success: true };
 }
 
@@ -136,6 +136,6 @@ export async function deleteEventStaffAction(
   revalidatePath("/portal/events");
   // The Staff segment is derived from these rows, so removing the last one
   // takes the person off it.
-  revalidatePath("/portal/staff");
+  revalidatePath("/portal/people/staff");
   return { success: true };
 }

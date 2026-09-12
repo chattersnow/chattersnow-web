@@ -1,5 +1,5 @@
 import { TablePageSkeleton } from "@/components/portal/page-skeleton";
 
-export default function DonorsLoading() {
+export default function PeopleDonorsLoading() {
   return <TablePageSkeleton columns={5} />;
 }

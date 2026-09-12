@@ -10,8 +10,11 @@ const SECTIONS = [
   { path: "/portal/governance", heading: "Board Members" },
   { path: "/portal/inventory", heading: "Inventory" },
   { path: "/portal/people", heading: "People" },
-  { path: "/portal/organizations", heading: "Organizations" },
-  { path: "/portal/partners", heading: "Partners" },
+  // Three of the eight segments of the People directory (#957). They were
+  // top-level routes until then; /portal/organizations and /portal/partners
+  // still resolve, as redirects to these.
+  { path: "/portal/people/organizations", heading: "Organizations" },
+  { path: "/portal/people/partners", heading: "Partners" },
   { path: "/portal/people/volunteers", heading: "Volunteers" },
   { path: "/portal/programs", heading: "Programs" },
   { path: "/portal/volunteers", heading: "Roles" },
@@ -52,12 +55,13 @@ test("sidebar navigation shows a skeleton, not a blocking overlay", async ({
     await route.continue();
   });
 
-  // People is a section with segments (Donors, Sponsors, ...), so the sidebar
-  // renders it as a collapsible button and the directory itself as a sub-link
-  // -- the same shape Calendar and Finance already have. Expand, then click
-  // the sub-link, which is the only "People" *link* in the tree.
-  await page.getByRole("button", { name: "People" }).click();
-  await page.getByRole("link", { name: "People", exact: true }).click();
+  // People is one entry with no disclosure since #957 -- its segments are a
+  // strip on the page rather than sub-links here -- so the sidebar renders a
+  // plain link, the shape Events and Dashboard already have.
+  await page
+    .getByRole("navigation", { name: "Sidebar" })
+    .getByRole("link", { name: "People", exact: true })
+    .click();
 
   await expect(page.locator('[data-slot="skeleton"]').first()).toBeVisible();
   // The sidebar must stay visible and interactive while the route loads.

@@ -76,7 +76,7 @@ test.describe("person role labels", () => {
     await setRoleLabels(null);
     await signIn(page);
 
-    await page.goto("/portal/attendees");
+    await page.goto("/portal/people/attendees");
     await expect(
       page.getByRole("heading", { level: 1, name: "Attendees" }),
     ).toBeVisible();
@@ -92,17 +92,20 @@ test.describe("person role labels", () => {
     await signIn(page);
 
     // The segment page: heading and the "New X" trigger.
-    await page.goto("/portal/attendees");
+    await page.goto("/portal/people/attendees");
     await expect(
       page.getByRole("heading", { level: 1, name: "Students" }),
     ).toBeVisible();
     const newStudent = page.getByRole("button", { name: "New Student" });
     await expect(newStudent).toBeVisible();
 
-    // The sidebar, which is where "Attendees" sat whether or not the tenant
-    // ran events people register for.
+    // The segment strip, which is where "Attendees" sat whether or not the
+    // tenant ran events people register for. It was eight sidebar entries
+    // until #957 folded them into the one page they are all views of.
     await expect(
-      page.getByRole("navigation").getByRole("link", { name: "Students" }),
+      page
+        .getByRole("navigation", { name: "People segments" })
+        .getByRole("link", { name: "Students" }),
     ).toBeVisible();
 
     // The person form's role checkboxes, a client component reading the
@@ -117,14 +120,15 @@ test.describe("person role labels", () => {
     ).toBeVisible();
     await page.keyboard.press("Escape");
 
-    // The role facet on the full directory, built from the registry. Its
-    // options are singular -- each one names one role, the way the Roles
-    // column and the form's checkboxes do.
+    // The strip on the full list too, built from the same registry. It
+    // replaced the Role facet in #957 -- a dropdown offering the same six
+    // choices as the strip beside it was two ways to do one thing.
     await page.goto("/portal/people");
-    await page.getByRole("button", { name: /Filters/ }).click();
-    await expect(page.getByLabel("Role")).toContainText("Student");
+    const strip = page.getByRole("navigation", { name: "People segments" });
+    await expect(strip.getByRole("link", { name: "Students" })).toBeVisible();
 
     // ...and the route itself is untouched: a URL is not a label.
-    await expect(page).toHaveURL(/\/portal\/people$/);
+    await strip.getByRole("link", { name: "Students" }).click();
+    await expect(page).toHaveURL(/\/portal\/people\/attendees$/);
   });
 });

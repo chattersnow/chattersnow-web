@@ -205,61 +205,22 @@ export const NAV_ITEMS: readonly NavItem[] = [
     ],
   },
   {
+    // One entry, eight segments (#957). Donors, Sponsors, Attendees, Staff,
+    // Partners and Organizations were sub-items here pointing at six
+    // top-level routes outside People's own path -- #622 consolidated the
+    // sidebar and left the routes behind, leaving the only section in the
+    // portal with more navigation than content. They are one directory seen
+    // through eight filters, so they are segments of /portal/people and the
+    // strip on that page is where a reader picks one.
     value: "people",
     label: "People",
     group: "People",
     href: "/portal/people",
     basePath: "/portal/people",
-    subItems: [
-      {
-        value: "directory",
-        label: "People",
-        href: "/portal/people",
-        access: [{ resource: "people", level: "view" }],
-      },
-      {
-        value: "donors",
-        label: "{donor_plural}",
-        href: "/portal/donors",
-        access: [{ resource: "people", level: "view" }],
-      },
-      {
-        value: "sponsors",
-        label: "{sponsor_plural}",
-        href: "/portal/sponsors",
-        access: [{ resource: "people", level: "view" }],
-      },
-      {
-        value: "volunteers",
-        label: "{volunteer_plural}",
-        href: "/portal/people/volunteers",
-        access: [{ resource: "people", level: "view" }],
-      },
-      {
-        value: "attendees",
-        label: "{attendee_plural}",
-        href: "/portal/attendees",
-        access: [{ resource: "people", level: "view" }],
-      },
-      {
-        value: "staff",
-        label: "{staff_plural}",
-        href: "/portal/staff",
-        access: [{ resource: "people", level: "view" }],
-      },
-      {
-        value: "partners",
-        label: "{partner_plural}",
-        href: "/portal/partners",
-        access: [{ resource: "people", level: "view" }],
-      },
-      {
-        value: "organizations",
-        label: "Organizations",
-        href: "/portal/organizations",
-        access: [{ resource: "people", level: "view" }],
-      },
-    ],
+    // On the section itself now that it has no sub-items to inherit the gate
+    // from: visibleNavItems keeps an access-less section unconditionally,
+    // which is right for Dashboard and wrong for this.
+    access: [{ resource: "people", level: "view" }],
   },
   {
     value: "volunteers",
@@ -698,9 +659,10 @@ export function activeSectionFor(pathname: string): string | undefined {
       return item.value;
     }
   }
-  // People's other segments live at their own top-level routes (/portal/donors
-  // and friends) rather than under /portal/people, so a basePath prefix alone
-  // would leave the sidebar highlighting nothing while the user is on one.
+  // A section can still cross-link to a page another section owns -- the
+  // volunteer directory is listed under Volunteers as well as living under
+  // People -- so a sub-item match is the fallback when no basePath claims the
+  // path outright.
   for (const item of NAV_ITEMS) {
     if (
       item.subItems?.some(
