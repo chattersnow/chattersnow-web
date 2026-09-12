@@ -7,9 +7,12 @@ import {
   IMAGE_SLOT_KEY_PREFIX,
   LEGAL_DOCUMENT_OUTLINES,
   SITE_CONTENT_SLOTS,
+  TEAM_PHOTO_FIELD,
   contentSlot,
   imageSlotName,
   isValidSlotValue,
+  photoSlotChoices,
+  resolvePhoto,
   resolveSiteContent,
   sectionsForPage,
   slotsForSection,
@@ -381,6 +384,160 @@ describe("the links slot's field kinds (#937)", () => {
   });
 
   test("the registry's own default row survives its own validator", () => {
+    expect(isValidSlotValue(slot, slot.default)).toBe(true);
+  });
+});
+
+describe("a list slot's photo field (#922)", () => {
+  const slot = contentSlot("about_team.members");
+  if (!slot || slot.type !== "list") {
+    throw new Error("about_team.members must be a list slot");
+  }
+  const imageNames = new Set(
+    SITE_CONTENT_SLOTS.filter((entry) => entry.type === "image").map((entry) =>
+      imageSlotName(entry.key),
+    ),
+  );
+
+  function row(overrides: Record<string, unknown> = {}) {
+    return {
+      name: "Ada Lovelace",
+      photo_url: "",
+      photo_slot: "",
+      bio: ["A short biography."],
+      ...overrides,
+    };
+  }
+
+  // Every part of a photo field names something in the registry: the sibling
+  // field it stores the slot in, the slots it offers, and the shared fallback.
+  // A prefix that matches nothing is a select with no options, which is the
+  // free-text box this replaced with extra steps.
+  test("every photo field points at real fields and real slots", () => {
+    const photoFields = SITE_CONTENT_SLOTS.flatMap((entry) =>
+      entry.type === "list"
+        ? entry.fields
+            .filter((field) => field.kind === "photo")
+            .map((field) => ({ owner: entry, field }))
+        : [],
+    );
+    expect(photoFields.length).toBeGreaterThan(0);
+    for (const { owner, field } of photoFields) {
+      expect(
+        owner.fields.some((sibling) => sibling.key === field.slotField),
+        `${owner.key}.${field.key} names sibling ${field.slotField}`,
+      ).toBe(true);
+      expect(
+        imageNames.has(field.fallbackSlot),
+        `${owner.key}.${field.key} falls back to ${field.fallbackSlot}`,
+      ).toBe(true);
+      expect(
+        photoSlotChoices(field).length,
+        `${owner.key}.${field.key} offers slots matching ${field.slotPrefix}`,
+      ).toBeGreaterThan(0);
+    }
+  });
+
+  test("the choices are the page's own photo slots, not the shared one", () => {
+    const names = photoSlotChoices(TEAM_PHOTO_FIELD).map(
+      (choice) => choice.name,
+    );
+    expect(names).toContain("about_team_photo_cass");
+    expect(names).not.toContain("about_team_photo");
+    expect(names).not.toContain("about_team_hero_photo");
+    for (const name of names) expect(imageNames.has(name)).toBe(true);
+  });
+
+  test("a link of their own wins, then the slot, then the shared photo", () => {
+    const images = {
+      about_team_photo_cass: "https://example.test/cass.jpg",
+      about_team_photo: "https://example.test/shared.jpg",
+    };
+    expect(
+      resolvePhoto(
+        TEAM_PHOTO_FIELD,
+        row({
+          photo_url: "https://example.test/own.jpg",
+          photo_slot: "about_team_photo_cass",
+        }),
+        images,
+      ),
+    ).toEqual({ url: "https://example.test/own.jpg", from: "url" });
+    expect(
+      resolvePhoto(
+        TEAM_PHOTO_FIELD,
+        row({ photo_slot: "about_team_photo_cass" }),
+        images,
+      ),
+    ).toEqual({
+      url: "https://example.test/cass.jpg",
+      from: "slot",
+      slot: "about_team_photo_cass",
+    });
+    expect(resolvePhoto(TEAM_PHOTO_FIELD, row(), images)).toEqual({
+      url: "https://example.test/shared.jpg",
+      from: "fallback",
+      slot: "about_team_photo",
+    });
+  });
+
+  // The old free-text box's failure mode, and the reason the slot is a select
+  // now: the page shows the shared photo and nothing says the name was wrong.
+  test("a slot that does not exist falls through to the shared photo", () => {
+    expect(
+      resolvePhoto(
+        TEAM_PHOTO_FIELD,
+        row({ photo_slot: "about_team_photo_ca" }),
+        { about_team_photo: "https://example.test/shared.jpg" },
+      ),
+    ).toEqual({
+      url: "https://example.test/shared.jpg",
+      from: "fallback",
+      slot: "about_team_photo",
+    });
+  });
+
+  test("nothing set anywhere is the placeholder icon", () => {
+    expect(resolvePhoto(TEAM_PHOTO_FIELD, row(), {})).toEqual({
+      url: null,
+      from: "none",
+    });
+  });
+
+  test("a Google Drive share link is resolved, from either source", () => {
+    const drive = "https://drive.google.com/file/d/abc123/view";
+    const thumbnail = "https://drive.google.com/thumbnail?id=abc123&sz=w1000";
+    expect(
+      resolvePhoto(TEAM_PHOTO_FIELD, row({ photo_url: drive }), {}).url,
+    ).toBe(thumbnail);
+    expect(
+      resolvePhoto(
+        TEAM_PHOTO_FIELD,
+        row({ photo_slot: "about_team_photo_cass" }),
+        { about_team_photo_cass: drive },
+      ).url,
+    ).toBe(thumbnail);
+  });
+
+  // Blank is the ordinary case -- it means "use the slot instead" -- but a set
+  // link has to be something next/image will take, or the page it renders on
+  // throws (#918).
+  test("the stored link is renderable when set, and may be blank", () => {
+    expect(isValidSlotValue(slot, [row()])).toBe(true);
+    expect(
+      isValidSlotValue(slot, [
+        row({ photo_url: "https://example.test/a.jpg" }),
+      ]),
+    ).toBe(true);
+    expect(isValidSlotValue(slot, [row({ photo_url: "/team/ada.jpg" })])).toBe(
+      true,
+    );
+    expect(isValidSlotValue(slot, [row({ photo_url: "ada.jpg" })])).toBe(false);
+    expect(isValidSlotValue(slot, [row({ photo_url: null })])).toBe(false);
+  });
+
+  test("a row that names neither is still valid", () => {
+    expect(isValidSlotValue(slot, [{ name: "Ada Lovelace" }])).toBe(true);
     expect(isValidSlotValue(slot, slot.default)).toBe(true);
   });
 });

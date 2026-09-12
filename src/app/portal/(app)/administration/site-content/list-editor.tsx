@@ -17,6 +17,7 @@ import {
   paragraphsToText,
   textToParagraphs,
 } from "./content-values";
+import { ListPhotoField } from "./list-photo-field";
 import { useKeyedRows } from "./use-keyed-rows";
 
 function ListFieldControl({
@@ -26,7 +27,8 @@ function ListFieldControl({
   value,
   onChange,
 }: {
-  field: ListField;
+  /** Every kind but `photo`, which owns two of the row's fields at once. */
+  field: Exclude<ListField, { kind: "photo" }>;
   id: string;
   labelId: string;
   value: string | string[] | boolean;
@@ -95,13 +97,27 @@ function ListFieldControl({
 export function ListEditor({
   slot,
   items,
+  images,
   onChange,
 }: {
   slot: Extract<ContentSlot, { type: "list" }>;
   items: ListItem[];
+  /**
+   * This page's image slots as the editor currently has them, by short name,
+   * so a `photo` field can preview the picture its row resolves to -- an
+   * unsaved edit to the slot included (#922).
+   */
+  images: Readonly<Record<string, string | null>>;
   onChange: (items: ListItem[]) => void;
 }) {
   const rows = useKeyedRows(items, onChange);
+  // A `photo` field answers for two of the row's fields, so the one it names
+  // is not asked for again on its own.
+  const claimed = new Set(
+    slot.fields.flatMap((field) =>
+      field.kind === "photo" ? [field.slotField] : [],
+    ),
+  );
 
   return (
     <div className="space-y-3">
@@ -145,6 +161,7 @@ export function ListEditor({
               </div>
             </div>
             {slot.fields.map((field) => {
+              if (claimed.has(field.key)) return null;
               const id = `${slot.key}-${row.id}-${field.key}`;
               const labelId = `${id}-label`;
               // A switch reads as a setting, not as a box to fill in, so its
@@ -165,15 +182,28 @@ export function ListEditor({
                       <span className="app-muted font-normal"> (optional)</span>
                     )}
                   </FieldLabel>
-                  <ListFieldControl
-                    field={field}
-                    id={id}
-                    labelId={labelId}
-                    value={row.value[field.key] ?? emptyFieldValue(field)}
-                    onChange={(value) =>
-                      rows.update(row.id, { ...row.value, [field.key]: value })
-                    }
-                  />
+                  {field.kind === "photo" ? (
+                    <ListPhotoField
+                      id={id}
+                      field={field}
+                      item={row.value}
+                      images={images}
+                      onChange={(item) => rows.update(row.id, item)}
+                    />
+                  ) : (
+                    <ListFieldControl
+                      field={field}
+                      id={id}
+                      labelId={labelId}
+                      value={row.value[field.key] ?? emptyFieldValue(field)}
+                      onChange={(value) =>
+                        rows.update(row.id, {
+                          ...row.value,
+                          [field.key]: value,
+                        })
+                      }
+                    />
+                  )}
                 </Field>
               );
             })}

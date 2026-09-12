@@ -146,6 +146,7 @@ export function ContentSlotField({
   draftUpdatedAt,
   draftUpdatedBy,
   starter,
+  images,
   dirty,
   canEdit,
   onChange,
@@ -165,6 +166,12 @@ export function ContentSlotField({
   draftUpdatedBy: string | null;
   /** The platform's own document, for a `document` slot; null otherwise. */
   starter: LegalDocumentContent | null;
+  /**
+   * This page's image slots as the editor currently has them, by short name.
+   * A `list` slot's `photo` field previews the picture its row resolves to,
+   * which may be one of them (#922).
+   */
+  images: Readonly<Record<string, string | null>>;
   dirty: boolean;
   canEdit: boolean;
   onChange: (value: unknown) => void;
@@ -272,6 +279,7 @@ export function ContentSlotField({
         <ListEditor
           slot={slot}
           items={Array.isArray(value) ? (value as ListItem[]) : []}
+          images={images}
           onChange={onChange}
         />
       )}

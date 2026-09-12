@@ -28,6 +28,7 @@ export function ContentSectionCard({
   section,
   slots,
   values,
+  images,
   initial,
   dirtyKeys,
   canEdit,
@@ -42,6 +43,8 @@ export function ContentSectionCard({
   section: ContentSection;
   slots: EditorSlot[];
   values: Record<string, unknown>;
+  /** The whole page's image slots by short name, for a `photo` field's preview. */
+  images: Readonly<Record<string, string | null>>;
   initial: Map<string, unknown>;
   dirtyKeys: Set<string>;
   canEdit: boolean;
@@ -113,6 +116,7 @@ export function ContentSectionCard({
                   draftUpdatedAt={entry.draftUpdatedAt}
                   draftUpdatedBy={entry.draftUpdatedBy}
                   starter={entry.starter}
+                  images={images}
                   dirty={dirtyKeys.has(slot.key)}
                   canEdit={canEdit}
                   onChange={(value) => onChange(slot.key, value)}

@@ -12,7 +12,11 @@ import {
   DiscardChangesDialog,
   useUnsavedChangesGuard,
 } from "@/components/portal/unsaved-changes-guard";
-import type { ContentPage, ContentSection } from "@/lib/site-content";
+import {
+  imageSlotName,
+  type ContentPage,
+  type ContentSection,
+} from "@/lib/site-content";
 import type { EditorSlot, OutlineEntry } from "./content-shared";
 import { draftValueFor, slotChanges } from "./content-diff";
 import { ContentOutline } from "./content-outline";
@@ -83,6 +87,21 @@ export function ContentEditor({
   const [isPending, startTransition] = useTransition();
 
   const initial = new Map(slots.map(({ slot, value }) => [slot.key, value]));
+
+  // The page's photos as they stand on screen, keyed the short way a page
+  // reads them. A `list` slot's `photo` field resolves a row's picture through
+  // these, so pasting a link into a team member's photo slot updates that
+  // member's preview before anything is saved (#922).
+  const images: Record<string, string | null> = Object.fromEntries(
+    slots
+      .filter(({ slot }) => slot.type === "image")
+      .map(({ slot }) => [
+        imageSlotName(slot.key),
+        typeof values[slot.key] === "string"
+          ? (values[slot.key] as string)
+          : null,
+      ]),
+  );
   const changed = slots
     .map(({ slot }) => slot.key)
     .filter((key) => !same(values[key], initial.get(key)));
@@ -294,6 +313,7 @@ export function ContentEditor({
                   }
                   slots={sectionSlots}
                   values={values}
+                  images={images}
                   initial={initial}
                   dirtyKeys={dirtyKeys}
                   canEdit={canEdit}

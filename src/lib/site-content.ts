@@ -59,7 +59,7 @@
  * `src/lib/public-site.ts`.
  */
 
-import { isRenderableImageSrc } from "@/lib/inventory";
+import { isRenderableImageSrc, resolveImageUrl } from "@/lib/inventory";
 import { isPublishableHref } from "@/lib/legal-markup";
 import {
   DEFAULT_LEXICON,
@@ -317,23 +317,56 @@ export const CONTENT_SECTIONS: readonly ContentSection[] = [
   },
 ] as const;
 
-export type ListField = {
+type ListFieldBase = {
   key: string;
   label: string;
-  /**
-   * `url` is a text field the editor offers as a URL box and that
-   * `isPublishableHref()` has to accept, so a destination an editor typed
-   * wrong -- or a scheme nobody should be able to publish -- is refused on the
-   * way in rather than rendered as an `href` on a public page (#937).
-   *
-   * `boolean` is a switch. It exists because a list whose rows are *shown or
-   * hidden* rather than added and removed has no way to say so otherwise, and
-   * deleting a row to hide it for a month is not the same thing.
-   */
-  kind: "text" | "paragraphs" | "url" | "boolean";
   /** Left blank in the editor when unset; a text field is otherwise required. */
   optional?: boolean;
 };
+
+/**
+ * A `photo` field: the one control a row's picture is set from.
+ *
+ * The field stores a URL, and the image slot it may point at instead lives in
+ * a *sibling* field, because the site's precedence -- the row's own URL, then
+ * the slot it names, then a shared fallback -- is load-bearing for a tenant
+ * who set a link directly. Those two used to be asked as two independent
+ * free-text boxes, with the precedence documented nowhere near them and the
+ * slot name typed by hand: a typo fell through to the fallback silently, and
+ * neither box previewed anything (#922).
+ */
+export type PhotoListField = ListFieldBase & {
+  kind: "photo";
+  /** The sibling field holding the chosen image slot's short name. */
+  slotField: string;
+  /**
+   * Image slots whose short name starts with this are the choices offered.
+   * The registry is the source of truth for those names, so the editor can
+   * offer a select over real slots rather than a box to mistype one into.
+   */
+  slotPrefix: string;
+  /** The image slot used when the row names neither a URL nor a slot. */
+  fallbackSlot: string;
+  /** The aspect the public site crops the photo to, as a CSS ratio. */
+  ratio: string;
+};
+
+export type ListField =
+  | (ListFieldBase & {
+      /**
+       * `url` is a text field the editor offers as a URL box and that
+       * `isPublishableHref()` has to accept, so a destination an editor typed
+       * wrong -- or a scheme nobody should be able to publish -- is refused on
+       * the way in rather than rendered as an `href` on a public page (#937).
+       *
+       * `boolean` is a switch. It exists because a list whose rows are *shown
+       * or hidden* rather than added and removed has no way to say so
+       * otherwise, and deleting a row to hide it for a month is not the same
+       * thing.
+       */
+      kind: "text" | "paragraphs" | "url" | "boolean";
+    })
+  | PhotoListField;
 
 export type ListItem = Record<string, string | string[] | boolean>;
 
@@ -463,6 +496,25 @@ export type ContentSlot = SlotBase &
 const BULLET: readonly ListField[] = [
   { key: "text", label: "Item", kind: "text" },
 ];
+
+/**
+ * The photo a team member on the Meet the Team page shows.
+ *
+ * Named rather than inlined in the slot below because the public page imports
+ * it too: it resolves a member's picture with `resolvePhoto()`, the same call
+ * the editor's preview makes, so the two cannot disagree about which source
+ * wins (#922).
+ */
+export const TEAM_PHOTO_FIELD: PhotoListField = {
+  key: "photo_url",
+  label: "Photo",
+  kind: "photo",
+  optional: true,
+  slotField: "photo_slot",
+  slotPrefix: "about_team_photo_",
+  fallbackSlot: "about_team_photo",
+  ratio: "1/1",
+};
 
 /** The `app_settings`-era prefix every image slot key still carries, so `public_site_images` can strip it. */
 export const IMAGE_SLOT_KEY_PREFIX = "site_images.";
@@ -848,12 +900,14 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     page: "about_team",
     section: "about_team:team",
     label: "Team members",
-    description:
-      "A photo URL overrides the image slot. Leave both blank for the shared team placeholder.",
     type: "list",
     fields: [
       { key: "name", label: "Name", kind: "text" },
-      { key: "photo_url", label: "Photo URL", kind: "text", optional: true },
+      TEAM_PHOTO_FIELD,
+      // Declared so the row's shape is validated and a new row carries the
+      // key, but never rendered on its own: the `photo` field above owns it,
+      // and the editor skips any field another field claims as its
+      // `slotField`.
       {
         key: "photo_slot",
         label: "Image slot",
@@ -876,7 +930,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "about_team",
     "about_team:team",
     "Team photo — Cass Lainez",
-    "Cass Lainez's photo on the Meet the Team page. A team member's Image slot field names it as about_team_photo_cass.",
+    "Cass Lainez's photo on the Meet the Team page, chosen in a team member's Photo field.",
     "1/1",
   ),
   image(
@@ -884,7 +938,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "about_team",
     "about_team:team",
     "Team photo — Rickie Cruz",
-    "Rickie Cruz's photo on the Meet the Team page. A team member's Image slot field names it as about_team_photo_rickie.",
+    "Rickie Cruz's photo on the Meet the Team page, chosen in a team member's Photo field.",
     "1/1",
   ),
   image(
@@ -892,7 +946,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "about_team",
     "about_team:team",
     "Team photo — Sofie Chavez",
-    "Sofie Chavez's photo on the Meet the Team page. A team member's Image slot field names it as about_team_photo_sofie.",
+    "Sofie Chavez's photo on the Meet the Team page, chosen in a team member's Photo field.",
     "1/1",
   ),
   image(
@@ -1757,6 +1811,75 @@ export function slotsForSection(section: string): ContentSlot[] {
   return SITE_CONTENT_SLOTS.filter((slot) => slot.section === section);
 }
 
+/** An image slot's editor label, by the short name a page reads it under. */
+export function imageSlotLabel(name: string): string | undefined {
+  return contentSlot(`${IMAGE_SLOT_KEY_PREFIX}${name}`)?.label;
+}
+
+/**
+ * The image slots a `photo` field offers, in registry order.
+ *
+ * The editor builds a select from this, so a slot that does not exist cannot
+ * be named (#922). The fallback slot is deliberately not one of the choices:
+ * it is already what choosing nothing means.
+ */
+export function photoSlotChoices(
+  field: PhotoListField,
+): { name: string; label: string }[] {
+  return SITE_CONTENT_SLOTS.filter(
+    (slot) =>
+      slot.type === "image" &&
+      imageSlotName(slot.key).startsWith(field.slotPrefix),
+  ).map((slot) => ({ name: imageSlotName(slot.key), label: slot.label }));
+}
+
+/** Where the picture a row shows came from. */
+export type PhotoSource = "url" | "slot" | "fallback" | "none";
+
+export type ResolvedPhoto = {
+  /** Renderable, or null when nothing is set anywhere: the placeholder icon. */
+  url: string | null;
+  from: PhotoSource;
+  /** The slot it came from, for `slot` and `fallback`. */
+  slot?: string;
+};
+
+/**
+ * The picture a `photo` field resolves to: the row's own link, else the image
+ * slot it names, else the shared fallback slot.
+ *
+ * The public page and the editor's preview both call this, so the precedence
+ * cannot drift between the two -- which is the whole reason the editor can
+ * claim to show what the site will show (#922). `images` is keyed by short
+ * slot name, the shape `getSiteImageUrls()` returns; values may be raw or
+ * already resolved, since `resolveImageUrl()` is idempotent.
+ */
+export function resolvePhoto(
+  field: PhotoListField,
+  /** The row, in whatever shape its caller reads list items as. */
+  item: Readonly<Record<string, unknown>>,
+  images: Readonly<Record<string, string | null | undefined>>,
+): ResolvedPhoto {
+  const text = (key: string): string => {
+    const value = item[key];
+    return typeof value === "string" ? value.trim() : "";
+  };
+  const own = text(field.key);
+  if (own) return { url: resolveImageUrl(own), from: "url" };
+  const slot = text(field.slotField);
+  const named = slot ? (images[slot] ?? null) : null;
+  if (named) return { url: resolveImageUrl(named), from: "slot", slot };
+  const shared = images[field.fallbackSlot] ?? null;
+  if (shared) {
+    return {
+      url: resolveImageUrl(shared),
+      from: "fallback",
+      slot: field.fallbackSlot,
+    };
+  }
+  return { url: null, from: "none" };
+}
+
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((v) => typeof v === "string");
 }
@@ -1787,6 +1910,12 @@ function isListItem(value: unknown, fields: readonly ListField[]): boolean {
         // destination the site will actually put in an `href`.
         if (typeof v !== "string") return false;
         return field.optional && v === "" ? true : isPublishableHref(v);
+      case "photo":
+        // Renderable when set, the stance an `image` slot takes, so a photo
+        // that would 404 is refused on the way in rather than on the page.
+        // Blank is the ordinary case: it means "use the slot instead".
+        if (typeof v !== "string") return false;
+        return v === "" ? true : isRenderableImageSrc(v);
     }
   });
 }
