@@ -130,7 +130,9 @@ describe("visibleGroups", () => {
   test("drops the groups the board has hidden", () => {
     const labels = visibleGroups(HIDDEN).map((group) => group.label);
 
-    expect(labels).toEqual(["Events", "Gear", "Get Involved", "Contact"]);
+    // "Items" rather than "Gear": the group is named from the lexicon (#896),
+    // and this call passes none, so it reads the platform's own word.
+    expect(labels).toEqual(["Events", "Items", "Get Involved", "Contact"]);
   });
 
   // The reduced nav still has to reach the section landing pages.

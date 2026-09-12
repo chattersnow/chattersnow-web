@@ -10,6 +10,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPageVisibility, hiddenSlots } from "@/lib/page-visibility";
 import { NOT_FOUND_TITLE, getPublicSite } from "@/lib/public-site";
 import { isSlotVisible, visibleGroups } from "@/lib/public-nav";
+import type { Lexicon } from "@/lib/lexicon";
 import { documentsInForce, getLegalPublication } from "@/lib/legal-publication";
 import { SiteNav } from "./site-nav";
 
@@ -44,8 +45,14 @@ function FooterLink({ href, label }: { href: string; label: string }) {
 // Derived from the same NAV_GROUPS the header renders, rather than a second
 // hardcoded list -- the old FOOTER_LINKS had no About or Learn entry, so those
 // sections stayed missing from the footer even when they were visible.
-function SectionLinks({ hidden }: { hidden: string[] }) {
-  return visibleGroups(hidden).map((group) => (
+function SectionLinks({
+  hidden,
+  lexicon,
+}: {
+  hidden: string[];
+  lexicon: Lexicon;
+}) {
+  return visibleGroups(hidden, lexicon).map((group) => (
     <FooterLink key={group.href} href={group.href} label={group.label} />
   ));
 }
@@ -93,7 +100,7 @@ export default async function PublicLayout({
   }
 
   const hidden = hiddenSlots(visibility);
-  const { name, branding, content } = site;
+  const { name, branding, content, lexicon } = site;
   const contactEmail = content.text("org.email_general");
   const supportLabel = `Support ${content.text("org.short_name")}`;
 
@@ -117,7 +124,11 @@ export default async function PublicLayout({
               </span>
             )}
           </Link>
-          <SiteNav hiddenSlots={hidden} supportLabel={supportLabel} />
+          <SiteNav
+            hiddenSlots={hidden}
+            supportLabel={supportLabel}
+            lexicon={lexicon}
+          />
         </div>
       </header>
       {/* The tenant's own mark for every image placeholder below the header --
@@ -153,7 +164,7 @@ export default async function PublicLayout({
                 aria-label="Footer"
                 className="flex flex-wrap gap-x-6 gap-y-2"
               >
-                <SectionLinks hidden={hidden} />
+                <SectionLinks hidden={hidden} lexicon={lexicon} />
               </nav>
             </div>
 

@@ -4,6 +4,7 @@ import { deliverEmail } from "@/lib/notifications/deliver";
 import { tenantMailContext } from "@/lib/email/identity";
 import type { RenderedEmail } from "@/lib/notifications/rendered-email";
 import { isOrgEmailEnabled } from "@/lib/notifications/settings";
+import { lexiconForTenant } from "@/lib/tenant-lexicon";
 import {
   renderArtworkSubmissionEmail,
   renderContactMessageEmail,
@@ -125,6 +126,10 @@ export async function notifyNewContactMessage(
   if (!data) return { ...NOTHING };
 
   const submitterEmail = (data.email as string) ?? "";
+  // The topic is one of the strings a tenant renames (#896), and this is
+  // the one render path with neither a session nor a host to resolve it
+  // from -- it runs after the response, as the service role.
+  const lexicon = await lexiconForTenant(admin, data.tenant_id as string);
 
   return notifyRoleHolders(admin, {
     tenantId: data.tenant_id as string,
@@ -148,6 +153,7 @@ export async function notifyNewContactMessage(
           topic: (data.topic as string) ?? "",
         },
         origin,
+        lexicon,
       ),
   });
 }

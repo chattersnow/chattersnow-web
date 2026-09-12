@@ -47,6 +47,8 @@ import {
   isDemoTenant,
 } from "@/lib/portal/tenants";
 import { getTenantBranding } from "@/lib/tenant-branding";
+import { getTenantLexicon } from "@/lib/tenant-lexicon";
+import { LexiconProvider } from "@/components/lexicon-context";
 import { ensureMyOnboarding } from "@/lib/portal/onboarding";
 import { personDisplayName } from "@/lib/format";
 import { IdleTimeout } from "./idle-timeout";
@@ -244,7 +246,10 @@ export default async function PortalAppLayout({
 
   const cookieStore = await cookies();
   const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false";
-  const branding = await getTenantBranding(supabase);
+  const [branding, lexicon] = await Promise.all([
+    getTenantBranding(supabase),
+    getTenantLexicon(supabase),
+  ]);
 
   return (
     <TooltipProvider>
@@ -279,7 +284,7 @@ export default async function PortalAppLayout({
                 permissions={permissions}
                 currentPerson={currentPerson}
               />
-              <PortalNav permissions={permissions} />
+              <PortalNav permissions={permissions} lexicon={lexicon} />
             </SidebarContent>
             <SidebarFooter>
               {/* Not in PortalNav: that list is permission-scoped module nav,
@@ -321,7 +326,7 @@ export default async function PortalAppLayout({
                     Hi, {displayName}
                   </Link>
                 )}
-                <CommandPalette permissions={permissions} />
+                <CommandPalette permissions={permissions} lexicon={lexicon} />
                 <ThemeToggle className="size-10 rounded-full" />
                 <HelpButton />
                 <NotificationsMenu items={attentionItems} />
@@ -337,9 +342,13 @@ export default async function PortalAppLayout({
             >
               <div className="mx-auto max-w-6xl">
                 {/* The tenant's own mark for the inventory placeholders, which
-                    sit too deep -- and in a client modal -- to be handed it. */}
+                    sit too deep -- and in a client modal -- to be handed it.
+                    Its words likewise: the breadcrumbs on a few dozen pages
+                    read the nav tree, which holds lexicon templates (#896). */}
                 <BrandLogoProvider logoUrl={branding.logoUrl}>
-                  {children}
+                  <LexiconProvider lexicon={lexicon}>
+                    {children}
+                  </LexiconProvider>
                 </BrandLogoProvider>
               </div>
             </main>

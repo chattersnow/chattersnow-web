@@ -3,6 +3,7 @@ import {
   type PermissionCheck,
   type PermissionMap,
 } from "@/lib/auth/permissions";
+import { DEFAULT_LEXICON, applyLexicon, type Lexicon } from "@/lib/lexicon";
 
 /**
  * The portal's navigation tree, shared by the sidebar (which renders it) and
@@ -17,6 +18,12 @@ import {
  */
 export type NavSubItem = {
   value: string;
+  /**
+   * May carry `{term}` placeholders from the lexicon registry in
+   * `src/lib/lexicon.ts` (#896). Whatever renders a label resolves it against
+   * the current tenant's words -- `useLexicon()` in the portal shell -- so
+   * nothing should print this raw.
+   */
   label: string;
   href: string;
   /** Any one of these is enough, the way `hasAnyPermission` reads them. */
@@ -38,6 +45,7 @@ export type NavSubItem = {
 
 export type NavItem = {
   value: string;
+  /** A lexicon template, like `NavSubItem.label`. */
   label: string;
   href: string;
   basePath?: string;
@@ -156,14 +164,19 @@ export const NAV_ITEMS: readonly NavItem[] = [
     ],
   },
   {
+    // The one section named in the tenant's own words rather than the
+    // platform's (#896): Chatter Snow runs a gear library, and a nonprofit
+    // lending tools or distributing food reads the same tables. `inventory`
+    // here is the section value and the permission resource -- both internal,
+    // neither renamed.
     value: "inventory",
-    label: "Inventory",
+    label: "{collection}",
     href: "/portal/inventory/items",
     basePath: "/portal/inventory",
     subItems: [
       {
         value: "items",
-        label: "Items",
+        label: "{item_plural}",
         href: "/portal/inventory/items",
         access: [{ resource: "inventory", level: "view" }],
       },
@@ -187,13 +200,15 @@ export const NAV_ITEMS: readonly NavItem[] = [
       },
       {
         value: "categories",
-        label: "Item Categories",
+        // `{collection} Categories`, not `{item} Categories`: a tenant whose
+        // singular is "Gear item" would read "Gear item Categories".
+        label: "{collection} Categories",
         href: "/portal/inventory/categories",
         access: [{ resource: "inventory", level: "view" }],
       },
       {
         value: "reports",
-        label: "Inventory Reports",
+        label: "{collection} Reports",
         href: "/portal/inventory/reports",
         access: [{ resource: "inventory_reports", level: "view" }],
       },
@@ -571,7 +586,10 @@ export function activeSubItemFor(
  * no reachable sub-item are dropped, unreachable sub-items are removed, and a
  * section's href is rewritten to its first reachable sub-item.
  */
-export function visibleNavItems(permissions: PermissionMap): NavItem[] {
+export function visibleNavItems(
+  permissions: PermissionMap,
+  lexicon: Lexicon = DEFAULT_LEXICON,
+): NavItem[] {
   const reachable = (sub: NavSubItem) =>
     hasAnyPermission(permissions, sub.access) &&
     (!sub.alsoRequires || hasAnyPermission(permissions, sub.alsoRequires));
@@ -590,7 +608,17 @@ export function visibleNavItems(permissions: PermissionMap): NavItem[] {
     return {
       ...item,
       href,
-      subItems: subItems && subItems.length > 0 ? subItems : undefined,
+      // Resolved here rather than at each renderer: the sidebar, the command
+      // palette and the section index routes all come through this function,
+      // and a template that escaped one of them would print braces (#896).
+      label: applyLexicon(item.label, lexicon),
+      subItems:
+        subItems && subItems.length > 0
+          ? subItems.map((sub) => ({
+              ...sub,
+              label: applyLexicon(sub.label, lexicon),
+            }))
+          : undefined,
     };
   });
 }

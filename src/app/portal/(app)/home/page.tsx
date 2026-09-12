@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ShieldAlert } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getTenantLexicon } from "@/lib/tenant-lexicon";
 import {
   DENIED_PARAM,
   getCurrentUserPermissions,
@@ -185,6 +186,8 @@ export default async function PortalHomePage({
     resolveCurrentPersonId(supabase),
   ]);
 
+  // The Inventory card is named in this organization's own word (#896).
+  const lexicon = await getTenantLexicon(supabase);
   const openTaskCount = eventTasks?.items.length ?? 0;
   const recentDonations =
     recentDonationsResult && "data" in recentDonationsResult
@@ -426,7 +429,7 @@ export default async function PortalHomePage({
         )}
 
         {canSeeInventory && inventory && (
-          <DashboardSectionCard className="mt-6" title="Inventory">
+          <DashboardSectionCard className="mt-6" title={lexicon.collection}>
             <DashboardStatRow
               label="Total items"
               href="/portal/inventory/items"

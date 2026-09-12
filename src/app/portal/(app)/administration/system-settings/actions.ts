@@ -24,6 +24,11 @@ import {
   FISCAL_YEAR_SETTING_KEY,
   isFiscalYearStartMonth,
 } from "@/lib/fiscal-year";
+import {
+  LEXICON_TERMS,
+  MAX_LEXICON_TERM_LENGTH,
+  lexiconSettingKey,
+} from "@/lib/lexicon";
 import { EMAIL_ENABLED_SETTING_KEY } from "@/lib/notifications/kinds";
 import { OPS_REPORT_RECIPIENTS_SETTING_KEY } from "@/lib/notifications/ops-report";
 import {
@@ -372,6 +377,57 @@ export async function updateBrandingAction(
   }
 
   revalidatePath("/portal/administration/system-settings");
+  revalidatePath("/", "layout");
+  return { success: true };
+}
+
+/**
+ * The organization's own words for what it lends (#896).
+ *
+ * Same shape as `updateBrandingAction` above and for the same reasons: several
+ * `app_settings` rows written at once, a blank field cleared to `""` rather
+ * than deleted (the table has no delete grant), and the write audit-logged by
+ * the table's own trigger.
+ *
+ * The only validation is a length cap. A term is a noun an organization chose
+ * for itself -- "Pantry", "Instrument library", "Herramientas" -- and refusing
+ * anything but a word list would be the platform deciding what a nonprofit is
+ * allowed to call its own programme. The cap exists because these render in
+ * navigation, where a sentence would break the layout rather than the meaning.
+ */
+export async function updateLexiconAction(
+  formData: FormData,
+): Promise<SettingActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(
+    supabase,
+    "system_settings",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  const rows: { key: string; value: unknown }[] = [];
+  for (const term of LEXICON_TERMS) {
+    const value = String(formData.get(term.key) ?? "").trim();
+    if (value.length > MAX_LEXICON_TERM_LENGTH) {
+      return {
+        error: `${term.label} must be ${MAX_LEXICON_TERM_LENGTH} characters or fewer.`,
+      };
+    }
+    rows.push({ key: lexiconSettingKey(term.key), value });
+  }
+
+  const { error } = await supabase
+    .from("app_settings")
+    .upsert(rows, { onConflict: "tenant_id,key" });
+  if (error) {
+    return { error: "Could not save these words. Please try again." };
+  }
+
+  revalidatePath("/portal/administration/system-settings");
+  // Every portal page: the sidebar and the breadcrumbs read these, and they
+  // are rendered by the layout rather than by any one route.
+  revalidatePath("/portal", "layout");
   revalidatePath("/", "layout");
   return { success: true };
 }

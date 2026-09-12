@@ -38,6 +38,7 @@ import {
   activeSubItemFor,
   visibleNavItems,
 } from "@/lib/portal/nav";
+import { DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
 
 /**
  * Icons live here rather than in the shared nav tree: they're a rendering
@@ -62,7 +63,14 @@ const SECTION_ICONS: Record<string, typeof LayoutDashboard> = {
   administration: ShieldCheck,
 };
 
-export function PortalNav({ permissions }: { permissions: PermissionMap }) {
+export function PortalNav({
+  permissions,
+  lexicon = DEFAULT_LEXICON,
+}: {
+  permissions: PermissionMap;
+  /** This tenant's words for the sections it names itself (#896). */
+  lexicon?: Lexicon;
+}) {
   // The portal host serves prefix-free URLs; nav hrefs are canonical
   // `/portal/...` paths, so normalize before matching.
   const pathname = toPortalPathname(usePathname());
@@ -81,7 +89,7 @@ export function PortalNav({ permissions }: { permissions: PermissionMap }) {
     setOpenSection((prev) => (prev === value ? null : value));
   }
 
-  const visibleItems = visibleNavItems(permissions);
+  const visibleItems = visibleNavItems(permissions, lexicon);
 
   return (
     <SidebarMenu>

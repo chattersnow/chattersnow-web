@@ -303,6 +303,19 @@ Both are the tenant admin's, not the operator's:
   accent gradient and the logo, stored as `brand.*` rows in `app_settings`
   and applied as a `<style>` over `globals.css` (`src/lib/branding.ts`). Blank
   means the platform default, which is Chatter Snow's palette.
+- **Administration → System Settings → Organization**: the words this
+  organization uses for what it lends (#896). The platform says "Inventory"
+  and "Items"; an organization that runs a gear library, a tool library or a
+  pantry says so here, and the public navigation, the portal sidebar, the
+  page-visibility panel, the contact form's topic and every unwritten line of
+  site copy follow. Four terms, registered in `src/lib/lexicon.ts` and stored
+  one `app_settings` row each under `lexicon.*` (read through `public_lexicon`
+  by host and `tenant_lexicon` by session); a blank field means the platform's
+  own word. Chatter Snow's four rows are seeded by
+  `20260912000000_per_tenant_lexicon.sql`, which is why nothing on its site
+  changed when this shipped. The registry is meant to stay at four or five
+  terms -- it names what an organization lends, not its whole vocabulary.
+
 - **Administration → Site Content**: every organization-specific line of copy
   on the public site, page by page, stored in `site_content`. The registry of
   slots and Chatter Snow's copy as each default is `src/lib/site-content.ts`;

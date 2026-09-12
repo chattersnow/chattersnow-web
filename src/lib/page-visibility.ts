@@ -2,10 +2,24 @@ import { cache } from "react";
 import { notFound } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { applyLexicon, type Lexicon } from "@/lib/lexicon";
 
 export type PublicPageSlot = {
+  /**
+   * The `app_settings` key this slot is stored under, and an internal
+   * identifier -- never shown to anyone. `gears` reads like a product name and
+   * is not one: it is the key that has always named this section, kept because
+   * renaming it is a data migration that no administrator would ever see the
+   * result of (#896).
+   */
   key: string;
+  /**
+   * Shown in Administration > System Settings. May carry `{term}` placeholders
+   * from the lexicon registry; `namedSlots()` resolves them, and the panel
+   * renders what it returns rather than this.
+   */
   label: string;
+  /** A lexicon template, like `label`. */
   description: string;
   /**
    * Applied when no `page_visibility.<key>` row exists in app_settings.
@@ -98,8 +112,9 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
   },
   {
     key: "gears",
-    label: "Gear",
-    description: "The gear library and the gear donation pages.",
+    label: "{item_plural}",
+    description:
+      "The {collection_public:lower} and the {item_plural:lower} donation pages.",
     defaultVisible: true,
     module: "inventory",
   },
@@ -114,7 +129,7 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
     key: "gears-sizing",
     label: "Sizing Guide",
     description:
-      "The ski and snowboard sizing charts under Gear. Written for snow sports specifically, so it stays hidden until an organization says the guide is theirs.",
+      "The ski and snowboard sizing charts under {item_plural}. Written for snow sports specifically, so it stays hidden until an organization says the guide is theirs.",
     defaultVisible: false,
     gate: "gears/sizing/page.tsx",
     module: "inventory",
@@ -166,6 +181,22 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
     gate: "brand/page.tsx",
   },
 ];
+
+/**
+ * The registry with this organization's own words in it (#896), for the
+ * Administration panel -- the one place these labels are read.
+ *
+ * Done here rather than in the panel because the panel is a client component
+ * that receives the slot list as a prop, and a template that reached it
+ * unresolved would render braces at an administrator.
+ */
+export function namedSlots(lexicon: Lexicon): PublicPageSlot[] {
+  return PUBLIC_PAGE_SLOTS.map((slot) => ({
+    ...slot,
+    label: applyLexicon(slot.label, lexicon),
+    description: applyLexicon(slot.description, lexicon),
+  }));
+}
 
 export const PAGE_VISIBILITY_PREFIX = "page_visibility.";
 

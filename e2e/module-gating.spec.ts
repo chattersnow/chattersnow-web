@@ -66,7 +66,7 @@ test.describe("module gating on the public site", () => {
 
     expect(page.url()).toContain("/gears");
     await expect(
-      page.getByRole("navigation").getByText("Gear", { exact: true }).first(),
+      page.getByRole("navigation").getByText("Items", { exact: true }).first(),
     ).toBeVisible();
   });
 
@@ -84,7 +84,7 @@ test.describe("module gating on the public site", () => {
     // the home page -- must not offer the link either.
     await page.goto("/home");
     await expect(
-      page.getByRole("navigation").getByText("Gear", { exact: true }),
+      page.getByRole("navigation").getByText("Items", { exact: true }),
     ).toHaveCount(0);
   });
 

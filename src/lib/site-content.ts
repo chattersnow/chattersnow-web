@@ -18,9 +18,20 @@
  * is the honest thing for a site nobody has written yet to look like.
  *
  * Only the slots that *named or described* an organization were rewritten.
- * "Gear library", "Get in touch" and "Meet the team" are product chrome that
- * happens to live in a slot, and replacing them with prompts would make an
- * unwritten site worse rather than more neutral.
+ * "Get in touch" and "Meet the team" are product chrome that happens to live
+ * in a slot -- every organization has a contact page and a team -- and
+ * replacing them with prompts would make an unwritten site worse rather than
+ * more neutral.
+ *
+ * "Gear library" was filed under that heading too, and that was the wrong line
+ * (#896). It is not chrome: it names *what the organization lends*, which is
+ * exactly the thing that differs between tenants. So a default may carry a
+ * `{term}` placeholder from the lexicon registry in `src/lib/lexicon.ts`, and
+ * `resolveSiteContent` resolves it against the tenant's own words -- an
+ * organization that has said it runs a tool library does not then have to
+ * retype every heading that contains the word. Placeholders are resolved in
+ * *defaults only*: a stored value is the tenant's own writing, and a brace in
+ * it is a brace they typed.
  *
  * What is deliberately *not* a slot: the sizing tables (Chatter Snow's, gated
  * to that tenant by #831), the form labels and validation messages (product
@@ -49,6 +60,12 @@
  */
 
 import { isRenderableImageSrc } from "@/lib/inventory";
+import {
+  DEFAULT_LEXICON,
+  applyLexicon,
+  applyLexiconAll,
+  type Lexicon,
+} from "@/lib/lexicon";
 
 export type ContentPage = {
   key: string;
@@ -1003,7 +1020,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "gears:library",
     label: "Library heading",
     type: "text",
-    default: "Gear library",
+    default: "{collection_public}",
   },
   {
     key: "gears.library_intro",
@@ -1011,7 +1028,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "gears:library",
     label: "Library introduction",
     type: "text",
-    default: "Browse gear currently available to the community.",
+    default: "Browse {item_plural:lower} currently available to the community.",
   },
   {
     key: "gears.donate_heading",
@@ -1019,7 +1036,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "gears:donate",
     label: "How it works heading",
     type: "text",
-    default: "How the gear program works",
+    default: "How the {collection_public:lower} works",
   },
   {
     key: "gears.donate_intro",
@@ -1028,7 +1045,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "How it works",
     type: "text",
     default:
-      "Describe how your gear program works: what you collect, who can borrow it, and how a request is fulfilled.",
+      "Describe how your {collection_public:lower} works: what you collect, who can borrow it, and how a request is fulfilled.",
   },
   {
     key: "gears.request_heading",
@@ -1045,7 +1062,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "Request",
     type: "text",
     default:
-      "If your size or item isn't currently in the library, send us a message and we'll do our best to match you with available gear.",
+      "If your size or item isn't currently in the {collection_public:lower}, send us a message and we'll do our best to match you with available {item_plural:lower}.",
   },
   {
     key: "gears.accept_heading",
@@ -1053,7 +1070,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "gears:accept",
     label: "Donate heading",
     type: "text",
-    default: "Donate gear",
+    default: "Donate {item_plural:lower}",
   },
   {
     key: "gears.accept_title",
@@ -1061,7 +1078,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "gears:accept",
     label: "What we accept",
     type: "text",
-    default: "We accept gently used gear",
+    default: "We accept gently used {item_plural:lower}",
   },
   {
     key: "gears.accept_items",
@@ -1070,12 +1087,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "Accepted items",
     type: "list",
     fields: BULLET,
-    default: [
-      { text: "Skis & snowboards" },
-      { text: "Boots & bindings" },
-      { text: "Outerwear (jackets, pants)" },
-      { text: "Gloves & accessories" },
-    ],
+    default: [{ text: "A kind of {item:lower} you accept" }],
   },
   {
     key: "gears.dropoff_body",
@@ -1084,7 +1096,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "How to drop off",
     type: "text",
     default:
-      "Drop items off in person at any event, or contact us to arrange a drop-off, mail-in, or collection.",
+      "Drop {item_plural:lower} off in person at any event, or contact us to arrange a drop-off, mail-in, or collection.",
   },
   {
     key: "gears.drives_heading",
@@ -1092,7 +1104,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "gears:drives",
     label: "Gear drives heading",
     type: "text",
-    default: "Gear drives",
+    default: "Donation drives",
   },
   {
     key: "gears.drives_body",
@@ -1102,7 +1114,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     description: "A link to Events follows it.",
     type: "text",
     default:
-      "We periodically run gear drives and swap events where the community can donate, trade, and pick up gear in person. See",
+      "We periodically run donation drives and swap events where the community can donate, trade, and pick up {item_plural:lower} in person. See",
   },
   image(
     "gear_placeholder",
@@ -1160,7 +1172,8 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "get_involved:sponsor",
     label: "Sponsor",
     type: "text",
-    default: "Sponsorships help fund events, gear, and programs.",
+    default:
+      "Sponsorships help fund events, {item_plural:lower}, and programs.",
   },
   {
     key: "get_involved.gear_heading",
@@ -1168,7 +1181,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "get_involved:gear",
     label: "Donate gear heading",
     type: "text",
-    default: "Donate gear",
+    default: "Donate {item_plural:lower}",
   },
   {
     key: "get_involved.gear_body",
@@ -1178,7 +1191,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     description: "A link to the Gear page follows it.",
     type: "text",
     default:
-      "Have gear you're not using? Donating it helps another rider get on the mountain. See what we accept on our",
+      "Have {item_plural:lower} you're not using? Donating them helps someone in the community take part. See what we accept on our",
   },
   {
     key: "get_involved.attend_heading",
@@ -1397,7 +1410,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     description: "A link to the Gear page follows it.",
     type: "text",
     default:
-      "We accept gently used ski and snowboard gear, which we redistribute through our gear program. See what we accept and how to donate on our",
+      "We accept gently used {item_plural:lower}, which we redistribute through our {collection_public:lower}. See what we accept and how to donate on our",
   },
   {
     key: "support.sponsorship_heading",
@@ -1698,6 +1711,35 @@ export function isValidSlotValue(slot: ContentSlot, value: unknown): boolean {
   }
 }
 
+/**
+ * A slot's default with the tenant's own words in it (#896).
+ *
+ * Only `text`, `paragraphs` and `list` carry copy; `image` and `document`
+ * default to null, and a document's text is the separate neutral default in
+ * `src/lib/legal-defaults.ts`.
+ */
+export function lexiconDefault(slot: ContentSlot, lexicon: Lexicon): unknown {
+  switch (slot.type) {
+    case "text":
+      return applyLexicon(slot.default, lexicon);
+    case "paragraphs":
+      return applyLexiconAll(slot.default, lexicon);
+    case "list":
+      return slot.default.map((item) =>
+        Object.fromEntries(
+          Object.entries(item).map(([field, value]) => [
+            field,
+            typeof value === "string"
+              ? applyLexicon(value, lexicon)
+              : applyLexiconAll(value, lexicon),
+          ]),
+        ),
+      );
+    default:
+      return slot.default;
+  }
+}
+
 /** Typed reads over the resolved content, falling back to each slot's default. */
 export type SiteContent = {
   text(key: string): string;
@@ -1712,9 +1754,18 @@ export type SiteContent = {
 
 export type SiteContentRow = { key: string; value: unknown };
 
-/** Folds the tenant's rows over the registry defaults. Pure. */
+/**
+ * Folds the tenant's rows over the registry defaults. Pure.
+ *
+ * The lexicon is the tenant's words for what it lends (#896), and it reaches
+ * the defaults only -- see the note at the top of this file. It falls back to
+ * the platform's own words, so a caller with no tenant to speak for (a test,
+ * `DEFAULT_SITE_CONTENT`) still reads a complete site rather than one with
+ * braces in it.
+ */
 export function resolveSiteContent(
   rows: readonly SiteContentRow[],
+  lexicon: Lexicon = DEFAULT_LEXICON,
 ): SiteContent {
   const values = new Map<string, unknown>();
   for (const row of rows) {
@@ -1729,7 +1780,9 @@ export function resolveSiteContent(
     if (!slot || slot.type !== type) {
       throw new Error(`Unknown ${type} content slot: ${key}`);
     }
-    return (values.has(key) ? values.get(key) : slot.default) as T;
+    return (
+      values.has(key) ? values.get(key) : lexiconDefault(slot, lexicon)
+    ) as T;
   }
 
   return {

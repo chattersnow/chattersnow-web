@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAnyPermission } from "@/lib/auth/permissions";
+import { getTenantLexicon } from "@/lib/tenant-lexicon";
 
 export default async function InventoryLayout({
   children,
@@ -14,7 +15,8 @@ export default async function InventoryLayout({
       { resource: "inventory_intake", level: "manage" },
       { resource: "inventory_reports", level: "view" },
     ],
-    "Inventory",
+    // What the denial names, in this organization's own word (#896).
+    (await getTenantLexicon(supabase)).collection,
   );
   return children;
 }

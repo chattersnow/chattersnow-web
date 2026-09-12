@@ -10,7 +10,8 @@ import {
   type ContactMessage,
   type ContactMessageStatus,
 } from "./message-types";
-import { CONTACT_TOPIC_LABELS } from "@/lib/contact-topics";
+import { contactTopicLabel } from "@/lib/contact-topics";
+import { useLexicon } from "@/components/lexicon-context";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
@@ -52,6 +53,7 @@ export function MessageDetailsSheet({
   defaultOpen?: boolean;
 }) {
   const router = useRouter();
+  const lexicon = useLexicon();
   // Arriving on a deep link marks the message read through the effect below,
   // exactly as clicking the row would -- which is the right reading: someone
   // followed the notification and is looking at it.
@@ -144,7 +146,7 @@ export function MessageDetailsSheet({
               {message.email}
             </ReadOnlyField>
             <ReadOnlyField label="Topic" htmlFor="message-topic">
-              {CONTACT_TOPIC_LABELS[message.topic] ?? message.topic}
+              {contactTopicLabel(message.topic, lexicon)}
             </ReadOnlyField>
             <ReadOnlyField label="Message" htmlFor="message-body">
               <span className="whitespace-pre-wrap">{message.message}</span>

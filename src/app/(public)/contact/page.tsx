@@ -15,7 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function ContactPage() {
   const supabase = await createSupabaseServerClient();
-  const [siteImages, { content, name }] = await Promise.all([
+  const [siteImages, { content, name, lexicon }] = await Promise.all([
     getSiteImageUrls(supabase),
     getPublicSite(supabase),
   ]);
@@ -41,7 +41,7 @@ export default async function ContactPage() {
         <Card className="rainbow-surface">
           <CardContent>
             <Suspense fallback={null}>
-              <ContactForm />
+              <ContactForm lexicon={lexicon} />
             </Suspense>
           </CardContent>
         </Card>
