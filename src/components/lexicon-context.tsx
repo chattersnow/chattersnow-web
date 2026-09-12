@@ -1,10 +1,12 @@
 "use client";
 
 import { createContext, useContext, type ReactNode } from "react";
-import { DEFAULT_LEXICON, applyLexicon, type Lexicon } from "@/lib/lexicon";
+import { applyLexicon, type Lexicon } from "@/lib/lexicon";
+import { DEFAULT_VOCABULARY } from "@/lib/person-roles";
 
 /**
- * The tenant's words for what it lends (#896), for the portal shell.
+ * The tenant's own words, for the portal shell: what it lends (#896) and what
+ * it calls the people it works with (#911).
  *
  * A context rather than a prop for the same reason `BrandLogoProvider` is one,
  * and the provider sits beside it in the portal layout. The sidebar and the
@@ -19,7 +21,7 @@ import { DEFAULT_LEXICON, applyLexicon, type Lexicon } from "@/lib/lexicon";
  * should fail in: a generic label is a small loss, a brace on screen is a bug
  * an administrator has to report.
  */
-const LexiconContext = createContext<Lexicon>(DEFAULT_LEXICON);
+const LexiconContext = createContext<Lexicon>(DEFAULT_VOCABULARY);
 
 export function LexiconProvider({
   lexicon,

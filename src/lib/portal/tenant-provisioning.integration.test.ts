@@ -91,6 +91,25 @@ beforeAll(async () => {
     "tenant A host",
   );
 
+  // What the template calls the six person roles is a platform default a new
+  // tenant inherits (#911), so it has to be set before the provisioning call
+  // below rather than asserted against a template that has never been taught
+  // anything.
+  await must(
+    service
+      .from("app_settings")
+      .upsert(
+        {
+          tenant_id: tenantA,
+          key: "people.role_labels",
+          value: { is_attendee: { singular: "Student", plural: "Students" } },
+        },
+        { onConflict: "tenant_id,key" },
+      )
+      .select("key"),
+    "template role labels",
+  );
+
   tenantB = await must(
     service.rpc("provision_tenant", {
       p_name: `Provisioned ${run}`,
@@ -114,6 +133,11 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await service
+    .from("app_settings")
+    .delete()
+    .eq("tenant_id", tenantA)
+    .eq("key", "people.role_labels");
   await service
     .from("tenants")
     .update({ custom_domain: null })
@@ -212,6 +236,22 @@ describe("provisioning", () => {
     expect(keys).toContain("finance.expense_approval_threshold");
     expect(keys).toContain("org.fiscal_year_start_month");
     expect(keys.some((k: string) => k.startsWith("site_images."))).toBe(false);
+
+    // #911: what the template calls the six person roles comes with it, so an
+    // operator who has taught the template to say "Students" does not retype
+    // it for every tenant they provision.
+    const roleLabels = await must(
+      service
+        .from("app_settings")
+        .select("value")
+        .eq("tenant_id", tenantB)
+        .eq("key", "people.role_labels")
+        .maybeSingle(),
+      "role labels",
+    );
+    expect(roleLabels?.value).toEqual({
+      is_attendee: { singular: "Student", plural: "Students" },
+    });
   });
 
   test("the staged admin lands in the new tenant with administration:manage", async () => {

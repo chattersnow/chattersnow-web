@@ -38,12 +38,22 @@ import { StatTile } from "../home/stat-tile";
 import { NewPersonDialog } from "./new-person-dialog";
 import {
   PEOPLE_WITH_ROLES,
-  ROLE_OPTIONS,
   rolesFor,
   type PersonRow,
   type RoleKey,
 } from "./people-shared";
-import { emptyManageDescription, type PeopleSegment } from "./people-segments";
+import {
+  PERSON_ROLES,
+  PERSON_ROLE_KEYS,
+  personRoleLabel,
+} from "@/lib/person-roles";
+import { getPortalVocabulary } from "@/lib/tenant-person-roles";
+import {
+  emptyManageDescription,
+  resolveSegment,
+  resolveStats,
+  type PeopleSegment,
+} from "./people-segments";
 
 /**
  * Every column the directory table and its row links need. `primary_contact`
@@ -59,7 +69,7 @@ const selectClassName =
   "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
 function isRoleKey(value: string | undefined): value is RoleKey {
-  return !!value && ROLE_OPTIONS.some((option) => option.key === value);
+  return !!value && (PERSON_ROLE_KEYS as readonly string[]).includes(value);
 }
 
 /**
@@ -86,7 +96,7 @@ const COLUMNS: { key: SortColumn; label: string; hideBelow?: HideBelow }[] = [
 ];
 
 export async function PeopleDirectory({
-  segment,
+  segment: segmentTemplate,
   searchParams,
 }: {
   segment: PeopleSegment;
@@ -95,6 +105,11 @@ export async function PeopleDirectory({
   const supabase = await createSupabaseServerClient();
   const permissions = await getCurrentUserPermissions(supabase);
   const canManage = hasPermission(permissions, "people", "manage");
+  // Every word this page shows -- the heading, the New button, the role facet,
+  // the Roles column, both empty states -- is the tenant's (#911). The keys it
+  // filters and sorts on are not.
+  const vocabulary = await getPortalVocabulary(supabase);
+  const segment = resolveSegment(segmentTemplate, vocabulary);
 
   const params = await searchParams;
   const raw = (key: string) => {
@@ -143,6 +158,7 @@ export async function PeopleDirectory({
         .order("name", { ascending: true }),
       segment.stats ? segment.stats(supabase) : Promise.resolve(null),
     ]);
+  const segmentStats = stats && resolveStats(stats, vocabulary);
   const peopleRows = (people ?? []) as unknown as PersonRow[];
 
   const filterParams = new URLSearchParams();
@@ -193,9 +209,7 @@ export async function PeopleDirectory({
     appliedFilters.push({
       param: "role",
       label: "Role",
-      value:
-        ROLE_OPTIONS.find((option) => option.key === roleFilter)?.label ??
-        roleFilter,
+      value: personRoleLabel(roleFilter, vocabulary),
     });
   }
 
@@ -208,9 +222,9 @@ export async function PeopleDirectory({
         <div className="rainbow-accent mt-3 w-full" />
       </div>
 
-      {stats && stats.length > 0 && (
+      {segmentStats && segmentStats.length > 0 && (
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          {stats.map((stat) => (
+          {segmentStats.map((stat) => (
             <StatTile
               key={stat.label}
               label={stat.label}
@@ -255,9 +269,9 @@ export async function PeopleDirectory({
                     className={selectClassName}
                   >
                     <option value="all">All people</option>
-                    {ROLE_OPTIONS.map((option) => (
-                      <option key={option.key} value={option.key}>
-                        {option.label}
+                    {PERSON_ROLES.map((role) => (
+                      <option key={role.key} value={role.key}>
+                        {personRoleLabel(role.key, vocabulary)}
                       </option>
                     ))}
                   </select>
@@ -316,7 +330,7 @@ export async function PeopleDirectory({
               <EmptyState
                 title={
                   hasActiveFilters
-                    ? `No ${segment.noun}s match your filters`
+                    ? `No ${segment.nounPlural} match your filters`
                     : segment.emptyTitle
                 }
                 description={
@@ -374,7 +388,7 @@ export async function PeopleDirectory({
                         </Link>
                       </TableCell>
                       <TableCell className="app-muted">
-                        {rolesFor(person).join(", ") || "—"}
+                        {rolesFor(person, vocabulary).join(", ") || "—"}
                       </TableCell>
                       <TableCell hideBelow="md" className="app-muted">
                         {person.email ?? "—"}

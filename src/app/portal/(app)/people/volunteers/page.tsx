@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { PeopleDirectory } from "../people-directory";
 import { VOLUNTEERS_SEGMENT } from "../people-segments";
+import { segmentMetadata } from "../segment-metadata";
 
-export const metadata: Metadata = {
-  title: "Volunteers",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return segmentMetadata(VOLUNTEERS_SEGMENT);
+}
 
 export default async function PeopleVolunteersPage({
   searchParams,

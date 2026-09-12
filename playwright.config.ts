@@ -35,6 +35,12 @@ const baseURL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://127.0.0.1:3000";
  * time. It gives them back in afterAll, but only serialising it makes that
  * safe.
  *
+ * person-role-labels.spec.ts writes the tenant's `people.role_labels` (#911),
+ * which renames Donors, Attendees and Staff in the sidebar and on their pages
+ * for every spec running at the same time -- and several of those specs find
+ * those pages by name. Same shape as tenant-branding above: restored in
+ * afterAll, safe only because it is serialised.
+ *
  * Playwright runs a dependency project in full, ignoring any file or --grep
  * filter, so run one of these on its own with --no-deps:
  *   bunx playwright test e2e/page-visibility.spec.ts --no-deps
@@ -44,7 +50,7 @@ const baseURL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://127.0.0.1:3000";
  * filter a dependency project ignores.
  */
 const MUTATING_SPECS =
-  /(page-visibility|unresolved-host|tenant-branding|legal-publication|module-gating|programs-source)\.spec\.ts/;
+  /(page-visibility|unresolved-host|tenant-branding|legal-publication|module-gating|programs-source|person-role-labels)\.spec\.ts/;
 
 const ALL_BROWSER_PROJECTS = [
   { name: "chromium", use: { ...devices["Desktop Chrome"] } },

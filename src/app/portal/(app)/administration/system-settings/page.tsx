@@ -25,7 +25,9 @@ import { DataPanel } from "./data-panel";
 import { getFiscalYearStartMonth } from "@/lib/fiscal-year";
 import { getTenantBranding } from "@/lib/tenant-branding";
 import { getStoredLexicon, getTenantLexicon } from "@/lib/tenant-lexicon";
+import { getStoredPersonRoleLabels } from "@/lib/tenant-person-roles";
 import { LexiconPanel } from "./lexicon-panel";
+import { PersonRolesPanel } from "./person-roles-panel";
 import { NOTIFICATION_KINDS } from "@/lib/notifications/kinds";
 import { getOrgEmailEnabled } from "@/lib/notifications/settings";
 import {
@@ -92,6 +94,7 @@ export default async function SystemSettingsPage() {
     tenantModules,
     lexicon,
     storedLexicon,
+    storedPersonRoleLabels,
   ] = await Promise.all([
     getTenantPageVisibility(supabase),
     getTenantLegalPublication(supabase),
@@ -112,6 +115,7 @@ export default async function SystemSettingsPage() {
     getTenantModules(supabase),
     getTenantLexicon(supabase),
     getStoredLexicon(supabase),
+    getStoredPersonRoleLabels(supabase),
   ]);
   const orgName = currentTenant(tenantContext)?.name ?? "this organization";
 
@@ -204,6 +208,17 @@ export default async function SystemSettingsPage() {
             platform&rsquo;s word.
           </p>
           <LexiconPanel stored={storedLexicon} />
+          <p className="app-muted max-w-3xl text-sm leading-relaxed">
+            What this organization calls the people in its directory. The
+            platform says &ldquo;donors&rdquo; and &ldquo;volunteers&rdquo;;
+            yours may have members, students, customers or clients, and these
+            words are what the People section of the sidebar, its pages, the
+            role filter and every person&rsquo;s profile use. Only the words
+            change: a role is still set by the donation, registration or shift
+            behind it, whatever you call the person who did it. Leave a field
+            blank to keep the platform&rsquo;s word.
+          </p>
+          <PersonRolesPanel stored={storedPersonRoleLabels} />
         </TabsContent>
 
         <TabsContent value="workflow" className="mt-6 space-y-4">
