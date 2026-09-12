@@ -635,16 +635,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
         access: [{ resource: "administration", level: "manage" }],
       },
       {
+        // Permissions was a third entry here until #946 folded it in as a tab:
+        // a role's name and a role's access are one object, and Access
+        // Management sitting between the two entries made that unguessable.
         value: "roles",
         label: "Roles",
         href: "/portal/administration/roles",
-        group: "Access & identity",
-        access: [{ resource: "administration", level: "manage" }],
-      },
-      {
-        value: "permissions",
-        label: "Permissions",
-        href: "/portal/administration/permissions",
         group: "Access & identity",
         access: [{ resource: "administration", level: "manage" }],
       },

@@ -41,16 +41,11 @@ import {
 } from "@/lib/auth/permissions";
 import { roleDisplayName } from "@/lib/format";
 import { updateRolePermissionsAction } from "./actions";
+import type { RoleRow } from "./role-details-dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { runAction } from "@/components/portal/action-toast";
 
-type Role = {
-  id: string;
-  name: string;
-  label: string | null;
-  description: string | null;
-};
-type Resource = {
+export type MatrixResource = {
   id: string;
   key: string;
   section: string;
@@ -75,8 +70,10 @@ const LEVEL_LABELS: Record<PermissionLevel, string> = {
   manage: "Manage",
 };
 
-function groupBySection(resources: Resource[]): [string, Resource[]][] {
-  const sections = new Map<string, Resource[]>();
+function groupBySection(
+  resources: MatrixResource[],
+): [string, MatrixResource[]][] {
+  const sections = new Map<string, MatrixResource[]>();
   for (const resource of resources) {
     const bucket = sections.get(resource.section) ?? [];
     bucket.push(resource);
@@ -94,8 +91,8 @@ export function PermissionsMatrix({
   resources,
   rolePermissions,
 }: {
-  roles: Role[];
-  resources: Resource[];
+  roles: RoleRow[];
+  resources: MatrixResource[];
   rolePermissions: RolePermission[];
 }) {
   const router = useRouter();
@@ -234,7 +231,10 @@ export function PermissionsMatrix({
         </Alert>
       )}
 
-      <div className="rainbow-surface flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+      {/* Plain rather than `rainbow-surface`: since #946 the tab strip
+          directly above this is the page's banner, and two gradients stacked
+          read as two competing headers. */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
         <div className="flex flex-wrap items-center gap-3">
           <Select
             value={selectedRoleId ?? undefined}

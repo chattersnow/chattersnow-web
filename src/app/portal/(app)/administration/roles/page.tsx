@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { Card, CardContent } from "@/components/ui/card";
-import { NewRoleDialog } from "./new-role-dialog";
-import { RolesTable } from "./roles-table";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getTenantModules } from "@/lib/page-visibility";
+import { moduleEnabled } from "@/lib/portal/modules";
+import { RolesView } from "./roles-view";
 import { listRolesAction } from "../users/actions";
 
 export const metadata: Metadata = {
@@ -9,7 +10,51 @@ export const metadata: Metadata = {
 };
 
 export default async function RolesPage() {
-  const result = await listRolesAction();
+  const supabase = await createSupabaseServerClient();
+
+  // One roles query for both tabs. The Permissions tab ran its own identical
+  // `select("id, name, label, description").order("name")` while it was a page
+  // of its own.
+  const [
+    rolesResult,
+    { data: resources, error: resourcesError },
+    { data: rolePermissions, error: rolePermissionsError },
+    modules,
+  ] = await Promise.all([
+    listRolesAction(),
+    supabase
+      .from("resources")
+      .select("id, key, section, label, description, sort_order, module_key")
+      .order("sort_order"),
+    supabase.from("role_permissions").select("role_id, resource_id, level"),
+    getTenantModules(supabase),
+  ]);
+
+  // FILTERED, not shown-and-inert (#903).
+  //
+  // `resources` is the platform's global catalog, so without this the matrix
+  // offers a row for every resource the product has ever had, whatever this
+  // organization was sold. An admin could set `finance: manage` on a role and
+  // watch it do nothing: the grant is genuinely written, and `my_permissions()`
+  // correctly reports `none` for a resource whose module is off -- which reads
+  // as a bug in the permissions screen rather than as an entitlement.
+  //
+  // 20260908010000 faced the same fork for the inert `platform_tenants` grant
+  // and took the other branch: suppress it from *effective* permissions, but
+  // leave the row visible as something somebody set. The two are decided
+  // differently on purpose. That grant is inert per *user* -- the row means
+  // something for the operator reading the same screen, so hiding it would
+  // hide a real assignment. A disabled module is off for the whole tenant and
+  // for everyone in it, and the audience of this screen is assigning access
+  // within what the organization has, not auditing the platform's catalog.
+  //
+  // Nothing is deleted, in keeping with "off is hidden and frozen": existing
+  // grants on a hidden resource stay in `role_permissions` untouched -- the
+  // save action upserts only the cells that changed -- so re-enabling a module
+  // brings the section back with its matrix exactly as it was.
+  const visibleResources = (resources ?? []).filter((resource) =>
+    moduleEnabled(modules, resource.module_key),
+  );
 
   return (
     <>
@@ -20,21 +65,13 @@ export default async function RolesPage() {
         <div className="rainbow-accent mt-3 w-full" />
       </div>
 
-      <div className="rainbow-surface mt-6 flex flex-wrap items-center justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
-        <NewRoleDialog />
-      </div>
-
-      <div className="mt-6">
-        {"error" in result ? (
-          <Card>
-            <CardContent className="app-muted text-sm">
-              {result.error}
-            </CardContent>
-          </Card>
-        ) : (
-          <RolesTable roles={result.data} />
-        )}
-      </div>
+      <RolesView
+        roles={"data" in rolesResult ? rolesResult.data : []}
+        rolesError={"error" in rolesResult ? rolesResult.error : null}
+        resources={visibleResources}
+        rolePermissions={rolePermissions ?? []}
+        matrixFailed={Boolean(resourcesError || rolePermissionsError)}
+      />
     </>
   );
 }

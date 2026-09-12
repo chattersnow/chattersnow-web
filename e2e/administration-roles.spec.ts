@@ -27,6 +27,35 @@ test.describe("portal administration roles", () => {
     ).toBeVisible();
   });
 
+  // #946: a role's identity and a role's access are one page now. The tab has
+  // to be in the URL for Back to mean "the other tab" rather than "the
+  // previous page" -- the first threshold in docs/portal-navigation.md.
+  test("the role list and the permissions matrix are two tabs of one page", async ({
+    page,
+  }) => {
+    await page.goto("/portal/administration/roles");
+
+    await expect(page.getByRole("tab", { name: "All roles" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    await page.getByRole("tab", { name: "Permissions" }).click();
+    await expect(page).toHaveURL(
+      /\/portal\/administration\/roles\?tab=permissions$/,
+    );
+    await expect(page.getByRole("combobox", { name: "Role" })).toBeVisible();
+
+    await page.goBack();
+    await expect(page.getByRole("tab", { name: "All roles" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await expect(
+      page.getByRole("button", { name: "View Admin" }),
+    ).toBeVisible();
+  });
+
   test("creates, renames, and deletes a role", async ({ page }) => {
     const admin = createAdminClient();
     const name = `e2e_role_${crypto.randomUUID().slice(0, 8)}`;

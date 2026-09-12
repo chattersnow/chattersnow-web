@@ -5,9 +5,12 @@ import { seedPortalUser, seedRole } from "./helpers/rbac";
 import { modal } from "./helpers/dialog";
 import { clickRowControl, pager, revealRow } from "./helpers/table";
 
-// The Permissions page shows one role at a time: a Role select drives a
-// Resource/Permission table, rather than the old grid with a column per role.
-// It defaults to whichever role sorts first, so tests pick their role first.
+// Permissions is a tab on Roles since #946, not a page of its own. It shows
+// one role at a time: a Role select drives a Resource/Permission table, rather
+// than the old grid with a column per role. It defaults to whichever role
+// sorts first, so tests pick their role first.
+const PERMISSIONS_TAB = "/portal/administration/roles?tab=permissions";
+
 async function selectRole(
   page: import("@playwright/test").Page,
   label: string,
@@ -33,13 +36,23 @@ async function expandSection(
 }
 
 test.describe("portal administration permissions", () => {
-  test("loads the Permissions matrix", async ({ page }) => {
+  test("the old Permissions URL redirects to the tab, which loads the matrix", async ({
+    page,
+  }) => {
     await signIn(page);
+    // The URL Permissions had before #946. It is bookmarked and cross-linked,
+    // so it has to land on the tab rather than 404.
     await page.goto("/portal/administration/permissions");
+    await expect(page).toHaveURL(
+      /\/portal\/administration\/roles\?tab=permissions$/,
+    );
 
     await expect(
-      page.getByRole("heading", { level: 1, name: "Permissions", exact: true }),
+      page.getByRole("heading", { level: 1, name: "Roles", exact: true }),
     ).toBeVisible();
+    await expect(
+      page.getByRole("tab", { name: "Permissions" }),
+    ).toHaveAttribute("aria-selected", "true");
     await selectRole(page, "Admin");
 
     await expect(
@@ -108,7 +121,7 @@ test.describe("portal administration permissions", () => {
         await submitLogin(memberPage, user.email, user.password);
         await expect(memberPage).toHaveURL(/\/portal\/login\?error=no_access$/);
 
-        await page.goto("/portal/administration/permissions");
+        await page.goto(PERMISSIONS_TAB);
         await selectRole(page, role.label);
         await expandSection(page, "Events");
         await page
