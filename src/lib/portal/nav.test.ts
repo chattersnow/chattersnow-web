@@ -5,7 +5,7 @@ import {
   activeSectionFor,
   activeSubItemFor,
   firstAccessibleHref,
-  navSubGroups,
+  navGroups,
   visibleNavItems,
 } from "./nav";
 
@@ -183,7 +183,48 @@ describe("People section", () => {
   });
 });
 
-describe("navSubGroups", () => {
+describe("navGroups", () => {
+  test("the top-level sections' groups are contiguous", () => {
+    // Same invariant as the sub-item one below, one level up (#954). Grouping
+    // is derived by walking the list once, so a section filed out of order
+    // would silently render its heading twice rather than fail.
+    const labels = navGroups(NAV_ITEMS)
+      .map((group) => group.label)
+      .filter((label): label is string => Boolean(label));
+    expect(new Set(labels).size).toBe(labels.length);
+  });
+
+  test("groups the top level in nav order, Dashboard ungrouped on top", () => {
+    expect(
+      navGroups(NAV_ITEMS).map((group) => [
+        group.label,
+        group.items.map((item) => item.value),
+      ]),
+    ).toEqual([
+      [undefined, ["overview"]],
+      ["Delivery", ["events", "calendar", "programs", "artwork"]],
+      ["People", ["people", "volunteers", "messages"]],
+      ["Resources", ["inventory", "finance"]],
+      ["Organization", ["governance", "administration"]],
+    ]);
+  });
+
+  test("a top-level group whose every section is filtered out disappears", () => {
+    // governance:manage reaches exactly one section, so three of the four
+    // headings must not survive -- and Dashboard, which is ungrouped and
+    // always visible, must still lead.
+    const boardOnly: PermissionMap = { governance: "manage" };
+    expect(
+      navGroups(visibleNavItems(boardOnly)).map((group) => [
+        group.label,
+        group.items.map((item) => item.value),
+      ]),
+    ).toEqual([
+      [undefined, ["overview"]],
+      ["Organization", ["governance"]],
+    ]);
+  });
+
   test("every section's grouped sub-items are contiguous", () => {
     // The invariant the whole design rests on (#942). Grouping is derived by
     // walking the list once, so a section that interleaved two groups would
@@ -191,7 +232,7 @@ describe("navSubGroups", () => {
     // catches it: the type allows any order.
     for (const item of NAV_ITEMS) {
       if (!item.subItems) continue;
-      const labels = navSubGroups(item.subItems)
+      const labels = navGroups(item.subItems)
         .map((group) => group.label)
         .filter((label): label is string => Boolean(label));
       expect(new Set(labels).size, `${item.value} interleaves its groups`).toBe(
@@ -202,7 +243,7 @@ describe("navSubGroups", () => {
 
   test("an ungrouped section is one unlabelled group", () => {
     const governance = NAV_ITEMS.find((item) => item.value === "governance")!;
-    const groups = navSubGroups(governance.subItems!);
+    const groups = navGroups(governance.subItems!);
     expect(groups).toHaveLength(1);
     expect(groups[0].label).toBeUndefined();
     expect(groups[0].items).toHaveLength(governance.subItems!.length);
@@ -213,7 +254,7 @@ describe("navSubGroups", () => {
       (item) => item.value === "administration",
     )!;
     expect(
-      navSubGroups(administration.subItems!).map((group) => [
+      navGroups(administration.subItems!).map((group) => [
         group.label,
         group.items.map((sub) => sub.value),
       ]),
@@ -234,7 +275,7 @@ describe("navSubGroups", () => {
       (item) => item.value === "administration",
     )!;
     expect(
-      navSubGroups(administration.subItems!).map((group) => [
+      navGroups(administration.subItems!).map((group) => [
         group.label,
         group.items.map((sub) => sub.value),
       ]),

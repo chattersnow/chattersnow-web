@@ -33,7 +33,7 @@ export type NavSubItem = {
    * Optional heading this sub-item files under, for sections whose list has
    * grown past scanning (#942). A lexicon template like `label`.
    *
-   * Grouping is derived rather than declared: `navSubGroups` walks the list
+   * Grouping is derived rather than declared: `navGroups` walks the list
    * once and starts a new group whenever this value changes, so sub-items
    * sharing a group must be adjacent -- `nav.test.ts` asserts it. That keeps
    * one ordered array as the source of truth, so `visibleNavItems`,
@@ -65,9 +65,32 @@ export type NavItem = {
   basePath?: string;
   /** Omit for items always visible regardless of permissions (e.g. Dashboard). */
   access?: readonly PermissionCheck[];
+  /**
+   * Optional heading this section files under (#954). Same contract as
+   * `NavSubItem.group`, read by the same `navGroups` helper: sections sharing
+   * a group must be adjacent, and a group whose every section is filtered out
+   * disappears rather than leaving a heading over nothing.
+   *
+   * Dashboard deliberately carries none -- it is the landing page rather than
+   * one of the subject areas, and sits above the first heading.
+   */
+  group?: string;
   subItems?: readonly NavSubItem[];
 };
 
+// Grouped and reordered (#954). Twelve sections sat in one ungrouped column
+// ordered neither alphabetically, nor by frequency, nor by the module
+// catalog's own sort_order -- so a section's position carried no meaning, and
+// a plain link (Messages) looked exactly like a ten-page subsystem
+// (Governance). The four headings are the first deliberate order the sidebar
+// has had.
+//
+// This also absorbs the cost of #943, #944 and #945: the three sections they
+// promote out of Administration land inside "Organization" rather than
+// extending a flat list, so the sidebar stays four headings wide.
+//
+// Dashboard is deliberately ungrouped, above the first heading: it is the
+// landing page, not one of the subject areas.
 export const NAV_ITEMS: readonly NavItem[] = [
   {
     value: "overview",
@@ -77,35 +100,14 @@ export const NAV_ITEMS: readonly NavItem[] = [
   {
     value: "events",
     label: "Events",
+    group: "Delivery",
     href: "/portal/events",
     access: [{ resource: "events", level: "view" }],
   },
   {
-    value: "artwork",
-    label: "Artwork",
-    href: "/portal/artwork",
-    basePath: "/portal/artwork",
-    // Its own section rather than a child of Events (#870): the queue is
-    // gated on artwork_submissions alone, so a curator who holds nothing else
-    // can still reach it.
-    subItems: [
-      {
-        value: "submissions",
-        label: "Submissions",
-        href: "/portal/artwork",
-        access: [{ resource: "artwork_submissions", level: "view" }],
-      },
-      {
-        value: "calls",
-        label: "Calls",
-        href: "/portal/artwork/calls",
-        access: [{ resource: "artwork_submissions", level: "manage" }],
-      },
-    ],
-  },
-  {
     value: "calendar",
     label: "Calendar",
+    group: "Delivery",
     href: "/portal/calendar",
     basePath: "/portal/calendar",
     subItems: [
@@ -160,6 +162,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   {
     value: "programs",
     label: "Programs",
+    group: "Delivery",
     href: "/portal/programs",
     basePath: "/portal/programs",
     subItems: [
@@ -178,6 +181,137 @@ export const NAV_ITEMS: readonly NavItem[] = [
     ],
   },
   {
+    value: "artwork",
+    label: "Artwork",
+    group: "Delivery",
+    href: "/portal/artwork",
+    basePath: "/portal/artwork",
+    // Its own section rather than a child of Events (#870): the queue is
+    // gated on artwork_submissions alone, so a curator who holds nothing else
+    // can still reach it.
+    subItems: [
+      {
+        value: "submissions",
+        label: "Submissions",
+        href: "/portal/artwork",
+        access: [{ resource: "artwork_submissions", level: "view" }],
+      },
+      {
+        value: "calls",
+        label: "Calls",
+        href: "/portal/artwork/calls",
+        access: [{ resource: "artwork_submissions", level: "manage" }],
+      },
+    ],
+  },
+  {
+    value: "people",
+    label: "People",
+    group: "People",
+    href: "/portal/people",
+    basePath: "/portal/people",
+    subItems: [
+      {
+        value: "directory",
+        label: "People",
+        href: "/portal/people",
+        access: [{ resource: "people", level: "view" }],
+      },
+      {
+        value: "donors",
+        label: "{donor_plural}",
+        href: "/portal/donors",
+        access: [{ resource: "people", level: "view" }],
+      },
+      {
+        value: "sponsors",
+        label: "{sponsor_plural}",
+        href: "/portal/sponsors",
+        access: [{ resource: "people", level: "view" }],
+      },
+      {
+        value: "volunteers",
+        label: "{volunteer_plural}",
+        href: "/portal/people/volunteers",
+        access: [{ resource: "people", level: "view" }],
+      },
+      {
+        value: "attendees",
+        label: "{attendee_plural}",
+        href: "/portal/attendees",
+        access: [{ resource: "people", level: "view" }],
+      },
+      {
+        value: "staff",
+        label: "{staff_plural}",
+        href: "/portal/staff",
+        access: [{ resource: "people", level: "view" }],
+      },
+      {
+        value: "partners",
+        label: "{partner_plural}",
+        href: "/portal/partners",
+        access: [{ resource: "people", level: "view" }],
+      },
+      {
+        value: "organizations",
+        label: "Organizations",
+        href: "/portal/organizations",
+        access: [{ resource: "people", level: "view" }],
+      },
+    ],
+  },
+  {
+    value: "volunteers",
+    label: "Volunteers",
+    group: "People",
+    href: "/portal/volunteers/roles",
+    basePath: "/portal/volunteers",
+    subItems: [
+      {
+        value: "roles",
+        label: "Roles",
+        href: "/portal/volunteers/roles",
+        access: [{ resource: "volunteers", level: "view" }],
+      },
+      {
+        value: "participation",
+        label: "Participation",
+        href: "/portal/volunteers/participation",
+        access: [{ resource: "volunteers", level: "view" }],
+      },
+      {
+        value: "applications",
+        label: "Applications",
+        href: "/portal/volunteers/applications",
+        access: [{ resource: "volunteers", level: "view" }],
+      },
+      // The People directory filtered to volunteers. Cross-linked rather than
+      // duplicated, and gated on the guard its route actually has
+      // (people/layout.tsx), which is why this one says people:view. Listed
+      // last so firstAccessibleHref still lands /portal/volunteers on Roles.
+      //
+      // `alsoRequires` is what keeps it from holding the whole Volunteers
+      // section open on its own: people:view is held by almost everyone and
+      // `people` is a core module, so without it a tenant with Volunteers off
+      // still got a Volunteers heading with this single link under it (#903).
+      {
+        value: "directory",
+        label: "Directory",
+        href: "/portal/people/volunteers",
+        access: [{ resource: "people", level: "view" }],
+        alsoRequires: [{ resource: "volunteers", level: "view" }],
+      },
+    ],
+  },
+  {
+    value: "messages",
+    label: "Messages",
+    group: "People",
+    href: "/portal/communications",
+    access: [{ resource: "communications", level: "view" }],
+  },
+  {
     // The one section named in the tenant's own words rather than the
     // platform's (#896): Chatter Snow runs a gear library, and a nonprofit
     // lending tools or distributing food reads the same tables. `inventory`
@@ -185,6 +319,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     // neither renamed.
     value: "inventory",
     label: "{collection}",
+    group: "Resources",
     href: "/portal/inventory/items",
     basePath: "/portal/inventory",
     subItems: [
@@ -229,56 +364,9 @@ export const NAV_ITEMS: readonly NavItem[] = [
     ],
   },
   {
-    value: "volunteers",
-    label: "Volunteers",
-    href: "/portal/volunteers/roles",
-    basePath: "/portal/volunteers",
-    subItems: [
-      {
-        value: "roles",
-        label: "Roles",
-        href: "/portal/volunteers/roles",
-        access: [{ resource: "volunteers", level: "view" }],
-      },
-      {
-        value: "participation",
-        label: "Participation",
-        href: "/portal/volunteers/participation",
-        access: [{ resource: "volunteers", level: "view" }],
-      },
-      {
-        value: "applications",
-        label: "Applications",
-        href: "/portal/volunteers/applications",
-        access: [{ resource: "volunteers", level: "view" }],
-      },
-      // The People directory filtered to volunteers. Cross-linked rather than
-      // duplicated, and gated on the guard its route actually has
-      // (people/layout.tsx), which is why this one says people:view. Listed
-      // last so firstAccessibleHref still lands /portal/volunteers on Roles.
-      //
-      // `alsoRequires` is what keeps it from holding the whole Volunteers
-      // section open on its own: people:view is held by almost everyone and
-      // `people` is a core module, so without it a tenant with Volunteers off
-      // still got a Volunteers heading with this single link under it (#903).
-      {
-        value: "directory",
-        label: "Directory",
-        href: "/portal/people/volunteers",
-        access: [{ resource: "people", level: "view" }],
-        alsoRequires: [{ resource: "volunteers", level: "view" }],
-      },
-    ],
-  },
-  {
-    value: "messages",
-    label: "Messages",
-    href: "/portal/communications",
-    access: [{ resource: "communications", level: "view" }],
-  },
-  {
     value: "finance",
     label: "Finance",
+    group: "Resources",
     href: "/portal/finance/expenses",
     basePath: "/portal/finance",
     subItems: [
@@ -343,64 +431,9 @@ export const NAV_ITEMS: readonly NavItem[] = [
     ],
   },
   {
-    value: "people",
-    label: "People",
-    href: "/portal/people",
-    basePath: "/portal/people",
-    subItems: [
-      {
-        value: "directory",
-        label: "People",
-        href: "/portal/people",
-        access: [{ resource: "people", level: "view" }],
-      },
-      {
-        value: "donors",
-        label: "{donor_plural}",
-        href: "/portal/donors",
-        access: [{ resource: "people", level: "view" }],
-      },
-      {
-        value: "sponsors",
-        label: "{sponsor_plural}",
-        href: "/portal/sponsors",
-        access: [{ resource: "people", level: "view" }],
-      },
-      {
-        value: "volunteers",
-        label: "{volunteer_plural}",
-        href: "/portal/people/volunteers",
-        access: [{ resource: "people", level: "view" }],
-      },
-      {
-        value: "attendees",
-        label: "{attendee_plural}",
-        href: "/portal/attendees",
-        access: [{ resource: "people", level: "view" }],
-      },
-      {
-        value: "staff",
-        label: "{staff_plural}",
-        href: "/portal/staff",
-        access: [{ resource: "people", level: "view" }],
-      },
-      {
-        value: "partners",
-        label: "{partner_plural}",
-        href: "/portal/partners",
-        access: [{ resource: "people", level: "view" }],
-      },
-      {
-        value: "organizations",
-        label: "Organizations",
-        href: "/portal/organizations",
-        access: [{ resource: "people", level: "view" }],
-      },
-    ],
-  },
-  {
     value: "governance",
     label: "Governance",
+    group: "Organization",
     href: "/portal/governance/board-members",
     basePath: "/portal/governance",
     subItems: [
@@ -469,6 +502,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   {
     value: "administration",
     label: "Administration",
+    group: "Organization",
     href: "/portal/administration/users",
     basePath: "/portal/administration",
     // Grouped and reordered (#942). Nine flat entries spanned identity, org
@@ -614,29 +648,33 @@ export function activeSubItemFor(
   return best?.value;
 }
 
-export type NavSubGroup = {
-  /** Undefined for sub-items filed under no group. */
+export type NavGroup<T> = {
+  /** Undefined for entries filed under no group. */
   label?: string;
-  items: NavSubItem[];
+  items: T[];
 };
 
 /**
- * A section's sub-items split into the groups the sidebar renders, in order.
+ * Nav entries split into the groups the sidebar renders, in order. Generic
+ * because both levels group the same way: sections at the top level (#954)
+ * and a section's sub-items below it (#942).
  *
  * Runs are contiguous by construction: a new group starts wherever `group`
- * changes, so an ungrouped section comes back as one unlabelled group and
+ * changes, so an ungrouped list comes back as one unlabelled group and
  * nothing has to special-case it. Callers pass the *already filtered* list
  * from `visibleNavItems`, which is what makes an empty group impossible --
  * a heading only exists if at least one item under it survived.
  */
-export function navSubGroups(subItems: readonly NavSubItem[]): NavSubGroup[] {
-  const groups: NavSubGroup[] = [];
-  for (const sub of subItems) {
+export function navGroups<T extends { group?: string }>(
+  items: readonly T[],
+): NavGroup<T>[] {
+  const groups: NavGroup<T>[] = [];
+  for (const item of items) {
     const last = groups[groups.length - 1];
-    if (last && last.label === sub.group) {
-      last.items.push(sub);
+    if (last && last.label === item.group) {
+      last.items.push(item);
     } else {
-      groups.push({ label: sub.group, items: [sub] });
+      groups.push({ label: item.group, items: [item] });
     }
   }
   return groups;
@@ -673,6 +711,7 @@ export function visibleNavItems(
       // palette and the section index routes all come through this function,
       // and a template that escaped one of them would print braces (#896).
       label: applyLexicon(item.label, lexicon),
+      ...(item.group ? { group: applyLexicon(item.group, lexicon) } : {}),
       subItems:
         subItems && subItems.length > 0
           ? subItems.map((sub) => ({

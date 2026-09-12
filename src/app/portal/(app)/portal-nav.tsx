@@ -23,6 +23,10 @@ import {
   Users,
 } from "lucide-react";
 import {
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarSeparator,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -36,7 +40,7 @@ import { type PermissionMap } from "@/lib/auth/permissions";
 import {
   activeSectionFor,
   activeSubItemFor,
-  navSubGroups,
+  navGroups,
   visibleNavItems,
 } from "@/lib/portal/nav";
 import { type Lexicon } from "@/lib/lexicon";
@@ -93,102 +97,119 @@ export function PortalNav({
 
   const visibleItems = visibleNavItems(permissions, lexicon);
 
-  return (
-    <SidebarMenu>
-      {visibleItems.map((item) => {
-        const isSectionActive = activeSection === item.value;
-        const isOpen = Boolean(item.subItems && openSection === item.value);
-        const activeSub = isSectionActive
-          ? activeSubItemFor(pathname, item)
-          : undefined;
-        const Icon = SECTION_ICONS[item.value] ?? LayoutDashboard;
-        const submenuId = `nav-section-${item.value}`;
-        // Collapsed to icons there is nowhere to put a sub-list, so a section
-        // is a link to its first reachable page. Rendering it as a link rather
-        // than a button that quietly navigates means the control always looks
-        // like what it does -- it used to be the same button either way, and
-        // which behaviour you got depended on a sidebar mode you may not have
-        // set deliberately.
-        const isLink = !item.subItems || sidebarState === "collapsed";
+  // One SidebarGroup per heading rather than one SidebarMenu for everything:
+  // SidebarGroupLabel already folds itself away in the icon rail
+  // (`group-data-[collapsible=icon]` drops its height and opacity), so the
+  // collapsed sidebar stays a plain column of icons with no special casing
+  // here. A separator keeps the grouping legible there, where the words are
+  // gone.
+  return navGroups(visibleItems).map((group, index) => (
+    <SidebarGroup key={group.label ?? "ungrouped"} className="py-1">
+      {group.label ? (
+        <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+      ) : null}
+      {index > 0 ? (
+        <SidebarSeparator className="mx-2 hidden group-data-[collapsible=icon]:block" />
+      ) : null}
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {group.items.map((item) => {
+            const isSectionActive = activeSection === item.value;
+            const isOpen = Boolean(item.subItems && openSection === item.value);
+            const activeSub = isSectionActive
+              ? activeSubItemFor(pathname, item)
+              : undefined;
+            const Icon = SECTION_ICONS[item.value] ?? LayoutDashboard;
+            const submenuId = `nav-section-${item.value}`;
+            // Collapsed to icons there is nowhere to put a sub-list, so a section
+            // is a link to its first reachable page. Rendering it as a link rather
+            // than a button that quietly navigates means the control always looks
+            // like what it does -- it used to be the same button either way, and
+            // which behaviour you got depended on a sidebar mode you may not have
+            // set deliberately.
+            const isLink = !item.subItems || sidebarState === "collapsed";
 
-        return (
-          <SidebarMenuItem key={item.value}>
-            {!isLink ? (
-              <SidebarMenuButton
-                isActive={isSectionActive}
-                tooltip={item.label}
-                aria-expanded={isOpen}
-                aria-controls={isOpen ? submenuId : undefined}
-                onClick={() => toggleSection(item.value)}
-              >
-                <Icon />
-                <span>{item.label}</span>
-                <ChevronRight
-                  className={cn(
-                    "ml-auto transition-transform",
-                    isOpen && "rotate-90",
-                  )}
-                />
-              </SidebarMenuButton>
-            ) : (
-              <SidebarMenuButton
-                isActive={isSectionActive}
-                tooltip={item.label}
-                render={<Link href={item.href} />}
-              >
-                <Icon />
-                <span>{item.label}</span>
-              </SidebarMenuButton>
-            )}
+            return (
+              <SidebarMenuItem key={item.value}>
+                {!isLink ? (
+                  <SidebarMenuButton
+                    isActive={isSectionActive}
+                    tooltip={item.label}
+                    aria-expanded={isOpen}
+                    aria-controls={isOpen ? submenuId : undefined}
+                    onClick={() => toggleSection(item.value)}
+                  >
+                    <Icon />
+                    <span>{item.label}</span>
+                    <ChevronRight
+                      className={cn(
+                        "ml-auto transition-transform",
+                        isOpen && "rotate-90",
+                      )}
+                    />
+                  </SidebarMenuButton>
+                ) : (
+                  <SidebarMenuButton
+                    isActive={isSectionActive}
+                    tooltip={item.label}
+                    render={<Link href={item.href} />}
+                  >
+                    <Icon />
+                    <span>{item.label}</span>
+                  </SidebarMenuButton>
+                )}
 
-            {item.subItems && isOpen && !isLink ? (
-              <SidebarMenuSub id={submenuId}>
-                {navSubGroups(item.subItems).map((group) => {
-                  const items = group.items.map((sub) => (
-                    <SidebarMenuSubItem key={sub.value}>
-                      <SidebarMenuSubButton
-                        isActive={activeSub === sub.value}
-                        render={<Link href={sub.href} />}
-                      >
-                        <span>{sub.label}</span>
-                      </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>
-                  ));
-                  if (!group.label) return items;
-                  // `aria-labelledby` on the nested list, deliberately NOT
-                  // `role="group"`: that role replaces the ul's implicit
-                  // `list` role, which orphans every li inside it and fails
-                  // axe's `listitem` rule (522 nodes on the first run). A
-                  // named list announces "Oversight, list, 2 items", which is
-                  // what was wanted anyway.
-                  //
-                  // The heading is a div, never a button -- it is not a focus
-                  // stop, and the tab path through the sidebar is already
-                  // long. Keyed off the first item's value rather than a slug
-                  // of the label: it is already unique and already kebab-case.
-                  const headingId = `${submenuId}-group-${group.items[0].value}`;
-                  return (
-                    <li key={group.label} className="mt-2 first:mt-0">
-                      <div
-                        id={headingId}
-                        className="px-2 py-1 text-xs font-medium tracking-wide text-sidebar-foreground/70 uppercase"
-                      >
-                        {group.label}
-                      </div>
-                      <ul
-                        aria-labelledby={headingId}
-                        className="flex min-w-0 flex-col gap-1"
-                      >
-                        {items}
-                      </ul>
-                    </li>
-                  );
-                })}
-              </SidebarMenuSub>
-            ) : null}
-          </SidebarMenuItem>
-        );
-      })}
-    </SidebarMenu>
-  );
+                {item.subItems && isOpen && !isLink ? (
+                  <SidebarMenuSub id={submenuId}>
+                    {navGroups(item.subItems).map((group) => {
+                      const items = group.items.map((sub) => (
+                        <SidebarMenuSubItem key={sub.value}>
+                          <SidebarMenuSubButton
+                            isActive={activeSub === sub.value}
+                            render={<Link href={sub.href} />}
+                          >
+                            <span>{sub.label}</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ));
+                      if (!group.label) return items;
+                      // `aria-labelledby` on the nested list, deliberately NOT
+                      // `role="group"`: that role replaces the ul's implicit
+                      // `list` role, which orphans every li inside it and fails
+                      // axe's `listitem` rule. A named list announces
+                      // "Oversight, list, 2 items", which is what was wanted
+                      // anyway.
+                      //
+                      // The heading is a div, never a button -- it is not a
+                      // focus stop, and the tab path through the sidebar is
+                      // already long. Keyed off the first item's value rather
+                      // than a slug of the label: it is already unique and
+                      // already kebab-case.
+                      const headingId = `${submenuId}-group-${group.items[0].value}`;
+                      return (
+                        <li key={group.label} className="mt-2 first:mt-0">
+                          <div
+                            id={headingId}
+                            className="px-2 py-1 text-xs font-medium tracking-wide text-sidebar-foreground/70 uppercase"
+                          >
+                            {group.label}
+                          </div>
+                          <ul
+                            aria-labelledby={headingId}
+                            className="flex min-w-0 flex-col gap-1"
+                          >
+                            {items}
+                          </ul>
+                        </li>
+                      );
+                    })}
+                  </SidebarMenuSub>
+                ) : null}
+              </SidebarMenuItem>
+            );
+          })}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  ));
 }
