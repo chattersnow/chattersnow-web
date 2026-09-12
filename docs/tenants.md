@@ -312,7 +312,7 @@ Both are the tenant admin's, not the operator's:
   one `app_settings` row each under `lexicon.*` (read through `public_lexicon`
   by host and `tenant_lexicon` by session); a blank field means the platform's
   own word. Chatter Snow's four rows are seeded by
-  `20260912000000_per_tenant_lexicon.sql`, which is why nothing on its site
+  `20260912030000_per_tenant_lexicon.sql`, which is why nothing on its site
   changed when this shipped. The registry is meant to stay at four or five
   terms -- it names what an organization lends, not its whole vocabulary.
 
