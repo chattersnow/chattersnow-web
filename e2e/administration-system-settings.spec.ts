@@ -44,6 +44,42 @@ test.describe("portal administration system settings", () => {
     await expect(page.getByText("Download export")).toBeVisible();
   });
 
+  // #947: eight panels that could not be linked, bookmarked or returned to.
+  test("a tab is addressable, survives a reload, and comes back with Back", async ({
+    page,
+  }) => {
+    // Deep link straight into a panel, which is what every cross-link in the
+    // portal now does -- the finance pages point at Workflow settings, the
+    // Website editor at Page visibility and Legal documents.
+    await page.goto("/portal/administration/system-settings?tab=branding");
+    await expect(page.getByRole("tab", { name: "Branding" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await expect(page.getByLabel("Logo URL")).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByRole("tab", { name: "Branding" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    await page.getByRole("tab", { name: "Legal documents" }).click();
+    await expect(page).toHaveURL(/\?tab=legal$/);
+    await page.goBack();
+    await expect(page).toHaveURL(/\?tab=branding$/);
+    await expect(page.getByRole("tab", { name: "Branding" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    // A hand-edited or stale value falls back rather than rendering nothing.
+    await page.goto("/portal/administration/system-settings?tab=nonsense");
+    await expect(
+      page.getByRole("tab", { name: "Organization" }),
+    ).toHaveAttribute("aria-selected", "true");
+  });
+
   // app_settings rows are a global singleton -- unlike every other fixture in
   // these specs there's no per-test copy to mutate, so two Playwright
   // projects running this concurrently against the one Supabase instance
@@ -84,9 +120,12 @@ test.describe("portal administration system settings", () => {
         page.getByRole("region", { name: "Notifications" }),
       ).toContainText("Expense approval threshold updated.");
 
-      // Tab state is client-side, so the reload lands back on Organization.
+      // The tab is in the URL since #947, so the reload comes back to it
+      // rather than dropping to Organization.
       await page.reload();
-      await page.getByRole("tab", { name: "Workflow settings" }).click();
+      await expect(
+        page.getByRole("tab", { name: "Workflow settings" }),
+      ).toHaveAttribute("aria-selected", "true");
       await expect(portalMain(page).locator("#expense-threshold")).toHaveValue(
         "321.5",
       );
@@ -103,5 +142,29 @@ test.describe("portal administration system settings", () => {
           .eq("key", EXPENSE_THRESHOLD_KEY);
       }
     }
+  });
+});
+
+// Outside the block above on purpose: that one signs in as admin in
+// beforeEach, and a second sign-in on the same page would not find the login
+// form.
+test.describe("system settings for a board member", () => {
+  // System Settings is the board's only Administration page -- they hold
+  // system_settings:manage and nothing else in the section -- and no panel is
+  // gated below the layout, so a deep link into one has to work for them too.
+  test("a board member can deep-link into a tab", async ({ page }) => {
+    await signIn(page, { email: "board@example.test" });
+    await page.goto("/portal/administration/system-settings?tab=notifications");
+
+    await expect(
+      page.getByRole("heading", {
+        level: 1,
+        name: "System Settings",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("tab", { name: "Notifications" }),
+    ).toHaveAttribute("aria-selected", "true");
   });
 });

@@ -80,7 +80,7 @@ describe("renderOpsReport bodies", () => {
 
   test("both parts point at the setting that controls the list", () => {
     const { text, html } = renderOpsReport(report(), SITE);
-    const settings = `${SITE}/portal/administration/system-settings`;
+    const settings = `${SITE}/portal/administration/system-settings?tab=notifications`;
     expect(text).toContain(settings);
     expect(html).toContain(settings);
   });
