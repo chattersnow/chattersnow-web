@@ -50,6 +50,16 @@ export function slotRoute(slot: ContentSlot): string | undefined {
   return slot.type === "document" ? slot.route : undefined;
 }
 
+/** One slot's state: the words on its badge, and how loudly to say them. */
+type SlotStatusBadge = { text: string; className: string };
+
+/** Loud enough to catch while scrolling: something this page still owes. */
+const PENDING_BADGE =
+  "rounded-full bg-[var(--purple-soft)] px-2 py-0.5 text-xs font-medium text-[var(--purple-deep)]";
+/** Quiet: a settled fact about the slot rather than work outstanding. */
+const SETTLED_BADGE =
+  "app-muted rounded-full border border-[var(--line)] px-2 py-0.5 text-xs font-normal";
+
 /**
  * The state of one slot, said in words rather than in colour.
  *
@@ -59,8 +69,15 @@ export function slotRoute(slot: ContentSlot): string | undefined {
  * a slot nobody has touched. "Not published" is the state #793 adds, and it is
  * the one an editor most needs to see: the words on screen are not the words
  * on the site.
+ *
+ * Returned rather than rendered, so the caller can put the badge beside the
+ * `<label>` instead of inside it. A badge within the label joins the control's
+ * accessible name, and a box that renames itself from "Heading" to "Heading
+ * Unsaved" as you type is a box a screen reader announces twice for no reason
+ * (#924). Beside the label it is still read in place, and the control points
+ * at it with `aria-describedby`, so tabbing straight into the box hears it.
  */
-function SlotStatus({
+function slotStatus({
   overridden,
   dirty,
   hasDraft,
@@ -71,28 +88,10 @@ function SlotStatus({
   hasDraft: boolean;
   /** What the tenant's override is called: "text" for copy, "image" for a photo. */
   noun: "text" | "image";
-}) {
-  if (dirty) {
-    return (
-      <span className="rounded-full bg-[var(--purple-soft)] px-2 py-0.5 text-xs font-medium text-[var(--purple-deep)]">
-        Unsaved
-      </span>
-    );
-  }
-  if (hasDraft) {
-    return (
-      <span className="rounded-full bg-[var(--purple-soft)] px-2 py-0.5 text-xs font-medium text-[var(--purple-deep)]">
-        Not published
-      </span>
-    );
-  }
-  if (overridden) {
-    return (
-      <span className="app-muted rounded-full border border-[var(--line)] px-2 py-0.5 text-xs font-normal">
-        Your {noun}
-      </span>
-    );
-  }
+}): SlotStatusBadge | null {
+  if (dirty) return { text: "Unsaved", className: PENDING_BADGE };
+  if (hasDraft) return { text: "Not published", className: PENDING_BADGE };
+  if (overridden) return { text: `Your ${noun}`, className: SETTLED_BADGE };
   return null;
 }
 
@@ -183,48 +182,51 @@ export function ContentSlotField({
   const isDefault =
     JSON.stringify(value ?? null) === JSON.stringify(slot.default ?? null);
 
-  const heading = (
-    <>
-      {slot.label}
-      <SlotStatus
-        overridden={overridden}
-        dirty={dirty}
-        hasDraft={hasDraft}
-        noun={slot.type === "image" ? "image" : "text"}
-      />
-      {route && (
-        <Link
-          href={route}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="app-muted inline-flex items-center gap-1.5 text-sm font-normal underline-offset-4 hover:underline"
-        >
-          View on the site
-          <ExternalLink className="size-3.5" aria-hidden />
-        </Link>
-      )}
-    </>
-  );
+  const status = slotStatus({
+    overridden,
+    dirty,
+    hasDraft,
+    noun: slot.type === "image" ? "image" : "text",
+  });
+  // Described by, not named by -- and only where there is both a badge to
+  // point at and a single control to point from: a `list` or `document` slot
+  // has many controls and no one of them owns the slot's state (#924).
+  const statusId = status && !composite ? `${controlId}-status` : undefined;
 
   return (
     <Field id={slotFieldId(slot.key)} className="scroll-mt-32">
-      {composite ? (
-        <FieldTitle className="flex flex-wrap items-center gap-2">
-          {heading}
-        </FieldTitle>
-      ) : (
-        <FieldLabel
-          htmlFor={controlId}
-          className="flex flex-wrap items-center gap-2"
-        >
-          {heading}
-        </FieldLabel>
-      )}
+      {/* The label carries the slot's label alone. The badge and the link are
+          siblings of it in the same row rather than children of it, so neither
+          lands in the control's accessible name (#924). */}
+      <div className="flex flex-wrap items-center gap-2">
+        {composite ? (
+          <FieldTitle>{slot.label}</FieldTitle>
+        ) : (
+          <FieldLabel htmlFor={controlId}>{slot.label}</FieldLabel>
+        )}
+        {status && (
+          <span id={statusId} className={status.className}>
+            {status.text}
+          </span>
+        )}
+        {route && (
+          <Link
+            href={route}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="app-muted inline-flex items-center gap-1.5 text-sm font-normal underline-offset-4 hover:underline"
+          >
+            View on the site
+            <ExternalLink className="size-3.5" aria-hidden />
+          </Link>
+        )}
+      </div>
 
       {slot.type === "text" &&
         (isMultiline(slot, initialValue) ? (
           <Textarea
             id={controlId}
+            aria-describedby={statusId}
             value={typeof value === "string" ? value : ""}
             onChange={(event) => onChange(event.target.value)}
             rows={3}
@@ -232,6 +234,7 @@ export function ContentSlotField({
         ) : (
           <Input
             id={controlId}
+            aria-describedby={statusId}
             value={typeof value === "string" ? value : ""}
             onChange={(event) => onChange(event.target.value)}
           />
@@ -240,6 +243,7 @@ export function ContentSlotField({
       {slot.type === "paragraphs" && (
         <Textarea
           id={controlId}
+          aria-describedby={statusId}
           value={paragraphsToText(paragraphs)}
           onChange={(event) => onChange(textToParagraphs(event.target.value))}
           rows={8}
@@ -249,6 +253,7 @@ export function ContentSlotField({
       {slot.type === "image" && (
         <ImageSlotField
           id={controlId}
+          describedBy={statusId}
           label={slot.label}
           ratio={slot.ratio}
           value={typeof value === "string" ? value : null}

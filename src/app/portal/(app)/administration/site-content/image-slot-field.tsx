@@ -24,12 +24,15 @@ import { isRenderableImageSrc, resolveImageUrl } from "@/lib/inventory";
  */
 export function ImageSlotField({
   id,
+  describedBy,
   label,
   ratio,
   value,
   onChange,
 }: {
   id: string;
+  /** The slot's status badge, which describes the box rather than naming it (#924). */
+  describedBy?: string;
   label: string;
   /** The aspect the public site crops this slot to, as a CSS ratio. */
   ratio: string;
@@ -80,6 +83,7 @@ export function ImageSlotField({
       )}
       <Input
         id={id}
+        aria-describedby={describedBy}
         type="url"
         placeholder="https://drive.google.com/file/d/..."
         value={value ?? ""}
