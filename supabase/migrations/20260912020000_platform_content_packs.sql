@@ -290,7 +290,14 @@ $$;
 comment on function public.copy_content_pack(uuid, uuid) is
   'Copies an offered pack''s published categories and articles into a tenant as drafts (#895). Owner-only: it names a tenant rather than deriving one, so its two callers -- adopt_content_pack() and provision_tenant() -- are where authorization happens.';
 
-revoke execute on function public.copy_content_pack(uuid, uuid) from public;
+-- `anon` and `authenticated` are named explicitly, not just `public`: the
+-- hosted database carries default privileges that grant EXECUTE on every
+-- newly created function in `public` to both roles, so revoking PUBLIC alone
+-- leaves the direct grant in place. That is what tripped this file's own
+-- privilege guard below when it was first pushed. It never shows up locally,
+-- where those default privileges are not configured, so every new function
+-- that is not meant for signed-in callers must restate the revoke.
+revoke execute on function public.copy_content_pack(uuid, uuid) from public, anon, authenticated;
 
 -- 6. Adoption ----------------------------------------------------------------
 
@@ -650,7 +657,9 @@ comment on function public.provision_tenant(text, text, text, text, text, uuid, 
 
 drop function if exists public.provision_tenant(text, text, text, text, text, uuid);
 
-revoke execute on function public.provision_tenant(text, text, text, text, text, uuid, text[]) from public;
+-- New signature, so it is a new function: see the note on copy_content_pack()
+-- above for why `anon` and `authenticated` are named.
+revoke execute on function public.provision_tenant(text, text, text, text, text, uuid, text[]) from public, anon, authenticated;
 grant execute on function public.provision_tenant(text, text, text, text, text, uuid, text[]) to service_role;
 
 create or replace function public.platform_provision_tenant(
@@ -687,6 +696,7 @@ $$;
 
 drop function if exists public.platform_provision_tenant(text, text, text, text, text);
 
+revoke execute on function public.platform_provision_tenant(text, text, text, text, text, text[]) from public, anon;
 grant execute on function public.platform_provision_tenant(text, text, text, text, text, text[]) to authenticated;
 
 -- 9. Audit -------------------------------------------------------------------
