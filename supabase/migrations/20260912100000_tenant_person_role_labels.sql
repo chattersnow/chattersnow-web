@@ -58,7 +58,10 @@ comment on view public.tenant_person_role_labels is
 -- Provisioning copies the template tenant's `people.%` settings, so an operator
 -- who has taught the template to say "Students" does not retype it per tenant.
 -- Unchanged signature, so this is the same function with one predicate widened;
--- everything else is 20260912020000_platform_content_packs.sql verbatim.
+-- everything else is 20260912070000_tenant_owned_role_labels.sql verbatim --
+-- including its role copy, which a body restated from any earlier migration
+-- would silently undo. `create or replace` takes a whole body, so the newest
+-- one is the only safe thing to start from.
 
 create or replace function public.provision_tenant(
   p_name text,
@@ -110,15 +113,11 @@ begin
   )
   returning id into v_tenant_id;
 
-  -- Roles: the five the platform seeds (20260821080000), by name from the
-  -- template. A tenant that renamed or dropped one changes what it copies;
-  -- the admin role is the one that is required (checked above), because the
-  -- staged grant below and every administration screen depend on it.
-  insert into public.roles (tenant_id, name, description)
-  select v_tenant_id, r.name, r.description
+  -- Roles: every role the template holds, labels included (#910).
+  insert into public.roles (tenant_id, name, label, description)
+  select v_tenant_id, r.name, r.label, r.description
   from public.roles r
-  where r.tenant_id = v_template_id
-    and r.name in ('admin', 'event_coordinator', 'finance', 'board', 'volunteer');
+  where r.tenant_id = v_template_id;
 
   -- The matrix for those roles. set_tenant_id_from_role stamps tenant_id.
   insert into public.role_permissions (role_id, resource_id, level)
@@ -264,4 +263,4 @@ end;
 $$;
 
 comment on function public.provision_tenant(text, text, text, text, text, uuid, text[]) is
-  'Creates a tenant ready to sign into: seeded roles and permission matrix, catalog defaults and platform settings copied from the template tenant (the oldest internal tenant unless given) -- including what it calls the six person roles (#911) -- any content packs named in p_pack_keys copied in as drafts (#895), and a staged admin grant for p_admin_email. service_role only.';
+  'Creates a tenant ready to sign into: every role the template tenant holds, with its labels and whole permission matrix (#910), the catalog defaults and platform settings copied from the template (the oldest internal tenant unless given) -- including what it calls the six person roles (#911) -- any content packs named in p_pack_keys copied in as drafts (#895), and a staged admin grant for p_admin_email. service_role only.';

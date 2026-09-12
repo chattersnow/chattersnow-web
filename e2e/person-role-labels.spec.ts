@@ -107,16 +107,22 @@ test.describe("person role labels", () => {
 
     // The person form's role checkboxes, a client component reading the
     // shell's context rather than anything this page fetched.
+    //
+    // By role rather than by label: a Base UI checkbox is a `role="checkbox"`
+    // span *and* a hidden `<input type="checkbox">` sharing one label, so
+    // getByLabel matches both and trips strict mode.
     await newStudent.click();
     await expect(
-      page.getByRole("dialog").getByLabel("Student", { exact: true }),
+      page.getByRole("dialog").getByRole("checkbox", { name: "Student" }),
     ).toBeVisible();
     await page.keyboard.press("Escape");
 
-    // The role facet on the full directory, built from the registry.
+    // The role facet on the full directory, built from the registry. Its
+    // options are singular -- each one names one role, the way the Roles
+    // column and the form's checkboxes do.
     await page.goto("/portal/people");
     await page.getByRole("button", { name: /Filters/ }).click();
-    await expect(page.getByLabel("Role")).toContainText("Students");
+    await expect(page.getByLabel("Role")).toContainText("Student");
 
     // ...and the route itself is untouched: a URL is not a label.
     await expect(page).toHaveURL(/\/portal\/people$/);
