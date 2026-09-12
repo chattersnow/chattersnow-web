@@ -1,0 +1,31 @@
+# Giveaways — specification
+
+Part of [`docs/technical-spec.md`](../technical-spec.md) — section numbers are
+unchanged. This file holds §5.8. Technology, system boundaries, security, the
+route tree and the key workflows stay in the hub. A plain `§N` below is in this
+file; a `§N` that lives in another file is always a link.
+
+**Also relevant:** `giveaways`, `giveaway_prizes` and `giveaway_winners` are catalogued in [§6, "Finance and giveaways"](finance.md#6-data-model-finance-and-giveaways); the tier, bucket, ticket and package tables are specified below. The donated-gear path writes through the [§5.4](inventory.md#54-inventory-and-donation-management) intake RPC.
+
+## 5.8 Giveaways
+
+Giveaway recording is implemented for the initial release: authorized users can record, per event, prizes (name, prize donor, estimated value), winners (name, contact, distribution status/date, drawing date), and the tiered ticket system below, via the event editor's Giveaway tab. This is a manual recording tool only — there is no public ticket-purchase flow.
+
+**Tiers and tickets (issue #5).** A giveaway defines ordered tiers (gold/silver/bronze by default) and a grant matrix: for each tier, how many tickets of each colour it earns. The defaults are 3/1/1 for gold, 1/3/2 for silver and 0/1/3 for bronze, all editable per giveaway (`giveaway_tiers`, `giveaway_tier_grants`).
+
+Participants earn tickets two ways, and a giveaway may run both at once:
+
+- **Donated gear.** The donated item's category sets its tier, and **every item earns its own bundle, uncapped** — a snowboard plus two beanies earns 3 gold, 3 silver, 7 bronze. Item categories are now a controlled vocabulary (issue #667), but the tier is still _suggested_ rather than derived: `create_donation_with_items` feeds `suggest_giveaway_tier` the item's `"<group label> <category label> <detail>"` instead of raw free text, so the per-giveaway keyword hints (`giveaway_tier_rules`, longest match wins) keep working and a group-level keyword such as `outerwear` now matches every category inside it. The resolved tier is stored explicitly on the grant; intake staff can always override it, and an item matching nothing is reported back so it can be classified rather than silently earning nothing. Because matching is still a substring test, category names are coupled to the keyword lists -- the vocabulary deliberately names the boards/skis group "Hardgoods" and files all footwear under one "Boots" category so that `ski`/`snowboard` cannot suggest a gold ticket for poles, bindings or boots. Replacing the keyword hints with a direct category -> tier mapping is a follow-up ticket. Recording a donation against an event with a configured giveaway shows the bundle to hand over as part of completing the donation (`create_donation_with_items`).
+- **Bought ticket packages.** A giveaway defines price points, each matching a tier and granting one or more of its bundles (`giveaway_ticket_packages`). Recording a sale captures package, quantity, unit price, amount, optional purchaser and date (`giveaway_ticket_sales`, via `record_giveaway_ticket_sale`); unit price is copied at sale time so repricing cannot rewrite history. **Payment is taken outside the system** — these rows record that it happened.
+
+Both paths write into one pool, `giveaway_ticket_grants`, whose source is exactly one of a donation (with its inventory item) or a sale. Per-colour totals and per-bucket odds are therefore a single aggregate over that table regardless of how a ticket was obtained (`giveaway_ticket_totals`). `grant_giveaway_tickets` expands the matrix for both paths and is an internal helper only — it is `security definer` with no permission check of its own, so execute is deliberately _not_ granted to `authenticated`; its callers authorize.
+
+Tier membership is enforced structurally rather than by trigger: every table referencing a tier carries `giveaway_id` and uses a composite foreign key into `giveaway_tiers(id, giveaway_id)`, so a bucket, package or grant can never point at another giveaway's tier.
+
+**Buckets and draws.** Each tier has one or more buckets (`giveaway_buckets`); participants choose which bucket to drop each ticket into, and a bucket carries 1..N prizes (`giveaway_prizes.bucket_id`, nullable), covering both "a bucket per prize" and "one bucket, several pulls". Ticket placement itself stays physical — the system records what was _issued_, not which bucket each individual ticket went into; the urn remains the source of truth at draw time.
+
+The legacy aggregates on `giveaways` (`tickets_sold`, `ticket_price`, `revenue_amount`) remain so events recorded before the tier system keep their numbers, but a giveaway with packages and sales shows computed totals instead.
+
+The prize donor is a `people` foreign key (`donor_person_id`, issue #20), and a prize can additionally record the donation record it came from — either an `inventory_items` row or a `monetary_donations` row (`source_inventory_item_id` / `source_monetary_donation_id`, issue #520). Selecting an in-kind source reserves that inventory item (issue #570), so a donated item allocated to a giveaway stops appearing as available in the distribution picker and the public gear catalog (`intended_use` is a separate, staff-set axis and is deliberately left alone by prize allocation, so releasing a prize restores the item exactly as it was); removing the prize or changing its source releases the item again. Prizes with no inventory record behind them (cash, gift cards) are still entered as free text. Winners may also link to a `people` row (`winner_person_id`), keeping `winner_name` for walk-ups.
+
+Public online ticket sales remain out of scope and must be reviewed for applicable legal, tax, and jurisdictional requirements before being enabled. **The tier system sharpens that constraint rather than relaxing it:** selling tickets for a chance to win is money plus chance plus prize, and requiring a gear donation for weighted odds is consideration paid in kind. Published official rules — eligibility, entry period, odds, a no-purchase entry method, and sponsor identity — are tracked as issue #666 and are a prerequisite for any public giveaway. Nothing in this section is clearance to run one.

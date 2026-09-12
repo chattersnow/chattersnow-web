@@ -5,8 +5,9 @@
 The operator's runbook for tenants (#707 Phase 4): how an organization is
 provisioned, put on its own domain, branded, supported, exported and deleted.
 The model behind it -- `tenants`, `tenant_id` on every table, membership
-instead of a super-admin -- is in `docs/technical-spec.md` §6 and in the
-planning repo's `decisions/2026-09-05-multi-tenancy-model.md`.
+instead of a super-admin -- is §6 of the spec, in
+[`docs/spec/multi-tenancy.md`](spec/multi-tenancy.md), and in the planning
+repo's `decisions/2026-09-05-multi-tenancy-model.md`.
 
 This is no longer hypothetical. Three tenants are live, and **Chatter Snow is
 simply the first of them**, not the product:

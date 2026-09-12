@@ -30,7 +30,8 @@ fictional. Never copy production data into it. See "The demo tenant" in
 ## Docs
 
 - `CLAUDE.md` — build, lint, test, and architecture conventions. Read this first.
-- `docs/technical-spec.md` — what is built and specified today.
+- `docs/technical-spec.md` — what is built and specified today: the hub, holding purpose, technology, system boundaries, security, the route tree, workflows, release criteria, and an index of every section number.
+- `docs/spec/` — the spec's per-module files, one per domain (events, finance, inventory, governance, volunteers, …), each pairing that module's requirements with its data model. Open the one you need via the hub's index rather than reading them all.
 - `docs/tenants.md` — the operator's runbook: provisioning a tenant, custom domains, branding, support access, the demo tenant, export and deletion (multi-tenancy, #707).
 - `CONTRIBUTING.md` — how to contribute, and the CLA required before a first
   contribution.

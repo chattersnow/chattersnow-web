@@ -114,7 +114,7 @@ export const RESERVED_NAMESPACES: readonly ReservedNamespace[] = [
  * has no predicate, so a row is public wherever in the table it sits. That
  * makes it the wider rule, and it subsumes the `site_images.` namespace above
  * -- which is listed anyway, because it is one of the five prefixes the views
- * and `docs/technical-spec.md` name and a reader should find it here.
+ * and `docs/spec/multi-tenancy.md` name and a reader should find it here.
  *
  * The asymmetry with `app_settings` is the point: there, a key outside every
  * reserved namespace is an ordinary private setting and none of this module's
