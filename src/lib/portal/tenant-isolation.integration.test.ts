@@ -96,6 +96,7 @@ const aPublic = {
   gearItemId: "",
   volunteerRoleTypeId: "",
   sponsorId: "",
+  sponsorPersonId: "",
   publicProgramId: "",
   siteContentKey: `home.isolation_probe_${run}`,
 };
@@ -620,20 +621,22 @@ beforeAll(async () => {
       "a public program",
     )
   ).id as string;
-  aPublic.sponsorId = (
-    await must(
-      service
-        .from("event_sponsors")
-        .select("id, events!inner(visibility, status)")
-        .eq("tenant_id", tenantA)
-        .eq("is_public", true)
-        .eq("events.visibility", "public")
-        .eq("events.status", "published")
-        .limit(1)
-        .single(),
-      "a public event sponsor",
-    )
-  ).id as string;
+  const aPublicSponsor = await must(
+    service
+      .from("event_sponsors")
+      .select("id, person_id, events!inner(visibility, status)")
+      .eq("tenant_id", tenantA)
+      .eq("is_public", true)
+      .eq("events.visibility", "public")
+      .eq("events.status", "published")
+      .limit(1)
+      .single(),
+    "a public event sponsor",
+  );
+  aPublic.sponsorId = aPublicSponsor.id as string;
+  // public_sponsor_wall is keyed on the person rather than the sponsorship
+  // (#914), so the probe needs the other end of the same row.
+  aPublic.sponsorPersonId = aPublicSponsor.person_id as string;
   aPublic.gearItemId = (
     await must(
       service
@@ -1497,6 +1500,12 @@ describe("every anon-readable view follows the host", () => {
       column: "sponsor_id",
       inA: () => aPublic.sponsorId,
       inB: () => b.sponsorId,
+    },
+    {
+      view: "public_sponsor_wall",
+      column: "sponsor_id",
+      inA: () => aPublic.sponsorPersonId,
+      inB: () => b.personId,
     },
     {
       view: "public_gear_catalog",
