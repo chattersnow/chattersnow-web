@@ -24,10 +24,26 @@ export function paragraphHint(paragraphs: string[]): string {
   return `${count} ${noun} — separate them with a blank line.`;
 }
 
+/**
+ * A new row, blank but for its switches. A `boolean` field starts **on**: a
+ * link someone has just added is one they want published, and starting it off
+ * would make "Add item" a two-step action for the only case anyone has.
+ */
 export function emptyListItem(fields: readonly ListField[]): ListItem {
   return Object.fromEntries(
-    fields.map((field) => [field.key, field.kind === "text" ? "" : []]),
+    fields.map((field) => [field.key, emptyFieldValue(field)]),
   );
+}
+
+export function emptyFieldValue(field: ListField): string | string[] | boolean {
+  switch (field.kind) {
+    case "paragraphs":
+      return [];
+    case "boolean":
+      return true;
+    default:
+      return "";
+  }
 }
 
 /**

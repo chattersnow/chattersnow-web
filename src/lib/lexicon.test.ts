@@ -158,6 +158,8 @@ describe("every registry template resolves", () => {
       if (slot.type === "list") {
         for (const item of content.list(slot.key)) {
           for (const value of Object.values(item)) {
+            // Booleans carry no copy, so there is nothing in one to resolve.
+            if (typeof value === "boolean") continue;
             const values = Array.isArray(value) ? value : [value];
             for (const entry of values) {
               expect(unresolved(entry), slot.key).toBe(false);

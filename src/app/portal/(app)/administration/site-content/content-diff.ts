@@ -1,6 +1,7 @@
 import type {
   ContentSlot,
   LegalDocumentContent,
+  ListField,
   ListItem,
 } from "@/lib/site-content";
 
@@ -20,7 +21,9 @@ export function slotLines(slot: ContentSlot, value: unknown): string[] {
     case "paragraphs":
       return Array.isArray(value) ? (value as string[]) : [];
     case "list":
-      return Array.isArray(value) ? (value as ListItem[]).map(itemLine) : [];
+      return Array.isArray(value)
+        ? (value as ListItem[]).map((item) => itemLine(item, slot.fields))
+        : [];
     case "document":
       return documentLines(value as LegalDocumentContent | null);
     case "image":
@@ -28,9 +31,22 @@ export function slotLines(slot: ContentSlot, value: unknown): string[] {
   }
 }
 
-function itemLine(item: ListItem): string {
-  return Object.values(item)
-    .map((field) => (Array.isArray(field) ? field.join(", ") : field))
+/**
+ * Walks the registry's fields rather than the row's own keys, because a
+ * `boolean` field has to be named to mean anything: an unlabelled `false`
+ * drops out of a truthiness filter, so switching a link off would have read as
+ * "nothing changed" in the publish dialog and published silently (#937).
+ */
+function itemLine(item: ListItem, fields: readonly ListField[]): string {
+  return fields
+    .map((field) => {
+      const value = item[field.key];
+      if (field.kind === "boolean") {
+        return `${field.label}: ${value === false ? "no" : "yes"}`;
+      }
+      if (Array.isArray(value)) return value.join(", ");
+      return typeof value === "string" ? value : "";
+    })
     .filter(Boolean)
     .join(" — ");
 }

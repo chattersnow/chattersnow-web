@@ -311,3 +311,76 @@ describe("resolveSiteContent", () => {
     expect(() => DEFAULT_SITE_CONTENT.text("does.not.exist")).toThrow();
   });
 });
+
+describe("the links slot's field kinds (#937)", () => {
+  const slot = contentSlot("links.items");
+  if (!slot || slot.type !== "list") {
+    throw new Error("links.items must be a list slot");
+  }
+
+  function row(overrides: Record<string, unknown> = {}) {
+    return {
+      label: "Upcoming events",
+      url: "/events",
+      description: "Where to find us next.",
+      published: true,
+      ...overrides,
+    };
+  }
+
+  test("accepts a well-formed row", () => {
+    expect(isValidSlotValue(slot, [row()])).toBe(true);
+  });
+
+  test("accepts the destinations isPublishableHref allows", () => {
+    for (const url of [
+      "https://example.org/give",
+      "/get-involved/volunteer",
+      "mailto:hello@example.org",
+    ]) {
+      expect(isValidSlotValue(slot, [row({ url })]), url).toBe(true);
+    }
+  });
+
+  // The page's whole output is `href`s, so a destination the site would refuse
+  // to render must not reach the table in the first place.
+  test("refuses a destination the site will not publish", () => {
+    for (const url of [
+      "javascript:alert(1)",
+      "http://example.org",
+      "//example.org",
+      "example.org",
+      "",
+    ]) {
+      expect(isValidSlotValue(slot, [row({ url })]), url).toBe(false);
+    }
+  });
+
+  test("a boolean field takes a boolean and nothing else", () => {
+    expect(isValidSlotValue(slot, [row({ published: false })])).toBe(true);
+    expect(isValidSlotValue(slot, [row({ published: "yes" })])).toBe(false);
+    expect(isValidSlotValue(slot, [row({ published: null })])).toBe(false);
+  });
+
+  // A row stored before the switch existed has no `published` key. The page
+  // treats a missing one as shown, so the validator must not reject the row
+  // and send the whole slot back to its default.
+  test("a row missing the switch is still valid", () => {
+    const legacy = { label: "Donate", url: "/support/donations" };
+    expect(isValidSlotValue(slot, [legacy])).toBe(true);
+  });
+
+  test("the supporting line is optional and may be blank", () => {
+    expect(isValidSlotValue(slot, [row({ description: "" })])).toBe(true);
+    const withoutDescription = {
+      label: "Donate",
+      url: "/support/donations",
+      published: true,
+    };
+    expect(isValidSlotValue(slot, [withoutDescription])).toBe(true);
+  });
+
+  test("the registry's own default row survives its own validator", () => {
+    expect(isValidSlotValue(slot, slot.default)).toBe(true);
+  });
+});

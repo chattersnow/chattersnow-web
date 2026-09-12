@@ -86,13 +86,16 @@ describe("PUBLIC_PAGE_SLOTS", () => {
   // exactly what had happened to about/events/gears/get-involved/contact:
   // five of the eight slots were registered but never gated.
   test("every registered slot has a route gate in its section layout", () => {
-    const publicDir = join(import.meta.dirname, "..", "app", "(public)");
+    // Resolved from `src/app`, not from `(public)`: a gated route need not be
+    // inside that route group. `/links` is not, because the group's layout is
+    // the site header and footer it deliberately does without (#937).
+    const appDir = join(import.meta.dirname, "..", "app");
 
     for (const slot of PUBLIC_PAGE_SLOTS) {
-      const gate = slot.gate ?? join(slot.key, "layout.tsx");
+      const gate = slot.gate ?? join("(public)", slot.key, "layout.tsx");
       let source: string;
       try {
-        source = readFileSync(join(publicDir, gate), "utf8");
+        source = readFileSync(join(appDir, gate), "utf8");
       } catch {
         throw new Error(
           `${slot.key} is registered in PUBLIC_PAGE_SLOTS but has no ${gate} to gate it.`,
@@ -344,6 +347,7 @@ describe("hiddenSlots", () => {
     expect(hiddenSlots(visibility).sort()).toEqual([
       "brand",
       "gears-sizing",
+      "links",
       "programs",
       "support",
     ]);

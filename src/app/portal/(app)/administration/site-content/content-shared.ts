@@ -118,10 +118,14 @@ export type OutlineEntry = {
   text: string;
 };
 
+// Only the words. A `boolean` field would otherwise put "true" into the text
+// the editor's search matches on, so every switched-on row would answer a
+// search for "true".
 function listText(items: ListItem[]): string {
   return items
     .flatMap((item) => Object.values(item))
     .flatMap((value) => (Array.isArray(value) ? value : [value]))
+    .filter((value) => typeof value === "string")
     .join(" ");
 }
 

@@ -60,6 +60,7 @@
  */
 
 import { isRenderableImageSrc } from "@/lib/inventory";
+import { isPublishableHref } from "@/lib/legal-markup";
 import {
   DEFAULT_LEXICON,
   applyLexicon,
@@ -140,6 +141,7 @@ export const CONTENT_PAGES: readonly ContentPage[] = [
     visibilityKey: "contact",
   },
   { key: "brand", label: "Brand", route: "/brand", visibilityKey: "brand" },
+  { key: "links", label: "Links", route: "/links", visibilityKey: "links" },
   { key: "legal", label: "Legal documents", route: "/privacy" },
 ] as const;
 
@@ -299,6 +301,14 @@ export const CONTENT_SECTIONS: readonly ContentSection[] = [
   },
 
   {
+    key: "links:page",
+    page: "links",
+    label: "Links",
+    description:
+      "The page a social profile's single bio link points at. Everything here is a whole page of its own -- it is not shown in the site's navigation, so the only way anyone reaches it is the link you publish.",
+  },
+
+  {
     key: "legal:documents",
     page: "legal",
     label: "Documents",
@@ -310,12 +320,22 @@ export const CONTENT_SECTIONS: readonly ContentSection[] = [
 export type ListField = {
   key: string;
   label: string;
-  kind: "text" | "paragraphs";
+  /**
+   * `url` is a text field the editor offers as a URL box and that
+   * `isPublishableHref()` has to accept, so a destination an editor typed
+   * wrong -- or a scheme nobody should be able to publish -- is refused on the
+   * way in rather than rendered as an `href` on a public page (#937).
+   *
+   * `boolean` is a switch. It exists because a list whose rows are *shown or
+   * hidden* rather than added and removed has no way to say so otherwise, and
+   * deleting a row to hide it for a month is not the same thing.
+   */
+  kind: "text" | "paragraphs" | "url" | "boolean";
   /** Left blank in the editor when unset; a text field is otherwise required. */
   optional?: boolean;
 };
 
-export type ListItem = Record<string, string | string[]>;
+export type ListItem = Record<string, string | string[] | boolean>;
 
 /** One section of a structured legal document. */
 export type LegalDocumentSection = {
@@ -1595,6 +1615,60 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     ],
   },
 
+  // Links -----------------------------------------------------------------------
+  //
+  // The link-in-bio page (#937). Instagram allows one link in a profile, so
+  // this is the page it points at and the list below is what the organization
+  // is currently asking people to do. It is edited far more often than the
+  // rest of the site -- a gear drive this month, a fundraiser the next -- which
+  // is the whole reason it is content rather than a route per campaign.
+  {
+    key: "links.heading",
+    page: "links",
+    section: "links:page",
+    label: "Heading",
+    type: "text",
+    default: "Find us here",
+  },
+  {
+    key: "links.intro",
+    page: "links",
+    section: "links:page",
+    label: "Introduction",
+    description:
+      "One line under the heading, for people arriving from a social profile. Leave blank for none.",
+    type: "text",
+    default: "",
+  },
+  {
+    key: "links.items",
+    page: "links",
+    section: "links:page",
+    label: "Links",
+    description:
+      "In the order they appear on the page. A link that is switched off keeps its place here and is not published, so a seasonal one can be turned back on rather than retyped.",
+    type: "list",
+    fields: [
+      { key: "label", label: "Button text", kind: "text" },
+      { key: "url", label: "Destination", kind: "url" },
+      {
+        key: "description",
+        label: "Supporting line",
+        kind: "text",
+        optional: true,
+      },
+      { key: "published", label: "Published", kind: "boolean" },
+    ],
+    default: [
+      {
+        label: "Upcoming events",
+        url: "/events",
+        description: "Where to find us next.",
+        published: true,
+      },
+    ],
+  },
+
   // Legal -----------------------------------------------------------------------
   {
     key: "legal.privacy",
@@ -1660,8 +1734,28 @@ function isListItem(value: unknown, fields: readonly ListField[]): boolean {
   const item = value as Record<string, unknown>;
   return fields.every((field) => {
     const v = item[field.key];
-    if (v === undefined) return Boolean(field.optional);
-    return field.kind === "text" ? typeof v === "string" : isStringArray(v);
+    // A switch is the one field `optional` says nothing useful about: it
+    // cannot be left blank, only left unset, and a row stored before the
+    // field existed has no key for it. Rejecting those rows would send the
+    // whole slot back to its registry default -- every link an organization
+    // had written replaced by the example one -- over a field that has a
+    // perfectly good answer without them.
+    if (v === undefined)
+      return field.kind === "boolean" || Boolean(field.optional);
+    switch (field.kind) {
+      case "text":
+        return typeof v === "string";
+      case "paragraphs":
+        return isStringArray(v);
+      case "boolean":
+        return typeof v === "boolean";
+      case "url":
+        // Publishable, not merely a string -- the same stance `image` takes two
+        // cases down. An optional url may be blank; a set one has to be a
+        // destination the site will actually put in an `href`.
+        if (typeof v !== "string") return false;
+        return field.optional && v === "" ? true : isPublishableHref(v);
+    }
   });
 }
 
@@ -1729,9 +1823,13 @@ export function lexiconDefault(slot: ContentSlot, lexicon: Lexicon): unknown {
         Object.fromEntries(
           Object.entries(item).map(([field, value]) => [
             field,
-            typeof value === "string"
-              ? applyLexicon(value, lexicon)
-              : applyLexiconAll(value, lexicon),
+            // A boolean field has no words in it, so it passes through
+            // untouched rather than through a string substitution.
+            typeof value === "boolean"
+              ? value
+              : typeof value === "string"
+                ? applyLexicon(value, lexicon)
+                : applyLexiconAll(value, lexicon),
           ]),
         ),
       );
