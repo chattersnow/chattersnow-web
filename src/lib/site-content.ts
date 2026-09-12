@@ -1468,6 +1468,24 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     type: "text",
     default: "Talk to us about sponsoring",
   },
+  {
+    key: "support.sponsor_wall_heading",
+    page: "support",
+    section: "support:sponsorship",
+    label: "Sponsor wall heading",
+    type: "text",
+    default: "Past sponsors",
+    description:
+      "Heads the logos of everyone your organization has publicly credited as a sponsor. The wall itself is not edited here -- it is every sponsor marked public on a published event, so it keeps itself current.",
+  },
+  {
+    key: "support.sponsor_wall_intro",
+    page: "support",
+    section: "support:sponsorship",
+    label: "Sponsor wall introduction",
+    type: "text",
+    default: "Organizations that have supported our events.",
+  },
   image(
     "donations_photo",
     "support",
