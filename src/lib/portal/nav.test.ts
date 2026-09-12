@@ -5,6 +5,7 @@ import {
   activeSectionFor,
   activeSubItemFor,
   firstAccessibleHref,
+  navSubGroups,
   visibleNavItems,
 } from "./nav";
 
@@ -179,5 +180,77 @@ describe("People section", () => {
     expect(activeSubItemFor("/portal/people/abc-123", people)).toBe(
       "directory",
     );
+  });
+});
+
+describe("navSubGroups", () => {
+  test("every section's grouped sub-items are contiguous", () => {
+    // The invariant the whole design rests on (#942). Grouping is derived by
+    // walking the list once, so a section that interleaved two groups would
+    // silently render the same heading twice rather than fail. Nothing else
+    // catches it: the type allows any order.
+    for (const item of NAV_ITEMS) {
+      if (!item.subItems) continue;
+      const labels = navSubGroups(item.subItems)
+        .map((group) => group.label)
+        .filter((label): label is string => Boolean(label));
+      expect(new Set(labels).size, `${item.value} interleaves its groups`).toBe(
+        labels.length,
+      );
+    }
+  });
+
+  test("an ungrouped section is one unlabelled group", () => {
+    const governance = NAV_ITEMS.find((item) => item.value === "governance")!;
+    const groups = navSubGroups(governance.subItems!);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].label).toBeUndefined();
+    expect(groups[0].items).toHaveLength(governance.subItems!.length);
+  });
+
+  test("groups Administration in nav order", () => {
+    const administration = NAV_ITEMS.find(
+      (item) => item.value === "administration",
+    )!;
+    expect(
+      navSubGroups(administration.subItems!).map((group) => [
+        group.label,
+        group.items.map((sub) => sub.value),
+      ]),
+    ).toEqual([
+      ["Access & identity", ["users", "roles", "permissions"]],
+      ["Organization", ["system-settings", "site-content"]],
+      ["Technology & platform", ["access-management", "platform"]],
+      ["Oversight", ["audit-log", "data-retention"]],
+    ]);
+  });
+
+  test("a group whose every item is filtered out leaves no heading", () => {
+    // site_content:view alone reaches exactly one Administration page, so the
+    // other three headings must not survive -- a heading over nothing is the
+    // failure mode this design exists to make impossible.
+    const editor: PermissionMap = { site_content: "view" };
+    const administration = visibleNavItems(editor).find(
+      (item) => item.value === "administration",
+    )!;
+    expect(
+      navSubGroups(administration.subItems!).map((group) => [
+        group.label,
+        group.items.map((sub) => sub.value),
+      ]),
+    ).toEqual([["Organization", ["site-content"]]]);
+  });
+
+  test("a group heading resolves lexicon templates like any other label", () => {
+    // Group headings are user-facing copy. None carries a template today, so
+    // this guards the wiring rather than a current string: without it, the
+    // first tenant-worded heading would print braces (#896).
+    const admin: PermissionMap = { administration: "manage" };
+    const administration = visibleNavItems(admin).find(
+      (item) => item.value === "administration",
+    )!;
+    for (const sub of administration.subItems ?? []) {
+      expect(sub.group ?? "").not.toContain("{");
+    }
   });
 });
