@@ -89,6 +89,28 @@ because that is the question it exists to answer.
   (`src/components/portal/breadcrumbs.tsx`). If it is a destination, it belongs
   in at least one of them.
 
+## Page titles
+
+`metadata.title` names **the page**, matching its `h1` — not the section it
+sits in, and not a word invented for the tab. Three pages said the section
+because `/portal/administration`, `/portal/finance` and `/portal/governance`
+are redirect stubs, but the URL a reader lands on is the child's.
+
+Where a page's name is ambiguous portal-wide, qualify it with the section
+using a middle dot, rather than coining a different name for it:
+
+| Page                   | Title                    |
+| ---------------------- | ------------------------ |
+| `administration/roles` | `Roles · Administration` |
+| `volunteers/roles`     | `Roles · Volunteers`     |
+| `finance/donations`    | `Donations · Finance`    |
+| `inventory/donations`  | `Donations · Inventory`  |
+
+Qualify only what actually collides — everything else is just its own name.
+The portal layout appends the tenant's name (`%s | <tenant>`), so a title
+never repeats it, and the middle dot keeps the qualifier from reading as a
+second level of that pipe.
+
 ## Where configuration lives
 
 > Administration holds what governs the organization as a whole — identity,
