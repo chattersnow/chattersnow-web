@@ -64,6 +64,17 @@ Issues are tracked on the `ChatterWeb` GitHub Project (owner `chattersnow`, proj
 - Right after opening the PR, review it with `/code-review --comment <PR number>` so the findings land on it as inline comments. This is the review step for this repo: the `claude-code-review.yml` workflow that used to review every PR in CI was removed, so nothing reviews a PR automatically.
 - Don't run the full `bun run test:integration` or `bun run test:e2e` suites while working a ticket — they're slow and cover far more than the ticket touches. Run targeted tests for the files/routes you changed instead; leave the full suites to CI.
 
+## Portal navigation
+
+Before adding a portal route, a tab strip, or a sidebar entry, read
+`docs/portal-navigation.md`. The rule in one line:
+
+> **Navigation for different jobs. Tabs for different views of one object. Cards for parts of one view.**
+
+Ask "is this a different job, or a different view of the same thing?" before asking how many parts there are. Three thresholds sit on top of it: a tab must carry its state in the URL (use `useUrlTabState` in `src/components/portal/use-url-tab-state.ts` — never an uncontrolled `defaultValue`); past ~10 homogeneous parts use a rail with search, as Site Content does; past ~a dozen parts spanning a lifecycle add a second level, as event detail does with its four phases. Event detail and Site Content are the reference implementations — copy them rather than inventing a third answer.
+
+Two hard rules: no tab without a URL, and no real destination that appears in no navigation surface (sidebar, command palette, or breadcrumb). On configuration, Administration holds what governs the organization as a whole — identity, org-wide settings, oversight — while configuration that only shapes one feature's vocabulary lives with that feature. The nav is never the gate: module entitlements decide visibility through `has_permission()` and `visibleNavItems()`, and `src/lib/portal/nav-guards.test.ts` must stay green.
+
 ## Architecture
 
 - **Stack**: Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4 (via `@tailwindcss/postcss`), Supabase (Postgres + Auth + Storage). The React Compiler is **disabled** (`next.config.ts` → `reactCompiler: false`); it was on at the initial commit and switched off in `faf98de` without a stated reason, and `babel-plugin-react-compiler` is still a dependency. Its lint rules apply either way — they ship with `eslint-config-next/core-web-vitals`, so `bun run lint` still fails on things like setting state directly in an effect body or reading a ref during render. Write compiler-clean components regardless.
