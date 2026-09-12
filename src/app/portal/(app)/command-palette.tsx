@@ -12,12 +12,23 @@ import { visibleNavItems } from "@/lib/portal/nav";
 import { type Lexicon } from "@/lib/lexicon";
 import { DEFAULT_VOCABULARY } from "@/lib/person-roles";
 import { searchPeopleAction } from "./command-palette-actions";
+import {
+  QuickActionDialog,
+  permittedQuickActions,
+  selfPersonFor,
+  type QuickActionKey,
+} from "./quick-actions";
+import type { EnsuredPerson } from "@/lib/auth/current-person";
 
 type PaletteItem = {
   value: string;
   label: string;
   detail: string | null;
-  href: string;
+  /** A destination. Every entry had one until the quick actions arrived. */
+  href?: string;
+  /** An action instead: selecting it opens that dialog where the reader
+   *  already is, rather than navigating anywhere (#979). */
+  actionKey?: QuickActionKey;
 };
 
 type PaletteGroup = { value: string; items: PaletteItem[] };
@@ -87,14 +98,21 @@ function matches(item: PaletteItem, query: string) {
 export function CommandPalette({
   permissions,
   lexicon = DEFAULT_VOCABULARY,
+  currentPerson,
 }: {
   permissions: PermissionMap;
   /** This tenant's words, so the palette offers a section by the name
    *  the sidebar shows it under (#896). */
   lexicon?: Lexicon;
+  /** Pre-fills the volunteer-hours form with the signed-in user, the same way
+   *  the sidebar's copy of that action does. */
+  currentPerson?: EnsuredPerson | null;
 }) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
+  const [activeAction, setActiveAction] = React.useState<QuickActionKey | null>(
+    null,
+  );
   const [query, setQuery] = React.useState("");
   const [people, setPeople] = React.useState<PaletteItem[]>([]);
   const [isSearching, startSearch] = React.useTransition();
@@ -103,6 +121,24 @@ export function CommandPalette({
   const pages = React.useMemo(
     () => pageItems(permissions, lexicon),
     [permissions, lexicon],
+  );
+  // The same six the sidebar offers, filtered by the same gates. `detail` is
+  // deliberately empty: the "Actions" group label already says what these are,
+  // and a section name there would make them match a search for the section
+  // and reorder the Pages group they sit beside.
+  const actions = React.useMemo(
+    () => permittedQuickActions(permissions),
+    [permissions],
+  );
+  const actionItems = React.useMemo<PaletteItem[]>(
+    () =>
+      actions.map((action) => ({
+        value: `action:${action.key}`,
+        label: action.label,
+        detail: null,
+        actionKey: action.key,
+      })),
+    [actions],
   );
   const requestRef = React.useRef(0);
 
@@ -146,123 +182,155 @@ export function CommandPalette({
     const matchingPages = query.trim()
       ? pages.filter((page) => matches(page, query.trim()))
       : pages;
+    const matchingActions = query.trim()
+      ? actionItems.filter((action) => matches(action, query.trim()))
+      : actionItems;
     const result: PaletteGroup[] = [];
     if (matchingPages.length > 0)
       result.push({ value: "Pages", items: matchingPages });
+    if (matchingActions.length > 0)
+      result.push({ value: "Actions", items: matchingActions });
     if (people.length > 0) result.push({ value: "People", items: people });
     return result;
-  }, [pages, people, query]);
+  }, [actionItems, pages, people, query]);
 
-  function go(href: string) {
+  function select(item: PaletteItem) {
     setOpen(false);
     setQuery("");
     setPeople([]);
-    router.push(href);
+    if (item.actionKey) {
+      setActiveAction(item.actionKey);
+      return;
+    }
+    if (item.href) router.push(item.href);
   }
 
+  const selfPerson = selfPersonFor(currentPerson);
+  const canManageVolunteers = hasPermission(
+    permissions,
+    "volunteers",
+    "manage",
+  );
+
   return (
-    <Dialog.Root
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (!next) {
-          setQuery("");
-          setPeople([]);
-        }
-      }}
-    >
-      <Dialog.Trigger
-        render={
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label="Search the portal"
-            className="size-10 rounded-full"
-          />
-        }
+    <>
+      {/* Trigger-less and closed, each of these renders nothing and loads no
+          option data -- the cost of mounting them beside the sidebar's own
+          copies is a handful of idle components. */}
+      {actions.map((action) => (
+        <QuickActionDialog
+          key={action.key}
+          action={action}
+          selfPerson={selfPerson}
+          canManageVolunteers={canManageVolunteers}
+          withTrigger={false}
+          open={activeAction === action.key}
+          onOpenChange={(next) => setActiveAction(next ? action.key : null)}
+        />
+      ))}
+      <Dialog.Root
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) {
+            setQuery("");
+            setPeople([]);
+          }
+        }}
       >
-        <Search />
-      </Dialog.Trigger>
-      <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-40 bg-black/30 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0" />
-        <Dialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center overflow-hidden px-3 pt-20 pb-3">
-          <Dialog.Popup
-            aria-label="Search the portal"
-            className="relative flex max-h-[min(32rem,calc(100dvh-6rem))] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-[var(--line)] bg-card text-card-foreground shadow-xl transition-[translate,scale,opacity] duration-150 data-ending-style:-translate-y-3 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:-translate-y-3 data-starting-style:scale-95 data-starting-style:opacity-0"
-          >
-            <Autocomplete.Root
-              open
-              items={groups}
-              value={query}
-              onValueChange={handleQueryChange}
-              filter={null}
-              autoHighlight="always"
-              keepHighlight
+        <Dialog.Trigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="Search the portal"
+              className="size-10 rounded-full"
+            />
+          }
+        >
+          <Search />
+        </Dialog.Trigger>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="fixed inset-0 z-40 bg-black/30 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0" />
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center overflow-hidden px-3 pt-20 pb-3">
+            <Dialog.Popup
+              aria-label="Search the portal"
+              className="relative flex max-h-[min(32rem,calc(100dvh-6rem))] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-[var(--line)] bg-card text-card-foreground shadow-xl transition-[translate,scale,opacity] duration-150 data-ending-style:-translate-y-3 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:-translate-y-3 data-starting-style:scale-95 data-starting-style:opacity-0"
             >
-              <Autocomplete.InputGroup className="flex cursor-text items-center gap-2 border-b border-[var(--line)] pl-3">
-                <Search className="app-muted size-4 shrink-0" aria-hidden />
-                <Autocomplete.Input
-                  aria-label="Search pages and people"
-                  placeholder={
-                    canSeePeople
-                      ? "Search pages and people..."
-                      : "Search pages..."
-                  }
-                  className="h-11 w-full border-0 bg-transparent pr-3 text-sm outline-none placeholder:text-muted-foreground"
-                />
-                {isSearching && <Spinner className="mr-3 shrink-0" />}
-              </Autocomplete.InputGroup>
-              <Dialog.Close className="sr-only">Close search</Dialog.Close>
+              <Autocomplete.Root
+                open
+                items={groups}
+                value={query}
+                onValueChange={handleQueryChange}
+                filter={null}
+                autoHighlight="always"
+                keepHighlight
+              >
+                <Autocomplete.InputGroup className="flex cursor-text items-center gap-2 border-b border-[var(--line)] pl-3">
+                  <Search className="app-muted size-4 shrink-0" aria-hidden />
+                  <Autocomplete.Input
+                    aria-label="Search pages and people"
+                    placeholder={
+                      canSeePeople
+                        ? "Search pages and people..."
+                        : "Search pages..."
+                    }
+                    className="h-11 w-full border-0 bg-transparent pr-3 text-sm outline-none placeholder:text-muted-foreground"
+                  />
+                  {isSearching && <Spinner className="mr-3 shrink-0" />}
+                </Autocomplete.InputGroup>
+                <Dialog.Close className="sr-only">Close search</Dialog.Close>
 
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-1">
-                <Autocomplete.Empty>
-                  <p className="app-muted px-3 py-6 text-sm">
-                    Nothing matches “{query}”.
-                  </p>
-                </Autocomplete.Empty>
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-1">
+                  <Autocomplete.Empty>
+                    <p className="app-muted px-3 py-6 text-sm">
+                      Nothing matches “{query}”.
+                    </p>
+                  </Autocomplete.Empty>
 
-                <Autocomplete.List>
-                  {(group: PaletteGroup) => (
-                    <Autocomplete.Group
-                      key={group.value}
-                      items={group.items}
-                      className="not-last:mb-1"
-                    >
-                      <Autocomplete.GroupLabel className="app-muted px-3 py-1.5 text-xs font-semibold tracking-[0.1em] uppercase select-none">
-                        {group.value}
-                      </Autocomplete.GroupLabel>
-                      <Autocomplete.Collection>
-                        {(item: PaletteItem) => (
-                          <Autocomplete.Item
-                            key={item.value}
-                            value={item}
-                            onClick={() => go(item.href)}
-                            // The tint alone is 1.25:1 against the popover,
-                            // so with `outline-none` a keyboard user has no
-                            // 3:1 signal of where they are (1.4.11). The inset
-                            // ring carries that; the tint stays as reinforcement.
-                            className="flex min-h-9 cursor-default items-center justify-between gap-3 px-3 text-sm outline-none select-none data-highlighted:inset-ring-2 data-highlighted:inset-ring-ring data-highlighted:bg-muted"
-                          >
-                            <span className="min-w-0 truncate">
-                              {item.label}
-                            </span>
-                            {item.detail && (
-                              <span className="app-muted shrink-0 text-xs">
-                                {item.detail}
+                  <Autocomplete.List>
+                    {(group: PaletteGroup) => (
+                      <Autocomplete.Group
+                        key={group.value}
+                        items={group.items}
+                        className="not-last:mb-1"
+                      >
+                        <Autocomplete.GroupLabel className="app-muted px-3 py-1.5 text-xs font-semibold tracking-[0.1em] uppercase select-none">
+                          {group.value}
+                        </Autocomplete.GroupLabel>
+                        <Autocomplete.Collection>
+                          {(item: PaletteItem) => (
+                            <Autocomplete.Item
+                              key={item.value}
+                              value={item}
+                              onClick={() => select(item)}
+                              // The tint alone is 1.25:1 against the popover,
+                              // so with `outline-none` a keyboard user has no
+                              // 3:1 signal of where they are (1.4.11). The inset
+                              // ring carries that; the tint stays as reinforcement.
+                              className="flex min-h-9 cursor-default items-center justify-between gap-3 px-3 text-sm outline-none select-none data-highlighted:inset-ring-2 data-highlighted:inset-ring-ring data-highlighted:bg-muted"
+                            >
+                              <span className="min-w-0 truncate">
+                                {item.label}
                               </span>
-                            )}
-                          </Autocomplete.Item>
-                        )}
-                      </Autocomplete.Collection>
-                    </Autocomplete.Group>
-                  )}
-                </Autocomplete.List>
-              </div>
-            </Autocomplete.Root>
-          </Dialog.Popup>
-        </Dialog.Viewport>
-      </Dialog.Portal>
-    </Dialog.Root>
+                              {item.detail && (
+                                <span className="app-muted shrink-0 text-xs">
+                                  {item.detail}
+                                </span>
+                              )}
+                            </Autocomplete.Item>
+                          )}
+                        </Autocomplete.Collection>
+                      </Autocomplete.Group>
+                    )}
+                  </Autocomplete.List>
+                </div>
+              </Autocomplete.Root>
+            </Dialog.Popup>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog.Root>
+    </>
   );
 }

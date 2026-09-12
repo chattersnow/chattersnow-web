@@ -34,6 +34,10 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import {
+  useControlledOpen,
+  type ControlledOpenProps,
+} from "@/components/portal/use-controlled-open";
 
 function nowLocalValue() {
   const date = new Date();
@@ -43,6 +47,9 @@ function nowLocalValue() {
 
 export function RecordDistributionModal({
   triggerLabel = "Record distribution",
+  open: controlledOpen,
+  onOpenChange,
+  withTrigger = true,
   eventId,
   showRecipientField = false,
   onSaved,
@@ -51,9 +58,9 @@ export function RecordDistributionModal({
   eventId?: string;
   showRecipientField?: boolean;
   onSaved?: () => void;
-}) {
+} & ControlledOpenProps) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useControlledOpen(controlledOpen, onOpenChange);
   const [availableItems, setAvailableItems] = useState<
     AvailableInventoryItem[]
   >([]);
@@ -127,17 +134,19 @@ export function RecordDistributionModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={
-          <Button
-            type="button"
-            variant="secondary"
-            className="shrink-0 whitespace-nowrap"
-          />
-        }
-      >
-        {triggerLabel}
-      </DialogTrigger>
+      {withTrigger ? (
+        <DialogTrigger
+          render={
+            <Button
+              type="button"
+              variant="secondary"
+              className="shrink-0 whitespace-nowrap"
+            />
+          }
+        >
+          {triggerLabel}
+        </DialogTrigger>
+      ) : null}
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Record a distribution</DialogTitle>

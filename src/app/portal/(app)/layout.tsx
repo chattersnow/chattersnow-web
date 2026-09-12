@@ -286,6 +286,10 @@ export default async function PortalAppLayout({
 
   const cookieStore = await cookies();
   const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false";
+  // Left undefined until the reader has actually toggled the quick-actions
+  // group, so SidebarQuickActions can fall back to its own rule (#979) rather
+  // than to a default that ignores how many actions the role even has.
+  const quickActionsCookie = cookieStore.get("quick_actions_state")?.value;
   // One vocabulary for the whole shell: what this organization calls what it
   // lends (#896) and what it calls the people it works with (#911). The nav
   // tree, the command palette and the breadcrumbs all hold templates and none
@@ -309,9 +313,9 @@ export default async function PortalAppLayout({
         <SidebarProvider defaultOpen={sidebarOpen}>
           {/* Before <Sidebar>, not inside <SidebarInset>. Reaching the page
               content otherwise costs 25-40 tab stops on every navigation: the
-              logo, up to 6 quick actions, 14 nav items with the open section
-              expanded, account, log out, then the whole header. It used to sit
-              inside the inset, which renders after the sidebar -- so a
+              logo, the collapsed quick-actions row, 14 nav items with the open
+              section expanded, account, log out, then the whole header. It used
+              to sit inside the inset, which renders after the sidebar -- so a
               keyboard user tabbed through everything it was meant to skip
               before they could reach it (issue #595). */}
           <SkipLink href="#portal-main" />
@@ -328,6 +332,9 @@ export default async function PortalAppLayout({
               <SidebarQuickActions
                 permissions={permissions}
                 currentPerson={currentPerson}
+                defaultOpen={
+                  quickActionsCookie ? quickActionsCookie === "true" : undefined
+                }
               />
               <PortalNav permissions={permissions} lexicon={lexicon} />
             </SidebarContent>
@@ -371,7 +378,11 @@ export default async function PortalAppLayout({
                     Hi, {displayName}
                   </Link>
                 )}
-                <CommandPalette permissions={permissions} lexicon={lexicon} />
+                <CommandPalette
+                  permissions={permissions}
+                  lexicon={lexicon}
+                  currentPerson={currentPerson}
+                />
                 <ThemeToggle className="size-10 rounded-full" />
                 <HelpButton />
                 <NotificationsMenu items={attentionItems} />

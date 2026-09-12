@@ -31,18 +31,25 @@ import {
 import { FieldGroup } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import {
+  useControlledOpen,
+  type ControlledOpenProps,
+} from "@/components/portal/use-controlled-open";
 
 export function NewDonationDialog({
   events,
   people,
   triggerLabel = "New donation",
+  open: controlledOpen,
+  onOpenChange,
+  withTrigger = true,
 }: {
   events?: EventOption[];
   people?: PersonListItem[];
   triggerLabel?: string;
-}) {
+} & ControlledOpenProps) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useControlledOpen(controlledOpen, onOpenChange);
   const [form, setForm] = useState<DonationFormState>(() =>
     emptyDonationForm(),
   );
@@ -128,13 +135,15 @@ export function NewDonationDialog({
         }}
       />
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogTrigger
-          render={
-            <Button type="button" className="shrink-0 whitespace-nowrap" />
-          }
-        >
-          {triggerLabel}
-        </DialogTrigger>
+        {withTrigger ? (
+          <DialogTrigger
+            render={
+              <Button type="button" className="shrink-0 whitespace-nowrap" />
+            }
+          >
+            {triggerLabel}
+          </DialogTrigger>
+        ) : null}
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Add donation</DialogTitle>
