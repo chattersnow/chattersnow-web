@@ -1321,6 +1321,13 @@ insert into public.site_content (key, value, published_at) values
   ('org.short_name', '"Example Nonprofit"', now()),
   ('org.tagline', '"Example Nonprofit is the sample organization the local stack and CI run against."', now()),
   ('org.image_alt', '"Example Nonprofit community members"', now()),
+  -- Not a prompt like the three above it: the security contact defaults to
+  -- blank and no /.well-known/security.txt is served until a tenant sets one
+  -- (#975). Seeded so local and CI have a tenant that publishes the file, which
+  -- is what e2e/legal.spec.ts asserts; the unset case is covered by the unit
+  -- tests, since a seeded row is exactly what it is not.
+  ('org.email_security', '"security@example.org"', now()),
+  ('org.security_note', '["Example Nonprofit is not a real organization and nobody reads this address. It is seeded so the file renders the way a configured tenant''s does."]', now()),
   ('home.heading', '"A sample organization for local development"', now()),
   ('home.intro', '"Everything on this site is seed data. Example Nonprofit exists so the local stack and CI have a realistic tenant to render, without borrowing a real organization''s words."', now()),
   ('about_story.intro', '["Example Nonprofit is not a real organization. It is the tenant a fresh database bootstraps as, so that every public page has something to show before anyone has written a word.","Any copy you see here comes from supabase/seed.sql. Editing it in Administration > Site Content writes a row exactly as it would for a real tenant."]', now()),

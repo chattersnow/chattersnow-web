@@ -182,6 +182,14 @@ export const CONTENT_SECTIONS: readonly ContentSection[] = [
     description: "The addresses and handles published in the footer.",
     route: "/contact",
   },
+  {
+    key: "org:security",
+    page: "org",
+    label: "Security reporting",
+    description:
+      "Where a security researcher should send a report. Published at /.well-known/security.txt, the path scanners and researchers look for. Leave the address blank and no file is served -- better than pointing a reporter somewhere nobody reads.",
+    route: "/.well-known/security.txt",
+  },
 
   { key: "home:hero", page: "home", label: "Hero" },
   {
@@ -622,6 +630,35 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "Footer contact heading",
     type: "text",
     default: "Get in touch",
+  },
+  {
+    key: "org.email_security",
+    page: "org",
+    section: "org:security",
+    label: "Security contact",
+    description:
+      "An email address, or an https:// link to a reporting form. Blank means no security.txt is published at all.",
+    type: "text",
+    // Blank, unlike the three addresses above, and the difference is the
+    // point (#975): an unwritten `privacy@example.org` is a placeholder on a
+    // page someone is reading, while an unwritten security contact is a
+    // machine-readable promise that reports sent there are received. Nothing
+    // is published until an organization nominates somebody.
+    default: "",
+  },
+  {
+    key: "org.security_note",
+    page: "org",
+    section: "org:security",
+    label: "Note to researchers",
+    description:
+      "What a reporter should know before they write: who answers, how long a reply takes, whether there is a bounty. Rendered as the comment block above the machine-readable fields.",
+    type: "paragraphs",
+    // Also blank. The platform adds its own paragraphs about the portal's data
+    // and about not rummaging in it, which are true whoever the tenant is; a
+    // default here would be the platform guessing at how an organization it
+    // has never met handles reports.
+    default: [],
   },
 
   // Home ----------------------------------------------------------------------
