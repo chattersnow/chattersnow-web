@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import * as PeopleActions from "../../people/actions";
 import * as VolunteersActions from "../volunteers-actions";
 import * as ShiftsActions from "../shifts-actions";
@@ -191,6 +191,24 @@ const ALL_PHASES = eventPhases(
   ),
 );
 
+/** The phase strip, which since #958 is one of two tablists on the page. */
+function phaseTabs() {
+  return within(screen.getByRole("tablist", { name: "Event phases" }));
+}
+
+/** The card strip inside the phase on screen. */
+function cardTabs() {
+  return within(screen.getByRole("tablist", { name: /cards$/ }));
+}
+
+/** The card on screen, addressed by its own title. */
+function cardTitled(title: string) {
+  const heading = screen
+    .getAllByText(title)
+    .find((node) => node.dataset.slot === "card-title");
+  return heading?.closest("[data-slot=card]") ?? null;
+}
+
 describe("EventDetailView", () => {
   test("shows one phase tab bar: Overview, Planning, During, After", () => {
     render(
@@ -203,15 +221,19 @@ describe("EventDetailView", () => {
       />,
     );
 
-    expect(screen.getAllByRole("tab")).toHaveLength(4);
+    expect(phaseTabs().getAllByRole("tab")).toHaveLength(4);
     for (const label of [/Overview/, /Planning/, /During/, /After/]) {
-      expect(screen.getByRole("tab", { name: label })).toBeInTheDocument();
+      expect(phaseTabs().getByRole("tab", { name: label })).toBeInTheDocument();
     }
     expect(
       screen.getByRole("heading", { name: "Winter Gear Swap" }),
     ).toBeInTheDocument();
-    // Overview is the default tab; its card is visible, other phases aren't.
-    expect(screen.getByText("Event details")).toBeInTheDocument();
+    // Overview is the default phase and Event details the card it opens on
+    // (#958); the phase's other card is offered but not rendered, and no
+    // other phase's is either.
+    expect(cardTitled("Event details")).not.toBeNull();
+    expect(cardTabs().getByRole("tab", { name: "Checklist" })).toBeVisible();
+    expect(cardTitled("Checklist")).toBeNull();
     expect(
       screen.queryByText("Registration & planning"),
     ).not.toBeInTheDocument();
@@ -228,12 +250,20 @@ describe("EventDetailView", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("tab", { name: /Planning/ }));
+    fireEvent.click(phaseTabs().getByRole("tab", { name: /Planning/ }));
 
-    expect(screen.getByText("Registration & planning")).toBeInTheDocument();
-    expect(screen.getByText("Logistics")).toBeInTheDocument();
-    expect(screen.getByText("Volunteers")).toBeInTheDocument();
-    expect(screen.getByText("Sponsors")).toBeInTheDocument();
+    // The phase offers its five cards and opens on the first of them.
+    for (const label of [
+      "Registration & planning",
+      "Logistics",
+      "Volunteers",
+      "Staff",
+      "Sponsors",
+    ]) {
+      expect(cardTabs().getByRole("tab", { name: label })).toBeVisible();
+    }
+    expect(cardTitled("Registration & planning")).not.toBeNull();
+    expect(cardTitled("Logistics")).toBeNull();
     expect(screen.queryByText("Event details")).not.toBeInTheDocument();
   });
 
@@ -255,7 +285,7 @@ describe("EventDetailView", () => {
       screen.queryByRole("button", { name: "Edit" }),
     ).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("tab", { name: /Planning/ }));
+    fireEvent.click(phaseTabs().getByRole("tab", { name: /Planning/ }));
     expect(
       screen.getByRole("button", { name: "Edit registration & planning" }),
     ).toBeInTheDocument();
@@ -272,7 +302,8 @@ describe("EventDetailView", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("tab", { name: /Planning/ }));
+    fireEvent.click(phaseTabs().getByRole("tab", { name: /Planning/ }));
+    fireEvent.click(cardTabs().getByRole("tab", { name: "Volunteers" }));
 
     // The actions used to be merged into one row beside the phase tabs, which
     // left the operator scrolling back up past three cards to reach them.
@@ -284,7 +315,9 @@ describe("EventDetailView", () => {
     expect(card).toHaveTextContent("Volunteers");
     expect(card).not.toHaveTextContent("Sponsors");
 
-    const strip = screen.getByRole("tablist").parentElement;
+    const strip = screen.getByRole("tablist", {
+      name: "Event phases",
+    }).parentElement;
     expect(strip?.querySelectorAll("button:not([role=tab])")).toHaveLength(0);
   });
 
@@ -299,7 +332,8 @@ describe("EventDetailView", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("tab", { name: /Planning/ }));
+    fireEvent.click(phaseTabs().getByRole("tab", { name: /Planning/ }));
+    fireEvent.click(cardTabs().getByRole("tab", { name: "Volunteers" }));
 
     expect(
       screen.queryByRole("button", { name: "+ Add volunteer" }),
@@ -350,7 +384,10 @@ describe("EventDetailView", () => {
       />,
     );
 
-    expect(screen.getByText("Registrants")).toBeInTheDocument();
+    // ?tab= names a card, so since #958 it picks the card as well as the
+    // phase holding it -- Registrants is the second card on During.
+    expect(cardTitled("Registrants")).not.toBeNull();
+    expect(cardTitled("Attendance")).toBeNull();
     expect(screen.queryByText("Event details")).not.toBeInTheDocument();
   });
 
