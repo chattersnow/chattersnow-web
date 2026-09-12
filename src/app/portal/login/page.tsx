@@ -19,8 +19,12 @@ export const metadata: Metadata = {
 export default async function PortalLoginPage() {
   // Which organization's public site to offer, if any. `unresolved` and
   // `unavailable` both mean there is nothing to name, and the link is dropped
-  // rather than guessed at -- the portal itself is unaffected either way,
-  // because sign-in never consults the host.
+  // rather than guessed at.
+  //
+  // Sign-in itself still never consults the host: there is no server action
+  // here, just GoTrue in the browser, and an account is platform-wide anyway.
+  // The host rule from #956 is enforced one screen later, by the portal shell,
+  // which is the first thing that would render another organization's data.
   const supabase = await createSupabaseServerClient();
   const [tenantResult, branding, requestHost] = await Promise.all([
     getPublicTenant(supabase),

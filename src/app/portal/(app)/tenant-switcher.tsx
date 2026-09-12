@@ -40,18 +40,29 @@ export function TenantSwitcher({
   tenants,
   currentTenantId,
   logoUrl = null,
+  hostPinned = false,
 }: {
   tenants: Tenant[];
   currentTenantId: string | null;
   logoUrl?: string | null;
+  /**
+   * Whether the request host has already decided the tenant (#956). A menu
+   * whose every other entry the next request would override is worse than no
+   * menu: switching would appear to work and then silently undo itself.
+   */
+  hostPinned?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
 
   // One membership, or none because the read failed -- the layout intercepts a
   // genuinely tenant-less account before this renders, so an empty list here
-  // means the shell is running degraded and still needs its home link.
-  if (tenants.length <= 1) {
-    const name = tenants[0]?.name;
+  // means the shell is running degraded and still needs its home link. A
+  // host-pinned session takes the same branch for the reason above, naming the
+  // tenant it is actually scoped to rather than whichever sorted first.
+  if (hostPinned || tenants.length <= 1) {
+    const name = hostPinned
+      ? tenants.find((tenant) => tenant.id === currentTenantId)?.name
+      : tenants[0]?.name;
     return (
       <Link
         href="/portal/home"

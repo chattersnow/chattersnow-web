@@ -43,6 +43,7 @@ import { getContentWorkSummary } from "./home/queries";
 import { ensureCurrentPerson } from "@/lib/auth/current-person";
 import {
   currentTenant,
+  decideHostTenant,
   getTenantContext,
   isDemoTenant,
 } from "@/lib/portal/tenants";
@@ -59,6 +60,7 @@ import { NoTenant } from "./no-tenant";
 import { NotificationsMenu } from "./notifications-menu";
 import { PortalNav } from "./portal-nav";
 import { TenantSwitcher } from "./tenant-switcher";
+import { WrongOrganization } from "./wrong-organization";
 import { SidebarQuickActions } from "./sidebar-quick-actions";
 import { CURRENT_RELEASE, RELEASE_NOTES } from "./welcome/releases";
 import { WelcomeDialog } from "./welcome/welcome-dialog";
@@ -102,7 +104,45 @@ export default async function PortalAppLayout({
   if (tenantContext.resolved && tenantContext.tenants.length === 0) {
     return <NoTenant />;
   }
+
+  // One host, one tenant (#956). Ordering is load-bearing in both directions:
+  // NoTenant above explains "member of nothing" better than this can, and
+  // ChooseTenant below would loop forever on a host whose tenant the account
+  // is not in -- see decideHostTenant's own comment.
+  const hostDecision = decideHostTenant(tenantContext);
+  if (hostDecision.kind === "refuse") {
+    return (
+      <WrongOrganization
+        hostTenantName={hostDecision.hostTenant.name}
+        tenants={tenantContext.tenants}
+      />
+    );
+  }
+  if (hostDecision.kind === "align") {
+    // The selection, not the host, is what current_tenant_id() answers from --
+    // and it is what storage.objects' policies answer from too, which is why
+    // the host is applied by writing it here rather than by teaching
+    // current_tenant_id() to read the request header. PostgREST would follow
+    // the header and storage-api, which never sees it, would not; a session
+    // has to have one tenant, not two.
+    const { error } = await supabase.rpc("set_current_tenant", {
+      p_tenant_id: hostDecision.hostTenant.id,
+    });
+    // Only redirect on success. A failed write with a redirect is an infinite
+    // loop, and this account is a member either way -- serving them the
+    // portal they already had beats bouncing them forever over a blip.
+    if (!error) {
+      // Re-enter rather than re-read: a layout and the page beneath it render
+      // in parallel, so the page's own queries can be in flight before the
+      // write above lands. Only a fresh request guarantees the whole tree is
+      // scoped to the tenant this host is for.
+      const requestHeaders = await headers();
+      redirect(safePortalDestination(requestHeaders.get(PORTAL_PATH_HEADER)));
+    }
+  }
+
   if (
+    hostDecision.kind === "unenforced" &&
     tenantContext.resolved &&
     tenantContext.tenants.length > 1 &&
     tenantContext.currentTenantId === null
@@ -277,6 +317,7 @@ export default async function PortalAppLayout({
                 tenants={tenantContext.tenants}
                 currentTenantId={tenantContext.currentTenantId}
                 logoUrl={branding.logoUrl}
+                hostPinned={hostDecision.kind !== "unenforced"}
               />
             </SidebarHeader>
             <SidebarContent>

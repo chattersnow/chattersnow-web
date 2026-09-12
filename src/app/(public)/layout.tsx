@@ -92,9 +92,10 @@ export default async function PublicLayout({
   // 404ing a database blip would take every tenant's site down at once, which
   // is far worse than the thing this guard prevents.
   //
-  // The portal is deliberately unaffected -- `current_tenant_id()` is
-  // membership-based and never consults the host, which is what lets
-  // portal.<anything> work before its domain is configured.
+  // The portal does not 404 with the site. An unresolved host is exactly the
+  // state a tenant is in before its domain is configured, and #956 leaves the
+  // portal's host rule inert there for that reason: the operator still has to
+  // be able to sign in and finish setting the tenant up.
   if (site.status === "unresolved") {
     notFound();
   }

@@ -11,7 +11,7 @@ const DEMO: PublicTenantResult = {
     id: "t-demo",
     name: "Demo Nonprofit",
     slug: "demo",
-    custom_domain: "demo.chattersnow.org",
+    custom_domain: "demo.rickiecruz.com",
     plan: "demo",
   },
 };
