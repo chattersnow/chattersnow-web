@@ -76,16 +76,17 @@ because that is the question it exists to answer.
 
 ## What the rule decides
 
-| Surface             | Parts                                 | Answer                                 |
-| ------------------- | ------------------------------------- | -------------------------------------- |
-| Event detail        | 19 cards over 4 phases                | phase tabs, then card tabs — the model |
-| Site Content        | 15 pages, 121 slots                   | left rail + search — the model         |
-| System Settings     | 8 configuration panels                | tabs, via `useUrlTabState`             |
-| Roles + Permissions | 2 views of one role                   | one entry, two tabs                    |
-| Governance          | 10 distinct jobs                      | sidebar entries, grouped               |
-| Finance → Sales     | Sales, Register, Products             | Register and Products nest under Sales |
-| People segments     | 7 views of one directory              | segments of one page                   |
-| Users page          | table, pending access, support access | stacked cards                          |
+| Surface               | Parts                                 | Answer                                 |
+| --------------------- | ------------------------------------- | -------------------------------------- |
+| Event detail          | 19 cards over 4 phases                | phase tabs, then card tabs — the model |
+| Site Content          | 15 pages, 121 slots                   | left rail + search — the model         |
+| Organization Settings | 5 configuration panels                | tabs, via `useUrlTabState`             |
+| Website site settings | Layout, visibility, legal documents   | sidebar entries, grouped               |
+| Roles + Permissions   | 2 views of one role                   | one entry, two tabs                    |
+| Governance            | 10 distinct jobs                      | sidebar entries, grouped               |
+| Finance → Sales       | Sales, Register, Products             | Register and Products nest under Sales |
+| People segments       | 7 views of one directory              | segments of one page                   |
+| Users page            | table, pending access, support access | stacked cards                          |
 
 ## Two things the rule forbids
 
@@ -125,10 +126,30 @@ second level of that pipe.
 > feature's vocabulary lives with that feature.
 
 So `calendar/categories`, `inventory/categories`, `volunteers/roles` and
-`finance/sales/products` stay with their features, while fiscal year, lexicon,
-branding and legal publication stay in Administration. When a setting could
-plausibly go either way, ask whether a reader who never opens that feature would
-still need it.
+`finance/sales/products` stay with their features, while fiscal year, lexicon
+and branding stay in Administration. When a setting could plausibly go either
+way, ask whether a reader who never opens that feature would still need it.
+
+**The public website is a feature in this sense** (#990). Layout, Page
+visibility and Legal documents were System Settings tabs until the website got
+a section of its own in #944; they configure one feature, and they now live in
+it. Branding did not move: `getTenantBranding` is read by the portal's own
+layouts, so it is what the organization looks like everywhere rather than what
+its website looks like.
+
+That move is also the worked example of the audience question the rule does not
+by itself answer. Page visibility is a board control — the board holds
+`system_settings:manage` and no `site_content` at all — so filing it under
+Website would have taken it away from the people who use it. The answer was to
+widen the section's gate to `site_content:view` **or** `system_settings:manage`,
+and to gate each moved route on the resource its writes actually require, rather
+than to grant the board the whole CMS. **When a setting moves, the gate to check
+is the server action's, not the section's.**
+
+What was left of System Settings after that was five panels, none of them about
+"the system", so #992 renamed the page **Organization Settings** and its first
+tab **General**. The `system_settings` resource key did not change: it is an
+identifier in `role_permissions` rows in every environment, not a label.
 
 Per-user preferences are not configuration in this sense: they live at
 `/portal/account`, which every signed-in user can reach. Where an org-wide
@@ -155,4 +176,6 @@ each surface should name the other.
 - `docs/portal-ux-audit.md` — the 2026-09-02 audit (task flow, a11y, performance)
 - Planning repo: `decisions/2026-09-12-portal-information-architecture-audit.md`,
   `decisions/2026-09-12-administration-section-ia.md`,
-  `decisions/2026-09-12-portal-top-level-navigation.md`
+  `decisions/2026-09-12-portal-top-level-navigation.md`,
+  `decisions/2026-09-12-governance-finance-ia.md`,
+  `decisions/2026-09-12-system-settings-and-website-boundary.md`

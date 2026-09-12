@@ -118,10 +118,10 @@ export default async function AccountPage() {
                     {" "}
                     Which emails this organization sends at all is set in{" "}
                     <Link
-                      href="/portal/administration/system-settings?tab=notifications"
+                      href="/portal/administration/organization-settings?tab=notifications"
                       className="underline underline-offset-4"
                     >
-                      System Settings &rarr; Notifications
+                      Organization Settings &rarr; Notifications
                     </Link>
                     , and that switch overrides every choice below.
                   </>

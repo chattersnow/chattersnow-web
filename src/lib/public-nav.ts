@@ -33,7 +33,7 @@ export type NavGroup = {
   href: string;
   /**
    * Ties the group to an entry in PUBLIC_PAGE_SLOTS, so a section the board has
-   * hidden from Administration > System Settings drops out of the nav and the
+   * hidden from Website > Page visibility drops out of the nav and the
    * footer together. A group with no slot is always shown.
    */
   slot?: string;

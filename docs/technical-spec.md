@@ -145,7 +145,7 @@ Public routes must not expose donor contact details, private event data, interna
 
 **What's next:** Replace the monetary-donations placeholder with a real giving path. Write real team bios and an explicit values section.
 
-`/programs` is reachable from the nav (the claim that its entry is commented out predates `src/lib/public-nav.ts`), and since issue #898 a tenant chooses where its cards come from: **Site Content** (the default, and what every tenant that has said nothing keeps) or the **Programs module**, set in Administration › System Settings › Layout as `layout.programs_source`. See [§5.14](spec/programs.md#514-program-management).
+`/programs` is reachable from the nav (the claim that its entry is commented out predates `src/lib/public-nav.ts`), and since issue #898 a tenant chooses where its cards come from: **Site Content** (the default, and what every tenant that has said nothing keeps) or the **Programs module**, set in Website › Layout as `layout.programs_source`. See [§5.14](spec/programs.md#514-program-management).
 
 ### Operations portal
 
@@ -303,7 +303,7 @@ src/app/
       volunteers/                # roles (role types) + participation (hours logging) + applications (public intake queue, issue #173) — implemented (issues #49/#50/#173)
       communications/            # contact-form message queue — implemented (issue #173)
       calendar/                 # content & community calendar (§5.20) — implemented, incl. program-suggestions/, templates/, work-queue/, reports/ (annual planning review, issue #111)
-      administration/           # users (incl. invite links, deactivation), roles, permissions, audit-log — implemented; system-settings — implemented (app_settings)
+      administration/           # users (incl. invite links, deactivation), roles, permissions, audit-log — implemented; organization-settings — implemented (app_settings; System Settings until #992)
 ```
 
 The exact route structure may evolve, but authenticated portal layouts must verify the session and authorization before rendering protected data. Use server components for read-heavy pages where practical and keep service-role operations server-only.

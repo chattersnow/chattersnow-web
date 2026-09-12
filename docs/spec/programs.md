@@ -19,7 +19,7 @@ Each event may optionally be tagged to any number of programs (`event_programs`,
 
 **Implemented — events-on-a-program list** (issue #62): a program's detail view lists every event tagged to it (name, status, visibility). This is a smaller, more basic view than the full season/program impact rollup in §5.15 (issue #48), which aggregates participation/financial/hours metrics rather than simply listing member events.
 
-**Implemented — the public page can read this table** (issue #898, closing what issue #46 asked for): `/programs` (moved from `/about/programs` in the public-site nav restructure — see [§4](../technical-spec.md#4-system-boundaries)) has one setting behind it, `layout.programs_source`, offered in Administration › System Settings › Layout and resolved through `src/lib/site-layout.ts`.
+**Implemented — the public page can read this table** (issue #898, closing what issue #46 asked for): `/programs` (moved from `/about/programs` in the public-site nav restructure — see [§4](../technical-spec.md#4-system-boundaries)) has one setting behind it, `layout.programs_source`, offered in Website › Layout and resolved through `src/lib/site-layout.ts`.
 
 - **Site Content** (the default): the cards are the `programs.items` copy, exactly as before. A tenant that never touches the setting sees no change, which is why the default is load-bearing rather than cosmetic.
 - **Programs module**: the cards are this tenant's own `programs` rows, read as `anon` through the `public_programs` definer view ([§6](../technical-spec.md#6-proposed-data-model)). Only rows a person marked `is_public` appear — the flag defaults to `false`, so switching the source can never publish a program nobody reviewed (issue #360) — ordered by `sort_order` nulls last then name.

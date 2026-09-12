@@ -1,6 +1,12 @@
-// Issue #584: the board hides a whole public section from Administration >
-// System Settings. Hiding it must remove it from the nav *and* make its URLs
+// Issue #584: the board hides a whole public section from Website > Page
+// visibility. Hiding it must remove it from the nav *and* make its URLs
 // unreachable -- a link the nav no longer renders is still a live page.
+//
+// The panel was an Administration > System Settings tab until #990 moved it to
+// the section it governs. The board reaches it there because
+// website/layout.tsx admits system_settings:manage as well as
+// site_content:view -- which is what this file's last test now proves end to
+// end, since board holds no site_content at all.
 import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
@@ -113,8 +119,7 @@ test.describe("board-controlled page visibility", () => {
     await setVisibility(true);
     await signIn(page, { email: "board@example.test" });
 
-    await page.goto("/portal/administration/system-settings");
-    await page.getByRole("tab", { name: "Page visibility" }).click();
+    await page.goto("/portal/website/page-visibility");
 
     const supportSwitch = page.getByRole("switch", { name: "Support" });
     await expect(supportSwitch).toBeChecked();

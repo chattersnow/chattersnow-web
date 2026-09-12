@@ -103,7 +103,7 @@ function ThresholdCard({
   );
 }
 
-export function SystemSettingsForm({
+export function WorkflowThresholdsForm({
   expenseApprovalThreshold,
   reimbursementApprovalThreshold,
 }: {

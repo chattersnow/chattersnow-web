@@ -443,6 +443,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
         value: "pages",
         label: "Pages",
         href: "/portal/website",
+        group: "Content",
         access: [{ resource: "site_content", level: "view" }],
       },
       // Both of these were reachable only from a link inside their parent --
@@ -452,6 +453,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
         value: "articles",
         label: "Articles",
         href: "/portal/website/articles",
+        group: "Content",
         access: [{ resource: "site_content", level: "view" }],
       },
       // Operator-only, and it takes both checks to say so. `access` is the
@@ -466,8 +468,43 @@ export const NAV_ITEMS: readonly NavItem[] = [
         value: "content-packs",
         label: "Content Packs",
         href: "/portal/website/articles/packs",
+        group: "Content",
         access: [{ resource: "site_content", level: "view" }],
         alsoRequires: [{ resource: "platform_tenants", level: "manage" }],
+      },
+      // The three settings panels #990 moved out of System Settings, grouped
+      // because they are a different job from writing the copy above -- and
+      // because they are what a different reader comes here for. `board` holds
+      // system_settings:manage and no site_content at all, so this group is
+      // the whole of the Website section as they see it, with no "Content"
+      // heading over anything (navGroups drops a heading whose every item is
+      // filtered out).
+      //
+      // system_settings:manage rather than site_content:view: that is the
+      // resource `writeAppSetting` checks, and a link shown to a reader whose
+      // every save would fail is the dead end nav-guards.test.ts exists to
+      // catch. The section gate above is a union of the two so that both
+      // audiences get in.
+      {
+        value: "page-layout",
+        label: "Layout",
+        href: "/portal/website/page-layout",
+        group: "Site settings",
+        access: [{ resource: "system_settings", level: "manage" }],
+      },
+      {
+        value: "page-visibility",
+        label: "Page visibility",
+        href: "/portal/website/page-visibility",
+        group: "Site settings",
+        access: [{ resource: "system_settings", level: "manage" }],
+      },
+      {
+        value: "legal-documents",
+        label: "Legal documents",
+        href: "/portal/website/legal-documents",
+        group: "Site settings",
+        access: [{ resource: "system_settings", level: "manage" }],
       },
     ],
   },
@@ -634,9 +671,15 @@ export const NAV_ITEMS: readonly NavItem[] = [
         access: [{ resource: "administration", level: "manage" }],
       },
       {
-        value: "system-settings",
-        label: "System Settings",
-        href: "/portal/administration/system-settings",
+        // Renamed from System Settings by #992: nothing on the page was about
+        // "the system", and once #990 took Layout, Page visibility and Legal
+        // documents to Website, the five that remain are all org-wide
+        // defaults and identity. The resource key stays `system_settings` --
+        // it is an identifier in role_permissions rows in every environment,
+        // not a label.
+        value: "organization-settings",
+        label: "Organization Settings",
+        href: "/portal/administration/organization-settings",
         group: "Organization",
         access: [
           { resource: "administration", level: "manage" },

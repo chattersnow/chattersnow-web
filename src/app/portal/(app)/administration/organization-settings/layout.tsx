@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAnyPermission } from "@/lib/auth/permissions";
 
-export default async function AdministrationSystemSettingsLayout({
+export default async function AdministrationOrganizationSettingsLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -13,7 +13,7 @@ export default async function AdministrationSystemSettingsLayout({
       { resource: "administration", level: "manage" },
       { resource: "system_settings", level: "manage" },
     ],
-    "System Settings",
+    "Organization Settings",
   );
   return children;
 }

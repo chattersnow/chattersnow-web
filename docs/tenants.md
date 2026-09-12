@@ -304,11 +304,11 @@ it again when they finish.
 
 Both are the tenant admin's, not the operator's:
 
-- **Administration → System Settings → Branding**: the colour tokens, the
+- **Administration → Organization Settings → Branding**: the colour tokens, the
   accent gradient and the logo, stored as `brand.*` rows in `app_settings`
   and applied as a `<style>` over `globals.css` (`src/lib/branding.ts`). Blank
   means the platform default, which is Chatter Snow's palette.
-- **Administration → System Settings → Organization**: the words this
+- **Administration → Organization Settings → General**: the words this
   organization uses for what it lends (#896). The platform says "Inventory"
   and "Items"; an organization that runs a gear library, a tool library or a
   pantry says so here, and the public navigation, the portal sidebar, the
@@ -335,7 +335,7 @@ Both are the tenant admin's, not the operator's:
   three documents are its tenant's rows
   (`20260909020000_chatter_snow_owns_its_legal_documents.sql`). Whether each of the
   three is served is a separate per-tenant decision, in **Administration →
-  System Settings → Legal documents** (#859): the terms and the code of conduct
+  Website → Legal documents** (#859): the terms and the code of conduct
   404 and stay out of the footer until that organization puts them in force,
   and the privacy policy is always served because the public forms are always
   collecting. It is one `app_settings` row per document
@@ -478,7 +478,7 @@ drops its roles and membership here and touches nothing else
 
 ## Export
 
-A tenant's admin downloads everything from Administration → System Settings
+A tenant's admin downloads everything from Administration → Organization Settings
 → Data (`export_current_tenant_data()`); the operator can do it for any
 tenant:
 
@@ -628,7 +628,7 @@ the section stays the board's.
 About, Learn and Brand have no module at all: they are the organization's own
 pages whatever it is paying for.
 
-In Administration → System Settings → Page visibility, a slot whose module is
+In Website → Page visibility, a slot whose module is
 off renders read-only and off, saying the section is not part of this
 organization's plan. Site Content marks the same pages unpublishable, from the
 same read.

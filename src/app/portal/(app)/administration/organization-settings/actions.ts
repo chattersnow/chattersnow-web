@@ -3,17 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkPermission } from "@/lib/auth/permissions";
-import { pageVisibilitySettingKey } from "@/lib/page-visibility";
 import {
-  legalDocument,
-  legalPublicationSettingKey,
-} from "@/lib/legal-documents";
-import {
-  LAYOUT_SLOTS,
-  isLayoutValue,
-  layoutSettingKey,
-  type LayoutValue,
-} from "@/lib/site-layout";
+  writeAppSetting,
+  type SettingActionResult,
+} from "@/lib/settings/write-app-setting";
 import {
   BRAND_COLOR_TOKENS,
   MAX_ACCENT_STOPS,
@@ -48,30 +41,25 @@ import {
 } from "@/lib/email/identity";
 import { currentTenant, getTenantContext } from "@/lib/portal/tenants";
 
-export type SettingActionResult = { error: string } | { success: true };
+export type { SettingActionResult };
 
-/** Generic upsert, reusable for any future app_settings key without a new migration. */
+/** This page's route, revalidated by every action below. Renamed by #992. */
+const SETTINGS_PATH = "/portal/administration/organization-settings";
+
+/**
+ * Generic upsert, reusable for any future app_settings key without a new
+ * migration.
+ *
+ * The check and the write moved to `writeAppSetting` when #990 split these
+ * actions across two sections -- Layout, Page visibility and Legal documents
+ * went to Website and took their actions with them, and one rule for who may
+ * write an `app_settings` row should not exist in two files.
+ */
 export async function updateAppSettingAction(
   key: string,
   value: unknown,
 ): Promise<SettingActionResult> {
-  const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(
-    supabase,
-    "system_settings",
-    "manage",
-  );
-  if (permissionError) return permissionError;
-
-  const { error } = await supabase
-    .from("app_settings")
-    .upsert({ key, value }, { onConflict: "tenant_id,key" });
-  if (error) {
-    return { error: "Could not save this setting. Please try again." };
-  }
-
-  revalidatePath("/portal/administration/system-settings");
-  return { success: true };
+  return writeAppSetting(key, value, [SETTINGS_PATH]);
 }
 
 export async function updateExpenseApprovalThresholdAction(
@@ -124,64 +112,6 @@ export async function updateFiscalYearStartMonthAction(
  * audit-logged by the app_settings trigger, which is what makes the toggle
  * usable as a record of the board's approval.
  */
-export async function updatePageVisibilityAction(
-  slot: string,
-  visible: boolean,
-): Promise<SettingActionResult> {
-  return updateAppSettingAction(pageVisibilitySettingKey(slot), visible);
-}
-
-/**
- * Puts a legal document in force on the public site, or takes it back out
- * (#859).
- *
- * Not the same decision as page visibility, and deliberately a different
- * action: a hidden section is content held back, while a document in force is
- * an organization saying "this text is ours and it governs using our site".
- * The privacy policy is refused outright rather than silently ignored -- it is
- * served for every tenant, always, and a call asking to take it down is a bug
- * worth hearing about rather than a no-op to swallow.
- *
- * Like every setting here, the write is audit-logged by the app_settings
- * trigger, which is what makes it usable as the record of the decision.
- */
-export async function updateLegalPublicationAction(
-  key: string,
-  inForce: boolean,
-): Promise<SettingActionResult> {
-  const document = legalDocument(key);
-  if (!document) return { error: "That is not a legal document." };
-  if (document.alwaysInForce) {
-    return { error: `The ${document.label.toLowerCase()} is always served.` };
-  }
-
-  return updateAppSettingAction(
-    legalPublicationSettingKey(document.key),
-    inForce,
-  );
-}
-
-/**
- * How much of a section the public site shows (#846). Validated against the
- * slot's own options rather than trusted from the client: this is a Server
- * Action, so the argument is whatever the caller sent, and a value nobody
- * offered would reach the home page as a layout nobody designed.
- *
- * Like every other setting here, the write is audit-logged by the app_settings
- * trigger.
- */
-export async function updateLayoutSettingAction(
-  slot: string,
-  value: LayoutValue,
-): Promise<SettingActionResult> {
-  const registered = LAYOUT_SLOTS.find((candidate) => candidate.key === slot);
-  if (!registered || !isLayoutValue(registered, value)) {
-    return { error: "That isn't one of the options for this setting." };
-  }
-
-  return updateAppSettingAction(layoutSettingKey(slot), value);
-}
-
 /**
  * The organization's outbound email kill switch (#488). Off means this tenant
  * sends nothing at all -- not the daily task digest, not anything a later
@@ -315,7 +245,7 @@ export async function updateSenderIdentityAction(
     return { error: "Could not save these settings. Please try again." };
   }
 
-  revalidatePath("/portal/administration/system-settings");
+  revalidatePath(SETTINGS_PATH);
   return { success: true };
 }
 
@@ -384,7 +314,7 @@ export async function updateBrandingAction(
     return { error: "Could not save the branding. Please try again." };
   }
 
-  revalidatePath("/portal/administration/system-settings");
+  revalidatePath(SETTINGS_PATH);
   revalidatePath("/", "layout");
   return { success: true };
 }
@@ -432,7 +362,7 @@ export async function updateLexiconAction(
     return { error: "Could not save these words. Please try again." };
   }
 
-  revalidatePath("/portal/administration/system-settings");
+  revalidatePath(SETTINGS_PATH);
   // Every portal page: the sidebar and the breadcrumbs read these, and they
   // are rendered by the layout rather than by any one route.
   revalidatePath("/portal", "layout");
@@ -488,7 +418,7 @@ export async function updatePersonRoleLabelsAction(
     return { error: "Could not save these words. Please try again." };
   }
 
-  revalidatePath("/portal/administration/system-settings");
+  revalidatePath(SETTINGS_PATH);
   // Every portal page: the sidebar, the breadcrumbs and the command palette
   // read these, and the layout renders all three.
   revalidatePath("/portal", "layout");
