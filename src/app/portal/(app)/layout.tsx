@@ -47,7 +47,7 @@ import {
   isDemoTenant,
 } from "@/lib/portal/tenants";
 import { getTenantBranding } from "@/lib/tenant-branding";
-import { getTenantLexicon } from "@/lib/tenant-lexicon";
+import { getPortalVocabulary } from "@/lib/tenant-person-roles";
 import { LexiconProvider } from "@/components/lexicon-context";
 import { ensureMyOnboarding } from "@/lib/portal/onboarding";
 import { personDisplayName } from "@/lib/format";
@@ -246,9 +246,13 @@ export default async function PortalAppLayout({
 
   const cookieStore = await cookies();
   const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false";
+  // One vocabulary for the whole shell: what this organization calls what it
+  // lends (#896) and what it calls the people it works with (#911). The nav
+  // tree, the command palette and the breadcrumbs all hold templates and none
+  // of them should have to know which setting a word came from.
   const [branding, lexicon] = await Promise.all([
     getTenantBranding(supabase),
-    getTenantLexicon(supabase),
+    getPortalVocabulary(supabase),
   ]);
 
   return (

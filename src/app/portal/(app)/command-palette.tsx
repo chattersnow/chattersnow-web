@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { hasPermission, type PermissionMap } from "@/lib/auth/permissions";
 import { visibleNavItems } from "@/lib/portal/nav";
-import { DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
+import { type Lexicon } from "@/lib/lexicon";
+import { DEFAULT_VOCABULARY } from "@/lib/person-roles";
 import { searchPeopleAction } from "./command-palette-actions";
 
 type PaletteItem = {
@@ -85,7 +86,7 @@ function matches(item: PaletteItem, query: string) {
 
 export function CommandPalette({
   permissions,
-  lexicon = DEFAULT_LEXICON,
+  lexicon = DEFAULT_VOCABULARY,
 }: {
   permissions: PermissionMap;
   /** This tenant's words, so the palette offers a section by the name

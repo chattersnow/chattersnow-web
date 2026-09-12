@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import type { PermissionMap } from "@/lib/auth/permissions";
 import { NAV_ITEMS } from "@/lib/portal/nav";
-import { ROLE_OPTIONS, type RoleKey } from "../people-shared";
+import { PERSON_ROLE_KEYS } from "@/lib/person-roles";
+import { type RoleKey } from "../people-shared";
 import { ASPECT_ACTIONS } from "./aspect-actions";
 import { allowedActions } from "./types";
 
@@ -11,7 +12,7 @@ function labels(key: RoleKey, permissions: PermissionMap) {
   );
 }
 
-const EVERY_KEY = ROLE_OPTIONS.map((option) => option.key);
+const EVERY_KEY: readonly RoleKey[] = PERSON_ROLE_KEYS;
 
 describe("per-module gating", () => {
   test("no permissions means no actions anywhere", () => {

@@ -3,7 +3,8 @@ import {
   type PermissionCheck,
   type PermissionMap,
 } from "@/lib/auth/permissions";
-import { DEFAULT_LEXICON, applyLexicon, type Lexicon } from "@/lib/lexicon";
+import { applyLexicon, type Lexicon } from "@/lib/lexicon";
+import { DEFAULT_VOCABULARY } from "@/lib/person-roles";
 
 /**
  * The portal's navigation tree, shared by the sidebar (which renders it) and
@@ -342,37 +343,37 @@ export const NAV_ITEMS: readonly NavItem[] = [
       },
       {
         value: "donors",
-        label: "Donors",
+        label: "{donor_plural}",
         href: "/portal/donors",
         access: [{ resource: "people", level: "view" }],
       },
       {
         value: "sponsors",
-        label: "Sponsors",
+        label: "{sponsor_plural}",
         href: "/portal/sponsors",
         access: [{ resource: "people", level: "view" }],
       },
       {
         value: "volunteers",
-        label: "Volunteers",
+        label: "{volunteer_plural}",
         href: "/portal/people/volunteers",
         access: [{ resource: "people", level: "view" }],
       },
       {
         value: "attendees",
-        label: "Attendees",
+        label: "{attendee_plural}",
         href: "/portal/attendees",
         access: [{ resource: "people", level: "view" }],
       },
       {
         value: "staff",
-        label: "Staff",
+        label: "{staff_plural}",
         href: "/portal/staff",
         access: [{ resource: "people", level: "view" }],
       },
       {
         value: "partners",
-        label: "Partners",
+        label: "{partner_plural}",
         href: "/portal/partners",
         access: [{ resource: "people", level: "view" }],
       },
@@ -588,7 +589,7 @@ export function activeSubItemFor(
  */
 export function visibleNavItems(
   permissions: PermissionMap,
-  lexicon: Lexicon = DEFAULT_LEXICON,
+  lexicon: Lexicon = DEFAULT_VOCABULARY,
 ): NavItem[] {
   const reachable = (sub: NavSubItem) =>
     hasAnyPermission(permissions, sub.access) &&

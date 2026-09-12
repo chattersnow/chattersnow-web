@@ -10,6 +10,8 @@ import { AspectActions } from "../aspects/aspect-action-row";
 import { PERSON_ASPECTS } from "../aspects/registry";
 import { aspectsFor } from "../aspects/types";
 import { PEOPLE_WITH_ROLES, type PersonRow } from "../people-shared";
+import { applyLexicon } from "@/lib/lexicon";
+import { getPortalVocabulary } from "@/lib/tenant-person-roles";
 import { ContactFor } from "./contact-for";
 import { PartnershipsCard } from "./partnerships-card";
 import { PersonCoreCards } from "./person-core-cards";
@@ -43,15 +45,18 @@ export default async function PersonDetailPage({
   // component, so all of their queries start in the same wave rather than
   // waiting on one another -- and each streams in behind its own Suspense
   // boundary instead of the route's all-or-nothing loading.tsx.
-  const { data: person } = await supabase
-    .from(PEOPLE_WITH_ROLES)
-    .select(
-      // primary_contact is a computed relationship on the view; see
-      // PERSON_COLUMNS in people-directory.tsx for why.
-      "id, name, email, phone, pronouns, instagram_handle, notes, logo_url, website, auth_user_id, is_donor, is_sponsor, is_volunteer, is_attendee, is_staff, is_partner, person_type, riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain, primary_contact_person_id, primary_contact(id, name, email, phone)",
-    )
-    .eq("id", id)
-    .maybeSingle();
+  const [{ data: person }, vocabulary] = await Promise.all([
+    supabase
+      .from(PEOPLE_WITH_ROLES)
+      .select(
+        // primary_contact is a computed relationship on the view; see
+        // PERSON_COLUMNS in people-directory.tsx for why.
+        "id, name, email, phone, pronouns, instagram_handle, notes, logo_url, website, auth_user_id, is_donor, is_sponsor, is_volunteer, is_attendee, is_staff, is_partner, person_type, riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain, primary_contact_person_id, primary_contact(id, name, email, phone)",
+      )
+      .eq("id", id)
+      .maybeSingle(),
+    getPortalVocabulary(supabase),
+  ]);
 
   if (!person) notFound();
   const personRow = person as unknown as PersonRow;
@@ -85,7 +90,15 @@ export default async function PersonDetailPage({
             <aspect.HistoryCard
               personId={personRow.id}
               actions={
-                <AspectActions aspect={aspect} permissions={permissions} />
+                <AspectActions
+                  // The registry's label is a template in the tenant's own
+                  // words (#911); it names this group for a screen reader.
+                  aspect={{
+                    ...aspect,
+                    label: applyLexicon(aspect.label, vocabulary),
+                  }}
+                  permissions={permissions}
+                />
               }
             />
           </Suspense>

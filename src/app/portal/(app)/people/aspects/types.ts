@@ -26,7 +26,11 @@ export type PersonAspectAction = {
 export type PersonAspect = {
   /** The person flag that turns this aspect on. */
   key: RoleKey;
-  /** Names the aspect's action group for screen readers, e.g. "Donor". */
+  /**
+   * Names the aspect's action group for screen readers, e.g. "Donor". A
+   * `{term}` template in the tenant's vocabulary (#911), resolved by whatever
+   * renders it.
+   */
   label: string;
   HistoryCard: ComponentType<{ personId: string; actions?: ReactNode }>;
   actions: readonly PersonAspectAction[];

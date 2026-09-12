@@ -22,11 +22,19 @@ export async function StaffCard({
     .eq("person_id", personId);
   const assignments = (data ?? []) as unknown as StaffAssignment[];
 
+  // "Assignments", not "Staff assignments" (#911): the four sibling cards are
+  // titled for the records they hold -- Donations, Sponsorships, Event
+  // registrations, Partnerships -- and none of them names the role. This one
+  // did, which broke as soon as the word became the tenant's: the plural reads
+  // "Instructors assignments" and the singular is often two words already
+  // ("Staff Member assignments"). The aspect's own action group right below
+  // still says "Instructor actions", so the role is named where it is grammar-
+  // free to name it.
   return (
     <HistoryCard
-      title="Staff assignments"
+      title="Assignments"
       count={assignments.length}
-      emptyTitle="No staff assignments recorded"
+      emptyTitle="No assignments recorded"
       emptyDescription="Assignments appear here once this person is added on an event's Staff tab."
       actions={actions}
     >

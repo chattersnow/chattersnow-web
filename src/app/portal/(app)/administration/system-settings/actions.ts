@@ -29,6 +29,14 @@ import {
   MAX_LEXICON_TERM_LENGTH,
   lexiconSettingKey,
 } from "@/lib/lexicon";
+import {
+  MAX_PERSON_ROLE_LABEL_LENGTH,
+  PERSON_ROLES,
+  PERSON_ROLE_LABELS_SETTING_KEY,
+  personRoleLabelField,
+  type PersonRoleKey,
+  type PersonRoleLabel,
+} from "@/lib/person-roles";
 import { EMAIL_ENABLED_SETTING_KEY } from "@/lib/notifications/kinds";
 import { OPS_REPORT_RECIPIENTS_SETTING_KEY } from "@/lib/notifications/ops-report";
 import {
@@ -429,5 +437,60 @@ export async function updateLexiconAction(
   // are rendered by the layout rather than by any one route.
   revalidatePath("/portal", "layout");
   revalidatePath("/", "layout");
+  return { success: true };
+}
+
+/**
+ * What this organization calls the six person roles (#911).
+ *
+ * One row rather than twelve: the whole map is the value of
+ * `people.role_labels`, so a save is atomic and the panel's "reset" is an empty
+ * object rather than twelve blank strings. A word the administrator left blank
+ * is left out of the map entirely -- an unset word is the platform's word, and
+ * storing `""` for it would make the stored map unreadable as "what this tenant
+ * chose".
+ */
+export async function updatePersonRoleLabelsAction(
+  formData: FormData,
+): Promise<SettingActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(
+    supabase,
+    "system_settings",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  const labels: Partial<Record<PersonRoleKey, Partial<PersonRoleLabel>>> = {};
+  for (const role of PERSON_ROLES) {
+    const own: Partial<PersonRoleLabel> = {};
+    for (const form of ["singular", "plural"] as const) {
+      const value = String(
+        formData.get(personRoleLabelField(role.key, form)) ?? "",
+      ).trim();
+      if (value.length > MAX_PERSON_ROLE_LABEL_LENGTH) {
+        return {
+          error: `${role.default[form]} must be ${MAX_PERSON_ROLE_LABEL_LENGTH} characters or fewer.`,
+        };
+      }
+      if (value) own[form] = value;
+    }
+    if (Object.keys(own).length > 0) labels[role.key] = own;
+  }
+
+  const { error } = await supabase
+    .from("app_settings")
+    .upsert(
+      { key: PERSON_ROLE_LABELS_SETTING_KEY, value: labels },
+      { onConflict: "tenant_id,key" },
+    );
+  if (error) {
+    return { error: "Could not save these words. Please try again." };
+  }
+
+  revalidatePath("/portal/administration/system-settings");
+  // Every portal page: the sidebar, the breadcrumbs and the command palette
+  // read these, and the layout renders all three.
+  revalidatePath("/portal", "layout");
   return { success: true };
 }

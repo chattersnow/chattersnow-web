@@ -1,4 +1,10 @@
 import { Badge } from "@/components/ui/badge";
+import type { Lexicon } from "@/lib/lexicon";
+import {
+  PERSON_ROLES,
+  personRoleLabel,
+  type PersonRoleKey,
+} from "@/lib/person-roles";
 
 /**
  * The read model for a person *with* their roles (20260903030000). The role
@@ -77,17 +83,17 @@ export type OrganizationMembership = {
   is_primary: boolean;
 };
 
-export const ROLE_OPTIONS = [
-  { key: "is_donor", label: "Donor" },
-  { key: "is_sponsor", label: "Sponsor" },
-  { key: "is_volunteer", label: "Volunteer" },
-  { key: "is_attendee", label: "Attendee" },
-  { key: "is_staff", label: "Staff" },
-  { key: "is_partner", label: "Partner" },
-] as const;
+/**
+ * The role a person holds, as the schema names it. The *words* for these are
+ * the tenant's (#911) and live in `src/lib/person-roles.ts`; the key is what
+ * the view, the routes and `person_role_tags` are written against.
+ */
+export type RoleKey = PersonRoleKey;
 
-export type RoleKey = (typeof ROLE_OPTIONS)[number]["key"];
-
+/**
+ * The roles a person holds, in the tenant's words, in registry order -- for
+ * the Roles column and the badges on their profile.
+ */
 export function rolesFor(
   person: Pick<
     PersonRow,
@@ -98,9 +104,10 @@ export function rolesFor(
     | "is_staff"
     | "is_partner"
   >,
+  vocabulary: Lexicon,
 ) {
-  return ROLE_OPTIONS.filter((option) => person[option.key]).map(
-    (option) => option.label,
+  return PERSON_ROLES.filter((role) => person[role.key]).map((role) =>
+    personRoleLabel(role.key, vocabulary),
   );
 }
 

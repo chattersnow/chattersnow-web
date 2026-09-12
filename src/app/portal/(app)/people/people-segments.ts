@@ -3,6 +3,7 @@ import {
   type PermissionCheck,
   type PermissionMap,
 } from "@/lib/auth/permissions";
+import { applyLexicon, type Lexicon } from "@/lib/lexicon";
 import type { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { PersonType, RoleKey } from "./people-shared";
 
@@ -11,6 +12,7 @@ type SupabaseServerClient = Awaited<
 >;
 
 export type SegmentStat = {
+  /** A `{term}` template, like every other word in this file. */
   label: string;
   value: number;
   caption: string;
@@ -43,8 +45,14 @@ export type PeopleSegment = {
     defaultRole?: RoleKey;
     defaultPersonType?: PersonType;
   };
-  /** Noun used in empty states and row action labels, e.g. "sponsor". */
+  /** Noun used in row action labels, e.g. "sponsor". Lower case. */
   noun: string;
+  /**
+   * Its plural, e.g. "sponsors". Spelled out rather than `noun + "s"`, which is
+   * what the filtered empty state used to do -- and which made the People
+   * directory say "No persons match your filters".
+   */
+  nounPlural: string;
   emptyTitle: string;
   /** Shown when the viewer can add records; the other when they cannot. */
   emptyDescriptionManage: string;
@@ -101,12 +109,12 @@ async function attendeeStats(
 
   return [
     {
-      label: "Recurring attendees",
+      label: "Recurring {attendee_plural:lower}",
       value: recurring,
       caption: "Checked in to more than one event",
     },
     {
-      label: "First-time attendees",
+      label: "First-time {attendee_plural:lower}",
       value: firstTime,
       caption: "Checked in to exactly one event so far",
     },
@@ -119,6 +127,7 @@ export const PEOPLE_SEGMENT: PeopleSegment = {
   showRoleFilter: true,
   newPerson: { triggerLabel: "New Person" },
   noun: "person",
+  nounPlural: "people",
   emptyTitle: "No people added yet",
   emptyDescriptionManage: "Add the first one with New Person above.",
   emptyDescriptionView:
@@ -127,34 +136,36 @@ export const PEOPLE_SEGMENT: PeopleSegment = {
 
 export const DONORS_SEGMENT: PeopleSegment = {
   basePath: "/portal/donors",
-  title: "Donors",
+  title: "{donor_plural}",
   filterColumn: "is_donor",
-  newPerson: { triggerLabel: "New Donor", defaultRole: "is_donor" },
-  noun: "donor",
-  emptyTitle: "No donors added yet",
-  emptyDescriptionManage: "Add the first one with New Donor above.",
+  newPerson: { triggerLabel: "New {donor}", defaultRole: "is_donor" },
+  noun: "{donor:lower}",
+  nounPlural: "{donor_plural:lower}",
+  emptyTitle: "No {donor_plural:lower} added yet",
+  emptyDescriptionManage: "Add the first one with New {donor} above.",
   crossSectionHint: {
-    text: "You can also record a donation and its donor from Inventory › Donations.",
+    text: "You can also record a donation and its {donor:lower} from Inventory › Donations.",
     access: [{ resource: "inventory", level: "manage" }],
   },
   emptyDescriptionView:
-    "Donors appear here once someone is added with the donor role or recorded on a donation.",
+    "{donor_plural} appear here once someone is added with the {donor:lower} role or recorded on a donation.",
 };
 
 export const SPONSORS_SEGMENT: PeopleSegment = {
   basePath: "/portal/sponsors",
-  title: "Sponsors",
+  title: "{sponsor_plural}",
   filterColumn: "is_sponsor",
-  newPerson: { triggerLabel: "New Sponsor", defaultRole: "is_sponsor" },
-  noun: "sponsor",
-  emptyTitle: "No sponsors added yet",
-  emptyDescriptionManage: "Add the first one with New Sponsor above.",
+  newPerson: { triggerLabel: "New {sponsor}", defaultRole: "is_sponsor" },
+  noun: "{sponsor:lower}",
+  nounPlural: "{sponsor_plural:lower}",
+  emptyTitle: "No {sponsor_plural:lower} added yet",
+  emptyDescriptionManage: "Add the first one with New {sponsor} above.",
   crossSectionHint: {
-    text: "You can also record a sponsor on an event's Sponsors tab.",
+    text: "You can also record a {sponsor:lower} on an event's Sponsors tab.",
     access: [{ resource: "events", level: "manage" }],
   },
   emptyDescriptionView:
-    "Sponsors appear here once someone is added with the sponsor role or recorded on an event's Sponsors tab.",
+    "{sponsor_plural} appear here once someone is added with the {sponsor:lower} role or recorded on an event's Sponsors tab.",
 };
 
 export const VOLUNTEERS_SEGMENT: PeopleSegment = {
@@ -162,70 +173,74 @@ export const VOLUNTEERS_SEGMENT: PeopleSegment = {
   // participation, applications). This is the directory filtered to people who
   // volunteer, so it lives under People and inherits its people:view guard.
   basePath: "/portal/people/volunteers",
-  title: "Volunteers",
+  title: "{volunteer_plural}",
   filterColumn: "is_volunteer",
-  newPerson: { triggerLabel: "New Volunteer", defaultRole: "is_volunteer" },
-  noun: "volunteer",
-  emptyTitle: "No volunteers added yet",
-  emptyDescriptionManage: "Add the first one with New Volunteer above.",
+  newPerson: { triggerLabel: "New {volunteer}", defaultRole: "is_volunteer" },
+  noun: "{volunteer:lower}",
+  nounPlural: "{volunteer_plural:lower}",
+  emptyTitle: "No {volunteer_plural:lower} added yet",
+  emptyDescriptionManage: "Add the first one with New {volunteer} above.",
   crossSectionHint: {
     text: "You can also approve an application from Volunteers › Applications.",
     access: [{ resource: "volunteers", level: "manage" }],
   },
   emptyDescriptionView:
-    "Volunteers appear here once someone applies, signs up for an event shift, or has hours logged.",
+    "{volunteer_plural} appear here once someone applies, signs up for an event shift, or has hours logged.",
 };
 
 export const ATTENDEES_SEGMENT: PeopleSegment = {
   basePath: "/portal/attendees",
-  title: "Attendees",
+  title: "{attendee_plural}",
   filterColumn: "is_attendee",
-  newPerson: { triggerLabel: "New Attendee", defaultRole: "is_attendee" },
-  noun: "attendee",
-  emptyTitle: "No event attendees yet",
+  newPerson: { triggerLabel: "New {attendee}", defaultRole: "is_attendee" },
+  noun: "{attendee:lower}",
+  nounPlural: "{attendee_plural:lower}",
+  emptyTitle: "No event {attendee_plural:lower} yet",
   emptyDescriptionManage:
-    "Attendees appear here once someone registers for an event, or add one with New Attendee above.",
+    "{attendee_plural} appear here once someone registers for an event, or add one with New {attendee} above.",
   emptyDescriptionView:
-    "Attendees appear here once someone registers for or is checked in at an event.",
+    "{attendee_plural} appear here once someone registers for or is checked in at an event.",
   stats: attendeeStats,
 };
 
 export const STAFF_SEGMENT: PeopleSegment = {
   basePath: "/portal/staff",
-  title: "Staff",
+  title: "{staff_plural}",
   filterColumn: "is_staff",
-  newPerson: { triggerLabel: "New Staff Member", defaultRole: "is_staff" },
-  noun: "staff member",
-  emptyTitle: "No staff added yet",
-  emptyDescriptionManage: "Add the first one with New Staff Member above.",
+  newPerson: { triggerLabel: "New {staff}", defaultRole: "is_staff" },
+  noun: "{staff:lower}",
+  nounPlural: "{staff_plural:lower}",
+  emptyTitle: "No {staff_plural:lower} added yet",
+  emptyDescriptionManage: "Add the first one with New {staff} above.",
   crossSectionHint: {
     text: "You can also assign someone on an event's Staff tab.",
     access: [{ resource: "events", level: "manage" }],
   },
   emptyDescriptionView:
-    "Staff appear here once someone is added with the staff role or assigned on an event's Staff tab.",
+    "{staff_plural} appear here once someone is added with the {staff:lower} role or assigned on an event's Staff tab.",
 };
 
 export const PARTNERS_SEGMENT: PeopleSegment = {
   basePath: "/portal/partners",
-  title: "Partners",
+  title: "{partner_plural}",
   filterColumn: "is_partner",
   newPerson: {
     // A partner is almost always an organization, and the form requires a
     // role, so the dialog opens on the shape this segment is about.
-    triggerLabel: "New Partner",
+    triggerLabel: "New {partner}",
     defaultRole: "is_partner",
     defaultPersonType: "organization",
   },
-  noun: "partner",
-  emptyTitle: "No partners added yet",
-  emptyDescriptionManage: "Add the first one with New Partner above.",
+  noun: "{partner:lower}",
+  nounPlural: "{partner_plural:lower}",
+  emptyTitle: "No {partner_plural:lower} added yet",
+  emptyDescriptionManage: "Add the first one with New {partner} above.",
   crossSectionHint: {
     text: "You can also close a partnership as won from Governance › Partnerships.",
     access: [{ resource: "governance", level: "manage" }],
   },
   emptyDescriptionView:
-    "Partners appear here once a partnership opportunity is closed as won, or someone is added with the partner role.",
+    "{partner_plural} appear here once a partnership opportunity is closed as won, or someone is added with the {partner:lower} role.",
 };
 
 export const ORGANIZATIONS_SEGMENT: PeopleSegment = {
@@ -241,6 +256,7 @@ export const ORGANIZATIONS_SEGMENT: PeopleSegment = {
     defaultPersonType: "organization",
   },
   noun: "organization",
+  nounPlural: "organizations",
   emptyTitle: "No organizations added yet",
   emptyDescriptionManage:
     "Add the first one with New Organization above, or tick “This is an organization” on any person record.",
@@ -257,6 +273,56 @@ export const ORGANIZATIONS_SEGMENT: PeopleSegment = {
  * into being -- and is only ever advice, never the only way in: every one of
  * these segments has its own New button right above the sentence. So the
  * ungated half always stands alone, and this only ever removes.
+ */
+/**
+ * One segment in the tenant's own words (#911).
+ *
+ * A copy rather than a resolution at each render site: a segment's words reach
+ * a heading, a button, two empty states, a row's action label and a page's
+ * `<title>`, and one of those was always going to be missed. Everything the
+ * caller reads off the returned object is a word; nothing on it is a template.
+ *
+ * `basePath`, `filterColumn`, `personType` and the permission checks are
+ * identifiers rather than copy and pass through untouched.
+ */
+export function resolveSegment(
+  segment: PeopleSegment,
+  vocabulary: Lexicon,
+): PeopleSegment {
+  const named = (template: string) => applyLexicon(template, vocabulary);
+  return {
+    ...segment,
+    title: named(segment.title),
+    noun: named(segment.noun),
+    nounPlural: named(segment.nounPlural),
+    emptyTitle: named(segment.emptyTitle),
+    emptyDescriptionManage: named(segment.emptyDescriptionManage),
+    emptyDescriptionView: named(segment.emptyDescriptionView),
+    newPerson: segment.newPerson && {
+      ...segment.newPerson,
+      triggerLabel: named(segment.newPerson.triggerLabel),
+    },
+    crossSectionHint: segment.crossSectionHint && {
+      ...segment.crossSectionHint,
+      text: named(segment.crossSectionHint.text),
+    },
+  };
+}
+
+/** The same, for the tiles a segment loads after it is resolved. */
+export function resolveStats(
+  stats: readonly SegmentStat[],
+  vocabulary: Lexicon,
+): SegmentStat[] {
+  return stats.map((stat) => ({
+    ...stat,
+    label: applyLexicon(stat.label, vocabulary),
+  }));
+}
+
+/**
+ * @param segment already resolved by `resolveSegment`; this returns copy, not
+ * a template.
  */
 export function emptyManageDescription(
   segment: PeopleSegment,

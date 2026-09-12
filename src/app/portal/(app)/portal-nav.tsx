@@ -38,7 +38,8 @@ import {
   activeSubItemFor,
   visibleNavItems,
 } from "@/lib/portal/nav";
-import { DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
+import { type Lexicon } from "@/lib/lexicon";
+import { DEFAULT_VOCABULARY } from "@/lib/person-roles";
 
 /**
  * Icons live here rather than in the shared nav tree: they're a rendering
@@ -65,7 +66,7 @@ const SECTION_ICONS: Record<string, typeof LayoutDashboard> = {
 
 export function PortalNav({
   permissions,
-  lexicon = DEFAULT_LEXICON,
+  lexicon = DEFAULT_VOCABULARY,
 }: {
   permissions: PermissionMap;
   /** This tenant's words for the sections it names itself (#896). */
