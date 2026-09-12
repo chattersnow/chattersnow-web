@@ -9,7 +9,18 @@ export const metadata: Metadata = {
 
 export default async function PlatformPage() {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.rpc("platform_list_tenants");
+  const [{ data, error }, packs] = await Promise.all([
+    supabase.rpc("platform_list_tenants"),
+    // This tenant's own offered packs (#895) -- provisioning copies them into
+    // the new organization as drafts. A failed read leaves the checkbox list
+    // out rather than failing the page; an operator can add a pack afterwards
+    // from the organization's own Articles screen.
+    supabase
+      .from("content_packs")
+      .select("key, name")
+      .eq("is_offered", true)
+      .order("name"),
+  ]);
 
   return (
     <>
@@ -28,6 +39,7 @@ export default async function PlatformPage() {
       <div className="mt-6">
         <PlatformTenants
           initialTenants={(data ?? []) as PlatformTenant[]}
+          offeredPacks={(packs.data ?? []) as { key: string; name: string }[]}
           loadError={
             error ? "Could not load tenants. Reload to try again." : null
           }

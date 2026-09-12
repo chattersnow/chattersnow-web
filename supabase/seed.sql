@@ -1372,6 +1372,35 @@ join (values
 on conflict (tenant_id, category_id, anchor) do update
   set value = excluded.value, position = excluded.position;
 
+-- A content pack (#895), so the platform tenant's pack screen has something in
+-- it locally and the a11y sweep scans a populated page rather than an empty
+-- one. The seeded tenant is on the `internal` plan, which makes it the platform
+-- tenant and therefore the only tenant that can author one.
+--
+-- Nothing adopts it here: `available_content_packs()` never offers a tenant its
+-- own pack, and this database has one tenant. Adoption is exercised by
+-- `packs/actions.integration.test.ts`, which provisions a second tenant to do
+-- it -- which is also the reason `content_pack_adoptions` is seeded with
+-- nothing: a row in it means one tenant copied another's pack, and a single
+-- tenant cannot produce one.
+--
+-- Local and CI only -- seed.sql never runs against a hosted project.
+with pack as (
+  insert into public.content_packs (key, name, description, is_offered)
+  values (
+    'getting-started',
+    'Getting started',
+    'A short introduction any organization can put on its Learn section and then rewrite in its own words.'
+  , true)
+  on conflict (tenant_id, key) do update
+    set name = excluded.name, description = excluded.description, is_offered = excluded.is_offered
+  returning id, tenant_id
+)
+update public.article_categories c
+set pack_id = pack.id
+from pack
+where c.tenant_id = pack.tenant_id and c.slug = 'getting-started';
+
 -- Page visibility (issue #584). Production deliberately has no
 -- `page_visibility.*` rows, so the sections still awaiting board approval fall
 -- back to `defaultVisible: false` in src/lib/page-visibility.ts and stay dark.

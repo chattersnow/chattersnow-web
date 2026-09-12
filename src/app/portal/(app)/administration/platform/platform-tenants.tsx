@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -73,9 +74,12 @@ function DomainChecklist({ domain }: { domain: string }) {
 export function PlatformTenants({
   initialTenants,
   loadError,
+  offeredPacks,
 }: {
   initialTenants: PlatformTenant[];
   loadError: string | null;
+  /** The content packs provisioning may copy into a new tenant (#895). */
+  offeredPacks: readonly { key: string; name: string }[];
 }) {
   const router = useRouter();
   const { run, isPending } = useActionToast();
@@ -84,6 +88,7 @@ export function PlatformTenants({
   const [editing, setEditing] = useState<PlatformTenant | null>(null);
   const [modulesFor, setModulesFor] = useState<PlatformTenant | null>(null);
   const [domain, setDomain] = useState("");
+  const [packKeys, setPackKeys] = useState<string[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
 
   if (loadError) {
@@ -109,6 +114,7 @@ export function PlatformTenants({
             onClick={() => {
               setInvite(null);
               setFormError(null);
+              setPackKeys([]);
               setProvisioning(true);
             }}
           >
@@ -278,6 +284,7 @@ export function PlatformTenants({
                       customDomain: String(form.get("domain") ?? ""),
                       plan: String(form.get("plan") ?? "white_label"),
                       adminEmail: String(form.get("admin") ?? ""),
+                      packKeys,
                     }),
                   {
                     success: "Organization provisioned.",
@@ -345,6 +352,39 @@ export function PlatformTenants({
                   </FieldLabel>
                   <Input id="tenant-admin" name="admin" type="email" />
                 </Field>
+                {offeredPacks.length > 0 && (
+                  <fieldset className="space-y-2">
+                    <legend className="text-sm font-medium">
+                      Content packs (optional)
+                    </legend>
+                    <p className="app-muted text-sm">
+                      Copied in as drafts. The organization reads them and
+                      publishes what it wants; nothing goes on its public site
+                      here.
+                    </p>
+                    {offeredPacks.map((pack) => (
+                      <Field key={pack.key} orientation="horizontal">
+                        <Checkbox
+                          id={`provision-pack-${pack.key}`}
+                          checked={packKeys.includes(pack.key)}
+                          onCheckedChange={(checked) =>
+                            setPackKeys((keys) =>
+                              checked
+                                ? [...keys, pack.key]
+                                : keys.filter((key) => key !== pack.key),
+                            )
+                          }
+                        />
+                        <FieldLabel
+                          htmlFor={`provision-pack-${pack.key}`}
+                          className="font-normal"
+                        >
+                          {pack.name}
+                        </FieldLabel>
+                      </Field>
+                    ))}
+                  </fieldset>
+                )}
               </FieldGroup>
             </form>
           )}
