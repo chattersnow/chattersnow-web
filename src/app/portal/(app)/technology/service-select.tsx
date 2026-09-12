@@ -85,7 +85,7 @@ export function ServiceSelect({
             + New service
           </Button>
           <Link
-            href="/portal/administration/access-management/services"
+            href="/portal/technology/services"
             target="_blank"
             className="app-muted text-xs hover:underline"
           >

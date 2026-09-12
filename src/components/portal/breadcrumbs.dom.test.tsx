@@ -30,12 +30,11 @@ describe("PortalBreadcrumbs", () => {
   });
 
   test("gives a three-level route the full trail, not one hop back", () => {
-    expect(
-      trail(
-        "/portal/administration/access-management/assets/asset-1",
-        "Mailchimp",
-      ),
-    ).toEqual(["Administration", "Access Management", "Mailchimp"]);
+    expect(trail("/portal/technology/assets/asset-1", "Mailchimp")).toEqual([
+      "Technology",
+      "Assets",
+      "Mailchimp",
+    ]);
   });
 
   test("disambiguates the two Donations pages by their section", () => {

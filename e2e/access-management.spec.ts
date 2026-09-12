@@ -33,12 +33,12 @@ test.describe("portal access management", () => {
     await signIn(page);
   });
 
-  test("loads the Access Management page", async ({ page }) => {
-    await page.goto("/portal/administration/access-management");
+  test("loads the Technology assets page", async ({ page }) => {
+    await page.goto("/portal/technology");
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: "Access Management",
+        name: "Assets",
         exact: true,
       }),
     ).toBeVisible();
@@ -51,7 +51,7 @@ test.describe("portal access management", () => {
     const person = await seedPerson(admin);
 
     try {
-      await page.goto("/portal/administration/access-management");
+      await page.goto("/portal/technology");
 
       const assetName = `E2E Asset ${Date.now()}`;
       const serviceName = `E2E Service ${Date.now()}`;

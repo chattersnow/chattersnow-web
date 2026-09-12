@@ -18,7 +18,7 @@ type Crumb = { label: string; href?: string };
  * The trail to the current record.
  *
  * Detail pages used an ad-hoc single-level back link, so a three-level route
- * like /portal/administration/access-management/assets/[assetId] gave one hop
+ * like /portal/technology/assets/[assetId] gave one hop
  * back and no trail. It also left two pairs of pages indistinguishable:
  * "Roles" is both a volunteer and an administration page, and "Donations"
  * both a finance and an inventory one, with the same h1 in each pair.

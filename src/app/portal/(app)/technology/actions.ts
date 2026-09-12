@@ -9,11 +9,9 @@ import { parseAccessGrantForm } from "./access-grant-form";
 import { parseAssetForm } from "./asset-form";
 
 function revalidateAccessManagementPaths(assetId?: string) {
-  revalidatePath("/portal/administration/access-management");
+  revalidatePath("/portal/technology");
   if (assetId) {
-    revalidatePath(
-      `/portal/administration/access-management/assets/${assetId}`,
-    );
+    revalidatePath(`/portal/technology/assets/${assetId}`);
   }
 }
 

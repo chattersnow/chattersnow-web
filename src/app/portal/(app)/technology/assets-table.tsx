@@ -45,7 +45,7 @@ export function AssetsTable({
         cellClassName: "max-w-xs truncate font-medium",
         render: (asset) => (
           <Link
-            href={`/portal/administration/access-management/assets/${asset.id}`}
+            href={`/portal/technology/assets/${asset.id}`}
             className="hover:underline"
           >
             {asset.name}
@@ -145,11 +145,7 @@ export function AssetsTable({
               size="icon-sm"
               nativeButton={false}
               aria-label={`View ${asset.name}`}
-              render={
-                <Link
-                  href={`/portal/administration/access-management/assets/${asset.id}`}
-                />
-              }
+              render={<Link href={`/portal/technology/assets/${asset.id}`} />}
             >
               <Eye />
             </Button>

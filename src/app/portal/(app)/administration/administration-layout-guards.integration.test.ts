@@ -47,8 +47,10 @@ const { default: PermissionsLayout } = await import("./permissions/layout");
 const { default: SystemSettingsLayout } =
   await import("./system-settings/layout");
 const { default: AuditLogLayout } = await import("./audit-log/layout");
-const { default: AccessManagementLayout } =
-  await import("./access-management/layout");
+// Technology (formerly Administration -> Access Management) left this section
+// in #943. Its guard is unchanged and still admits administration:manage, so
+// it is exercised here from its new home.
+const { default: TechnologyLayout } = await import("../technology/layout");
 
 type Layout = (props: { children: ReactNode }) => Promise<ReactNode>;
 
@@ -90,7 +92,7 @@ async function expectDenied(layout: Layout, email: string) {
 
 // users/roles/permissions/audit-log all guard on administration:manage
 // alone, per their layout.tsx files -- only the admin role holds that.
-// access-management also accepts access_management_assets/reviews:view as
+// technology also accepts access_management_assets/reviews:view as
 // alternatives (see its layout.tsx), but no seeded role holds either by
 // default (20260828100000_add_access_management_resources.sql grants only
 // admin), so it behaves identically to the administration-manage-only
@@ -100,7 +102,7 @@ describe.each([
   ["administration/roles", () => RolesLayout],
   ["administration/permissions", () => PermissionsLayout],
   ["administration/audit-log", () => AuditLogLayout],
-  ["administration/access-management", () => AccessManagementLayout],
+  ["technology", () => TechnologyLayout],
 ])("%s layout guard (integration)", (_name, getLayout) => {
   test("admin (administration manage) renders the page", async () => {
     await expectAllowed(getLayout(), SEEDED_USERS.admin);

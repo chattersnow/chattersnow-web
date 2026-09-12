@@ -18,7 +18,7 @@ import {
   adminClient,
   createPerson,
   signInAs,
-} from "../../../../../../test/integration-setup";
+} from "../../../../../test/integration-setup";
 import {
   listActiveGrantCountsByAsset,
   listPeopleForAccessManagement,

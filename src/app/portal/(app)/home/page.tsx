@@ -414,15 +414,15 @@ export default async function PortalHomePage({
         )}
 
         {canSeeAccessManagement && accessManagementStats && (
-          <DashboardSectionCard className="lg:mt-6" title="Access management">
+          <DashboardSectionCard className="lg:mt-6" title="Technology">
             <DashboardStatRow
               label="Active assets"
-              href="/portal/administration/access-management"
+              href="/portal/technology"
               value={accessManagementStats.assetsCount}
             />
             <DashboardStatRow
               label="Active access grants"
-              href="/portal/administration/access-management"
+              href="/portal/technology"
               value={accessManagementStats.activeGrantsCount}
             />
           </DashboardSectionCard>

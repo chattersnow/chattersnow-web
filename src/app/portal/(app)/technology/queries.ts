@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { PersonListItem } from "../../people/actions";
+import type { PersonListItem } from "../people/actions";
 import type {
   AccessGrantRow,
   AssetDetail,
