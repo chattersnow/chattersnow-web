@@ -45,7 +45,7 @@ import {
 } from "../actions";
 import { ArticleFields } from "./article-fields";
 
-const ARTICLES = "/portal/administration/site-content/articles";
+const ARTICLES = "/portal/website/articles";
 
 /** One article as the form holds it: the two identity fields plus the body. */
 type ArticleDraft = {

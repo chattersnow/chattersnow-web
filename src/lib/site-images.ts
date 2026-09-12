@@ -6,7 +6,7 @@ import { resolveImageUrl } from "@/lib/inventory";
  *
  * Every admin-editable image on the site is an `image` slot in the content
  * registry (`src/lib/site-content.ts`, keyed `site_images.<slot>`), edited
- * beside the copy it accompanies at Administration > Site Content and stored
+ * beside the copy it accompanies at Website > Pages and stored
  * in `site_content` like any other slot (#812). The `public_site_images` view
  * serves the published rows with the prefix stripped, so a page looks its
  * photo up by the short name: `urls.about_story_photo`.

@@ -13,8 +13,8 @@ import {
 export type PackActionResult = { error: string } | { success: true };
 export type AdoptResult = { error: string } | AdoptionSummary;
 
-const ARTICLES_PATH = "/portal/administration/site-content/articles";
-const PACKS_PATH = "/portal/administration/site-content/articles/packs";
+const ARTICLES_PATH = "/portal/website/articles";
+const PACKS_PATH = "/portal/website/articles/packs";
 
 /**
  * Copies an offered pack into this tenant as drafts (#895).

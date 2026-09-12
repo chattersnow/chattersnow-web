@@ -157,7 +157,7 @@ export function ContentOutline({
             </p>
             <ul className="space-y-1">
               {matches.map((match) => {
-                const href = `/portal/administration/site-content?page=${match.page}`;
+                const href = `/portal/website?page=${match.page}`;
                 const trail = `${match.page_label} › ${match.section_label}`;
                 return (
                   <li key={match.key}>
@@ -197,7 +197,7 @@ export function ContentOutline({
               <span className="app-eyebrow">Pages</span>
               <ul className="mt-2 space-y-0.5">
                 {pages.map((candidate) => {
-                  const href = `/portal/administration/site-content?page=${candidate.key}`;
+                  const href = `/portal/website?page=${candidate.key}`;
                   const current = candidate.key === page.key;
                   const customized = overriddenPerPage.get(candidate.key) ?? 0;
                   const drafts = current

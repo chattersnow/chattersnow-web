@@ -208,7 +208,10 @@ describe("navGroups", () => {
       // Technology joined this group in #943 rather than becoming a fifth
       // heading -- which is why promoting it out of Administration costs the
       // sidebar no extra width.
-      ["Organization", ["technology", "governance", "administration"]],
+      [
+        "Organization",
+        ["website", "technology", "governance", "administration"],
+      ],
     ]);
   });
 
@@ -263,20 +266,21 @@ describe("navGroups", () => {
       ]),
     ).toEqual([
       ["Access & identity", ["users", "roles", "permissions"]],
-      // Access Management left for its own section in #943, so Platform is
-      // the only thing that was under "Technology & platform" -- folded into
-      // Organization rather than left under a heading of one.
-      ["Organization", ["system-settings", "site-content", "platform"]],
+      // Access Management left for its own section in #943 and Site Content
+      // for the Website section in #944, leaving Platform alone under
+      // "Technology & platform" -- folded into Organization rather than left
+      // under a heading of one.
+      ["Organization", ["system-settings", "platform"]],
       ["Oversight", ["audit-log", "data-retention"]],
     ]);
   });
 
   test("a group whose every item is filtered out leaves no heading", () => {
-    // site_content:view alone reaches exactly one Administration page, so the
-    // other three headings must not survive -- a heading over nothing is the
+    // system_settings:manage alone reaches exactly one Administration page, so
+    // the other two headings must not survive -- a heading over nothing is the
     // failure mode this design exists to make impossible.
-    const editor: PermissionMap = { site_content: "view" };
-    const administration = visibleNavItems(editor).find(
+    const board: PermissionMap = { system_settings: "manage" };
+    const administration = visibleNavItems(board).find(
       (item) => item.value === "administration",
     )!;
     expect(
@@ -284,7 +288,25 @@ describe("navGroups", () => {
         group.label,
         group.items.map((sub) => sub.value),
       ]),
-    ).toEqual([["Organization", ["site-content"]]]);
+    ).toEqual([["Organization", ["system-settings"]]]);
+  });
+
+  test("site_content:view reaches Website and no longer reaches Administration", () => {
+    // The point of #944: a content editor holding nothing else used to be the
+    // one reader Administration's gate admitted. They now get their own
+    // section and no Administration entry at all. Content Packs stays hidden,
+    // needing platform_tenants:manage as well.
+    const editor: PermissionMap = { site_content: "view" };
+    const sections = visibleNavItems(editor).map((item) => item.value);
+    expect(sections).toContain("website");
+    expect(sections).not.toContain("administration");
+    const website = visibleNavItems(editor).find(
+      (item) => item.value === "website",
+    )!;
+    expect(website.subItems?.map((sub) => sub.value)).toEqual([
+      "pages",
+      "articles",
+    ]);
   });
 
   test("a group heading resolves lexicon templates like any other label", () => {

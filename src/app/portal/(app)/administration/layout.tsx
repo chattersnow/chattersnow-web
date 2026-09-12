@@ -7,14 +7,15 @@ import { requireAnyPermission } from "@/lib/auth/permissions";
  * It is the union of what its children admit rather than a narrower gate of
  * its own, because sections under this prefix are reachable without
  * `administration` itself and were links the sidebar rendered and this layout
- * refused (#903). Site Content admits `site_content:view`; Platform admits
- * `platform_tenants:manage` alone, which is deliberately the whole operator
- * gate -- my_permissions() reports that resource as `none` unless
- * is_platform_operator() holds.
+ * refused (#903). Platform admits `platform_tenants:manage` alone, which is
+ * deliberately the whole operator gate -- my_permissions() reports that
+ * resource as `none` unless is_platform_operator() holds.
  *
- * Access Management used to widen this too. It left for its own top-level
- * section in #943, being a peer module rather than part of Administration,
- * which is why `access_management_*` no longer appears here.
+ * Two sections used to widen this further and have since left: Access
+ * Management for its own top-level section in #943, being a peer module
+ * rather than part of Administration, and Site Content for the Website
+ * section in #944, being website authoring rather than administration. That
+ * is why neither `access_management_*` nor `site_content` appears here.
  *
  * Widening here gives nothing away. Every child of this route re-checks on its
  * own (access-management/layout.tsx, platform/layout.tsx and the rest), so
@@ -32,7 +33,6 @@ export default async function AdministrationLayout({
     [
       { resource: "administration", level: "manage" },
       { resource: "system_settings", level: "manage" },
-      { resource: "site_content", level: "view" },
       { resource: "platform_tenants", level: "manage" },
     ],
     "Administration",

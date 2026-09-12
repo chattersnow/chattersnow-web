@@ -15,7 +15,7 @@ import {
   adminClient,
   anonClient,
   serviceRoleClient,
-} from "../../../../../../../test/integration-setup";
+} from "../../../../../../test/integration-setup";
 
 // Cleanup runs as service_role: `authenticated` cannot delete a published row
 // at all, which is half of what this file asserts.

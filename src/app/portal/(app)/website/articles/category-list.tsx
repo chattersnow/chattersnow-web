@@ -24,7 +24,7 @@ import {
   saveArticleDraftsAction,
 } from "./actions";
 
-const SITE_CONTENT = "/portal/administration/site-content";
+const SITE_CONTENT = "/portal/website";
 
 function attribution(category: EditorCategory): string | null {
   const lines: string[] = [];

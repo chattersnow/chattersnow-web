@@ -8,6 +8,7 @@ import {
   CalendarDays,
   CalendarRange,
   ChevronRight,
+  Globe,
   HandCoins,
   HandHeart,
   Handshake,
@@ -67,6 +68,7 @@ const SECTION_ICONS: Record<string, typeof LayoutDashboard> = {
   sponsors: Handshake,
   attendees: Ticket,
   governance: Scale,
+  website: Globe,
   technology: Server,
   administration: ShieldCheck,
 };
