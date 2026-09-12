@@ -54,6 +54,15 @@ async function must(
   return data;
 }
 
+/** How many roles the template tenant holds, which is what a new tenant gets (#910). */
+async function templateRoleCount(): Promise<number> {
+  const { count } = await service
+    .from("roles")
+    .select("id", { count: "exact", head: true })
+    .eq("tenant_id", tenantA);
+  return count ?? 0;
+}
+
 async function createUser(email: string) {
   const { data, error } = await service.auth.admin.createUser({
     email,
@@ -782,7 +791,7 @@ describe("export and deletion", () => {
     );
     expect(snapshot.tenant.slug).toBe(SLUG);
     expect(snapshot.tables.site_content).toHaveLength(1);
-    expect(snapshot.tables.roles).toHaveLength(5);
+    expect(snapshot.tables.roles).toHaveLength(await templateRoleCount());
     expect(
       snapshot.memberships.map((m: { email: string }) => m.email),
     ).toContain(adminEmail);
@@ -827,7 +836,7 @@ describe("export and deletion", () => {
       service.rpc("delete_tenant", { p_tenant_id: tenantB }),
       "delete",
     );
-    expect(result.deleted.roles).toBe(5);
+    expect(result.deleted.roles).toBe(await templateRoleCount());
     expect(result.deleted.site_content).toBe(1);
 
     expect(
