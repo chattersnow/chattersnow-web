@@ -35,8 +35,14 @@ describe("NAV_GROUPS", () => {
    * and Sponsorship (#845). Its value is its URL: it gets pasted into an email
    * to a sponsor or a print shop, not browsed to, and a header entry for it
    * would compete with Events and Programs for no one's benefit.
+   *
+   * `links` is reached from a social profile's bio and nowhere else (#937). It
+   * is a stack of buttons to About, Events and Support, so a nav entry for it
+   * would be a menu item offering the menu -- and the page itself deliberately
+   * renders outside the `(public)` layout so that its visitors do not get the
+   * header nav either.
    */
-  const REACHED_OUTSIDE_THE_NAV = new Set(["brand"]);
+  const REACHED_OUTSIDE_THE_NAV = new Set(["brand", "links"]);
 
   // The nav and the footer render from this one list, so a section missing here
   // is missing from both. The old footer had its own list and had already
