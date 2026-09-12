@@ -205,12 +205,12 @@ describe("navGroups", () => {
       ["Delivery", ["events", "calendar", "programs", "artwork"]],
       ["People", ["people", "volunteers", "messages"]],
       ["Resources", ["inventory", "finance"]],
-      // Technology joined this group in #943 rather than becoming a fifth
-      // heading -- which is why promoting it out of Administration costs the
-      // sidebar no extra width.
+      // Technology (#943), Website (#944) and Platform (#945) all joined this
+      // group rather than becoming new headings -- which is why promoting
+      // three sections out of Administration cost the sidebar no extra width.
       [
         "Organization",
-        ["website", "technology", "governance", "administration"],
+        ["platform", "website", "technology", "governance", "administration"],
       ],
     ]);
   });
@@ -266,11 +266,11 @@ describe("navGroups", () => {
       ]),
     ).toEqual([
       ["Access & identity", ["users", "roles", "permissions"]],
-      // Access Management left for its own section in #943 and Site Content
-      // for the Website section in #944, leaving Platform alone under
-      // "Technology & platform" -- folded into Organization rather than left
-      // under a heading of one.
-      ["Organization", ["system-settings", "platform"]],
+      // Down to one item: Access Management left in #943, Site Content in
+      // #944 and Platform in #945. The heading stays because it names a real
+      // distinction from identity and oversight, and #947 puts System
+      // Settings' eight panels behind it.
+      ["Organization", ["system-settings"]],
       ["Oversight", ["audit-log", "data-retention"]],
     ]);
   });

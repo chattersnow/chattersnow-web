@@ -215,7 +215,7 @@ export function PlatformTenants({
                           variant: "ghost",
                           size: "sm",
                         })}
-                        href={`/portal/administration/platform/export?tenant=${tenant.id}`}
+                        href={`/portal/platform/export?tenant=${tenant.id}`}
                       >
                         Export
                       </a>
