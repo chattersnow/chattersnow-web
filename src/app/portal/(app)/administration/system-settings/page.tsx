@@ -279,12 +279,12 @@ export default async function SystemSettingsPage() {
             under your name. The privacy policy is always served &mdash; the
             site collects personal information through its public forms, and a
             policy saying what happens to it has to be reachable while it does.
-            Write or replace the text itself in Administration &rarr;{" "}
+            Write or replace the text itself in Website &rarr;{" "}
             <Link
-              href="/portal/administration/site-content?page=legal"
+              href="/portal/website?page=legal"
               className="underline underline-offset-4"
             >
-              Site Content
+              Pages
             </Link>
             . Every change here is recorded in the audit log.
           </p>

@@ -12,7 +12,7 @@ import {
   serviceRoleClient,
   signInAs,
   SEEDED_USERS,
-} from "../../../../../../test/integration-setup";
+} from "../../../../../test/integration-setup";
 
 // Cleanup runs as service_role: `authenticated` cannot delete a published row
 // at all, which is the property half this file exists to assert.

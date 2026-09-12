@@ -7,7 +7,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithToaster } from "../../../../../../test/toast-testing";
+import { renderWithToaster } from "../../../../../test/toast-testing";
 import { platformLegalDocument } from "@/lib/legal-defaults";
 import type {
   ContentPage,
@@ -391,9 +391,7 @@ describe("switching page with unsaved edits", () => {
       await screen.findByRole("button", { name: "Discard changes" }),
     );
     await waitFor(() =>
-      expect(pushMock).toHaveBeenCalledWith(
-        "/portal/administration/site-content?page=contact",
-      ),
+      expect(pushMock).toHaveBeenCalledWith("/portal/website?page=contact"),
     );
   });
 

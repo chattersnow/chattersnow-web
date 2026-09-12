@@ -31,7 +31,7 @@ export type ArticleDraftInput = {
   value: unknown;
 };
 
-const ARTICLES_PATH = "/portal/administration/site-content/articles";
+const ARTICLES_PATH = "/portal/website/articles";
 
 /**
  * Stages a category and its whole ordered article list as drafts (#894).

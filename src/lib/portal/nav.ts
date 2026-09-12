@@ -440,6 +440,54 @@ export const NAV_ITEMS: readonly NavItem[] = [
   // RBAC while the section is a registry of vendor accounts, domains and MFA
   // status -- and it sat two rows from Roles and Permissions, which are the
   // actual access control.
+  // Promoted out of Administration (#944). Site Content is a website CMS
+  // filed as an administration setting: 15 pages, 35 sections and 121 content
+  // slots, plus the Learn articles and a draft -> publish workflow, with its
+  // own page switcher, cross-page search and outline. Three levels of
+  // navigation inside one sub-item.
+  //
+  // It was also the only Administration entry whose gate admitted a reader
+  // holding nothing else. The job is writing the public website and the
+  // audience is comms, not admins.
+  {
+    value: "website",
+    label: "Website",
+    group: "Organization",
+    href: "/portal/website",
+    basePath: "/portal/website",
+    subItems: [
+      {
+        value: "pages",
+        label: "Pages",
+        href: "/portal/website",
+        access: [{ resource: "site_content", level: "view" }],
+      },
+      // Both of these were reachable only from a link inside their parent --
+      // two of the four routes the IA audit found outside every navigation
+      // surface.
+      {
+        value: "articles",
+        label: "Articles",
+        href: "/portal/website/articles",
+        access: [{ resource: "site_content", level: "view" }],
+      },
+      // Operator-only, and it takes both checks to say so. `access` is the
+      // section's own gate, which website/layout.tsx actually enforces;
+      // `alsoRequires` is the extra condition the page enforces itself, since
+      // it notFound()s without `platform_tenants:manage`.
+      //
+      // Gating on platform_tenants alone would have the nav offering a link
+      // the layout above it refuses -- the shape #903 fixed, and the one
+      // nav-guards.test.ts exists to catch.
+      {
+        value: "content-packs",
+        label: "Content Packs",
+        href: "/portal/website/articles/packs",
+        access: [{ resource: "site_content", level: "view" }],
+        alsoRequires: [{ resource: "platform_tenants", level: "manage" }],
+      },
+    ],
+  },
   {
     value: "technology",
     label: "Technology",
@@ -587,13 +635,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
           { resource: "administration", level: "manage" },
           { resource: "system_settings", level: "manage" },
         ],
-      },
-      {
-        value: "site-content",
-        label: "Site Content",
-        href: "/portal/administration/site-content",
-        group: "Organization",
-        access: [{ resource: "site_content", level: "view" }],
       },
       // Gated on its own resource, which the platform RPCs only honour inside
       // a tenant on the internal plan (#707 Phase 5c). The plan half of that

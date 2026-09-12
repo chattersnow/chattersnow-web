@@ -23,7 +23,7 @@ import {
   setArticleCategoryPackAction,
 } from "./actions";
 
-const ARTICLES = "/portal/administration/site-content/articles";
+const ARTICLES = "/portal/website/articles";
 
 /** One of this tenant's article categories, as the pack screen needs it. */
 export type PackCategory = {

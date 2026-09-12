@@ -54,7 +54,7 @@ export async function saveSiteContentDraftAction(
 
   // The portal reads its own writes; the public site is untouched until
   // publish, so nothing there needs revalidating.
-  revalidatePath("/portal/administration/site-content");
+  revalidatePath("/portal/website");
   return { success: true };
 }
 
@@ -83,7 +83,7 @@ export async function discardSiteContentDraftAction(
     return { error: "Could not discard the draft. Please try again." };
   }
 
-  revalidatePath("/portal/administration/site-content");
+  revalidatePath("/portal/website");
   return { success: true };
 }
 

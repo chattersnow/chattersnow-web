@@ -2150,7 +2150,7 @@ export const helpContent: Record<string, HelpEntry> = {
       </>
     ),
   },
-  "/portal/administration/site-content": {
+  "/portal/website": {
     title: "How site content editing works",
     description: "Replacing the public website's words, slot by slot.",
     body: (

@@ -22,7 +22,7 @@ import {
   serviceRoleClient,
   signIn,
   uniqueEmail,
-} from "../../../../../../../../test/integration-setup";
+} from "../../../../../../../test/integration-setup";
 
 const service = serviceRoleClient();
 const run = crypto.randomUUID().slice(0, 8);
