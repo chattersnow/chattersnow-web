@@ -8,10 +8,10 @@ import {
   MFA_STATUS_OPTIONS,
   SENSITIVITY_OPTIONS,
 } from "./labels";
-import { PersonSelect } from "../../people/person-select";
+import { PersonSelect } from "../people/person-select";
 import { ServiceSelect } from "./service-select";
 import type { AssetFormData } from "./asset-form";
-import type { PersonListItem } from "../../people/actions";
+import type { PersonListItem } from "../people/actions";
 import type { ServiceRow } from "@/lib/portal/access-management/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";

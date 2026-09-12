@@ -430,6 +430,47 @@ export const NAV_ITEMS: readonly NavItem[] = [
       },
     ],
   },
+  // Promoted out of Administration (#943). `access_management` is a peer
+  // module in the entitlement catalog, not part of Administration: a tenant
+  // can be sold it without Administration, yet the only way in was through
+  // Administration's disclosure, and the section gate had to be widened to
+  // admit it (#903).
+  //
+  // Named "Technology" rather than "Access Management": the old label read as
+  // RBAC while the section is a registry of vendor accounts, domains and MFA
+  // status -- and it sat two rows from Roles and Permissions, which are the
+  // actual access control.
+  {
+    value: "technology",
+    label: "Technology",
+    group: "Organization",
+    href: "/portal/technology",
+    basePath: "/portal/technology",
+    subItems: [
+      {
+        value: "assets",
+        label: "Assets",
+        href: "/portal/technology",
+        access: [
+          { resource: "administration", level: "manage" },
+          { resource: "access_management_assets", level: "view" },
+          { resource: "access_management_reviews", level: "view" },
+        ],
+      },
+      // Was reachable only from a link inside the assets page -- one of the
+      // four routes the IA audit found outside every navigation surface.
+      {
+        value: "services",
+        label: "Services",
+        href: "/portal/technology/services",
+        access: [
+          { resource: "administration", level: "manage" },
+          { resource: "access_management_assets", level: "view" },
+          { resource: "access_management_reviews", level: "view" },
+        ],
+      },
+    ],
+  },
   {
     value: "governance",
     label: "Governance",
@@ -554,17 +595,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
         group: "Organization",
         access: [{ resource: "site_content", level: "view" }],
       },
-      {
-        value: "access-management",
-        label: "Access Management",
-        href: "/portal/administration/access-management",
-        group: "Technology & platform",
-        access: [
-          { resource: "administration", level: "manage" },
-          { resource: "access_management_assets", level: "view" },
-          { resource: "access_management_reviews", level: "view" },
-        ],
-      },
       // Gated on its own resource, which the platform RPCs only honour inside
       // a tenant on the internal plan (#707 Phase 5c). The plan half of that
       // gate is enforced in my_permissions(), which reports `platform_tenants`
@@ -576,7 +606,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
         value: "platform",
         label: "Platform",
         href: "/portal/administration/platform",
-        group: "Technology & platform",
+        group: "Organization",
         access: [{ resource: "platform_tenants", level: "manage" }],
       },
       {

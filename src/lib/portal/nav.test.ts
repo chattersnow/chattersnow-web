@@ -205,7 +205,10 @@ describe("navGroups", () => {
       ["Delivery", ["events", "calendar", "programs", "artwork"]],
       ["People", ["people", "volunteers", "messages"]],
       ["Resources", ["inventory", "finance"]],
-      ["Organization", ["governance", "administration"]],
+      // Technology joined this group in #943 rather than becoming a fifth
+      // heading -- which is why promoting it out of Administration costs the
+      // sidebar no extra width.
+      ["Organization", ["technology", "governance", "administration"]],
     ]);
   });
 
@@ -260,8 +263,10 @@ describe("navGroups", () => {
       ]),
     ).toEqual([
       ["Access & identity", ["users", "roles", "permissions"]],
-      ["Organization", ["system-settings", "site-content"]],
-      ["Technology & platform", ["access-management", "platform"]],
+      // Access Management left for its own section in #943, so Platform is
+      // the only thing that was under "Technology & platform" -- folded into
+      // Organization rather than left under a heading of one.
+      ["Organization", ["system-settings", "site-content", "platform"]],
       ["Oversight", ["audit-log", "data-retention"]],
     ]);
   });

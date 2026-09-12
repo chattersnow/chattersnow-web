@@ -16,9 +16,9 @@ import {
   SENSITIVITY_OPTIONS,
   humanize,
 } from "../../labels";
-import { PersonSelect } from "../../../../people/person-select";
+import { PersonSelect } from "../../../people/person-select";
 import { ServiceSelect } from "../../service-select";
-import type { PersonListItem } from "../../../../people/actions";
+import type { PersonListItem } from "../../../people/actions";
 import type {
   AssetDetail,
   ServiceRow,

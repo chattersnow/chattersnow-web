@@ -1608,7 +1608,7 @@ export const helpContent: Record<string, HelpEntry> = {
       </>
     ),
   },
-  "/portal/administration/access-management": {
+  "/portal/technology": {
     title: "How access management works",
     description: "Sensitivity, review cadence, and the access grant lifecycle.",
     body: (

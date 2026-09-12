@@ -9,7 +9,7 @@ import {
   packAssetFormData,
   type AssetFormState,
 } from "./asset-form-fields";
-import type { PersonListItem } from "../../people/actions";
+import type { PersonListItem } from "../people/actions";
 import type { ServiceRow } from "@/lib/portal/access-management/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";

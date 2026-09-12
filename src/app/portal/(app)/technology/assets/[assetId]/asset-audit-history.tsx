@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ActionBadge } from "../../../audit-log/audit-log-badges";
+import { ActionBadge } from "../../../administration/audit-log/audit-log-badges";
 import { formatDateTime } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
 

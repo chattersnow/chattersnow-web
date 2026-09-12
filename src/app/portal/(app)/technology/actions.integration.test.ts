@@ -13,7 +13,7 @@ import {
   createPerson,
   signIn,
   signInAs,
-} from "../../../../../../test/integration-setup";
+} from "../../../../../test/integration-setup";
 import { getAccessManagementAttentionSummary } from "@/lib/portal/attention-items";
 import { computeNextReviewDate } from "@/lib/portal/access-management/review-cadence";
 import {
