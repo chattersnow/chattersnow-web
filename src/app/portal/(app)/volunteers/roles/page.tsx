@@ -11,7 +11,7 @@ import { RoleTypesTable } from "./role-types-table";
 import type { RoleTypeRow } from "./role-type-details-sheet";
 
 export const metadata: Metadata = {
-  title: "Volunteer Roles",
+  title: "Roles · Volunteers",
 };
 
 export default async function VolunteerRolesPage() {

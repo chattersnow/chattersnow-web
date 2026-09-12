@@ -6,7 +6,7 @@ import { RolesView } from "./roles-view";
 import { listRolesAction } from "../users/actions";
 
 export const metadata: Metadata = {
-  title: "Portal Roles",
+  title: "Roles · Administration",
 };
 
 export default async function RolesPage() {
