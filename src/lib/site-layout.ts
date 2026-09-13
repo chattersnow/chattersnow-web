@@ -81,8 +81,15 @@ export type ProgramsSource = "content" | "module";
  * the row. Rows give the bio a full-width column at a readable measure and
  * clip it to three lines with an expander, which is a different answer rather
  * than a better one -- a team with two-line bios reads better as cards.
+ *
+ * `portraits` is for the tenant with more people than either of those can
+ * hold (#1012). Both of them put every bio on the page at once, so a sixteen
+ * seat board is six rows of tall cards or some six thousand pixels of roster.
+ * At that size the page stops being "read about the team" and becomes "find
+ * one person", and a bio for everyone is in the way of that: portraits show
+ * the faces, and one bio at a time underneath them.
  */
-export type TeamLayout = "cards" | "rows";
+export type TeamLayout = "cards" | "rows" | "portraits";
 
 export const LAYOUT_SLOTS: LayoutSlot[] = [
   {
@@ -139,12 +146,13 @@ export const LAYOUT_SLOTS: LayoutSlot[] = [
     key: TEAM_LAYOUT_SLOT,
     label: "How team members are shown",
     description:
-      "Cards put each person in a column of their own, which suits a short introduction. Rows give each person the full width of the page -- portrait on the left, name, role and biography on the right -- and clip a long biography to three lines with a Read more. Choose rows if your team writes at length.",
+      "Cards put each person in a column of their own, which suits a short introduction. Rows give each person the full width of the page -- portrait on the left, name, role and biography on the right -- and clip a long biography to three lines with a Read more. Portraits show everyone's face at once with their name and role, and one biography at a time underneath; choose it when your team is bigger than a dozen and the page is for finding a person rather than reading about all of them.",
     control: "select",
     defaultValue: "cards",
     options: [
       { value: "cards", label: "Cards", hint: "Default" },
       { value: "rows", label: "Rows", hint: "For long bios" },
+      { value: "portraits", label: "Portraits", hint: "For a large team" },
     ],
   },
 ];

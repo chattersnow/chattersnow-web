@@ -1,4 +1,5 @@
-// Issue #917: Meet the Team can be a card grid or full-width roster rows.
+// Issues #917 and #1012: Meet the Team can be a card grid, full-width roster
+// rows, or a grid of portraits with one bio at a time.
 // Which one is a single `layout.team_layout` row shared by the whole site, and
 // the seeded tenant's team member has an 18-character bio with nothing to
 // clip, so this file also writes a long-bio member into `site_content` for the
@@ -31,7 +32,7 @@ const MEMBERS = [
   { name: "No Bio Member", role: "Board chair", bio: [] },
 ];
 
-async function setLayout(layout: "cards" | "rows") {
+async function setLayout(layout: "cards" | "rows" | "portraits") {
   const admin = createAdminClient();
   const { error } = await admin
     .from("app_settings")
@@ -167,6 +168,37 @@ test.describe("how Meet the Team is arranged", () => {
     // anything at all.
     await expect(page.locator(".team-bio-clamped")).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Show less/ })).toBeFocused();
+  });
+
+  test("portraits show every face and no bio until one is picked", async ({
+    page,
+  }) => {
+    await setLayout("portraits");
+    await page.goto("/about/team");
+
+    await expect(page.getByText("Long Bio Member").first()).toBeVisible();
+    await expect(page.getByText("No Bio Member").first()).toBeVisible();
+
+    // In the markup, so a crawler and a reader without JavaScript have it,
+    // but not on screen: this layout opens as a page of faces.
+    await expect(page.getByText(LAST_PARAGRAPH)).toHaveCount(1);
+    await expect(page.getByText(LAST_PARAGRAPH)).not.toBeVisible();
+
+    // Only the member who has a bio is a control.
+    const portrait = page.getByRole("button", { name: /Long Bio Member/ });
+    await expect(portrait).toHaveAttribute("aria-expanded", "false");
+    await expect(
+      page.getByRole("button", { name: /No Bio Member/ }),
+    ).toHaveCount(0);
+
+    await portrait.click();
+
+    await expect(page.getByText(LAST_PARAGRAPH)).toBeVisible();
+    await expect(portrait).toHaveAttribute("aria-expanded", "true");
+
+    // And closes again, leaving no panel behind.
+    await portrait.click();
+    await expect(page.getByText(LAST_PARAGRAPH)).not.toBeVisible();
   });
 
   test("a member with no bio gets no expander and no placeholder", async ({
