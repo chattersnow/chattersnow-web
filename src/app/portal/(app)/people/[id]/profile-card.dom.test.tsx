@@ -115,6 +115,65 @@ describe("ProfileCard", () => {
     await expectToast("Profile saved.");
   });
 
+  // #1036. logo_url was selected by the page and read by the edit form and
+  // rendered nowhere, so a staffer could not tell a good link from a dead one
+  // without opening the form -- on the field the public sponsor wall draws.
+  // These assert the URL row rather than the <img>: next/image needs a mock to
+  // render under happy-dom at all, which public-team-card.dom.test.tsx also
+  // declines to set up for its own photo preview.
+  test("shows an organization's logo URL on its record", () => {
+    render(
+      <ProfileCard
+        person={{
+          ...person,
+          person_type: "organization",
+          logo_url: "https://example.test/logos/mark.png",
+        }}
+        people={[]}
+        canManage={true}
+      />,
+    );
+
+    expect(
+      screen.getByText("https://example.test/logos/mark.png"),
+    ).toBeInTheDocument();
+  });
+
+  test("an organization with no logo reads as empty rather than missing", () => {
+    render(
+      <ProfileCard
+        person={{ ...person, person_type: "organization", logo_url: null }}
+        people={[]}
+        canManage={true}
+      />,
+    );
+
+    const row = screen.getByText("Logo:").closest("p");
+    expect(row).toHaveTextContent("Logo: —");
+  });
+
+  test("an individual's record has no logo row", () => {
+    render(
+      <ProfileCard
+        person={{
+          ...person,
+          person_type: "individual",
+          // Set on the row, as it can be: the form keeps a value rather than
+          // clearing it when someone switches an organization to an individual
+          // by mistake. The view still must not offer it.
+          logo_url: "https://example.test/logos/mark.png",
+        }}
+        people={[]}
+        canManage={true}
+      />,
+    );
+
+    expect(screen.queryByText("Logo:")).toBeNull();
+    expect(
+      screen.queryByText("https://example.test/logos/mark.png"),
+    ).toBeNull();
+  });
+
   // The role checkboxes are seeded from the derived flags on people_with_roles,
   // which carry no tag metadata, so the publication flag reaches the card as
   // its own prop read from person_role_tags (#1024).
