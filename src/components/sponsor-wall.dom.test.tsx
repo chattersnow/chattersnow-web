@@ -52,6 +52,53 @@ describe("SponsorTile", () => {
   });
 });
 
+/**
+ * Every <img> reports a failed load under happy-dom (see the note at the top),
+ * which is exactly what the fallback tests above want and exactly what a test
+ * about the `src` an <img> is handed cannot have. Pinning `complete` to false
+ * for the duration keeps the element mounted so its attributes can be read.
+ */
+function withLoadingImages(fn: () => void) {
+  const original = Object.getOwnPropertyDescriptor(
+    HTMLImageElement.prototype,
+    "complete",
+  );
+  Object.defineProperty(HTMLImageElement.prototype, "complete", {
+    configurable: true,
+    get: () => false,
+  });
+  try {
+    fn();
+  } finally {
+    if (original) {
+      Object.defineProperty(HTMLImageElement.prototype, "complete", original);
+    } else {
+      Reflect.deleteProperty(HTMLImageElement.prototype, "complete");
+    }
+  }
+}
+
+// #914 handed the stored URL straight to <img>. A Google Drive share link --
+// what the portal's picture fields are most often filled with, and what every
+// other image surface resolves -- points at Drive's HTML viewer rather than
+// the image bytes, so a wall of Drive-hosted logos rendered as a wall of names.
+test("rewrites a Google Drive share link to the image itself", () => {
+  withLoadingImages(() => {
+    render(
+      <SponsorTile
+        sponsor={{
+          ...sponsor,
+          logo_url: "https://drive.google.com/file/d/ABC123/view",
+        }}
+      />,
+    );
+
+    expect(document.querySelector("img")?.getAttribute("src")).toBe(
+      "https://drive.google.com/thumbnail?id=ABC123&sz=w1000",
+    );
+  });
+});
+
 const sponsors = [
   sponsor,
   { ...sponsor, sponsor_id: "s2", name: "Summit Threads" },

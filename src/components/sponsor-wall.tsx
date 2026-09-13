@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { resolveImageUrl } from "@/lib/inventory";
 // Type-only: @/lib/site-layout also exports getSiteLayout, which pulls in
 // createSupabaseServerClient and must not reach the client bundle.
 import type { SponsorWallLayout } from "@/lib/site-layout";
@@ -39,11 +40,18 @@ function SponsorMark({
 }) {
   const [logoFailed, setLogoFailed] = useState(false);
 
+  // A sponsor's logo is pasted into the same field as every other picture in
+  // the portal, so it is just as likely to be a Google Drive share link --
+  // which points at Drive's HTML viewer, not the image bytes, and loads as a
+  // broken image. Every other image surface resolves it; this one did not, so
+  // a wall of Drive-hosted logos rendered as a wall of name fallbacks.
+  const logoSrc = resolveImageUrl(sponsor.logo_url);
+
   const inner =
-    sponsor.logo_url && !logoFailed ? (
+    logoSrc && !logoFailed ? (
       // eslint-disable-next-line @next/next/no-img-element -- sponsor logos come from arbitrary external hosts, not the curated Google Drive links next.config.ts allows for next/image
       <img
-        src={sponsor.logo_url}
+        src={logoSrc}
         alt={sponsor.name}
         className={imgClassName}
         onError={() => setLogoFailed(true)}
