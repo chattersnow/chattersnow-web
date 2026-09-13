@@ -52,6 +52,7 @@ export const HOME_UPCOMING_CARDS_SLOT = "home_upcoming_cards";
 export const HOME_UPCOMING_COMMUNITY_SLOT = "home_upcoming_community";
 export const PROGRAMS_SOURCE_SLOT = "programs_source";
 export const TEAM_LAYOUT_SLOT = "team_layout";
+export const TEAM_SOURCE_SLOT = "team_source";
 
 /** The two ways the home page can present an upcoming event. */
 export type HomeUpcomingCards = "fliers" | "compact";
@@ -90,6 +91,18 @@ export type ProgramsSource = "content" | "module";
  * the faces, and one bio at a time underneath them.
  */
 export type TeamLayout = "cards" | "rows" | "portraits";
+
+/**
+ * Where the Meet the Team page gets its members (#1014).
+ *
+ * `content` is the copy in `about_team.members`, where it has always come
+ * from, and stays the default. `people` reads the tenant's own
+ * `public_team_members` rows -- the people it put on the page from their
+ * records in People -- so an operator maintaining the team in People is not
+ * also maintaining it in Site Content. The heading, hero photo and missing-bio
+ * text are copy either way. The People twin of `ProgramsSource`.
+ */
+export type TeamSource = "content" | "people";
 
 export const LAYOUT_SLOTS: LayoutSlot[] = [
   {
@@ -155,6 +168,18 @@ export const LAYOUT_SLOTS: LayoutSlot[] = [
       { value: "portraits", label: "Portraits", hint: "For a large team" },
     ],
   },
+  {
+    key: TEAM_SOURCE_SLOT,
+    label: "Where Meet the Team gets its members",
+    description:
+      "Site Content keeps the team members as copy you write on the Site Content page. People reads the people you have added to the team page from their records in People, showing only those. Either way, the heading, the hero photo and the missing-bio text stay in Site Content.",
+    control: "select",
+    defaultValue: "content",
+    options: [
+      { value: "content", label: "Site Content", hint: "Default" },
+      { value: "people", label: "People" },
+    ],
+  },
 ];
 
 const SLOTS_BY_KEY = new Map(LAYOUT_SLOTS.map((slot) => [slot.key, slot]));
@@ -192,6 +217,8 @@ export type SiteLayout = {
   programsSource: ProgramsSource;
   /** Whether Meet the Team is a card grid or full-width roster rows. */
   teamLayout: TeamLayout;
+  /** Whether Meet the Team renders copy or the tenant's own people rows. */
+  teamSource: TeamSource;
 };
 
 export type LayoutRow = { slot: string; value: unknown };
@@ -225,6 +252,7 @@ export function resolveLayout(rows: readonly LayoutRow[]): SiteLayout {
     homeUpcomingCommunity: values[HOME_UPCOMING_COMMUNITY_SLOT] as boolean,
     programsSource: values[PROGRAMS_SOURCE_SLOT] as ProgramsSource,
     teamLayout: values[TEAM_LAYOUT_SLOT] as TeamLayout,
+    teamSource: values[TEAM_SOURCE_SLOT] as TeamSource,
   };
 }
 

@@ -1482,6 +1482,34 @@ update public.programs
 set is_public = true, pillar = null, sort_order = null
 where name = 'Community Gear Library';
 
+-- People mode for Meet the Team (#1014). The same arrangement as the Programs
+-- block above: the page reads Site Content until a tenant changes
+-- `layout.team_source`, so these rows change nothing on their own -- they are
+-- here so that flipping the setting locally, or in the e2e case that flips
+-- it, lands on a populated page rather than the empty state.
+--
+-- Three rows over the hand-authored people, covering the shapes the page has
+-- to render: an ordered member with a role and a multi-paragraph biography,
+-- an ordered member with a role and no biography (the placeholder case), and
+-- an unordered member with neither, who sorts after the other two by name.
+-- Every other seeded person stays off the page, which is also the check that
+-- a person is not listed until somebody lists them.
+--
+-- Local and CI only -- seed.sql never runs against a hosted project.
+insert into public.public_team_members (person_id, public_role, bio, sort_order)
+select id, 'Programs lead',
+  E'Jamie has run the winter access program since it began, and learned to ride as an adult.\n\nOff snow you will find them at the climbing gym or organizing the gear library.',
+  1
+from public.people where email = 'jamie.rivera@example.test';
+
+insert into public.public_team_members (person_id, public_role, bio, sort_order)
+select id, 'Board chair', null, 2
+from public.people where email = 'alex.chen@example.test';
+
+insert into public.public_team_members (person_id, public_role, bio, sort_order)
+select id, null, null, null
+from public.people where email = 'priya.n@example.test';
+
 -- A content pack (#895), so the platform tenant's pack screen has something in
 -- it locally and the a11y sweep scans a populated page rather than an empty
 -- one. The seeded tenant is on the `internal` plan, which makes it the platform

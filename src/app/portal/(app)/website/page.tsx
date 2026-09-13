@@ -6,7 +6,11 @@ import {
   requirePermission,
 } from "@/lib/auth/permissions";
 import { getPageVisibility } from "@/lib/page-visibility";
-import { getTenantLayoutValues, PROGRAMS_SOURCE_SLOT } from "@/lib/site-layout";
+import {
+  getTenantLayoutValues,
+  PROGRAMS_SOURCE_SLOT,
+  TEAM_SOURCE_SLOT,
+} from "@/lib/site-layout";
 import {
   platformLegalDocument,
   type LegalOrgContext,
@@ -191,6 +195,7 @@ export default async function SiteContentPage({
           outline={buildOutline(draft, published, draftKeys)}
           hiddenPages={hiddenPages}
           programsFromModule={layoutValues[PROGRAMS_SOURCE_SLOT] === "module"}
+          teamFromPeople={layoutValues[TEAM_SOURCE_SLOT] === "people"}
           canEdit={canEdit}
         />
       </div>
