@@ -1,15 +1,29 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { deliverEmail } from "@/lib/notifications/deliver";
+import {
+  deliverEmail,
+  type DeliveryOutcome,
+} from "@/lib/notifications/deliver";
 import { tenantMailContext } from "@/lib/email/identity";
 import type { RenderedEmail } from "@/lib/notifications/rendered-email";
 import { isOrgEmailEnabled } from "@/lib/notifications/settings";
+import { GEAR_REQUEST_CONFIRMATION_KIND } from "@/lib/notifications/kinds";
 import { lexiconForTenant } from "@/lib/tenant-lexicon";
 import {
   renderArtworkSubmissionEmail,
   renderContactMessageEmail,
+  renderGearRequestEmail,
   renderVolunteerApplicationEmail,
 } from "@/lib/notifications/submission-emails";
+import { renderGearRequestConfirmationEmail } from "@/lib/notifications/gear-request-confirmation-email";
+import {
+  MEETUP_INSTRUCTIONS_SETTING_KEY,
+  PAYMENT_METHODS_SETTING_KEY,
+  SHIPPING_INSTRUCTIONS_SETTING_KEY,
+  isDeliveryMethod,
+  parsePaymentMethods,
+} from "@/lib/gear-requests";
+import { personDisplayName } from "@/lib/format";
 
 /**
  * The event-triggered sends: a new volunteer application, a new contact
@@ -30,11 +44,13 @@ import {
 export const VOLUNTEER_APPLICATION_KIND = "volunteer_application";
 export const CONTACT_MESSAGE_KIND = "contact_message";
 export const ARTWORK_SUBMISSION_KIND = "artwork_submission";
+export const GEAR_REQUEST_KIND = "gear_request";
 
 /** Who owns the ops inbox. `administration` is the standing fallback. */
 const CONTACT_MESSAGE_RESOURCES = ["communications", "administration"];
 const VOLUNTEER_APPLICATION_RESOURCES = ["volunteers"];
 const ARTWORK_SUBMISSION_RESOURCES = ["artwork_submissions"];
+const GEAR_REQUEST_RESOURCES = ["inventory"];
 
 export type NotifySummary = {
   /** Role holders who could have been mailed, before the gates. */
@@ -208,6 +224,183 @@ export async function notifyNewArtworkSubmission(
         },
         origin,
       ),
+  });
+}
+
+type GearRequestRow = {
+  id: string;
+  tenant_id: string;
+  person_id: string | null;
+  delivery_method: string;
+  payment_method: string | null;
+  requester: {
+    name: string | null;
+    preferred_name: string | null;
+    email: string | null;
+  } | null;
+};
+
+const GEAR_REQUEST_SELECT =
+  "id, tenant_id, person_id, delivery_method, payment_method, requester:people(name, preferred_name, email)";
+
+/**
+ * Staff side of a gear request (#1032): the inventory managers hear that
+ * someone has asked. Keyed on the request id, which is what
+ * request_gear_items() returns -- for a filled honeypot that is a uuid with
+ * no row behind it, and this returns nothing, like the three above.
+ */
+export async function notifyNewGearRequest(
+  admin: SupabaseClient,
+  options: { requestId: string; siteUrl: string },
+): Promise<NotifySummary> {
+  const { data, error } = await admin
+    .from("gear_requests")
+    .select(GEAR_REQUEST_SELECT)
+    .eq("id", options.requestId)
+    .maybeSingle<GearRequestRow>();
+
+  if (error) {
+    console.error("[submission-notify] could not read the gear request", error);
+    return { ...NOTHING };
+  }
+  if (!data) return { ...NOTHING };
+
+  const { count } = await admin
+    .from("inventory_movements")
+    .select("id", { count: "exact", head: true })
+    .eq("gear_request_id", data.id)
+    .eq("movement_type", "reserved");
+
+  const lexicon = await lexiconForTenant(admin, data.tenant_id);
+
+  return notifyRoleHolders(admin, {
+    tenantId: data.tenant_id,
+    kind: GEAR_REQUEST_KIND,
+    resourceKeys: GEAR_REQUEST_RESOURCES,
+    minLevel: "manage",
+    dedupeKey: `${GEAR_REQUEST_KIND}:${data.id}`,
+    // No replyTo: a request is answered from its page, where the quote and
+    // the handover are recorded -- the same call the volunteer notice makes.
+    fallbackOrigin: options.siteUrl,
+    render: (origin) =>
+      renderGearRequestEmail(
+        {
+          requestId: data.id,
+          name: personDisplayName(data.requester, "Someone"),
+          email: data.requester?.email ?? "",
+          itemCount: count ?? 0,
+          deliveryMethod: data.delivery_method,
+        },
+        origin,
+        lexicon,
+      ),
+  });
+}
+
+/**
+ * The requester's own confirmation (#1032). Not a role-holder send: the
+ * recipient is the person the request is about, who has no account and no
+ * preference row -- so this bypasses the opt-in and goes straight to the
+ * ledger, gated only by the tenant's kill switch. deliverEmail() needs a
+ * people row, and request_gear_items() always mints one.
+ *
+ * Reads the tenant's `gear_requests.*` settings here, at send time, rather
+ * than storing the instructions on the request: they are the organization's
+ * words about what happens next, and the row is about what was asked for.
+ */
+export async function sendGearRequestConfirmation(
+  admin: SupabaseClient,
+  options: { requestId: string; siteUrl: string },
+): Promise<DeliveryOutcome> {
+  const { data, error } = await admin
+    .from("gear_requests")
+    .select(GEAR_REQUEST_SELECT)
+    .eq("id", options.requestId)
+    .maybeSingle<GearRequestRow>();
+
+  if (error) {
+    console.error(
+      "[submission-notify] could not read the gear request for its confirmation",
+      error,
+    );
+    return "failed";
+  }
+  // Honeypot, or a requester with no address to write to.
+  if (!data || !data.person_id || !data.requester?.email) return "skipped";
+  if (!isDeliveryMethod(data.delivery_method)) return "skipped";
+  const deliveryMethod = data.delivery_method;
+
+  if (!(await isOrgEmailEnabled(admin, data.tenant_id))) return "skipped";
+
+  const [items, settings, tenant, mail] = await Promise.all([
+    admin
+      .from("inventory_movements")
+      .select("inventory_item:inventory_items(description)")
+      .eq("gear_request_id", data.id)
+      .eq("movement_type", "reserved"),
+    admin
+      .from("app_settings")
+      .select("key, value")
+      .eq("tenant_id", data.tenant_id)
+      .in("key", [
+        PAYMENT_METHODS_SETTING_KEY,
+        MEETUP_INSTRUCTIONS_SETTING_KEY,
+        SHIPPING_INSTRUCTIONS_SETTING_KEY,
+      ]),
+    admin.from("tenants").select("name").eq("id", data.tenant_id).maybeSingle(),
+    tenantMailContext(admin, data.tenant_id, {
+      fallbackOrigin: options.siteUrl,
+    }),
+  ]);
+
+  const settingsByKey = new Map(
+    ((settings.data ?? []) as { key: string; value: unknown }[]).map((row) => [
+      row.key,
+      row.value,
+    ]),
+  );
+  const instructionsKey =
+    deliveryMethod === "shipping"
+      ? SHIPPING_INSTRUCTIONS_SETTING_KEY
+      : MEETUP_INSTRUCTIONS_SETTING_KEY;
+  const instructions = settingsByKey.get(instructionsKey);
+  const paymentMethods = parsePaymentMethods(
+    settingsByKey.get(PAYMENT_METHODS_SETTING_KEY),
+  );
+
+  type ItemRow = {
+    inventory_item: { description: string | null } | null;
+  };
+  const descriptions = ((items.data ?? []) as unknown as ItemRow[])
+    .map((row) => row.inventory_item?.description?.trim() ?? "")
+    .filter(Boolean);
+
+  const requesterEmail = data.requester.email;
+  const requester = data.requester;
+  const orgName = ((tenant.data?.name as string | undefined) ?? "").trim();
+
+  return deliverEmail(admin, {
+    tenantId: data.tenant_id,
+    identity: mail.identity,
+    personId: data.person_id,
+    kind: GEAR_REQUEST_CONFIRMATION_KIND,
+    dedupeKey: `${GEAR_REQUEST_CONFIRMATION_KIND}:${data.id}`,
+    to: requesterEmail,
+    render: () =>
+      renderGearRequestConfirmationEmail({
+        orgName: orgName || mail.identity.from,
+        requesterName: personDisplayName(requester, ""),
+        items: descriptions,
+        deliveryMethod,
+        instructions: typeof instructions === "string" ? instructions : "",
+        paymentMethod:
+          deliveryMethod === "shipping"
+            ? (paymentMethods.find(
+                (method) => method.key === data.payment_method,
+              ) ?? null)
+            : null,
+      }),
+    logPrefix: "[gear-request-confirm]",
   });
 }
 

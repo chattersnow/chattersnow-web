@@ -24,6 +24,7 @@ import {
   type PersonRow,
 } from "../people-shared";
 import { useLexicon } from "@/components/lexicon-context";
+import { ImagePreviewBox, useImagePreview } from "../../website/image-preview";
 import {
   experienceLevelLabel,
   ridesSki,
@@ -45,7 +46,35 @@ import {
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 
-function formStateFor(person: PersonRow): PersonFormState {
+/**
+ * The organization's mark, at the shape and fit the public sponsor wall draws
+ * it: contained rather than cropped, in a box roughly as wide as the widest
+ * wordmark (#1028 uses the same three values on the Logo URL field itself).
+ *
+ * Renders nothing at all when the link is unusable or has failed, so what is
+ * left is the URL row below -- which is the right fallback here even though
+ * the public wall falls back to the sponsor's name. A visitor must never see a
+ * broken mark; a staffer is the one person who can fix it, and needs to see
+ * the link that is wrong.
+ */
+function LogoPreview({ url }: { url: string }) {
+  const preview = useImagePreview(url);
+  if (!preview.url) return null;
+  return (
+    <ImagePreviewBox
+      url={preview.url}
+      ratio="4 / 1"
+      fit="contain"
+      className="h-16"
+      onError={preview.markFailed}
+    />
+  );
+}
+
+function formStateFor(
+  person: PersonRow,
+  sponsorWallPublic: boolean,
+): PersonFormState {
   return {
     name: person.name ?? "",
     preferredName: person.preferred_name ?? "",
@@ -64,6 +93,7 @@ function formStateFor(person: PersonRow): PersonFormState {
       is_staff: person.is_staff,
       is_partner: person.is_partner,
     },
+    sponsorWallPublic,
     personType: person.person_type,
     ridingDiscipline: person.riding_discipline ?? "",
     skiExperienceLevel: person.ski_experience_level ?? "",
@@ -77,17 +107,27 @@ export function ProfileCard({
   people,
   canManage,
   canDeleteRiderProfile = false,
+  sponsorWallPublic = false,
 }: {
   person: PersonRow;
   people: PersonListItem[];
   canManage: boolean;
   canDeleteRiderProfile?: boolean;
+  /**
+   * Whether this person's manual sponsor tag is published to the public
+   * sponsor wall (#1024). Read from `person_role_tags` by the caller, since
+   * the role flags on `people_with_roles` are derived and carry no tag
+   * metadata.
+   */
+  sponsorWallPublic?: boolean;
 }) {
   const router = useRouter();
   const vocabulary = useLexicon();
   const formId = `person-profile-form-${person.id}`;
   const [mode, setMode] = useState<"view" | "edit">("view");
-  const [form, setForm] = useState<PersonFormState>(() => formStateFor(person));
+  const [form, setForm] = useState<PersonFormState>(() =>
+    formStateFor(person, sponsorWallPublic),
+  );
   const [contact, setContact] = useState<PickedPerson | null>(
     person.primary_contact,
   );
@@ -123,7 +163,7 @@ export function ProfileCard({
   }
 
   function cancel() {
-    setForm(formStateFor(person));
+    setForm(formStateFor(person, sponsorWallPublic));
     setContact(person.primary_contact);
     setError(null);
     setMode("view");
@@ -206,6 +246,19 @@ export function ProfileCard({
               <span className="app-muted">Website:</span>{" "}
               {person.website ?? "—"}
             </p>
+            {/* An organization's logo is what the public sees on the sponsor
+                wall and on an event's page (#1024), and until #1036 it was
+                readable nowhere in the portal -- a staffer could not tell a
+                good link from a dead one without opening the form. */}
+            {isOrganization(person) && (
+              <>
+                {person.logo_url && <LogoPreview url={person.logo_url} />}
+                <p className="break-all">
+                  <span className="app-muted">Logo:</span>{" "}
+                  {person.logo_url ?? "—"}
+                </p>
+              </>
+            )}
             {person.primary_contact && (
               <p>
                 <span className="app-muted">Primary contact:</span>{" "}

@@ -9,6 +9,7 @@ import { FiscalYearPanel } from "./fiscal-year-panel";
 import { BrandingPanel } from "./branding-panel";
 import { DataPanel } from "./data-panel";
 import { getFiscalYearStartMonth } from "@/lib/fiscal-year";
+import { SALES_TAX_RATE_SETTING_KEY } from "@/lib/sales-tax";
 import { getTenantBranding } from "@/lib/tenant-branding";
 import { getStoredLexicon } from "@/lib/tenant-lexicon";
 import { getStoredPersonRoleLabels } from "@/lib/tenant-person-roles";
@@ -56,6 +57,7 @@ export default async function OrganizationSettingsPage() {
   const [
     { data: expenseSetting },
     { data: reimbursementSetting },
+    { data: salesTaxSetting },
     { data: opsReportSetting },
     { data: mailIdentitySettings },
   ] = await Promise.all([
@@ -68,6 +70,11 @@ export default async function OrganizationSettingsPage() {
       .from("app_settings")
       .select("value")
       .eq("key", "finance.reimbursement_approval_threshold")
+      .maybeSingle(),
+    supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", SALES_TAX_RATE_SETTING_KEY)
       .maybeSingle(),
     supabase
       .from("app_settings")
@@ -168,7 +175,8 @@ export default async function OrganizationSettingsPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="app-muted max-w-2xl text-sm leading-relaxed">
               These thresholds control who can approve an expense or
-              reimbursement on their own.
+              reimbursement on their own. The sales tax rate is what the
+              register charges on merchandise.
             </p>
           </div>
           <WorkflowThresholdsForm
@@ -176,6 +184,7 @@ export default async function OrganizationSettingsPage() {
             reimbursementApprovalThreshold={parseThreshold(
               reimbursementSetting?.value,
             )}
+            salesTaxRate={parseThreshold(salesTaxSetting?.value)}
           />
         </TabsContent>
 

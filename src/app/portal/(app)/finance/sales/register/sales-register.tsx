@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Minus, Plus, X } from "lucide-react";
+import { Minus, Plus, Receipt, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,20 +24,26 @@ import { useUnsavedChangesGuard } from "@/components/portal/unsaved-changes-guar
 import { formatCurrency } from "@/lib/format";
 import type { PersonHit } from "../../../command-palette-actions";
 import { recordSaleAction } from "../actions";
+import { formatReceiptNumber } from "../receipt";
 import {
   PAYMENT_METHODS,
   paymentMethodLabel,
   type PaymentMethod,
 } from "../sales-shared";
+import { CustomItemDialog } from "./custom-item-dialog";
 import { PurchaserSearch } from "./purchaser-search";
 import {
+  addCustomLine,
   addToCart,
+  cartLineLabel,
   cartTotals,
   buildRecordSaleInput,
+  fromCents,
   lineLabel,
   pickDefaultEvent,
   removeLine,
   setLineQuantity,
+  setLineUnitPrice,
   type CartLine,
   type RegisterEvent,
   type RegisterVariant,
@@ -44,16 +51,26 @@ import {
 
 const NO_EVENT = "none";
 
+/** What the register remembers about the sale it just recorded (#1016). */
+type LastSale = { id: string; receiptNumber: number; total: number };
+
+function receiptHref(saleId: string): string {
+  return `/portal/finance/sales/${saleId}/receipt?print=1`;
+}
+
 export function SalesRegister({
   variants,
   events,
   defaultEventId,
+  defaultTaxRate = 0,
 }: {
   /** Active variants of active products, in catalog order. */
   variants: RegisterVariant[];
   events: RegisterEvent[];
   /** From `?event=` — the event tab's "Open register" deep link. */
   defaultEventId?: string;
+  /** The org's rate (percent) from app_settings, prefilled and editable per sale. */
+  defaultTaxRate?: number;
 }) {
   const router = useRouter();
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -66,7 +83,23 @@ export function SalesRegister({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [purchaser, setPurchaser] = useState<PersonHit | null>(null);
   const [discountInput, setDiscountInput] = useState("");
+  // Seeded once from the org default; the cashier may change it for a sale
+  // (a tax-exempt buyer, an out-of-state fair) and the RPC snapshots whatever
+  // was sent. Kept across sales like the event: the next sale at the same
+  // table is at the same rate.
+  const [taxRateInput, setTaxRateInput] = useState(() =>
+    defaultTaxRate === 0 ? "" : String(defaultTaxRate),
+  );
   const [notes, setNotes] = useState("");
+  // Kept until the next sale replaces it, because a toast is gone before the
+  // cashier has finished making change and the receipt is the one thing that
+  // has to outlive it.
+  const [lastSale, setLastSale] = useState<LastSale | null>(null);
+  // Which line's price is open for editing, and what has been typed into it.
+  // One at a time: the input replaces the price in the row, so two open at once
+  // would be two rows the cashier has half-changed.
+  const [editingPriceOf, setEditingPriceOf] = useState<string | null>(null);
+  const [priceInput, setPriceInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -76,14 +109,20 @@ export function SalesRegister({
   useUnsavedChangesGuard(cart.length > 0);
 
   const totals = useMemo(
-    () => cartTotals(cart, discountInput),
-    [cart, discountInput],
+    () => cartTotals(cart, discountInput, taxRateInput),
+    [cart, discountInput, taxRateInput],
   );
 
   // What is left to sell right now: the catalog figure less what is in the
   // cart, so a tile reads "2 left" after three of five have been added.
   const remaining = useMemo(() => {
-    const inCart = new Map(cart.map((line) => [line.variantId, line.quantity]));
+    // Custom lines are not in the catalog and count against nothing, so they
+    // are left out of the tally entirely.
+    const inCart = new Map(
+      cart
+        .filter((line) => line.variantId !== null)
+        .map((line) => [line.variantId as string, line.quantity]),
+    );
     return new Map(
       variants.map((variant) => [
         variant.id,
@@ -102,6 +141,7 @@ export function SalesRegister({
           purchaserPersonId: purchaser?.id ?? null,
           paymentMethod,
           discountInput,
+          taxRateInput,
           notes,
         }),
       );
@@ -111,7 +151,21 @@ export function SalesRegister({
         return;
       }
 
-      toast.success(`Sale recorded — ${formatCurrency(result.total)}`);
+      setLastSale({
+        id: result.saleId,
+        receiptNumber: result.receiptNumber,
+        total: result.total,
+      });
+      toast.success(`Sale recorded — ${formatCurrency(result.total)}`, {
+        // Both this and the line under the Record button, not one of them: the
+        // toast is where a cashier is already looking, and the line is what is
+        // still there a minute later.
+        action: {
+          label: "Receipt",
+          onClick: () =>
+            window.open(receiptHref(result.saleId), "_blank", "noopener"),
+        },
+      });
       // The event and the payment method stay: the next sale at the same table
       // is almost always both. Everything that belongs to one transaction
       // clears.
@@ -119,6 +173,7 @@ export function SalesRegister({
       setPurchaser(null);
       setDiscountInput("");
       setNotes("");
+      setEditingPriceOf(null);
       // Refetches the stock the tiles read, which this sale just moved.
       router.refresh();
     });
@@ -131,46 +186,66 @@ export function SalesRegister({
           <CardHeader>
             <CardTitle>Products</CardTitle>
           </CardHeader>
-          <CardContent>
-            {variants.length === 0 ? (
+          <CardContent className="space-y-3">
+            {/* Said above the grid rather than instead of it: an empty catalog
+                is a reason to add products, but a custom item can still be rung
+                up without one (#1015). */}
+            {variants.length === 0 && (
               <p className="app-muted text-sm">
                 Nothing is on sale yet. Add a product with a price and some
                 stock under Products first.
               </p>
-            ) : (
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {variants.map((variant) => {
-                  const left = remaining.get(variant.id) ?? 0;
-                  return (
-                    <Button
-                      key={variant.id}
-                      type="button"
-                      variant="outline"
-                      disabled={left < 1}
-                      // Tall enough to hit with a thumb at a merch table, and
-                      // the whole tile is the target rather than a link inside
-                      // it.
-                      className="h-auto min-h-20 flex-col items-start gap-0.5 whitespace-normal p-3 text-left"
-                      aria-label={`Add ${lineLabel(variant)}, ${formatCurrency(
-                        variant.price,
-                      )}`}
-                      onClick={() =>
-                        setCart((prev) => addToCart(prev, variant))
-                      }
-                    >
-                      <span className="font-medium">{variant.productName}</span>
-                      <span className="app-muted text-xs">{variant.label}</span>
-                      <span className="text-sm font-semibold">
-                        {formatCurrency(variant.price)}
-                      </span>
-                      <span className="app-muted text-xs">
-                        {left < 1 ? "Sold out" : `${left} left`}
-                      </span>
-                    </Button>
-                  );
-                })}
-              </div>
             )}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {variants.map((variant) => {
+                const left = remaining.get(variant.id) ?? 0;
+                return (
+                  <Button
+                    key={variant.id}
+                    type="button"
+                    variant="outline"
+                    disabled={left < 1}
+                    // Tall enough to hit with a thumb at a merch table, and
+                    // the whole tile is the target rather than a link inside
+                    // it.
+                    className="h-auto min-h-20 flex-col items-start gap-0.5 whitespace-normal p-3 text-left"
+                    aria-label={`Add ${lineLabel(variant)}, ${formatCurrency(
+                      variant.price,
+                    )}`}
+                    onClick={() => setCart((prev) => addToCart(prev, variant))}
+                  >
+                    <span className="font-medium">{variant.productName}</span>
+                    <span className="app-muted text-xs">{variant.label}</span>
+                    <span className="text-sm font-semibold">
+                      {formatCurrency(variant.price)}
+                    </span>
+                    <span className="app-muted text-xs">
+                      {left < 1 ? "Sold out" : `${left} left`}
+                    </span>
+                  </Button>
+                );
+              })}
+
+              {/* Last, after the catalog: it is the exception, and a cashier
+                  reaches for it only when nothing on the grid fits. */}
+              <CustomItemDialog
+                onAdd={(item) => setCart((prev) => addCustomLine(prev, item))}
+                trigger={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-auto min-h-20 flex-col items-start gap-0.5 whitespace-normal p-3 text-left"
+                    aria-label="Add a custom item that is not in the catalog"
+                  >
+                    <Plus />
+                    <span className="font-medium">Custom item</span>
+                    <span className="app-muted text-xs">
+                      Not in the catalog
+                    </span>
+                  </Button>
+                }
+              />
+            </div>
           </CardContent>
         </Card>
       </section>
@@ -187,76 +262,168 @@ export function SalesRegister({
               </p>
             ) : (
               <ul className="space-y-3">
-                {cart.map((line) => (
-                  <li key={line.variantId} className="space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="text-sm font-medium">
-                        {lineLabel(line)}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={`Remove ${lineLabel(line)}`}
-                        onClick={() =>
-                          setCart((prev) => removeLine(prev, line.variantId))
-                        }
-                      >
-                        <X />
-                      </Button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        // 44px: the smallest target a thumb hits reliably, and
-                        // these two get pressed more than anything else here.
-                        className="h-11 w-11"
-                        aria-label={`One fewer ${lineLabel(line)}`}
-                        onClick={() =>
-                          setCart((prev) =>
-                            setLineQuantity(
-                              prev,
-                              line.variantId,
-                              line.quantity - 1,
-                            ),
-                          )
-                        }
-                      >
-                        <Minus />
-                      </Button>
-                      <span
-                        className="min-w-8 text-center text-sm font-semibold"
-                        aria-label={`Quantity of ${lineLabel(line)}`}
-                      >
-                        {line.quantity}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-11 w-11"
-                        aria-label={`One more ${lineLabel(line)}`}
-                        disabled={line.quantity >= line.stockOnHand}
-                        onClick={() =>
-                          setCart((prev) =>
-                            setLineQuantity(
-                              prev,
-                              line.variantId,
-                              line.quantity + 1,
-                            ),
-                          )
-                        }
-                      >
-                        <Plus />
-                      </Button>
-                      <span className="ml-auto text-sm font-medium">
-                        {formatCurrency(
-                          (line.unitPriceCents * line.quantity) / 100,
-                        )}
-                      </span>
-                    </div>
-                  </li>
-                ))}
+                {cart.map((line) => {
+                  const label = cartLineLabel(line);
+                  const overridden =
+                    line.listPriceCents !== null &&
+                    line.unitPriceCents !== line.listPriceCents;
+                  return (
+                    <li key={line.lineId} className="space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-sm font-medium">{label}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Remove ${label}`}
+                          onClick={() =>
+                            setCart((prev) => removeLine(prev, line.lineId))
+                          }
+                        >
+                          <X />
+                        </Button>
+                      </div>
+
+                      {/* The unit price is a control, not a caption: changing
+                          what one line costs is a thing a cashier does at the
+                          table (#1015), and burying it behind an edit mode for
+                          the whole cart would make it slower than the
+                          sale-wide discount it is meant to replace. */}
+                      {editingPriceOf === line.lineId ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            autoFocus
+                            inputMode="decimal"
+                            className="h-9 w-28"
+                            aria-label={`Price of ${label}`}
+                            value={priceInput}
+                            onChange={(event) => {
+                              setPriceInput(event.target.value);
+                              setCart((prev) =>
+                                setLineUnitPrice(
+                                  prev,
+                                  line.lineId,
+                                  event.target.value,
+                                ),
+                              );
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingPriceOf(null)}
+                          >
+                            Done
+                          </Button>
+                          {line.listPriceCents !== null && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              // Not "Reset the price of X": that would contain
+                              // the input's own "Price of X" label, leaving the
+                              // two controls in this row ambiguous to anything
+                              // that matches an accessible name by substring --
+                              // voice control, and the getByLabel that found it.
+                              aria-label={`Reset ${label} to its catalog price`}
+                              onClick={() => {
+                                setPriceInput("");
+                                setCart((prev) =>
+                                  setLineUnitPrice(prev, line.lineId, ""),
+                                );
+                              }}
+                            >
+                              Reset
+                            </Button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex items-baseline gap-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="-ml-2 px-2"
+                            aria-label={`Change price of ${label}`}
+                            onClick={() => {
+                              setPriceInput(
+                                String(fromCents(line.unitPriceCents)),
+                              );
+                              setEditingPriceOf(line.lineId);
+                            }}
+                          >
+                            {formatCurrency(fromCents(line.unitPriceCents))}{" "}
+                            each
+                          </Button>
+                          {overridden && (
+                            <span className="app-muted text-xs">
+                              was{" "}
+                              {formatCurrency(
+                                fromCents(line.listPriceCents as number),
+                              )}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          // 44px: the smallest target a thumb hits reliably, and
+                          // these two get pressed more than anything else here.
+                          className="h-11 w-11"
+                          aria-label={`One fewer ${label}`}
+                          onClick={() =>
+                            setCart((prev) =>
+                              setLineQuantity(
+                                prev,
+                                line.lineId,
+                                line.quantity - 1,
+                              ),
+                            )
+                          }
+                        >
+                          <Minus />
+                        </Button>
+                        <span
+                          className="min-w-8 text-center text-sm font-semibold"
+                          aria-label={`Quantity of ${label}`}
+                        >
+                          {line.quantity}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-11 w-11"
+                          aria-label={`One more ${label}`}
+                          // A custom line has no stock to run out of.
+                          disabled={
+                            line.stockOnHand !== null &&
+                            line.quantity >= line.stockOnHand
+                          }
+                          onClick={() =>
+                            setCart((prev) =>
+                              setLineQuantity(
+                                prev,
+                                line.lineId,
+                                line.quantity + 1,
+                              ),
+                            )
+                          }
+                        >
+                          <Plus />
+                        </Button>
+                        <span className="ml-auto text-sm font-medium">
+                          {formatCurrency(
+                            (line.unitPriceCents * line.quantity) / 100,
+                          )}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             )}
 
@@ -270,6 +437,21 @@ export function SalesRegister({
                 placeholder="0.00"
                 value={discountInput}
                 onChange={(event) => setDiscountInput(event.target.value)}
+              />
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="register-tax-rate">Tax rate (%)</FieldLabel>
+              <Input
+                id="register-tax-rate"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                max="100"
+                step="0.001"
+                placeholder="0"
+                value={taxRateInput}
+                onChange={(event) => setTaxRateInput(event.target.value)}
               />
             </Field>
 
@@ -350,6 +532,10 @@ export function SalesRegister({
                 <span className="app-muted">Discount</span>
                 <span>{formatCurrency(totals.discount)}</span>
               </div>
+              <div className="flex justify-between">
+                <span className="app-muted">Tax</span>
+                <span>{formatCurrency(totals.tax)}</span>
+              </div>
               <div className="flex justify-between text-base font-semibold">
                 <span>Total</span>
                 <span>{formatCurrency(totals.total)}</span>
@@ -382,6 +568,25 @@ export function SalesRegister({
               `Record sale — ${formatCurrency(totals.total)}`
             )}
           </Button>
+
+          {/* A new tab, so the cart the cashier is already rebuilding for the
+              next buyer is not navigated away from. */}
+          {lastSale && (
+            <p className="app-muted mt-2 flex flex-wrap items-center gap-1 text-sm">
+              <span>
+                Recorded {formatReceiptNumber(lastSale.receiptNumber)} ·{" "}
+                {formatCurrency(lastSale.total)}
+              </span>
+              <Link
+                href={receiptHref(lastSale.id)}
+                target="_blank"
+                rel="noopener"
+                className="inline-flex items-center gap-1 underline hover:text-foreground"
+              >
+                <Receipt className="size-3.5" /> Receipt
+              </Link>
+            </p>
+          )}
         </div>
       </section>
     </div>

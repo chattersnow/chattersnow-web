@@ -3,7 +3,13 @@
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { ArrowLeft, Eye, Pencil } from "lucide-react";
+import { formatCurrency } from "@/lib/format";
+import {
+  deliveryMethodLabel,
+  gearRequestStatusLabel,
+} from "@/lib/gear-requests";
 import { BrandImageFallback } from "@/components/brand-image-fallback";
 import { CategorySelect } from "@/components/portal/category-select";
 import { PhotoUploadField } from "@/components/portal/photo-upload-field";
@@ -322,6 +328,30 @@ export function EditInventoryModal({
                         .filter(Boolean)
                         .join(" · ") || "—"}
                     </ReadOnlyField>
+                    {item.holdRequest && (
+                      <ReadOnlyField
+                        label="Request"
+                        htmlFor="edit-hold-request"
+                      >
+                        <Link
+                          href={`/portal/inventory/requests/${item.holdRequest.id}`}
+                          className="underline-offset-2 hover:underline"
+                        >
+                          {[
+                            deliveryMethodLabel(
+                              item.holdRequest.delivery_method,
+                            ),
+                            gearRequestStatusLabel(item.holdRequest.status),
+                            item.holdRequest.delivery_method === "shipping" &&
+                            item.holdRequest.quoted_amount !== null
+                              ? `${formatCurrency(item.holdRequest.quoted_amount)} postage`
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </Link>
+                      </ReadOnlyField>
+                    )}
                     {item.holdNotes && (
                       <ReadOnlyField
                         label="Request notes"

@@ -23,13 +23,16 @@ const { SaleDetailsSheet } = await import("./sale-details-sheet");
 
 const SALE: SaleRow = {
   id: "dcdcdcdc-0000-4000-8000-000000000001",
+  receipt_number: 123,
   event_id: "cccccccc-0000-4000-8000-000000000002",
   purchaser_person_id: "bbbbbbbb-0000-4000-8000-000000000001",
   sold_at: "2026-06-01T17:00:00.000Z",
   payment_method: "cash",
   subtotal: "65.00",
   discount_amount: "5.00",
-  total: "60.00",
+  tax_rate: "8.250",
+  tax_amount: "4.95",
+  total: "64.95",
   status: "completed",
   voided_at: null,
   void_reason: null,
@@ -46,6 +49,7 @@ const SALE: SaleRow = {
       product_variant_id: "cdcdcdcd-0000-4000-8000-000000001001",
       description: "Chatter Snow Beanie — One size",
       unit_price: "20.00",
+      list_price: "20.00",
       quantity: 2,
       line_total: "40.00",
     },
@@ -59,7 +63,7 @@ async function openSheet(canManage = true) {
   render(
     <SaleDetailsSheet sale={SALE} events={EVENTS} canManage={canManage} />,
   );
-  await user.click(screen.getByRole("button", { name: "View sale of $60.00" }));
+  await user.click(screen.getByRole("button", { name: "View sale of $64.95" }));
   return user;
 }
 
@@ -124,7 +128,7 @@ describe("SaleDetailsSheet", () => {
       />,
     );
     await user.click(
-      screen.getByRole("button", { name: "View sale of $60.00" }),
+      screen.getByRole("button", { name: "View sale of $64.95" }),
     );
 
     expect(screen.getByText("Voided")).toBeInTheDocument();
@@ -132,5 +136,87 @@ describe("SaleDetailsSheet", () => {
     expect(
       screen.queryByRole("button", { name: "Edit sale" }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("SaleDetailsSheet receipts (#1016)", () => {
+  test("the header is the receipt number and the total", async () => {
+    await openSheet();
+    expect(screen.getByText("#000123 · $64.95")).toBeInTheDocument();
+  });
+
+  test("a completed sale links to its receipt in a new tab", async () => {
+    await openSheet();
+
+    const link = screen.getByRole("link", { name: "Receipt #000123" });
+    expect(link).toHaveAttribute(
+      "href",
+      `/portal/finance/sales/${SALE.id}/receipt`,
+    );
+    expect(link).toHaveAttribute("target", "_blank");
+  });
+
+  test("a reader without manage still gets the receipt", async () => {
+    await openSheet(false);
+    expect(
+      screen.getByRole("link", { name: "Receipt #000123" }),
+    ).toBeInTheDocument();
+  });
+
+  test("a voided sale links to its receipt too -- that is the one with the banner", async () => {
+    const user = userEvent.setup();
+    render(
+      <SaleDetailsSheet
+        sale={{
+          ...SALE,
+          status: "voided",
+          voided_at: "2026-06-02T17:00:00.000Z",
+        }}
+        events={EVENTS}
+        canManage
+      />,
+    );
+    await user.click(
+      screen.getByRole("button", { name: "View sale of $64.95" }),
+    );
+    expect(
+      screen.getByRole("link", { name: "Receipt #000123" }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("SaleDetailsSheet line prices and custom items (#1015)", () => {
+  test("an overridden line shows what it would have cost, and a custom line says so", async () => {
+    const sale = {
+      ...SALE,
+      sale_line_items: [
+        {
+          id: "line-1",
+          product_variant_id: "cdcdcdcd-0000-4000-8000-000000001001",
+          description: "Chatter Snow Beanie — One size",
+          unit_price: "5.00",
+          list_price: "20.00",
+          quantity: 1,
+          line_total: "5.00",
+        },
+        {
+          id: "line-2",
+          product_variant_id: null,
+          description: "Donated print",
+          unit_price: "3.50",
+          list_price: null,
+          quantity: 1,
+          line_total: "3.50",
+        },
+      ],
+    };
+
+    const user = userEvent.setup();
+    render(<SaleDetailsSheet sale={sale} events={EVENTS} canManage />);
+    await user.click(screen.getByRole("button", { name: /View sale/ }));
+
+    // A line through text is not announced, so the label spells it out.
+    expect(await screen.findByLabelText("Was $20.00")).toBeInTheDocument();
+    expect(screen.getByText("Custom")).toBeInTheDocument();
   });
 });

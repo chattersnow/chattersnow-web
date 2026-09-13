@@ -420,6 +420,47 @@ describe("per-tenant uniqueness", () => {
     }
   });
 
+  // #997: the register's default rate, through the same definer-view shape
+  // as org_fiscal_year. Two tenants, two rates, and a member of both reads
+  // whichever tenant is current -- never the other's.
+  test("org_sales_tax reads the current tenant's rate and nobody else's", async () => {
+    const { error } = await service.from("app_settings").upsert(
+      {
+        tenant_id: secondTenantId,
+        key: "finance.sales_tax_rate",
+        value: 9.5,
+      },
+      { onConflict: "tenant_id,key" },
+    );
+    expect(error).toBeNull();
+
+    const multi = await signInAs(SEEDED_USERS.multi);
+    await service.from("tenant_memberships").insert({
+      user_id: SEEDED_USER_IDS.multi,
+      tenant_id: secondTenantId,
+      kind: "member",
+    });
+    try {
+      await multi.rpc("set_current_tenant", { p_tenant_id: secondTenantId });
+      const away = await multi.from("org_sales_tax").select("rate");
+      expect(away.error).toBeNull();
+      expect(away.data?.map((row) => Number(row.rate))).toEqual([9.5]);
+
+      await multi.rpc("set_current_tenant", { p_tenant_id: chatterTenantId });
+      const home = await multi.from("org_sales_tax").select("rate");
+      expect(home.error).toBeNull();
+      // The migration seeds 0 for every existing tenant; one row, not two.
+      expect(home.data?.map((row) => Number(row.rate))).toEqual([0]);
+    } finally {
+      await multi.rpc("set_current_tenant", { p_tenant_id: chatterTenantId });
+      await service
+        .from("tenant_memberships")
+        .delete()
+        .eq("user_id", SEEDED_USER_IDS.multi)
+        .eq("tenant_id", secondTenantId);
+    }
+  });
+
   test("a volunteer reference code is unique within a tenant", async () => {
     const { data: existing } = await service
       .from("volunteer_applications")

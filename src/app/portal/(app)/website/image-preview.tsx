@@ -46,12 +46,18 @@ export function useImagePreview(value: string | null): {
  * long (#918). `className` overrides that where the picture is the point
  * rather than a thumbnail beside a link box -- the publish dialog gives each
  * of its two pictures half the width instead (#923).
+ *
+ * `fit` exists because not every picture the portal previews is cropped. A
+ * sponsor logo is drawn `object-contain` on the public wall, at whatever
+ * aspect the sponsor sent (#1028), so previewing it cover-cropped would show
+ * a wordmark with its ends cut off that the site never cuts.
  */
 export function ImagePreviewBox({
   url,
   ratio,
   onError,
   className,
+  fit = "cover",
 }: {
   url: string;
   /** The aspect the public site crops this picture to, as a CSS ratio. */
@@ -59,6 +65,8 @@ export function ImagePreviewBox({
   onError: () => void;
   /** Sizing for the box itself, merged over the default `h-28 w-auto`. */
   className?: string;
+  /** How the public site draws this picture inside that aspect. */
+  fit?: "cover" | "contain";
 }) {
   return (
     // The wrapper is load-bearing: `Field`'s `*:w-full` stretches every direct
@@ -79,7 +87,7 @@ export function ImagePreviewBox({
           alt=""
           fill
           sizes="256px"
-          className="object-cover"
+          className={fit === "contain" ? "object-contain" : "object-cover"}
           onError={onError}
           // A 7rem preview gains nothing from the optimizer, and the image may
           // sit on a host `next.config.ts` does not list.

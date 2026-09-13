@@ -40,7 +40,12 @@ export const SEEDED_PERSON_IDS = {
   sponsor: "bbbbbbbb-0000-4000-8000-000000000003",
   /** Priya Natarajan -- volunteer and event lead. */
   volunteer: "bbbbbbbb-0000-4000-8000-000000000004",
-  /** Local Roasters Coffee -- donor org, prospecting partnership. */
+  /**
+   * Local Roasters Coffee -- donor org, prospecting partnership, and the
+   * sponsor published to the wall by hand rather than through an event
+   * (#1024): a `sponsor` role tag with `is_public`, and no `event_sponsors`
+   * row anywhere.
+   */
   localRoasters: "bbbbbbbb-0000-4000-8000-000000000005",
 } as const;
 
@@ -128,4 +133,14 @@ export const SEEDED_SALE_IDS = {
   completed: "dcdcdcdc-0000-4000-8000-000000000001",
   /** Voided, one line (3 five-packs) -- its units are back in stock. */
   voided: "dcdcdcdc-0000-4000-8000-000000000002",
+} as const;
+
+/**
+ * The receipt numbers the seed writes on those two sales (#1016). Spelled out
+ * in the seed rather than left to the trigger precisely so they can be asserted
+ * on, which is what the ledger's e2e pass does.
+ */
+export const SEEDED_SALE_RECEIPT_NUMBERS = {
+  completed: 1,
+  voided: 2,
 } as const;

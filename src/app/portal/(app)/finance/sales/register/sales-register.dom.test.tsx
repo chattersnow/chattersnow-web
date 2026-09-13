@@ -6,10 +6,16 @@ import * as PaletteActions from "../../../command-palette-actions";
 import type { RegisterEvent, RegisterVariant } from "./register-cart";
 
 type RecordResult =
-  { error: string } | { success: true; saleId: string; total: number };
+  | { error: string }
+  | { success: true; saleId: string; total: number; receiptNumber: number };
 
 const recordSaleActionMock = mock<(input: unknown) => Promise<RecordResult>>(
-  async () => ({ success: true, saleId: "sale-1", total: 20 }),
+  async () => ({
+    success: true,
+    saleId: "sale-1",
+    total: 20,
+    receiptNumber: 123,
+  }),
 );
 
 mock.module("../actions", () => ({
@@ -69,8 +75,14 @@ const EVENTS: RegisterEvent[] = [
   },
 ];
 
-function renderRegister() {
-  return render(<SalesRegister variants={VARIANTS} events={EVENTS} />);
+function renderRegister(defaultTaxRate?: number) {
+  return render(
+    <SalesRegister
+      variants={VARIANTS}
+      events={EVENTS}
+      defaultTaxRate={defaultTaxRate}
+    />,
+  );
 }
 
 const beanieTile = () =>
@@ -121,6 +133,38 @@ describe("SalesRegister", () => {
     expect(beanieTile()).toHaveTextContent("Sold out");
   });
 
+  test("the org rate is prefilled, taxes the cart, and rides on the payload", async () => {
+    const user = userEvent.setup();
+    renderRegister(8.25);
+
+    expect(screen.getByLabelText("Tax rate (%)")).toHaveValue(8.25);
+
+    await user.click(beanieTile());
+    // $20 at 8.25% is $1.65, on top.
+    expect(
+      screen.getByRole("button", { name: "Record sale — $21.65" }),
+    ).toBeEnabled();
+
+    // Editable per sale: a tax-exempt buyer clears it and the total follows.
+    await user.clear(screen.getByLabelText("Tax rate (%)"));
+    expect(
+      screen.getByRole("button", { name: "Record sale — $20.00" }),
+    ).toBeEnabled();
+
+    await user.type(screen.getByLabelText("Tax rate (%)"), "10");
+    await user.click(
+      screen.getByRole("button", { name: "Record sale — $22.00" }),
+    );
+    expect(recordSaleActionMock.mock.calls[0][0]).toMatchObject({
+      tax_rate: 10,
+    });
+    // The rate is kept for the next sale at the same table, like the event.
+    expect(
+      await screen.findByText("Tap a product to start a sale."),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Tax rate (%)")).toHaveValue(10);
+  });
+
   test("a sold-out variant cannot be added", () => {
     renderRegister();
     expect(
@@ -158,6 +202,7 @@ describe("SalesRegister", () => {
       purchaser_person_id: null,
       payment_method: "cash",
       discount_amount: 5,
+      tax_rate: 0,
       notes: "merch table",
       lines: [
         { variant_id: BEANIE, quantity: 1 },
@@ -202,5 +247,220 @@ describe("SalesRegister", () => {
     expect(
       screen.getByLabelText("Quantity of Chatter Snow Beanie — One size"),
     ).toHaveTextContent("1");
+  });
+});
+
+describe("SalesRegister line prices and custom items (#1015)", () => {
+  beforeEach(() => {
+    recordSaleActionMock.mockClear();
+    routerRefresh.mockClear();
+  });
+
+  test("changing a line's price moves the line total and the sale total", async () => {
+    const user = userEvent.setup();
+    renderRegister();
+
+    await user.click(beanieTile());
+    await user.click(
+      screen.getByRole("button", {
+        name: "Change price of Chatter Snow Beanie — One size",
+      }),
+    );
+
+    const priceField = screen.getByLabelText(
+      "Price of Chatter Snow Beanie — One size",
+    );
+    await user.clear(priceField);
+    await user.type(priceField, "5");
+
+    expect(
+      screen.getByRole("button", { name: "Record sale — $5.00" }),
+    ).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Done" }));
+    // What it would have been, so the cashier can see what they gave away.
+    expect(screen.getByText("was $20.00")).toBeInTheDocument();
+  });
+
+  test("Reset puts the catalog price back", async () => {
+    const user = userEvent.setup();
+    renderRegister();
+
+    await user.click(beanieTile());
+    await user.click(
+      screen.getByRole("button", {
+        name: "Change price of Chatter Snow Beanie — One size",
+      }),
+    );
+    const priceField = screen.getByLabelText(
+      "Price of Chatter Snow Beanie — One size",
+    );
+    await user.clear(priceField);
+    await user.type(priceField, "5");
+    await user.click(
+      screen.getByRole("button", {
+        name: "Reset Chatter Snow Beanie — One size to its catalog price",
+      }),
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Record sale — $20.00" }),
+    ).toBeEnabled();
+  });
+
+  test("the Custom item dialog adds a line the catalog has never heard of", async () => {
+    const user = userEvent.setup();
+    renderRegister();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Add a custom item that is not in the catalog",
+      }),
+    );
+    await user.type(screen.getByLabelText("Description"), "Donated print");
+    await user.type(screen.getByLabelText("Price"), "3.50");
+    await user.click(screen.getByRole("button", { name: "Add to cart" }));
+
+    expect(
+      screen.getByLabelText("Quantity of Donated print"),
+    ).toHaveTextContent("1");
+    expect(
+      screen.getByRole("button", { name: "Record sale — $3.50" }),
+    ).toBeEnabled();
+  });
+
+  test("a custom item with no price is refused before the sale is built", async () => {
+    const user = userEvent.setup();
+    renderRegister();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Add a custom item that is not in the catalog",
+      }),
+    );
+    await user.type(screen.getByLabelText("Description"), "Donated print");
+    await user.click(screen.getByRole("button", { name: "Add to cart" }));
+
+    expect(
+      screen.getByText("Enter a price of zero or more."),
+    ).toBeInTheDocument();
+  });
+
+  test("the payload carries a price for exactly the overridden and custom lines", async () => {
+    const user = userEvent.setup();
+    renderRegister();
+
+    await user.click(beanieTile());
+    await user.click(
+      screen.getByRole("button", { name: "Add Trailhead Tee — M, $25.00" }),
+    );
+    await user.click(
+      screen.getByRole("button", {
+        name: "Change price of Chatter Snow Beanie — One size",
+      }),
+    );
+    const priceField = screen.getByLabelText(
+      "Price of Chatter Snow Beanie — One size",
+    );
+    await user.clear(priceField);
+    await user.type(priceField, "5");
+    await user.click(screen.getByRole("button", { name: "Done" }));
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Add a custom item that is not in the catalog",
+      }),
+    );
+    await user.type(screen.getByLabelText("Description"), "Donated print");
+    await user.type(screen.getByLabelText("Price"), "3.50");
+    await user.click(screen.getByRole("button", { name: "Add to cart" }));
+
+    await user.click(
+      screen.getByRole("button", { name: "Record sale — $33.50" }),
+    );
+
+    // toEqual, not toMatchObject: the point of the middle line is the key that
+    // is *absent* from it, which a partial match would not notice.
+    const { lines } = recordSaleActionMock.mock.calls[0][0] as {
+      lines: unknown[];
+    };
+    expect(lines).toEqual([
+      { variant_id: BEANIE, quantity: 1, unit_price: 5 },
+      // The untouched line is exactly what it was before overrides existed.
+      { variant_id: TEE, quantity: 1 },
+      { description: "Donated print", unit_price: 3.5, quantity: 1 },
+    ]);
+  });
+});
+
+describe("SalesRegister receipts (#1016)", () => {
+  beforeEach(() => {
+    recordSaleActionMock.mockClear();
+  });
+
+  test("a recorded sale leaves a receipt link that outlives the toast", async () => {
+    const user = userEvent.setup();
+    renderRegister();
+
+    expect(screen.queryByRole("link", { name: /Receipt/ })).toBeNull();
+
+    await user.click(beanieTile());
+    await user.click(
+      screen.getByRole("button", { name: "Record sale — $20.00" }),
+    );
+
+    expect(
+      await screen.findByText(/Recorded #000123 · \$20\.00/),
+    ).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: /Receipt/ });
+    // ?print=1: the cashier tapped Receipt because they are about to print it.
+    expect(link).toHaveAttribute(
+      "href",
+      "/portal/finance/sales/sale-1/receipt?print=1",
+    );
+    expect(link).toHaveAttribute("target", "_blank");
+  });
+
+  test("the next sale replaces the line rather than stacking a second one", async () => {
+    recordSaleActionMock.mockImplementationOnce(async () => ({
+      success: true,
+      saleId: "sale-2",
+      total: 25,
+      receiptNumber: 124,
+    }));
+    const user = userEvent.setup();
+    renderRegister();
+
+    await user.click(beanieTile());
+    await user.click(
+      screen.getByRole("button", { name: "Record sale — $20.00" }),
+    );
+    expect(await screen.findByText(/Recorded #000124/)).toBeInTheDocument();
+
+    await user.click(beanieTile());
+    await user.click(
+      screen.getByRole("button", { name: "Record sale — $20.00" }),
+    );
+
+    expect(await screen.findByText(/Recorded #000123/)).toBeInTheDocument();
+    expect(screen.queryByText(/Recorded #000124/)).toBeNull();
+    expect(screen.getAllByRole("link", { name: /Receipt/ })).toHaveLength(1);
+  });
+
+  test("a refused sale leaves no receipt line", async () => {
+    recordSaleActionMock.mockImplementationOnce(async () => ({
+      error: "There is not enough stock for this sale.",
+    }));
+    const user = userEvent.setup();
+    renderRegister();
+
+    await user.click(beanieTile());
+    await user.click(
+      screen.getByRole("button", { name: "Record sale — $20.00" }),
+    );
+
+    expect(
+      await screen.findByText("There is not enough stock for this sale."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Receipt/ })).toBeNull();
   });
 });

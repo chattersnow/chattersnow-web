@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { ListLink } from "@/components/portal/list-navigation";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { LinkPendingPulse } from "@/components/link-pending";
 
@@ -54,7 +54,7 @@ export function SortHeaderLink({
   dir: SortDirection;
 }) {
   return (
-    <Link
+    <ListLink
       href={href}
       aria-label={sortLabelText(label, dir)}
       className="inline-flex items-center gap-1 hover:text-foreground"
@@ -62,7 +62,7 @@ export function SortHeaderLink({
       <LinkPendingPulse>
         <SortLabel label={label} dir={dir} />
       </LinkPendingPulse>
-    </Link>
+    </ListLink>
   );
 }
 

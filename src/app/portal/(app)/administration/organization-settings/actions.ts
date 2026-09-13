@@ -18,6 +18,11 @@ import {
   isFiscalYearStartMonth,
 } from "@/lib/fiscal-year";
 import {
+  SALES_TAX_RATE_SETTING_KEY,
+  isSalesTaxRate,
+  MAX_SALES_TAX_RATE,
+} from "@/lib/sales-tax";
+import {
   LEXICON_TERMS,
   MAX_LEXICON_TERM_LENGTH,
   lexiconSettingKey,
@@ -87,6 +92,28 @@ export async function updateReimbursementApprovalThresholdAction(
     "finance.reimbursement_approval_threshold",
     value,
   );
+}
+
+/**
+ * The org's default sales tax rate, as a percent (#997). The register prefills
+ * it on every sale; a change here reaches the next sale and never a past one,
+ * because `record_product_sale` snapshots the rate on the row.
+ *
+ * Three decimals, matching `sales.tax_rate`'s numeric(6,3): combined
+ * state/county/city rates are quoted to the thousandth.
+ */
+export async function updateSalesTaxRateAction(
+  formData: FormData,
+): Promise<SettingActionResult> {
+  const raw = String(formData.get("rate") ?? "").trim();
+  const rate = raw === "" ? NaN : Math.round(Number(raw) * 1000) / 1000;
+  if (!isSalesTaxRate(rate)) {
+    return {
+      error: `Tax rate must be between 0 and ${MAX_SALES_TAX_RATE} percent.`,
+    };
+  }
+
+  return updateAppSettingAction(SALES_TAX_RATE_SETTING_KEY, rate);
 }
 
 /**

@@ -23,6 +23,11 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { PronounsField } from "@/components/pronouns-field";
+import {
+  ImagePreviewBox,
+  OpenPictureLink,
+  useImagePreview,
+} from "../website/image-preview";
 
 export type PersonFormState = {
   name: string;
@@ -35,6 +40,13 @@ export type PersonFormState = {
   logoUrl: string;
   website: string;
   roles: Record<RoleKey, boolean>;
+  /**
+   * Publish this organization to the public sponsor wall (#1024). Only
+   * meaningful alongside the sponsor role on an organization, which is the
+   * only combination that renders the control -- and the only one
+   * parsePersonForm will act on.
+   */
+  sponsorWallPublic: boolean;
   personType: PersonType;
   ridingDiscipline: string;
   skiExperienceLevel: string;
@@ -64,12 +76,35 @@ export function emptyPersonForm(
       is_staff: defaultRole === "is_staff",
       is_partner: defaultRole === "is_partner",
     },
+    sponsorWallPublic: false,
     personType: defaultPersonType,
     ridingDiscipline: "",
     skiExperienceLevel: "",
     snowboardExperienceLevel: "",
     preferredMountain: "",
   };
+}
+
+/**
+ * Whether `form` differs from `baseline` in anything a person would call
+ * typing. Field by field rather than `!==` over the object: `roles` is a
+ * nested object, so two fresh `emptyPersonForm()` results compared by
+ * reference were always "different", and the New Person dialog armed its
+ * "Leave site?" prompt on every people page before anyone opened it -- which
+ * is what blocked the directory's search form from submitting.
+ */
+export function personFormDirty(
+  form: PersonFormState,
+  baseline: PersonFormState,
+): boolean {
+  return (Object.keys(baseline) as (keyof PersonFormState)[]).some((key) => {
+    if (key === "roles") {
+      return (Object.keys(baseline.roles) as RoleKey[]).some(
+        (role) => form.roles[role] !== baseline.roles[role],
+      );
+    }
+    return form[key] !== baseline[key];
+  });
 }
 
 export function PersonFormFields({
@@ -210,18 +245,40 @@ export function PersonFormFields({
         </FieldDescription>
       </Field>
 
+      {/*
+        The one role with a public surface (#1024). Organizations only, for
+        the same reason the logo and website below are: the wall shows a mark,
+        and an individual with no logo would be published as their own name.
+        Marking someone a sponsor is a directory fact; putting them on the
+        public site is a separate decision, so it gets its own tick rather
+        than riding on the role.
+      */}
+      {isOrganization && form.roles.is_sponsor && (
+        <Field>
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox
+              checked={form.sponsorWallPublic}
+              onCheckedChange={(checked) =>
+                update("sponsorWallPublic", checked)
+              }
+            />
+            Show on the public sponsor wall
+          </label>
+          <FieldDescription>
+            Puts this organization on the sponsorship page, using the name, logo
+            and website on this record. Sponsors credited on a published public
+            event are already there and need no tick here.
+          </FieldDescription>
+        </Field>
+      )}
+
       {isOrganization && (
         <Field orientation="responsive">
-          <Field>
-            <FieldLabel htmlFor={`${idPrefix}-logoUrl`}>Logo URL</FieldLabel>
-            <Input
-              id={`${idPrefix}-logoUrl`}
-              type="url"
-              placeholder="https://..."
-              value={form.logoUrl}
-              onChange={(event) => update("logoUrl", event.target.value)}
-            />
-          </Field>
+          <LogoUrlField
+            id={`${idPrefix}-logoUrl`}
+            value={form.logoUrl}
+            onChange={(value) => update("logoUrl", value)}
+          />
           <Field>
             <FieldLabel htmlFor={`${idPrefix}-website`}>Website</FieldLabel>
             <Input
@@ -356,6 +413,65 @@ export function PersonFormFields({
   );
 }
 
+/**
+ * The sponsor logo box, with the picture it points at (#1028).
+ *
+ * It was a bare `<Input>` while every other picture field in the portal --
+ * branding, Site Content slots, inventory photos, event fliers -- showed a
+ * preview, and a logo that cannot load is invisible without one: the public
+ * wall silently falls back to the sponsor's name (#914), so nothing anywhere
+ * said the link was dead. Chatter Snow shipped one that way.
+ *
+ * Contained rather than cropped, and in a box roughly the shape of the widest
+ * mark the wall draws, because neither wall layout crops a logo -- previewing
+ * it `object-cover` would show ends cut off that the site never cuts.
+ */
+function LogoUrlField({
+  id,
+  value,
+  onChange,
+}: {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const preview = useImagePreview(value || null);
+
+  return (
+    <Field>
+      <FieldLabel htmlFor={id}>Logo URL</FieldLabel>
+      {preview.url && (
+        <ImagePreviewBox
+          url={preview.url}
+          ratio="4 / 1"
+          fit="contain"
+          className="h-16"
+          onError={preview.markFailed}
+        />
+      )}
+      <Input
+        id={id}
+        type="url"
+        placeholder="https://drive.google.com/file/d/..."
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      {preview.failed ? (
+        <FieldDescription className="text-destructive">
+          That link did not load as a picture. A Google Drive link has to be a
+          file rather than a folder, and shared with anyone who has the link.
+        </FieldDescription>
+      ) : (
+        <FieldDescription>
+          A Google Drive share link or a direct image URL. Shown on the public
+          sponsor wall.
+        </FieldDescription>
+      )}
+      {preview.url && <OpenPictureLink url={preview.url} label="Logo" />}
+    </Field>
+  );
+}
+
 export function packPersonFormData(form: PersonFormState) {
   const formData = new FormData();
   formData.set("name", form.name);
@@ -373,6 +489,9 @@ export function packPersonFormData(form: PersonFormState) {
   formData.set("isAttendee", String(form.roles.is_attendee));
   formData.set("isStaff", String(form.roles.is_staff));
   formData.set("isPartner", String(form.roles.is_partner));
+  // Sent on every save, like the roles themselves: the server rewrites the
+  // whole tag set each time, so an omitted flag would read as "unpublish".
+  formData.set("sponsorWallPublic", String(form.sponsorWallPublic));
   formData.set("personType", form.personType);
   formData.set("ridingDiscipline", form.ridingDiscipline);
   formData.set("skiExperienceLevel", form.skiExperienceLevel);

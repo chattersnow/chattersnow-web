@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { UserRound } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SiteImage } from "@/components/site-image";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSiteImageUrls } from "@/lib/site-images";
 import { getPublicSite, publicTitle } from "@/lib/public-site";
-import { resolvePhoto, TEAM_PHOTO_FIELD } from "@/lib/site-content";
+import { getSiteLayout } from "@/lib/site-layout";
+import { listPublicTeam } from "./team-data";
+import { TeamMembers, type TeamMember } from "./team-members";
 
 export async function generateMetadata(): Promise<Metadata> {
   const supabase = await createSupabaseServerClient();
@@ -14,19 +14,23 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-type TeamMember = {
-  name: string;
-  photo_url?: string;
-  photo_slot?: string;
-  bio?: string[];
-};
-
 export default async function TeamPage() {
   const supabase = await createSupabaseServerClient();
-  const [siteImages, { content }] = await Promise.all([
+  // All three reads are `cache()`-wrapped and none depends on another, so the
+  // layout setting costs no round trip the page was not already making.
+  const [siteImages, { content }, layout] = await Promise.all([
     getSiteImageUrls(supabase),
     getPublicSite(supabase),
+    getSiteLayout(supabase),
   ]);
+
+  // Copy or the tenant's own people (#1014): the same branch the Programs
+  // page makes. Both sources arrive as TeamMember, so the arrangements below
+  // never know which one they are rendering.
+  const peopleMode = layout.teamSource === "people";
+  const members: TeamMember[] = peopleMode
+    ? await listPublicTeam(supabase)
+    : content.list<TeamMember>("about_team.members");
 
   return (
     <div>
@@ -43,33 +47,20 @@ export default async function TeamPage() {
         className="mt-6 aspect-[21/9] rounded-2xl"
       />
 
-      <div className="mt-8 grid grid-cols-1 items-start gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {content.list<TeamMember>("about_team.members").map((member) => (
-          <Card key={member.name}>
-            <CardHeader>
-              <SiteImage
-                // The same call the editor's photo control makes, so what an
-                // administrator was shown is what this renders (#922).
-                url={resolvePhoto(TEAM_PHOTO_FIELD, member, siteImages).url}
-                alt={member.name}
-                icon={UserRound}
-              />
-            </CardHeader>
-            <CardContent>
-              <CardTitle>{member.name}</CardTitle>
-              <div className="app-muted mt-2 space-y-3 text-sm leading-relaxed sm:text-base">
-                {member.bio && member.bio.length > 0 ? (
-                  member.bio.map((paragraph, index) => (
-                    <p key={index}>{paragraph}</p>
-                  ))
-                ) : (
-                  <p>{content.text("about_team.bio_placeholder")}</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {/* Only People mode can be empty: the copy's registry default has one
+          member, so a tenant on Site Content always has something to show. */}
+      {peopleMode && members.length === 0 ? (
+        <p className="app-muted mt-10 text-sm leading-relaxed sm:text-base">
+          {content.text("about_team.empty")}
+        </p>
+      ) : (
+        <TeamMembers
+          members={members}
+          siteImages={siteImages}
+          layout={layout.teamLayout}
+          bioPlaceholder={content.text("about_team.bio_placeholder")}
+        />
+      )}
     </div>
   );
 }

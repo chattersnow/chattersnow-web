@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parsePersonForm } from "./person-form";
+import { parsePublicTeamForm } from "./public-team-form";
 import type { PersonType } from "./people-shared";
 import { checkPermission, checkAnyPermission } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
@@ -12,15 +13,23 @@ import { friendlyError } from "@/lib/db-errors";
  * Replaces a person's manual role tags -- the half of the derived role model
  * that no source record backs (20260903030000). Returns an error result to
  * hand straight back to the caller, or null on success.
+ *
+ * `publicRoles` is the subset being published to a public surface (#1024,
+ * today the sponsor wall and nothing else). It has to ride along on every
+ * save, not only on the one that changes it: both callers below re-send the
+ * whole role set unconditionally, so an omitted flag would unpublish a sponsor
+ * the next time anyone edited their phone number.
  */
 async function setRoleTags(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   personId: string,
   roles: string[],
+  publicRoles: string[],
 ): Promise<{ error: string } | null> {
   const { error } = await supabase.rpc("set_person_role_tags", {
     p_person_id: personId,
     p_roles: roles,
+    p_public_roles: publicRoles,
   });
   if (error) {
     return { error: "Could not save this person's roles. Please try again." };
@@ -145,7 +154,12 @@ export async function createPersonAction(
 
   // Roles are derived from source records unioned with these tags, so the
   // checkboxes write tags: there is no role column on `people` to set.
-  const rolesError = await setRoleTags(supabase, data.id, parsed.roles);
+  const rolesError = await setRoleTags(
+    supabase,
+    data.id,
+    parsed.roles,
+    parsed.publicRoles,
+  );
   if (rolesError) return rolesError;
 
   revalidatePath("/portal/people");
@@ -210,11 +224,93 @@ export async function updatePersonAction(
     );
   }
 
-  const rolesError = await setRoleTags(supabase, id, parsed.roles);
+  const rolesError = await setRoleTags(
+    supabase,
+    id,
+    parsed.roles,
+    parsed.publicRoles,
+  );
   if (rolesError) return rolesError;
 
   revalidatePath("/portal/people");
   revalidatePath(`/portal/people/${id}`);
+  return { success: true };
+}
+
+export type PublicTeamActionResult = { error: string } | { success: true };
+
+/**
+ * The public Meet the Team page is revalidated on every save and removal,
+ * whether or not this tenant's page reads People: reading
+ * `layout.team_source` first to find out would cost a query on every save to
+ * save nothing -- the same call `revalidateProgramSurfaces()` makes (#898).
+ */
+function revalidatePublicTeamSurfaces(personId: string) {
+  revalidatePath(`/portal/people/${personId}`);
+  revalidatePath("/about/team");
+}
+
+/**
+ * Puts a person on the public team page, or updates what it shows for them
+ * (#1014). One row per person, so this is an upsert on (tenant, person); the
+ * row's presence is the opt-in, and `removePublicTeamMemberAction` is the
+ * only way off. The public site reads the row only when the tenant's Meet the
+ * Team page is set to People -- until then this is a listing nobody sees.
+ */
+export async function savePublicTeamMemberAction(
+  personId: string,
+  formData: FormData,
+): Promise<PublicTeamActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update the team page.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(supabase, "people", "manage");
+  if (permissionError) return permissionError;
+
+  const parsed = parsePublicTeamForm(formData);
+  if ("error" in parsed) return parsed;
+
+  const { error } = await supabase
+    .from("public_team_members")
+    .upsert(
+      { person_id: personId, ...parsed.data },
+      { onConflict: "tenant_id,person_id" },
+    );
+  if (error) {
+    // The composite foreign key rejects a person that is not this tenant's,
+    // which the UI never offers; everything else is the same generic failure.
+    return { error: "Could not update the team page. Please try again." };
+  }
+
+  revalidatePublicTeamSurfaces(personId);
+  return { success: true };
+}
+
+/** Takes a person off the public team page: deletes their row (#1014). */
+export async function removePublicTeamMemberAction(
+  personId: string,
+): Promise<PublicTeamActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update the team page.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(supabase, "people", "manage");
+  if (permissionError) return permissionError;
+
+  const { error } = await supabase
+    .from("public_team_members")
+    .delete()
+    .eq("person_id", personId);
+  if (error) {
+    return { error: "Could not update the team page. Please try again." };
+  }
+
+  revalidatePublicTeamSurfaces(personId);
   return { success: true };
 }
 

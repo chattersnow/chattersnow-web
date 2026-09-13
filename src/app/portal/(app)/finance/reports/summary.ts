@@ -37,9 +37,12 @@ export type MonetaryDonationReportRow = {
 // Completed sales from the register (#908). Merchandise income is recorded
 // there rather than as an event_revenue row, so the report has to read both:
 // the legacy `merchandise` rows under `revenue`, and these. `amount` is the
-// sale's total, after any discount.
+// sale's total after any discount and NET of tax -- the RPC subtracts it
+// (20260913030000) because collected tax is money held for the state, not
+// income. `tax` is what was collected, reported on its own (#997).
 export type SaleReportRow = {
   amount: number | string | null;
+  tax?: number | string | null;
   sold_at: string;
   event_id: string | null;
   event_name: string | null;
@@ -190,6 +193,8 @@ export type FinanceSummary = {
   income: number;
   salesTotal: number;
   salesCount: number;
+  /** Tax collected on completed sales: held for remittance, outside income. */
+  salesTaxTotal: number;
   cashDonations: number;
   cashDonationCount: number;
   paidSpend: number;
@@ -203,6 +208,12 @@ export type FinanceSummary = {
 export function computeFinanceSummary(data: FinanceReportData): FinanceSummary {
   const salesTotal = data.sales.reduce(
     (total, row) => total + toNumber(row.amount),
+    0,
+  );
+  // Never added to anything: the state's money, not the org's. Surfaced so
+  // the treasurer can see what is owed at the end of the period.
+  const salesTaxTotal = data.sales.reduce(
+    (total, row) => total + toNumber(row.tax),
     0,
   );
   // Income is gross cash in from trading: event revenue plus merchandise
@@ -221,6 +232,7 @@ export function computeFinanceSummary(data: FinanceReportData): FinanceSummary {
     income,
     salesTotal,
     salesCount: data.sales.length,
+    salesTaxTotal,
     cashDonations,
     cashDonationCount: data.monetary_donations.length,
     paidSpend,

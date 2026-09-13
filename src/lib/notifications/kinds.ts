@@ -72,7 +72,26 @@ export const NOTIFICATION_KINDS: NotificationKind[] = [
       "An email as soon as someone submits artwork to an open call, linking straight to the review queue.",
     requires: { resources: ["artwork_submissions"], level: "manage" },
   },
+  {
+    key: "gear_request",
+    label: "New gear requests",
+    description:
+      "An email as soon as someone requests items from the public library, linking straight to the request.",
+    // The inventory managers own the request queue. inventory_intake:manage
+    // deliberately does not qualify: an intake volunteer records what comes
+    // in, and has no view of what is being asked for.
+    requires: { resources: ["inventory"], level: "manage" },
+  },
 ];
+
+/**
+ * The requester's own confirmation (#1032) is not a kind anyone in the
+ * portal can switch: it is addressed to the person who asked, who holds no
+ * account and no preference row -- the same reasoning as the ops report. Its
+ * key is here only so the ledger and the sender agree on the spelling; the
+ * kill switch below still governs it.
+ */
+export const GEAR_REQUEST_CONFIRMATION_KIND = "gear_request_confirmation";
 
 export function isNotificationKind(key: string): boolean {
   return NOTIFICATION_KINDS.some((kind) => kind.key === key);

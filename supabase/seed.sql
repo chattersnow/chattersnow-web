@@ -186,6 +186,9 @@ declare
   -- The one distributed movement, which is what /portal/inventory/distribution
   -- lists and links to.
   v_movement_distributed constant uuid := 'eeeeeeee-0000-4000-8000-000000001001';
+  -- The one open public gear request (#1032), which is what
+  -- /portal/inventory/requests lists and links to.
+  v_gear_request constant uuid := 'eeeeeeee-0000-4000-8000-000000002001';
   v_giveaway_id constant uuid := 'babababa-0000-4000-8000-000000000002';
   v_prize1 uuid;
   v_prize2 uuid;
@@ -227,19 +230,24 @@ begin
   insert into public.people (id, name, is_anonymous, source_type, email, phone, notes, created_by)
   values (v_person_volunteer, 'Priya Natarajan', false, 'individual', 'priya.n@example.test', '555-0104', null, v_admin_id);
 
-  insert into public.people (id, name, is_anonymous, source_type, person_type, created_by)
-  values (v_person_local_roasters, 'Local Roasters Coffee', false, 'brand', 'organization', v_admin_id);
+  -- Local Roasters carries a logo and a website so it can stand for the other
+  -- half of the sponsor wall (#1024): an organization published by hand, with
+  -- no event_sponsors row anywhere. Summit Outdoor reaches the wall through its
+  -- sponsorship on the upcoming event, so a reset shows both arms at once.
+  insert into public.people (id, name, is_anonymous, source_type, person_type, logo_url, website, created_by)
+  values (v_person_local_roasters, 'Local Roasters Coffee', false, 'brand', 'organization', 'https://example.test/logos/local-roasters.png', 'https://localroasters.example.test', v_admin_id);
 
-  insert into public.person_role_tags (person_id, role) values
-    (v_person_donor1, 'donor'),
-    (v_person_donor2, 'donor'),
-    (v_person_sponsor, 'sponsor'),
-    (v_person_volunteer, 'volunteer'),
-    (v_person_local_roasters, 'donor');
+  insert into public.person_role_tags (person_id, role, is_public) values
+    (v_person_donor1, 'donor', false),
+    (v_person_donor2, 'donor', false),
+    (v_person_sponsor, 'sponsor', false),
+    (v_person_volunteer, 'volunteer', false),
+    (v_person_local_roasters, 'donor', false),
+    (v_person_local_roasters, 'sponsor', true);
 
   -- Partnerships. Two rows so the partner derivation is exercised both ways:
-  -- the won one makes Summit Outdoor Co. a partner, the prospecting one leaves
-  -- Local Roasters a lead and nothing more. owner_person_id is the internal
+  -- the won one makes Summit Outdoor Co. a partner, the prospecting one adds
+  -- nothing to Local Roasters' own roles. owner_person_id is the internal
   -- person driving the opportunity and derives no role at all.
   insert into public.partnership_opportunities
     (organization_person_id, stage, next_step_date, owner_person_id, notes,
@@ -371,9 +379,13 @@ begin
 
   insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, created_by)
   values (v_item5, 'received', 1, 'Donation intake', v_admin_id);
-  insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, recipient_person_id, notes, created_by)
-  values (v_item5, 'reserved', 1, 'Public gear library request', v_person_volunteer,
-          'Picking up Saturday morning before the shuttle -- happy to take a smaller size if this one is spoken for.', v_admin_id);
+  -- The request header (#1032) carries the notes and the delivery choice; the
+  -- movement is the hold and points at it.
+  insert into public.gear_requests (id, person_id, delivery_method, notes)
+  values (v_gear_request, v_person_volunteer, 'meetup',
+          'Picking up Saturday morning before the shuttle -- happy to take a smaller size if this one is spoken for.');
+  insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, recipient_person_id, gear_request_id, created_by)
+  values (v_item5, 'reserved', 1, 'Public gear library request', v_person_volunteer, v_gear_request, v_admin_id);
 
   -- Giveaway for the past event: two prizes, one claimed winner.
   insert into public.giveaways (id, event_id, name, tickets_sold, ticket_price, revenue_amount, drawing_date, created_by)
@@ -640,20 +652,25 @@ begin
   -- update: `sales_void_state` asserts that `status = 'voided'` and
   -- `voided_at is not null` are one state, so a two-step write would be
   -- rejected halfway.
+  --
+  -- `receipt_number` is spelled out rather than left to the
+  -- assign_sale_receipt_number trigger (#1016), so the numbers on these two
+  -- rows are the same on every reset -- test/seed-fixtures.ts states them and
+  -- the e2e ledger assertion reads them.
   insert into public.sales (
     id, event_id, purchaser_person_id, sold_at, payment_method,
     subtotal, discount_amount, total, status,
-    voided_at, voided_by, void_reason, notes, created_by
+    voided_at, voided_by, void_reason, notes, receipt_number, created_by
   ) values
     ('dcdcdcdc-0000-4000-8000-000000000001', 'cccccccc-0000-4000-8000-000000000002',
      'bbbbbbbb-0000-4000-8000-000000000001', now() - interval '40 days', 'cash',
      65.00, 5.00, 60.00, 'completed',
-     null, null, null, 'Merch table, paid in cash.', v_admin_id),
+     null, null, null, 'Merch table, paid in cash.', 1, v_admin_id),
     ('dcdcdcdc-0000-4000-8000-000000000002', 'cccccccc-0000-4000-8000-000000000002',
      null, now() - interval '40 days', 'card',
      15.00, 0.00, 15.00, 'voided',
      now() - interval '39 days', v_admin_id,
-     'Duplicate of the cash sale beside it.', 'Rung up twice by mistake.', v_admin_id);
+     'Duplicate of the cash sale beside it.', 'Rung up twice by mistake.', 2, v_admin_id);
 
   -- description and unit_price are snapshots, so they are spelled out here the
   -- way the RPC would have spelled them rather than joined to the catalog.
@@ -1481,6 +1498,34 @@ where name = 'Youth Outdoor Mentorship';
 update public.programs
 set is_public = true, pillar = null, sort_order = null
 where name = 'Community Gear Library';
+
+-- People mode for Meet the Team (#1014). The same arrangement as the Programs
+-- block above: the page reads Site Content until a tenant changes
+-- `layout.team_source`, so these rows change nothing on their own -- they are
+-- here so that flipping the setting locally, or in the e2e case that flips
+-- it, lands on a populated page rather than the empty state.
+--
+-- Three rows over the hand-authored people, covering the shapes the page has
+-- to render: an ordered member with a role and a multi-paragraph biography,
+-- an ordered member with a role and no biography (the placeholder case), and
+-- an unordered member with neither, who sorts after the other two by name.
+-- Every other seeded person stays off the page, which is also the check that
+-- a person is not listed until somebody lists them.
+--
+-- Local and CI only -- seed.sql never runs against a hosted project.
+insert into public.public_team_members (person_id, public_role, bio, sort_order)
+select id, 'Programs lead',
+  E'Jamie has run the winter access program since it began, and learned to ride as an adult.\n\nOff snow you will find them at the climbing gym or organizing the gear library.',
+  1
+from public.people where email = 'jamie.rivera@example.test';
+
+insert into public.public_team_members (person_id, public_role, bio, sort_order)
+select id, 'Board chair', null, 2
+from public.people where email = 'alex.chen@example.test';
+
+insert into public.public_team_members (person_id, public_role, bio, sort_order)
+select id, null, null, null
+from public.people where email = 'priya.n@example.test';
 
 -- A content pack (#895), so the platform tenant's pack screen has something in
 -- it locally and the a11y sweep scans a populated page rather than an empty

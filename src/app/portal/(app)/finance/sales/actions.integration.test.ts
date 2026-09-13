@@ -34,6 +34,7 @@ import {
   SEEDED_EVENT_IDS,
   SEEDED_PERSON_IDS,
   SEEDED_SALE_IDS,
+  SEEDED_SALE_RECEIPT_NUMBERS,
   SEEDED_VARIANT_IDS,
 } from "../../../../../../test/seed-fixtures";
 
@@ -214,37 +215,47 @@ describe("recordSaleAction (integration)", () => {
 
     const { data: sale } = await service
       .from("sales")
-      .select("subtotal, discount_amount, total, status, event_id, notes")
+      .select(
+        "subtotal, discount_amount, tax_rate, tax_amount, total, status, event_id, notes",
+      )
       .eq("id", (result as { saleId: string }).saleId)
       .single();
     expect({
       subtotal: Number(sale?.subtotal),
       discount: Number(sale?.discount_amount),
+      tax_rate: Number(sale?.tax_rate),
+      tax_amount: Number(sale?.tax_amount),
       total: Number(sale?.total),
       status: sale?.status,
       event_id: sale?.event_id,
     }).toEqual({
       subtotal: 20,
       discount: 2.5,
+      // No rate sent: untaxed, and the total is exactly the net.
+      tax_rate: 0,
+      tax_amount: 0,
       total: 17.5,
       status: "completed",
       event_id: SEEDED_EVENT_IDS.past,
     });
 
     // Snapshotted, not joined: the description and the price are the ones that
-    // were current when it sold.
+    // were current when it sold. With no override sent, the price charged and
+    // the list price the RPC looked up are the same figure (#1015).
     const { data: lines } = await service
       .from("sale_line_items")
-      .select("description, unit_price, quantity, line_total")
+      .select("description, unit_price, list_price, quantity, line_total")
       .eq("sale_id", (result as { saleId: string }).saleId);
     expect(lines).toHaveLength(1);
     expect({
       ...lines![0],
       unit_price: Number(lines![0].unit_price),
+      list_price: Number(lines![0].list_price),
       line_total: Number(lines![0].line_total),
     }).toEqual({
       description: `IT Sales Product ${run} — Plenty`,
       unit_price: 10,
+      list_price: 10,
       quantity: 2,
       line_total: 20,
     });
@@ -290,6 +301,62 @@ describe("recordSaleAction (integration)", () => {
     );
     expect(result).toEqual({
       error: `IT Sales Product ${run} — Retired has been retired and cannot be sold.`,
+    });
+  });
+
+  // #997: the client sends a rate and never an amount. The RPC computes the
+  // amount on its own subtotal net of discount, rounds once to the cent, and
+  // snapshots both on the row.
+  test("a nonzero rate is taxed on the discounted subtotal and snapshotted", async () => {
+    const result = await record({
+      discount_amount: 2.5,
+      tax_rate: 8.25,
+      lines: [{ variant_id: variantId, quantity: 2 }],
+    });
+    // (20 - 2.50) * 8.25% = 1.44375 -> 1.44; total 17.50 + 1.44.
+    expect(result).toMatchObject({ success: true, total: 18.94 });
+
+    const { data: sale } = await service
+      .from("sales")
+      .select("subtotal, discount_amount, tax_rate, tax_amount, total")
+      .eq("id", (result as { saleId: string }).saleId)
+      .single();
+    expect({
+      subtotal: Number(sale?.subtotal),
+      discount: Number(sale?.discount_amount),
+      tax_rate: Number(sale?.tax_rate),
+      tax_amount: Number(sale?.tax_amount),
+      total: Number(sale?.total),
+    }).toEqual({
+      subtotal: 20,
+      discount: 2.5,
+      tax_rate: 8.25,
+      tax_amount: 1.44,
+      total: 18.94,
+    });
+  });
+
+  test("a rate outside 0-100 is refused by the RPC, not only the parser", async () => {
+    currentSupabase = adminClient;
+    // Straight to the RPC: the Server Action's parser would refuse these
+    // first, and the point is that the database refuses them too.
+    for (const rate of [-1, 100.5, 10000]) {
+      const { error } = await adminClient.rpc("record_product_sale", {
+        p_event_id: null,
+        p_purchaser_person_id: null,
+        p_payment_method: "cash",
+        p_discount_amount: 0,
+        p_sold_at: null,
+        p_notes: `IT bad rate ${run}`,
+        p_lines: [{ variant_id: variantId, quantity: 1 }],
+        p_tax_rate: rate,
+      });
+      expect(error?.message, String(rate)).toBe("INVALID_TAX_RATE");
+    }
+    expect(await stockOf(variantId)).toBe(5);
+
+    expect(await recordSaleAction(saleInput({ tax_rate: 101 }))).toEqual({
+      error: "Tax rate must be between 0 and 100 percent.",
     });
   });
 
@@ -365,6 +432,212 @@ describe("recordSaleAction (integration)", () => {
   });
 });
 
+describe("line prices and custom lines (#1015)", () => {
+  async function linesOf(saleId: string) {
+    const { data, error } = await service
+      .from("sale_line_items")
+      .select(
+        "description, product_variant_id, unit_price, list_price, quantity, line_total",
+      )
+      .eq("sale_id", saleId)
+      .order("description");
+    if (error) throw error;
+    return data!.map((line) => ({
+      ...line,
+      unit_price: Number(line.unit_price),
+      list_price: line.list_price === null ? null : Number(line.list_price),
+      line_total: Number(line.line_total),
+    }));
+  }
+
+  test("an override is charged, and the catalog price is snapshotted beside it", async () => {
+    const before = await stockOf(variantId);
+    const result = await record({
+      lines: [{ variant_id: variantId, quantity: 2, unit_price: 4 }],
+      tax_rate: 10,
+    });
+    expect(result).toEqual({
+      success: true,
+      saleId: expect.any(String),
+      total: 8.8,
+      receiptNumber: expect.any(Number),
+    });
+
+    const saleId = (result as { saleId: string }).saleId;
+    expect(await linesOf(saleId)).toEqual([
+      {
+        description: `IT Sales Product ${run} — Plenty`,
+        product_variant_id: variantId,
+        // What was charged, and what the catalog said on the day. The
+        // difference between the two is the whole record of the override --
+        // there is no flag, and the client could not have set one.
+        unit_price: 4,
+        list_price: 10,
+        quantity: 2,
+        line_total: 8,
+      },
+    ]);
+
+    const { data: sale } = await service
+      .from("sales")
+      .select("subtotal, tax_amount, total")
+      .eq("id", saleId)
+      .single();
+    expect(Number(sale!.subtotal)).toBe(8);
+    expect(Number(sale!.tax_amount)).toBe(0.8);
+    // Stock follows the units, not the money.
+    expect(await stockOf(variantId)).toBe(before - 2);
+  });
+
+  test("a price equal to the catalog price stores a line that is not overridden", async () => {
+    const result = await record({
+      lines: [{ variant_id: variantId, quantity: 1, unit_price: 10 }],
+    });
+    const [line] = await linesOf((result as { saleId: string }).saleId);
+    expect(line.list_price).toBe(10);
+    expect(line.unit_price).toBe(10);
+  });
+
+  test("a custom line is stored with no variant and moves no stock", async () => {
+    const before = await stockOf(variantId);
+    const result = await record({
+      lines: [{ description: "Donated print", unit_price: 3.5, quantity: 2 }],
+    });
+    expect(result).toEqual({
+      success: true,
+      saleId: expect.any(String),
+      total: 7,
+      receiptNumber: expect.any(Number),
+    });
+
+    expect(await linesOf((result as { saleId: string }).saleId)).toEqual([
+      {
+        description: "Donated print",
+        product_variant_id: null,
+        unit_price: 3.5,
+        list_price: null,
+        quantity: 2,
+        line_total: 7,
+      },
+    ]);
+    expect(await stockOf(variantId)).toBe(before);
+  });
+
+  test("two custom lines that read the same are two lines", async () => {
+    // `unique (sale_id, product_variant_id)` still stands; Postgres treats the
+    // nulls as distinct, which is what lets a sale hold more than one.
+    const result = await record({
+      lines: [
+        { description: "Raffle ticket", unit_price: 2, quantity: 1 },
+        { description: "Raffle ticket", unit_price: 2, quantity: 1 },
+      ],
+    });
+    expect(await linesOf((result as { saleId: string }).saleId)).toHaveLength(
+      2,
+    );
+  });
+
+  test("voiding a mixed sale returns the catalog units and nothing else", async () => {
+    const before = await stockOf(variantId);
+    const result = await record({
+      lines: [
+        { variant_id: variantId, quantity: 2, unit_price: 4 },
+        { description: "Donated print", unit_price: 3.5, quantity: 1 },
+      ],
+    });
+    const saleId = (result as { saleId: string }).saleId;
+    expect(await stockOf(variantId)).toBe(before - 2);
+
+    expect(await voidSaleAction(saleId, "Rung up twice")).toEqual({
+      success: true,
+    });
+    expect(await stockOf(variantId)).toBe(before);
+    // The lines are kept, custom one included.
+    expect(await linesOf(saleId)).toHaveLength(2);
+  });
+
+  test("the same variant at two prices is refused", async () => {
+    expect(
+      await record({
+        lines: [
+          { variant_id: variantId, quantity: 1, unit_price: 4 },
+          { variant_id: variantId, quantity: 1 },
+        ],
+      }),
+    ).toEqual({
+      error:
+        "One item can only be sold at one price per sale. Record the second price as its own sale.",
+    });
+  });
+
+  test("the RPC refuses a price the parser would have let through", async () => {
+    // Straight at the RPC, because the Server Action's parser would catch these
+    // first and the point is that the database does not rely on it.
+    for (const unitPrice of [-1, 5.005, 100000000]) {
+      const { error } = await adminClient.rpc("record_product_sale", {
+        p_event_id: null,
+        p_purchaser_person_id: null,
+        p_payment_method: "cash",
+        p_discount_amount: 0,
+        p_sold_at: null,
+        p_notes: `IT bad price ${run}`,
+        p_lines: [
+          { variant_id: variantId, quantity: 1, unit_price: unitPrice },
+        ],
+      });
+      expect(error?.message).toBe("INVALID_UNIT_PRICE");
+    }
+  });
+
+  test("the RPC refuses a custom line missing either half of itself", async () => {
+    for (const line of [
+      { unit_price: 3, quantity: 1 },
+      { description: "   ", unit_price: 3, quantity: 1 },
+      { description: "Coffee", quantity: 1 },
+      { description: "x".repeat(121), unit_price: 3, quantity: 1 },
+    ]) {
+      const { error } = await adminClient.rpc("record_product_sale", {
+        p_event_id: null,
+        p_purchaser_person_id: null,
+        p_payment_method: "cash",
+        p_discount_amount: 0,
+        p_sold_at: null,
+        p_notes: `IT bad custom ${run}`,
+        p_lines: [line],
+      });
+      expect(error?.message).toBe("INVALID_LINE");
+    }
+  });
+
+  test("a catalog line may not bring its own description", async () => {
+    const { error } = await adminClient.rpc("record_product_sale", {
+      p_event_id: null,
+      p_purchaser_person_id: null,
+      p_payment_method: "cash",
+      p_discount_amount: 0,
+      p_sold_at: null,
+      p_notes: `IT bad shape ${run}`,
+      p_lines: [
+        { variant_id: variantId, quantity: 1, description: "Smuggled" },
+      ],
+    });
+    expect(error?.message).toBe("INVALID_LINE");
+  });
+
+  test("a line item still cannot be inserted directly, nullable column or not", async () => {
+    const { error } = await adminClient.from("sale_line_items").insert({
+      sale_id: SEEDED_SALE_IDS.completed,
+      product_variant_id: null,
+      description: "Smuggled",
+      unit_price: 1,
+      list_price: null,
+      quantity: 1,
+      line_total: 1,
+    });
+    expect(error?.code).toBe("42501");
+  });
+});
+
 describe("the tables refuse every write that is not an RPC", () => {
   test("an admin session cannot insert a sale directly", async () => {
     const { error } = await adminClient.from("sales").insert({
@@ -407,6 +680,93 @@ describe("the tables refuse every write that is not an RPC", () => {
       .update({ status: "voided" })
       .eq("id", SEEDED_SALE_IDS.completed);
     expect(voidState.error?.code).toBe("42501");
+
+    // #1016: a receipt number a holder could retype is not a number anyone can
+    // be held to. It is outside the column grant like the money beside it.
+    const receipt = await adminClient
+      .from("sales")
+      .update({ receipt_number: 9999 })
+      .eq("id", SEEDED_SALE_IDS.completed);
+    expect(receipt.error?.code).toBe("42501");
+  });
+});
+
+describe("receipt numbers (#1016)", () => {
+  async function receiptNumberOf(saleId: string): Promise<number> {
+    const { data, error } = await service
+      .from("sales")
+      .select("receipt_number")
+      .eq("id", saleId)
+      .single();
+    if (error) throw error;
+    return Number(data.receipt_number);
+  }
+
+  test("the seeded sales carry the numbers the fixtures state", async () => {
+    expect(await receiptNumberOf(SEEDED_SALE_IDS.completed)).toBe(
+      SEEDED_SALE_RECEIPT_NUMBERS.completed,
+    );
+    expect(await receiptNumberOf(SEEDED_SALE_IDS.voided)).toBe(
+      SEEDED_SALE_RECEIPT_NUMBERS.voided,
+    );
+  });
+
+  test("two consecutive sales get consecutive numbers, and the action returns them", async () => {
+    const first = await record();
+    const second = await record();
+    if (!("success" in first) || !("success" in second)) {
+      throw new Error("both sales were expected to record");
+    }
+
+    expect(second.receiptNumber).toBe(first.receiptNumber + 1);
+    // What the action returned is what the row actually holds -- it reads the
+    // number back rather than being told it by the RPC.
+    expect(await receiptNumberOf(first.saleId)).toBe(first.receiptNumber);
+    expect(await receiptNumberOf(second.saleId)).toBe(second.receiptNumber);
+  });
+
+  test("two sales recorded at once get distinct numbers", async () => {
+    // The same two-session shape as the oversell race above: one connection
+    // would serialise them and prove nothing about the advisory lock.
+    const financeClient = await signInAs(SEEDED_USERS.finance);
+    const args = {
+      p_event_id: null,
+      p_purchaser_person_id: null,
+      p_payment_method: "cash",
+      p_discount_amount: 0,
+      p_sold_at: null,
+      p_notes: `IT receipt race ${run}`,
+      p_lines: [{ variant_id: variantId, quantity: 1 }],
+    };
+    const [first, second] = await Promise.all([
+      adminClient.rpc("record_product_sale", args),
+      financeClient.rpc("record_product_sale", args),
+    ]);
+
+    expect(first.error).toBeNull();
+    expect(second.error).toBeNull();
+
+    const ids = [first, second].map(
+      (outcome) => (outcome.data as { sale_id: string }[])[0].sale_id,
+    );
+    createdSaleIds.push(...ids);
+
+    const numbers = await Promise.all(ids.map(receiptNumberOf));
+    expect(new Set(numbers).size).toBe(2);
+    // Consecutive, not merely distinct: the lock is what makes max()+1 mean
+    // "the next one" rather than "some free one".
+    expect(Math.abs(numbers[0] - numbers[1])).toBe(1);
+  });
+
+  test("voiding keeps the number, so the run has no gap in it", async () => {
+    const recorded = await record();
+    if (!("success" in recorded)) throw new Error("expected a sale");
+
+    currentSupabase = adminClient;
+    expect(await voidSaleAction(recorded.saleId, "returned")).toEqual({
+      success: true,
+    });
+    expect(await receiptNumberOf(recorded.saleId)).toBe(recorded.receiptNumber);
   });
 });
 
@@ -423,16 +783,44 @@ describe("voidSaleAction (integration)", () => {
 
   test("voiding returns the units, and a second void is refused", async () => {
     const recorded = await record({
+      tax_rate: 8.25,
       lines: [{ variant_id: variantId, quantity: 1 }],
     });
     const saleId = (recorded as { saleId: string }).saleId;
     const afterSale = await stockOf(variantId);
+
+    // Before the void the sale is in the rollup, tax and all (#997): net
+    // amount and the tax beside it.
+    const today = new Date().toISOString().slice(0, 10);
+    const inRollup = async () => {
+      const { data, error } = await adminClient.rpc("get_finance_report_data", {
+        p_from: today,
+        p_to: today,
+      });
+      if (error) throw error;
+      const rows = (data as { sales: { amount: unknown; tax: unknown }[] })
+        .sales;
+      return rows.filter((row) => Number(row.amount) === 10);
+    };
+    const before = await inRollup();
+    expect(before.length).toBeGreaterThanOrEqual(1);
+    expect(before.map((row) => Number(row.tax))).toContain(0.83);
 
     currentSupabase = adminClient;
     expect(await voidSaleAction(saleId, "Rung up twice")).toEqual({
       success: true,
     });
     expect(await stockOf(variantId)).toBe(afterSale + 1);
+
+    // The whole sale leaves the rollup with the void -- the tax is not
+    // zeroed on the row, it just stops counting along with the rest.
+    const { data: voided } = await service
+      .from("sales")
+      .select("tax_amount")
+      .eq("id", saleId)
+      .single();
+    expect(Number(voided?.tax_amount)).toBe(0.83);
+    expect((await inRollup()).length).toBe(before.length - 1);
 
     const { data: sale } = await service
       .from("sales")
@@ -637,6 +1025,10 @@ describe("another tenant's sale (integration)", () => {
       .update({ actor_id: null })
       .eq("actor_id", tenantBUserId);
     await service.auth.admin.deleteUser(tenantBUserId);
+    // Before the tenant itself: the file-wide afterAll runs later, and
+    // `sales_tenant_id_fkey` would refuse the delete below with B's own sale
+    // (#1016) still on it.
+    await service.from("sales").delete().eq("tenant_id", tenantBId);
 
     const { error } = await service
       .from("tenants")
@@ -666,5 +1058,29 @@ describe("another tenant's sale (integration)", () => {
       error:
         "Something in the cart no longer exists. Reload the register and try again.",
     });
+  });
+
+  test("tenant B's first sale is #1, however many A has rung up", async () => {
+    currentSupabase = await signInAs(tenantBEmail);
+
+    // A custom line (#1015) needs no catalog, which is what lets a tenant with
+    // no products at all record its first sale here.
+    const result = await recordSaleAction(
+      saleInput({
+        lines: [{ description: "First ever", unit_price: 5, quantity: 1 }],
+      }),
+    );
+    if (!("success" in result)) throw new Error(JSON.stringify(result));
+    createdSaleIds.push(result.saleId);
+
+    // The point of the per-tenant lock rather than a shared sequence: B must
+    // not be shown the gaps left by A's run.
+    expect(result.receiptNumber).toBe(1);
+
+    const { count } = await service
+      .from("sales")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantBId);
+    expect(count).toBe(1);
   });
 });

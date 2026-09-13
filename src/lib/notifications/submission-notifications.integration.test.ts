@@ -22,34 +22,48 @@ import {
 import {
   SEEDED_USERS,
   anonClient,
+  createAvailableGearItems,
   createVolunteerApplication,
   deleteContactMessages,
   serviceRoleClient,
   uniqueEmail,
   uniqueIp,
 } from "../../../test/integration-setup";
-import { EMAIL_ENABLED_SETTING_KEY } from "./kinds";
+import {
+  EMAIL_ENABLED_SETTING_KEY,
+  GEAR_REQUEST_CONFIRMATION_KIND,
+} from "./kinds";
 
 // submission-notifications.ts, deliver.ts and the send helper all import
 // "server-only", which throws outside Next's bundler.
 mock.module("server-only", () => ({}));
 const {
   CONTACT_MESSAGE_KIND,
+  GEAR_REQUEST_KIND,
   VOLUNTEER_APPLICATION_KIND,
   notifyNewContactMessage,
+  notifyNewGearRequest,
   notifyNewVolunteerApplication,
+  sendGearRequestConfirmation,
 } = await import("./submission-notifications");
 
 const service = serviceRoleClient();
 const SITE_URL = "https://chattersnow.example";
 
-/** Both kinds this file creates rows for. Nothing seeded uses either. */
-const KINDS = [VOLUNTEER_APPLICATION_KIND, CONTACT_MESSAGE_KIND];
+/** Every kind this file creates rows for. Nothing seeded uses any of them. */
+const KINDS = [
+  VOLUNTEER_APPLICATION_KIND,
+  CONTACT_MESSAGE_KIND,
+  GEAR_REQUEST_KIND,
+  GEAR_REQUEST_CONFIRMATION_KIND,
+];
 
 let tenantId: string;
 let adminPersonId: string;
 const contactEmails: string[] = [];
 const applicationCleanups: (() => Promise<void>)[] = [];
+const gearCleanups: (() => Promise<void>)[] = [];
+const requesterEmails: string[] = [];
 
 beforeAll(async () => {
   const { data: tenant, error: tenantError } = await service
@@ -87,7 +101,33 @@ afterEach(async () => {
 afterAll(async () => {
   for (const cleanup of applicationCleanups) await cleanup();
   for (const email of contactEmails) await deleteContactMessages(email);
+  // The gear fixtures first (their cleanup finds the request through the
+  // movements), then the requester people rows nothing references any more.
+  for (const cleanup of gearCleanups) await cleanup();
+  if (requesterEmails.length) {
+    await service.from("people").delete().in("email", requesterEmails);
+  }
 });
+
+/** A public gear request from a fresh requester, through the real RPC. */
+async function newGearRequest(): Promise<{ id: string; email: string }> {
+  const fixture = await createAvailableGearItems(2);
+  gearCleanups.push(fixture.cleanup);
+  const email = uniqueEmail("gear-notify");
+  requesterEmails.push(email);
+  const { data, error } = await anonClient().rpc("request_gear_items", {
+    p_inventory_item_ids: fixture.itemIds,
+    p_name: "Integration Test Requester",
+    p_email: email,
+    p_phone: null,
+    p_notes: "Any size works.",
+    p_honeypot: null,
+    // A fresh IP per fixture: the RPC's own per-IP limit is 8 per 15 minutes.
+    p_ip_address: uniqueIp(),
+  });
+  if (error) throw error;
+  return { id: data as string, email };
+}
 
 /** null removes the row, which is what an unset switch looks like. */
 async function setOrgEmailEnabled(enabled: boolean | null) {
@@ -323,5 +363,111 @@ describe("the ledger", () => {
     const rows = await deliveries(VOLUNTEER_APPLICATION_KIND);
     expect(rows).toHaveLength(2);
     expect(new Set(rows.map((row) => row.dedupe_key)).size).toBe(2);
+  });
+});
+
+// #1032. Two sends per request: the inventory managers' notice, which goes
+// through the same gates as the three above, and the requester's own
+// confirmation, which has no preference to honour.
+describe("a new gear request", () => {
+  test("reaches an opted-in inventory:manage holder", async () => {
+    await optIn(GEAR_REQUEST_KIND, true);
+    const request = await newGearRequest();
+
+    const summary = await notifyNewGearRequest(service, {
+      requestId: request.id,
+      siteUrl: SITE_URL,
+    });
+
+    expect(summary).toEqual({
+      considered: 1,
+      sent: 1,
+      skipped: 0,
+      failed: 0,
+    });
+    const rows = await deliveries(GEAR_REQUEST_KIND);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].person_id).toBe(adminPersonId);
+    expect(rows[0].status).toBe("sent");
+    expect(rows[0].dedupe_key).toBe(`${GEAR_REQUEST_KIND}:${request.id}`);
+  });
+
+  test("reaches nobody who has not opted in", async () => {
+    const request = await newGearRequest();
+
+    const summary = await notifyNewGearRequest(service, {
+      requestId: request.id,
+      siteUrl: SITE_URL,
+    });
+
+    expect(summary.considered).toBe(1);
+    expect(summary.sent).toBe(0);
+    expect(summary.skipped).toBe(1);
+    expect(await deliveries(GEAR_REQUEST_KIND)).toEqual([]);
+  });
+
+  test("says nothing at all about a filled honeypot", async () => {
+    await optIn(GEAR_REQUEST_KIND, true);
+
+    // What request_gear_items() hands back when the honeypot is filled: a
+    // uuid for a row it never inserted.
+    const summary = await notifyNewGearRequest(service, {
+      requestId: crypto.randomUUID(),
+      siteUrl: SITE_URL,
+    });
+
+    expect(summary).toEqual({ considered: 0, sent: 0, skipped: 0, failed: 0 });
+    expect(await deliveries(GEAR_REQUEST_KIND)).toEqual([]);
+  });
+
+  test("confirms to the requester, ledgered against their people row", async () => {
+    const request = await newGearRequest();
+
+    const outcome = await sendGearRequestConfirmation(service, {
+      requestId: request.id,
+      siteUrl: SITE_URL,
+    });
+    expect(outcome).toBe("sent");
+
+    const { data: person } = await service
+      .from("people")
+      .select("id")
+      .eq("email", request.email)
+      .single();
+    const rows = await deliveries(GEAR_REQUEST_CONFIRMATION_KIND);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].person_id).toBe(person!.id);
+    expect(rows[0].status).toBe("sent");
+    expect(rows[0].dedupe_key).toBe(
+      `${GEAR_REQUEST_CONFIRMATION_KIND}:${request.id}`,
+    );
+
+    // A retried action sends the confirmation once.
+    expect(
+      await sendGearRequestConfirmation(service, {
+        requestId: request.id,
+        siteUrl: SITE_URL,
+      }),
+    ).toBe("skipped");
+    expect(await deliveries(GEAR_REQUEST_CONFIRMATION_KIND)).toHaveLength(1);
+  });
+
+  test("the confirmation honours the tenant's switch and ignores a honeypot", async () => {
+    await setOrgEmailEnabled(false);
+    const request = await newGearRequest();
+
+    expect(
+      await sendGearRequestConfirmation(service, {
+        requestId: request.id,
+        siteUrl: SITE_URL,
+      }),
+    ).toBe("skipped");
+    expect(
+      await sendGearRequestConfirmation(service, {
+        requestId: crypto.randomUUID(),
+        siteUrl: SITE_URL,
+      }),
+    ).toBe("skipped");
+    expect(await deliveries(GEAR_REQUEST_CONFIRMATION_KIND)).toEqual([]);
   });
 });

@@ -1,11 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import {
+  addCustomLine,
   addToCart,
   buildRecordSaleInput,
+  cartLineLabel,
   cartTotals,
+  parseTaxRateInput,
   pickDefaultEvent,
   removeLine,
   setLineQuantity,
+  setLineUnitPrice,
   type CartLine,
   type RegisterEvent,
   type RegisterVariant,
@@ -117,9 +121,55 @@ describe("cartTotals", () => {
     expect(cartTotals([], "5")).toMatchObject({
       subtotalCents: 0,
       discountCents: 0,
+      taxCents: 0,
       totalCents: 0,
       itemCount: 0,
     });
+  });
+
+  test("no rate means no tax, and the total is unchanged", () => {
+    const totals = cartTotals(addToCart([], variant()), "", "");
+    expect(totals.taxCents).toBe(0);
+    expect(totals.taxRate).toBe(0);
+    expect(totals.totalCents).toBe(2000);
+  });
+
+  test("tax is computed in cents on the subtotal, rounded once", () => {
+    // Three $5.05 stickers at 8.25%: 1515 * 0.0825 = 124.9875 cents -> 125.
+    // In floats, 15.15 * 0.0825 = 1.2498749999999999, which a naive
+    // toFixed(2) would also carry to 1.25 -- but only by luck; the cents
+    // path does not depend on it.
+    let cart: CartLine[] = [];
+    for (let i = 0; i < 3; i++) cart = addToCart(cart, variant(stickers[0]));
+    const totals = cartTotals(cart, "", "8.25");
+    expect(totals.taxCents).toBe(125);
+    expect(totals.tax).toBe(1.25);
+    expect(totals.totalCents).toBe(1640);
+    expect(totals.total).toBe(16.4);
+  });
+
+  test("tax is applied after the discount, never on the gross", () => {
+    // $20 less $2.10 is $17.90; at 10% that is $1.79, not $2.00.
+    const totals = cartTotals(addToCart([], variant()), "2.10", "10");
+    expect(totals.discountCents).toBe(210);
+    expect(totals.taxCents).toBe(179);
+    expect(totals.totalCents).toBe(1969);
+  });
+
+  test("a rate the register cannot read charges nothing", () => {
+    const cart = addToCart([], variant());
+    for (const input of ["", "   ", "abc", "-5", "101", "Infinity"]) {
+      const totals = cartTotals(cart, "", input);
+      expect(totals.taxCents, input).toBe(0);
+      expect(totals.taxRate, input).toBe(0);
+      expect(totals.totalCents, input).toBe(2000);
+    }
+  });
+
+  test("a rate is kept to three decimals, as the column stores it", () => {
+    expect(parseTaxRateInput("8.3751")).toBe(8.375);
+    expect(parseTaxRateInput("100")).toBe(100);
+    expect(parseTaxRateInput("0")).toBe(0);
   });
 });
 
@@ -174,7 +224,7 @@ describe("pickDefaultEvent", () => {
 });
 
 describe("buildRecordSaleInput", () => {
-  test("sends ids and quantities, never prices", () => {
+  test("sends a price only for an overridden or custom line", () => {
     const cart = setLineQuantity(addToCart([], variant()), variant().id, 2);
     const input = buildRecordSaleInput({
       cart,
@@ -190,11 +240,78 @@ describe("buildRecordSaleInput", () => {
       purchaser_person_id: null,
       payment_method: "cash",
       discount_amount: 2.5,
+      tax_rate: 0,
       notes: "at the trailhead",
       lines: [{ variant_id: variant().id, quantity: 2 }],
     });
-    // Nothing about what the cart believes the money is.
+    // An ordinary sale is byte-for-byte what it was before overrides existed:
+    // nothing about what the cart believes the money is.
     expect(JSON.stringify(input)).not.toContain("2000");
+  });
+
+  test("an overridden line sends its price, and its neighbour does not", () => {
+    const tee = variant({
+      id: "99999999-9999-4999-8999-999999999999",
+      productName: "Trailhead Tee",
+      label: "M",
+      price: "25.00",
+    });
+    const cart = setLineUnitPrice(
+      addToCart(addToCart([], variant()), tee),
+      variant().id,
+      "5",
+    );
+
+    const input = buildRecordSaleInput({
+      cart,
+      eventId: null,
+      purchaserPersonId: null,
+      paymentMethod: "cash",
+      discountInput: "",
+      notes: "",
+    });
+
+    expect(input.lines).toEqual([
+      { variant_id: variant().id, quantity: 1, unit_price: 5 },
+      { variant_id: tee.id, quantity: 1 },
+    ]);
+  });
+
+  test("a custom line sends its description and price instead of an id", () => {
+    const cart = addCustomLine([], {
+      description: "  Donated print  ",
+      priceInput: "3.50",
+      quantity: 2,
+    });
+
+    const input = buildRecordSaleInput({
+      cart,
+      eventId: null,
+      purchaserPersonId: null,
+      paymentMethod: "cash",
+      discountInput: "",
+      notes: "",
+    });
+
+    expect(input.lines).toEqual([
+      { description: "Donated print", unit_price: 3.5, quantity: 2 },
+    ]);
+  });
+
+  test("sends the tax rate, never the tax amount", () => {
+    const input = buildRecordSaleInput({
+      cart: addToCart([], variant()),
+      eventId: null,
+      purchaserPersonId: null,
+      paymentMethod: "cash",
+      discountInput: "",
+      taxRateInput: "8.25",
+      notes: "",
+    });
+    expect(input.tax_rate).toBe(8.25);
+    // The amount ($1.65 here) is the RPC's to compute from its own subtotal.
+    expect(input).not.toHaveProperty("tax_amount");
+    expect(JSON.stringify(input)).not.toContain("1.65");
   });
 
   test("a blank note is null rather than an empty string", () => {
@@ -208,5 +325,109 @@ describe("buildRecordSaleInput", () => {
     });
     expect(input.notes).toBeNull();
     expect(input.discount_amount).toBe(0);
+  });
+});
+
+describe("setLineUnitPrice", () => {
+  const cart = addToCart([], variant());
+  const lineId = variant().id;
+
+  test("charges what was typed, in exact cents", () => {
+    const next = setLineUnitPrice(cart, lineId, "5.05");
+    expect(next[0].unitPriceCents).toBe(505);
+    // The list price is untouched, which is what "was $20.00" reads from and
+    // what tells the payload this line was overridden at all.
+    expect(next[0].listPriceCents).toBe(2000);
+  });
+
+  test("three of $5.05 stay exact", () => {
+    const next = setLineQuantity(
+      setLineUnitPrice(cart, lineId, "5.05"),
+      lineId,
+      3,
+    );
+    expect(cartTotals(next, "").subtotalCents).toBe(1515);
+  });
+
+  test("blank restores the catalog price", () => {
+    const overridden = setLineUnitPrice(cart, lineId, "5");
+    expect(setLineUnitPrice(overridden, lineId, "")[0].unitPriceCents).toBe(
+      2000,
+    );
+  });
+
+  test("garbage and negatives fall back rather than charging NaN", () => {
+    for (const typed of ["abc", "-3", " "]) {
+      expect(setLineUnitPrice(cart, lineId, typed)[0].unitPriceCents).toBe(
+        2000,
+      );
+    }
+  });
+
+  test("a half-typed figure is the figure so far, not a reset", () => {
+    // "1." is what the field holds on the way to "1.50". Treating it as
+    // unreadable would snap the line back to $20.00 mid-keystroke.
+    expect(setLineUnitPrice(cart, lineId, "1.")[0].unitPriceCents).toBe(100);
+  });
+
+  test("a custom line with no catalog price keeps what it has", () => {
+    const custom = addCustomLine([], {
+      description: "Coffee",
+      priceInput: "3.50",
+      quantity: 1,
+    });
+    const blanked = setLineUnitPrice(custom, custom[0].lineId, "");
+    expect(blanked[0].unitPriceCents).toBe(350);
+  });
+
+  test("leaves every other line alone", () => {
+    const two = addToCart(
+      cart,
+      variant({ id: "99999999-9999-4999-8999-999999999999" }),
+    );
+    expect(setLineUnitPrice(two, lineId, "5")[1].unitPriceCents).toBe(2000);
+  });
+});
+
+describe("addCustomLine", () => {
+  const cart = addCustomLine([], {
+    description: "  Donated print  ",
+    priceInput: "3.50",
+    quantity: 2,
+  });
+
+  test("carries its own identity, no variant and unlimited stock", () => {
+    expect(cart[0].variantId).toBeNull();
+    expect(cart[0].listPriceCents).toBeNull();
+    expect(cart[0].stockOnHand).toBeNull();
+    expect(cart[0].lineId).not.toBe("");
+    expect(cart[0].description).toBe("Donated print");
+    expect(cartLineLabel(cart[0])).toBe("Donated print");
+    expect(cart[0].unitPriceCents).toBe(350);
+  });
+
+  test("two custom items are two lines, never merged", () => {
+    const two = addCustomLine(cart, {
+      description: "Donated print",
+      priceInput: "3.50",
+      quantity: 1,
+    });
+    expect(two).toHaveLength(2);
+    expect(two[0].lineId).not.toBe(two[1].lineId);
+  });
+
+  test("its quantity is never clamped, because there is no stock to clamp to", () => {
+    expect(setLineQuantity(cart, cart[0].lineId, 99)[0].quantity).toBe(99);
+  });
+
+  test("removing one leaves the other", () => {
+    const two = addCustomLine(cart, {
+      description: "Coffee",
+      priceInput: "2",
+      quantity: 1,
+    });
+    const left = removeLine(two, two[0].lineId);
+    expect(left).toHaveLength(1);
+    expect(left[0].description).toBe("Coffee");
   });
 });

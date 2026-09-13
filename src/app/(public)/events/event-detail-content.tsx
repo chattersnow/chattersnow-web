@@ -1,12 +1,11 @@
-import Image from "next/image";
 import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
 import { formatDateTimeInZone } from "@/lib/time";
-import { resolveImageUrl } from "@/lib/inventory";
 import { eventProgramsLabel, type PublicEvent } from "./event-card";
+import { EventFlierFull } from "./event-flier";
 import { checkRegistrationWindow } from "./event-registration-form";
 import { EventRegistrationForm } from "./event-registration-form-fields";
 import { EventSponsors } from "./event-sponsors";
@@ -38,30 +37,22 @@ function EventFlier({
   event: PublicEvent;
   variant: EventDetailVariant;
 }) {
-  const imageUrl = resolveImageUrl(event.flier_url);
-  if (!imageUrl) return null;
-
   const page = variant === "page";
 
   return (
-    <div
-      className={`relative aspect-[16/9] w-full overflow-hidden rounded-lg bg-muted ${page ? "mb-6" : "mb-4"}`}
-    >
-      <Image
-        src={imageUrl}
-        alt={event.name}
-        fill
-        sizes={
-          page
-            ? "(min-width: 768px) 768px, 100vw"
-            : "(min-width: 640px) 32rem, 100vw"
-        }
-        className="object-cover"
-        // The page's flier is its hero image and the largest paint on it; the
-        // sheet's arrives with an overlay that is already on screen.
-        priority={page}
-      />
-    </div>
+    <EventFlierFull
+      flierUrl={event.flier_url}
+      alt={event.name}
+      sizes={
+        page
+          ? "(min-width: 768px) 768px, 100vw"
+          : "(min-width: 640px) 32rem, 100vw"
+      }
+      // The page's flier is its hero image and the largest paint on it; the
+      // sheet's arrives with an overlay that is already on screen.
+      priority={page}
+      className={page ? "mb-6" : "mb-4"}
+    />
   );
 }
 

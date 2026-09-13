@@ -13,7 +13,8 @@ import {
 export type SaleActionResult = { error: string } | { success: true };
 
 export type RecordSaleResult =
-  { error: string } | { success: true; saleId: string; total: number };
+  | { error: string }
+  | { success: true; saleId: string; total: number; receiptNumber: number };
 
 /**
  * A recorded sale moves stock, so it invalidates more than its own page: the
@@ -42,10 +43,16 @@ export async function recordSaleAction(
   const parsed = parseRecordSaleInput(input);
   if ("error" in parsed) return parsed;
 
-  // The RPC owns the rest: it prices the lines from the catalog, refuses a
-  // variant that is retired or short of stock, writes the sale and its line
-  // items, and decrements stock -- all inside one transaction holding a row
-  // lock on each variant. Nothing about the money comes from the client.
+  // The RPC owns the rest: it prices catalog lines from the catalog, refuses a
+  // variant that is retired or short of stock, computes the tax from the rate
+  // on its own subtotal, writes the sale and its line items, and decrements
+  // stock -- all inside one transaction holding a row lock on each variant.
+  //
+  // A line may now carry a price (#1015) -- an override, or a custom item the
+  // catalog has never heard of -- but it is still only a proposal: the RPC
+  // validates the figure, looks the catalog price up itself and snapshots it as
+  // the line's `list_price`, so whether a line was overridden stays derived
+  // there rather than asserted here. Custom lines move no stock.
   const { data, error } = await supabase
     .rpc("record_product_sale", {
       p_event_id: parsed.data.event_id,
@@ -55,6 +62,7 @@ export async function recordSaleAction(
       p_sold_at: null,
       p_notes: parsed.data.notes,
       p_lines: parsed.data.lines,
+      p_tax_rate: parsed.data.tax_rate,
     })
     .single();
 
@@ -64,10 +72,23 @@ export async function recordSaleAction(
 
   revalidateSales();
   const recorded = data as { sale_id: string; total: number | string };
+
+  // Read back rather than returned by the RPC: the number is assigned by a
+  // `before insert` trigger on `sales` (#1016) precisely so it survives that
+  // function's rewrites, and widening its return type would be one more thing
+  // for the next rewrite to carry. A sale that was just recorded is one row by
+  // primary key.
+  const { data: row } = await supabase
+    .from("sales")
+    .select("receipt_number")
+    .eq("id", recorded.sale_id)
+    .single();
+
   return {
     success: true,
     saleId: recorded.sale_id,
     total: Number(recorded.total),
+    receiptNumber: Number(row?.receipt_number ?? 0),
   };
 }
 

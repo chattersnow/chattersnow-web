@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { ListLink } from "@/components/portal/list-navigation";
 import { LinkPendingPulse } from "@/components/link-pending";
 import { cn } from "@/lib/utils";
 import type { Lexicon } from "@/lib/lexicon";
@@ -37,7 +37,7 @@ export function PeopleSegmentNav({
       {PEOPLE_SEGMENTS.map((segment) => {
         const current = segment.value === active;
         return (
-          <Link
+          <ListLink
             key={segment.value}
             href={segment.basePath}
             aria-current={current ? "page" : undefined}
@@ -53,7 +53,7 @@ export function PeopleSegmentNav({
             <LinkPendingPulse>
               {segmentNavLabel(segment, vocabulary)}
             </LinkPendingPulse>
-          </Link>
+          </ListLink>
         );
       })}
     </nav>

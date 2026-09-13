@@ -3,7 +3,7 @@
 import { useState, useTransition, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Eye, Pencil } from "lucide-react";
+import { ArrowLeft, Eye, Pencil, Printer } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,7 +15,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
@@ -58,8 +59,11 @@ import {
   personDisplayName,
 } from "@/lib/format";
 import { updateSaleAction, voidSaleAction } from "./actions";
+import { formatReceiptNumber } from "./receipt";
 import { SaleStatusBadge } from "./sale-badges";
 import {
+  formatTaxRate,
+  lineIsOverridden,
   paymentMethodLabel,
   type EventOption,
   type PaymentMethod,
@@ -195,7 +199,11 @@ export function SaleDetailsSheet({
             </Tooltip>
             <div className="flex flex-1 flex-col gap-0.5">
               <SheetTitle>
-                {mode === "edit" ? "Edit sale" : formatCurrency(sale.total)}
+                {mode === "edit"
+                  ? "Edit sale"
+                  : `${formatReceiptNumber(sale.receipt_number)} · ${formatCurrency(
+                      sale.total,
+                    )}`}
               </SheetTitle>
               <SheetDescription>
                 {mode === "edit"
@@ -205,6 +213,37 @@ export function SaleDetailsSheet({
                     )}`}
               </SheetDescription>
             </div>
+            {/* Any status, and no `canManage`: a voided sale has a receipt too
+                -- it prints with a VOIDED banner, which is the thing a buyer
+                holding the original needs to be shown. Reading a receipt is
+                reading the ledger. */}
+            {mode === "view" && (
+              <Tooltip>
+                {/* A Link styled as a button rather than a Button rendering a
+                    Link: the trigger already owns the element's `render`, and
+                    a second one nested inside it does not chain. Same shape as
+                    the calendar's day chips. */}
+                <TooltipTrigger
+                  render={
+                    <Link
+                      href={`/portal/finance/sales/${sale.id}/receipt`}
+                      target="_blank"
+                      rel="noopener"
+                      aria-label={`Receipt ${formatReceiptNumber(
+                        sale.receipt_number,
+                      )}`}
+                      className={buttonVariants({
+                        variant: "ghost",
+                        size: "icon-sm",
+                      })}
+                    />
+                  }
+                >
+                  <Printer />
+                </TooltipTrigger>
+                <TooltipContent>Receipt</TooltipContent>
+              </Tooltip>
+            )}
             {canManage &&
               sale.status === "completed" &&
               (mode === "view" ? (
@@ -267,12 +306,35 @@ export function SaleDetailsSheet({
                   <TableBody>
                     {lines.map((line) => (
                       <TableRow key={line.id}>
-                        <TableCell>{line.description}</TableCell>
+                        <TableCell>
+                          <span>{line.description}</span>
+                          {/* A line with no variant was typed at the register
+                              and never existed in the catalog, so nothing in
+                              Products will explain it. */}
+                          {line.product_variant_id === null && (
+                            <Badge variant="muted" className="ml-2">
+                              Custom
+                            </Badge>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right">
                           {line.quantity}
                         </TableCell>
                         <TableCell className="text-right">
-                          {formatCurrency(line.unit_price)}
+                          {formatCurrency(line.unit_price)}{" "}
+                          {/* What it would have come to at the catalog price,
+                              struck through. The aria-label spells it out
+                              because a line through text is not announced. */}
+                          {lineIsOverridden(line) && (
+                            <span
+                              className="app-muted ml-2 line-through"
+                              aria-label={`Was ${formatCurrency(
+                                line.list_price ?? 0,
+                              )}`}
+                            >
+                              {formatCurrency(line.list_price ?? 0)}
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           {formatCurrency(line.line_total)}
@@ -289,6 +351,15 @@ export function SaleDetailsSheet({
                 </ReadOnlyField>
                 <ReadOnlyField label="Discount" htmlFor="sale-discount-view">
                   {formatCurrency(sale.discount_amount)}
+                </ReadOnlyField>
+                {/* The rate is the one snapshotted on the sale, not today's
+                    org default. Read-only like the money above it: correcting
+                    tax is a void and a re-ring (§5.22). */}
+                <ReadOnlyField
+                  label={`Tax (${formatTaxRate(sale.tax_rate)})`}
+                  htmlFor="sale-tax-view"
+                >
+                  {formatCurrency(sale.tax_amount)}
                 </ReadOnlyField>
                 <ReadOnlyField label="Total" htmlFor="sale-total-view">
                   {formatCurrency(sale.total)}

@@ -37,6 +37,57 @@ describe("parsePersonForm", () => {
     expect("roles" in result && result.roles).toEqual(["partner"]);
   });
 
+  test("publishes a sponsor organization to the wall when ticked", () => {
+    const result = parsePersonForm(
+      formData({
+        name: "Local Roasters Coffee",
+        isSponsor: "true",
+        personType: "organization",
+        sponsorWallPublic: "true",
+      }),
+    );
+    expect("publicRoles" in result && result.publicRoles).toEqual(["sponsor"]);
+  });
+
+  test("leaves a sponsor organization unpublished when not ticked", () => {
+    const result = parsePersonForm(
+      formData({
+        name: "Local Roasters Coffee",
+        isSponsor: "true",
+        personType: "organization",
+      }),
+    );
+    expect("publicRoles" in result && result.publicRoles).toEqual([]);
+  });
+
+  test("refuses to publish an individual, whatever the form says", () => {
+    // The control is not rendered for an individual, but FormData is whatever
+    // the request says it is -- the gate has to live here too.
+    const result = parsePersonForm(
+      formData({
+        name: "Jane",
+        isSponsor: "true",
+        personType: "individual",
+        sponsorWallPublic: "true",
+      }),
+    );
+    expect("publicRoles" in result && result.publicRoles).toEqual([]);
+  });
+
+  test("refuses to publish someone who is not a sponsor", () => {
+    // The RPC rejects a public role it was not asked to assert, so sending it
+    // would fail the save rather than quietly do nothing.
+    const result = parsePersonForm(
+      formData({
+        name: "Local Roasters Coffee",
+        isDonor: "true",
+        personType: "organization",
+        sponsorWallPublic: "true",
+      }),
+    );
+    expect("publicRoles" in result && result.publicRoles).toEqual([]);
+  });
+
   test('accepts a native checkbox value of "on"', () => {
     const result = parsePersonForm(
       formData({ name: "Jane", isVolunteer: "on" }),
@@ -74,6 +125,8 @@ describe("parsePersonForm", () => {
     );
     expect(result).toEqual({
       roles: ["donor", "sponsor"],
+      // An individual by default, so the sponsor role publishes nothing.
+      publicRoles: [],
       data: {
         name: "Jane",
         preferred_name: null,

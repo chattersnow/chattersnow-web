@@ -1,10 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, ExternalLink } from "lucide-react";
-import { BrandImageFallback } from "@/components/brand-image-fallback";
 import { Badge } from "@/components/ui/badge";
 import { formatDateTimeInZone } from "@/lib/time";
-import { isRenderableImageSrc, resolveImageUrl } from "@/lib/inventory";
 import { cn } from "@/lib/utils";
 import type { HomeUpcomingCards } from "@/lib/site-layout";
 import {
@@ -12,6 +9,7 @@ import {
   type PublicEventProgram,
 } from "../events/event-card";
 import { checkRegistrationWindow } from "../events/event-registration-form";
+import { EventFlierTile } from "../events/event-flier";
 import { publicEventPath } from "../events/event-path";
 
 /**
@@ -166,25 +164,16 @@ function UpcomingEventCard({
   now: number;
   nextUpLabel?: string;
 }) {
-  const imageUrl = resolveImageUrl(event.flier_url);
   const registration = checkRegistrationWindow(event, new Date(now));
 
   return (
     <Link href={publicEventPath(event.id)} className={CARD_CLASSNAME}>
-      <div className="relative aspect-[16/9] w-full bg-muted">
-        {isRenderableImageSrc(imageUrl) ? (
-          <Image
-            src={imageUrl}
-            alt=""
-            fill
-            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-            className="object-cover"
-          />
-        ) : (
-          <BrandImageFallback label="Flier coming soon" />
-        )}
+      <EventFlierTile
+        flierUrl={event.flier_url}
+        sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+      >
         {nextUpLabel && <NextUpRibbon label={nextUpLabel} />}
-      </div>
+      </EventFlierTile>
 
       <div className="space-y-1 px-4 py-3">
         <p className="app-eyebrow">{eventProgramsLabel(event.programs)}</p>
