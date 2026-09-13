@@ -51,6 +51,7 @@ export const HOME_UPCOMING_COUNT_SLOT = "home_upcoming_count";
 export const HOME_UPCOMING_CARDS_SLOT = "home_upcoming_cards";
 export const HOME_UPCOMING_COMMUNITY_SLOT = "home_upcoming_community";
 export const PROGRAMS_SOURCE_SLOT = "programs_source";
+export const TEAM_LAYOUT_SLOT = "team_layout";
 export const SPONSOR_WALL_LAYOUT_SLOT = "sponsor_wall_layout";
 
 /** The two ways the home page can present an upcoming event. */
@@ -68,18 +69,35 @@ export type HomeUpcomingCards = "fliers" | "compact";
 export type ProgramsSource = "content" | "module";
 
 /**
+ * How the Meet the Team page arranges its members (#917).
+ *
+ * `cards` is the three-across grid the page has always been, and stays the
+ * default: a tenant that has said nothing must not have its published team
+ * page restructured by a deploy -- the same argument `programs_source` makes
+ * one type up.
+ *
+ * `rows` is for the tenant whose bios are long. A card column is about 300px,
+ * which sets prose at roughly 30 characters a line, so a 1,200-character bio
+ * runs some forty lines while the two members beside it end near the top of
+ * the row. Rows give the bio a full-width column at a readable measure and
+ * clip it to three lines with an expander, which is a different answer rather
+ * than a better one -- a team with two-line bios reads better as cards.
+ */
+export type TeamLayout = "cards" | "rows";
+
+/**
  * How /support/sponsorship presents the tenant-wide sponsor wall (#1013).
  *
  * `cards` is the bordered tile grid the section has been since #914, and stays
- * the default: a tenant that has said nothing must not have its published page
- * restructured by a deploy -- the same argument `programs_source` makes one
- * type up.
+ * the default, for the reason the two types above stay where they were: a
+ * tenant that has said nothing must not have its published page restructured
+ * by a deploy.
  *
  * `band` is for the tenant whose wall is short or quiet. Two bordered cards in
  * a four-column grid read as an unfinished section rather than as social
  * proof, and a long tail of individually framed local businesses competes with
  * the donate call to action the wall sits above. A band drops the frames and
- * sets the same logos as one centred row at a single height, which is a
+ * sets the same logos as one centered row at a single height, which is a
  * different answer rather than a better one -- a dozen logos still read better
  * as a wall.
  */
@@ -137,6 +155,18 @@ export const LAYOUT_SLOTS: LayoutSlot[] = [
     ],
   },
   {
+    key: TEAM_LAYOUT_SLOT,
+    label: "How team members are shown",
+    description:
+      "Cards put each person in a column of their own, which suits a short introduction. Rows give each person the full width of the page -- portrait on the left, name, role and biography on the right -- and clip a long biography to three lines with a Read more. Choose rows if your team writes at length.",
+    control: "select",
+    defaultValue: "cards",
+    options: [
+      { value: "cards", label: "Cards", hint: "Default" },
+      { value: "rows", label: "Rows", hint: "For long bios" },
+    ],
+  },
+  {
     key: SPONSOR_WALL_LAYOUT_SLOT,
     label: "How sponsors are shown",
     description:
@@ -183,6 +213,8 @@ export type SiteLayout = {
   homeUpcomingCommunity: boolean;
   /** Whether the Programs page renders copy or the tenant's own program rows. */
   programsSource: ProgramsSource;
+  /** Whether Meet the Team is a card grid or full-width roster rows. */
+  teamLayout: TeamLayout;
   /** Whether the sponsor wall is a grid of tiles or one quiet row of logos. */
   sponsorWallLayout: SponsorWallLayout;
 };
@@ -217,6 +249,7 @@ export function resolveLayout(rows: readonly LayoutRow[]): SiteLayout {
     homeUpcomingCards: values[HOME_UPCOMING_CARDS_SLOT] as HomeUpcomingCards,
     homeUpcomingCommunity: values[HOME_UPCOMING_COMMUNITY_SLOT] as boolean,
     programsSource: values[PROGRAMS_SOURCE_SLOT] as ProgramsSource,
+    teamLayout: values[TEAM_LAYOUT_SLOT] as TeamLayout,
     sponsorWallLayout: values[SPONSOR_WALL_LAYOUT_SLOT] as SponsorWallLayout,
   };
 }

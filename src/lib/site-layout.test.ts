@@ -8,6 +8,7 @@ import {
   MAX_HOME_UPCOMING_COUNT,
   PROGRAMS_SOURCE_SLOT,
   SPONSOR_WALL_LAYOUT_SLOT,
+  TEAM_LAYOUT_SLOT,
   isLayoutValue,
   layoutSettingKey,
   resolveLayout,
@@ -20,6 +21,7 @@ const DEFAULTS: SiteLayout = {
   homeUpcomingCards: "fliers",
   homeUpcomingCommunity: true,
   programsSource: "content",
+  teamLayout: "cards",
   sponsorWallLayout: "cards",
 };
 
@@ -43,6 +45,7 @@ describe("resolveLayout", () => {
         { slot: HOME_UPCOMING_CARDS_SLOT, value: "compact" },
         { slot: HOME_UPCOMING_COMMUNITY_SLOT, value: false },
         { slot: PROGRAMS_SOURCE_SLOT, value: "module" },
+        { slot: TEAM_LAYOUT_SLOT, value: "rows" },
         { slot: SPONSOR_WALL_LAYOUT_SLOT, value: "band" },
       ]),
     ).toEqual({
@@ -50,6 +53,7 @@ describe("resolveLayout", () => {
       homeUpcomingCards: "compact",
       homeUpcomingCommunity: false,
       programsSource: "module",
+      teamLayout: "rows",
       sponsorWallLayout: "band",
     });
   });
@@ -74,9 +78,22 @@ describe("resolveLayout", () => {
     ).toBe("module");
   });
 
-  // Same stance as the Programs page one above, for the same reason: #1013
-  // made the sponsor wall's arrangement a choice, and a tenant that has not
-  // made it must keep the tile grid the section has had since #914.
+  // Same stance as the Programs page one above, for the same reason: #917 made
+  // Meet the Team's arrangement a choice, and a tenant that has not made it
+  // must keep the card grid its page has always had.
+  test("leaves Meet the Team on cards until a tenant says otherwise", () => {
+    expect(resolveLayout([]).teamLayout).toBe("cards");
+    expect(
+      resolveLayout([{ slot: TEAM_LAYOUT_SLOT, value: "row" }]).teamLayout,
+    ).toBe("cards");
+    expect(
+      resolveLayout([{ slot: TEAM_LAYOUT_SLOT, value: "rows" }]).teamLayout,
+    ).toBe("rows");
+  });
+
+  // Same stance again, for the same reason: #1013 made the sponsor wall's
+  // arrangement a choice, and a tenant that has not made it must keep the tile
+  // grid the section has had since #914.
   test("leaves the sponsor wall on cards until a tenant says otherwise", () => {
     expect(resolveLayout([]).sponsorWallLayout).toBe("cards");
     expect(
