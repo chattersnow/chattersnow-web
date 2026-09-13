@@ -3,7 +3,7 @@
 import { useState, useTransition, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Eye, Pencil } from "lucide-react";
+import { ArrowLeft, Eye, Pencil, Printer } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
@@ -59,6 +59,7 @@ import {
   personDisplayName,
 } from "@/lib/format";
 import { updateSaleAction, voidSaleAction } from "./actions";
+import { formatReceiptNumber } from "./receipt";
 import { SaleStatusBadge } from "./sale-badges";
 import {
   formatTaxRate,
@@ -198,7 +199,11 @@ export function SaleDetailsSheet({
             </Tooltip>
             <div className="flex flex-1 flex-col gap-0.5">
               <SheetTitle>
-                {mode === "edit" ? "Edit sale" : formatCurrency(sale.total)}
+                {mode === "edit"
+                  ? "Edit sale"
+                  : `${formatReceiptNumber(sale.receipt_number)} · ${formatCurrency(
+                      sale.total,
+                    )}`}
               </SheetTitle>
               <SheetDescription>
                 {mode === "edit"
@@ -208,6 +213,37 @@ export function SaleDetailsSheet({
                     )}`}
               </SheetDescription>
             </div>
+            {/* Any status, and no `canManage`: a voided sale has a receipt too
+                -- it prints with a VOIDED banner, which is the thing a buyer
+                holding the original needs to be shown. Reading a receipt is
+                reading the ledger. */}
+            {mode === "view" && (
+              <Tooltip>
+                {/* A Link styled as a button rather than a Button rendering a
+                    Link: the trigger already owns the element's `render`, and
+                    a second one nested inside it does not chain. Same shape as
+                    the calendar's day chips. */}
+                <TooltipTrigger
+                  render={
+                    <Link
+                      href={`/portal/finance/sales/${sale.id}/receipt`}
+                      target="_blank"
+                      rel="noopener"
+                      aria-label={`Receipt ${formatReceiptNumber(
+                        sale.receipt_number,
+                      )}`}
+                      className={buttonVariants({
+                        variant: "ghost",
+                        size: "icon-sm",
+                      })}
+                    />
+                  }
+                >
+                  <Printer />
+                </TooltipTrigger>
+                <TooltipContent>Receipt</TooltipContent>
+              </Tooltip>
+            )}
             {canManage &&
               sale.status === "completed" &&
               (mode === "view" ? (

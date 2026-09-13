@@ -11,7 +11,29 @@ import { Check, TriangleAlert, X } from "lucide-react";
  */
 const manager = BaseToast.createToastManager();
 
-type ToastOptions = { description?: string; timeout?: number };
+/**
+ * One button inside the toast, for the thing the reader is most likely to want
+ * next -- opening the receipt for the sale they just recorded (#1016). Base UI
+ * renders it as a `<button>`, so a destination is reached with `window.open`
+ * from the handler rather than with an `<a>`.
+ */
+type ToastAction = { label: string; onClick: () => void };
+
+type ToastOptions = {
+  description?: string;
+  timeout?: number;
+  action?: ToastAction;
+};
+
+/** The manager takes raw button props; callers describe the button instead. */
+function toastArgs({ action, ...options }: ToastOptions) {
+  return action
+    ? {
+        ...options,
+        actionProps: { children: action.label, onClick: action.onClick },
+      }
+    : options;
+}
 
 export const toast = {
   /**
@@ -21,7 +43,7 @@ export const toast = {
    * silent save is to do it again.
    */
   success(title: string, options: ToastOptions = {}) {
-    return manager.add({ title, type: "success", ...options });
+    return manager.add({ title, type: "success", ...toastArgs(options) });
   },
   /** Announced urgently, and given longer to be read than a confirmation. */
   error(title: string, options: ToastOptions = {}) {
@@ -30,7 +52,7 @@ export const toast = {
       type: "error",
       priority: "high",
       timeout: 8000,
-      ...options,
+      ...toastArgs(options),
     });
   },
   close(id?: string) {
@@ -78,6 +100,9 @@ function ToastList() {
           <BaseToast.Title className="text-sm font-medium" />
           {item.description && (
             <BaseToast.Description className="text-sm text-muted-foreground" />
+          )}
+          {item.actionProps && (
+            <BaseToast.Action className="mt-1 w-fit rounded-md text-sm font-medium text-[var(--purple)] underline underline-offset-2 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none" />
           )}
         </div>
         <BaseToast.Close

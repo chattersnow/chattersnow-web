@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Minus, Plus, X } from "lucide-react";
+import { Minus, Plus, Receipt, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +24,7 @@ import { useUnsavedChangesGuard } from "@/components/portal/unsaved-changes-guar
 import { formatCurrency } from "@/lib/format";
 import type { PersonHit } from "../../../command-palette-actions";
 import { recordSaleAction } from "../actions";
+import { formatReceiptNumber } from "../receipt";
 import {
   PAYMENT_METHODS,
   paymentMethodLabel,
@@ -48,6 +50,13 @@ import {
 } from "./register-cart";
 
 const NO_EVENT = "none";
+
+/** What the register remembers about the sale it just recorded (#1016). */
+type LastSale = { id: string; receiptNumber: number; total: number };
+
+function receiptHref(saleId: string): string {
+  return `/portal/finance/sales/${saleId}/receipt?print=1`;
+}
 
 export function SalesRegister({
   variants,
@@ -82,6 +91,10 @@ export function SalesRegister({
     defaultTaxRate === 0 ? "" : String(defaultTaxRate),
   );
   const [notes, setNotes] = useState("");
+  // Kept until the next sale replaces it, because a toast is gone before the
+  // cashier has finished making change and the receipt is the one thing that
+  // has to outlive it.
+  const [lastSale, setLastSale] = useState<LastSale | null>(null);
   // Which line's price is open for editing, and what has been typed into it.
   // One at a time: the input replaces the price in the row, so two open at once
   // would be two rows the cashier has half-changed.
@@ -138,7 +151,21 @@ export function SalesRegister({
         return;
       }
 
-      toast.success(`Sale recorded — ${formatCurrency(result.total)}`);
+      setLastSale({
+        id: result.saleId,
+        receiptNumber: result.receiptNumber,
+        total: result.total,
+      });
+      toast.success(`Sale recorded — ${formatCurrency(result.total)}`, {
+        // Both this and the line under the Record button, not one of them: the
+        // toast is where a cashier is already looking, and the line is what is
+        // still there a minute later.
+        action: {
+          label: "Receipt",
+          onClick: () =>
+            window.open(receiptHref(result.saleId), "_blank", "noopener"),
+        },
+      });
       // The event and the payment method stay: the next sale at the same table
       // is almost always both. Everything that belongs to one transaction
       // clears.
@@ -541,6 +568,25 @@ export function SalesRegister({
               `Record sale — ${formatCurrency(totals.total)}`
             )}
           </Button>
+
+          {/* A new tab, so the cart the cashier is already rebuilding for the
+              next buyer is not navigated away from. */}
+          {lastSale && (
+            <p className="app-muted mt-2 flex flex-wrap items-center gap-1 text-sm">
+              <span>
+                Recorded {formatReceiptNumber(lastSale.receiptNumber)} ·{" "}
+                {formatCurrency(lastSale.total)}
+              </span>
+              <Link
+                href={receiptHref(lastSale.id)}
+                target="_blank"
+                rel="noopener"
+                className="inline-flex items-center gap-1 underline hover:text-foreground"
+              >
+                <Receipt className="size-3.5" /> Receipt
+              </Link>
+            </p>
+          )}
         </div>
       </section>
     </div>

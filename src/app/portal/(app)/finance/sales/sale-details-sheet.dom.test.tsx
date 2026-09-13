@@ -23,6 +23,7 @@ const { SaleDetailsSheet } = await import("./sale-details-sheet");
 
 const SALE: SaleRow = {
   id: "dcdcdcdc-0000-4000-8000-000000000001",
+  receipt_number: 123,
   event_id: "cccccccc-0000-4000-8000-000000000002",
   purchaser_person_id: "bbbbbbbb-0000-4000-8000-000000000001",
   sold_at: "2026-06-01T17:00:00.000Z",
@@ -135,6 +136,52 @@ describe("SaleDetailsSheet", () => {
     expect(
       screen.queryByRole("button", { name: "Edit sale" }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("SaleDetailsSheet receipts (#1016)", () => {
+  test("the header is the receipt number and the total", async () => {
+    await openSheet();
+    expect(screen.getByText("#000123 · $64.95")).toBeInTheDocument();
+  });
+
+  test("a completed sale links to its receipt in a new tab", async () => {
+    await openSheet();
+
+    const link = screen.getByRole("link", { name: "Receipt #000123" });
+    expect(link).toHaveAttribute(
+      "href",
+      `/portal/finance/sales/${SALE.id}/receipt`,
+    );
+    expect(link).toHaveAttribute("target", "_blank");
+  });
+
+  test("a reader without manage still gets the receipt", async () => {
+    await openSheet(false);
+    expect(
+      screen.getByRole("link", { name: "Receipt #000123" }),
+    ).toBeInTheDocument();
+  });
+
+  test("a voided sale links to its receipt too -- that is the one with the banner", async () => {
+    const user = userEvent.setup();
+    render(
+      <SaleDetailsSheet
+        sale={{
+          ...SALE,
+          status: "voided",
+          voided_at: "2026-06-02T17:00:00.000Z",
+        }}
+        events={EVENTS}
+        canManage
+      />,
+    );
+    await user.click(
+      screen.getByRole("button", { name: "View sale of $64.95" }),
+    );
+    expect(
+      screen.getByRole("link", { name: "Receipt #000123" }),
+    ).toBeInTheDocument();
   });
 });
 
