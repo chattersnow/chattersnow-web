@@ -259,12 +259,26 @@ Not supported, and not planned: a tenant supplying its own Resend API key. That
 is a provider secret in the database, and Supabase Vault to hold it safely is
 more machinery than the problem is worth at this size.
 
-## The tenant a fresh database bootstraps as
+## Local development: one tenant
 
-`20260905190000_seed_initial_tenant.sql` creates one tenant, because a database
-with none is unusable: `ensure_tenant_membership()` only auto-joins when exactly
-one active tenant exists, and `default current_tenant_id()` needs something to
-resolve to.
+A fresh local database (`bun run db:reset`) has exactly one tenant, and it is
+neither the platform tenant nor Chatter Snow:
+
+| Field           | Value                 |
+| --------------- | --------------------- |
+| name            | **Example Nonprofit** |
+| slug            | `example-nonprofit`   |
+| plan            | `internal`            |
+| status          | `active`              |
+| `custom_domain` | none                  |
+
+And nothing else: no platform tenant, no `chatter-snow` tenant, no demo tenant.
+`20260905190000_seed_initial_tenant.sql` is the only migration that inserts a
+tenant at the top level (the others do so inside `provision_tenant()`), and
+`supabase/seed.sql` inserts none -- every sample row it writes lands in this
+tenant. It exists because a database with none is unusable:
+`ensure_tenant_membership()` only auto-joins when exactly one active tenant
+exists, and `default current_tenant_id()` needs something to resolve to.
 
 Its name and slug come from `app.initial_tenant_name` / `app.initial_tenant_slug`
 when set, and otherwise fall back to **Example Nonprofit** / `example-nonprofit`
@@ -283,25 +297,99 @@ there is no hook to set one first.
 
 Chatter Snow's production tenant is untouched — that migration ran there long
 ago and migrations do not re-run, so its row still says `chatter-snow`. This is
-why the migrations that write Chatter Snow's own copy, palette and page
-visibility (`20260908040000`, `20260908050000`, `20260908060000`,
-`20260908070000`, `20260909020000`) are all scoped `where slug = 'chatter-snow'`: on a hosted
-project they find their tenant, and on a fresh local or CI database they
-correctly find nothing.
+why every migration that writes Chatter Snow's own copy, palette, sizing guide,
+legal documents, learn articles and lexicon (`20260908040000`,
+`20260908050000`, `20260908060000`, `20260908070000`, `20260909020000`,
+`20260909030000`, `20260912010000`, `20260912030000`, `20260912130000`) is
+scoped `where slug = 'chatter-snow'`: on a hosted project they find their
+tenant, and on a fresh local or CI database they correctly find nothing.
 
-`supabase/seed.sql` then gives local and CI their own copy — generic Example
-Nonprofit text for the slots whose registry defaults are prompts, so the public
-site renders as a real site and the e2e specs have stable words to assert.
-Slots that are already right for any organization ("Gear library", "Our
-Mission", "Get in touch") are left to the registry, and the list slots are left
-as prompts on purpose: that is what a newly provisioned tenant sees, and it is
-worth seeing.
+### Why it is on the `internal` plan
 
-Locally there is no custom domain on that tenant, so everything resolves through
-the sole-active-tenant fallback. A second _active_ tenant on the local stack
-switches that fallback off: sessionless reads then need a host (the integration
-suites pass `x-tenant-host`), which is why the tests that provision one delete
-it again when they finish.
+Production has three tenants with one job each: the platform tenant is
+`internal` and has no public site, Chatter Snow is `white_label`, and the demo
+is `demo`. The local tenant is one row doing all of those jobs at once:
+
+- **The client tenant.** Every seeded event, donation, item and person is its.
+- **The platform operator.** `is_platform_operator()` requires being inside a
+  tenant on the `internal` plan (`20260906180000`), so
+  **Administration → Platform** is reachable locally as `admin@example.test`.
+  It is not reachable that way on Chatter Snow's own production portal.
+- **The provisioning template.** `provision_tenant()` copies its roles and
+  permission matrix from the oldest `internal` tenant when no template is
+  named (`20260906110000`), which locally is this one.
+
+Keep that in mind when reading a local Platform screen: what it shows is the
+platform's own tenant administering itself, not the shape a client sees.
+
+### Accounts and memberships
+
+All eight `@example.test` accounts in `supabase/seed.sql` hold exactly one
+membership, in that tenant. Two paths write it: the
+`ensure_membership_for_role` trigger (`20260906030000`) joins an account to a
+tenant the moment it is given a role there, which covers the seven accounts
+with roles; and `seed.sql` cross-joins every seeded account with the one
+tenant, which is what gives `noaccess@example.test` -- no role at all -- its
+membership. No `user_tenant_selection` row is needed: `current_tenant_id()`
+resolves a sole membership by itself (`20260905180000`).
+
+### So there is no tenant switching locally
+
+The TenantSwitcher never appears on a fresh local database. With one
+membership it renders a plain home link rather than a menu
+(`src/app/portal/(app)/tenant-switcher.tsx`): "a menu whose only entry is the
+thing you are already looking at is noise." It only becomes a control once an
+account holds two memberships, which a reset never produces -- see the next
+section for how to get there on purpose.
+
+`supabase/seed.sql` gives local and CI their own copy of the site -- generic
+Example Nonprofit text for the slots whose registry defaults are prompts, so
+the public site renders as a real site and the e2e specs have stable words to
+assert. Slots that are already right for any organization ("Gear library",
+"Our Mission", "Get in touch") are left to the registry, and the list slots are
+left as prompts on purpose: that is what a newly provisioned tenant sees, and it
+is worth seeing.
+
+### Adding a second tenant locally
+
+`bun run tenant:provision` will do it, and it refuses the local stack unless
+`--local` is passed (#906), the same way `demo:reset` has since #604: the
+refusal names what breaks and the flag, and with `--local` the command warns
+and names the way back. The check is `scripts/tenant/local-guard.ts`.
+
+- **What breaks the moment it is active.** Locally there is no custom domain on
+  the first tenant, so everything sessionless resolves through the
+  sole-active-tenant fallback, and a second _active_ tenant switches that off.
+  The blast radius is spelled out under "The rollout order is load-bearing" in
+  the demo section below: the public site loses its content and its name, the
+  gated sections 404, anonymous intake fails, and `bun run test:integration`
+  and `bun run test:e2e` fail until the tenant is gone. The portal is
+  unaffected -- `current_tenant_id()` is membership-based and never consults
+  the host.
+- **How to work with one anyway: pass a host.** The integration suites send
+  `x-tenant-host` (`test/integration-setup.ts`). A browser needs a
+  `custom_domain` on the tenant and a matching request host, or
+  `TENANT_HOST_OVERRIDE` naming it (`src/lib/supabase/server.ts`).
+- **How to end up in both tenants.** Provisioning alone gives the seeded admin
+  nothing: `provision_tenant()` stages a `pending_role_grants` row for
+  `--admin`, and `claim_pending_role_grants()` turns it into a role and a
+  membership on that address's next portal navigation
+  (`src/lib/portal/tenants.ts`). Provision with `--admin admin@example.test`
+  and, after one page load, the seeded admin is a member of both -- at which
+  point the TenantSwitcher becomes a real menu.
+- **The way back, in this order.** `bun run tenant:archive <slug>` and then
+  `bun run tenant:delete <slug> --confirm <slug>`; `delete_tenant()` refuses
+  anything that is not archived, which is why archive comes first. The public
+  site and both suites recover as soon as the second tenant is archived.
+- **The demo equivalent** is `bun run demo:reset --local` and
+  `bun run demo:teardown`, which carry the same guard.
+- **A worked example** is `e2e/unresolved-host.spec.ts`, which provisions a
+  second active tenant through the RPC to exercise the host-resolution 404 and
+  archives and deletes it again when it is done.
+
+`bun run tenant:plan` refuses to move the last active `internal` tenant off
+`internal` (`scripts/tenant/plan-guards.ts`), so `example-nonprofit` cannot be
+re-planned locally while it is the only one.
 
 ## Branding and content
 

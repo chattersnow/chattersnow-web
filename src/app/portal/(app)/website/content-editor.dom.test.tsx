@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import {
+  act,
   configure,
   fireEvent,
   screen,
@@ -212,9 +213,20 @@ function renderEditor(slots: EditorSlot[], hiddenPages: string[] = []) {
   const view = renderWithToaster(<ContentEditor {...props(slots)} />);
   return {
     ...view,
-    /** Re-render with what the server would send after `router.refresh()`. */
-    refreshWith(next: EditorSlot[]) {
-      view.rerender(<ContentEditor {...props(next)} />);
+    /**
+     * Re-render with what the server would send after `router.refresh()`.
+     *
+     * Awaited, and wrapped in `act`, so the new props have committed before the
+     * caller queries the tree. A bare `rerender` schedules the update, and on
+     * a loaded full-suite run React had not always flushed it by the next
+     * line: `saveBar()` then found the button from the *previous* tree, which
+     * React detached a moment later, and the assertion ran against a node
+     * that was no longer in the document (#827).
+     */
+    async refreshWith(next: EditorSlot[]) {
+      await act(async () => {
+        view.rerender(<ContentEditor {...props(next)} />);
+      });
     },
   };
 }
@@ -274,7 +286,7 @@ describe("Back to default", () => {
 
     await saveSettled();
 
-    view.refreshWith([editorSlot(HEADING, DEFAULT_HEADING, false)]);
+    await view.refreshWith([editorSlot(HEADING, DEFAULT_HEADING, false)]);
     expect(saveBar()).toBeDisabled();
     expect(
       screen.getByText("Everything here is published."),
@@ -299,7 +311,9 @@ describe("saving and publishing are two steps", () => {
     await saveSettled();
 
     // The server comes back with the draft staged; the copy is still not live.
-    view.refreshWith([editorSlot(HEADING, `${DEFAULT_HEADING}!`, false, true)]);
+    await view.refreshWith([
+      editorSlot(HEADING, `${DEFAULT_HEADING}!`, false, true),
+    ]);
     expect(saveBar()).toBeDisabled();
     expect(screen.getByText("1 change not published yet.")).toBeInTheDocument();
     // Said twice on purpose, beside the field and in the rail, the same way

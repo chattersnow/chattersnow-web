@@ -20,6 +20,7 @@ bun run lint        # eslint (flat config, eslint-config-next core-web-vitals + 
 bun run typecheck   # next typegen && tsc --noEmit
 bun run test        # unit tests (bun test), excludes e2e/** and *.integration.test.ts
 bun run test:integration  # integration tests against local Supabase (run `bun run db:start && bun run db:reset` first)
+bun run db:reset    # migrate + seed: leaves exactly one tenant, `example-nonprofit` on the `internal` plan, holding all the sample data (docs/tenants.md, "Local development: one tenant")
 bun run test:e2e    # Playwright e2e tests
 bun run test:a11y   # axe-core scan: every route in src/app, x {light,dark} x {desktop,mobile} x roles, plus transient UI (report: e2e/a11y-report.json)
 bun run test:a11y:check   # same scan, fails on violations not in e2e/a11y-baseline.json (what CI runs)
@@ -53,6 +54,12 @@ Specs that mutate state the whole site shares can't run beside anything else, so
 ## Manual/interactive browser driving
 
 For ad-hoc browser interaction (manually exercising a UI change, poking at a page) use the `playwright-cli` terminal tool (`npm install -g @playwright/cli`, ships the `playwright-cli` binary), not an MCP browser server — the CLI is far cheaper on tokens since it doesn't round-trip full tool schemas/results through the model. Run `playwright-cli --help` for the command list (`open`, `goto`, `click`, `snapshot`, etc.). The project's `playwright` MCP server was removed for this reason; `@playwright/test` (used by `bun run test:e2e`) is unaffected — that's the automated e2e test runner, unrelated to the CLI/MCP choice above.
+
+## Working in a git worktree
+
+A fresh worktree needs its own `bun install` before `bun run dev`, `bun run build`, `bun run test:e2e` or `bun run typecheck` will work (#810). `bun test` works without one, because Bun resolves `node_modules` by walking up to the primary checkout -- which is exactly what makes the gap easy to miss: the unit suite passes and only the app fails, with an error that names a missing `.next/dev/.../build-manifest.json` rather than the cause. Turbopack requires `node_modules` inside the workspace root, so symlinking the primary checkout's does not work either ("Symlink [project]/node_modules is invalid, it points out of the filesystem root"). `.env.local` is gitignored and has to be copied in too.
+
+A browser run from a worktree does not share `:3000` with the primary checkout. `playwright.config.ts` reuses a server already listening on the base URL, so with two checkouts on the machine a run used to attach to whichever one held `:3000` and test _its_ code, reporting an ordinary assertion failure that blamed your diff (#809). In a worktree the suite therefore runs against a port derived from the worktree's path (`e2e/helpers/site-url.ts`), which it prints at startup, and the server it starts listens there; the primary checkout keeps `NEXT_PUBLIC_SITE_URL` as before, so an open `bun run dev` there is still reused. To attach a worktree run to a server you started by hand, pass `PORT=<its port>`; `bun run test:a11y` and `bun run verify` still read `NEXT_PUBLIC_SITE_URL` directly, so point that at the server for those.
 
 ## Ticket workflow
 

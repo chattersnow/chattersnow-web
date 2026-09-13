@@ -17,6 +17,14 @@
 --   multi@example.test         event_coordinator + volunteer (multi-role)
 --   noaccess@example.test      signed in, no role assigned (access-denied path)
 --   former@example.test        event_coordinator role, but deactivated (revoked-access path)
+--
+-- Tenants: exactly one, "Example Nonprofit" / `example-nonprofit`, on the
+-- `internal` plan, created by 20260905190000. Every account above is a member
+-- of it and every row below lands in it. Do not add a second tenant here -- a
+-- second *active* tenant switches off the sole-active-tenant fallback that
+-- every unscoped insert in this file, the local public site and both
+-- database-backed suites depend on. See "Local development: one tenant" in
+-- docs/tenants.md.
 
 -- Fixture ids below are written out rather than generated, so a record a test
 -- or a scan asserts on keeps the same id across resets (#665). gen_random_uuid()
