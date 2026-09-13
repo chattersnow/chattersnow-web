@@ -80,6 +80,28 @@ export function emptyPersonForm(
   };
 }
 
+/**
+ * Whether `form` differs from `baseline` in anything a person would call
+ * typing. Field by field rather than `!==` over the object: `roles` is a
+ * nested object, so two fresh `emptyPersonForm()` results compared by
+ * reference were always "different", and the New Person dialog armed its
+ * "Leave site?" prompt on every people page before anyone opened it -- which
+ * is what blocked the directory's search form from submitting.
+ */
+export function personFormDirty(
+  form: PersonFormState,
+  baseline: PersonFormState,
+): boolean {
+  return (Object.keys(baseline) as (keyof PersonFormState)[]).some((key) => {
+    if (key === "roles") {
+      return (Object.keys(baseline.roles) as RoleKey[]).some(
+        (role) => form.roles[role] !== baseline.roles[role],
+      );
+    }
+    return form[key] !== baseline[key];
+  });
+}
+
 export function PersonFormFields({
   form,
   update,

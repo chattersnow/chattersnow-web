@@ -31,6 +31,10 @@ import {
 } from "@/lib/pagination";
 import { SearchField } from "@/components/search-field";
 import { LinkPendingPulse } from "@/components/link-pending";
+import {
+  ListNavigationProvider,
+  ListPendingRegion,
+} from "@/components/portal/list-navigation";
 import { StatTile } from "../home/stat-tile";
 import { NewPersonDialog } from "./new-person-dialog";
 import { PEOPLE_WITH_ROLES, rolesFor, type PersonRow } from "./people-shared";
@@ -51,7 +55,7 @@ import { PeopleSegmentNav } from "./people-segment-nav";
  * ambiguous (see 20260903030000).
  */
 const PERSON_COLUMNS =
-  "id, name, email, phone, pronouns, instagram_handle, notes, logo_url, website, auth_user_id, is_donor, is_sponsor, is_volunteer, is_attendee, is_staff, is_partner, person_type, riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain, primary_contact_person_id, primary_contact(id, name, email, phone)";
+  "id, name, preferred_name, email, phone, pronouns, instagram_handle, notes, logo_url, website, auth_user_id, is_donor, is_sponsor, is_volunteer, is_attendee, is_staff, is_partner, person_type, riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain, primary_contact_person_id, primary_contact(id, name, email, phone)";
 
 /**
  * The shared body behind /portal/people and its role segments. Donors,
@@ -115,9 +119,11 @@ export async function PeopleDirectory({
   if (segment.filterColumn) query = query.eq(segment.filterColumn, true);
   if (segment.personType) query = query.eq("person_type", segment.personType);
   if (search) {
+    // preferred_name too, as the command palette and the person picker do:
+    // the name someone goes by is the one staff type.
     const pattern = quoteOrValue(`%${escapeLikePattern(search)}%`);
     query = query.or(
-      `name.ilike.${pattern},email.ilike.${pattern},phone.ilike.${pattern}`,
+      `name.ilike.${pattern},preferred_name.ilike.${pattern},email.ilike.${pattern},phone.ilike.${pattern}`,
     );
   }
 
@@ -175,6 +181,16 @@ export async function PeopleDirectory({
   const totalPages = totalPagesFor(count, perPage);
   const hasActiveFilters = !!search;
 
+  // Searching narrows the current view: carry a non-default sort and page
+  // size through the submission (the other list pages do the same), never
+  // the page number, which means nothing once the rows change.
+  const sortIsDefault = sort === "name" && dir === "asc";
+  const preserve = {
+    sort: sortIsDefault ? "" : sort,
+    dir: sortIsDefault ? "" : dir,
+    perPage: perPage !== PAGE_SIZE ? String(perPage) : "",
+  };
+
   return (
     <>
       <div className="w-fit">
@@ -184,156 +200,166 @@ export async function PeopleDirectory({
         <div className="rainbow-accent mt-3 w-full" />
       </div>
 
-      <PeopleSegmentNav active={segment.value} vocabulary={vocabulary} />
+      {/* Everything below navigates through the URL -- segments, sort, page,
+          search -- so it all shares one pending state, and the table card
+          dims while any of it is in flight. */}
+      <ListNavigationProvider>
+        <PeopleSegmentNav active={segment.value} vocabulary={vocabulary} />
 
-      {segmentStats && segmentStats.length > 0 && (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          {segmentStats.map((stat) => (
-            <StatTile
-              key={stat.label}
-              label={stat.label}
-              value={stat.value}
-              caption={stat.caption}
+        {segmentStats && segmentStats.length > 0 && (
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            {segmentStats.map((stat) => (
+              <StatTile
+                key={stat.label}
+                label={stat.label}
+                value={stat.value}
+                caption={stat.caption}
+              />
+            ))}
+          </div>
+        )}
+
+        <div className="mt-6 space-y-4">
+          <div className="rainbow-surface flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+            <SearchField
+              action={segment.basePath}
+              defaultValue={search}
+              placeholder="Search name, email, phone..."
+              preserve={preserve}
             />
-          ))}
-        </div>
-      )}
 
-      <div className="mt-6 space-y-4">
-        <div className="rainbow-surface flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
-          <SearchField
-            action={segment.basePath}
-            defaultValue={search}
-            placeholder="Search name, email, phone..."
-          />
-
-          {/* Only on the full list: a duplicate pair can straddle two
+            {/* Only on the full list: a duplicate pair can straddle two
               segments, so the queue belongs on the one page holding both
               halves of it. */}
-          {canManage && segment.isAllPeople && (
-            <Button
-              variant="outline"
-              nativeButton={false}
-              render={<Link href="/portal/people/duplicates" />}
-            >
-              <LinkPendingPulse>Find duplicates</LinkPendingPulse>
-            </Button>
-          )}
+            {canManage && segment.isAllPeople && (
+              <Button
+                variant="outline"
+                nativeButton={false}
+                render={<Link href="/portal/people/duplicates" />}
+              >
+                <LinkPendingPulse>Find duplicates</LinkPendingPulse>
+              </Button>
+            )}
 
-          {canManage && segment.newPerson && (
-            <NewPersonDialog
-              people={peopleOptions ?? []}
-              defaultRole={segment.newPerson.defaultRole}
-              defaultPersonType={segment.newPerson.defaultPersonType}
-              triggerLabel={segment.newPerson.triggerLabel}
+            {canManage && segment.newPerson && (
+              <NewPersonDialog
+                people={peopleOptions ?? []}
+                defaultRole={segment.newPerson.defaultRole}
+                defaultPersonType={segment.newPerson.defaultPersonType}
+                triggerLabel={segment.newPerson.triggerLabel}
+              />
+            )}
+          </div>
+
+          <ListPendingRegion>
+            <Card>
+              <CardContent className="px-0">
+                {peopleRows.length === 0 ? (
+                  <EmptyState
+                    title={
+                      hasActiveFilters
+                        ? `No ${segment.nounPlural} match your filters`
+                        : segment.emptyTitle
+                    }
+                    description={
+                      hasActiveFilters
+                        ? "Clear or loosen the filters to see more."
+                        : canManage
+                          ? emptyManageDescription(segment, permissions)
+                          : segment.emptyDescriptionView
+                    }
+                  />
+                ) : (
+                  <Table stickyFirstColumn stickyHeader="page">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead sortDirection={sort === "name" ? dir : null}>
+                          <SortHeaderLink
+                            href={sortHref("name")}
+                            label="Name"
+                            dir={sort === "name" ? dir : null}
+                          />
+                        </TableHead>
+                        <TableHead>Roles</TableHead>
+                        {COLUMNS.filter((column) => column.key !== "name").map(
+                          (column) => (
+                            <TableHead
+                              key={column.key}
+                              hideBelow={column.hideBelow}
+                              sortDirection={sort === column.key ? dir : null}
+                            >
+                              <SortHeaderLink
+                                href={sortHref(column.key)}
+                                label={column.label}
+                                dir={sort === column.key ? dir : null}
+                              />
+                            </TableHead>
+                          ),
+                        )}
+                        <TableHead className="w-0">
+                          <span className="sr-only">Actions</span>
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {peopleRows.map((person) => (
+                        <TableRow key={person.id}>
+                          <TableCell
+                            className="max-w-xs truncate font-medium"
+                            title={person.name ?? undefined}
+                          >
+                            <Link
+                              href={`/portal/people/${person.id}`}
+                              className="hover:underline"
+                            >
+                              {person.name ?? "—"}
+                            </Link>
+                          </TableCell>
+                          <TableCell className="app-muted">
+                            {rolesFor(person, vocabulary).join(", ") || "—"}
+                          </TableCell>
+                          <TableCell hideBelow="md" className="app-muted">
+                            {person.email ?? "—"}
+                          </TableCell>
+                          <TableCell hideBelow="lg" className="app-muted">
+                            {person.phone ?? "—"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              nativeButton={false}
+                              aria-label={`View ${person.name ?? segment.noun}`}
+                              render={
+                                <Link href={`/portal/people/${person.id}`} />
+                              }
+                            >
+                              <LinkPendingPulse>
+                                <Eye />
+                              </LinkPendingPulse>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </ListPendingRegion>
+
+          {peopleRows.length > 0 && (
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              count={count}
+              pageSize={perPage}
+              hrefFor={pageHref}
+              perPageHrefFor={perPageHref}
             />
           )}
         </div>
-
-        <Card>
-          <CardContent className="px-0">
-            {peopleRows.length === 0 ? (
-              <EmptyState
-                title={
-                  hasActiveFilters
-                    ? `No ${segment.nounPlural} match your filters`
-                    : segment.emptyTitle
-                }
-                description={
-                  hasActiveFilters
-                    ? "Clear or loosen the filters to see more."
-                    : canManage
-                      ? emptyManageDescription(segment, permissions)
-                      : segment.emptyDescriptionView
-                }
-              />
-            ) : (
-              <Table stickyFirstColumn stickyHeader="page">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead sortDirection={sort === "name" ? dir : null}>
-                      <SortHeaderLink
-                        href={sortHref("name")}
-                        label="Name"
-                        dir={sort === "name" ? dir : null}
-                      />
-                    </TableHead>
-                    <TableHead>Roles</TableHead>
-                    {COLUMNS.filter((column) => column.key !== "name").map(
-                      (column) => (
-                        <TableHead
-                          key={column.key}
-                          hideBelow={column.hideBelow}
-                          sortDirection={sort === column.key ? dir : null}
-                        >
-                          <SortHeaderLink
-                            href={sortHref(column.key)}
-                            label={column.label}
-                            dir={sort === column.key ? dir : null}
-                          />
-                        </TableHead>
-                      ),
-                    )}
-                    <TableHead className="w-0">
-                      <span className="sr-only">Actions</span>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {peopleRows.map((person) => (
-                    <TableRow key={person.id}>
-                      <TableCell
-                        className="max-w-xs truncate font-medium"
-                        title={person.name ?? undefined}
-                      >
-                        <Link
-                          href={`/portal/people/${person.id}`}
-                          className="hover:underline"
-                        >
-                          {person.name ?? "—"}
-                        </Link>
-                      </TableCell>
-                      <TableCell className="app-muted">
-                        {rolesFor(person, vocabulary).join(", ") || "—"}
-                      </TableCell>
-                      <TableCell hideBelow="md" className="app-muted">
-                        {person.email ?? "—"}
-                      </TableCell>
-                      <TableCell hideBelow="lg" className="app-muted">
-                        {person.phone ?? "—"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          nativeButton={false}
-                          aria-label={`View ${person.name ?? segment.noun}`}
-                          render={<Link href={`/portal/people/${person.id}`} />}
-                        >
-                          <LinkPendingPulse>
-                            <Eye />
-                          </LinkPendingPulse>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-
-        {peopleRows.length > 0 && (
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            count={count}
-            pageSize={perPage}
-            hrefFor={pageHref}
-            perPageHrefFor={perPageHref}
-          />
-        )}
-      </div>
+      </ListNavigationProvider>
     </>
   );
 }
