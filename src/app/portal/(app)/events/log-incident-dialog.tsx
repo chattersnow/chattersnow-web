@@ -27,17 +27,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 import { useEventDateDefaults } from "./event-date-defaults";
+import { nowDatetimeLocalInBrowser } from "@/lib/time";
 
 const SEVERITIES = [
   { value: "minor", label: "Minor" },
   { value: "moderate", label: "Moderate" },
   { value: "serious", label: "Serious" },
 ];
-
-function toDatetimeLocalValue(date: Date) {
-  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
-  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
-}
 
 export function LogIncidentDialog({
   eventId,
@@ -56,7 +52,7 @@ export function LogIncidentDialog({
   // the time either way.
   const eventDates = useEventDateDefaults();
   const defaultOccurredAt = () =>
-    eventDates.startsAt || toDatetimeLocalValue(new Date());
+    eventDates.startsAt || nowDatetimeLocalInBrowser();
   const [occurredAt, setOccurredAt] = useState(defaultOccurredAt);
   const [description, setDescription] = useState("");
   const [severity, setSeverity] = useState("minor");

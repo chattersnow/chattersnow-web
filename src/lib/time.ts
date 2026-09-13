@@ -114,6 +114,30 @@ export function zonedWallTimeToUtcIso(
   return new Date(guessMs).toISOString();
 }
 
+/*
+ * Converting between a `<input type="datetime-local">` value and a stored
+ * instant, in the two directions and the two zones (#1057).
+ *
+ * A datetime-local value is a naive "YYYY-MM-DDTHH:mm" wall-clock string with
+ * no offset of its own, so turning it into an instant always means choosing a
+ * timezone to read it in. `new Date(value)` makes that choice silently -- it
+ * uses whatever zone the *running process* is in, which is the browser's in a
+ * client component and UTC on Vercel in a server action. Every function below
+ * names its zone instead, so the choice is visible at the call site.
+ *
+ * The platform convention is the `...InBrowser` pair: a time someone types is
+ * in their browser's timezone, it is stored in UTC, and it is displayed in the
+ * viewer's browser timezone. The `...InZone` pair exists for the records that
+ * carry an explicit timezone field of their own (`events.timezone`,
+ * `calendar_items.time_zone`, `artwork_calls.timezone`); it is the exception,
+ * and adding a new caller needs a reason.
+ *
+ * The browser functions read the running environment's offset, so they answer
+ * differently on a server than in a browser. Call them only from client
+ * components, and prefer values that are rendered after mount -- a form default
+ * baked into the server-rendered HTML will hydrate to a different string.
+ */
+
 /**
  * Converts a `<input type="datetime-local">` value ("YYYY-MM-DDTHH:mm" or
  * "...:ss"), which carries no UTC offset of its own, into the UTC instant it
@@ -124,7 +148,7 @@ export function zonedWallTimeToUtcIso(
  * between local dev and production. Returns null if `value` isn't in the
  * expected shape.
  */
-export function datetimeLocalToUtcIso(
+export function datetimeLocalToUtcIsoInZone(
   value: string,
   timeZone: string,
 ): string | null {
@@ -147,7 +171,8 @@ export function datetimeLocalToUtcIso(
 /**
  * Formats a UTC instant as a wall-clock "YYYY-MM-DDTHH:mm" string in
  * `timeZone`, for seeding a `<input type="datetime-local">` value edited
- * alongside an explicit timezone field. Pairs with `datetimeLocalToUtcIso` --
+ * alongside an explicit timezone field. Pairs with
+ * `datetimeLocalToUtcIsoInZone` --
  * using the viewer's browser offset here instead would show the wrong
  * wall-clock time whenever the viewer isn't in the record's own timezone,
  * and silently shift the stored instant if re-saved unchanged.
@@ -178,6 +203,77 @@ export function utcIsoToDatetimeLocalInZone(
  */
 export function utcIsoToDateInZone(iso: string, timeZone: string): string {
   return utcIsoToDatetimeLocalInZone(iso, timeZone).slice(0, 10);
+}
+
+const pad = (value: number) => String(value).padStart(2, "0");
+
+/**
+ * Formats a `Date` as the wall-clock "YYYY-MM-DDTHH:mm" string a
+ * `<input type="datetime-local">` wants, read in the browser's own timezone.
+ *
+ * Uses the local getters rather than the `getTimezoneOffset()`-and-`toISOString`
+ * trick the eight hand-rolled copies of this used before #1057. Both are
+ * correct, including across a DST boundary, but only one of them says what it
+ * is doing.
+ */
+export function dateToDatetimeLocalInBrowser(date: Date): string {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+    date.getDate(),
+  )}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/**
+ * Seeds a `<input type="datetime-local">` from a stored instant, in the
+ * browser's timezone. Pairs with `datetimeLocalToUtcIsoInBrowser`, so a value
+ * loaded and re-saved unchanged stores the same instant it started as.
+ *
+ * Returns "" for a null/blank instant, which is what an empty optional
+ * datetime field wants, and for an unparseable one rather than rendering
+ * "NaN-aN-aNTaN:aN" into the input.
+ */
+export function utcIsoToDatetimeLocalInBrowser(
+  iso: string | null | undefined,
+): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return dateToDatetimeLocalInBrowser(date);
+}
+
+/**
+ * Seeds an `<input type="date">` from a stored instant, in the browser's
+ * timezone -- the calendar day the viewer would say that instant fell on.
+ *
+ * Slicing the ISO string instead reads the day in UTC, which is the previous
+ * one for any evening instant west of Greenwich (#1053).
+ */
+export function utcIsoToDateInBrowser(iso: string | null | undefined): string {
+  return utcIsoToDatetimeLocalInBrowser(iso).slice(0, 10);
+}
+
+/** Now, as a `<input type="datetime-local">` value in the browser's timezone. */
+export function nowDatetimeLocalInBrowser(): string {
+  return dateToDatetimeLocalInBrowser(new Date());
+}
+
+/**
+ * Converts a `<input type="datetime-local">` value to the UTC instant it
+ * represents when read in the browser's timezone -- the platform convention,
+ * and the conversion that has to happen in the *client* so that the server
+ * action receives an instant rather than a naive string to parse in its own
+ * zone (#1054).
+ *
+ * Returns null for a blank or unparseable value so a caller can tell "the user
+ * left it empty" from "the user typed a time", rather than storing an
+ * "Invalid Date".
+ */
+export function datetimeLocalToUtcIsoInBrowser(
+  value: string | null | undefined,
+): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString();
 }
 
 /**

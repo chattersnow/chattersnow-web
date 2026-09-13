@@ -109,8 +109,19 @@ export function actorDisplayName(
  *
  * Picking the wrong one is invisible in a UTC development environment and
  * off by a day for every real user, which is why the choice is named here
- * rather than left to an options object at each call site. For an event's
- * own timezone see `formatDateTimeInZone` in `src/lib/time.ts`.
+ * rather than left to an options object at each call site.
+ *
+ * The platform convention, settled in #1057: **a time someone types is in
+ * their browser's timezone, it is stored in UTC, and it is displayed in the
+ * viewer's browser timezone.** One rule, portal and public site alike. A
+ * surface showing a time must also say which zone it is showing, so a reader
+ * elsewhere never has to guess whose clock a bare "5:00 PM" is on.
+ *
+ * `formatDateTimeInZone` in `src/lib/time.ts` renders in some *other* zone,
+ * and is the exception rather than a second option: the records that carry a
+ * timezone field of their own (`events.timezone`, `calendar_items.time_zone`,
+ * `artwork_calls.timezone`) still use it, and #1057's follow-up moves them off
+ * it. Reaching for it in new code needs a reason.
  */
 
 const calendarDate = new Intl.DateTimeFormat("en-US", {

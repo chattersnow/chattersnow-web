@@ -5,7 +5,7 @@ import {
   VISIBILITIES,
 } from "./calendar-shared";
 import type { ParseResult } from "@/lib/forms";
-import { datetimeLocalToUtcIso } from "@/lib/time";
+import { datetimeLocalToUtcIsoInZone } from "@/lib/time";
 
 const ITEM_TYPE_VALUES = ITEM_TYPES.map((option) => option.value);
 const CALENDAR_STATUS_VALUES = CALENDAR_STATUSES.map((option) => option.value);
@@ -99,9 +99,11 @@ export function parseCalendarItemForm(
 
   // Parsed against the submitted timeZone (not the server's runtime
   // timezone) since this is a naive "YYYY-MM-DDTHH:mm" value with no offset.
-  const startsAtIso = datetimeLocalToUtcIso(startsAt, timeZone);
+  const startsAtIso = datetimeLocalToUtcIsoInZone(startsAt, timeZone);
   if (!startsAtIso) return { error: "Enter a valid start date." };
-  const endsAtIso = endsAt ? datetimeLocalToUtcIso(endsAt, timeZone) : null;
+  const endsAtIso = endsAt
+    ? datetimeLocalToUtcIsoInZone(endsAt, timeZone)
+    : null;
   if (endsAt && !endsAtIso) return { error: "Enter a valid end date." };
   if (endsAtIso && endsAtIso < startsAtIso) {
     return { error: "End date must be after the start date." };
