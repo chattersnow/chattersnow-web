@@ -153,6 +153,10 @@ afterAll(async () => {
       .eq("person_id", personId)
       .eq("kind", kind);
   }
+  await service
+    .from("people")
+    .update({ notification_email: null })
+    .eq("id", DONOR_WITHOUT_AN_ACCOUNT);
   await service.from("people").delete().eq("id", otherPersonId);
   // Since #707 Phase 5b a trigger on tenants seeds every new tenant's
   // retention rules, and that foreign key is `no action` like every other one
@@ -262,6 +266,32 @@ describe("what it reports", () => {
     expect(everyone.map((person) => person.personId)).not.toContain(
       otherPersonId,
     );
+  });
+});
+
+describe("the address it reports", () => {
+  test("a person with an override is listed at it, not at their sign-in address", async () => {
+    // #1059: people.email is an identity key first and a mailbox second, so
+    // somebody signing in with a personal account moves their mail with the
+    // override. The card is there to make the recipient rule legible, and
+    // naming the address nothing sends to is the same silent gap one column
+    // over.
+    const { error } = await service
+      .from("people")
+      .update({ notification_email: "elsewhere@example.test" })
+      .eq("id", DONOR_WITHOUT_AN_ACCOUNT);
+    if (error) throw error;
+
+    const donor = find(
+      (await recipients())[OPEN_KIND] ?? [],
+      DONOR_WITHOUT_AN_ACCOUNT,
+    );
+    expect(donor?.email).toBe("elsewhere@example.test");
+  });
+
+  test("a person without an override is listed at their sign-in address", async () => {
+    const admin = find((await recipients())[ROLE_KIND] ?? [], adminPersonId);
+    expect(admin?.email).toBe(SEEDED_USERS.admin);
   });
 });
 

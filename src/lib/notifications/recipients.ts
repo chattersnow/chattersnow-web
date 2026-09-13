@@ -13,6 +13,11 @@ import { personDisplayName } from "@/lib/format";
 export type NotificationRecipient = {
   personId: string;
   name: string;
+  /**
+   * Where their mail is delivered -- `coalesce(notification_email, email)`, the
+   * same rule `deliveryAddress()` applies (#1059). Not the sign-in address,
+   * which is an identity key first and a mailbox second.
+   */
   email: string;
   /** They turned this kind on for themselves, on /portal/account. */
   optedIn: boolean;
