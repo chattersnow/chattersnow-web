@@ -81,6 +81,43 @@ describe("PersonFormFields", () => {
     expect(latest?.personType).toBe("organization");
   });
 
+  test("the sponsor wall opt-in needs both an organization and the sponsor role", async () => {
+    const user = userEvent.setup();
+    render(<ControlledForm />);
+    const label = "Show on the public sponsor wall";
+
+    // Neither condition met.
+    expect(screen.queryByRole("checkbox", { name: label })).toBeNull();
+
+    // Sponsor, but still an individual: the wall shows a mark, so this stays
+    // hidden rather than offering to publish a person's name.
+    await user.click(screen.getByRole("checkbox", { name: "Sponsor" }));
+    expect(screen.queryByRole("checkbox", { name: label })).toBeNull();
+
+    await user.click(screen.getByRole("combobox", { name: "Type" }));
+    await user.click(screen.getByRole("option", { name: "Organization" }));
+    expect(screen.getByRole("checkbox", { name: label })).not.toBeChecked();
+
+    // And it goes again with the role it hangs off.
+    await user.click(screen.getByRole("checkbox", { name: "Sponsor" }));
+    expect(screen.queryByRole("checkbox", { name: label })).toBeNull();
+  });
+
+  test("ticking the sponsor wall opt-in updates the form state", async () => {
+    const user = userEvent.setup();
+    let latest: PersonFormState | undefined;
+    render(<ControlledForm onChange={(form) => (latest = form)} />);
+
+    await user.click(screen.getByRole("checkbox", { name: "Sponsor" }));
+    await user.click(screen.getByRole("combobox", { name: "Type" }));
+    await user.click(screen.getByRole("option", { name: "Organization" }));
+    await user.click(
+      screen.getByRole("checkbox", { name: "Show on the public sponsor wall" }),
+    );
+
+    expect(latest?.sponsorWallPublic).toBe(true);
+  });
+
   test("the rider profile is for individuals, the logo and website for organizations", async () => {
     const user = userEvent.setup();
     render(<ControlledForm />);

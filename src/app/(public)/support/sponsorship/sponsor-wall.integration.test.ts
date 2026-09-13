@@ -1,5 +1,6 @@
 // Integration test: the `public_sponsor_wall` view behind the sponsor wall on
-// /support/sponsorship (#914). Mocks nothing -- the point is what `anon`
+// /support/sponsorship (#914), both of its arms -- credited on a published
+// public event, and published by hand on a sponsor role tag (#1024). Mocks nothing -- the point is what `anon`
 // actually gets back, since the view is security definer and its own
 // predicates are the only thing between the public page and the `people`
 // directory. Cross-tenant isolation is covered separately, with a marker row
@@ -32,6 +33,19 @@ async function sponsor(
     support_type: "cash",
     is_public: isPublic,
   });
+  if (error) throw error;
+}
+
+/**
+ * The hand-published arm (#1024): a sponsor role asserted by staff and marked
+ * public, with no event anywhere. Written straight to the table rather than
+ * through `set_person_role_tags`, to keep this file about what the view
+ * returns; the RPC's own behaviour is exercised by the portal's tests.
+ */
+async function sponsorTag(personId: string, isPublic: boolean): Promise<void> {
+  const { error } = await adminClient
+    .from("person_role_tags")
+    .insert({ person_id: personId, role: "sponsor", is_public: isPublic });
   if (error) throw error;
 }
 
@@ -111,6 +125,62 @@ describe("public_sponsor_wall (integration)", () => {
 
     await first.cleanup();
     await second.cleanup();
+    await person.cleanup();
+  });
+
+  test("an organization published by hand is on the wall with no event", async () => {
+    const person = await createPerson({ person_type: "organization" });
+    await adminClient
+      .from("people")
+      .update({
+        logo_url: "https://example.test/hand-published.png",
+        website: "https://hand-published.example.test",
+      })
+      .eq("id", person.id);
+    await sponsorTag(person.id, true);
+
+    expect(await wallRowsFor(person.id)).toEqual([
+      {
+        sponsor_id: person.id,
+        name: expect.any(String),
+        logo_url: "https://example.test/hand-published.png",
+        website: "https://hand-published.example.test",
+      },
+    ]);
+
+    // The tag cascades with the person (20260903010000), so this is enough.
+    await person.cleanup();
+  });
+
+  test("a sponsor tag not marked public stays off the wall", async () => {
+    const person = await createPerson({ person_type: "organization" });
+    await sponsorTag(person.id, false);
+
+    expect(await wallRowsFor(person.id)).toEqual([]);
+
+    await person.cleanup();
+  });
+
+  test("an individual published by hand stays off the wall", async () => {
+    // The arm is organizations only: the wall shows a mark, and an individual
+    // with no logo would be published as their own name.
+    const person = await createPerson();
+    await sponsorTag(person.id, true);
+
+    expect(await wallRowsFor(person.id)).toEqual([]);
+
+    await person.cleanup();
+  });
+
+  test("a sponsor both event-credited and published by hand appears once", async () => {
+    const event = await createPublishedEvent();
+    const person = await createPerson({ person_type: "organization" });
+    await sponsor(event.id, person.id, true);
+    await sponsorTag(person.id, true);
+
+    expect(await wallRowsFor(person.id)).toHaveLength(1);
+
+    await event.cleanup();
     await person.cleanup();
   });
 

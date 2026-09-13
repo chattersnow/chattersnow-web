@@ -38,6 +38,7 @@ describe("packPersonFormData", () => {
     const result = parsePersonForm(packPersonFormData(form));
     expect(result).toEqual({
       roles: ["sponsor"],
+      publicRoles: [],
       data: {
         name: "Jane Donor",
         preferred_name: "Janey",
@@ -62,6 +63,23 @@ describe("packPersonFormData", () => {
     const formData = packPersonFormData(form);
     expect(formData.get("isDonor")).toBe("true");
     expect(formData.get("isSponsor")).toBe("false");
+  });
+
+  test("defaults the sponsor wall opt-in closed, and packs it every time", () => {
+    // Sent on every save even when false: the server rewrites the whole tag
+    // set, so an omitted flag would read as "unpublish" on an unrelated edit.
+    const form = emptyPersonForm("is_sponsor", "organization");
+    expect(form.sponsorWallPublic).toBe(false);
+    expect(packPersonFormData(form).get("sponsorWallPublic")).toBe("false");
+  });
+
+  test("round-trips the sponsor wall opt-in for an organization", () => {
+    const form = emptyPersonForm("is_sponsor", "organization");
+    form.name = "Local Roasters Coffee";
+    form.sponsorWallPublic = true;
+
+    const result = parsePersonForm(packPersonFormData(form));
+    expect("publicRoles" in result && result.publicRoles).toEqual(["sponsor"]);
   });
 
   test("packs the person type", () => {

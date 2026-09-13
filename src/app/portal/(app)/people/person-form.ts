@@ -27,6 +27,17 @@ export type PersonRoleTag =
 export type ParsedPersonForm = {
   data: PersonFormData;
   roles: PersonRoleTag[];
+  /**
+   * The subset of `roles` this save is publishing (#1024). Only `sponsor` can
+   * be here today -- it is the one role with a public surface, the sponsor
+   * wall on /support/sponsorship -- and only for an organization, since the
+   * wall shows the logo and website that live on that branch of the record.
+   *
+   * Both conditions are re-checked here rather than trusted from the hidden
+   * checkbox: the form omits the control for an individual, but FormData is
+   * whatever the request says it is.
+   */
+  publicRoles: PersonRoleTag[];
 };
 
 export type PersonFormData = {
@@ -84,6 +95,9 @@ export function parsePersonForm(
     formData.get("isStaff") === "on" || formData.get("isStaff") === "true";
   const is_partner =
     formData.get("isPartner") === "on" || formData.get("isPartner") === "true";
+  const sponsorWallPublic =
+    formData.get("sponsorWallPublic") === "on" ||
+    formData.get("sponsorWallPublic") === "true";
   const ridingDiscipline = String(
     formData.get("ridingDiscipline") ?? "",
   ).trim();
@@ -146,8 +160,14 @@ export function parsePersonForm(
   if (is_staff) roles.push("staff");
   if (is_partner) roles.push("partner");
 
+  const publicRoles: PersonRoleTag[] = [];
+  if (sponsorWallPublic && is_sponsor && personTypeRaw === "organization") {
+    publicRoles.push("sponsor");
+  }
+
   return {
     roles,
+    publicRoles,
     data: {
       name,
       preferred_name: preferredName || null,

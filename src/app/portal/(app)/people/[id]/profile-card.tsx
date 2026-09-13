@@ -45,7 +45,10 @@ import {
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 
-function formStateFor(person: PersonRow): PersonFormState {
+function formStateFor(
+  person: PersonRow,
+  sponsorWallPublic: boolean,
+): PersonFormState {
   return {
     name: person.name ?? "",
     preferredName: person.preferred_name ?? "",
@@ -64,6 +67,7 @@ function formStateFor(person: PersonRow): PersonFormState {
       is_staff: person.is_staff,
       is_partner: person.is_partner,
     },
+    sponsorWallPublic,
     personType: person.person_type,
     ridingDiscipline: person.riding_discipline ?? "",
     skiExperienceLevel: person.ski_experience_level ?? "",
@@ -77,17 +81,27 @@ export function ProfileCard({
   people,
   canManage,
   canDeleteRiderProfile = false,
+  sponsorWallPublic = false,
 }: {
   person: PersonRow;
   people: PersonListItem[];
   canManage: boolean;
   canDeleteRiderProfile?: boolean;
+  /**
+   * Whether this person's manual sponsor tag is published to the public
+   * sponsor wall (#1024). Read from `person_role_tags` by the caller, since
+   * the role flags on `people_with_roles` are derived and carry no tag
+   * metadata.
+   */
+  sponsorWallPublic?: boolean;
 }) {
   const router = useRouter();
   const vocabulary = useLexicon();
   const formId = `person-profile-form-${person.id}`;
   const [mode, setMode] = useState<"view" | "edit">("view");
-  const [form, setForm] = useState<PersonFormState>(() => formStateFor(person));
+  const [form, setForm] = useState<PersonFormState>(() =>
+    formStateFor(person, sponsorWallPublic),
+  );
   const [contact, setContact] = useState<PickedPerson | null>(
     person.primary_contact,
   );
@@ -123,7 +137,7 @@ export function ProfileCard({
   }
 
   function cancel() {
-    setForm(formStateFor(person));
+    setForm(formStateFor(person, sponsorWallPublic));
     setContact(person.primary_contact);
     setError(null);
     setMode("view");
