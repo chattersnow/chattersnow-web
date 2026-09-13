@@ -39,12 +39,7 @@ import {
   type ControlledOpenProps,
 } from "@/components/portal/use-controlled-open";
 import { useEventDateDefaults } from "../events/event-date-defaults";
-
-function nowLocalValue() {
-  const date = new Date();
-  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
-  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
-}
+import { nowDatetimeLocalInBrowser } from "@/lib/time";
 
 export function RecordDistributionModal({
   triggerLabel = "Record distribution",
@@ -75,7 +70,8 @@ export function RecordDistributionModal({
   // event, so the field opens on the event's start. Opened from Inventory or
   // the home dashboard there is no event in context and it stays "now".
   const eventDates = useEventDateDefaults();
-  const defaultOccurredAt = () => eventDates.startsAt || nowLocalValue();
+  const defaultOccurredAt = () =>
+    eventDates.startsAt || nowDatetimeLocalInBrowser();
   const [occurredAt, setOccurredAt] = useState(defaultOccurredAt);
   const [markDistributed, setMarkDistributed] = useState(true);
   const [error, setError] = useState<string | null>(null);

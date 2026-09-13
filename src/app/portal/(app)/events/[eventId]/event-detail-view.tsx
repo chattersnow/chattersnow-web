@@ -299,11 +299,7 @@ function EventDetailContent({
     // Every date field on a card below opens on this event's date rather than
     // on today, since that is the day the thing being recorded happened. See
     // EventDateProvider for the two limits on that.
-    <EventDateProvider
-      startsAt={event.starts_at}
-      endsAt={event.ends_at}
-      timeZone={event.timezone}
-    >
+    <EventDateProvider startsAt={event.starts_at} endsAt={event.ends_at}>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="w-fit">

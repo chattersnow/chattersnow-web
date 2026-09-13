@@ -33,17 +33,12 @@ import { Spinner } from "@/components/ui/spinner";
 import { formatDateTime } from "@/lib/format";
 import { runAction } from "@/components/portal/action-toast";
 import { useEventDateDefaults } from "../event-date-defaults";
+import { utcIsoToDatetimeLocalInBrowser } from "@/lib/time";
 
 export const NONE_VALUE = "none";
 
 export function formatShiftRange(shift: EventShift) {
   return `${formatDateTime(shift.starts_at)} – ${formatDateTime(shift.ends_at)}`;
-}
-
-function toDatetimeLocal(iso: string) {
-  const date = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 export function ShiftForm({
@@ -67,11 +62,13 @@ export function ShiftForm({
   const eventDates = useEventDateDefaults();
   const [startsAt, setStartsAt] = useState(
     initialShift
-      ? toDatetimeLocal(initialShift.starts_at)
+      ? utcIsoToDatetimeLocalInBrowser(initialShift.starts_at)
       : eventDates.startsAt,
   );
   const [endsAt, setEndsAt] = useState(
-    initialShift ? toDatetimeLocal(initialShift.ends_at) : eventDates.endsAt,
+    initialShift
+      ? utcIsoToDatetimeLocalInBrowser(initialShift.ends_at)
+      : eventDates.endsAt,
   );
   const [targetHeadcount, setTargetHeadcount] = useState(
     initialShift?.target_headcount != null

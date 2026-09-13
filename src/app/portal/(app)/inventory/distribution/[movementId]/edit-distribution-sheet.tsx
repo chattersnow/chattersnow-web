@@ -40,17 +40,12 @@ import {
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
-
-function toDatetimeLocalValue(iso: string) {
-  const date = new Date(iso);
-  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
-  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
-}
+import { utcIsoToDatetimeLocalInBrowser } from "@/lib/time";
 
 function formStateFor(movement: DistributionDetailRow) {
   return {
     quantity: String(movement.quantity),
-    occurredAt: toDatetimeLocalValue(movement.occurred_at),
+    occurredAt: utcIsoToDatetimeLocalInBrowser(movement.occurred_at),
     reason: movement.reason ?? "",
     recipient: movement.recipient,
   };

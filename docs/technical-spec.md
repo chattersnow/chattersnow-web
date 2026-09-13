@@ -207,7 +207,17 @@ The model is grouped by module and each group lives in that module's file under
 [`docs/spec/`](spec/) — see the index above. A reference of the form "§6, 'Multi-tenancy'"
 means the group of that name, now the "Data model" section of the matching file.
 
-Foreign keys should enforce relationships. Monetary amounts should use a fixed-precision numeric type, not floating-point values. Dates should be stored with timezone-aware timestamps; event display timezone is an event or organization configuration decision.
+Foreign keys should enforce relationships. Monetary amounts should use a fixed-precision numeric type, not floating-point values.
+
+### 6.1 Dates and times
+
+**A time someone types is in their browser's timezone, it is stored in UTC, and it is displayed in the viewer's browser timezone.** One rule, for the portal and the public site alike (#1057). A surface that shows a time must also say which timezone it is showing, so a reader elsewhere never has to work out whose clock a bare "5:00 PM" is on.
+
+An instant is stored in a timezone-aware column (`timestamptz`). A value that is a calendar day rather than an instant — the day a prize was handed over, the day a donation is dated — belongs in a `date` column, because a date-only input written to a `timestamptz` becomes UTC midnight and reads back as the previous day for every viewer west of Greenwich (#1053).
+
+Some records carry a timezone of their own (`events.timezone`, `calendar_items.time_zone`, `artwork_calls.timezone`), which is where the thing physically happens. That field no longer governs how a typed time is parsed. It is the documented exception for display only, and it is being retired from the date/time path; new code should not add a caller.
+
+The helpers that implement this are in `src/lib/time.ts`, named for the zone each answers in: the `...InBrowser` family is the convention, the `...InZone` family the exception. Formatting for display is in `src/lib/format.ts` (`formatInstantDate` / `formatDateTime` for instants, `formatCalendarDate` for `date` columns).
 
 ## 7. Security and Privacy
 
