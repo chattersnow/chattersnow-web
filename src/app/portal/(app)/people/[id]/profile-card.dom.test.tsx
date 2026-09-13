@@ -115,6 +115,48 @@ describe("ProfileCard", () => {
     await expectToast("Profile saved.");
   });
 
+  // The role checkboxes are seeded from the derived flags on people_with_roles,
+  // which carry no tag metadata, so the publication flag reaches the card as
+  // its own prop read from person_role_tags (#1024).
+  test("seeds the sponsor wall opt-in from the prop", async () => {
+    const user = userEvent.setup();
+    const sponsorOrg: PersonRow = {
+      ...person,
+      is_sponsor: true,
+      person_type: "organization",
+    };
+    render(
+      <ProfileCard
+        person={sponsorOrg}
+        people={[]}
+        canManage={true}
+        sponsorWallPublic={true}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Edit profile" }));
+
+    expect(
+      screen.getByRole("checkbox", { name: "Show on the public sponsor wall" }),
+    ).toBeChecked();
+  });
+
+  test("leaves the sponsor wall opt-in clear when the prop is absent", async () => {
+    const user = userEvent.setup();
+    const sponsorOrg: PersonRow = {
+      ...person,
+      is_sponsor: true,
+      person_type: "organization",
+    };
+    render(<ProfileCard person={sponsorOrg} people={[]} canManage={true} />);
+
+    await user.click(screen.getByRole("button", { name: "Edit profile" }));
+
+    expect(
+      screen.getByRole("checkbox", { name: "Show on the public sponsor wall" }),
+    ).not.toBeChecked();
+  });
+
   test("announces a failed save instead of claiming success", async () => {
     const user = userEvent.setup();
     updatePersonActionMock.mockImplementation(async () => ({
