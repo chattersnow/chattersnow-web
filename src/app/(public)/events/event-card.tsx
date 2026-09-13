@@ -1,9 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
-import { BrandImageFallback } from "@/components/brand-image-fallback";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDateTimeInZone } from "@/lib/time";
-import { resolveImageUrl } from "@/lib/inventory";
+import { EventFlierTile } from "./event-flier";
 import type { PublicEventSponsor } from "./event-sponsors";
 import { publicEventPath } from "./event-path";
 
@@ -57,23 +55,12 @@ const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
  * alt text and the date line with it.
  */
 export function EventCard({ event }: { event: PublicEvent }) {
-  const imageUrl = resolveImageUrl(event.flier_url);
-
   return (
     <Card className="rainbow-ring-hover relative gap-0 overflow-hidden py-0">
-      <div className="relative aspect-[16/9] w-full bg-muted">
-        {imageUrl ? (
-          <Image
-            src={imageUrl}
-            alt=""
-            fill
-            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-            className="object-cover"
-          />
-        ) : (
-          <BrandImageFallback label="Flier coming soon" />
-        )}
-      </div>
+      <EventFlierTile
+        flierUrl={event.flier_url}
+        sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+      />
       <CardContent className="space-y-1 px-4 py-3">
         <p className="text-sm font-medium">
           <Link
