@@ -18,7 +18,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { datetimeLocalToUtcIso, utcIsoToDatetimeLocalInZone } from "@/lib/time";
+import {
+  datetimeLocalToUtcIsoInZone,
+  utcIsoToDatetimeLocalInZone,
+} from "@/lib/time";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { runAction } from "@/components/portal/action-toast";
 
@@ -118,7 +121,7 @@ export function PlanningTab({
     // server's) since this is a naive "YYYY-MM-DDTHH:mm" value with no
     // offset, and must round-trip consistently with `toDatetimeLocalValue`.
     const registrationDeadlineIso = form.registrationDeadline
-      ? datetimeLocalToUtcIso(form.registrationDeadline, event.timezone)
+      ? datetimeLocalToUtcIsoInZone(form.registrationDeadline, event.timezone)
       : "";
     formData.set("registrationDeadline", registrationDeadlineIso ?? "");
     formData.set(

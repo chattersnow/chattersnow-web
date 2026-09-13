@@ -23,7 +23,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
-import { TIMEZONE_OPTIONS } from "@/lib/time";
+import {
+  TIMEZONE_OPTIONS,
+  datetimeLocalToUtcIsoInBrowser,
+  utcIsoToDatetimeLocalInBrowser,
+} from "@/lib/time";
 import { toast } from "@/components/ui/toast";
 import { createArtworkCallAction, updateArtworkCallAction } from "./actions";
 import type { ArtworkCall } from "../submission-types";
@@ -32,14 +36,6 @@ type EventOption = { id: string; name: string; starts_at: string };
 
 const selectClassName =
   "h-9 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
-
-/** `datetime-local` wants a local wall-clock string, not an instant. */
-function toLocalInput(value: string | null): string {
-  if (!value) return "";
-  const date = new Date(value);
-  const offset = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
-}
 
 export function ArtworkCallDialog({
   call,
@@ -60,6 +56,19 @@ export function ArtworkCallDialog({
     event.preventDefault();
     setError(null);
     const formData = new FormData(event.currentTarget);
+
+    // Converted here, in the browser, so the call's instants are fixed using
+    // the curator's own timezone rather than the server's -- which is UTC on
+    // Vercel, so a call set to close at 5pm used to store 17:00Z and close at
+    // 11am in Denver (#1054). Blank stays blank; the action reads "" as "no
+    // deadline", and re-running `new Date(...).toISOString()` on the instant
+    // this now sends is a no-op.
+    for (const field of ["opensAt", "closesAt"] as const) {
+      const typed = formData.get(field);
+      if (typeof typed !== "string") continue;
+      const instant = datetimeLocalToUtcIsoInBrowser(typed);
+      if (instant) formData.set(field, instant);
+    }
 
     startTransition(async () => {
       const result = editing
@@ -151,7 +160,7 @@ export function ArtworkCallDialog({
 
               <Field>
                 <FieldLabel htmlFor="call-timezone">
-                  Deadline timezone
+                  Show the deadline in
                 </FieldLabel>
                 <select
                   id="call-timezone"
@@ -167,8 +176,10 @@ export function ArtworkCallDialog({
                   ))}
                 </select>
                 <FieldDescription>
-                  Which zone the closing time is stated in. Leave it alone for a
-                  call attached to an event — it will use the event&apos;s.
+                  The zone artists read the deadline in on the public page. It
+                  does not change what the times below mean — you type those in
+                  your own timezone. Leave it alone for a call attached to an
+                  event and it will use the event&apos;s.
                 </FieldDescription>
               </Field>
 
@@ -189,7 +200,7 @@ export function ArtworkCallDialog({
                   id="call-opens"
                   name="opensAt"
                   type="datetime-local"
-                  defaultValue={toLocalInput(call?.opens_at ?? null)}
+                  defaultValue={utcIsoToDatetimeLocalInBrowser(call?.opens_at)}
                 />
               </Field>
 
@@ -199,10 +210,11 @@ export function ArtworkCallDialog({
                   id="call-closes"
                   name="closesAt"
                   type="datetime-local"
-                  defaultValue={toLocalInput(call?.closes_at ?? null)}
+                  defaultValue={utcIsoToDatetimeLocalInBrowser(call?.closes_at)}
                 />
                 <FieldDescription>
-                  Leave both empty to let the switch above decide.
+                  Times are in your computer&apos;s timezone. Leave both empty
+                  to let the switch above decide.
                 </FieldDescription>
               </Field>
 
