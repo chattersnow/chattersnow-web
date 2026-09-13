@@ -352,7 +352,7 @@ type OpenChecklistItemRow = {
 };
 
 // Defined alongside the rules that produce them, in events/phase-status.ts, so
-// the dashboard and the event page's phase strip share one task vocabulary.
+// the dashboard and the event page's section rail share one task vocabulary.
 export type { EventTaskKind };
 
 /**
@@ -468,7 +468,7 @@ export async function getEventTaskSummary(
     };
 
     // includeImpact is left off here: the "Impact not recorded" rule belongs on
-    // the event page's phase strip, but switching it on for the dashboard would
+    // the event page's section rail, but switching it on for the dashboard would
     // add an outstanding task to every past event the day it ships.
     for (const task of deriveEventPhaseTasks(
       event,

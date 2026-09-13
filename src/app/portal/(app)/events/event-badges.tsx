@@ -102,7 +102,12 @@ export type PhaseStatus = "not_started" | "in_progress" | "done";
  * items is both honest about what it measures and actionable; the names ride
  * along in the tooltip so the badge says what's missing, not just how much.
  */
-export function PhaseOutstandingBadge({ tasks }: { tasks: string[] }) {
+/**
+ * How much is still outstanding on one section, for its rail row (#1008). It
+ * sat on the phase tab until the rail replaced the phase strip, where a "3"
+ * told you a phase had work in it but not which of its six cards.
+ */
+export function OutstandingBadge({ tasks }: { tasks: string[] }) {
   if (tasks.length === 0) return null;
 
   return (

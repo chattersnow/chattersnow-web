@@ -82,7 +82,7 @@ mock.module("./registrants-actions", () => ({
 
 const { RegistrantsTab } = await import("./registrants-tab");
 
-// The card no longer fetches -- the phase provider does (event-phase-data.tsx)
+// The card no longer fetches -- the phase provider does (event-shared-data.tsx)
 // -- so the tests hand it the same slices the provider would.
 const refreshRegistrants = mock(() => {});
 const refreshDerived = mock(() => {});
