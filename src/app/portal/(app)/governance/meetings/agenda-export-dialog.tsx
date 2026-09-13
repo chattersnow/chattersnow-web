@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Download } from "lucide-react";
 import {
   Dialog,
@@ -23,39 +22,18 @@ import {
   personDisplayName,
 } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
-
-function CopyButton({
-  label,
-  getText,
-}: {
-  label: string;
-  getText: () => string;
-}) {
-  const [copied, setCopied] = useState(false);
-
-  async function handleCopy() {
-    await navigator.clipboard.writeText(getText());
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
-  return (
-    <Button type="button" variant="secondary" onClick={handleCopy}>
-      {copied ? "Copied!" : label}
-    </Button>
-  );
-}
+import { CopyButton } from "@/components/copy-button";
 
 /**
- * Print output is scoped to just this view via the `.agenda-print-area`
- * rule in globals.css (visibility trick), so the rest of the app chrome
- * (nav, dialog overlay, etc.) is left out of the printed page.
+ * Print output is scoped to just this view via the shared `.print-area` rule
+ * in globals.css (visibility trick), so the rest of the app chrome (nav,
+ * dialog overlay, etc.) is left out of the printed page.
  */
 function AgendaPrintView({ input }: { input: AgendaExportInput }) {
   const { agenda, sections, openingChecklist } = input;
 
   return (
-    <div className="agenda-print-area max-h-[50vh] overflow-y-auto rounded-md border border-[var(--line)] p-4 text-sm">
+    <div className="print-area max-h-[50vh] overflow-y-auto rounded-md border border-[var(--line)] p-4 text-sm">
       <h1 className="text-lg font-semibold">
         Agenda — {formatInstantDate(input.meetingDate)}
       </h1>

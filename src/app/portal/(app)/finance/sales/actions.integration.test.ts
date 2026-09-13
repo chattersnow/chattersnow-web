@@ -34,6 +34,7 @@ import {
   SEEDED_EVENT_IDS,
   SEEDED_PERSON_IDS,
   SEEDED_SALE_IDS,
+  SEEDED_SALE_RECEIPT_NUMBERS,
   SEEDED_VARIANT_IDS,
 } from "../../../../../../test/seed-fixtures";
 
@@ -459,6 +460,7 @@ describe("line prices and custom lines (#1015)", () => {
       success: true,
       saleId: expect.any(String),
       total: 8.8,
+      receiptNumber: expect.any(Number),
     });
 
     const saleId = (result as { saleId: string }).saleId;
@@ -505,6 +507,7 @@ describe("line prices and custom lines (#1015)", () => {
       success: true,
       saleId: expect.any(String),
       total: 7,
+      receiptNumber: expect.any(Number),
     });
 
     expect(await linesOf((result as { saleId: string }).saleId)).toEqual([
@@ -677,6 +680,93 @@ describe("the tables refuse every write that is not an RPC", () => {
       .update({ status: "voided" })
       .eq("id", SEEDED_SALE_IDS.completed);
     expect(voidState.error?.code).toBe("42501");
+
+    // #1016: a receipt number a holder could retype is not a number anyone can
+    // be held to. It is outside the column grant like the money beside it.
+    const receipt = await adminClient
+      .from("sales")
+      .update({ receipt_number: 9999 })
+      .eq("id", SEEDED_SALE_IDS.completed);
+    expect(receipt.error?.code).toBe("42501");
+  });
+});
+
+describe("receipt numbers (#1016)", () => {
+  async function receiptNumberOf(saleId: string): Promise<number> {
+    const { data, error } = await service
+      .from("sales")
+      .select("receipt_number")
+      .eq("id", saleId)
+      .single();
+    if (error) throw error;
+    return Number(data.receipt_number);
+  }
+
+  test("the seeded sales carry the numbers the fixtures state", async () => {
+    expect(await receiptNumberOf(SEEDED_SALE_IDS.completed)).toBe(
+      SEEDED_SALE_RECEIPT_NUMBERS.completed,
+    );
+    expect(await receiptNumberOf(SEEDED_SALE_IDS.voided)).toBe(
+      SEEDED_SALE_RECEIPT_NUMBERS.voided,
+    );
+  });
+
+  test("two consecutive sales get consecutive numbers, and the action returns them", async () => {
+    const first = await record();
+    const second = await record();
+    if (!("success" in first) || !("success" in second)) {
+      throw new Error("both sales were expected to record");
+    }
+
+    expect(second.receiptNumber).toBe(first.receiptNumber + 1);
+    // What the action returned is what the row actually holds -- it reads the
+    // number back rather than being told it by the RPC.
+    expect(await receiptNumberOf(first.saleId)).toBe(first.receiptNumber);
+    expect(await receiptNumberOf(second.saleId)).toBe(second.receiptNumber);
+  });
+
+  test("two sales recorded at once get distinct numbers", async () => {
+    // The same two-session shape as the oversell race above: one connection
+    // would serialise them and prove nothing about the advisory lock.
+    const financeClient = await signInAs(SEEDED_USERS.finance);
+    const args = {
+      p_event_id: null,
+      p_purchaser_person_id: null,
+      p_payment_method: "cash",
+      p_discount_amount: 0,
+      p_sold_at: null,
+      p_notes: `IT receipt race ${run}`,
+      p_lines: [{ variant_id: variantId, quantity: 1 }],
+    };
+    const [first, second] = await Promise.all([
+      adminClient.rpc("record_product_sale", args),
+      financeClient.rpc("record_product_sale", args),
+    ]);
+
+    expect(first.error).toBeNull();
+    expect(second.error).toBeNull();
+
+    const ids = [first, second].map(
+      (outcome) => (outcome.data as { sale_id: string }[])[0].sale_id,
+    );
+    createdSaleIds.push(...ids);
+
+    const numbers = await Promise.all(ids.map(receiptNumberOf));
+    expect(new Set(numbers).size).toBe(2);
+    // Consecutive, not merely distinct: the lock is what makes max()+1 mean
+    // "the next one" rather than "some free one".
+    expect(Math.abs(numbers[0] - numbers[1])).toBe(1);
+  });
+
+  test("voiding keeps the number, so the run has no gap in it", async () => {
+    const recorded = await record();
+    if (!("success" in recorded)) throw new Error("expected a sale");
+
+    currentSupabase = adminClient;
+    expect(await voidSaleAction(recorded.saleId, "returned")).toEqual({
+      success: true,
+    });
+    expect(await receiptNumberOf(recorded.saleId)).toBe(recorded.receiptNumber);
   });
 });
 
@@ -935,6 +1025,10 @@ describe("another tenant's sale (integration)", () => {
       .update({ actor_id: null })
       .eq("actor_id", tenantBUserId);
     await service.auth.admin.deleteUser(tenantBUserId);
+    // Before the tenant itself: the file-wide afterAll runs later, and
+    // `sales_tenant_id_fkey` would refuse the delete below with B's own sale
+    // (#1016) still on it.
+    await service.from("sales").delete().eq("tenant_id", tenantBId);
 
     const { error } = await service
       .from("tenants")
@@ -964,5 +1058,29 @@ describe("another tenant's sale (integration)", () => {
       error:
         "Something in the cart no longer exists. Reload the register and try again.",
     });
+  });
+
+  test("tenant B's first sale is #1, however many A has rung up", async () => {
+    currentSupabase = await signInAs(tenantBEmail);
+
+    // A custom line (#1015) needs no catalog, which is what lets a tenant with
+    // no products at all record its first sale here.
+    const result = await recordSaleAction(
+      saleInput({
+        lines: [{ description: "First ever", unit_price: 5, quantity: 1 }],
+      }),
+    );
+    if (!("success" in result)) throw new Error(JSON.stringify(result));
+    createdSaleIds.push(result.saleId);
+
+    // The point of the per-tenant lock rather than a shared sequence: B must
+    // not be shown the gaps left by A's run.
+    expect(result.receiptNumber).toBe(1);
+
+    const { count } = await service
+      .from("sales")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantBId);
+    expect(count).toBe(1);
   });
 });

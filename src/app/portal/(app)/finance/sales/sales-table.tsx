@@ -23,6 +23,7 @@ import {
 } from "@/lib/format";
 import { SaleStatusBadge } from "./sale-badges";
 import { SaleDetailsSheet } from "./sale-details-sheet";
+import { formatReceiptNumber } from "./receipt";
 import {
   PAYMENT_METHODS,
   paymentMethodLabel,
@@ -79,7 +80,16 @@ export function SalesTable({
         ]
           .join(" ")
           .toLowerCase();
-        if (!haystack.includes(query)) return false;
+        // The receipt number is matched apart from that text rather than
+        // folded into it: somebody is reading it off a piece of paper, and
+        // "#000123", "000123" and "123" are all the same receipt to them.
+        // Folding it in would also make a note containing "#" search oddly.
+        const bare = query.replace(/^#/, "");
+        const matchesReceipt =
+          bare !== "" &&
+          (formatReceiptNumber(sale.receipt_number).includes(bare) ||
+            String(sale.receipt_number).includes(bare));
+        if (!matchesReceipt && !haystack.includes(query)) return false;
       }
       return true;
     });
@@ -88,10 +98,32 @@ export function SalesTable({
   const columns = useMemo<PortalDataTableColumn<SaleRow>[]>(
     () => [
       {
+        // Ahead of the date: a receipt is found by its number, and a ledger
+        // read next to a stack of paper is read down this column.
+        key: "receipt_number",
+        label: "Receipt #",
+        hideBelow: "sm",
+        // Numeric, so #9 does not sort after #10.
+        sortValue: (sale) => sale.receipt_number,
+        cellClassName: "tabular-nums",
+        render: (sale) => formatReceiptNumber(sale.receipt_number),
+      },
+      {
         key: "sold_at",
         label: "Date",
         sortValue: (sale) => sale.sold_at,
-        render: (sale) => formatDateTime(sale.sold_at),
+        render: (sale) => (
+          <>
+            {formatDateTime(sale.sold_at)}
+            {/* Six columns is already more than a 400px phone holds, so below
+                `sm` the number rides along here instead of claiming a seventh.
+                One of the two is always display:none, so nothing is announced
+                twice. */}
+            <span className="app-muted block text-xs tabular-nums sm:hidden">
+              {formatReceiptNumber(sale.receipt_number)}
+            </span>
+          </>
+        ),
       },
       {
         key: "items",
@@ -193,7 +225,7 @@ export function SalesTable({
             </label>
             <Input
               id="sales-search"
-              placeholder="Search item, purchaser or note..."
+              placeholder="Search receipt #, item, purchaser or note..."
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />

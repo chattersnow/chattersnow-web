@@ -13,7 +13,8 @@ import {
 export type SaleActionResult = { error: string } | { success: true };
 
 export type RecordSaleResult =
-  { error: string } | { success: true; saleId: string; total: number };
+  | { error: string }
+  | { success: true; saleId: string; total: number; receiptNumber: number };
 
 /**
  * A recorded sale moves stock, so it invalidates more than its own page: the
@@ -71,10 +72,23 @@ export async function recordSaleAction(
 
   revalidateSales();
   const recorded = data as { sale_id: string; total: number | string };
+
+  // Read back rather than returned by the RPC: the number is assigned by a
+  // `before insert` trigger on `sales` (#1016) precisely so it survives that
+  // function's rewrites, and widening its return type would be one more thing
+  // for the next rewrite to carry. A sale that was just recorded is one row by
+  // primary key.
+  const { data: row } = await supabase
+    .from("sales")
+    .select("receipt_number")
+    .eq("id", recorded.sale_id)
+    .single();
+
   return {
     success: true,
     saleId: recorded.sale_id,
     total: Number(recorded.total),
+    receiptNumber: Number(row?.receipt_number ?? 0),
   };
 }
 
