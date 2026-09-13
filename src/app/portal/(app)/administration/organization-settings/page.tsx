@@ -17,6 +17,7 @@ import { LexiconPanel } from "./lexicon-panel";
 import { PersonRolesPanel } from "./person-roles-panel";
 import { NOTIFICATION_KINDS } from "@/lib/notifications/kinds";
 import { getOrgEmailEnabled } from "@/lib/notifications/settings";
+import { getNotificationRecipients } from "@/lib/notifications/recipients";
 import {
   OPS_REPORT_RECIPIENTS_SETTING_KEY,
   parseOpsReportRecipients,
@@ -94,6 +95,7 @@ export default async function OrganizationSettingsPage() {
     emailEnabled,
     storedLexicon,
     storedPersonRoleLabels,
+    recipientsByKind,
   ] = await Promise.all([
     getFiscalYearStartMonth(supabase),
     getTenantBranding(supabase),
@@ -101,6 +103,7 @@ export default async function OrganizationSettingsPage() {
     getOrgEmailEnabled(supabase),
     getStoredLexicon(supabase),
     getStoredPersonRoleLabels(supabase),
+    getNotificationRecipients(supabase),
   ]);
   const orgName = currentTenant(tenantContext)?.name ?? "this organization";
 
@@ -216,6 +219,7 @@ export default async function OrganizationSettingsPage() {
           <NotificationsPanel
             emailEnabled={emailEnabled}
             kinds={NOTIFICATION_KINDS}
+            recipientsByKind={recipientsByKind}
             orgName={orgName}
             platformFrom={bareAddress(platformFrom)}
             sendingDomain={sendingDomain}
