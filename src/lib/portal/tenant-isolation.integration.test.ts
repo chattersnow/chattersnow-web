@@ -1011,7 +1011,6 @@ describe("security definer RPCs answer for the caller's tenant", () => {
         p_event_id: SEEDED_EVENT_IDS.past,
         p_person_id: b.personId,
         p_support_type: "cash",
-        p_in_kind_description: null,
         p_contribution_value: 10,
         p_is_public: false,
         p_notes: null,
