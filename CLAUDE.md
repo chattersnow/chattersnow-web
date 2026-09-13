@@ -20,6 +20,7 @@ bun run lint        # eslint (flat config, eslint-config-next core-web-vitals + 
 bun run typecheck   # next typegen && tsc --noEmit
 bun run test        # unit tests (bun test), excludes e2e/** and *.integration.test.ts
 bun run test:integration  # integration tests against local Supabase (run `bun run db:start && bun run db:reset` first)
+bun run db:reset    # migrate + seed: leaves exactly one tenant, `example-nonprofit` on the `internal` plan, holding all the sample data (docs/tenants.md, "Local development: one tenant")
 bun run test:e2e    # Playwright e2e tests
 bun run test:a11y   # axe-core scan: every route in src/app, x {light,dark} x {desktop,mobile} x roles, plus transient UI (report: e2e/a11y-report.json)
 bun run test:a11y:check   # same scan, fails on violations not in e2e/a11y-baseline.json (what CI runs)
