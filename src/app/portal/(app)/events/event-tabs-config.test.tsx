@@ -1,6 +1,6 @@
 // Which cards the event detail page offers, and to whom (#903).
 //
-// The phase strip used to be a module-level constant holding all seventeen
+// The card catalog used to be a module-level constant holding all seventeen
 // cards, and four of them read another section's tables: Expenses and Revenue
 // on `event_expenses` / `event_revenue`, Donations on `finance`, Distributions
 // on `inventory`. Their server actions always refused a reader without that
@@ -34,6 +34,12 @@ function without(...resources: string[]): PermissionMap {
 function cards(permissions: PermissionMap): TabValue[] {
   return eventPhases(permissions).flatMap((phase) =>
     phase.tabs.map((tab) => tab.value),
+  );
+}
+
+function titles(permissions: PermissionMap): string[] {
+  return eventPhases(permissions).flatMap((phase) =>
+    phase.tabs.map((tab) => tab.label),
   );
 }
 
@@ -92,15 +98,22 @@ describe("eventPhases", () => {
     ]);
   });
 
-  test("a phase only fetches the shared reads its surviving cards ask for", () => {
-    // sharedData is unioned as the cards are collected, so a card that is
-    // filtered out must not leave its read behind for the provider to run.
-    const full = eventPhases(FULL_ACCESS);
-    const reduced = eventPhases(without("finance", "event_expenses"));
-    for (const phase of reduced) {
-      const same = full.find((candidate) => candidate.key === phase.key)!;
-      for (const resource of phase.sharedData) {
-        expect(same.sharedData).toContain(resource);
+  test("carries each card's display title, not its bare catalog label", () => {
+    // The rail row and the card heading it opens have to read the same, and
+    // two of them differ from the label: "Overview" is also the group heading
+    // above it, and "Planning" is the group as well as the card.
+    const shown = titles(FULL_ACCESS);
+    expect(shown).toContain("Event details");
+    expect(shown).toContain("Registration & planning");
+  });
+
+  test("every declared keyword is lowercase and non-empty", () => {
+    // The rail lowercases the query once and compares; a capitalised keyword
+    // would simply never match.
+    for (const entry of TAB_CONFIG) {
+      for (const keyword of entry.keywords ?? []) {
+        expect(keyword).toBe(keyword.toLowerCase());
+        expect(keyword.trim()).not.toBe("");
       }
     }
   });

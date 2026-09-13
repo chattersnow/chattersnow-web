@@ -1,11 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import type { EventRow } from "./event-badges";
 import {
-  TASK_KIND_PHASE,
   afterStatus,
   deriveEventPhaseTasks,
   duringStatus,
-  eventPhaseTaskLabels,
+  eventCardTaskLabels,
   planningStatus,
 } from "./phase-status";
 
@@ -224,42 +223,42 @@ describe("deriveEventPhaseTasks", () => {
     );
   });
 
-  test("every task kind maps to a phase", () => {
-    const kinds = deriveEventPhaseTasks(
+  test("every task names the card it is done on", () => {
+    const tasks = deriveEventPhaseTasks(
       started,
       { hasImpactNote: false },
       now,
       {
         includeImpact: true,
       },
-    ).map((task) => task.kind);
-    for (const kind of kinds) {
-      expect(TASK_KIND_PHASE[kind]).toBeDefined();
+    );
+    for (const task of tasks) {
+      expect(task.tab).toBeTruthy();
     }
   });
 });
 
-describe("eventPhaseTaskLabels", () => {
+describe("eventCardTaskLabels", () => {
   const now = new Date("2026-09-01T12:00:00Z");
   const started = { ...baseEvent, starts_at: "2026-08-30T12:00:00Z" };
 
-  test("groups each task under the phase whose cards it belongs to", () => {
-    const labels = eventPhaseTaskLabels(
+  test("files each task under the card it is done on", () => {
+    const labels = eventCardTaskLabels(
       started,
       { hasImpactNote: false, openChecklistTitles: [] },
       now,
     );
 
-    expect(labels.during).toEqual(["Attendance not logged"]);
-    expect(labels.after).toEqual([
-      "After-report not started",
-      "Impact not recorded",
-    ]);
-    expect(labels.planning).toEqual([]);
+    // Keyed by card since #1008: the rail hangs the badge off Attendance and
+    // Report themselves, rather than off a phase holding six cards.
+    expect(labels.attendance).toEqual(["Attendance not logged"]);
+    expect(labels.report).toEqual(["After-report not started"]);
+    expect(labels.impact).toEqual(["Impact not recorded"]);
+    expect(labels.planning).toBeUndefined();
   });
 
-  test("open checklist items land in the basic phase, which had no badge before", () => {
-    const labels = eventPhaseTaskLabels(
+  test("open checklist items land on the checklist card", () => {
+    const labels = eventCardTaskLabels(
       started,
       {
         hasImpactNote: true,
@@ -268,6 +267,10 @@ describe("eventPhaseTaskLabels", () => {
       now,
     );
 
-    expect(labels.basic).toEqual(["Send thank-you emails", "Return the van"]);
+    expect(labels.checklist).toEqual([
+      "Send thank-you emails",
+      "Return the van",
+    ]);
+    expect(labels.impact).toBeUndefined();
   });
 });

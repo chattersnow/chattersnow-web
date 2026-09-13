@@ -19,11 +19,14 @@ import { usePathname, useSearchParams } from "next/navigation";
  * still observes the change, so the value stays the single source of truth.
  * pushState (not replaceState) is what gives Back its expected meaning here.
  *
- * The setter takes optional companion params, written in the same pushState.
- * That is for a second level of tabs (#958 nests a card strip inside event
- * detail's phases): changing the outer tab has to reset the inner one, and two
- * setter calls in a row would not do it -- both read the same render's
- * `searchParams`, so the second write would drop the first.
+ * The setter takes optional companion params, written in the same pushState --
+ * two setter calls in a row would not do it, since both read the same render's
+ * `searchParams` and the second write would drop the first. A companion of
+ * `null` removes that param instead of setting it, which is how event detail
+ * sheds the `?phase=` and `?card=` of #958 the first time a reader picks a
+ * section from the rail (#1008): an old bookmark still opens the right card,
+ * and the URL it leaves behind names only the parameter that still means
+ * something.
  */
 export function useUrlTabState<T extends string>({
   param = "tab",
@@ -34,7 +37,7 @@ export function useUrlTabState<T extends string>({
   fallback: T;
   /** Guards against a hand-edited or stale value in the URL. */
   isValid: (value: string) => value is T;
-}): [T, (next: T, companions?: Record<string, string>) => void] {
+}): [T, (next: T, companions?: Record<string, string | null>) => void] {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -42,11 +45,12 @@ export function useUrlTabState<T extends string>({
   const value = raw !== null && isValid(raw) ? raw : fallback;
 
   const setValue = useCallback(
-    (next: T, companions?: Record<string, string>) => {
+    (next: T, companions?: Record<string, string | null>) => {
       const params = new URLSearchParams(searchParams.toString());
       params.set(param, next);
       for (const [key, companion] of Object.entries(companions ?? {})) {
-        params.set(key, companion);
+        if (companion === null) params.delete(key);
+        else params.set(key, companion);
       }
       const query = params.toString();
       window.history.pushState(

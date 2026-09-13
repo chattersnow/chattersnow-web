@@ -9,8 +9,8 @@ import {
 import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Card, CardContent } from "@/components/ui/card";
 import type { EventRow } from "../event-badges";
-import { eventPhases, isTabValue } from "../event-tabs-config";
-import { eventPhaseTaskLabels } from "../phase-status";
+import { eventPhases, isTabValue, type TabValue } from "../event-tabs-config";
+import { eventCardTaskLabels, isPhaseKey } from "../phase-status";
 import { listProgramsAction } from "../../programs/actions";
 import { EventDetailView } from "./event-detail-view";
 
@@ -47,9 +47,9 @@ export default async function EventDetailPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { eventId } = await params;
-  const { tab } = await searchParams;
-  const tabParam = Array.isArray(tab) ? tab[0] : tab;
-  const initialTab = isTabValue(tabParam) ? tabParam : undefined;
+  const query = await searchParams;
+  const one = (value: string | string[] | undefined) =>
+    Array.isArray(value) ? value[0] : value;
 
   const supabase = await createSupabaseServerClient();
   const permissions = await getCurrentUserPermissions(supabase);
@@ -58,6 +58,28 @@ export default async function EventDetailPage({
   // reader has no access to -- or whose module this tenant was never sold
   // (#903) -- is absent from the payload rather than hidden in it.
   const phases = eventPhases(permissions);
+
+  // Which section the rail opens on, resolved here so a card this reader has
+  // no access to is never the answer. `?tab=` is the parameter the rail keeps
+  // and every deep link already writes; `?card=` and `?phase=` are #958's two
+  // tab levels, read so a bookmark from before the rail still lands where it
+  // meant to (#1008).
+  const visible = phases.flatMap((phase) => phase.tabs);
+  const named = (value: string | undefined): TabValue | undefined => {
+    if (!value || !isTabValue(value)) return undefined;
+    return visible.some((section) => section.value === value)
+      ? value
+      : undefined;
+  };
+  const legacyPhase = one(query.phase);
+  const initialCard: TabValue =
+    named(one(query.tab)) ??
+    named(one(query.card)) ??
+    (legacyPhase && isPhaseKey(legacyPhase)
+      ? phases.find((phase) => phase.key === legacyPhase)?.tabs[0]?.value
+      : undefined) ??
+    visible[0]?.value ??
+    "overview";
 
   const { data: eventRow, error } = await supabase
     .from("events")
@@ -113,7 +135,7 @@ export default async function EventDetailPage({
   ]);
 
   const programs = "data" in programsResult ? programsResult.data : [];
-  const phaseTasks = eventPhaseTaskLabels(event, {
+  const cardTasks = eventCardTaskLabels(event, {
     hasImpactNote: Boolean(impactNote),
     openChecklistTitles: (openChecklistItems ?? []).map((row) => row.title),
   });
@@ -128,8 +150,8 @@ export default async function EventDetailPage({
         canManage={canManage}
         deleteBlockers={deleteBlockers ?? []}
         phases={phases}
-        initialTab={initialTab}
-        phaseTasks={phaseTasks}
+        initialCard={initialCard}
+        cardTasks={cardTasks}
       />
     </>
   );

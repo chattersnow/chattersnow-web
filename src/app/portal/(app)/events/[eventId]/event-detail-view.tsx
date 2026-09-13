@@ -11,21 +11,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
 import type { Program } from "../../programs/actions";
 import type { EventRow } from "../event-badges";
-import {
-  PhaseOutstandingBadge,
-  StatusBadge,
-  VisibilityBadge,
-} from "../event-badges";
-import { isPhaseKey, type PhaseKey } from "../phase-status";
+import { StatusBadge, VisibilityBadge } from "../event-badges";
 import {
   FORM_ID_PREFIX,
   LOCKED_ON_REPORT_SUBMIT_TABS,
   TAB_CONFIG,
-  phaseForTab,
+  cardTitle,
   type EventPhase,
   type TabConfigEntry,
   type TabRenderContext,
@@ -33,9 +27,13 @@ import {
 } from "../event-tabs-config";
 import { useFormTabState, type FormTabCallbacks } from "../use-form-tab-state";
 import { TabRefreshProvider, useTabRefresh } from "@/hooks/use-tab-refresh";
-import { EventPhaseDataProvider, useEventPhaseData } from "../event-phase-data";
+import {
+  EventSharedDataProvider,
+  useEventSharedData,
+} from "../event-shared-data";
 import { useUrlTabState } from "@/components/portal/use-url-tab-state";
 import { DeleteEventButton } from "./delete-event-button";
+import { EventSectionRail } from "./event-section-rail";
 
 const NOOP_CALLBACKS: FormTabCallbacks = {
   onPendingChange: () => {},
@@ -53,11 +51,6 @@ const SELF_MANAGED_EDIT_TABS: ReadonlySet<TabValue> = new Set([
   "attendance",
   "giveaway",
 ]);
-
-const CARD_TITLES: Partial<Record<TabValue, string>> = {
-  overview: "Event details",
-  planning: "Registration & planning",
-};
 
 function entryFor(tab: TabValue): TabConfigEntry {
   return TAB_CONFIG.find((entry) => entry.value === tab)!;
@@ -80,12 +73,13 @@ function EditableTabCard({
   programs: Program[];
   canManage: boolean;
 }) {
+  const { notify } = useTabRefresh<TabValue>();
   const [mode, setMode] = useState<"view" | "edit">("view");
   const formTabs = useMemo(() => [entry.value], [entry.value]);
   const formTabState = useFormTabState(formTabs);
   const pending = formTabState.pending[entry.value] ?? false;
 
-  const shared = useEventPhaseData();
+  const shared = useEventSharedData();
 
   const formId = `${FORM_ID_PREFIX}-${entry.value}-${event.id}`;
   const ctx: TabRenderContext = {
@@ -94,7 +88,13 @@ function EditableTabCard({
     mode,
     shared,
     formId: (tabValue) => `${FORM_ID_PREFIX}-${tabValue}-${event.id}`,
-    onSaved: () => setMode("view"),
+    onSaved: () => {
+      setMode("view");
+      // Same channel a plain card's toolbar uses: the shared reads another
+      // card depends on are the provider's to invalidate, not this card's to
+      // know about.
+      notify(entry.value);
+    },
     formCallbacks: { ...NOOP_FORM_CALLBACKS, ...formTabState.callbacks },
   };
 
@@ -203,7 +203,7 @@ function PlainTabCard({
   programs: Program[];
   canManage: boolean;
 }) {
-  const shared = useEventPhaseData();
+  const shared = useEventSharedData();
 
   const ctx: TabRenderContext = {
     event,
@@ -234,15 +234,16 @@ export function EventDetailView(props: {
   canManage: boolean;
   deleteBlockers: string[];
   /**
-   * The phases and cards this reader gets, resolved from the permission map on
-   * the server (#903) rather than from the module-level constant this file
-   * used to import: the map is the server's to read, and the Finance and
+   * The rail's groups and cards for this reader, resolved from the permission
+   * map on the server (#903) rather than from the module-level constant this
+   * file used to import: the map is the server's to read, and the Finance and
    * Inventory cards have to be gone before the markup reaches the browser, not
    * hidden in it.
    */
   phases: EventPhase[];
-  initialTab?: TabValue;
-  phaseTasks?: Record<PhaseKey, string[]>;
+  /** The card to open, already resolved against `phases` on the server. */
+  initialCard: TabValue;
+  cardTasks?: Partial<Record<TabValue, string[]>>;
 }) {
   return (
     <TabRefreshProvider>
@@ -257,60 +258,41 @@ function EventDetailContent({
   canManage,
   deleteBlockers,
   phases,
-  initialTab,
-  phaseTasks,
+  initialCard,
+  cardTasks,
 }: {
   event: EventRow;
   programs: Program[];
   canManage: boolean;
   deleteBlockers: string[];
   phases: EventPhase[];
-  initialTab?: TabValue;
-  phaseTasks?: Record<PhaseKey, string[]>;
+  initialCard: TabValue;
+  cardTasks?: Partial<Record<TabValue, string[]>>;
 }) {
-  // ?tab= stays the deep-link entry point (the notification bell and the
-  // outstanding-tasks sheet both link with it), but the phase is what the
-  // page actually shows, so that's what round-trips through the URL.
+  // One parameter, and it is the one every deep link in the app already writes
+  // -- the notification bell, the outstanding-tasks sheet, attention-items and
+  // the ops report all link with `?tab=<card>`. #958 needed three (`?phase=`
+  // and `?card=` for the two tab levels, `?tab=` to enter by); with the rail
+  // there is one thing selected, so there is one thing in the URL. The old
+  // pair is still read on the way in -- `page.tsx` resolves `initialCard` from
+  // whichever of the three a bookmark carries -- and dropped on the way out.
   //
-  // Both the URL value and the fallback are checked against `phases` rather
-  // than against the full PhaseKey union, since #903 dropped a phase with no
-  // cards left for this reader. Nothing in the catalog makes that possible
-  // today -- every phase holds at least one ungated events card -- but a
-  // ?phase= or a ?tab= deep link that selected a phase the strip no longer
-  // offers would render an empty page rather than a wrong one.
-  const preferred = initialTab ? phaseForTab(initialTab) : "basic";
-  const available = (value: string): value is PhaseKey =>
-    isPhaseKey(value) && phases.some((phase) => phase.key === value);
-  const [phaseKey, setPhaseKey] = useUrlTabState<PhaseKey>({
-    param: "phase",
-    fallback: available(preferred) ? preferred : (phases[0]?.key ?? "basic"),
-    isValid: available,
+  // Validated against `phases` rather than the whole catalog: since #903 a
+  // reader without Finance has no Expenses card, and a deep link to one has to
+  // fall back rather than render an empty card.
+  const sections = phases.flatMap((phase) => phase.tabs);
+  const visible = (value: string): value is TabValue =>
+    sections.some((section) => section.value === value);
+  const [card, setCard] = useUrlTabState<TabValue>({
+    param: "tab",
+    fallback: initialCard,
+    isValid: visible,
   });
 
-  // The card within the phase (#958). Resolved against the phase actually on
-  // screen, not the whole catalog: `?card=` is one parameter shared by four
-  // phases, so a value belonging to another phase has to read as absent
-  // rather than as a card this phase cannot show. Same order as the phase
-  // above it -- permissions first, then the URL -- since `phase.tabs` has
-  // already had this reader's ungated cards removed (#903).
-  const cardsHere = phases.find((phase) => phase.key === phaseKey)?.tabs ?? [];
-  const inThisPhase = (value: string): value is TabValue =>
-    cardsHere.some((tab) => tab.value === value);
-  const [cardValue, setCardValue] = useUrlTabState<TabValue>({
-    param: "card",
-    // `?tab=` remains the deep-link entry point -- the notification bell and
-    // the outstanding-tasks sheet both use it -- and it names a card, so it
-    // picks the card as well as the phase it opened.
-    fallback:
-      initialTab && inThisPhase(initialTab)
-        ? initialTab
-        : (cardsHere[0]?.value ?? "overview"),
-    isValid: inThisPhase,
-  });
-
-  /** The card a phase opens on when the reader arrives from the phase strip. */
-  const firstCardOf = (key: PhaseKey): TabValue =>
-    phases.find((phase) => phase.key === key)?.tabs[0]?.value ?? "overview";
+  const entry = entryFor(card);
+  const title = cardTitle(card, entry.label);
+  const editToggle = entry.kind === "form" || SELF_MANAGED_EDIT_TABS.has(card);
+  const TabCard = editToggle ? EditableTabCard : PlainTabCard;
 
   return (
     <>
@@ -336,97 +318,39 @@ function EventDetailContent({
         )}
       </div>
 
-      <Tabs
-        value={phaseKey}
-        onValueChange={(value) =>
-          // The card too, in the same write: `?card=` is shared by every
-          // phase, so moving to After while it still said `registrants` would
-          // leave the URL naming a card that phase does not have. Two setter
-          // calls could not do it -- see useUrlTabState.
-          setPhaseKey(value as PhaseKey, {
-            card: firstCardOf(value as PhaseKey),
-          })
-        }
-        className="mt-6"
-      >
-        <div className="rainbow-surface rounded-xl border border-[var(--line)] p-4 shadow-md">
-          {/* Named because the card strip below is a second tablist on the
-              same page, and "Overview" is a phase and a card. */}
-          <TabsList
-            variant="line"
-            aria-label="Event phases"
-            className="flex-wrap"
-          >
-            {phases.map((phase) => (
-              <TabsTrigger key={phase.key} value={phase.key}>
-                {phase.key === "basic" ? "Overview" : phase.label}
-                <PhaseOutstandingBadge tasks={phaseTasks?.[phase.key] ?? []} />
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </div>
+      <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
+        <EventSectionRail
+          phases={phases}
+          current={card}
+          currentTitle={title}
+          cardTasks={cardTasks}
+          // `phase` and `card` are #958's parameters. A bookmark carrying them
+          // still opens the right section, and the first thing the reader does
+          // here clears them, so the URL they go on to share names only `tab`.
+          onSelect={(next) => setCard(next, { phase: null, card: null })}
+        />
 
-        {phases.map((phase) => (
-          <TabsContent key={phase.key} value={phase.key} className="mt-4">
-            {/* Base UI unmounts the phases you aren't looking at, so exactly
-                one provider is live and each shared read runs once per phase
-                rather than once per card. */}
-            <EventPhaseDataProvider
-              eventId={event.id}
-              resources={phase.sharedData}
-            >
-              {/* The second level (#958). Each phase used to render all of
-                  its cards as one stacked column -- six of them on During and
-                  After, several holding their own table and toolbar, so the
-                  phase tabs solved the tab count and pushed the crowding down
-                  a level rather than resolving it. Cards are for parts of one
-                  view, and six independent tables are not one view.
-
-                  Pills under the phase strip's underline, so the two levels
-                  do not read as one repeated control. */}
-              <Tabs
-                value={cardValue}
-                onValueChange={(value) => setCardValue(value as TabValue)}
-              >
-                <TabsList
-                  variant="default"
-                  aria-label={`${phase.label} cards`}
-                  className="h-auto flex-wrap"
-                >
-                  {phase.tabs.map((t) => (
-                    <TabsTrigger key={t.value} value={t.value}>
-                      {/* The card's own title, not the catalog label: the
-                          basic phase is called Overview in the strip above,
-                          and a card of the same name under it would be two
-                          controls reading as one. */}
-                      {CARD_TITLES[t.value] ?? t.label}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-
-                {phase.tabs.map((t) => {
-                  const entry = entryFor(t.value);
-                  const editToggle =
-                    entry.kind === "form" ||
-                    SELF_MANAGED_EDIT_TABS.has(t.value);
-                  const TabCard = editToggle ? EditableTabCard : PlainTabCard;
-                  return (
-                    <TabsContent key={t.value} value={t.value} className="mt-4">
-                      <TabCard
-                        entry={entry}
-                        title={CARD_TITLES[t.value] ?? t.label}
-                        event={event}
-                        programs={programs}
-                        canManage={canManage}
-                      />
-                    </TabsContent>
-                  );
-                })}
-              </Tabs>
-            </EventPhaseDataProvider>
-          </TabsContent>
-        ))}
-      </Tabs>
+        {/* One provider above the single card on screen, rather than the one
+            per phase #958 relied on Base UI to unmount. It takes this card's
+            reads and keeps every read it has been asked for -- see
+            EventSharedDataProvider. */}
+        <EventSharedDataProvider
+          eventId={event.id}
+          resources={entry.sharedData ?? []}
+        >
+          <TabCard
+            // Two plain cards in a row would otherwise reuse one instance and
+            // carry the previous card's edit mode and scroll state into the
+            // next one.
+            key={card}
+            entry={entry}
+            title={title}
+            event={event}
+            programs={programs}
+            canManage={canManage}
+          />
+        </EventSharedDataProvider>
+      </div>
     </>
   );
 }

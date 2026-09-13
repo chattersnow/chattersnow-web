@@ -10,7 +10,7 @@ import type { Program } from "../programs/actions";
 import type { EventRow } from "./event-badges";
 import type { PhaseKey } from "./phase-status";
 import type { FormTabCallbacks } from "./use-form-tab-state";
-import type { EventPhaseData, SharedEventResource } from "./event-phase-data";
+import type { EventSharedData, SharedEventResource } from "./event-shared-data";
 import { OverviewTab } from "./overview-tab";
 import { PlanningTab } from "./planning-tab";
 import { LogisticsTab } from "./logistics-tab";
@@ -74,7 +74,7 @@ export type TabRenderContext = {
   programs: Program[];
   mode: Mode;
   /** Reads the phase fetches once and shares them across its cards. */
-  shared: EventPhaseData;
+  shared: EventSharedData;
   formId: (tabValue: TabValue) => string;
   onSaved: () => void;
   formCallbacks: Record<TabValue, FormTabCallbacks>;
@@ -110,8 +110,18 @@ export type TabConfigEntry = {
    * same reason: the actions behind these cards use checkAnyPermission.
    */
   access?: readonly PermissionCheck[];
-  /** Reads this card takes from the phase provider rather than fetching. */
+  /** Reads this card takes from the shared provider rather than fetching. */
   sharedData?: readonly SharedEventResource[];
+  /**
+   * Extra words the rail's search matches, for cards whose title is not what a
+   * coordinator would type (#1008). "Budget" is on Registration & planning,
+   * "raffle" is Giveaway, "venue" is Logistics -- and before the rail, finding
+   * any of them meant already knowing which of four phases held the card.
+   *
+   * Lowercase, and only worth adding where the title does not already contain
+   * the word.
+   */
+  keywords?: readonly string[];
   render: (ctx: TabRenderContext) => ReactNode;
   /**
    * Create actions for this card, rendered in its own `CardHeader`. Only
@@ -153,6 +163,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
   {
     value: "planning",
     label: "Planning",
+    keywords: ["budget", "capacity", "lead", "registration", "deadline"],
     phase: "planning",
     kind: "form",
     sharedData: ["people"],
@@ -173,6 +184,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
   {
     value: "logistics",
     label: "Logistics",
+    keywords: ["venue", "setup", "parking", "equipment", "load-in"],
     phase: "planning",
     kind: "form",
     render: (ctx) => (
@@ -232,6 +244,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
   {
     value: "attendance",
     label: "Attendance",
+    keywords: ["headcount", "turnout", "check-in"],
     phase: "during",
     kind: "plain",
     sharedData: ["impactDerived"],
@@ -247,6 +260,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
   {
     value: "registrants",
     label: "Registrants",
+    keywords: ["tickets", "rsvp", "sign-ups", "check-in"],
     phase: "during",
     kind: "plain",
     sharedData: ["registrants", "impactDerived"],
@@ -287,6 +301,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
   {
     value: "distributions",
     label: "Distributions",
+    keywords: ["inventory", "supplies", "handed out"],
     phase: "during",
     kind: "plain",
     access: [
@@ -317,6 +332,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
   {
     value: "giveaway",
     label: "Giveaway",
+    keywords: ["raffle", "prizes", "tiers", "winners"],
     phase: "during",
     kind: "plain",
     sharedData: ["people"],
@@ -333,6 +349,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
   {
     value: "report",
     label: "Report",
+    keywords: ["debrief", "lessons learned", "feedback"],
     phase: "after",
     kind: "form",
     render: (ctx) => (
@@ -442,6 +459,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
   {
     value: "impact",
     label: "Impact",
+    keywords: ["outcomes", "metrics", "stories"],
     phase: "after",
     kind: "form",
     sharedData: ["impactDerived"],
@@ -480,56 +498,82 @@ export const LOCKED_ON_REPORT_SUBMIT_TABS: ReadonlySet<TabValue> = new Set([
   "report",
 ]);
 
+/**
+ * The rail's group headings (#1008). `basic` is called Overview because that is
+ * what the group holds; it was "Basic" only to avoid colliding with the
+ * Overview card back when the phase was a tab of its own.
+ */
 const PHASE_LABELS: Record<PhaseKey, string> = {
-  basic: "Basic",
+  basic: "Overview",
   planning: "Planning",
   during: "During",
   after: "After",
 };
 
+/**
+ * Card titles that differ from the catalog label, so the rail row and the card
+ * heading it opens always read the same. Both are ambiguous on their own:
+ * "Overview" is also the group heading above it, and "Planning" is the group
+ * as well as the card that carries registration settings.
+ */
+export const CARD_TITLES: Partial<Record<TabValue, string>> = {
+  overview: "Event details",
+  planning: "Registration & planning",
+};
+
+export function cardTitle(value: TabValue, label: string): string {
+  return CARD_TITLES[value] ?? label;
+}
+
+export type EventSection = {
+  value: TabValue;
+  /** The display title -- `CARD_TITLES` already applied. */
+  label: string;
+  /** Extra words the rail's search matches. */
+  keywords: string[];
+};
+
 export type EventPhase = {
   key: PhaseKey;
   label: string;
-  tabs: { value: TabValue; label: string }[];
-  /** Union of what this phase's cards read, fetched once when it opens. */
-  sharedData: SharedEventResource[];
+  tabs: EventSection[];
 };
 
 /**
- * The phase strip and its cards, for one reader.
+ * The rail's groups and their cards, for one reader.
  *
  * A function of the permission map rather than a module constant since #903:
  * a card whose `access` this reader does not hold is not rendered, so the
  * Expenses and Revenue cards disappear along with the Finance module instead
- * of standing there empty above a button that cannot save. A phase left with
- * no cards drops out of the strip entirely -- nothing in the catalog makes
- * that possible today, every phase holding at least one ungated events card,
- * but a strip with an empty tab in it would be worse than one tab shorter.
+ * of standing there empty above a button that cannot save. A group left with
+ * no cards drops out entirely -- nothing in the catalog makes that possible
+ * today, every group holding at least one ungated events card, but a heading
+ * with nothing under it would be worse than one heading fewer.
+ *
+ * Still keyed by phase after #1008 replaced the phase tabs with the rail: the
+ * lifecycle is a real thing to group by, it just is not a thing to make the
+ * reader select before they can see the card they want.
  */
 export function eventPhases(permissions: PermissionMap): EventPhase[] {
   const order: PhaseKey[] = [];
-  const tabsByPhase = new Map<PhaseKey, { value: TabValue; label: string }[]>();
-  const sharedByPhase = new Map<PhaseKey, Set<SharedEventResource>>();
+  const tabsByPhase = new Map<PhaseKey, EventSection[]>();
   for (const entry of TAB_CONFIG) {
     if (!tabsByPhase.has(entry.phase)) {
       order.push(entry.phase);
       tabsByPhase.set(entry.phase, []);
-      sharedByPhase.set(entry.phase, new Set());
     }
     if (entry.access && !hasAnyPermission(permissions, entry.access)) continue;
-    tabsByPhase
-      .get(entry.phase)!
-      .push({ value: entry.value, label: entry.label });
-    for (const resource of entry.sharedData ?? []) {
-      sharedByPhase.get(entry.phase)!.add(resource);
-    }
+    tabsByPhase.get(entry.phase)!.push({
+      value: entry.value,
+      label: cardTitle(entry.value, entry.label),
+      keywords: [...(entry.keywords ?? [])],
+    });
   }
   return order
     .map((key) => ({
       key,
       label: PHASE_LABELS[key],
       tabs: tabsByPhase.get(key)!,
-      sharedData: [...sharedByPhase.get(key)!],
     }))
     .filter((phase) => phase.tabs.length > 0);
 }
