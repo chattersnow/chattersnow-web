@@ -55,7 +55,7 @@ import { PeopleSegmentNav } from "./people-segment-nav";
  * ambiguous (see 20260903030000).
  */
 const PERSON_COLUMNS =
-  "id, name, preferred_name, email, notification_email, phone, pronouns, instagram_handle, notes, logo_url, website, auth_user_id, is_donor, is_sponsor, is_volunteer, is_attendee, is_staff, is_partner, person_type, riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain, primary_contact_person_id, primary_contact(id, name, email, phone)";
+  "id, name, preferred_name, email, notification_email, notification_email_pending, phone, pronouns, instagram_handle, notes, logo_url, website, auth_user_id, is_donor, is_sponsor, is_volunteer, is_attendee, is_staff, is_partner, person_type, riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain, primary_contact_person_id, primary_contact(id, name, email, phone)";
 
 /**
  * The shared body behind /portal/people and its role segments. Donors,

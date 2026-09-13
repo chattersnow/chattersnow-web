@@ -281,7 +281,16 @@ export function resolveMailIdentity(input: MailIdentityInput): MailIdentity {
 }
 
 /** Everything one tenant's mail needs that the database has to answer. */
-export type TenantMailContext = { identity: MailIdentity; origin: string };
+export type TenantMailContext = {
+  identity: MailIdentity;
+  origin: string;
+  /**
+   * The tenant's own name, for a message that has to say who is asking rather
+   * than only appear to come from them (#1049). Falls back to the platform's
+   * wording when the tenant read failed, for the same reason `origin` does.
+   */
+  displayName: string;
+};
 
 /**
  * The identity and the origin for one named tenant, off a single read.
@@ -366,5 +375,6 @@ export async function tenantMailContext(
     // above, and for the same reason: a digest with a slightly wrong link is
     // recoverable, a digest that was never sent is not.
     origin: resolveTenantOrigin(tenantCustomDomain, options.fallbackOrigin),
+    displayName: ((tenant.data?.name as string) ?? "").trim() || "the portal",
   };
 }

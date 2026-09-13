@@ -12,11 +12,14 @@ import {
   anonClient,
   signInAs,
 } from "../../../../../test/integration-setup";
+import { mintConfirmationToken } from "@/lib/notifications/notification-email-token";
 
 async function personFor(email: string) {
   const { data } = await adminClient
     .from("people")
-    .select("id, name, preferred_name, notification_email, auth_user_id")
+    .select(
+      "id, name, preferred_name, notification_email, notification_email_pending, auth_user_id",
+    )
     .eq("email", email)
     .not("auth_user_id", "is", null)
     .maybeSingle();
@@ -45,7 +48,11 @@ afterEach(async () => {
     }
     await adminClient
       .from("people")
-      .update({ preferred_name: null, notification_email: null })
+      .update({
+        preferred_name: null,
+        notification_email: null,
+        notification_email_pending: null,
+      })
       .eq("email", email);
   }
 });
@@ -135,37 +142,66 @@ describe("set_preferred_name_for_user (integration)", () => {
   });
 });
 
-// #1042. The same security-definer reasoning as set_my_preferred_name above,
-// for the field that decides where a person's mail actually lands: a volunteer
-// holds people:none, and where their own email arrives cannot be an
-// administrator's decision to make for them.
+// #1042, behind a confirmation since #1049. Two properties are worth proving
+// against a real database rather than a mock, and this is the only place that
+// can: a volunteer holding people:none can still redirect their own mail (the
+// security-definer half, as with set_my_preferred_name above), and an address
+// nobody has proved they hold never reaches `notification_email` -- which is
+// the only column any sender reads.
 describe("set_my_notification_email (integration)", () => {
-  test("a volunteer (people:none) can redirect their own mail", async () => {
+  test("a volunteer (people:none) can ask, and nothing is delivered yet", async () => {
     const supabase = await signInAs(SEEDED_USERS.volunteer);
     touchedEmails.push(SEEDED_USERS.volunteer);
 
-    const { error } = await supabase.rpc("set_my_notification_email", {
+    const { data, error } = await supabase.rpc("set_my_notification_email", {
       p_email: "ops@chattersnow.test",
+      p_token_hash: mintConfirmationToken().hash,
     });
     expect(error).toBeNull();
+    expect(data?.[0]?.outcome).toBe("pending");
 
     const person = await personFor(SEEDED_USERS.volunteer);
-    expect(person?.notification_email).toBe("ops@chattersnow.test");
-    // The identity column is untouched, which is what keeps sign-in working.
+    expect(person?.notification_email_pending).toBe("ops@chattersnow.test");
+    // The whole point: delivery is coalesce(notification_email, email), and
+    // the request has not touched either.
+    expect(person?.notification_email).toBeNull();
+    // The identity column is untouched too, which is what keeps sign-in working.
     expect(person?.auth_user_id).not.toBeNull();
   });
 
-  test("an empty value clears the override rather than storing a blank", async () => {
+  test("an empty value clears both, with nothing to confirm", async () => {
     const supabase = await signInAs(SEEDED_USERS.board);
     touchedEmails.push(SEEDED_USERS.board);
 
     await supabase.rpc("set_my_notification_email", {
       p_email: "ops@chattersnow.test",
+      p_token_hash: mintConfirmationToken().hash,
     });
-    await supabase.rpc("set_my_notification_email", { p_email: "   " });
+    const { data } = await supabase.rpc("set_my_notification_email", {
+      p_email: "   ",
+      p_token_hash: null,
+    });
 
+    expect(data?.[0]?.outcome).toBe("cleared");
+    const person = await personFor(SEEDED_USERS.board);
+    expect(person?.notification_email).toBeNull();
+    expect(person?.notification_email_pending).toBeNull();
+  });
+
+  test("naming the sign-in address clears rather than asks", async () => {
+    // OAuth has already proved that one, so a confirmation email would teach
+    // nobody anything.
+    const supabase = await signInAs(SEEDED_USERS.board);
+    touchedEmails.push(SEEDED_USERS.board);
+
+    const { data } = await supabase.rpc("set_my_notification_email", {
+      p_email: SEEDED_USERS.board.toUpperCase(),
+      p_token_hash: mintConfirmationToken().hash,
+    });
+
+    expect(data?.[0]?.outcome).toBe("cleared");
     expect(
-      (await personFor(SEEDED_USERS.board))?.notification_email,
+      (await personFor(SEEDED_USERS.board))?.notification_email_pending,
     ).toBeNull();
   });
 
@@ -175,35 +211,127 @@ describe("set_my_notification_email (integration)", () => {
 
     const { error } = await supabase.rpc("set_my_notification_email", {
       p_email: "not an address",
+      p_token_hash: mintConfirmationToken().hash,
     });
     expect(error).not.toBeNull();
     expect(
-      (await personFor(SEEDED_USERS.board))?.notification_email,
+      (await personFor(SEEDED_USERS.board))?.notification_email_pending,
     ).toBeNull();
   });
 
   test("an anonymous caller is rejected", async () => {
     const { error } = await anonClient().rpc("set_my_notification_email", {
       p_email: "ops@chattersnow.test",
+      p_token_hash: mintConfirmationToken().hash,
     });
     expect(error).not.toBeNull();
   });
 });
 
+describe("confirm_notification_email (integration)", () => {
+  async function request(email: string, as: string) {
+    const supabase = await signInAs(as);
+    const { token, hash } = mintConfirmationToken();
+    const { error } = await supabase.rpc("set_my_notification_email", {
+      p_email: email,
+      p_token_hash: hash,
+    });
+    if (error) throw error;
+    return { token, hash };
+  }
+
+  test("promotes the pending address and names where mail was going", async () => {
+    touchedEmails.push(SEEDED_USERS.board);
+    const { hash } = await request("ops@chattersnow.test", SEEDED_USERS.board);
+
+    // Anonymously on purpose: the link is followed from the mailbox being
+    // claimed, which is regularly not the browser the session lives in.
+    const { data, error } = await anonClient().rpc(
+      "confirm_notification_email",
+      { p_token_hash: hash, p_ip_address: null },
+    );
+    expect(error).toBeNull();
+    expect(data?.[0]?.confirmed_email).toBe("ops@chattersnow.test");
+    // Who has to be told, and the reason the notice exists at all.
+    expect(data?.[0]?.previous_email).toBe(SEEDED_USERS.board);
+
+    const person = await personFor(SEEDED_USERS.board);
+    expect(person?.notification_email).toBe("ops@chattersnow.test");
+    expect(person?.notification_email_pending).toBeNull();
+  });
+
+  test("a token works once", async () => {
+    touchedEmails.push(SEEDED_USERS.board);
+    const { hash } = await request("ops@chattersnow.test", SEEDED_USERS.board);
+
+    const anon = anonClient();
+    await anon.rpc("confirm_notification_email", {
+      p_token_hash: hash,
+      p_ip_address: null,
+    });
+    const { data } = await anon.rpc("confirm_notification_email", {
+      p_token_hash: hash,
+      p_ip_address: null,
+    });
+
+    expect(data ?? []).toHaveLength(0);
+  });
+
+  test("an expired token confirms nothing", async () => {
+    touchedEmails.push(SEEDED_USERS.board);
+    const { hash } = await request("ops@chattersnow.test", SEEDED_USERS.board);
+
+    const person = await personFor(SEEDED_USERS.board);
+    await adminClient
+      .from("people")
+      .update({
+        notification_email_token_expires_at: new Date(
+          Date.now() - 60_000,
+        ).toISOString(),
+      })
+      .eq("id", person?.id);
+
+    const { data } = await anonClient().rpc("confirm_notification_email", {
+      p_token_hash: hash,
+      p_ip_address: null,
+    });
+
+    expect(data ?? []).toHaveLength(0);
+    expect(
+      (await personFor(SEEDED_USERS.board))?.notification_email,
+    ).toBeNull();
+  });
+
+  test("an unknown token confirms nothing", async () => {
+    const { data } = await anonClient().rpc("confirm_notification_email", {
+      p_token_hash: mintConfirmationToken().hash,
+      p_ip_address: null,
+    });
+    expect(data ?? []).toHaveLength(0);
+  });
+});
+
 describe("set_notification_email_for_person (integration)", () => {
-  test("people:manage can set it for somebody else", async () => {
+  test("people:manage can ask on somebody's behalf, and no more", async () => {
     const supabase = await signInAs(SEEDED_USERS.admin);
     touchedEmails.push(SEEDED_USERS.finance);
 
     const target = await personFor(SEEDED_USERS.finance);
-    const { error } = await supabase.rpc("set_notification_email_for_person", {
-      p_person_id: target?.id,
-      p_email: "finance@chattersnow.test",
-    });
-    expect(error).toBeNull();
-    expect((await personFor(SEEDED_USERS.finance))?.notification_email).toBe(
-      "finance@chattersnow.test",
+    const { data, error } = await supabase.rpc(
+      "set_notification_email_for_person",
+      {
+        p_person_id: target?.id,
+        p_email: "finance@chattersnow.test",
+        p_token_hash: mintConfirmationToken().hash,
+      },
     );
+    expect(error).toBeNull();
+    expect(data?.[0]?.outcome).toBe("pending");
+
+    const person = await personFor(SEEDED_USERS.finance);
+    expect(person?.notification_email_pending).toBe("finance@chattersnow.test");
+    // An admin can ask; only the mailbox can answer.
+    expect(person?.notification_email).toBeNull();
   });
 
   test("somebody without people:manage cannot", async () => {
@@ -213,10 +341,11 @@ describe("set_notification_email_for_person (integration)", () => {
     const { error } = await supabase.rpc("set_notification_email_for_person", {
       p_person_id: target?.id,
       p_email: "attacker@example.test",
+      p_token_hash: mintConfirmationToken().hash,
     });
     expect(error).not.toBeNull();
     expect(
-      (await personFor(SEEDED_USERS.finance))?.notification_email,
+      (await personFor(SEEDED_USERS.finance))?.notification_email_pending,
     ).toBeNull();
   });
 });

@@ -54,6 +54,8 @@ export type PersonRow = {
   email: string | null;
   /** Where their portal mail goes instead of `email`, when set (#1042). */
   notification_email: string | null;
+  /** Asked for but not yet confirmed, so nothing is sent there yet (#1049). */
+  notification_email_pending: string | null;
   phone: string | null;
   pronouns: string | null;
   instagram_handle: string | null;

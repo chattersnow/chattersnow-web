@@ -131,7 +131,10 @@ export default async function AccountPage() {
             </div>
             <NotificationEmailForm
               notificationEmail={person?.notification_email ?? null}
+              pendingEmail={person?.notification_email_pending ?? null}
+              pendingExpiresAt={person?.notification_email_expires_at ?? null}
               signInEmail={user.email ?? ""}
+              orgEmailEnabled={orgEmailEnabled}
             />
             <NotificationPreferences
               kinds={kinds}
