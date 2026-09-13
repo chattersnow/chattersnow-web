@@ -26,6 +26,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { useEventDateDefaults } from "./event-date-defaults";
 
 const SEVERITIES = [
   { value: "minor", label: "Minor" },
@@ -49,9 +50,14 @@ export function LogIncidentDialog({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [occurredAt, setOccurredAt] = useState(() =>
-    toDatetimeLocalValue(new Date()),
-  );
+  // Incidents are usually written up after the fact, so the field opens on
+  // the event's own start rather than on the moment of typing. "Now" is only
+  // right for an incident logged as it happens, and that reader is editing
+  // the time either way.
+  const eventDates = useEventDateDefaults();
+  const defaultOccurredAt = () =>
+    eventDates.startsAt || toDatetimeLocalValue(new Date());
+  const [occurredAt, setOccurredAt] = useState(defaultOccurredAt);
   const [description, setDescription] = useState("");
   const [severity, setSeverity] = useState("minor");
   const [peopleInvolved, setPeopleInvolved] = useState("");
@@ -59,7 +65,7 @@ export function LogIncidentDialog({
   const [isPending, startTransition] = useTransition();
 
   function reset() {
-    setOccurredAt(toDatetimeLocalValue(new Date()));
+    setOccurredAt(defaultOccurredAt());
     setDescription("");
     setSeverity("minor");
     setPeopleInvolved("");

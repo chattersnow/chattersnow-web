@@ -38,6 +38,7 @@ import {
   useControlledOpen,
   type ControlledOpenProps,
 } from "@/components/portal/use-controlled-open";
+import { useEventDateDefaults } from "../events/event-date-defaults";
 
 function nowLocalValue() {
   const date = new Date();
@@ -70,7 +71,12 @@ export function RecordDistributionModal({
   const [inventoryItemId, setInventoryItemId] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [reason, setReason] = useState("");
-  const [occurredAt, setOccurredAt] = useState(nowLocalValue());
+  // Opened from an event's Distributions card, gear was handed out at that
+  // event, so the field opens on the event's start. Opened from Inventory or
+  // the home dashboard there is no event in context and it stays "now".
+  const eventDates = useEventDateDefaults();
+  const defaultOccurredAt = () => eventDates.startsAt || nowLocalValue();
+  const [occurredAt, setOccurredAt] = useState(defaultOccurredAt);
   const [markDistributed, setMarkDistributed] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -92,7 +98,7 @@ export function RecordDistributionModal({
     setInventoryItemId("");
     setQuantity("1");
     setReason("");
-    setOccurredAt(nowLocalValue());
+    setOccurredAt(defaultOccurredAt());
     setMarkDistributed(true);
     setRecipient(null);
     setError(null);

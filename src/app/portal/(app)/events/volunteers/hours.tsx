@@ -26,6 +26,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { personDisplayName } from "@/lib/format";
 import { runAction } from "@/components/portal/action-toast";
 import { NONE_VALUE } from "./shifts";
+import { useEventDateDefaults } from "../event-date-defaults";
 
 function shiftHoursAndDate(shift: EventShift) {
   const durationHours =
@@ -41,12 +42,14 @@ function shiftHoursAndDate(shift: EventShift) {
 /**
  * The hours, date and role a volunteer's own signup implies, so the common
  * case -- "they worked the shift they signed up for" -- is one confirm rather
- * than three lookups. Falls back to a blank entry dated today.
+ * than three lookups. Falls back to a blank entry dated `fallbackDate`, which
+ * is the event's own date inside an event and today outside one.
  */
 function defaultsForPerson(
   person: PickedPerson | null,
   volunteers: EventVolunteer[],
   shifts: EventShift[],
+  fallbackDate: string,
 ) {
   const volunteer = person
     ? volunteers.find((v) => v.person_id === person.id)
@@ -59,7 +62,7 @@ function defaultsForPerson(
   return {
     ...(shift
       ? shiftHoursAndDate(shift)
-      : { hours: "", loggedDate: new Date().toISOString().slice(0, 10) }),
+      : { hours: "", loggedDate: fallbackDate }),
     roleTypeId,
   };
 }
@@ -94,20 +97,28 @@ export function AddHoursForm({
   const [selectedPerson, setSelectedPerson] = useState<PickedPerson | null>(
     lockedPerson ?? null,
   );
+  // Hours are worked on the day of the event, so a volunteer with no shift to
+  // imply a date falls back to the event's date rather than to today.
+  const eventDates = useEventDateDefaults();
+  const fallbackDate = eventDates.date || new Date().toISOString().slice(0, 10);
   // Seeded lazily rather than in an effect: the compiler lint that ships with
   // eslint-config-next fails on setting state from an effect body, and the
   // dialog only mounts this form once its volunteers have loaded, so the
   // locked person's shift is already known on the first render.
   const [hours, setHours] = useState(
-    () => defaultsForPerson(lockedPerson ?? null, volunteers, shifts).hours,
+    () =>
+      defaultsForPerson(lockedPerson ?? null, volunteers, shifts, fallbackDate)
+        .hours,
   );
   const [loggedDate, setLoggedDate] = useState(
     () =>
-      defaultsForPerson(lockedPerson ?? null, volunteers, shifts).loggedDate,
+      defaultsForPerson(lockedPerson ?? null, volunteers, shifts, fallbackDate)
+        .loggedDate,
   );
   const [roleTypeId, setRoleTypeId] = useState<string | null>(
     () =>
-      defaultsForPerson(lockedPerson ?? null, volunteers, shifts).roleTypeId,
+      defaultsForPerson(lockedPerson ?? null, volunteers, shifts, fallbackDate)
+        .roleTypeId,
   );
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -115,7 +126,12 @@ export function AddHoursForm({
 
   function handleSelectPerson(person: PickedPerson | null) {
     setSelectedPerson(person);
-    const defaults = defaultsForPerson(person, volunteers, shifts);
+    const defaults = defaultsForPerson(
+      person,
+      volunteers,
+      shifts,
+      fallbackDate,
+    );
     // The role comes from the signup itself, so it is known even for a
     // volunteer with no shift to imply hours and a date.
     setRoleTypeId(defaults.roleTypeId);

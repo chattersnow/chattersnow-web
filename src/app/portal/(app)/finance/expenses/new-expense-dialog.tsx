@@ -35,6 +35,7 @@ import {
   useControlledOpen,
   type ControlledOpenProps,
 } from "@/components/portal/use-controlled-open";
+import { useEventDateDefaults } from "../../events/event-date-defaults";
 
 export function NewExpenseDialog({
   events,
@@ -54,8 +55,11 @@ export function NewExpenseDialog({
 } & ControlledOpenProps) {
   const router = useRouter();
   const [open, setOpen] = useControlledOpen(controlledOpen, onOpenChange);
+  // Inside an event, a new expense opens on the event's date rather than on
+  // today; elsewhere this is "" and today stands.
+  const eventDates = useEventDateDefaults();
   const [form, setForm] = useState<ExpenseFormState>(() =>
-    emptyExpenseForm(defaultEventId),
+    emptyExpenseForm(defaultEventId, eventDates.date),
   );
   const [people, setPeople] = useState<PersonListItem[]>([]);
   // The finance page passes events down from its own query; the sidebar quick
@@ -93,7 +97,7 @@ export function NewExpenseDialog({
 
   // Compared against a fresh empty form rather than tracked with a flag, so
   // typing and then clearing a field doesn't count as unsaved work.
-  const baseline = emptyExpenseForm(defaultEventId);
+  const baseline = emptyExpenseForm(defaultEventId, eventDates.date);
   const dirty =
     selectedPayer !== null ||
     (Object.keys(baseline) as (keyof ExpenseFormState)[]).some(
@@ -102,7 +106,7 @@ export function NewExpenseDialog({
   const guard = useUnsavedChangesGuard(dirty);
 
   function resetForm() {
-    setForm(emptyExpenseForm(defaultEventId));
+    setForm(emptyExpenseForm(defaultEventId, eventDates.date));
     setSelectedPayer(null);
     setError(null);
   }
