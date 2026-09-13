@@ -312,7 +312,7 @@ describe("where it sends (#1042)", () => {
         .single();
       // Cleared by the normalize_person_email trigger rather than by the
       // retention function's column list, which is what makes it true of every
-      // path that sets the flag (20260913240000).
+      // path that sets the flag (20260914010000).
       expect(data?.notification_email).toBeNull();
     } finally {
       await service

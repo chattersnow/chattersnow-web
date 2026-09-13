@@ -1,3 +1,6 @@
+-- Renumbered from 20260913240000 (#1051): see 20260914010000 -- that version
+-- was claimed by two files at once and could only ever record one of them.
+
 -- Issue #1044: who receives each kind of email, for an administrator to read.
 --
 -- The answer is not "who opted in". An event-triggered send

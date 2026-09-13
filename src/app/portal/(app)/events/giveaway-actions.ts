@@ -369,7 +369,7 @@ export async function upsertGiveawayWinnerAction(
   // Goes through the RPC so that a prize backed by an inventory item moves
   // that item with the winner -- to 'distributed' when the prize is handed
   // over, back to 'reserved' when that is undone -- in the same transaction
-  // (20260913000000). Writing giveaway_winners directly left such items
+  // (20260914000000). Writing giveaway_winners directly left such items
   // reserved forever.
   const { error } = await supabase.rpc("upsert_giveaway_winner", {
     p_prize_id: prizeId,
