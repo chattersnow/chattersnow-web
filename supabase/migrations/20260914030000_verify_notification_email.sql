@@ -87,7 +87,7 @@ $$;
 
 grant execute on function public.primary_contact(public.people_with_roles) to authenticated;
 
--- 20260913240000 put the canonicalization and the anonymized-row rule here for
+-- 20260914010000 put the canonicalization and the anonymized-row rule here for
 -- every writer at once; the pending address joins both. Clearing all three
 -- together is what keeps people_notification_email_pending_complete satisfiable
 -- from a plain `update people set notification_email_pending = null`, which is
@@ -397,7 +397,7 @@ grant execute on function public.confirm_notification_email(text, inet) to anon,
 -- /portal/account has to render "waiting on X until <date>", so the resolver it
 -- uses has to return it. An added OUT column is a return-type change rather
 -- than a replaceable body, so this drops first -- the third time this dance has
--- been needed (20260905060000, 20260913240000). Body is 20260913240000's
+-- been needed (20260905060000, 20260914010000). Body is 20260914010000's
 -- verbatim apart from the two columns.
 drop function public.ensure_current_person();
 
