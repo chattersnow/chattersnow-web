@@ -328,7 +328,7 @@ export default async function PortalAppLayout({
                 hostPinned={hostDecision.kind !== "unenforced"}
               />
             </SidebarHeader>
-            <SidebarContent>
+            <SidebarContent className="scroll-smooth">
               <SidebarQuickActions
                 permissions={permissions}
                 currentPerson={currentPerson}
