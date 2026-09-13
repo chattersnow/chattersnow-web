@@ -8,6 +8,7 @@ import { personDisplayName } from "@/lib/format";
 import { AccountForm } from "./account-form";
 import { ReplayTourButton } from "./replay-tour-button";
 import { NotificationPreferences } from "./notification-preferences";
+import { NotificationEmailForm } from "./notification-email-form";
 import { NOTIFICATION_KINDS } from "@/lib/notifications/kinds";
 import { getOrgEmailEnabled } from "@/lib/notifications/settings";
 import {
@@ -128,6 +129,10 @@ export default async function AccountPage() {
                 )}
               </p>
             </div>
+            <NotificationEmailForm
+              notificationEmail={person?.notification_email ?? null}
+              signInEmail={user.email ?? ""}
+            />
             <NotificationPreferences
               kinds={kinds}
               enabledByKind={enabledByKind}

@@ -46,7 +46,10 @@ export type EnsuredPerson = {
   name: string | null;
   preferred_name: string | null;
   pronouns: string | null;
+  /** The address the account signs in with, and this person's identity key. */
   email: string | null;
+  /** Where their portal mail goes instead, when they have said (#1042). */
+  notification_email: string | null;
 };
 
 /**

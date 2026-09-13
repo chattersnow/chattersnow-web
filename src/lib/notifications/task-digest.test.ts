@@ -36,6 +36,7 @@ function person(overrides: Partial<DigestPerson> = {}): DigestPerson {
     id: "person-a",
     tenant_id: TENANT_A,
     email: "avery@example.test",
+    notification_email: null,
     name: "Avery Stone",
     preferred_name: null,
     ...overrides,
@@ -117,6 +118,15 @@ describe("groupForDigest", () => {
     expect(recipients).toHaveLength(1);
     expect(recipients[0].email).toBe("avery@example.test");
     expect(recipients[0].items.map((i) => i.description)).toEqual(["Due soon"]);
+  });
+
+  test("addresses the override rather than the sign-in address (#1042)", () => {
+    const recipients = groupForDigest(
+      [item()],
+      [person({ notification_email: "avery@chattersnow.test" })],
+      WEDNESDAY,
+    );
+    expect(recipients[0].email).toBe("avery@chattersnow.test");
   });
 
   test("prefers a preferred name for the greeting", () => {

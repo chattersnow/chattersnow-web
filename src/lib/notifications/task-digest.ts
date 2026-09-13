@@ -1,4 +1,5 @@
 import { formatDateInZone } from "@/lib/time";
+import { deliveryAddress } from "@/lib/notifications/delivery-address";
 
 /**
  * Which open action items belong in today's digest, and whose (#488).
@@ -48,6 +49,8 @@ export type DigestPerson = {
   id: string;
   tenant_id: string;
   email: string;
+  /** Their override, if they set one; see deliveryAddress (#1042). */
+  notification_email: string | null;
   name: string | null;
   preferred_name: string | null;
 };
@@ -71,6 +74,7 @@ export type DigestItem = {
 export type DigestRecipient = {
   tenantId: string;
   personId: string;
+  /** The delivery address, already resolved -- never the identity column. */
   email: string;
   name: string | null;
   items: DigestItem[];
@@ -150,7 +154,7 @@ export function groupForDigest(
       recipient = {
         tenantId: person.tenant_id,
         personId: person.id,
-        email: person.email,
+        email: deliveryAddress(person),
         name: person.preferred_name ?? person.name,
         items: [],
       };

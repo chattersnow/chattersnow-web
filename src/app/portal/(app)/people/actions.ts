@@ -8,6 +8,7 @@ import type { PersonType } from "./people-shared";
 import { checkPermission, checkAnyPermission } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
 import { friendlyError } from "@/lib/db-errors";
+import { isEmailAddress } from "@/lib/email/identity";
 
 /**
  * Replaces a person's manual role tags -- the half of the derived role model
@@ -404,6 +405,44 @@ export async function linkPersonToAuthUserAction(
   revalidatePath("/portal/people");
   revalidatePath(`/portal/people/${personId}`);
   revalidatePath("/portal/administration/users");
+  return { success: true };
+}
+
+/**
+ * Sets where one person's portal email is delivered (#1042). Empty clears the
+ * override, returning delivery to the address they sign in with.
+ *
+ * people:manage, not administration:manage as the linking action above: this
+ * writes one column of one directory row rather than touching the binding
+ * between a record and a login. The person can always overrule it for
+ * themselves at /portal/account.
+ */
+export async function updatePersonNotificationEmailAction(
+  personId: string,
+  email: string,
+): Promise<{ error: string } | { success: true }> {
+  const trimmed = email.trim();
+  if (trimmed && !isEmailAddress(trimmed)) {
+    return { error: "That does not look like an email address." };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(supabase);
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(supabase, "people", "manage");
+  if (permissionError) return permissionError;
+
+  const { error } = await supabase.rpc("set_notification_email_for_person", {
+    p_person_id: personId,
+    p_email: trimmed,
+  });
+  if (error) {
+    return {
+      error: "Could not save the notification email. Please try again.",
+    };
+  }
+
+  revalidatePath(`/portal/people/${personId}`);
   return { success: true };
 }
 
