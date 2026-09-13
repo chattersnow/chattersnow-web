@@ -179,6 +179,27 @@ body {
     color: var(--muted-foreground);
   }
 
+  /* The height transition for every Base UI Collapsible panel, applied by
+     `CollapsibleContent`. A transition rather than an animation on Base UI's own
+     advice: a transition cancels cleanly mid-flight, so closing a section before
+     it has finished opening reverses from where it got to instead of jumping.
+
+     `--collapsible-panel-height` is set by Base UI to the measured pixel height
+     while open and `auto` otherwise, and the two style attributes below are
+     present only for the frame the panel enters or leaves on -- which is what
+     gives the transition something to animate from and to. Reduced motion is
+     already handled globally further down this file. */
+  .collapsible-panel {
+    height: var(--collapsible-panel-height);
+    overflow: hidden;
+    transition: height 200ms linear;
+  }
+
+  .collapsible-panel[data-starting-style],
+  .collapsible-panel[data-ending-style] {
+    height: 0;
+  }
+
   .bell-ring {
     transform-origin: top center;
     animation: bell-ring 0.8s ease-in-out 0.6s 2;
