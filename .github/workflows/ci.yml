@@ -174,10 +174,17 @@ jobs:
         # Shards the scan across browser contexts (#751). Set explicitly rather
         # than left to the script's CI default so the runner's concurrency is
         # visible and tunable here.
+        #
+        # 6 rather than 4 (#844): the scan is I/O-bound on networkidle's 500ms
+        # idle window rather than CPU-bound (see e2e/a11y-scan.ts and #752), so
+        # a 4-vCPU runner is not saturated at one context per vCPU. The admin
+        # sweep -- 68 routes, 71% of the scan's 473s -- splits 6x12 instead of
+        # 4x17, which also shortens the ragged tail where three workers sit idle
+        # waiting for the longest slice.
         run: bun run test:a11y:check
         env:
           NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
-          A11Y_WORKERS: "4"
+          A11Y_WORKERS: "6"
 
       - name: Upload a11y report
         if: always()
