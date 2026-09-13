@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { formatInstantDate } from "@/lib/format";
+import { formatCalendarDate } from "@/lib/format";
 import { HistoryCard, HistoryItem, HistoryList } from "./history-card";
 
 type Donation = {
@@ -37,7 +37,7 @@ export async function DonorCard({
         {donations.map((donation) => (
           <HistoryItem
             key={donation.id}
-            primary={`${formatInstantDate(donation.donated_at)}${
+            primary={`${formatCalendarDate(donation.donated_at)}${
               donation.event?.name ? ` · ${donation.event.name}` : ""
             }`}
             secondary={donation.notes}

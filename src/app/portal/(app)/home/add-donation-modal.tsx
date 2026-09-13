@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { INTENDED_USES, type InventoryCategory } from "@/lib/inventory";
+import { todayInBrowser } from "@/lib/time";
 import { CategorySelect } from "@/components/portal/category-select";
 import { PhotoUploadField } from "@/components/portal/photo-upload-field";
 import { listInventoryCategoriesAction } from "../inventory/categories/actions";
@@ -269,6 +270,9 @@ export function AddDonationModal({
         photoUrl: item.photoUrl || undefined,
       })),
       eventId: eventId ?? (sourceEventId || undefined),
+      // The staffer's own day, not the server's. Gear arrives at an event,
+      // after dark, which on a UTC server is already tomorrow (#1053).
+      donatedOn: todayInBrowser(),
     };
 
     startTransition(async () => {

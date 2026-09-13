@@ -160,6 +160,7 @@ describe("parseDonationInput", () => {
           },
         ],
         p_event_id: "event-1",
+        p_donated_at: null,
       },
     });
   });

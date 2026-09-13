@@ -11,7 +11,6 @@ import { OTHER_CATEGORY_KEY, type InventoryCategory } from "@/lib/inventory";
 import {
   CONDITIONS,
   GENDERS,
-  donatedAtInputValue,
   donorLabel,
   labelFor,
   type DonationItemRow,
@@ -60,7 +59,8 @@ import { toast } from "@/components/ui/toast";
 
 function donationFormStateFor(donation: DonationRow) {
   return {
-    donatedAt: donatedAtInputValue(donation.donated_at),
+    // Already "YYYY-MM-DD": a `date` column, straight into the date input.
+    donatedAt: donation.donated_at,
     notes: donation.notes ?? "",
   };
 }

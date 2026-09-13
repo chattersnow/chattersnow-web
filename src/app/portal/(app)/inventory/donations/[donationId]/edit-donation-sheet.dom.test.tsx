@@ -60,7 +60,7 @@ const { EditDonationSheet } = await import("./edit-donation-sheet");
 function makeDonation(overrides: Partial<DonationRow> = {}): DonationRow {
   return {
     id: "donation-1",
-    donated_at: "2026-05-01T00:00:00.000Z",
+    donated_at: "2026-05-01",
     notes: "Dropped off at HQ",
     event_id: null,
     donor: {

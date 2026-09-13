@@ -181,6 +181,20 @@ export function utcIsoToDateInZone(iso: string, timeZone: string): string {
 }
 
 /**
+ * Today as "YYYY-MM-DD" in the browser's timezone, for a `date` column.
+ *
+ * `new Date().toISOString().slice(0, 10)` is already tomorrow for anyone west
+ * of Greenwich working in the evening, which is when most of this gets typed.
+ * Server code must not call this -- it answers in the running process's zone,
+ * which is UTC on Vercel.
+ */
+export function todayInBrowser(): string {
+  const now = new Date();
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+/**
  * "Due today" / "Due in N days" / "N days overdue", rounding to whole days
  * so a due time earlier today doesn't read as "overdue" and one later today
  * doesn't read as "in 1 day".

@@ -270,7 +270,11 @@ async function collectSource(
       : 0,
     gates.inKindDonations
       ? countRows(admin, "donations", tenantId, (query) =>
-          query.gte("donated_at", sinceIso),
+          // `created_at`, not `donated_at`: the report counts what was entered
+          // in the window, and since #1053 `donated_at` is a calendar day that
+          // cannot be compared against an instant. Matches how the monetary
+          // donations below have always been counted.
+          query.gte("created_at", sinceIso),
         )
       : 0,
     gates.monetaryDonations
