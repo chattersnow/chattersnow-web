@@ -109,6 +109,8 @@ describe("resolveLayout", () => {
     expect(
       resolveLayout([{ slot: TEAM_SOURCE_SLOT, value: "people" }]).teamSource,
     ).toBe("people");
+  });
+
   // Same stance again, for the same reason: #1013 made the sponsor wall's
   // arrangement a choice, and a tenant that has not made it must keep the tile
   // grid the section has had since #914.
