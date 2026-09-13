@@ -335,6 +335,101 @@ describe("giveaway actions (integration)", () => {
     await event.cleanup();
   });
 
+  // Marking the winner distributed used to write only giveaway_winners, so the
+  // prize's inventory item stayed 'reserved' forever and never reached any
+  // distribution view (20260913000000).
+  test("marking a winner distributed distributes the prize's inventory item", async () => {
+    const event = await createPublishedEvent();
+    const donation = await seedEventDonation(event.id);
+    const giveawayId = await seedGiveaway(event.id);
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+    await createGiveawayPrizeAction(
+      giveawayId,
+      null,
+      prizeForm(),
+      donation.itemId,
+    );
+    const [prize] = await prizesFor(event.id);
+    expect(await getInventoryItemStatus(donation.itemId)).toBe("reserved");
+
+    expect(await upsertGiveawayWinnerAction(prize.id, winnerForm())).toEqual({
+      success: true,
+    });
+
+    expect(await getInventoryItemStatus(donation.itemId)).toBe("distributed");
+
+    const { data: movements } = await adminClient
+      .from("inventory_movements")
+      .select("movement_type, event_id")
+      .eq("inventory_item_id", donation.itemId)
+      .eq("movement_type", "distributed");
+    expect(movements).toHaveLength(1);
+    expect(movements?.[0].event_id).toBe(event.id);
+
+    await deleteGiveawayPrizeAction(prize.id);
+    await donation.cleanup();
+    await event.cleanup();
+  });
+
+  test("moving a winner back off distributed returns the item to reserved", async () => {
+    const event = await createPublishedEvent();
+    const donation = await seedEventDonation(event.id);
+    const giveawayId = await seedGiveaway(event.id);
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+    await createGiveawayPrizeAction(
+      giveawayId,
+      null,
+      prizeForm(),
+      donation.itemId,
+    );
+    const [prize] = await prizesFor(event.id);
+    await upsertGiveawayWinnerAction(prize.id, winnerForm());
+    expect(await getInventoryItemStatus(donation.itemId)).toBe("distributed");
+
+    // 'unclaimed' keeps the prize spoken for, so the item goes back to
+    // reserved rather than available.
+    const unclaimed = winnerForm();
+    unclaimed.set("distributionStatus", "unclaimed");
+    expect(await upsertGiveawayWinnerAction(prize.id, unclaimed)).toEqual({
+      success: true,
+    });
+
+    expect(await getInventoryItemStatus(donation.itemId)).toBe("reserved");
+
+    await deleteGiveawayPrizeAction(prize.id);
+    await donation.cleanup();
+    await event.cleanup();
+  });
+
+  test("a pending winner leaves the prize's item reserved", async () => {
+    const event = await createPublishedEvent();
+    const donation = await seedEventDonation(event.id);
+    const giveawayId = await seedGiveaway(event.id);
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+    await createGiveawayPrizeAction(
+      giveawayId,
+      null,
+      prizeForm(),
+      donation.itemId,
+    );
+    const [prize] = await prizesFor(event.id);
+
+    const pending = winnerForm();
+    pending.set("distributionStatus", "pending");
+    expect(await upsertGiveawayWinnerAction(prize.id, pending)).toEqual({
+      success: true,
+    });
+
+    expect(await getInventoryItemStatus(donation.itemId)).toBe("reserved");
+
+    await deleteGiveawayPrizeAction(prize.id);
+    await donation.cleanup();
+    await event.cleanup();
+  });
+
   test("an item that is no longer available cannot be linked to a prize", async () => {
     const event = await createPublishedEvent();
     const donation = await seedEventDonation(event.id);
