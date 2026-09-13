@@ -1,9 +1,26 @@
 import { defineConfig, devices } from "@playwright/test";
 import { config } from "dotenv";
+import { resolveSiteUrl } from "./e2e/helpers/site-url";
 
 config({ path: ".env.local" });
 
-const baseURL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://127.0.0.1:3000";
+/**
+ * Where this run points. In the primary checkout that is NEXT_PUBLIC_SITE_URL
+ * as before; in a git worktree it is a port derived from the worktree's path,
+ * so that `reuseExistingServer` below can only ever find this checkout's own
+ * server and never another worktree's (#809). PORT overrides both. The env is
+ * updated to match so that every helper reading NEXT_PUBLIC_SITE_URL directly,
+ * and the build the webServer runs, agree with the suite.
+ */
+const site = resolveSiteUrl(process.env, __dirname);
+const baseURL = site.baseURL;
+process.env.NEXT_PUBLIC_SITE_URL = baseURL;
+if (site.derived && !process.env.TEST_WORKER_INDEX) {
+  console.log(
+    `This checkout is a git worktree, so the suite runs against ${baseURL} ` +
+      "rather than :3000 (#809). Set PORT to attach to a server started by hand.",
+  );
+}
 
 /**
  * Specs that mutate state the whole site shares, so they cannot run beside
@@ -208,8 +225,16 @@ export default defineConfig({
     // (skip-link.spec.ts, portal-finance-reports.spec.ts).
     command: "bun run build && bun run start",
     url: baseURL,
+    // `next start` listens on PORT, and `next build` inlines
+    // NEXT_PUBLIC_SITE_URL, so both follow the resolved origin above.
+    env: {
+      ...process.env,
+      NEXT_PUBLIC_SITE_URL: baseURL,
+      ...(site.port ? { PORT: site.port } : {}),
+    },
     // Local runs still attach to a `bun run dev` a developer already has open,
-    // so nothing about the local loop changes.
+    // so nothing about the local loop changes -- in the primary checkout. A
+    // worktree can only attach to a server on its own derived port (#809).
     reuseExistingServer: !process.env.CI,
     // Generous because this now covers a full build before the first response.
     timeout: 300_000,
