@@ -17,6 +17,14 @@
 --   multi@example.test         event_coordinator + volunteer (multi-role)
 --   noaccess@example.test      signed in, no role assigned (access-denied path)
 --   former@example.test        event_coordinator role, but deactivated (revoked-access path)
+--
+-- Tenants: exactly one, "Example Nonprofit" / `example-nonprofit`, on the
+-- `internal` plan, created by 20260905190000. Every account above is a member
+-- of it and every row below lands in it. Do not add a second tenant here -- a
+-- second *active* tenant switches off the sole-active-tenant fallback that
+-- every unscoped insert in this file, the local public site and both
+-- database-backed suites depend on. See "Local development: one tenant" in
+-- docs/tenants.md.
 
 -- Fixture ids below are written out rather than generated, so a record a test
 -- or a scan asserts on keeps the same id across resets (#665). gen_random_uuid()
@@ -169,6 +177,12 @@ declare
   v_item2 constant uuid := 'eeeeeeee-0000-4000-8000-000000000002';
   v_item3 constant uuid := 'eeeeeeee-0000-4000-8000-000000000003';
   v_item4 constant uuid := 'eeeeeeee-0000-4000-8000-000000000004';
+  -- The sponsor's own in-kind items (#1005): a sponsorship's goods are
+  -- ordinary inventory rows under its donation, one per thing given.
+  v_donation_sponsor constant uuid := 'dddddddd-0000-4000-8000-000000000003';
+  v_item_sponsor1 constant uuid := 'eeeeeeee-0000-4000-8000-000000000011';
+  v_item_sponsor2 constant uuid := 'eeeeeeee-0000-4000-8000-000000000012';
+  v_item_sponsor3 constant uuid := 'eeeeeeee-0000-4000-8000-000000000013';
   -- The one distributed movement, which is what /portal/inventory/distribution
   -- lists and links to.
   v_movement_distributed constant uuid := 'eeeeeeee-0000-4000-8000-000000001001';
@@ -263,13 +277,35 @@ begin
     'America/Denver', 'private', 'draft', v_admin_id
   );
 
-  -- Event sponsor link (public, cash + in-kind support).
+  -- Event sponsor link (public, cash + in-kind support). Its in-kind half is
+  -- three separate items (#1005) headed three different ways: two held back for
+  -- the giveaway, one released to the gear library where the public site lists
+  -- it. in_kind_description is the derived summary the sync RPC would write.
+  insert into public.donations (id, donor_id, event_id, notes, created_by)
+  values (v_donation_sponsor, v_person_sponsor, v_event_upcoming, 'Confirmed for the winter swap.', v_admin_id);
+
+  insert into public.inventory_items (id, donation_id, description, type, condition, face_value, intended_use, created_at, created_by)
+  values (v_item_sponsor1, v_donation_sponsor, 'Season lift tickets (4)', 'other', 'new', 720.00, 'giveaway', clock_timestamp(), v_admin_id);
+  insert into public.inventory_items (id, donation_id, description, type, condition, face_value, intended_use, created_at, created_by)
+  values (v_item_sponsor2, v_donation_sponsor, 'Goggles, mirrored', 'other', 'new', 120.00, 'giveaway', clock_timestamp(), v_admin_id);
+  insert into public.inventory_items (id, donation_id, description, type, condition, face_value, intended_use, created_at, created_by)
+  values (v_item_sponsor3, v_donation_sponsor, 'Snow boots, 20 pairs', 'boots', 'new', 660.00, 'gear_library', clock_timestamp(), v_admin_id);
+
+  insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, event_id, created_by)
+  values (v_item_sponsor1, 'received', 1, 'Sponsor contribution', v_event_upcoming, v_admin_id);
+  insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, event_id, created_by)
+  values (v_item_sponsor2, 'received', 1, 'Sponsor contribution', v_event_upcoming, v_admin_id);
+  insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, event_id, created_by)
+  values (v_item_sponsor3, 'received', 1, 'Sponsor contribution', v_event_upcoming, v_admin_id);
+
   insert into public.event_sponsors (
-    event_id, person_id, support_type, in_kind_description, contribution_value, is_public, notes, created_by
+    event_id, person_id, support_type, in_kind_description, contribution_value, is_public, notes,
+    donation_id, created_by
   )
   values (
-    v_event_upcoming, v_person_sponsor, 'both', 'Donated 20 pairs of snow boots', 1500.00, true,
-    'Confirmed for the winter swap.', v_admin_id
+    v_event_upcoming, v_person_sponsor, 'both',
+    'Season lift tickets (4), Goggles, mirrored, Snow boots, 20 pairs', 1500.00, true,
+    'Confirmed for the winter swap.', v_donation_sponsor, v_admin_id
   );
 
   -- Event expenses: one tied to the past event, one general/untied.
@@ -668,6 +704,8 @@ declare
   v_event_id uuid;
   v_donation_id uuid;
   v_item_id uuid;
+  v_sponsor_person_id uuid;
+  v_sponsor_support_type text;
   v_calendar_item_id uuid;
   v_meeting_id uuid;
   v_giveaway_id uuid;
@@ -861,15 +899,47 @@ begin
       values (v_event_id, 'Front entrance', 'Weather-appropriate layers.', 'Street parking available', 'Water and snacks provided', 'Signage, tables, first aid kit', v_admin_id);
     end if;
 
-    -- Sponsor link for about a quarter.
+    -- Sponsor link for about a quarter. A sponsorship whose support is goods
+    -- carries them as inventory rows under its own donation (#1005) -- two
+    -- items, one held for the giveaway and one released to the gear library --
+    -- since after that migration an in-kind sponsorship with no items is a
+    -- shape that cannot occur. The face values are fixed rather than drawn:
+    -- the bulk seed is deterministic, and two more random() calls here shift
+    -- the stream for every draw after them, which moved seeded registration and
+    -- discount-code counts that have nothing to do with sponsors.
     if random() < 0.25 and array_length(v_sponsor_ids, 1) is not null then
-      insert into public.event_sponsors (event_id, person_id, support_type, in_kind_description, contribution_value, is_public, follow_up_status, notes, created_by)
+      v_sponsor_person_id := v_sponsor_ids[1 + floor(random()*array_length(v_sponsor_ids,1))::int];
+      v_sponsor_support_type := (array['cash','in_kind','both','other'])[1 + floor(random()*4)::int];
+      v_donation_id := null;
+
+      if v_sponsor_support_type in ('in_kind', 'both') then
+        insert into public.donations (donor_id, event_id, created_by)
+        values (v_sponsor_person_id, v_event_id, v_admin_id)
+        returning id into v_donation_id;
+
+        insert into public.inventory_items
+          (donation_id, description, type, condition, face_value, intended_use, created_at, created_by)
+        values (v_donation_id, 'Donated lift tickets', 'other', 'new', 180.00, 'giveaway', clock_timestamp(), v_admin_id)
+        returning id into v_item_id;
+        insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, event_id, created_by)
+        values (v_item_id, 'received', 1, 'Sponsor contribution', v_event_id, v_admin_id);
+
+        insert into public.inventory_items
+          (donation_id, description, type, condition, face_value, intended_use, created_at, created_by)
+        values (v_donation_id, 'Donated base layers', 'other', 'new', 60.00, 'gear_library', clock_timestamp(), v_admin_id)
+        returning id into v_item_id;
+        insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, event_id, created_by)
+        values (v_item_id, 'received', 1, 'Sponsor contribution', v_event_id, v_admin_id);
+      end if;
+
+      insert into public.event_sponsors (event_id, person_id, support_type, in_kind_description, contribution_value, is_public, follow_up_status, notes, donation_id, created_by)
       values (
-        v_event_id, v_sponsor_ids[1 + floor(random()*array_length(v_sponsor_ids,1))::int],
-        (array['cash','in_kind','both','other'])[1 + floor(random()*4)::int],
-        'Seed in-kind support.', round((100 + random()*2000)::numeric, 2), random() < 0.7,
+        v_event_id, v_sponsor_person_id, v_sponsor_support_type,
+        case when v_donation_id is null then null
+             else 'Donated lift tickets, Donated base layers' end,
+        round((100 + random()*2000)::numeric, 2), random() < 0.7,
         (array['not_started','in_progress','done'])[1 + floor(random()*3)::int],
-        null, v_admin_id
+        null, v_donation_id, v_admin_id
       );
     end if;
 
@@ -1321,6 +1391,13 @@ insert into public.site_content (key, value, published_at) values
   ('org.short_name', '"Example Nonprofit"', now()),
   ('org.tagline', '"Example Nonprofit is the sample organization the local stack and CI run against."', now()),
   ('org.image_alt', '"Example Nonprofit community members"', now()),
+  -- Not a prompt like the three above it: the security contact defaults to
+  -- blank and no /.well-known/security.txt is served until a tenant sets one
+  -- (#975). Seeded so local and CI have a tenant that publishes the file, which
+  -- is what e2e/legal.spec.ts asserts; the unset case is covered by the unit
+  -- tests, since a seeded row is exactly what it is not.
+  ('org.email_security', '"security@example.org"', now()),
+  ('org.security_note', '["Example Nonprofit is not a real organization and nobody reads this address. It is seeded so the file renders the way a configured tenant''s does."]', now()),
   ('home.heading', '"A sample organization for local development"', now()),
   ('home.intro', '"Everything on this site is seed data. Example Nonprofit exists so the local stack and CI have a realistic tenant to render, without borrowing a real organization''s words."', now()),
   ('about_story.intro', '["Example Nonprofit is not a real organization. It is the tenant a fresh database bootstraps as, so that every public page has something to show before anyone has written a word.","Any copy you see here comes from supabase/seed.sql. Editing it in Administration > Site Content writes a row exactly as it would for a real tenant."]', now()),

@@ -1,4 +1,7 @@
 import type { EventRow, PhaseStatus } from "./event-badges";
+// Type-only, so the cycle with event-tabs-config (which reads PhaseKey from
+// here) is erased at compile time and never reaches the bundle.
+import type { TabValue } from "./event-tabs-config";
 
 export const PHASE_KEYS = ["basic", "planning", "during", "after"] as const;
 
@@ -40,25 +43,11 @@ export function afterStatus(event: EventRow): PhaseStatus {
 export type EventTaskKind =
   "planning" | "attendance" | "report" | "impact" | "checklist";
 
-/**
- * Which phase each kind of outstanding work belongs to.
- *
- * The phase strip counts tasks through this map rather than asking each phase
- * "are your three columns filled in?", so a phase's indicator is structurally
- * about the work in that phase and adding a rule is a one-line change here.
- */
-export const TASK_KIND_PHASE: Record<EventTaskKind, PhaseKey> = {
-  checklist: "basic",
-  planning: "planning",
-  attendance: "during",
-  report: "after",
-  impact: "after",
-};
-
 export type EventPhaseTask = {
   kind: Exclude<EventTaskKind, "checklist">;
   taskLabel: string;
-  tab: string;
+  /** The card the task is done on -- what the detail page's rail hangs it off. */
+  tab: TabValue;
 };
 
 export type EventPhaseSignals = {
@@ -71,7 +60,7 @@ export type EventPhaseSignals = {
  * "Not started / In progress / Done".
  *
  * Shared by the dashboard's Outstanding tasks list and the event detail page's
- * phase strip so the two can't disagree about what's left to do.
+ * section rail so the two can't disagree about what's left to do.
  *
  * `includeImpact` is off by default: the rule is useful on the event page, but
  * switching it on for the dashboard would add an outstanding task to every past
@@ -122,29 +111,33 @@ export function deriveEventPhaseTasks(
 }
 
 /**
- * Outstanding task labels per phase, for the detail page's phase strip.
+ * Outstanding task labels per card, for the detail page's section rail.
+ *
+ * Keyed by card rather than by phase since #1008 replaced the phase strip with
+ * the rail: "Attendance not logged" now sits on the Attendance row, where the
+ * work is, instead of on a "During" tab the reader still had to open to find
+ * out which of its six cards the count meant.
+ *
  * Checklist items are passed in already-counted since they live in their own
  * table rather than on the event row.
  */
-export function eventPhaseTaskLabels(
+export function eventCardTaskLabels(
   event: EventRow,
   signals: EventPhaseSignals & { openChecklistTitles: string[] },
   now: Date = new Date(),
-): Record<PhaseKey, string[]> {
-  const labels: Record<PhaseKey, string[]> = {
-    basic: [],
-    planning: [],
-    during: [],
-    after: [],
+): Partial<Record<TabValue, string[]>> {
+  const labels: Partial<Record<TabValue, string[]>> = {};
+  const push = (tab: TabValue, label: string) => {
+    (labels[tab] ??= []).push(label);
   };
 
   for (const task of deriveEventPhaseTasks(event, signals, now, {
     includeImpact: true,
   })) {
-    labels[TASK_KIND_PHASE[task.kind]].push(task.taskLabel);
+    push(task.tab, task.taskLabel);
   }
 
-  labels[TASK_KIND_PHASE.checklist].push(...signals.openChecklistTitles);
+  for (const title of signals.openChecklistTitles) push("checklist", title);
 
   return labels;
 }

@@ -100,7 +100,7 @@ export const SKIPPED_ROUTES = SKIP;
  * don't reach for it where a link exists. `expectHeading` is what keeps it
  * honest: following a link proves the record exists, a hard-coded id proves
  * nothing, so a `path` has to name the heading its record renders and the scan
- * checks for it before scanning. Nothing uses it at the moment -- /events/[id]
+ * checks for it before scanning. Nothing uses it at the moment -- /events/e/[id]
  * was the last orphan, and #847 gave the listing an anchor to follow -- but it
  * stays for the next route that ends up without one.
  *
@@ -112,9 +112,9 @@ export type DynamicRouteSource =
   | { path: string; expectHeading: string };
 
 export const DYNAMIC_ROUTE_SOURCES: Record<string, DynamicRouteSource> = {
-  "/events/[id]": {
+  "/events/e/[id]": {
     listPath: "/events",
-    linkPattern: /^\/events\/[0-9a-f-]{36}$/,
+    linkPattern: /^\/events\/e\/[0-9a-f-]{36}$/,
   },
   "/learn/[slug]": {
     listPath: "/learn",

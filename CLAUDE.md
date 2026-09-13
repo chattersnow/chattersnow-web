@@ -20,6 +20,7 @@ bun run lint        # eslint (flat config, eslint-config-next core-web-vitals + 
 bun run typecheck   # next typegen && tsc --noEmit
 bun run test        # unit tests (bun test), excludes e2e/** and *.integration.test.ts
 bun run test:integration  # integration tests against local Supabase (run `bun run db:start && bun run db:reset` first)
+bun run db:reset    # migrate + seed: leaves exactly one tenant, `example-nonprofit` on the `internal` plan, holding all the sample data (docs/tenants.md, "Local development: one tenant")
 bun run test:e2e    # Playwright e2e tests
 bun run test:a11y   # axe-core scan: every route in src/app, x {light,dark} x {desktop,mobile} x roles, plus transient UI (report: e2e/a11y-report.json)
 bun run test:a11y:check   # same scan, fails on violations not in e2e/a11y-baseline.json (what CI runs)
@@ -54,6 +55,12 @@ Specs that mutate state the whole site shares can't run beside anything else, so
 
 For ad-hoc browser interaction (manually exercising a UI change, poking at a page) use the `playwright-cli` terminal tool (`npm install -g @playwright/cli`, ships the `playwright-cli` binary), not an MCP browser server — the CLI is far cheaper on tokens since it doesn't round-trip full tool schemas/results through the model. Run `playwright-cli --help` for the command list (`open`, `goto`, `click`, `snapshot`, etc.). The project's `playwright` MCP server was removed for this reason; `@playwright/test` (used by `bun run test:e2e`) is unaffected — that's the automated e2e test runner, unrelated to the CLI/MCP choice above.
 
+## Working in a git worktree
+
+A fresh worktree needs its own `bun install` before `bun run dev`, `bun run build`, `bun run test:e2e` or `bun run typecheck` will work (#810). `bun test` works without one, because Bun resolves `node_modules` by walking up to the primary checkout -- which is exactly what makes the gap easy to miss: the unit suite passes and only the app fails, with an error that names a missing `.next/dev/.../build-manifest.json` rather than the cause. Turbopack requires `node_modules` inside the workspace root, so symlinking the primary checkout's does not work either ("Symlink [project]/node_modules is invalid, it points out of the filesystem root"). `.env.local` is gitignored and has to be copied in too.
+
+A browser run from a worktree does not share `:3000` with the primary checkout. `playwright.config.ts` reuses a server already listening on the base URL, so with two checkouts on the machine a run used to attach to whichever one held `:3000` and test _its_ code, reporting an ordinary assertion failure that blamed your diff (#809). In a worktree the suite therefore runs against a port derived from the worktree's path (`e2e/helpers/site-url.ts`), which it prints at startup, and the server it starts listens there; the primary checkout keeps `NEXT_PUBLIC_SITE_URL` as before, so an open `bun run dev` there is still reused. To attach a worktree run to a server you started by hand, pass `PORT=<its port>`; `bun run test:a11y` and `bun run verify` still read `NEXT_PUBLIC_SITE_URL` directly, so point that at the server for those.
+
 ## Ticket workflow
 
 Issues are tracked on the `ChatterWeb` GitHub Project (owner `chattersnow`, project number `1`) via its `Status` field. Keep status in sync with `gh project item-edit`:
@@ -71,7 +78,7 @@ Before adding a portal route, a tab strip, or a sidebar entry, read
 
 > **Navigation for different jobs. Tabs for different views of one object. Cards for parts of one view.**
 
-Ask "is this a different job, or a different view of the same thing?" before asking how many parts there are. Three thresholds sit on top of it: a tab must carry its state in the URL (use `useUrlTabState` in `src/components/portal/use-url-tab-state.ts` — never an uncontrolled `defaultValue`); past ~10 homogeneous parts use a rail with search, as Site Content does; past ~a dozen parts spanning a lifecycle add a second level, as event detail does with its four phases. Event detail and Site Content are the reference implementations — copy them rather than inventing a third answer.
+Ask "is this a different job, or a different view of the same thing?" before asking how many parts there are. Three thresholds sit on top of it: a tab must carry its state in the URL (use `useUrlTabState` in `src/components/portal/use-url-tab-state.ts` — never an uncontrolled `defaultValue`); past ~10 parts use a rail with search, as Site Content and event detail both do; a lifecycle is something to group by in that rail, not a level of navigation to make the reader pass through (#1008 removed event detail's phase tabs and kept the phases as headings). Event detail and Site Content are the reference implementations — copy them rather than inventing a third answer.
 
 Two hard rules: no tab without a URL, and no real destination that appears in no navigation surface (sidebar, command palette, or breadcrumb). On configuration, Administration holds what governs the organization as a whole — identity, org-wide settings, oversight — while configuration that only shapes one feature's vocabulary lives with that feature. The nav is never the gate: module entitlements decide visibility through `has_permission()` and `visibleNavItems()`, and `src/lib/portal/nav-guards.test.ts` must stay green.
 

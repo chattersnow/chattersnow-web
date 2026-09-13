@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 /**
- * The sheet an intercepted `/events/[id]` renders in (#847).
+ * The sheet an intercepted `/events/e/[id]` renders in (#847).
  *
  * Dismissing it is a step back through history rather than a state change,
  * which is the whole reason this is a route and not a `useState` sheet: the

@@ -39,20 +39,29 @@ were two sidebar entries because they look like two topics; they are one object
    so a tab click does not re-run the page's server component and its queries.
    A tab without a URL cannot be linked, bookmarked, or returned to with Back.
 
-2. **Past roughly ten homogeneous parts, switch to a rail with search.** This is
-   Site Content's answer to 15 pages and 121 slots
-   (`administration/site-content/content-outline.tsx`). The pill strip it
+2. **Past roughly ten parts, switch to a rail with search.** This is Site
+   Content's answer to 15 pages and 121 slots (`website/content-outline.tsx`)
+   and, since #1008, Events' answer to 19 cards
+   (`events/[eventId]/event-section-rail.tsx`). The pill strip Site Content
    replaced took six stacked rows at 390px, and with no overview and no search,
    "where does this sentence live?" meant opening every page.
 
-3. **Past roughly a dozen parts spanning a lifecycle, add a second level.** This
-   is Events' answer to 19 cards: four phase tabs — basic, planning, during,
-   after — each holding its own strip of cards
-   (`events/event-tabs-config.tsx`). Both levels are in the URL, and moving
-   between phases resets the card in the same write, so the URL never names a
-   card the phase on screen does not have.
+3. **A lifecycle is something to group by, not a level to navigate through.**
+   Events tried the second level first: 19 cards behind four phase tabs — basic,
+   planning, during, after — each with its own strip of cards (#958). It read
+   well on paper and cost two things in use (#1008). Nothing on screen said
+   which phase held Sponsors or Discount codes, so finding a card you had not
+   used lately meant opening phases until it turned up; and the lifecycle is not
+   one-way, so a coordinator correcting a budget or a venue a week after the
+   event was working against a control that models the job as a sequence. The
+   rail keeps the phases as **headings** and stops making the reader select one.
 
 The thresholds are soft. The first is not.
+
+Threshold 2's "homogeneous" turned out to be doing less work than it looked.
+Site Content's 15 pages are alike and Events' 19 cards are not, and the rail
+suits both — what actually decides it is how many parts there are and whether
+the reader can be expected to know where each one lives.
 
 ## The models
 
@@ -60,33 +69,34 @@ Two existing surfaces are the reference implementations. Copy them rather than
 inventing a third answer.
 
 **Event detail** (`events/[eventId]/event-detail-view.tsx`) — one sidebar entry,
-four URL-synced phases, 19 cards, one card on screen at a time. Both levels are
-resolved against the reader's permissions _before_ the URL value is validated,
-so a deep link to a phase or card the reader cannot see renders that level's
-first available part rather than a wrong one. Copy this whenever a tab set is
-permission-gated, and copy the two-level shape when a phase would otherwise
-stack more than a couple of independent tables: until #958 the During and After
-phases rendered six cards each as one column, which is what "cards for parts of
-one view" is meant to prevent — six independent tables are not one view.
+19 cards under four phase headings in a rail, one card on screen at a time and
+one URL parameter naming it. Copy it for the permission handling above all: the
+rail's contents are resolved against the reader's permissions on the server
+_before_ the URL value is validated, so a deep link to a card the reader cannot
+see opens the first one they can rather than an empty card. Copy the rail's
+search too — each card declares `keywords`, so "budget" finds Registration &
+planning and "raffle" finds Giveaway, which is how a list of 19 stays usable by
+someone who does not already know it.
 
-**Site Content** (`administration/site-content/`) — one entry, a left rail
-carrying the page list, a cross-page search and an outline of the page being
-edited. The search runs over every page's copy, not just the current one,
-because that is the question it exists to answer.
+**Site Content** (`website/`) — one entry, a left rail carrying the page list, a
+cross-page search and an outline of the page being edited. The search runs over
+every page's copy, not just the current one, because that is the question it
+exists to answer. (It lived under `administration/site-content/` until #944/#990
+moved the website into a section of its own.)
 
 ## What the rule decides
 
-| Surface               | Parts                                 | Answer                                 |
-| --------------------- | ------------------------------------- | -------------------------------------- |
-| Event detail          | 19 cards over 4 phases                | phase tabs, then card tabs — the model |
-| Site Content          | 15 pages, 121 slots                   | left rail + search — the model         |
-| Organization Settings | 5 configuration panels                | tabs, via `useUrlTabState`             |
-| Website site settings | Layout, visibility, legal documents   | sidebar entries, grouped               |
-| Roles + Permissions   | 2 views of one role                   | one entry, two tabs                    |
-| Governance            | 10 distinct jobs                      | sidebar entries, grouped               |
-| Finance → Sales       | Sales, Register, Products             | Register and Products nest under Sales |
-| People segments       | 7 views of one directory              | segments of one page                   |
-| Users page            | table, pending access, support access | stacked cards                          |
+| Surface               | Parts                                 | Answer                                    |
+| --------------------- | ------------------------------------- | ----------------------------------------- |
+| Event detail          | 19 cards over 4 phases                | left rail, phases as headings — the model |
+| Site Content          | 15 pages, 121 slots                   | left rail + search — the model            |
+| Organization Settings | 5 configuration panels                | tabs, via `useUrlTabState`                |
+| Website site settings | Layout, visibility, legal documents   | sidebar entries, grouped                  |
+| Roles + Permissions   | 2 views of one role                   | one entry, two tabs                       |
+| Governance            | 10 distinct jobs                      | sidebar entries, grouped                  |
+| Finance → Sales       | Sales, Register, Products             | Register and Products nest under Sales    |
+| People segments       | 7 views of one directory              | segments of one page                      |
+| Users page            | table, pending access, support access | stacked cards                             |
 
 ## Two things the rule forbids
 
@@ -175,6 +185,7 @@ each surface should name the other.
 
 - `docs/portal-ux-audit.md` — the 2026-09-02 audit (task flow, a11y, performance)
 - Planning repo: `decisions/2026-09-12-portal-information-architecture-audit.md`,
+  `decisions/2026-09-12-event-detail-rail-over-phase-tabs.md`,
   `decisions/2026-09-12-administration-section-ia.md`,
   `decisions/2026-09-12-portal-top-level-navigation.md`,
   `decisions/2026-09-12-governance-finance-ia.md`,

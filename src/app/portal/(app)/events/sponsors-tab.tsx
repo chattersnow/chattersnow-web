@@ -2,21 +2,28 @@
 
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil } from "lucide-react";
+import { Pencil, Plus, X } from "lucide-react";
 import {
   deleteEventSponsorAction,
   listEventSponsorsAction,
   updateEventSponsorAction,
   type EventSponsor,
+  type EventSponsorItem,
   type EventSponsorPerson,
   type SponsorActionResult,
 } from "./sponsors-actions";
+import { useKeyedRows } from "../website/use-keyed-rows";
 import { PersonPicker, type PickedPerson } from "../people/person-picker";
 import type { PersonListItem } from "../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -41,6 +48,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { formatCurrency, personDisplayName } from "@/lib/format";
+import { INTENDED_USES } from "@/lib/inventory";
 import { EmptyState } from "@/components/portal/empty-state";
 import { runAction } from "@/components/portal/action-toast";
 
@@ -57,9 +65,25 @@ const FOLLOW_UP_STATUSES = [
   { value: "done", label: "Done" },
 ];
 
+/** Support types whose contribution is goods rather than money. Only these show
+ *  the item list; `cash` and `other` have nothing to itemise. */
+const ITEM_BEARING_SUPPORT_TYPES = ["in_kind", "both"];
+
+/** One row of the in-kind item list. `id` is null until the item exists, and
+ *  `allocated` is what a giveaway prize already claims -- removing one of those
+ *  would empty the prize, so the RPC refuses and the row's remove is disabled.
+ */
+export type SponsorItemDraft = {
+  id: string | null;
+  description: string;
+  faceValue: string;
+  intendedUse: string;
+  allocated: boolean;
+};
+
 export type SponsorFormState = {
   supportType: string;
-  inKindDescription: string;
+  items: SponsorItemDraft[];
   contributionValue: string;
   isPublic: boolean;
   notes: string;
@@ -67,10 +91,44 @@ export type SponsorFormState = {
   followUpNotes: string;
 };
 
+function emptyItem(): SponsorItemDraft {
+  return {
+    id: null,
+    description: "",
+    faceValue: "",
+    intendedUse: "giveaway",
+    allocated: false,
+  };
+}
+
+function itemDraftFor(item: EventSponsorItem): SponsorItemDraft {
+  return {
+    id: item.id,
+    description: item.description,
+    faceValue: item.face_value === null ? "" : String(item.face_value),
+    intendedUse: item.intended_use,
+    allocated: item.allocated,
+  };
+}
+
+/** The list always shows at least one row, so there is somewhere to type
+ *  without hunting for an "add" button first. A row left entirely blank is
+ *  dropped by `parseSponsorForm` rather than rejected. */
+function itemDraftsFor(items: EventSponsorItem[]): SponsorItemDraft[] {
+  return items.length ? items.map(itemDraftFor) : [emptyItem()];
+}
+
+function itemsTotal(items: SponsorItemDraft[]): number {
+  return items.reduce((total, item) => {
+    const value = Number(item.faceValue);
+    return item.faceValue && !Number.isNaN(value) ? total + value : total;
+  }, 0);
+}
+
 export function emptySponsorForm(): SponsorFormState {
   return {
     supportType: "in_kind",
-    inKindDescription: "",
+    items: [emptyItem()],
     contributionValue: "",
     isPublic: false,
     notes: "",
@@ -82,7 +140,7 @@ export function emptySponsorForm(): SponsorFormState {
 function formStateFor(sponsor: EventSponsor): SponsorFormState {
   return {
     supportType: sponsor.support_type,
-    inKindDescription: sponsor.in_kind_description ?? "",
+    items: itemDraftsFor(sponsor.items),
     contributionValue:
       sponsor.contribution_value === null
         ? ""
@@ -129,6 +187,15 @@ export function SponsorForm({
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  // Keyed rather than indexed: removing a row shifts every index below it, so
+  // `key={index}` hands React the wrong input for the row and focus, selection
+  // and caret land somewhere else (#792, which is why this hook exists).
+  const itemRows = useKeyedRows<SponsorItemDraft>(initial.items, (items) =>
+    update("items", items),
+  );
+  const showItems = ITEM_BEARING_SUPPORT_TYPES.includes(form.supportType);
+  const total = itemsTotal(form.items);
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -138,10 +205,17 @@ export function SponsorForm({
       return;
     }
 
+    const total = itemsTotal(form.items);
     const formData = new FormData();
     formData.set("supportType", form.supportType);
-    formData.set("inKindDescription", form.inKindDescription);
-    formData.set("contributionValue", form.contributionValue);
+    formData.set("items", JSON.stringify(form.items));
+    // Blank means "whatever the items add up to", which is what the field's
+    // placeholder and description both say. Typing a number still wins, since a
+    // sponsorship is often worth more to the org than its receipts total.
+    formData.set(
+      "contributionValue",
+      form.contributionValue || (showItems && total > 0 ? String(total) : ""),
+    );
     formData.set("isPublic", form.isPublic ? "on" : "off");
     formData.set("notes", form.notes);
     formData.set("followUpStatus", form.followUpStatus);
@@ -227,27 +301,139 @@ export function SponsorForm({
               type="number"
               min="0"
               step="0.01"
+              placeholder={
+                showItems && total > 0 ? total.toFixed(2) : undefined
+              }
               value={form.contributionValue}
               onChange={(event) =>
                 update("contributionValue", event.target.value)
               }
             />
+            {showItems && total > 0 && !form.contributionValue && (
+              <FieldDescription>
+                Leave blank to use the items total, {formatCurrency(total)}.
+              </FieldDescription>
+            )}
           </Field>
         </Field>
 
-        <Field>
-          <FieldLabel htmlFor="sponsor-inKindDescription">
-            In-kind support description
-          </FieldLabel>
-          <Textarea
-            id="sponsor-inKindDescription"
-            placeholder="e.g. Donated 200 pairs of gloves, printing services, venue discount"
-            value={form.inKindDescription}
-            onChange={(event) =>
-              update("inKindDescription", event.target.value)
-            }
-          />
-        </Field>
+        {showItems && (
+          <Field>
+            <FieldLabel>In-kind items</FieldLabel>
+            <FieldDescription>
+              One row per thing the sponsor gave. Each becomes its own inventory
+              record, so items can go to different giveaway prizes or out to the
+              gear library independently.
+            </FieldDescription>
+            <div className="flex flex-col gap-3">
+              {itemRows.rows.map((row, index) => (
+                <div
+                  key={row.id}
+                  className="flex flex-col gap-2 rounded-md border border-[var(--line)] p-3 sm:flex-row sm:items-end"
+                >
+                  <Field className="sm:flex-2">
+                    <FieldLabel htmlFor={`${row.id}-description`}>
+                      Item {index + 1}
+                    </FieldLabel>
+                    <Input
+                      id={`${row.id}-description`}
+                      placeholder="e.g. Season lift tickets (4)"
+                      value={row.value.description}
+                      onChange={(event) =>
+                        itemRows.update(row.id, {
+                          ...row.value,
+                          description: event.target.value,
+                        })
+                      }
+                    />
+                  </Field>
+                  <Field className="sm:w-28">
+                    <FieldLabel htmlFor={`${row.id}-faceValue`}>
+                      Value ($)
+                    </FieldLabel>
+                    <Input
+                      id={`${row.id}-faceValue`}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={row.value.faceValue}
+                      onChange={(event) =>
+                        itemRows.update(row.id, {
+                          ...row.value,
+                          faceValue: event.target.value,
+                        })
+                      }
+                    />
+                  </Field>
+                  <Field className="sm:w-44">
+                    <FieldLabel htmlFor={`${row.id}-intendedUse`}>
+                      Headed for
+                    </FieldLabel>
+                    <Select
+                      value={row.value.intendedUse}
+                      onValueChange={(value) =>
+                        itemRows.update(row.id, {
+                          ...row.value,
+                          intendedUse: value ?? "giveaway",
+                        })
+                      }
+                    >
+                      <SelectTrigger
+                        id={`${row.id}-intendedUse`}
+                        className="w-full"
+                      >
+                        <SelectValue placeholder="Select destination">
+                          {(value: string) =>
+                            INTENDED_USES.find(
+                              (option) => option.value === value,
+                            )?.label ?? "Select destination"
+                          }
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {INTENDED_USES.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`Remove item ${index + 1}`}
+                    title={
+                      row.value.allocated
+                        ? "This item is a giveaway prize. Remove the prize first."
+                        : undefined
+                    }
+                    disabled={itemRows.rows.length === 1 || row.value.allocated}
+                    onClick={() => itemRows.remove(row.id)}
+                  >
+                    <X />
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => itemRows.add(emptyItem())}
+              >
+                <Plus /> Add item
+              </Button>
+              {total > 0 && (
+                <p className="app-muted text-sm">
+                  Items total: {formatCurrency(total)}
+                </p>
+              )}
+            </div>
+          </Field>
+        )}
 
         <Field orientation="horizontal">
           <Checkbox
@@ -441,8 +627,17 @@ export function SponsorsTab({
                   >
                     {personDisplayName(sponsor.person)}
                   </TableCell>
-                  <TableCell className="app-muted capitalize">
-                    {sponsor.support_type.replace("_", " ")}
+                  <TableCell className="app-muted">
+                    <span className="capitalize">
+                      {sponsor.support_type.replace("_", " ")}
+                    </span>
+                    {sponsor.items.length > 0 && (
+                      <>
+                        {" · "}
+                        {sponsor.items.length}{" "}
+                        {sponsor.items.length === 1 ? "item" : "items"}
+                      </>
+                    )}
                   </TableCell>
                   <TableCell>
                     {formatCurrency(sponsor.contribution_value)}
@@ -465,7 +660,7 @@ export function SponsorsTab({
                         <ConfirmDeleteButton
                           label="Remove sponsor"
                           title={`Remove ${personDisplayName(sponsor.person)} as a sponsor?`}
-                          description="This deletes the sponsorship record for this event, including its contribution value. It can't be undone."
+                          description="This deletes the sponsorship record for this event, including its contribution value and any in-kind items it recorded. It can't be undone."
                           confirmLabel="Remove"
                           pending={isDeleting}
                           onConfirm={() => handleDelete(sponsor.id)}

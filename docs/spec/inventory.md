@@ -5,7 +5,7 @@ unchanged. This file holds §5.4, §5.7, §5.13, §5.19 and the inventory/donati
 route tree and the key workflows stay in the hub. A plain `§N` below is in this
 file; a `§N` that lives in another file is always a link.
 
-**Also relevant:** merchandise stock is `product_variants.stock_on_hand`, deliberately not `inventory_items` — see [§5.22](finance.md#522-sales-point-of-sale). Prize allocation reserves an inventory row and keeps it out of the public catalog — see [§5.8](giveaways.md#58-giveaways).
+**Also relevant:** merchandise stock is `product_variants.stock_on_hand`, deliberately not `inventory_items` — see [§5.22](finance.md#522-sales-point-of-sale). Prize allocation reserves an inventory row and keeps it out of the public catalog — see [§5.8](giveaways.md#58-giveaways). An event sponsor's in-kind contribution is likewise ordinary inventory: one row per item under the sponsorship's donation, each with its own `intended_use`, so a sponsor's items reach the gear catalog, the prize picker or neither on their own terms — see [§5.5](events.md#55-event-management).
 
 ## 5.4 Inventory and donation management
 

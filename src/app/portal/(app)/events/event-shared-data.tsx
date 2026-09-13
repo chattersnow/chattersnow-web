@@ -14,22 +14,22 @@ import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
 import type { TabValue } from "./event-tabs-config";
 
 /**
- * A read several cards in the same phase need.
+ * A read more than one card needs.
  *
- * Opening a phase mounts every one of its cards at once, so a read declared
- * here is fetched once by the provider instead of once per card. Add a
- * resource the moment a second card wants the same rows; anything only one
- * card reads stays in that card.
+ * The provider fetches each of these at most once for the life of the page,
+ * so moving between two cards that both want the people list does not fetch it
+ * twice. Add a resource the moment a second card wants the same rows; anything
+ * only one card reads stays in that card.
  */
 export type SharedEventResource = "registrants" | "impactDerived" | "people";
 
-export type EventPhaseData = {
+export type EventSharedData = {
   registrants: TabData<EventRegistrant[]>;
   impactDerived: TabData<EventImpactDerived>;
   people: TabData<PersonListItem[]>;
   /**
-   * Appends a person created from a picker so every card in the phase can
-   * select them without waiting for a refetch.
+   * Appends a person created from a picker so every card can select them
+   * without waiting for a refetch.
    */
   addLocalPerson: (person: PersonListItem) => void;
 };
@@ -40,24 +40,39 @@ const EMPTY: TabData<never> = {
   refresh: () => {},
 };
 
-// Cards also render standalone in their own tests, and the phases that don't
-// declare a resource never read it, so an unprovided slice reads as "still
+// Cards also render standalone in their own tests, and a card that doesn't
+// declare a resource never reads it, so an unprovided slice reads as "still
 // loading" rather than throwing -- the same reasoning as NOOP_API in
 // use-tab-refresh.tsx.
-const NOT_PROVIDED: EventPhaseData = {
+const NOT_PROVIDED: EventSharedData = {
   registrants: EMPTY,
   impactDerived: EMPTY,
   people: EMPTY,
   addLocalPerson: () => {},
 };
 
-const EventPhaseDataContext = createContext<EventPhaseData>(NOT_PROVIDED);
+const EventSharedDataContext = createContext<EventSharedData>(NOT_PROVIDED);
 
-export function useEventPhaseData(): EventPhaseData {
-  return useContext(EventPhaseDataContext);
+export function useEventSharedData(): EventSharedData {
+  return useContext(EventSharedDataContext);
 }
 
-export function EventPhaseDataProvider({
+/**
+ * The reads shared between cards, fetched lazily and kept.
+ *
+ * Until #1008 one of these was mounted per phase and Base UI's unmounting of
+ * the phases you weren't looking at is what kept exactly one alive. The rail
+ * has no phase container, so the provider sits above the single card on screen
+ * instead and `resources` names what *that* card reads.
+ *
+ * Requested resources accumulate rather than following the card, for two
+ * reasons: `useTabData` only fetches on a false -> true edge, so a resource
+ * that stayed requested is not re-fetched when the reader comes back to a card
+ * that needs it; and nothing is fetched until some card actually asks, which
+ * is strictly less than the old behaviour of fetching a phase's whole union
+ * the moment the phase opened.
+ */
+export function EventSharedDataProvider({
   eventId,
   resources,
   children,
@@ -67,7 +82,18 @@ export function EventPhaseDataProvider({
   children: ReactNode;
 }) {
   const router = useRouter();
-  const wants = (resource: SharedEventResource) => resources.includes(resource);
+
+  const [requested, setRequested] = useState<ReadonlySet<SharedEventResource>>(
+    () => new Set(resources),
+  );
+  // Derived from a prop during render rather than in an effect, so the card's
+  // first paint already has its fetch enabled instead of waiting a commit.
+  const missing = resources.filter((resource) => !requested.has(resource));
+  if (missing.length > 0) {
+    setRequested(new Set([...requested, ...missing]));
+  }
+  const wants = (resource: SharedEventResource) =>
+    requested.has(resource) || resources.includes(resource);
 
   const registrants = useTabData<EventRegistrant[]>(
     () => listEventRegistrantsAction(eventId),
@@ -103,6 +129,12 @@ export function EventPhaseDataProvider({
     router.refresh();
   });
   useRegisterTabRefresh<TabValue>("discount-codes", impactDerived.refresh);
+  // The typed headcount is what the derived figures prefer over check-ins, so
+  // saving it changes what the Impact card shows. It cost nothing to leave out
+  // while a provider was mounted per phase and Attendance and Impact sat in
+  // different ones -- moving between them remounted the provider and refetched
+  // (#1008). One provider for the page means saying so.
+  useRegisterTabRefresh<TabValue>("attendance", impactDerived.refresh);
   // The Add sponsor / Add staff / Add volunteer dialogs can each create a
   // person, which every picker in the phase should then be able to find.
   useRegisterTabRefresh<TabValue>("sponsors", fetchedPeople.refresh);
@@ -110,7 +142,7 @@ export function EventPhaseDataProvider({
   useRegisterTabRefresh<TabValue>("volunteers", fetchedPeople.refresh);
 
   return (
-    <EventPhaseDataContext.Provider
+    <EventSharedDataContext.Provider
       value={{
         registrants,
         impactDerived,
@@ -119,6 +151,6 @@ export function EventPhaseDataProvider({
       }}
     >
       {children}
-    </EventPhaseDataContext.Provider>
+    </EventSharedDataContext.Provider>
   );
 }

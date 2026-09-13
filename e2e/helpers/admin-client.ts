@@ -1,4 +1,6 @@
+import { join } from "node:path";
 import { createClient } from "@supabase/supabase-js";
+import { resolveSiteUrl } from "./site-url";
 
 export function createAdminClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -20,7 +22,12 @@ export function createAdminClient() {
 }
 
 export async function generateRecoveryLink(email: string): Promise<string> {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://127.0.0.1:3000";
+  // The same origin the suite runs against -- in a worktree that is a derived
+  // port, not :3000 (#809) -- so the link lands on the server under test.
+  const siteUrl = resolveSiteUrl(
+    process.env,
+    join(__dirname, "..", ".."),
+  ).baseURL;
   const admin = createAdminClient();
 
   const { data, error } = await admin.auth.admin.generateLink({

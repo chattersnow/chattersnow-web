@@ -72,7 +72,7 @@ test.describe("board-controlled page visibility", () => {
     }
   });
 
-  // Events is the one section with a parallel slot: /events/[id] renders both
+  // Events is the one section with a parallel slot: /events/e/[id] renders both
   // as its own page and as a sheet intercepting that URL over the listing
   // (#847). The gate lives on the layout that owns the slot, so hiding the
   // section has to take the sheet with it -- not leave an overlay working on
@@ -85,7 +85,7 @@ test.describe("board-controlled page visibility", () => {
 
     for (const path of [
       "/events",
-      `/events/${SEEDED_EVENT_IDS.upcoming}`,
+      `/events/e/${SEEDED_EVENT_IDS.upcoming}`,
       "/events/community",
     ]) {
       const response = await page.goto(path);

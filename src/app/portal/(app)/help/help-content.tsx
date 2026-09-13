@@ -2312,9 +2312,9 @@ export const helpContent: Record<string, HelpEntry> = {
     ),
   },
   "/portal/events": {
-    title: "How status, visibility, and phase tabs work",
+    title: "How status, visibility, and the section rail work",
     description:
-      "The event lifecycle, public-site visibility, and the Basic/Planning/During/After tab badges.",
+      "The event lifecycle, public-site visibility, and the outstanding-work counts in the event's section list.",
     body: (
       <>
         <HowToSection heading="Steps">
@@ -2330,28 +2330,42 @@ export const helpContent: Record<string, HelpEntry> = {
             </li>
             <li>Both are set independently from the event editor.</li>
             <li>
-              <strong className="text-foreground">Phase tabs</strong> —
-              Overview, Planning, During, After — carry a count of what is still
-              outstanding in that phase, worked out from the event&apos;s own
-              data rather than set by hand. Hover the count to see what&apos;s
-              missing. No badge means nothing is outstanding.
+              <strong className="text-foreground">The section rail</strong> down
+              the left of an event lists everything the event holds at once,
+              grouped under Overview, Planning, During and After. Those are
+              headings, not steps — you can open any section from any other, so
+              correcting something on Planning weeks after the event is one
+              click. Search the rail if you are not sure which section holds
+              what: it matches on more than the section&apos;s name, so
+              &ldquo;budget&rdquo; finds Registration &amp; planning and
+              &ldquo;raffle&rdquo; finds Giveaway.
+            </li>
+            <li>
+              <strong className="text-foreground">The counts</strong> beside a
+              section say what is still outstanding in it, worked out from the
+              event&apos;s own data rather than set by hand. Hover a count to
+              see what is missing. No badge means nothing is outstanding.
               <ul className="mt-1 list-disc space-y-1 pl-4">
                 <li>
-                  <strong className="text-foreground">Overview</strong> counts
+                  <strong className="text-foreground">Checklist</strong> counts
                   unfinished checklist items.
                 </li>
                 <li>
-                  <strong className="text-foreground">Planning</strong> counts
-                  planning as incomplete until a lead, capacity and budget are
-                  all filled in — and stops asking once the event has started.
+                  <strong className="text-foreground">
+                    Registration &amp; planning
+                  </strong>{" "}
+                  counts planning as incomplete until a lead, capacity and
+                  budget are all filled in — and stops asking once the event has
+                  started.
                 </li>
                 <li>
-                  <strong className="text-foreground">During</strong> asks for
-                  an attendance headcount once the start time has passed.
+                  <strong className="text-foreground">Attendance</strong> asks
+                  for a headcount once the start time has passed.
                 </li>
                 <li>
-                  <strong className="text-foreground">After</strong> asks for
-                  the after-report and for impact figures, until the report is
+                  <strong className="text-foreground">Report</strong> and{" "}
+                  <strong className="text-foreground">Impact</strong> ask for
+                  the after-report and the impact figures, until the report is
                   submitted and an impact record exists.
                 </li>
               </ul>
@@ -2391,14 +2405,14 @@ export const helpContent: Record<string, HelpEntry> = {
               upcoming in reports that key off status.
             </li>
             <li>
-              Expecting phase counts to follow the event Status field — they
-              don&apos;t. A cancelled or archived event&apos;s phase tabs keep
-              computing from its own data.
+              Expecting the outstanding counts to follow the event Status field
+              — they don&apos;t. A cancelled or archived event&apos;s sections
+              keep computing from its own data.
             </li>
             <li>
-              Retyping figures on the Impact tab that the system already has.
-              Participants, first-time participants, beginners, volunteers on
-              site and assigned discount codes are computed from attendance,
+              Retyping figures in the Impact section that the system already
+              has. Participants, first-time participants, beginners, volunteers
+              on site and assigned discount codes are computed from attendance,
               check-ins, volunteer records and rider profiles — only the figures
               under &ldquo;Staff-entered&rdquo; need typing.
             </li>

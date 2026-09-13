@@ -123,8 +123,16 @@ describe("RiderProfileForm", () => {
     expect(await screen.findByText(/too many attempts/i)).toBeInTheDocument();
     // setError runs inside the transition, so the alert can paint while the
     // submit button still reads "Saving..." -- wait for it to settle back.
+    // That wait is on the transition, not on a render, and `findBy`'s default
+    // second was measured against a dev machine: a shared CI runner has run
+    // past it with the sibling tests green (#973), so this one is budgeted
+    // for what a real stall would exceed rather than for what a pass needs.
     expect(
-      await screen.findByRole("button", { name: "Save details" }),
+      await screen.findByRole(
+        "button",
+        { name: "Save details" },
+        { timeout: 5_000 },
+      ),
     ).toBeInTheDocument();
   });
 });

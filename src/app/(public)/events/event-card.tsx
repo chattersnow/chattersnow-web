@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { formatDateTimeInZone } from "@/lib/time";
 import { resolveImageUrl } from "@/lib/inventory";
 import type { PublicEventSponsor } from "./event-sponsors";
+import { publicEventPath } from "./event-path";
 
 export type PublicEvent = {
   id: string;
@@ -76,7 +77,7 @@ export function EventCard({ event }: { event: PublicEvent }) {
       <CardContent className="space-y-1 px-4 py-3">
         <p className="text-sm font-medium">
           <Link
-            href={`/events/${event.id}`}
+            href={publicEventPath(event.id)}
             className="after:absolute after:inset-0 after:content-['']"
           >
             {event.name}

@@ -36,8 +36,8 @@ mock.module("./impact-derived-actions", () => ({
   getEventImpactDerivedAction: getEventImpactDerivedActionMock,
 }));
 
-const { EventPhaseDataProvider, useEventPhaseData } =
-  await import("./event-phase-data");
+const { EventSharedDataProvider, useEventSharedData } =
+  await import("./event-shared-data");
 
 function Notifier({ tab }: { tab: TabValue }) {
   const { notify } = useTabRefresh<TabValue>();
@@ -49,7 +49,7 @@ function Notifier({ tab }: { tab: TabValue }) {
 }
 
 function PeopleNames() {
-  const { people, addLocalPerson } = useEventPhaseData();
+  const { people, addLocalPerson } = useEventSharedData();
   return (
     <div>
       <ul>
@@ -80,17 +80,17 @@ function renderPhase(
 ) {
   return render(
     <TabRefreshProvider>
-      <EventPhaseDataProvider eventId="event-1" resources={resources}>
+      <EventSharedDataProvider eventId="event-1" resources={resources}>
         <Notifier tab="registrants" />
         <Notifier tab="discount-codes" />
         <Notifier tab="sponsors" />
         {children}
-      </EventPhaseDataProvider>
+      </EventSharedDataProvider>
     </TabRefreshProvider>,
   );
 }
 
-describe("EventPhaseDataProvider", () => {
+describe("EventSharedDataProvider", () => {
   beforeEach(() => {
     listPeopleActionMock.mockClear();
     listEventRegistrantsActionMock.mockClear();

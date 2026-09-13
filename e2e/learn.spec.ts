@@ -88,7 +88,7 @@ test.describe("public learn page", () => {
     ).toBeVisible();
     // Deliberately not asserting a 404 status. A page-level `notFound()` under
     // `(public)` serves the not-found body with a 200 in this app -- the same
-    // is true of /events/[id], which predates #894 -- so asserting the status
+    // is true of /events/e/[id], which predates #894 -- so asserting the status
     // here would be asserting a bug is fixed that this ticket did not fix.
   });
 });
