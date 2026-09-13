@@ -3,6 +3,7 @@ import {
   addToCart,
   buildRecordSaleInput,
   cartTotals,
+  parseTaxRateInput,
   pickDefaultEvent,
   removeLine,
   setLineQuantity,
@@ -117,9 +118,55 @@ describe("cartTotals", () => {
     expect(cartTotals([], "5")).toMatchObject({
       subtotalCents: 0,
       discountCents: 0,
+      taxCents: 0,
       totalCents: 0,
       itemCount: 0,
     });
+  });
+
+  test("no rate means no tax, and the total is unchanged", () => {
+    const totals = cartTotals(addToCart([], variant()), "", "");
+    expect(totals.taxCents).toBe(0);
+    expect(totals.taxRate).toBe(0);
+    expect(totals.totalCents).toBe(2000);
+  });
+
+  test("tax is computed in cents on the subtotal, rounded once", () => {
+    // Three $5.05 stickers at 8.25%: 1515 * 0.0825 = 124.9875 cents -> 125.
+    // In floats, 15.15 * 0.0825 = 1.2498749999999999, which a naive
+    // toFixed(2) would also carry to 1.25 -- but only by luck; the cents
+    // path does not depend on it.
+    let cart: CartLine[] = [];
+    for (let i = 0; i < 3; i++) cart = addToCart(cart, variant(stickers[0]));
+    const totals = cartTotals(cart, "", "8.25");
+    expect(totals.taxCents).toBe(125);
+    expect(totals.tax).toBe(1.25);
+    expect(totals.totalCents).toBe(1640);
+    expect(totals.total).toBe(16.4);
+  });
+
+  test("tax is applied after the discount, never on the gross", () => {
+    // $20 less $2.10 is $17.90; at 10% that is $1.79, not $2.00.
+    const totals = cartTotals(addToCart([], variant()), "2.10", "10");
+    expect(totals.discountCents).toBe(210);
+    expect(totals.taxCents).toBe(179);
+    expect(totals.totalCents).toBe(1969);
+  });
+
+  test("a rate the register cannot read charges nothing", () => {
+    const cart = addToCart([], variant());
+    for (const input of ["", "   ", "abc", "-5", "101", "Infinity"]) {
+      const totals = cartTotals(cart, "", input);
+      expect(totals.taxCents, input).toBe(0);
+      expect(totals.taxRate, input).toBe(0);
+      expect(totals.totalCents, input).toBe(2000);
+    }
+  });
+
+  test("a rate is kept to three decimals, as the column stores it", () => {
+    expect(parseTaxRateInput("8.3751")).toBe(8.375);
+    expect(parseTaxRateInput("100")).toBe(100);
+    expect(parseTaxRateInput("0")).toBe(0);
   });
 });
 
@@ -190,11 +237,28 @@ describe("buildRecordSaleInput", () => {
       purchaser_person_id: null,
       payment_method: "cash",
       discount_amount: 2.5,
+      tax_rate: 0,
       notes: "at the trailhead",
       lines: [{ variant_id: variant().id, quantity: 2 }],
     });
     // Nothing about what the cart believes the money is.
     expect(JSON.stringify(input)).not.toContain("2000");
+  });
+
+  test("sends the tax rate, never the tax amount", () => {
+    const input = buildRecordSaleInput({
+      cart: addToCart([], variant()),
+      eventId: null,
+      purchaserPersonId: null,
+      paymentMethod: "cash",
+      discountInput: "",
+      taxRateInput: "8.25",
+      notes: "",
+    });
+    expect(input.tax_rate).toBe(8.25);
+    // The amount ($1.65 here) is the RPC's to compute from its own subtotal.
+    expect(input).not.toHaveProperty("tax_amount");
+    expect(JSON.stringify(input)).not.toContain("1.65");
   });
 
   test("a blank note is null rather than an empty string", () => {

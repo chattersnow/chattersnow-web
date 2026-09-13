@@ -36,9 +36,11 @@ const {
   updateAppSettingAction,
   updateExpenseApprovalThresholdAction,
   updateReimbursementApprovalThresholdAction,
+  updateSalesTaxRateAction,
   updateEmailNotificationsEnabledAction,
   updateSenderIdentityAction,
 } = await import("./actions");
+const { SALES_TAX_RATE_SETTING_KEY } = await import("@/lib/sales-tax");
 const { FROM_ADDRESS_SETTING_KEY, REPLY_TO_SETTING_KEY } =
   await import("@/lib/email/identity");
 
@@ -65,6 +67,12 @@ async function deleteSetting(key: string) {
 function thresholdForm(value: string) {
   const fd = new FormData();
   fd.set("threshold", value);
+  return fd;
+}
+
+function rateForm(value: string) {
+  const fd = new FormData();
+  fd.set("rate", value);
   return fd;
 }
 
@@ -166,6 +174,42 @@ describe("administration/organization-settings actions (integration)", () => {
     );
   });
 
+  // #997: the register's default rate. Validated before the permission check
+  // like the thresholds, stored as a number the register reads through
+  // org_sales_tax, and the seed leaves it at 0.
+  test("the sales tax rate round-trips, to three decimals, within 0-100", async () => {
+    currentSupabase = anonClient();
+    for (const bad of ["", "abc", "-1", "100.001"]) {
+      expect(await updateSalesTaxRateAction(rateForm(bad)), bad).toEqual({
+        error: "Tax rate must be between 0 and 100 percent.",
+      });
+    }
+    expect(await updateSalesTaxRateAction(rateForm("8.25"))).toEqual(DENIED);
+
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+    await withRestoredSetting(SALES_TAX_RATE_SETTING_KEY, async () => {
+      expect(await updateSalesTaxRateAction(rateForm("8.3756"))).toEqual({
+        success: true,
+      });
+      expect(await settingValue(SALES_TAX_RATE_SETTING_KEY)).toBe(8.376);
+
+      // What the register will prefill: the view hands the same number to a
+      // session that holds sales:manage and nothing in app_settings' policy.
+      const coordinator = await signInAs(SEEDED_USERS.coordinator);
+      const { data, error } = await coordinator
+        .from("org_sales_tax")
+        .select("rate")
+        .maybeSingle();
+      expect(error).toBeNull();
+      expect(Number(data?.rate)).toBe(8.376);
+
+      expect(await updateSalesTaxRateAction(rateForm("0"))).toEqual({
+        success: true,
+      });
+      expect(await settingValue(SALES_TAX_RATE_SETTING_KEY)).toBe(0);
+    });
+  });
+
   // system_settings is admin AND board (both 'manage') -- unlike every other
   // Administration resource, which is admin-only. This proves the actions
   // gate on system_settings, not on administration: board holds
@@ -202,6 +246,7 @@ describe("administration/organization-settings actions (integration)", () => {
       expect(
         await updateReimbursementApprovalThresholdAction(thresholdForm("600")),
       ).toEqual(DENIED);
+      expect(await updateSalesTaxRateAction(rateForm("8.25"))).toEqual(DENIED);
       expect(await updateEmailNotificationsEnabledAction(false)).toEqual(
         DENIED,
       );

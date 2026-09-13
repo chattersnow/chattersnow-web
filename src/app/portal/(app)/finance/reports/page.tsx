@@ -135,7 +135,7 @@ export default async function FinancialReportsPage({
           value: formatCurrency(summary.salesTotal),
           caption: `${formatNumber(summary.salesCount)} sale${
             summary.salesCount === 1 ? "" : "s"
-          } recorded`,
+          } recorded, net of sales tax`,
         },
         {
           label: "Monetary donations",
@@ -160,6 +160,14 @@ export default async function FinancialReportsPage({
           caption: `${formatNumber(summary.inKindItemCount)} item${
             summary.inKindItemCount === 1 ? "" : "s"
           } donated, at face value`,
+        },
+        // Outside Income and Net on purpose (#997): collected tax is the
+        // state's money passing through, and a report that folded it into
+        // income would overstate what the org earned by exactly what it owes.
+        {
+          label: "Sales tax collected",
+          value: formatCurrency(summary.salesTaxTotal),
+          caption: "Held for remittance — not counted as income",
         },
       ]
     : [];

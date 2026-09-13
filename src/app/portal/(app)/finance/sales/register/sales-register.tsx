@@ -48,12 +48,15 @@ export function SalesRegister({
   variants,
   events,
   defaultEventId,
+  defaultTaxRate = 0,
 }: {
   /** Active variants of active products, in catalog order. */
   variants: RegisterVariant[];
   events: RegisterEvent[];
   /** From `?event=` — the event tab's "Open register" deep link. */
   defaultEventId?: string;
+  /** The org's rate (percent) from app_settings, prefilled and editable per sale. */
+  defaultTaxRate?: number;
 }) {
   const router = useRouter();
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -66,6 +69,13 @@ export function SalesRegister({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [purchaser, setPurchaser] = useState<PersonHit | null>(null);
   const [discountInput, setDiscountInput] = useState("");
+  // Seeded once from the org default; the cashier may change it for a sale
+  // (a tax-exempt buyer, an out-of-state fair) and the RPC snapshots whatever
+  // was sent. Kept across sales like the event: the next sale at the same
+  // table is at the same rate.
+  const [taxRateInput, setTaxRateInput] = useState(() =>
+    defaultTaxRate === 0 ? "" : String(defaultTaxRate),
+  );
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -76,8 +86,8 @@ export function SalesRegister({
   useUnsavedChangesGuard(cart.length > 0);
 
   const totals = useMemo(
-    () => cartTotals(cart, discountInput),
-    [cart, discountInput],
+    () => cartTotals(cart, discountInput, taxRateInput),
+    [cart, discountInput, taxRateInput],
   );
 
   // What is left to sell right now: the catalog figure less what is in the
@@ -102,6 +112,7 @@ export function SalesRegister({
           purchaserPersonId: purchaser?.id ?? null,
           paymentMethod,
           discountInput,
+          taxRateInput,
           notes,
         }),
       );
@@ -274,6 +285,21 @@ export function SalesRegister({
             </Field>
 
             <Field>
+              <FieldLabel htmlFor="register-tax-rate">Tax rate (%)</FieldLabel>
+              <Input
+                id="register-tax-rate"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                max="100"
+                step="0.001"
+                placeholder="0"
+                value={taxRateInput}
+                onChange={(event) => setTaxRateInput(event.target.value)}
+              />
+            </Field>
+
+            <Field>
               <FieldLabel htmlFor="register-event">Event</FieldLabel>
               <Select
                 value={eventId}
@@ -349,6 +375,10 @@ export function SalesRegister({
               <div className="flex justify-between">
                 <span className="app-muted">Discount</span>
                 <span>{formatCurrency(totals.discount)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="app-muted">Tax</span>
+                <span>{formatCurrency(totals.tax)}</span>
               </div>
               <div className="flex justify-between text-base font-semibold">
                 <span>Total</span>

@@ -41,9 +41,44 @@ describe("parseRecordSaleInput", () => {
       purchaser_person_id: PERSON,
       payment_method: "cash",
       discount_amount: 2.5,
+      tax_rate: 0,
       notes: "cash box",
       lines: [{ variant_id: VARIANT, quantity: 3 }],
     });
+  });
+
+  test("accepts a tax rate as a number or a numeric string", () => {
+    expect(ok(parseRecordSaleInput(input({ tax_rate: 8.25 }))).tax_rate).toBe(
+      8.25,
+    );
+    expect(ok(parseRecordSaleInput(input({ tax_rate: "7" }))).tax_rate).toBe(7);
+    expect(ok(parseRecordSaleInput(input({ tax_rate: 100 }))).tax_rate).toBe(
+      100,
+    );
+  });
+
+  test("a missing tax rate is zero", () => {
+    for (const taxRate of [undefined, null, ""]) {
+      expect(
+        ok(parseRecordSaleInput(input({ tax_rate: taxRate }))).tax_rate,
+      ).toBe(0);
+    }
+  });
+
+  test("refuses a negative, over-100 or unreadable tax rate", () => {
+    for (const taxRate of [-1, "-0.5", 100.001, "abc", Infinity]) {
+      expect(parseRecordSaleInput(input({ tax_rate: taxRate }))).toEqual({
+        error: "Tax rate must be between 0 and 100 percent.",
+      });
+    }
+  });
+
+  test("rounds a tax rate to three decimals", () => {
+    // numeric(6,3) on sales.tax_rate; rounding here keeps the register's
+    // figure and the stored one identical.
+    expect(ok(parseRecordSaleInput(input({ tax_rate: 8.3756 }))).tax_rate).toBe(
+      8.376,
+    );
   });
 
   test("an absent event or purchaser is null, not an error", () => {

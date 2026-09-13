@@ -60,6 +60,7 @@ import {
 import { updateSaleAction, voidSaleAction } from "./actions";
 import { SaleStatusBadge } from "./sale-badges";
 import {
+  formatTaxRate,
   paymentMethodLabel,
   type EventOption,
   type PaymentMethod,
@@ -289,6 +290,15 @@ export function SaleDetailsSheet({
                 </ReadOnlyField>
                 <ReadOnlyField label="Discount" htmlFor="sale-discount-view">
                   {formatCurrency(sale.discount_amount)}
+                </ReadOnlyField>
+                {/* The rate is the one snapshotted on the sale, not today's
+                    org default. Read-only like the money above it: correcting
+                    tax is a void and a re-ring (§5.22). */}
+                <ReadOnlyField
+                  label={`Tax (${formatTaxRate(sale.tax_rate)})`}
+                  htmlFor="sale-tax-view"
+                >
+                  {formatCurrency(sale.tax_amount)}
                 </ReadOnlyField>
                 <ReadOnlyField label="Total" htmlFor="sale-total-view">
                   {formatCurrency(sale.total)}
