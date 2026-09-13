@@ -126,6 +126,101 @@ describe("merge_people (integration)", () => {
     expect(audit!.repointed).toMatchObject({ "donations.donor_id": 1 });
   });
 
+  // #1030. The pre-delete above drops the duplicate's tag wherever the survivor
+  // holds the same role, which was right while the row was a bare assertion and
+  // wrong once #1024 hung the sponsor wall's opt-in on it. These four cases are
+  // the whole truth table for that flag; only the first one regressed.
+  const publishedSponsorPair = async (
+    survivorPublic: boolean,
+    duplicatePublic: boolean,
+  ) => {
+    const survivor = await makePerson({
+      name: "Sponsor Survivor",
+      email: uniqueEmail("merge-pub-s"),
+      person_type: "organization",
+    });
+    const duplicate = await makePerson({
+      name: "Sponsor Duplicate",
+      email: uniqueEmail("merge-pub-d"),
+      person_type: "organization",
+    });
+    await adminClient.from("person_role_tags").insert([
+      { person_id: survivor, role: "sponsor", is_public: survivorPublic },
+      { person_id: duplicate, role: "sponsor", is_public: duplicatePublic },
+    ]);
+
+    currentSupabase = await signIn(SEEDED_USERS.admin);
+    expect(await mergePeopleAction(survivor, duplicate, {})).toEqual({
+      success: true,
+    });
+
+    const { data } = await adminClient
+      .from("person_role_tags")
+      .select("is_public")
+      .eq("person_id", survivor)
+      .eq("role", "sponsor")
+      .single();
+    return { survivor, isPublic: data!.is_public as boolean };
+  };
+
+  test("a merge carries the duplicate's sponsor publication onto the survivor", async () => {
+    // The losing direction: merging a published record into an unpublished
+    // duplicate of the same organization used to take its logo off the public
+    // site with nothing said to the staffer.
+    const { survivor, isPublic } = await publishedSponsorPair(false, true);
+    expect(isPublic).toBe(true);
+
+    // And the point of the flag: it is back on the wall under the survivor.
+    const { data: wall } = await adminClient
+      .from("public_sponsor_wall")
+      .select("sponsor_id")
+      .eq("sponsor_id", survivor);
+    expect(wall).toHaveLength(1);
+  });
+
+  test("a published survivor stays published", async () => {
+    expect((await publishedSponsorPair(true, false)).isPublic).toBe(true);
+  });
+
+  test("two published records merge to one published record", async () => {
+    expect((await publishedSponsorPair(true, true)).isPublic).toBe(true);
+  });
+
+  test("a merge does not publish a sponsor neither record published", async () => {
+    expect((await publishedSponsorPair(false, false)).isPublic).toBe(false);
+  });
+
+  test("the duplicate's sponsor tag still carries its flag when the survivor has none", async () => {
+    // No collision, so the pre-delete does not fire at all and the row is
+    // repointed whole -- the flag rides along with it.
+    const survivor = await makePerson({
+      name: "Untagged Survivor",
+      email: uniqueEmail("merge-untagged-s"),
+      person_type: "organization",
+    });
+    const duplicate = await makePerson({
+      name: "Tagged Duplicate",
+      email: uniqueEmail("merge-untagged-d"),
+      person_type: "organization",
+    });
+    await adminClient
+      .from("person_role_tags")
+      .insert({ person_id: duplicate, role: "sponsor", is_public: true });
+
+    currentSupabase = await signIn(SEEDED_USERS.admin);
+    expect(await mergePeopleAction(survivor, duplicate, {})).toEqual({
+      success: true,
+    });
+
+    const { data } = await adminClient
+      .from("person_role_tags")
+      .select("is_public")
+      .eq("person_id", survivor)
+      .eq("role", "sponsor")
+      .single();
+    expect(data!.is_public).toBe(true);
+  });
+
   test("refuses when both records are linked to different portal accounts", async () => {
     // Two auth accounts that no people row already claims -- the seed links
     // six of the eight (seed.sql:74), deliberately leaving some unlinked.
