@@ -42,4 +42,14 @@ describe("TeamPage", () => {
     expect(container.querySelector("ul")).not.toBeNull();
     expect(container.querySelector(".lg\\:grid-cols-3")).toBeNull();
   });
+
+  test("renders the portrait grid when the tenant has chosen it", async () => {
+    mockClient({ team_layout: "portraits" });
+    const { default: TeamPage } = await import("./page");
+
+    const { container } = render(await TeamPage());
+
+    expect(container.querySelector(".lg\\:grid-cols-5")).not.toBeNull();
+    expect(container.querySelector(".lg\\:grid-cols-3")).toBeNull();
+  });
 });

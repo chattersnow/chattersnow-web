@@ -7,6 +7,7 @@ import { resolvePhoto, TEAM_PHOTO_FIELD } from "@/lib/site-content";
 // imported from this file and the boundary is easier to keep than to repair.
 import type { TeamLayout } from "@/lib/site-layout";
 import { TeamBio } from "./team-bio";
+import { TeamPortraits } from "./team-portraits";
 
 export type TeamMember = {
   name: string;
@@ -138,9 +139,10 @@ function TeamMemberRow({
 }
 
 /**
- * The team, arranged the way the tenant asked for in Website > Layout (#917).
+ * The team, arranged the way the tenant asked for in Website > Layout (#917,
+ * and the portraits arrangement in #1012).
  *
- * Both arrangements read the same `about_team.members` rows and resolve a
+ * All three arrangements read the same `about_team.members` rows and resolve a
  * photo the same way; switching is a presentation decision and nothing else,
  * which is the whole argument for making it a setting rather than a rewrite.
  */
@@ -155,6 +157,22 @@ export function TeamMembers({
   layout: TeamLayout;
   bioPlaceholder: string;
 }) {
+  if (layout === "portraits") {
+    // The photo is resolved here rather than inside the client component, so
+    // the image-slot registry and `resolvePhoto` stay on the server and only
+    // strings cross the boundary.
+    return (
+      <TeamPortraits
+        members={members.map((member) => ({
+          name: member.name,
+          role: member.role,
+          bio: member.bio ?? [],
+          photoUrl: photoUrl(member, siteImages),
+        }))}
+      />
+    );
+  }
+
   if (layout === "rows") {
     return (
       <>

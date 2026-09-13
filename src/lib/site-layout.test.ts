@@ -85,6 +85,10 @@ describe("resolveLayout", () => {
     expect(
       resolveLayout([{ slot: TEAM_LAYOUT_SLOT, value: "rows" }]).teamLayout,
     ).toBe("rows");
+    expect(
+      resolveLayout([{ slot: TEAM_LAYOUT_SLOT, value: "portraits" }])
+        .teamLayout,
+    ).toBe("portraits");
   });
 
   test("resolves each slot independently", () => {
