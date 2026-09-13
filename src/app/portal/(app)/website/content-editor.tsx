@@ -56,6 +56,7 @@ export function ContentEditor({
   outline,
   hiddenPages,
   programsFromModule,
+  teamFromPeople,
   canEdit,
 }: {
   page: ContentPage;
@@ -71,6 +72,12 @@ export function ContentEditor({
    * the introduction and the pillars are read in both modes.
    */
   programsFromModule: boolean;
+  /**
+   * Whether this tenant's Meet the Team page reads People rather than the
+   * copy below (#1014). Only `about_team:team`'s member list is dead in that
+   * mode; the heading, hero photo and missing-bio text are read either way.
+   */
+  teamFromPeople: boolean;
   canEdit: boolean;
 }) {
   const router = useRouter();
@@ -304,28 +311,19 @@ export function ContentEditor({
                   section={section}
                   notice={
                     programsFromModule && section.key === "programs:items" ? (
-                      <Alert>
-                        <Info />
-                        <AlertDescription>
-                          The Programs page is set to list the programs from the
-                          Programs module, so this list is not what visitors
-                          see.{" "}
-                          <Link
-                            href="/portal/programs"
-                            className="underline underline-offset-4"
-                          >
-                            Edit those in Programs
-                          </Link>
-                          , or change where the page reads from in{" "}
-                          <Link
-                            href="/portal/website/page-layout"
-                            className="underline underline-offset-4"
-                          >
-                            Layout
-                          </Link>
-                          .
-                        </AlertDescription>
-                      </Alert>
+                      <ModuleSourceNotice
+                        page="The Programs page"
+                        what="the programs from the Programs module"
+                        editHref="/portal/programs"
+                        editLabel="Edit those in Programs"
+                      />
+                    ) : teamFromPeople && section.key === "about_team:team" ? (
+                      <ModuleSourceNotice
+                        page="The Meet the Team page"
+                        what="the people added to it from their records in People"
+                        editHref="/portal/people"
+                        editLabel="Edit those in People"
+                      />
                     ) : undefined
                   }
                   slots={sectionSlots}
@@ -403,6 +401,44 @@ export function ContentEditor({
         }}
       />
     </>
+  );
+}
+
+/**
+ * Labels a list the public page is no longer reading, where it is edited.
+ * Two pages can be pointed at a module instead of their copy -- Programs
+ * (#898) and Meet the Team (#1014) -- and the notice is the same sentence
+ * with the page and the module filled in.
+ */
+function ModuleSourceNotice({
+  page,
+  what,
+  editHref,
+  editLabel,
+}: {
+  page: string;
+  what: string;
+  editHref: string;
+  editLabel: string;
+}) {
+  return (
+    <Alert>
+      <Info />
+      <AlertDescription>
+        {page} is set to list {what}, so this list is not what visitors see.{" "}
+        <Link href={editHref} className="underline underline-offset-4">
+          {editLabel}
+        </Link>
+        , or change where the page reads from in{" "}
+        <Link
+          href="/portal/website/page-layout"
+          className="underline underline-offset-4"
+        >
+          Layout
+        </Link>
+        .
+      </AlertDescription>
+    </Alert>
   );
 }
 

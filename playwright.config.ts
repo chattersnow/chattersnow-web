@@ -74,7 +74,7 @@ if (site.derived && !process.env.TEST_WORKER_INDEX) {
  * filter a dependency project ignores.
  */
 const MUTATING_SPECS =
-  /(page-visibility|unresolved-host|tenant-branding|legal-publication|module-gating|programs-source|person-role-labels|team-layout)\.spec\.ts/;
+  /(page-visibility|unresolved-host|tenant-branding|legal-publication|module-gating|programs-source|person-role-labels|team-layout|team-source)\.spec\.ts/;
 
 const ALL_BROWSER_PROJECTS = [
   { name: "chromium", use: { ...devices["Desktop Chrome"] } },

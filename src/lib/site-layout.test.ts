@@ -9,6 +9,7 @@ import {
   PROGRAMS_SOURCE_SLOT,
   SPONSOR_WALL_LAYOUT_SLOT,
   TEAM_LAYOUT_SLOT,
+  TEAM_SOURCE_SLOT,
   isLayoutValue,
   layoutSettingKey,
   resolveLayout,
@@ -22,6 +23,7 @@ const DEFAULTS: SiteLayout = {
   homeUpcomingCommunity: true,
   programsSource: "content",
   teamLayout: "cards",
+  teamSource: "content",
   sponsorWallLayout: "cards",
 };
 
@@ -46,6 +48,7 @@ describe("resolveLayout", () => {
         { slot: HOME_UPCOMING_COMMUNITY_SLOT, value: false },
         { slot: PROGRAMS_SOURCE_SLOT, value: "module" },
         { slot: TEAM_LAYOUT_SLOT, value: "rows" },
+        { slot: TEAM_SOURCE_SLOT, value: "people" },
         { slot: SPONSOR_WALL_LAYOUT_SLOT, value: "band" },
       ]),
     ).toEqual({
@@ -54,6 +57,7 @@ describe("resolveLayout", () => {
       homeUpcomingCommunity: false,
       programsSource: "module",
       teamLayout: "rows",
+      teamSource: "people",
       sponsorWallLayout: "band",
     });
   });
@@ -93,6 +97,18 @@ describe("resolveLayout", () => {
       resolveLayout([{ slot: TEAM_LAYOUT_SLOT, value: "portraits" }])
         .teamLayout,
     ).toBe("portraits");
+  });
+
+  // The People twin of the Programs case: a deploy that repointed Meet the
+  // Team at a table holding nobody would blank a live page (#1014).
+  test("leaves Meet the Team on Site Content until a tenant says otherwise", () => {
+    expect(resolveLayout([]).teamSource).toBe("content");
+    expect(
+      resolveLayout([{ slot: TEAM_SOURCE_SLOT, value: "module" }]).teamSource,
+    ).toBe("content");
+    expect(
+      resolveLayout([{ slot: TEAM_SOURCE_SLOT, value: "people" }]).teamSource,
+    ).toBe("people");
   });
 
   // Same stance again, for the same reason: #1013 made the sponsor wall's
