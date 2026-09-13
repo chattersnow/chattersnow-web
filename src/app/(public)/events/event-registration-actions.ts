@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getClientIp } from "@/lib/get-client-ip";
 import { PRONOUNS_TOO_LONG_ERROR } from "@/lib/pronouns";
 import { parseEventRegistrationForm } from "./event-registration-form";
+import { publicEventPath } from "./event-path";
 
 export type RegisterForEventResult =
   { error: string } | { success: true; registrationId: string };
@@ -60,7 +61,7 @@ export async function registerForEventAction(
     };
   }
 
-  revalidatePath(`/events/${eventId}`);
+  revalidatePath(publicEventPath(eventId));
   revalidatePath("/portal/events");
   // The new registration id is handed back so the rider-profile follow-up
   // step (#564) can authorize its own write; it's an unguessable uuid and

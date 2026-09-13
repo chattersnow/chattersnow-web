@@ -46,7 +46,7 @@ async function pressEscape(page: Page): Promise<void> {
 }
 
 /** An event's own URL, as the listing's cards link to it. */
-const EVENT_DETAIL_HREF = /^\/events\/[0-9a-f-]{36}$/;
+const EVENT_DETAIL_HREF = /^\/events\/e\/[0-9a-f-]{36}$/;
 
 async function firstEventHref(page: Page): Promise<string | null> {
   const hrefs = await page
@@ -202,7 +202,7 @@ export const SURFACES: Surface[] = [
     },
   },
   {
-    // The intercepted /events/[id] (#847). The route scan reaches that URL by
+    // The intercepted /events/e/[id] (#847). The route scan reaches that URL by
     // loading it, which renders the full page; the sheet is a different DOM --
     // the same event over the listing, registration form and all -- and only a
     // client-side click renders it. Scoped by href rather than by card position
@@ -225,7 +225,7 @@ export const SURFACES: Surface[] = [
       return (await modal(page).count()) > 0;
     },
     close: pressEscape,
-    // Opening it pushes /events/[id] and closing it steps back, so the route
+    // Opening it pushes /events/e/[id] and closing it steps back, so the route
     // is reloaded rather than trusted to be where the next surface expects.
     mutates: true,
   },

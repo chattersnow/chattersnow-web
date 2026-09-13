@@ -108,7 +108,7 @@ describe("registerForEventAction (integration)", () => {
       /^[0-9a-f-]{36}$/,
     );
     expect(await countEventRegistrations(id, email)).toBe(1);
-    expect(revalidatePathMock).toHaveBeenCalledWith(`/events/${id}`);
+    expect(revalidatePathMock).toHaveBeenCalledWith(`/events/e/${id}`);
     expect(revalidatePathMock).toHaveBeenCalledWith("/portal/events");
   });
 

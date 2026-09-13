@@ -3,8 +3,8 @@ import { notFound } from "next/navigation";
 import { PageShell } from "@/components/page-shell";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPublicSite, publicTitle } from "@/lib/public-site";
-import { EventDetailContent } from "../event-detail-content";
-import { loadEventDetail } from "../event-detail-data";
+import { EventDetailContent } from "../../event-detail-content";
+import { loadEventDetail } from "../../event-detail-data";
 
 export async function generateMetadata({
   params,

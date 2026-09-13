@@ -127,7 +127,7 @@ function EventDetailBody({
 }
 
 /**
- * One event, rendered either as `/events/[id]`'s own page or as the sheet that
+ * One event, rendered either as `/events/e/[id]`'s own page or as the sheet that
  * intercepts that URL over the listing (#847). A server component in both
  * cases: the client parts it reaches for (the registration form, sponsor
  * logos) draw their own boundaries.

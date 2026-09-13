@@ -11,7 +11,7 @@ export const PUBLIC_EVENT_COLUMNS =
   "id, name, location, starts_at, ends_at, timezone, description, capacity, registration_enabled, registration_deadline, flier_url";
 
 /**
- * One event, with its sponsors and programs, for `/events/[id]` -- whether that
+ * One event, with its sponsors and programs, for `/events/e/[id]` -- whether that
  * URL is rendering as a full page or as the sheet intercepting it over the
  * listing (#847). Both go through here rather than the sheet reading the
  * listing's in-memory copy, so the two presentations answer to one query.
