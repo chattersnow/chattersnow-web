@@ -15,9 +15,22 @@ export function fakePublicSiteClient({
   branding = {},
   tenant = null,
   layout = {},
+  publicTeam = [],
 }: {
   siteImages?: Record<string, string>;
   content?: Record<string, unknown>;
+  /**
+   * `public_team` rows (#1014), in the view's own column names. Only read
+   * when `layout.team_source` is `people`; the default renders the copy.
+   */
+  publicTeam?: Array<{
+    id?: string;
+    name: string;
+    role?: string | null;
+    photo_url?: string | null;
+    bio?: string | null;
+    sort_order?: number | null;
+  }>;
   /**
    * `layout.*` rows, keyed by slot: `{ team_layout: "rows" }`. Empty renders
    * the registry defaults, which is what a tenant that has chosen nothing
@@ -50,6 +63,14 @@ export function fakePublicSiteClient({
     public_site_layout: Object.entries(layout).map(([slot, value]) => ({
       slot,
       value,
+    })),
+    public_team: publicTeam.map((row, index) => ({
+      id: row.id ?? `team-${index}`,
+      name: row.name,
+      role: row.role ?? null,
+      photo_url: row.photo_url ?? null,
+      bio: row.bio ?? null,
+      sort_order: row.sort_order ?? null,
     })),
   };
 

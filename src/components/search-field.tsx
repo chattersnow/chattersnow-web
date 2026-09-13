@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { ListLink } from "@/components/portal/list-navigation";
 import { Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,7 +67,7 @@ export function SearchField({
           size="icon-sm"
           aria-label="Clear search"
           nativeButton={false}
-          render={<Link href={clearHref} />}
+          render={<ListLink href={clearHref} />}
         >
           <LinkPendingPulse>
             <X />

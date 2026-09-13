@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { ListLink } from "@/components/portal/list-navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -149,7 +149,7 @@ export function Pagination({
             variant="outline"
             size="sm"
             nativeButton={false}
-            render={<Link href={hrefFor(page - 1)} />}
+            render={<ListLink href={hrefFor(page - 1)} />}
           >
             <LinkPendingPulse>Previous</LinkPendingPulse>
           </Button>
@@ -163,7 +163,7 @@ export function Pagination({
             variant="outline"
             size="sm"
             nativeButton={false}
-            render={<Link href={hrefFor(page + 1)} />}
+            render={<ListLink href={hrefFor(page + 1)} />}
           >
             <LinkPendingPulse>Next</LinkPendingPulse>
           </Button>

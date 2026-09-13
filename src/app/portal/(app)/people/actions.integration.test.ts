@@ -29,6 +29,8 @@ const {
   updatePersonAction,
   addOrganizationMembershipAction,
   removeOrganizationMembershipAction,
+  savePublicTeamMemberAction,
+  removePublicTeamMemberAction,
 } = await import("./actions");
 
 afterEach(() => {
@@ -338,5 +340,96 @@ describe("ensure_current_person (integration)", () => {
       // link-by-email path -- put that back.
       await adminClient.from("people").delete().eq("id", row.person_id);
     }
+  });
+});
+
+describe("public team page actions (integration)", () => {
+  function teamForm(fields: Record<string, string>) {
+    const fd = new FormData();
+    for (const [key, value] of Object.entries(fields)) fd.set(key, value);
+    return fd;
+  }
+
+  async function listingFor(personId: string) {
+    const { data } = await adminClient
+      .from("public_team_members")
+      .select("public_role, photo_url, bio, sort_order")
+      .eq("person_id", personId)
+      .maybeSingle();
+    return data;
+  }
+
+  test("admin role (people manage) lists a person, updates the listing, and removes it", async () => {
+    const person = await createPerson();
+    currentSupabase = await signIn(SEEDED_USERS.admin);
+
+    const saved = await savePublicTeamMemberAction(
+      person.id,
+      teamForm({ publicRole: "Programs lead", bio: "First.\n\nSecond." }),
+    );
+    expect(saved).toEqual({ success: true });
+    expect(await listingFor(person.id)).toEqual({
+      public_role: "Programs lead",
+      photo_url: null,
+      bio: "First.\n\nSecond.",
+      sort_order: null,
+    });
+    // The public page is revalidated whether or not this tenant reads People
+    // -- the same unconditional call the Programs actions make (#898).
+    expect(revalidatePathMock).toHaveBeenCalledWith("/about/team");
+    expect(revalidatePathMock).toHaveBeenCalledWith(
+      `/portal/people/${person.id}`,
+    );
+
+    // Saving again updates the one row rather than adding a second.
+    const updated = await savePublicTeamMemberAction(
+      person.id,
+      teamForm({ publicRole: "Board chair", sortOrder: "3" }),
+    );
+    expect(updated).toEqual({ success: true });
+    expect(await listingFor(person.id)).toEqual({
+      public_role: "Board chair",
+      photo_url: null,
+      bio: null,
+      sort_order: 3,
+    });
+
+    revalidatePathMock.mockClear();
+    const removed = await removePublicTeamMemberAction(person.id);
+    expect(removed).toEqual({ success: true });
+    expect(await listingFor(person.id)).toBeNull();
+    expect(revalidatePathMock).toHaveBeenCalledWith("/about/team");
+    await person.cleanup();
+  });
+
+  test("a bad photo link is refused before it reaches the table", async () => {
+    const person = await createPerson();
+    currentSupabase = await signIn(SEEDED_USERS.admin);
+    const result = await savePublicTeamMemberAction(
+      person.id,
+      teamForm({ photoUrl: "example.test/x.jpg" }),
+    );
+    expect(result).toEqual({
+      error: "Photo URL must start with http:// or https://.",
+    });
+    expect(await listingFor(person.id)).toBeNull();
+    await person.cleanup();
+  });
+
+  test("roles without people manage cannot list or remove a person", async () => {
+    const person = await createPerson();
+    for (const email of [
+      SEEDED_USERS.volunteer,
+      SEEDED_USERS.finance,
+      SEEDED_USERS.coordinator,
+    ]) {
+      currentSupabase = await signIn(email);
+      expect(await savePublicTeamMemberAction(person.id, teamForm({}))).toEqual(
+        DENIED,
+      );
+      expect(await removePublicTeamMemberAction(person.id)).toEqual(DENIED);
+    }
+    expect(await listingFor(person.id)).toBeNull();
+    await person.cleanup();
   });
 });

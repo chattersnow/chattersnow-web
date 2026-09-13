@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { RowsPerPageSelect } from "@/components/ui/pagination";
+import { useListNavigation } from "@/components/portal/list-navigation";
 
 /**
  * The rows-per-page control for the lists that paginate through the URL
@@ -25,6 +26,7 @@ export function RowsPerPageNav({
   options: readonly { value: number; href: string }[];
 }) {
   const router = useRouter();
+  const nav = useListNavigation();
 
   return (
     <RowsPerPageSelect
@@ -32,7 +34,9 @@ export function RowsPerPageNav({
       options={options.map((option) => option.value)}
       onChange={(next) => {
         const href = options.find((option) => option.value === next)?.href;
-        if (href) router.push(href);
+        if (!href) return;
+        if (nav) nav.navigate(href);
+        else router.push(href);
       }}
     />
   );

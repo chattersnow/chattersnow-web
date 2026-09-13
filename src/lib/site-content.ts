@@ -1013,6 +1013,16 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     type: "text",
     default: "Bio coming soon.",
   },
+  {
+    key: "about_team.empty",
+    page: "about_team",
+    section: "about_team:team",
+    label: "No team members text",
+    description:
+      "Shown when the page reads People and nobody has been added to the team page yet.",
+    type: "text",
+    default: "We're updating this page. Check back soon.",
+  },
 
   // Events ----------------------------------------------------------------------
   {

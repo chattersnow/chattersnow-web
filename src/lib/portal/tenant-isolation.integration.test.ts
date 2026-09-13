@@ -81,6 +81,7 @@ const b = {
   gearItemId: "",
   volunteerRoleTypeId: "",
   sponsorId: "",
+  publicTeamId: "",
   taggedSponsorPersonId: "",
   siteContentKey: `home.isolation_probe_b_${run}`,
   disabledModuleKey: "",
@@ -100,6 +101,7 @@ const aPublic = {
   sponsorPersonId: "",
   taggedSponsorPersonId: "",
   publicProgramId: "",
+  publicTeamId: "",
   siteContentKey: `home.isolation_probe_${run}`,
 };
 // One `<prefix>.<token>` app_settings / site_content key per tenant, so the
@@ -266,6 +268,18 @@ beforeAll(async () => {
         .select("id")
         .single(),
       "b person",
+    )
+  ).id as string;
+  // Listed on B's team page, so it is also B's marker row for `public_team`
+  // (#1014).
+  b.publicTeamId = (
+    await must(
+      bAdmin
+        .from("public_team_members")
+        .insert({ person_id: b.personId, public_role: "Isolation role" })
+        .select("id")
+        .single(),
+      "b public team member",
     )
   ).id as string;
   b.eventId = (
@@ -639,6 +653,17 @@ beforeAll(async () => {
         .limit(1)
         .single(),
       "a public program",
+    )
+  ).id as string;
+  aPublic.publicTeamId = (
+    await must(
+      service
+        .from("public_team_members")
+        .select("id")
+        .eq("tenant_id", tenantA)
+        .limit(1)
+        .single(),
+      "a public team member",
     )
   ).id as string;
   const aPublicSponsor = await must(
@@ -1553,6 +1578,12 @@ describe("every anon-readable view follows the host", () => {
       column: "id",
       inA: () => aPublic.publicProgramId,
       inB: () => b.programId,
+    },
+    {
+      view: "public_team",
+      column: "id",
+      inA: () => aPublic.publicTeamId,
+      inB: () => b.publicTeamId,
     },
     {
       view: "public_volunteer_role_types",

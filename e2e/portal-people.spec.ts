@@ -73,12 +73,23 @@ test.describe("portal people directory", () => {
   test("searches the directory by name", async ({ page }) => {
     await page.goto("/portal/people");
 
+    // Playwright accepts a beforeunload prompt on its own, which is how the
+    // New Person dialog arming one on every people page went unnoticed while
+    // this test stayed green: a real browser asks "Leave site?" and the search
+    // never lands. Record every dialog so a prompt here fails the test.
+    const dialogs: string[] = [];
+    page.on("dialog", async (dialog) => {
+      dialogs.push(dialog.type());
+      await dialog.accept();
+    });
+
     // Search sits in the toolbar rather than inside the Filters sheet, so
     // this is one field and one submit with the table still on screen.
     await page.getByRole("searchbox", { name: "Search" }).fill("Priya");
     await page.getByRole("button", { name: "Search", exact: true }).click();
 
     await expect(page).toHaveURL(/search=Priya/);
+    expect(dialogs).toEqual([]);
     await expect(
       page.getByRole("row").filter({ hasText: "Priya Natarajan" }),
     ).toBeVisible();
