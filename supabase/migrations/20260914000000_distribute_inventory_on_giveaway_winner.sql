@@ -1,3 +1,8 @@
+-- Renumbered from 20260913000000 (#1051). The run that would have applied it
+-- was cancelled, every later migration reached the hosted database first, and
+-- `supabase db push` refuses to insert a version before the last applied one.
+-- Nothing had applied this file anywhere, so moving it to the end is safe.
+
 -- A prize backed by an in-kind donation reserves its inventory item when the
 -- prize is created (20260901070000), and until now nothing ever moved it
 -- again: upsertGiveawayWinnerAction wrote the giveaway_winners row straight

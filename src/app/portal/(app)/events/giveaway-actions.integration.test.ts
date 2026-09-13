@@ -337,7 +337,7 @@ describe("giveaway actions (integration)", () => {
 
   // Marking the winner distributed used to write only giveaway_winners, so the
   // prize's inventory item stayed 'reserved' forever and never reached any
-  // distribution view (20260913000000).
+  // distribution view (20260914000000).
   test("marking a winner distributed distributes the prize's inventory item", async () => {
     const event = await createPublishedEvent();
     const donation = await seedEventDonation(event.id);

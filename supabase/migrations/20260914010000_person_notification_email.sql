@@ -1,3 +1,8 @@
+-- Renumbered from 20260913240000 (#1051): that version was claimed by two
+-- files at once, and a migration version is the primary key of
+-- supabase_migrations.schema_migrations, so only one of them could ever be
+-- recorded. Hour 24 is not a valid timestamp either.
+
 -- Issue #1042: a portal user's sign-in address and the address their mail goes
 -- to are the same column, and they should not be.
 --
