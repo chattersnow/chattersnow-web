@@ -36,6 +36,7 @@ export function AccountCard({
   linkable,
   roleLabels,
   notificationEmail,
+  notificationEmailPending,
   canManagePerson,
 }: {
   personId: string;
@@ -45,6 +46,8 @@ export function AccountCard({
   roleLabels: RoleLabels;
   /** Their delivery override, null when mail goes to the sign-in address. */
   notificationEmail: string | null;
+  /** Asked for and not yet confirmed; nothing is sent there yet (#1049). */
+  notificationEmailPending: string | null;
   /** people:manage, which the override is written under -- see the action. */
   canManagePerson: boolean;
 }) {
@@ -98,6 +101,7 @@ export function AccountCard({
               personId={personId}
               signInEmail={account.email}
               value={notificationEmail}
+              pending={notificationEmailPending}
               canManage={canManagePerson}
             />
             <p>
@@ -178,12 +182,14 @@ function NotificationEmailRow({
   personId,
   signInEmail,
   value,
+  pending,
   canManage,
 }: {
   personId: string;
   /** Shown as the fallback, since an empty override delivers there. */
   signInEmail: string | null;
   value: string | null;
+  pending: string | null;
   canManage: boolean;
 }) {
   const router = useRouter();
@@ -204,9 +210,15 @@ function NotificationEmailRow({
       await runAction(
         () => updatePersonNotificationEmailAction(personId, draft),
         {
-          success: draft.trim()
-            ? `Notifications will go to ${draft.trim()}.`
-            : "Notifications will go to the sign-in address.",
+          // An admin can ask on somebody's behalf but cannot finish for them:
+          // the link goes to the address being claimed (#1049), so the receipt
+          // has to say that rather than report a switch that has not happened.
+          success: (result) =>
+            result.outcome === "pending"
+              ? `A confirmation link was sent to ${result.pendingEmail}. Nothing goes there until it is followed.`
+              : draft.trim()
+                ? `Notifications will go to ${draft.trim()}.`
+                : "Notifications will go to the sign-in address.",
           onError: setError,
           onSuccess: () => {
             setIsEditing(false);
@@ -287,6 +299,15 @@ function NotificationEmailRow({
           </>
         )}
       </div>
+      {pending && !isEditing && (
+        // Said next to the address in use rather than in place of it, because
+        // the two are true at the same time and the difference is the whole
+        // point: asked for, and not yet receiving anything.
+        <p className="app-muted text-xs">
+          Waiting on {pending} — nothing is sent there until the link sent to it
+          is followed.
+        </p>
+      )}
       {error && (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
