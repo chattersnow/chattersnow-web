@@ -18,7 +18,7 @@ describe("deliveryAddress", () => {
   });
 
   // The column is normalized to null rather than '' by a trigger
-  // (20260913240000), so an empty string never reaches here from the database.
+  // (20260914010000), so an empty string never reaches here from the database.
   // Asserted anyway: if one ever did, an empty To: is a delivery failure, and
   // falling back is the recoverable reading of it.
   test("falls back when the override is empty", () => {

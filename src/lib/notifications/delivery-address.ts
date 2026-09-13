@@ -10,7 +10,7 @@
  * column. A null override, the normal case, is the sign-in address.
  *
  * The SQL side of the same rule is `people_with_permission()`
- * (20260913240000), which returns the coalesce in its `email` column for the
+ * (20260914010000), which returns the coalesce in its `email` column for the
  * sessionless senders that cannot call into this module.
  */
 export function deliveryAddress(person: {
@@ -27,6 +27,6 @@ export function deliveryAddress(person: {
 }): string | null {
   // `||` rather than `??`: an empty override is not an address, and an empty
   // To: is a delivery failure. The column is normalized to null by a trigger
-  // (20260913240000), so this only matters if something ever bypasses it.
+  // (20260914010000), so this only matters if something ever bypasses it.
   return person.notification_email || person.email;
 }
