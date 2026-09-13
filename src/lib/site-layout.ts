@@ -53,6 +53,7 @@ export const HOME_UPCOMING_COMMUNITY_SLOT = "home_upcoming_community";
 export const PROGRAMS_SOURCE_SLOT = "programs_source";
 export const TEAM_LAYOUT_SLOT = "team_layout";
 export const TEAM_SOURCE_SLOT = "team_source";
+export const SPONSOR_WALL_LAYOUT_SLOT = "sponsor_wall_layout";
 
 /** The two ways the home page can present an upcoming event. */
 export type HomeUpcomingCards = "fliers" | "compact";
@@ -103,6 +104,22 @@ export type TeamLayout = "cards" | "rows" | "portraits";
  * text are copy either way. The People twin of `ProgramsSource`.
  */
 export type TeamSource = "content" | "people";
+/** How /support/sponsorship presents the tenant-wide sponsor wall (#1013).
+ *
+ * `cards` is the bordered tile grid the section has been since #914, and stays
+ * the default, for the reason the two types above stay where they were: a
+ * tenant that has said nothing must not have its published page restructured
+ * by a deploy.
+ *
+ * `band` is for the tenant whose wall is short or quiet. Two bordered cards in
+ * a four-column grid read as an unfinished section rather than as social
+ * proof, and a long tail of individually framed local businesses competes with
+ * the donate call to action the wall sits above. A band drops the frames and
+ * sets the same logos as one centered row at a single height, which is a
+ * different answer rather than a better one -- a dozen logos still read better
+ * as a wall.
+ */
+export type SponsorWallLayout = "cards" | "band";
 
 export const LAYOUT_SLOTS: LayoutSlot[] = [
   {
@@ -180,6 +197,18 @@ export const LAYOUT_SLOTS: LayoutSlot[] = [
       { value: "people", label: "People" },
     ],
   },
+  {
+    key: SPONSOR_WALL_LAYOUT_SLOT,
+    label: "How sponsors are shown",
+    description:
+      "Cards frame each sponsor in a bordered tile, which suits a wall of logos. Band sets the same logos as one quiet centered row at a single height, with no frames. Choose band if you have a handful of sponsors, or if they should support the donate button below them rather than compete with it.",
+    control: "select",
+    defaultValue: "cards",
+    options: [
+      { value: "cards", label: "Cards", hint: "Default" },
+      { value: "band", label: "Band", hint: "For a few logos" },
+    ],
+  },
 ];
 
 const SLOTS_BY_KEY = new Map(LAYOUT_SLOTS.map((slot) => [slot.key, slot]));
@@ -219,6 +248,8 @@ export type SiteLayout = {
   teamLayout: TeamLayout;
   /** Whether Meet the Team renders copy or the tenant's own people rows. */
   teamSource: TeamSource;
+  /** Whether the sponsor wall is a grid of tiles or one quiet row of logos. */
+  sponsorWallLayout: SponsorWallLayout;
 };
 
 export type LayoutRow = { slot: string; value: unknown };
@@ -253,6 +284,7 @@ export function resolveLayout(rows: readonly LayoutRow[]): SiteLayout {
     programsSource: values[PROGRAMS_SOURCE_SLOT] as ProgramsSource,
     teamLayout: values[TEAM_LAYOUT_SLOT] as TeamLayout,
     teamSource: values[TEAM_SOURCE_SLOT] as TeamSource,
+    sponsorWallLayout: values[SPONSOR_WALL_LAYOUT_SLOT] as SponsorWallLayout,
   };
 }
 

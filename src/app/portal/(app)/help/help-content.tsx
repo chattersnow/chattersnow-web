@@ -1279,7 +1279,30 @@ export const helpContent: Record<string, HelpEntry> = {
               pencil edits which event it belongs to and the note. Nothing else
               about a recorded sale is editable.
             </li>
+            <li>
+              <strong className="text-foreground">Print the receipt</strong> —
+              the printer icon opens it in a new tab, where{" "}
+              <em>Print / Save as PDF</em> hands it to your browser&apos;s print
+              dialog. Choose your printer for paper, or &ldquo;Save as
+              PDF&rdquo; for a file to email.
+            </li>
           </ol>
+        </HowToSection>
+        <HowToSection heading="Receipts">
+          <p>
+            Every sale has a receipt with its own number — #000123 — from the
+            moment it is recorded, so a buyer can quote it back to you later.
+            Nothing is stored: the receipt is built from the sale each time you
+            open it, at the prices it was actually sold for, so one printed next
+            year says exactly what it said on the day. A voided sale still has a
+            receipt, printed with a <strong>VOIDED</strong> banner across it,
+            and it keeps the number it always had.
+          </p>
+          <p className="mt-2">
+            A receipt shows the items, the totals and the buyer&apos;s name. It
+            never shows their email or phone, the note on the sale, or who rang
+            it up.
+          </p>
         </HowToSection>
         <HowToSection heading="Void, not delete">
           <p>
@@ -1343,6 +1366,13 @@ export const helpContent: Record<string, HelpEntry> = {
             <li>
               <strong className="text-foreground">Record the sale</strong> after
               the money has been taken. Stock comes down as it saves.
+            </li>
+            <li>
+              <strong className="text-foreground">Hand over a receipt</strong>{" "}
+              if the buyer wants one — <em>Receipt</em> under the Record button
+              opens it in a new tab with the print dialog already up. Print it,
+              or save it as a PDF. The link stays there until the next sale, so
+              it is still waiting after you have made change.
             </li>
           </ol>
         </HowToSection>

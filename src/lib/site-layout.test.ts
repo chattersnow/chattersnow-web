@@ -7,6 +7,7 @@ import {
   LAYOUT_SLOTS,
   MAX_HOME_UPCOMING_COUNT,
   PROGRAMS_SOURCE_SLOT,
+  SPONSOR_WALL_LAYOUT_SLOT,
   TEAM_LAYOUT_SLOT,
   TEAM_SOURCE_SLOT,
   isLayoutValue,
@@ -23,6 +24,7 @@ const DEFAULTS: SiteLayout = {
   programsSource: "content",
   teamLayout: "cards",
   teamSource: "content",
+  sponsorWallLayout: "cards",
 };
 
 const countSlot = LAYOUT_SLOTS.find(
@@ -47,6 +49,7 @@ describe("resolveLayout", () => {
         { slot: PROGRAMS_SOURCE_SLOT, value: "module" },
         { slot: TEAM_LAYOUT_SLOT, value: "rows" },
         { slot: TEAM_SOURCE_SLOT, value: "people" },
+        { slot: SPONSOR_WALL_LAYOUT_SLOT, value: "band" },
       ]),
     ).toEqual({
       homeUpcomingCount: 6,
@@ -55,6 +58,7 @@ describe("resolveLayout", () => {
       programsSource: "module",
       teamLayout: "rows",
       teamSource: "people",
+      sponsorWallLayout: "band",
     });
   });
 
@@ -105,6 +109,19 @@ describe("resolveLayout", () => {
     expect(
       resolveLayout([{ slot: TEAM_SOURCE_SLOT, value: "people" }]).teamSource,
     ).toBe("people");
+  // Same stance again, for the same reason: #1013 made the sponsor wall's
+  // arrangement a choice, and a tenant that has not made it must keep the tile
+  // grid the section has had since #914.
+  test("leaves the sponsor wall on cards until a tenant says otherwise", () => {
+    expect(resolveLayout([]).sponsorWallLayout).toBe("cards");
+    expect(
+      resolveLayout([{ slot: SPONSOR_WALL_LAYOUT_SLOT, value: "bands" }])
+        .sponsorWallLayout,
+    ).toBe("cards");
+    expect(
+      resolveLayout([{ slot: SPONSOR_WALL_LAYOUT_SLOT, value: "band" }])
+        .sponsorWallLayout,
+    ).toBe("band");
   });
 
   test("resolves each slot independently", () => {

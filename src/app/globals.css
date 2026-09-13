@@ -383,18 +383,24 @@ body {
   }
 }
 
-/* Print only a `.agenda-print-area` element, regardless of where it sits in
-   the tree (e.g. inside a dialog portal) -- everything else is hidden but
-   stays in the layout, and the target opts back into visibility. */
+/* Print only a `.print-area` element, regardless of where it sits in the tree
+   (e.g. inside a dialog portal) -- everything else is hidden but stays in the
+   layout, and the target opts back into visibility.
+
+   One class, not one per print view: this started as `.agenda-print-area` for
+   the governance agenda export and was generalised when sale receipts (#1016)
+   became the second thing worth printing. A second `@media print` block would
+   have had to repeat the visibility trick and could then disagree with this
+   one about what "printed" means. */
 @media print {
   body * {
     visibility: hidden;
   }
-  .agenda-print-area,
-  .agenda-print-area * {
+  .print-area,
+  .print-area * {
     visibility: visible;
   }
-  .agenda-print-area {
+  .print-area {
     position: absolute;
     inset: 0;
     max-height: none;
@@ -402,4 +408,11 @@ body {
     border: none;
     padding: 0;
   }
+}
+
+/* A printed page with no margin puts the receipt's first line against the
+   paper's edge, and most printers refuse to render there at all. 12mm is
+   inside every consumer printer's unprintable border. */
+@page {
+  margin: 12mm;
 }

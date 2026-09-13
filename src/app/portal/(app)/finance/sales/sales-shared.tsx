@@ -54,6 +54,12 @@ export type SalePurchaser = {
 
 export type SaleRow = {
   id: string;
+  /**
+   * Sequential per tenant from 1, assigned at record time and kept on void
+   * (#1016). What a buyer reads back over the phone, and what the receipt is
+   * headed with -- see `formatReceiptNumber`.
+   */
+  receipt_number: number;
   event_id: string | null;
   purchaser_person_id: string | null;
   sold_at: string;
@@ -83,7 +89,7 @@ export type EventOption = { id: string; name: string };
  * removes the choice.
  */
 export const SALE_COLUMNS =
-  "id, event_id, purchaser_person_id, sold_at, payment_method, subtotal, " +
+  "id, receipt_number, event_id, purchaser_person_id, sold_at, payment_method, subtotal, " +
   "discount_amount, tax_rate, tax_amount, total, status, voided_at, " +
   "void_reason, notes, " +
   "events(name), " +

@@ -6,10 +6,16 @@ import * as PaletteActions from "../../../command-palette-actions";
 import type { RegisterEvent, RegisterVariant } from "./register-cart";
 
 type RecordResult =
-  { error: string } | { success: true; saleId: string; total: number };
+  | { error: string }
+  | { success: true; saleId: string; total: number; receiptNumber: number };
 
 const recordSaleActionMock = mock<(input: unknown) => Promise<RecordResult>>(
-  async () => ({ success: true, saleId: "sale-1", total: 20 }),
+  async () => ({
+    success: true,
+    saleId: "sale-1",
+    total: 20,
+    receiptNumber: 123,
+  }),
 );
 
 mock.module("../actions", () => ({
@@ -383,5 +389,78 @@ describe("SalesRegister line prices and custom items (#1015)", () => {
       { variant_id: TEE, quantity: 1 },
       { description: "Donated print", unit_price: 3.5, quantity: 1 },
     ]);
+  });
+});
+
+describe("SalesRegister receipts (#1016)", () => {
+  beforeEach(() => {
+    recordSaleActionMock.mockClear();
+  });
+
+  test("a recorded sale leaves a receipt link that outlives the toast", async () => {
+    const user = userEvent.setup();
+    renderRegister();
+
+    expect(screen.queryByRole("link", { name: /Receipt/ })).toBeNull();
+
+    await user.click(beanieTile());
+    await user.click(
+      screen.getByRole("button", { name: "Record sale — $20.00" }),
+    );
+
+    expect(
+      await screen.findByText(/Recorded #000123 · \$20\.00/),
+    ).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: /Receipt/ });
+    // ?print=1: the cashier tapped Receipt because they are about to print it.
+    expect(link).toHaveAttribute(
+      "href",
+      "/portal/finance/sales/sale-1/receipt?print=1",
+    );
+    expect(link).toHaveAttribute("target", "_blank");
+  });
+
+  test("the next sale replaces the line rather than stacking a second one", async () => {
+    recordSaleActionMock.mockImplementationOnce(async () => ({
+      success: true,
+      saleId: "sale-2",
+      total: 25,
+      receiptNumber: 124,
+    }));
+    const user = userEvent.setup();
+    renderRegister();
+
+    await user.click(beanieTile());
+    await user.click(
+      screen.getByRole("button", { name: "Record sale — $20.00" }),
+    );
+    expect(await screen.findByText(/Recorded #000124/)).toBeInTheDocument();
+
+    await user.click(beanieTile());
+    await user.click(
+      screen.getByRole("button", { name: "Record sale — $20.00" }),
+    );
+
+    expect(await screen.findByText(/Recorded #000123/)).toBeInTheDocument();
+    expect(screen.queryByText(/Recorded #000124/)).toBeNull();
+    expect(screen.getAllByRole("link", { name: /Receipt/ })).toHaveLength(1);
+  });
+
+  test("a refused sale leaves no receipt line", async () => {
+    recordSaleActionMock.mockImplementationOnce(async () => ({
+      error: "There is not enough stock for this sale.",
+    }));
+    const user = userEvent.setup();
+    renderRegister();
+
+    await user.click(beanieTile());
+    await user.click(
+      screen.getByRole("button", { name: "Record sale — $20.00" }),
+    );
+
+    expect(
+      await screen.findByText("There is not enough stock for this sale."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Receipt/ })).toBeNull();
   });
 });
