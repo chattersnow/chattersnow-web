@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import { test, expect } from "./helpers/test";
 import { modal } from "./helpers/dialog";
+import { clickNavLink } from "./helpers/nav";
 import { SEEDED_EVENT_IDS } from "../test/seed-fixtures";
 
 const EVENT_NAME = "Winter Gear Swap";
@@ -101,11 +102,14 @@ test.describe("public events", () => {
   // hard load and a link from anywhere else were always fine -- which is why
   // nothing caught it before release, and why this test has to click rather
   // than `goto`.
+  //
+  // Through `clickNavLink` rather than the desktop trigger directly, because
+  // the mobile project has no such button -- the grouped links are flat inside
+  // the off-canvas sheet -- and a visitor on a phone hit this exactly as hard.
   test("the nav reaches the community calendar from the listing", async ({
     page,
   }) => {
-    await page.getByRole("button", { name: "Events" }).click();
-    await page.getByRole("link", { name: "Community Calendar" }).click();
+    await clickNavLink(page, "Community Calendar", { group: "Events" });
 
     await expect(page).toHaveURL(/\/events\/community$/);
     await expect(
