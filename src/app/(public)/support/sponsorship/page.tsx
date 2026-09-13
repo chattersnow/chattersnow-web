@@ -8,6 +8,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSiteImageUrls } from "@/lib/site-images";
 import { isPageVisible } from "@/lib/page-visibility";
 import { getPublicSite, publicTitle } from "@/lib/public-site";
+import { getSiteLayout } from "@/lib/site-layout";
 
 export async function generateMetadata(): Promise<Metadata> {
   const supabase = await createSupabaseServerClient();
@@ -16,13 +17,17 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function SponsorshipPage() {
   const supabase = await createSupabaseServerClient();
-  const [siteImages, { content }, brandVisible, { data: sponsors }] =
+  // Every read here is independent, and the three `cache()`-wrapped ones cost
+  // no round trip the page was not already making, so the layout setting comes
+  // along with the rest rather than serialising behind them.
+  const [siteImages, { content }, brandVisible, layout, { data: sponsors }] =
     await Promise.all([
       getSiteImageUrls(supabase),
       getPublicSite(supabase),
       // /brand is hidden by default, so this link is gated the same way the
       // homepage's Donate button is -- an in-page CTA into a hidden section 404s.
       isPageVisible("brand"),
+      getSiteLayout(supabase),
       // Derived from the sponsorships staff already mark public on an event
       // (#914), so the wall keeps itself current as events age out. Ordered by
       // name here rather than in the view, which orders only to pick one row
@@ -77,7 +82,10 @@ export default async function SponsorshipPage() {
             {content.text("support.sponsor_wall_intro")}
           </p>
           <div className="mt-6">
-            <SponsorWall sponsors={sponsors} />
+            <SponsorWall
+              sponsors={sponsors}
+              layout={layout.sponsorWallLayout}
+            />
           </div>
         </section>
       )}
