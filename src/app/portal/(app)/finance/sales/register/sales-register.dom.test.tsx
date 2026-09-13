@@ -292,7 +292,7 @@ describe("SalesRegister line prices and custom items (#1015)", () => {
     await user.type(priceField, "5");
     await user.click(
       screen.getByRole("button", {
-        name: "Reset the price of Chatter Snow Beanie — One size",
+        name: "Reset Chatter Snow Beanie — One size to its catalog price",
       }),
     );
 

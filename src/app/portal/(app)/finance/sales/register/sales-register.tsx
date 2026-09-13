@@ -294,7 +294,12 @@ export function SalesRegister({
                               type="button"
                               variant="ghost"
                               size="sm"
-                              aria-label={`Reset the price of ${label}`}
+                              // Not "Reset the price of X": that would contain
+                              // the input's own "Price of X" label, leaving the
+                              // two controls in this row ambiguous to anything
+                              // that matches an accessible name by substring --
+                              // voice control, and the getByLabel that found it.
+                              aria-label={`Reset ${label} to its catalog price`}
                               onClick={() => {
                                 setPriceInput("");
                                 setCart((prev) =>

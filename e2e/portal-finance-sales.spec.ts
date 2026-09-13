@@ -95,8 +95,11 @@ test.describe("portal sales register and ledger", () => {
         name: "Change price of Chatter Snow Beanie — One size",
       })
       .click();
+    // exact: Playwright matches an accessible name by substring, and several
+    // controls in this row are named after the same line.
     const priceField = page.getByLabel(
       "Price of Chatter Snow Beanie — One size",
+      { exact: true },
     );
     await priceField.fill("5");
     await page.getByRole("button", { name: "Done" }).click();
