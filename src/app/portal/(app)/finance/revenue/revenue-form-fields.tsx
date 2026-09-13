@@ -25,11 +25,19 @@ export type RevenueFormState = {
   notes: string;
 };
 
-export function emptyRevenueForm(defaultEventId?: string): RevenueFormState {
+/**
+ * `defaultDate` is the event's date when this form is opened from inside an
+ * event (see EventDateProvider) -- that revenue came in at the event, not on
+ * the day it is entered. Today stands everywhere else.
+ */
+export function emptyRevenueForm(
+  defaultEventId?: string,
+  defaultDate?: string,
+): RevenueFormState {
   return {
     eventId: defaultEventId ?? "",
     source: "",
-    receivedDate: new Date().toISOString().slice(0, 10),
+    receivedDate: defaultDate || new Date().toISOString().slice(0, 10),
     amount: "",
     notes: "",
   };

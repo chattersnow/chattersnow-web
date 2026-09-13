@@ -366,22 +366,26 @@ export async function upsertGiveawayWinnerAction(
     notes,
   } = parsed.data;
 
-  const { error } = await supabase.from("giveaway_winners").upsert(
-    {
-      giveaway_prize_id: prizeId,
-      winner_name: winnerName,
-      winner_contact: winnerContact,
-      distribution_status: distributionStatus,
-      distributed_at: distributedAt,
-      notes,
-    },
-    { onConflict: "giveaway_prize_id" },
-  );
+  // Goes through the RPC so that a prize backed by an inventory item moves
+  // that item with the winner -- to 'distributed' when the prize is handed
+  // over, back to 'reserved' when that is undone -- in the same transaction
+  // (20260914000000). Writing giveaway_winners directly left such items
+  // reserved forever.
+  const { error } = await supabase.rpc("upsert_giveaway_winner", {
+    p_prize_id: prizeId,
+    p_winner_name: winnerName,
+    p_winner_contact: winnerContact,
+    p_distribution_status: distributionStatus,
+    p_distributed_at: distributedAt,
+    p_notes: notes,
+  });
 
   if (error) {
     return { error: "Could not save the winner. Please try again." };
   }
 
   revalidatePath("/portal/events");
+  revalidatePath("/portal/inventory/items");
+  revalidatePath("/portal/inventory/distribution");
   return { success: true };
 }

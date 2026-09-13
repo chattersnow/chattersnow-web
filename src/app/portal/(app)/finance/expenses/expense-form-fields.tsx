@@ -22,11 +22,19 @@ export type ExpenseFormState = {
   notes: string;
 };
 
-export function emptyExpenseForm(defaultEventId?: string): ExpenseFormState {
+/**
+ * `defaultDate` is the event's date when this form is opened from inside an
+ * event (see EventDateProvider) -- the expense was incurred for that event,
+ * not on the day the receipt is typed up. Today stands everywhere else.
+ */
+export function emptyExpenseForm(
+  defaultEventId?: string,
+  defaultDate?: string,
+): ExpenseFormState {
   return {
     description: "",
     eventId: defaultEventId ?? "",
-    expenseDate: new Date().toISOString().slice(0, 10),
+    expenseDate: defaultDate || new Date().toISOString().slice(0, 10),
     amount: "",
     currency: "USD",
     receiptUrl: "",

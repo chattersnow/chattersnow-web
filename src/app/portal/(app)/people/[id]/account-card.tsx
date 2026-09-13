@@ -3,13 +3,19 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { linkPersonToAuthUserAction } from "../actions";
+import { Check, Pencil, X } from "lucide-react";
+import {
+  linkPersonToAuthUserAction,
+  updatePersonNotificationEmailAction,
+} from "../actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/portal/empty-state";
+import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { runAction } from "@/components/portal/action-toast";
 import {
   formatInstantDate,
   formatRoleLabel,
@@ -29,12 +35,21 @@ export function AccountCard({
   account,
   linkable,
   roleLabels,
+  notificationEmail,
+  notificationEmailPending,
+  canManagePerson,
 }: {
   personId: string;
   account: PersonAccount | null;
   linkable: LinkableAccount[];
   /** name -> the tenant's wording, for the role names on the account (#910). */
   roleLabels: RoleLabels;
+  /** Their delivery override, null when mail goes to the sign-in address. */
+  notificationEmail: string | null;
+  /** Asked for and not yet confirmed; nothing is sent there yet (#1049). */
+  notificationEmailPending: string | null;
+  /** people:manage, which the override is written under -- see the action. */
+  canManagePerson: boolean;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -82,6 +97,13 @@ export function AccountCard({
               <span className="app-muted">Sign-in email:</span>{" "}
               {account.email ?? "—"}
             </p>
+            <NotificationEmailRow
+              personId={personId}
+              signInEmail={account.email}
+              value={notificationEmail}
+              pending={notificationEmailPending}
+              canManage={canManagePerson}
+            />
             <p>
               <span className="app-muted">Account created:</span>{" "}
               {formatInstantDate(account.created_at)}
@@ -144,5 +166,153 @@ export function AccountCard({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * The address this person's portal email is delivered to (#1042), edited in
+ * place beside the address they sign in with -- the one place the distinction
+ * between the two is legible without explaining it.
+ *
+ * Read-only without people:manage, which is the level the action writes under.
+ * The person can always set it for themselves at /portal/account, so an admin
+ * who cannot edit it here is not a dead end for them.
+ */
+function NotificationEmailRow({
+  personId,
+  signInEmail,
+  value,
+  pending,
+  canManage,
+}: {
+  personId: string;
+  /** Shown as the fallback, since an empty override delivers there. */
+  signInEmail: string | null;
+  value: string | null;
+  pending: string | null;
+  canManage: boolean;
+}) {
+  const router = useRouter();
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState(value ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function start() {
+    setDraft(value ?? "");
+    setError(null);
+    setIsEditing(true);
+  }
+
+  function save() {
+    setError(null);
+    startTransition(async () => {
+      await runAction(
+        () => updatePersonNotificationEmailAction(personId, draft),
+        {
+          // An admin can ask on somebody's behalf but cannot finish for them:
+          // the link goes to the address being claimed (#1049), so the receipt
+          // has to say that rather than report a switch that has not happened.
+          success: (result) =>
+            result.outcome === "pending"
+              ? `A confirmation link was sent to ${result.pendingEmail}. Nothing goes there until it is followed.`
+              : draft.trim()
+                ? `Notifications will go to ${draft.trim()}.`
+                : "Notifications will go to the sign-in address.",
+          onError: setError,
+          onSuccess: () => {
+            setIsEditing(false);
+            router.refresh();
+          },
+        },
+      );
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="app-muted">Notifications to:</span>
+        {isEditing ? (
+          <>
+            <Input
+              autoFocus
+              type="email"
+              value={draft}
+              disabled={isPending}
+              aria-label="Notification email"
+              placeholder={signInEmail ?? "name@example.org"}
+              className="h-8 w-56"
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  save();
+                }
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  setIsEditing(false);
+                }
+              }}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              disabled={isPending}
+              onClick={save}
+            >
+              <Check className="size-3.5" />
+              <span className="sr-only">Save notification email</span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              disabled={isPending}
+              onClick={() => setIsEditing(false)}
+            >
+              <X className="size-3.5" />
+              <span className="sr-only">Cancel</span>
+            </Button>
+          </>
+        ) : (
+          <>
+            <span className={value ? undefined : "app-muted"}>
+              {value ?? `${signInEmail ?? "—"} (sign-in address)`}
+            </span>
+            {canManage && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-7"
+                disabled={isPending}
+                onClick={start}
+              >
+                <Pencil className="size-3.5" />
+                <span className="sr-only">Edit notification email</span>
+              </Button>
+            )}
+          </>
+        )}
+      </div>
+      {pending && !isEditing && (
+        // Said next to the address in use rather than in place of it, because
+        // the two are true at the same time and the difference is the whole
+        // point: asked for, and not yet receiving anything.
+        <p className="app-muted text-xs">
+          Waiting on {pending} — nothing is sent there until the link sent to it
+          is followed.
+        </p>
+      )}
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+    </div>
   );
 }

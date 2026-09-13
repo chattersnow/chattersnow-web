@@ -10,6 +10,7 @@ import {
   type RevenueFormState,
 } from "./revenue-form-fields";
 import type { EventOption } from "./revenue-shared";
+import { useEventDateDefaults } from "../../events/event-date-defaults";
 import {
   DiscardChangesDialog,
   useUnsavedChangesGuard,
@@ -44,8 +45,11 @@ export function NewRevenueDialog({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  // Inside an event, new revenue opens on the event's date rather than on
+  // today; elsewhere this is "" and today stands.
+  const eventDates = useEventDateDefaults();
   const [form, setForm] = useState<RevenueFormState>(() =>
-    emptyRevenueForm(defaultEventId),
+    emptyRevenueForm(defaultEventId, eventDates.date),
   );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -59,14 +63,14 @@ export function NewRevenueDialog({
 
   // Compared against a fresh empty form rather than tracked with a flag, so
   // typing and then clearing a field doesn't count as unsaved work.
-  const baseline = emptyRevenueForm(defaultEventId);
+  const baseline = emptyRevenueForm(defaultEventId, eventDates.date);
   const dirty = (Object.keys(baseline) as (keyof RevenueFormState)[]).some(
     (key) => form[key] !== baseline[key],
   );
   const guard = useUnsavedChangesGuard(dirty);
 
   function resetForm() {
-    setForm(emptyRevenueForm(defaultEventId));
+    setForm(emptyRevenueForm(defaultEventId, eventDates.date));
     setError(null);
   }
 

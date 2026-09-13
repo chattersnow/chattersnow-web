@@ -32,6 +32,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import { formatDateTime } from "@/lib/format";
 import { runAction } from "@/components/portal/action-toast";
+import { useEventDateDefaults } from "../event-date-defaults";
 
 export const NONE_VALUE = "none";
 
@@ -60,11 +61,17 @@ export function ShiftForm({
 }) {
   const router = useRouter();
   const [label, setLabel] = useState(initialShift?.label ?? "");
+  // A new shift covers the event, so it opens on the event's own start and end
+  // -- the common shift is the whole event, and a shorter one is a trim of
+  // that rather than two datetimes typed from scratch.
+  const eventDates = useEventDateDefaults();
   const [startsAt, setStartsAt] = useState(
-    initialShift ? toDatetimeLocal(initialShift.starts_at) : "",
+    initialShift
+      ? toDatetimeLocal(initialShift.starts_at)
+      : eventDates.startsAt,
   );
   const [endsAt, setEndsAt] = useState(
-    initialShift ? toDatetimeLocal(initialShift.ends_at) : "",
+    initialShift ? toDatetimeLocal(initialShift.ends_at) : eventDates.endsAt,
   );
   const [targetHeadcount, setTargetHeadcount] = useState(
     initialShift?.target_headcount != null

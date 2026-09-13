@@ -8,6 +8,14 @@ import type { PersonType } from "./people-shared";
 import { checkPermission, checkAnyPermission } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
 import { friendlyError } from "@/lib/db-errors";
+import { isEmailAddress } from "@/lib/email/identity";
+import { after } from "next/server";
+import { getRequestOrigin } from "@/lib/request-origin";
+import { mintConfirmationToken } from "@/lib/notifications/notification-email-token";
+import type {
+  NotificationEmailResult,
+  SetNotificationEmailRow,
+} from "@/lib/notifications/notification-email-confirmation";
 
 /**
  * Replaces a person's manual role tags -- the half of the derived role model
@@ -405,6 +413,89 @@ export async function linkPersonToAuthUserAction(
   revalidatePath(`/portal/people/${personId}`);
   revalidatePath("/portal/administration/users");
   return { success: true };
+}
+
+/**
+ * Sets where one person's portal email is delivered (#1042). Empty clears the
+ * override, returning delivery to the address they sign in with.
+ *
+ * people:manage, not administration:manage as the linking action above: this
+ * writes one column of one directory row rather than touching the binding
+ * between a record and a login. The person can always overrule it for
+ * themselves at /portal/account.
+ */
+export async function updatePersonNotificationEmailAction(
+  personId: string,
+  email: string,
+): Promise<NotificationEmailResult> {
+  const trimmed = email.trim();
+  if (trimmed && !isEmailAddress(trimmed)) {
+    return { error: "That does not look like an email address." };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(supabase);
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(supabase, "people", "manage");
+  if (permissionError) return permissionError;
+
+  const { token, hash } = mintConfirmationToken();
+
+  const { data, error } = await supabase.rpc(
+    "set_notification_email_for_person",
+    {
+      p_person_id: personId,
+      p_email: trimmed,
+      p_token_hash: trimmed ? hash : null,
+    },
+  );
+  if (error) {
+    return {
+      error: "Could not save the notification email. Please try again.",
+    };
+  }
+
+  const row = ((data ?? []) as SetNotificationEmailRow[])[0];
+
+  // The link goes to the address being claimed, not to the administrator who
+  // typed it (#1049). An admin can ask on somebody's behalf; they cannot
+  // complete the loop for a mailbox they do not hold, which is the whole point
+  // of the step.
+  if (row?.outcome === "pending" && row.pending_email && row.expires_at) {
+    const pendingEmail = row.pending_email;
+    const expiresAt = new Date(row.expires_at);
+    // Read before after(), which runs once the response is on its way and may
+    // no longer have the request's headers.
+    const origin = await getRequestOrigin();
+
+    after(async () => {
+      // Lazily, for the reason the account action's send is: the sender reaches
+      // `server-only` through the delivery ledger, and this module is imported
+      // by the person record's client components.
+      const { sendNotificationEmailConfirmation } =
+        await import("@/lib/notifications/notification-email-confirmation");
+      const { createSupabaseAdminClient } =
+        await import("@/lib/supabase/admin");
+
+      await sendNotificationEmailConfirmation(createSupabaseAdminClient(), {
+        tenantId: row.tenant_id,
+        personId: row.person_id,
+        personName: row.display_name,
+        pendingEmail,
+        token,
+        tokenHash: hash,
+        expiresAt,
+        fallbackOrigin: origin,
+      });
+    });
+  }
+
+  revalidatePath(`/portal/people/${personId}`);
+  return {
+    success: true,
+    outcome: row?.outcome ?? "cleared",
+    pendingEmail: row?.pending_email ?? null,
+  };
 }
 
 /**

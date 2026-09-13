@@ -250,6 +250,79 @@ describe("who it leaves out", () => {
   });
 });
 
+describe("where it sends (#1042)", () => {
+  async function setOverride(value: string | null) {
+    const { error } = await service
+      .from("people")
+      .update({ notification_email: value })
+      .eq("id", otherPersonId);
+    if (error) throw error;
+  }
+
+  test("the override, not the address the account signs in with", async () => {
+    await setOverride("perm-override@example.test");
+    try {
+      expect(
+        emailsOf(await holders(otherTenantId, ["volunteers"], "manage")),
+      ).toEqual(["perm-override@example.test"]);
+    } finally {
+      await setOverride(null);
+    }
+  });
+
+  test("an override is enough on its own", async () => {
+    // The identity column is what sign-in matches on, and it can be absent on
+    // a record an admin linked by hand. Somewhere to send is the only thing
+    // this function needs, so such a person is still a recipient.
+    const { data: before } = await service
+      .from("people")
+      .select("email")
+      .eq("id", otherPersonId)
+      .single();
+
+    await setOverride("perm-only-override@example.test");
+    await service
+      .from("people")
+      .update({ email: null })
+      .eq("id", otherPersonId);
+    try {
+      expect(
+        emailsOf(await holders(otherTenantId, ["volunteers"], "manage")),
+      ).toEqual(["perm-only-override@example.test"]);
+    } finally {
+      await service
+        .from("people")
+        .update({ email: before?.email ?? null })
+        .eq("id", otherPersonId);
+      await setOverride(null);
+    }
+  });
+
+  test("anonymizing a person drops the override with everything else", async () => {
+    await setOverride("perm-anon@example.test");
+    await service
+      .from("people")
+      .update({ is_anonymous: true })
+      .eq("id", otherPersonId);
+    try {
+      const { data } = await service
+        .from("people")
+        .select("notification_email")
+        .eq("id", otherPersonId)
+        .single();
+      // Cleared by the normalize_person_email trigger rather than by the
+      // retention function's column list, which is what makes it true of every
+      // path that sets the flag (20260914010000).
+      expect(data?.notification_email).toBeNull();
+    } finally {
+      await service
+        .from("people")
+        .update({ is_anonymous: false })
+        .eq("id", otherPersonId);
+    }
+  });
+});
+
 describe("module entitlements (#900)", () => {
   // The gap this closes: the senders run on a service-role client with no
   // session and no row-level security underneath, so a tenant that is not

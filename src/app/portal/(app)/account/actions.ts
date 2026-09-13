@@ -6,6 +6,14 @@ import { checkUser } from "@/lib/auth/current-user";
 import { PRONOUNS_MAX_LENGTH, PRONOUNS_TOO_LONG_ERROR } from "@/lib/pronouns";
 import { ensureCurrentPerson } from "@/lib/auth/current-person";
 import { isNotificationKind } from "@/lib/notifications/kinds";
+import { isEmailAddress } from "@/lib/email/identity";
+import { after } from "next/server";
+import { getRequestOrigin } from "@/lib/request-origin";
+import { mintConfirmationToken } from "@/lib/notifications/notification-email-token";
+import type {
+  NotificationEmailResult,
+  SetNotificationEmailRow,
+} from "@/lib/notifications/notification-email-confirmation";
 
 export async function updateMyPreferredNameAction(
   preferredName: string,
@@ -54,6 +62,115 @@ export async function updateMyPronounsAction(
 
   revalidatePath("/portal/account");
   return { success: true };
+}
+
+/**
+ * Where the signed-in person's portal email is delivered (#1042), behind a
+ * confirmation since #1049.
+ *
+ * An address only ever reaches `notification_email` by way of a token sent to
+ * it, so what this writes is a *request*: the pending address plus the token's
+ * hash. Delivery is untouched until the link is followed, which is what makes a
+ * typo here harmless rather than a disclosure.
+ *
+ * Empty, or the address the account signs in with, clears the override instead
+ * and takes effect at once -- both land on an address the identity provider has
+ * already proved, so there is nothing left to prove. Neither path touches
+ * people.email: that column binds the account to its directory record, and
+ * editing it to redirect mail is what this field exists to stop.
+ */
+export async function updateMyNotificationEmailAction(
+  email: string,
+): Promise<NotificationEmailResult> {
+  const trimmed = email.trim();
+  // Checked here as well as in the RPC and the column's constraint, so the
+  // form can say what is wrong without a round trip that reads as a failure.
+  if (trimmed && !isEmailAddress(trimmed)) {
+    return { error: "That does not look like an email address." };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(supabase);
+  if ("error" in userResult) return userResult;
+
+  const { token, hash } = mintConfirmationToken();
+
+  // No permission check, and a security-definer RPC, for the reasons
+  // set_my_preferred_name has both: it only ever writes the caller's own row,
+  // and people.update RLS requires people:manage.
+  const { data, error } = await supabase.rpc("set_my_notification_email", {
+    p_email: trimmed,
+    p_token_hash: trimmed ? hash : null,
+  });
+  if (error) {
+    return {
+      error: "Could not save your notification email. Please try again.",
+    };
+  }
+
+  const row = ((data ?? []) as SetNotificationEmailRow[])[0];
+  await sendConfirmation(row, token, hash);
+
+  revalidatePath("/portal/account");
+  return {
+    success: true,
+    outcome: row?.outcome ?? "cleared",
+    pendingEmail: row?.pending_email ?? null,
+  };
+}
+
+/**
+ * A fresh link for an address already waiting, for the person the first one
+ * never reached. Re-requesting the same address is what does it, and the new
+ * token supersedes the old one -- which is the behaviour to want if the reason
+ * for asking again is that the first link went somewhere unexpected.
+ */
+export async function resendMyNotificationEmailConfirmationAction(
+  email: string,
+): Promise<NotificationEmailResult> {
+  return updateMyNotificationEmailAction(email);
+}
+
+/**
+ * After the response, never before it, for the reason the contact form gives:
+ * a slow provider or a missing key must not hold up the save, and a failed send
+ * must not turn a committed request into an error on screen. The page says an
+ * address is waiting either way, and offers another link.
+ */
+async function sendConfirmation(
+  row: SetNotificationEmailRow | undefined,
+  token: string,
+  tokenHash: string,
+): Promise<void> {
+  if (row?.outcome !== "pending" || !row.pending_email || !row.expires_at) {
+    return;
+  }
+
+  const pendingEmail = row.pending_email;
+  const expiresAt = new Date(row.expires_at);
+  // Read before after(), which runs once the response is on its way and may no
+  // longer have the request's headers.
+  const origin = await getRequestOrigin();
+
+  after(async () => {
+    // Imported here rather than at the top of the file: the sender reaches
+    // `server-only` through the delivery ledger, and this module is the one the
+    // account page's client components import their actions from.
+    const { sendNotificationEmailConfirmation } =
+      await import("@/lib/notifications/notification-email-confirmation");
+    const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+
+    await sendNotificationEmailConfirmation(createSupabaseAdminClient(), {
+      tenantId: row.tenant_id,
+      personId: row.person_id,
+      personName: row.display_name,
+      pendingEmail,
+      token,
+      tokenHash,
+      expiresAt,
+      fallbackOrigin: origin,
+    });
+  });
 }
 
 /**

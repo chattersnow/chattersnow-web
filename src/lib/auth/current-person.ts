@@ -46,7 +46,14 @@ export type EnsuredPerson = {
   name: string | null;
   preferred_name: string | null;
   pronouns: string | null;
+  /** The address the account signs in with, and this person's identity key. */
   email: string | null;
+  /** Where their portal mail goes instead, when they have said (#1042). */
+  notification_email: string | null;
+  /** Asked for but not yet confirmed, so nothing is sent there yet (#1049). */
+  notification_email_pending: string | null;
+  /** When the pending address's confirmation link stops working. */
+  notification_email_expires_at: string | null;
 };
 
 /**

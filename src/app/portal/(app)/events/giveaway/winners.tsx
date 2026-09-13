@@ -26,6 +26,7 @@ import {
 } from "./format";
 import { Spinner } from "@/components/ui/spinner";
 import { formatInstantDate } from "@/lib/format";
+import { useEventDateDefaults } from "../event-date-defaults";
 
 export function WinnerForm({
   prize,
@@ -44,8 +45,12 @@ export function WinnerForm({
   const [status, setStatus] = useState(
     winner?.distribution_status ?? "pending",
   );
+  // A prize is handed over at the event, so a winner recorded for the first
+  // time opens on the event's date; a saved winner keeps whatever was saved,
+  // blank included.
+  const eventDates = useEventDateDefaults();
   const [distributedAt, setDistributedAt] = useState(
-    toDateInputValue(winner?.distributed_at ?? null),
+    winner ? toDateInputValue(winner.distributed_at) : eventDates.date,
   );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();

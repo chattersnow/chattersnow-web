@@ -149,6 +149,9 @@ export async function PersonCoreCards({ person }: { person: PersonRow }) {
           account={account}
           linkable={linkable}
           roleLabels={roleLabels}
+          notificationEmail={person.notification_email}
+          notificationEmailPending={person.notification_email_pending}
+          canManagePerson={canManage}
         />
       )}
     </>

@@ -171,6 +171,16 @@ export function utcIsoToDatetimeLocalInZone(
 }
 
 /**
+ * Formats a UTC instant as "YYYY-MM-DD" in `timeZone`, for seeding an
+ * `<input type="date">` from a record that carries its own timezone. Taking
+ * the first ten characters of the ISO string instead reads the date in UTC,
+ * which is the previous day for any evening event west of Greenwich.
+ */
+export function utcIsoToDateInZone(iso: string, timeZone: string): string {
+  return utcIsoToDatetimeLocalInZone(iso, timeZone).slice(0, 10);
+}
+
+/**
  * "Due today" / "Due in N days" / "N days overdue", rounding to whole days
  * so a due time earlier today doesn't read as "overdue" and one later today
  * doesn't read as "in 1 day".
