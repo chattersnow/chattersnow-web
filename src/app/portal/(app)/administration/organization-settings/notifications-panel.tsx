@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useOptimistic, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   updateEmailNotificationsEnabledAction,
@@ -27,10 +28,15 @@ import { runAction } from "@/components/portal/action-toast";
 // registry, but keeping the import shape consistent makes it obvious that the
 // value itself arrives as a prop from the server page.
 import type { NotificationKind } from "@/lib/notifications/kinds";
+import type {
+  NotificationRecipient,
+  NotificationRecipientsByKind,
+} from "@/lib/notifications/recipients";
 
 export function NotificationsPanel({
   emailEnabled,
   kinds,
+  recipientsByKind,
   opsReportRecipients,
   orgName,
   platformFrom,
@@ -40,6 +46,8 @@ export function NotificationsPanel({
 }: {
   emailEnabled: boolean;
   kinds: NotificationKind[];
+  /** Null when the recipient read failed; the card says so rather than lying. */
+  recipientsByKind: NotificationRecipientsByKind | null;
   opsReportRecipients: string[];
   orgName: string;
   /** EMAIL_FROM, as the address recipients see when nothing overrides it. */
@@ -123,29 +131,134 @@ export function NotificationsPanel({
 
       <OpsReportRecipientsCard recipients={opsReportRecipients} />
 
-      <Card>
-        <CardContent className="space-y-3">
-          <div>
-            <p className="app-eyebrow">What the portal can send</p>
-            <p className="app-muted mt-1 text-sm leading-relaxed">
-              Each person chooses which of these they want, on their own account
-              page. Nobody receives anything they have not turned on.
-            </p>
-          </div>
-          <ul className="space-y-3">
-            {kinds.map((kind) => (
-              <li key={kind.key}>
-                <p className="text-sm font-medium">{kind.label}</p>
-                <p className="app-muted text-sm leading-relaxed">
-                  {kind.description}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </CardContent>
-      </Card>
+      <WhoReceivesWhatCard kinds={kinds} recipientsByKind={recipientsByKind} />
     </div>
   );
+}
+
+/**
+ * What the portal can send, and who actually gets it (#1044).
+ *
+ * Two sets have to agree for an email to arrive: the sender resolves the people
+ * who hold the role that owns the queue, then mails only those of them who
+ * turned that kind on for themselves. Before this card both halves were silent
+ * -- an opt-in without the role produced nothing, a role holder who never opted
+ * in was simply missing -- and the only way to answer "who gets the volunteer
+ * application notice?" was a database query.
+ *
+ * Read-only, deliberately. A preference is the person's own record (the
+ * `enabled = false` row is the evidence an opt-out was honoured) and the table's
+ * write policies pin writes to my_person_id(); the two gaps below therefore name
+ * what to ask for rather than offering a switch.
+ */
+function WhoReceivesWhatCard({
+  kinds,
+  recipientsByKind,
+}: {
+  kinds: NotificationKind[];
+  recipientsByKind: NotificationRecipientsByKind | null;
+}) {
+  return (
+    <Card>
+      <CardContent className="space-y-4">
+        <div>
+          <p className="app-eyebrow">Who receives what</p>
+          <p className="app-muted mt-1 text-sm leading-relaxed">
+            Each person chooses which of these they want on their own{" "}
+            <Link
+              href="/portal/account"
+              className="underline underline-offset-4"
+            >
+              account page
+            </Link>
+            , and most kinds also go only to the people who hold the role that
+            owns the queue. Nobody receives anything they have not turned on.
+            The daily ops report is the exception and is set above, by address.
+          </p>
+        </div>
+
+        {recipientsByKind === null ? (
+          <Alert variant="destructive">
+            <AlertDescription>
+              The recipient list could not be loaded. Everything else on this
+              page is unaffected.
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <ul className="space-y-5">
+            {kinds.map((kind) => (
+              <KindRecipients
+                key={kind.key}
+                kind={kind}
+                people={recipientsByKind[kind.key] ?? []}
+              />
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function KindRecipients({
+  kind,
+  people,
+}: {
+  kind: NotificationKind;
+  people: NotificationRecipient[];
+}) {
+  const receiving = people.filter((person) => person.receives);
+  const roleWithoutOptIn = people.filter(
+    (person) => person.holdsRole && !person.optedIn,
+  );
+  const optInWithoutRole = people.filter(
+    (person) => person.optedIn && !person.holdsRole,
+  );
+
+  return (
+    <li className="space-y-1.5">
+      <p className="text-sm font-medium">{kind.label}</p>
+      <p className="app-muted text-sm leading-relaxed">{kind.description}</p>
+
+      {receiving.length > 0 ? (
+        <p className="text-sm leading-relaxed">
+          <span className="font-medium">Receives it:</span>{" "}
+          {nameList(receiving)}
+        </p>
+      ) : (
+        <p className="app-muted text-sm leading-relaxed">
+          Nobody receives this at the moment.
+        </p>
+      )}
+
+      {roleWithoutOptIn.length > 0 && (
+        <p className="app-muted text-sm leading-relaxed">
+          Holds the role but has not opted in: {nameList(roleWithoutOptIn)}.
+          They can turn it on themselves under My Account &rarr; Email
+          notifications.
+        </p>
+      )}
+
+      {optInWithoutRole.length > 0 && (
+        <p className="app-muted text-sm leading-relaxed">
+          Opted in, but holds no role that receives this:{" "}
+          {nameList(optInWithoutRole)}. Give them the role, or expect them to
+          get nothing.
+        </p>
+      )}
+    </li>
+  );
+}
+
+/** Names, with the address only where it adds something the name does not. */
+function nameList(people: NotificationRecipient[]): string {
+  return people
+    .map((person) =>
+      person.name === person.email
+        ? person.name
+        : `${person.name} (${person.email})`,
+    )
+    .join(", ");
 }
 
 /**
