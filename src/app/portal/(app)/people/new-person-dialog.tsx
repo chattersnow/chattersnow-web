@@ -8,6 +8,7 @@ import {
   PersonFormFields,
   emptyPersonForm,
   packPersonFormData,
+  personFormDirty,
   type PersonFormState,
 } from "./person-form-fields";
 import { PersonPicker, type PickedPerson } from "./person-picker";
@@ -67,12 +68,14 @@ export function NewPersonDialog({
   }
 
   // Compared against a fresh empty form rather than tracked with a flag, so
-  // typing and then clearing a field doesn't count as unsaved work.
-  const baseline = emptyPersonForm(defaultRole, defaultPersonType);
-  const dirty = (Object.keys(baseline) as (keyof PersonFormState)[]).some(
-    (key) => form[key] !== baseline[key],
+  // typing and then clearing a field doesn't count as unsaved work. Gated on
+  // `open` as well: the guard's beforeunload prompt must never be armed by a
+  // dialog nobody has opened, whatever the comparison says.
+  const dirty = personFormDirty(
+    form,
+    emptyPersonForm(defaultRole, defaultPersonType),
   );
-  const guard = useUnsavedChangesGuard(dirty);
+  const guard = useUnsavedChangesGuard(open && dirty);
 
   function resetForm() {
     setForm(emptyPersonForm(defaultRole, defaultPersonType));

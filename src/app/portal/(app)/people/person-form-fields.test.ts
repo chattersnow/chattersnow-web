@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { emptyPersonForm, packPersonFormData } from "./person-form-fields";
+import {
+  emptyPersonForm,
+  packPersonFormData,
+  personFormDirty,
+} from "./person-form-fields";
 import { parsePersonForm } from "./person-form";
 
 describe("emptyPersonForm", () => {
@@ -68,5 +72,31 @@ describe("packPersonFormData", () => {
     const form = emptyPersonForm("is_donor", "organization");
     const formData = packPersonFormData(form);
     expect(formData.get("personType")).toBe("organization");
+  });
+});
+
+describe("personFormDirty", () => {
+  test("two fresh empty forms are not dirty, with or without a default role", () => {
+    expect(personFormDirty(emptyPersonForm(), emptyPersonForm())).toBe(false);
+    expect(
+      personFormDirty(
+        emptyPersonForm("is_sponsor", "organization"),
+        emptyPersonForm("is_sponsor", "organization"),
+      ),
+    ).toBe(false);
+  });
+
+  test("a toggled role is dirty even though every scalar matches", () => {
+    const form = emptyPersonForm();
+    form.roles = { ...form.roles, is_volunteer: true };
+    expect(personFormDirty(form, emptyPersonForm())).toBe(true);
+  });
+
+  test("typing and then clearing a field is not dirty", () => {
+    const form = emptyPersonForm();
+    form.name = "Jane";
+    expect(personFormDirty(form, emptyPersonForm())).toBe(true);
+    form.name = "";
+    expect(personFormDirty(form, emptyPersonForm())).toBe(false);
   });
 });
