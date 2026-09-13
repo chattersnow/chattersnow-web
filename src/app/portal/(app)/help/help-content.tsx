@@ -1327,6 +1327,20 @@ export const helpContent: Record<string, HelpEntry> = {
               attaches it to their record in People.
             </li>
             <li>
+              <strong className="text-foreground">
+                Change one item&apos;s price
+              </strong>{" "}
+              by tapping the price on its line in the cart — a damaged shirt at
+              half price, say. It applies to that sale only, and the ledger
+              keeps the catalog price beside it so the change is visible later.
+            </li>
+            <li>
+              <strong className="text-foreground">Custom item</strong>, the last
+              tile, is for something that is not in the catalog at all — a
+              donated one-off, a coffee. Give it a description and a price. It
+              moves no stock, because there was never any to count.
+            </li>
+            <li>
               <strong className="text-foreground">Record the sale</strong> after
               the money has been taken. Stock comes down as it saves.
             </li>

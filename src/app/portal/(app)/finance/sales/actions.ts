@@ -42,11 +42,16 @@ export async function recordSaleAction(
   const parsed = parseRecordSaleInput(input);
   if ("error" in parsed) return parsed;
 
-  // The RPC owns the rest: it prices the lines from the catalog, refuses a
+  // The RPC owns the rest: it prices catalog lines from the catalog, refuses a
   // variant that is retired or short of stock, computes the tax from the rate
   // on its own subtotal, writes the sale and its line items, and decrements
   // stock -- all inside one transaction holding a row lock on each variant.
-  // Nothing about the money comes from the client.
+  //
+  // A line may now carry a price (#1015) -- an override, or a custom item the
+  // catalog has never heard of -- but it is still only a proposal: the RPC
+  // validates the figure, looks the catalog price up itself and snapshots it as
+  // the line's `list_price`, so whether a line was overridden stays derived
+  // there rather than asserted here. Custom lines move no stock.
   const { data, error } = await supabase
     .rpc("record_product_sale", {
       p_event_id: parsed.data.event_id,

@@ -78,6 +78,59 @@ test.describe("portal sales register and ledger", () => {
     ).toBeVisible();
   });
 
+  // Deliberately a second pass rather than an extension of the first: the test
+  // above is the only end-to-end proof that an ordinary sale still sends no
+  // money at all, and folding an override into it would spend that.
+  test("rings up an overridden price and a custom item, and the ledger shows both", async ({
+    page,
+  }) => {
+    const note = `${NOTES_PREFIX} ${Date.now()}`;
+
+    await page.goto("/portal/finance/sales/register");
+    await page.getByRole("button", { name: TILE }).click();
+
+    // A damaged beanie at a quarter of the price.
+    await page
+      .getByRole("button", {
+        name: "Change price of Chatter Snow Beanie — One size",
+      })
+      .click();
+    const priceField = page.getByLabel(
+      "Price of Chatter Snow Beanie — One size",
+    );
+    await priceField.fill("5");
+    await page.getByRole("button", { name: "Done" }).click();
+    await expect(page.getByText("was $20.00")).toBeVisible();
+
+    // And a thing that was never in the catalog.
+    await page
+      .getByRole("button", {
+        name: "Add a custom item that is not in the catalog",
+      })
+      .click();
+    const dialog = modal(page);
+    await dialog.getByLabel("Description").fill("Donated print");
+    await dialog.getByLabel("Price").fill("3.50");
+    await dialog.getByRole("button", { name: "Add to cart" }).click();
+
+    await expect(page.getByLabel("Quantity of Donated print")).toHaveText("1");
+
+    await page.getByLabel("Notes").fill(note);
+    await page.getByRole("button", { name: /^Record sale/ }).click();
+    await expect(page.getByText("Sale recorded — $8.50")).toBeVisible();
+
+    await page.goto("/portal/finance/sales");
+    const row = page.getByRole("row").filter({ hasText: "$8.50" }).first();
+    await row.getByRole("button", { name: /^View sale of/ }).click();
+
+    const sheet = modal(page);
+    // The catalog price it would have been, and the marker that one of these
+    // lines has no product behind it.
+    await expect(sheet.getByLabel("Was $20.00")).toBeVisible();
+    await expect(sheet.getByText("Custom")).toBeVisible();
+    await expect(sheet.getByText("Donated print")).toBeVisible();
+  });
+
   test("the register refuses to oversell and says what is left", async ({
     page,
   }) => {

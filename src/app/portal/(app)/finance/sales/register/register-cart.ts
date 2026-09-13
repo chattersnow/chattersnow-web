@@ -24,14 +24,32 @@ export type RegisterVariant = {
 };
 
 export type CartLine = {
-  variantId: string;
+  /**
+   * Identity for the React key and for every mutation below. A catalog line
+   * uses its variant id, since a cart holds at most one line per variant; a
+   * custom line has no catalog identity at all, so it gets a fresh uuid.
+   */
+  lineId: string;
+  /** Null for a custom item, which is not in the catalog (#1015). */
+  variantId: string | null;
   productName: string;
   label: string;
+  /** What a custom line is called. Null for a catalog line, which is named by the catalog. */
+  description: string | null;
   /** Snapshot in cents, so a background refresh cannot reprice a cart mid-sale. */
   unitPriceCents: number;
+  /**
+   * The catalog price in cents, kept beside the charged one so the register can
+   * say "was $20.00" and so the payload can tell an override from a default.
+   * Null for a custom line, which has no catalog price to differ from.
+   */
+  listPriceCents: number | null;
   quantity: number;
-  /** What the tile said was available when the line was added. */
-  stockOnHand: number;
+  /**
+   * What the tile said was available when the line was added. Null means
+   * unlimited -- a custom line sells something that was never counted.
+   */
+  stockOnHand: number | null;
 };
 
 export type CartTotals = {
@@ -70,6 +88,11 @@ export function lineLabel(variant: {
   return `${variant.productName} — ${variant.label}`;
 }
 
+/** What a cart line is called: its own description, or the catalog's name for it. */
+export function cartLineLabel(line: CartLine): string {
+  return line.description ?? lineLabel(line);
+}
+
 /**
  * Adds one of a variant, or increments the line that is already there.
  *
@@ -84,41 +107,128 @@ export function addToCart(
 ): CartLine[] {
   const existing = cart.find((line) => line.variantId === variant.id);
   if (existing) {
-    return setLineQuantity(cart, variant.id, existing.quantity + 1);
+    return setLineQuantity(cart, existing.lineId, existing.quantity + 1);
   }
   if (variant.stockOnHand < 1) return [...cart];
   return [
     ...cart,
     {
+      lineId: variant.id,
       variantId: variant.id,
       productName: variant.productName,
       label: variant.label,
+      description: null,
       unitPriceCents: toCents(variant.price),
+      listPriceCents: toCents(variant.price),
       quantity: 1,
       stockOnHand: variant.stockOnHand,
     },
   ];
 }
 
-/** Sets a line's quantity, clamped to [1, stock]. Zero removes the line. */
+/**
+ * Adds an item that is not in the catalog -- a donated one-off, a coffee
+ * (#1015).
+ *
+ * Never merged with anything: two custom lines that happen to read the same are
+ * still two things somebody typed, and the database treats their null variant
+ * ids as distinct. An unreadable price is zero, the same treatment the discount
+ * input gets, and the dialog refuses to submit one anyway.
+ */
+export function addCustomLine(
+  cart: readonly CartLine[],
+  {
+    description,
+    priceInput,
+    quantity = 1,
+  }: { description: string; priceInput: string; quantity?: number },
+): CartLine[] {
+  const trimmed = description.trim();
+  return [
+    ...cart,
+    {
+      lineId: crypto.randomUUID(),
+      variantId: null,
+      productName: trimmed,
+      label: "",
+      description: trimmed,
+      unitPriceCents: parsePriceInput(priceInput) ?? 0,
+      listPriceCents: null,
+      quantity: Math.max(1, Math.trunc(quantity)),
+      stockOnHand: null,
+    },
+  ];
+}
+
+/**
+ * Sets a line's quantity, clamped to [1, stock]. Zero removes the line.
+ *
+ * A custom line has no stock to clamp against (`stockOnHand` null), so it is
+ * only floored at one.
+ */
 export function setLineQuantity(
   cart: readonly CartLine[],
-  variantId: string,
+  lineId: string,
   quantity: number,
 ): CartLine[] {
-  if (quantity < 1) return removeLine(cart, variantId);
+  if (quantity < 1) return removeLine(cart, lineId);
   return cart.map((line) =>
-    line.variantId === variantId
-      ? { ...line, quantity: Math.min(quantity, line.stockOnHand) }
+    line.lineId === lineId
+      ? {
+          ...line,
+          quantity:
+            line.stockOnHand === null
+              ? quantity
+              : Math.min(quantity, line.stockOnHand),
+        }
       : line,
   );
 }
 
 export function removeLine(
   cart: readonly CartLine[],
-  variantId: string,
+  lineId: string,
 ): CartLine[] {
-  return cart.filter((line) => line.variantId !== variantId);
+  return cart.filter((line) => line.lineId !== lineId);
+}
+
+/** The largest price a line may carry, in cents -- the ceiling of numeric(10,2). */
+const MAX_PRICE_CENTS = 100000000 * 100 - 1;
+
+/**
+ * A typed price as cents, or null when there is nothing readable to charge.
+ *
+ * The same clamp-and-ignore-garbage treatment `cartTotals` gives the discount:
+ * blank, a partial number ("1."), a negative or an absurd figure all read as
+ * "no figure", and the caller decides what that means for it.
+ */
+function parsePriceInput(priceInput: string): number | null {
+  const typed = Number(priceInput);
+  if (priceInput.trim() === "" || !Number.isFinite(typed) || typed < 0) {
+    return null;
+  }
+  return Math.min(Math.round(typed * 100), MAX_PRICE_CENTS);
+}
+
+/**
+ * Charges a line something other than its catalog price (#1015) -- a damaged
+ * shirt at half price, a volunteer rate, "take it for $5".
+ *
+ * Blank restores the catalog price, which is the undo; a line with no catalog
+ * price to go back to (a custom one) keeps what it has rather than falling to
+ * zero on a keystroke.
+ */
+export function setLineUnitPrice(
+  cart: readonly CartLine[],
+  lineId: string,
+  priceInput: string,
+): CartLine[] {
+  const cents = parsePriceInput(priceInput);
+  return cart.map((line) => {
+    if (line.lineId !== lineId) return line;
+    const next = cents ?? line.listPriceCents ?? line.unitPriceCents;
+    return { ...line, unitPriceCents: next };
+  });
 }
 
 /** The largest rate the register accepts, as a percent. */
@@ -232,10 +342,15 @@ export function pickDefaultEvent(
 }
 
 /**
- * The payload `recordSaleAction` takes. Quantities and variant ids only -- the
- * RPC prices every line from the catalog, so nothing the cart believes about
- * money is sent or trusted. The tax goes the same way: a rate, never an
- * amount, and the RPC computes the amount from its own subtotal.
+ * The payload `recordSaleAction` takes.
+ *
+ * An ordinary line is still ids and quantities only: the RPC prices it from the
+ * catalog, and nothing the cart believes about money is sent. A price is sent
+ * in exactly two cases (#1015) -- a line the cashier repriced, and a custom
+ * item the catalog has never heard of -- and even then the RPC validates it and
+ * snapshots the catalog price beside it, so what "overridden" means stays the
+ * database's to decide. The tax goes the same way it always has: a rate, never
+ * an amount.
  */
 export function buildRecordSaleInput({
   cart,
@@ -262,9 +377,22 @@ export function buildRecordSaleInput({
     discount_amount: totals.discount,
     tax_rate: totals.taxRate,
     notes: notes.trim() || null,
-    lines: cart.map((line) => ({
-      variant_id: line.variantId,
-      quantity: line.quantity,
-    })),
+    lines: cart.map((line) =>
+      line.variantId === null
+        ? {
+            description: line.description ?? "",
+            unit_price: fromCents(line.unitPriceCents),
+            quantity: line.quantity,
+          }
+        : {
+            variant_id: line.variantId,
+            quantity: line.quantity,
+            // Omitted entirely when the line is at its catalog price, so an
+            // ordinary sale sends exactly what it sent before this existed.
+            ...(line.unitPriceCents === line.listPriceCents
+              ? {}
+              : { unit_price: fromCents(line.unitPriceCents) }),
+          },
+    ),
   };
 }

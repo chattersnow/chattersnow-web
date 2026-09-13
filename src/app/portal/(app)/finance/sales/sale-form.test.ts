@@ -139,11 +139,94 @@ describe("parseRecordSaleInput", () => {
     }
   });
 
-  test("refuses a line without a real variant id", () => {
-    for (const line of [{ quantity: 1 }, { variant_id: "x", quantity: 1 }, 5]) {
+  test("refuses a line whose variant id is not one", () => {
+    for (const line of [{ variant_id: "x", quantity: 1 }, 5]) {
       expect(parseRecordSaleInput(input({ lines: [line] }))).toEqual({
         error: "Every line needs a product and a quantity.",
       });
+    }
+  });
+
+  test("a catalog line may carry a price, rounded to cents", () => {
+    const parsed = ok(
+      parseRecordSaleInput(
+        input({
+          lines: [{ variant_id: VARIANT, quantity: 2, unit_price: 5.005 }],
+        }),
+      ),
+    );
+    expect(parsed.lines).toEqual([
+      { variant_id: VARIANT, quantity: 2, unit_price: 5.01 },
+    ]);
+  });
+
+  test("a catalog line without a price sends none, as it always has", () => {
+    const parsed = ok(
+      parseRecordSaleInput(
+        input({ lines: [{ variant_id: VARIANT, quantity: 1 }] }),
+      ),
+    );
+    expect(parsed.lines).toEqual([{ variant_id: VARIANT, quantity: 1 }]);
+    expect("unit_price" in parsed.lines[0]).toBe(false);
+  });
+
+  test("refuses a catalog line that brings its own description", () => {
+    // The description of a catalog line is composed by the RPC from the product
+    // and the variant, so one arriving here is the wrong shape, not extra data.
+    expect(
+      parseRecordSaleInput(
+        input({
+          lines: [
+            { variant_id: VARIANT, quantity: 1, description: "Smuggled" },
+          ],
+        }),
+      ),
+    ).toEqual({ error: "Every line needs a product and a quantity." });
+  });
+
+  test("a custom line carries its own description and price", () => {
+    const parsed = ok(
+      parseRecordSaleInput(
+        input({
+          lines: [
+            { description: "  Donated print  ", unit_price: 3.5, quantity: 2 },
+          ],
+        }),
+      ),
+    );
+    expect(parsed.lines).toEqual([
+      { description: "Donated print", unit_price: 3.5, quantity: 2 },
+    ]);
+  });
+
+  test("refuses a custom line with no description, a blank one, or an over-long one", () => {
+    for (const description of [undefined, "", "   ", "x".repeat(121)]) {
+      const result = parseRecordSaleInput(
+        input({ lines: [{ description, unit_price: 1, quantity: 1 }] }),
+      );
+      expect("error" in result).toBe(true);
+    }
+  });
+
+  test("refuses a custom line with no price", () => {
+    expect(
+      parseRecordSaleInput(
+        input({ lines: [{ description: "Coffee", quantity: 1 }] }),
+      ),
+    ).toEqual({ error: "A custom item needs a price." });
+  });
+
+  test("refuses a price that is negative, unreadable or beyond numeric(10,2)", () => {
+    for (const unitPrice of [-1, "3", Number.NaN, Infinity, 100000000]) {
+      expect(
+        parseRecordSaleInput(
+          input({
+            lines: [
+              { variant_id: VARIANT, quantity: 1, unit_price: unitPrice },
+            ],
+          }),
+        ),
+      ).toEqual({ error: "A price must be a number of zero or more." });
     }
   });
 
