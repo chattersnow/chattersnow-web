@@ -349,6 +349,24 @@ Both are the tenant admin's, not the operator's:
   placeholder icon), edited beside the copy they sit next to and published
   the same way; a new tenant starts with placeholders everywhere.
 
+- **Website → Site Content → Organization → Security reporting**: who a
+  security researcher should write to, published at
+  `/.well-known/security.txt` (#975). Two slots — an address (or an
+  `https://` link to a reporting form) and an optional note about who answers
+  and how long it takes — and unlike every other slot the default is blank on
+  purpose: **a tenant that has nominated nobody serves no file at all**. An
+  organization with nowhere to send a report should not publish a document
+  saying where to send one, and a 404 at a well-known path reads as "not
+  offered" rather than as a broken promise. The file itself is rendered per
+  host (`src/app/.well-known/security.txt/route.ts`), so `Canonical` is the
+  domain it was fetched from — RFC 9116 treats a mismatch as invalid, which is
+  what the static file this replaced was on every host but Chatter Snow's. The
+  organization's own prose sits above two paragraphs the platform adds, which
+  describe the portal's data and ask a reporter not to rummage in it; those are
+  true whoever the tenant is. `Policy` points at that tenant's terms, and only
+  once it has put them in force. Chatter Snow's address and note are its own
+  rows (`20260912130000_chatter_snow_owns_its_security_contact.sql`).
+
 - **Administration → Site Content → Articles**: the guides in the Learn
   section, which are a _collection_ rather than slots -- an organization
   creates as many categories and articles as it wants, and the platform ships

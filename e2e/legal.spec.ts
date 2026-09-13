@@ -82,15 +82,30 @@ test.describe("the privacy policy", () => {
   });
 });
 
-// RFC 9116 requires an Expires field and treats the file as invalid once it
-// passes -- a security.txt nobody bumps stops being a disclosure route without
-// ever failing loudly. This is the alarm for that.
-test("security.txt is served and has not expired", async ({ request }) => {
+// security.txt is rendered for the tenant the host resolves to (#975), so this
+// asserts the seeded tenant's own contact rather than a name baked into a
+// static file. The two fields that used to be hand-maintained are the ones
+// worth checking end to end: RFC 9116 treats a file whose Expires has passed,
+// or whose Canonical is not where it was fetched from, as invalid.
+test("security.txt is served for this host and has not expired", async ({
+  request,
+  baseURL,
+}) => {
   const response = await request.get("/.well-known/security.txt");
   expect(response.status()).toBe(200);
+  expect(response.headers()["content-type"]).toContain("text/plain");
 
   const body = await response.text();
-  expect(body).toContain("Contact: mailto:security@chattersnow.org");
+  expect(body).toContain("Contact: mailto:security@example.org");
+  expect(body).not.toMatch(/chatter/i);
+
+  expect(body).toContain(
+    `Canonical: ${new URL("/.well-known/security.txt", baseURL).toString()}`,
+  );
+
+  // The seeded tenant has adopted no terms, so /terms 404s and the optional
+  // Policy field has nowhere honest to point.
+  expect(body).not.toContain("Policy:");
 
   const expires = body.match(/^Expires: (.+)$/m)?.[1];
   expect(
@@ -99,6 +114,6 @@ test("security.txt is served and has not expired", async ({ request }) => {
   ).toBeDefined();
   expect(
     new Date(expires!).getTime(),
-    `security.txt expired on ${expires} -- bump it, and the note in the file`,
+    `security.txt expired on ${expires} -- the route computes this field, so an expired one is a bug in securityTxtExpires()`,
   ).toBeGreaterThan(Date.now());
 });
