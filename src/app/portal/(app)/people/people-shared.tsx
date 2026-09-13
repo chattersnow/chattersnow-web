@@ -52,6 +52,8 @@ export type PersonRow = {
   name: string | null;
   preferred_name: string | null;
   email: string | null;
+  /** Where their portal mail goes instead of `email`, when set (#1042). */
+  notification_email: string | null;
   phone: string | null;
   pronouns: string | null;
   instagram_handle: string | null;

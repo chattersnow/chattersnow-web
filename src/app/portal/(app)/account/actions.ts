@@ -6,6 +6,7 @@ import { checkUser } from "@/lib/auth/current-user";
 import { PRONOUNS_MAX_LENGTH, PRONOUNS_TOO_LONG_ERROR } from "@/lib/pronouns";
 import { ensureCurrentPerson } from "@/lib/auth/current-person";
 import { isNotificationKind } from "@/lib/notifications/kinds";
+import { isEmailAddress } from "@/lib/email/identity";
 
 export async function updateMyPreferredNameAction(
   preferredName: string,
@@ -50,6 +51,44 @@ export async function updateMyPronounsAction(
   });
   if (error) {
     return { error: "Could not save your pronouns. Please try again." };
+  }
+
+  revalidatePath("/portal/account");
+  return { success: true };
+}
+
+/**
+ * Where the signed-in person's portal email is delivered (#1042).
+ *
+ * Empty clears the override and returns delivery to the address they sign in
+ * with. It never touches people.email: that column is what binds their account
+ * to their directory record, so editing it to redirect mail is the thing this
+ * field exists to stop anyone needing to do.
+ */
+export async function updateMyNotificationEmailAction(
+  email: string,
+): Promise<{ error: string } | { success: true }> {
+  const trimmed = email.trim();
+  // Checked here as well as in the RPC and the column's constraint, so the
+  // form can say what is wrong without a round trip that reads as a failure.
+  if (trimmed && !isEmailAddress(trimmed)) {
+    return { error: "That does not look like an email address." };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(supabase);
+  if ("error" in userResult) return userResult;
+
+  // No permission check, and a security-definer RPC, for the reasons
+  // set_my_preferred_name has both: it only ever writes the caller's own row,
+  // and people.update RLS requires people:manage.
+  const { error } = await supabase.rpc("set_my_notification_email", {
+    p_email: trimmed,
+  });
+  if (error) {
+    return {
+      error: "Could not save your notification email. Please try again.",
+    };
   }
 
   revalidatePath("/portal/account");

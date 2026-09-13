@@ -16,7 +16,7 @@ import {
 async function personFor(email: string) {
   const { data } = await adminClient
     .from("people")
-    .select("id, name, preferred_name, auth_user_id")
+    .select("id, name, preferred_name, notification_email, auth_user_id")
     .eq("email", email)
     .not("auth_user_id", "is", null)
     .maybeSingle();
@@ -45,7 +45,7 @@ afterEach(async () => {
     }
     await adminClient
       .from("people")
-      .update({ preferred_name: null })
+      .update({ preferred_name: null, notification_email: null })
       .eq("email", email);
   }
 });
@@ -132,6 +132,92 @@ describe("set_preferred_name_for_user (integration)", () => {
     });
     expect(error).not.toBeNull();
     expect((await personFor(SEEDED_USERS.finance))?.preferred_name).toBeNull();
+  });
+});
+
+// #1042. The same security-definer reasoning as set_my_preferred_name above,
+// for the field that decides where a person's mail actually lands: a volunteer
+// holds people:none, and where their own email arrives cannot be an
+// administrator's decision to make for them.
+describe("set_my_notification_email (integration)", () => {
+  test("a volunteer (people:none) can redirect their own mail", async () => {
+    const supabase = await signInAs(SEEDED_USERS.volunteer);
+    touchedEmails.push(SEEDED_USERS.volunteer);
+
+    const { error } = await supabase.rpc("set_my_notification_email", {
+      p_email: "ops@chattersnow.test",
+    });
+    expect(error).toBeNull();
+
+    const person = await personFor(SEEDED_USERS.volunteer);
+    expect(person?.notification_email).toBe("ops@chattersnow.test");
+    // The identity column is untouched, which is what keeps sign-in working.
+    expect(person?.auth_user_id).not.toBeNull();
+  });
+
+  test("an empty value clears the override rather than storing a blank", async () => {
+    const supabase = await signInAs(SEEDED_USERS.board);
+    touchedEmails.push(SEEDED_USERS.board);
+
+    await supabase.rpc("set_my_notification_email", {
+      p_email: "ops@chattersnow.test",
+    });
+    await supabase.rpc("set_my_notification_email", { p_email: "   " });
+
+    expect(
+      (await personFor(SEEDED_USERS.board))?.notification_email,
+    ).toBeNull();
+  });
+
+  test("it refuses something that is not an address", async () => {
+    const supabase = await signInAs(SEEDED_USERS.board);
+    touchedEmails.push(SEEDED_USERS.board);
+
+    const { error } = await supabase.rpc("set_my_notification_email", {
+      p_email: "not an address",
+    });
+    expect(error).not.toBeNull();
+    expect(
+      (await personFor(SEEDED_USERS.board))?.notification_email,
+    ).toBeNull();
+  });
+
+  test("an anonymous caller is rejected", async () => {
+    const { error } = await anonClient().rpc("set_my_notification_email", {
+      p_email: "ops@chattersnow.test",
+    });
+    expect(error).not.toBeNull();
+  });
+});
+
+describe("set_notification_email_for_person (integration)", () => {
+  test("people:manage can set it for somebody else", async () => {
+    const supabase = await signInAs(SEEDED_USERS.admin);
+    touchedEmails.push(SEEDED_USERS.finance);
+
+    const target = await personFor(SEEDED_USERS.finance);
+    const { error } = await supabase.rpc("set_notification_email_for_person", {
+      p_person_id: target?.id,
+      p_email: "finance@chattersnow.test",
+    });
+    expect(error).toBeNull();
+    expect((await personFor(SEEDED_USERS.finance))?.notification_email).toBe(
+      "finance@chattersnow.test",
+    );
+  });
+
+  test("somebody without people:manage cannot", async () => {
+    const target = await personFor(SEEDED_USERS.finance);
+
+    const supabase = await signInAs(SEEDED_USERS.volunteer);
+    const { error } = await supabase.rpc("set_notification_email_for_person", {
+      p_person_id: target?.id,
+      p_email: "attacker@example.test",
+    });
+    expect(error).not.toBeNull();
+    expect(
+      (await personFor(SEEDED_USERS.finance))?.notification_email,
+    ).toBeNull();
   });
 });
 

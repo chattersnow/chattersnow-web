@@ -179,7 +179,7 @@ async function fetchRecipients(
 
   const { data, error } = await admin
     .from("people")
-    .select("id, tenant_id, email, name, preferred_name")
+    .select("id, tenant_id, email, notification_email, name, preferred_name")
     .in("id", personIds)
     .not("email", "is", null)
     .not("auth_user_id", "is", null);
