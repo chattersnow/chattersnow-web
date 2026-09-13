@@ -24,6 +24,7 @@ import {
   type PersonRow,
 } from "../people-shared";
 import { useLexicon } from "@/components/lexicon-context";
+import { ImagePreviewBox, useImagePreview } from "../../website/image-preview";
 import {
   experienceLevelLabel,
   ridesSki,
@@ -44,6 +45,31 @@ import {
 } from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
+
+/**
+ * The organization's mark, at the shape and fit the public sponsor wall draws
+ * it: contained rather than cropped, in a box roughly as wide as the widest
+ * wordmark (#1028 uses the same three values on the Logo URL field itself).
+ *
+ * Renders nothing at all when the link is unusable or has failed, so what is
+ * left is the URL row below -- which is the right fallback here even though
+ * the public wall falls back to the sponsor's name. A visitor must never see a
+ * broken mark; a staffer is the one person who can fix it, and needs to see
+ * the link that is wrong.
+ */
+function LogoPreview({ url }: { url: string }) {
+  const preview = useImagePreview(url);
+  if (!preview.url) return null;
+  return (
+    <ImagePreviewBox
+      url={preview.url}
+      ratio="4 / 1"
+      fit="contain"
+      className="h-16"
+      onError={preview.markFailed}
+    />
+  );
+}
 
 function formStateFor(
   person: PersonRow,
@@ -220,6 +246,19 @@ export function ProfileCard({
               <span className="app-muted">Website:</span>{" "}
               {person.website ?? "—"}
             </p>
+            {/* An organization's logo is what the public sees on the sponsor
+                wall and on an event's page (#1024), and until #1036 it was
+                readable nowhere in the portal -- a staffer could not tell a
+                good link from a dead one without opening the form. */}
+            {isOrganization(person) && (
+              <>
+                {person.logo_url && <LogoPreview url={person.logo_url} />}
+                <p className="break-all">
+                  <span className="app-muted">Logo:</span>{" "}
+                  {person.logo_url ?? "—"}
+                </p>
+              </>
+            )}
             {person.primary_contact && (
               <p>
                 <span className="app-muted">Primary contact:</span>{" "}
