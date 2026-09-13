@@ -160,4 +160,18 @@ describe("EventSectionRail", () => {
       screen.getByRole("button", { name: "Hide sections" }),
     ).toHaveAttribute("aria-expanded", "true");
   });
+
+  test("collapses again once a section is picked", () => {
+    // Below lg the rail sits above the card, so a rail left open would push
+    // the section the reader just asked for off the screen.
+    const onSelect = renderRail();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Sections · / }));
+    fireEvent.click(sections().getByRole("button", { name: /^Checklist/ }));
+
+    expect(onSelect).toHaveBeenCalledWith("checklist");
+    expect(
+      screen.getByRole("button", { name: /^Sections · / }),
+    ).toHaveAttribute("aria-expanded", "false");
+  });
 });

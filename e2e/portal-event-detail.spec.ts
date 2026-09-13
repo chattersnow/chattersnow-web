@@ -124,11 +124,45 @@ async function seedEventFixture(admin: AdminClient) {
  * The section rail's row for `title` (#1008). The rail replaced the phase tabs
  * and the card strip under them: every section is listed at once, so reaching
  * one is a single click from wherever you are.
+ *
+ * Call `showRail` first -- below `lg` the rail is behind a disclosure button,
+ * and this spec runs in the mobile projects as well as the desktop ones.
  */
 function railRow(page: import("@playwright/test").Page, title: string) {
   return page
     .getByRole("navigation", { name: "Event sections" })
     .getByRole("button", { name: new RegExp(`^${title}`) });
+}
+
+/**
+ * Expands the rail if it is collapsed. A no-op above `lg`, where the toggle is
+ * `lg:hidden`.
+ *
+ * Retried because the toggle is server-rendered before React attaches to it,
+ * so a click that lands in that window does nothing and would otherwise leave
+ * the rail shut for the rest of the test.
+ */
+async function showRail(page: import("@playwright/test").Page) {
+  const toggle = page.getByRole("button", { name: /^Sections · / });
+  if (!(await toggle.isVisible())) return;
+  const rail = page.getByRole("navigation", { name: "Event sections" });
+  await expect(async () => {
+    if (!(await rail.isVisible())) await toggle.click();
+    await expect(rail).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 15_000 });
+}
+
+/**
+ * Opens a section the way a reader does. Picking one collapses the rail again
+ * below `lg`, so the card is not pushed off the screen by the list that named
+ * it.
+ */
+async function openSection(
+  page: import("@playwright/test").Page,
+  title: string,
+) {
+  await showRail(page);
+  await railRow(page, title).click();
 }
 
 /** A phase card, addressed by its own title rather than any text inside it. */
@@ -172,14 +206,14 @@ test.describe("portal event detail", () => {
       // One click, from the first group to the last, without selecting a
       // phase on the way -- which is the whole reason the rail replaced the
       // two tab strips (#1008).
-      await railRow(page, "Impact").click();
+      await openSection(page, "Impact");
       await expect(page).toHaveURL(/[?&]tab=impact/);
       await expect(card(page, "Impact")).toBeVisible();
       await expect(card(page, "Event details")).toHaveCount(0);
 
       // And straight back to a Planning section afterwards: the lifecycle is
       // not one-way, and correcting the budget after the event is ordinary.
-      await railRow(page, "Registration & planning").click();
+      await openSection(page, "Registration & planning");
       await expect(page).toHaveURL(/[?&]tab=planning/);
       await expect(card(page, "Registration & planning")).toBeVisible();
 
@@ -201,7 +235,7 @@ test.describe("portal event detail", () => {
         `/portal/events/${fixture.eventId}?phase=during&card=incidents`,
       );
       await expect(card(page, "Incidents")).toBeVisible();
-      await railRow(page, "Staff").click();
+      await openSection(page, "Staff");
       await expect(page).toHaveURL(/[?&]tab=staff/);
       await expect(page).not.toHaveURL(/[?&](phase|card)=/);
 
@@ -227,6 +261,7 @@ test.describe("portal event detail", () => {
       // "Which phase is the budget on?" was the question the phase tabs could
       // not answer without opening them. The budget is on a card called
       // Registration & planning.
+      await showRail(page);
       await page
         .getByRole("searchbox", { name: "Search this event's sections" })
         .fill("budget");
@@ -252,6 +287,7 @@ test.describe("portal event detail", () => {
 
       // The badge sits on the section the work is done on (#1008), not on a
       // phase heading covering six of them.
+      await showRail(page);
       await expect(
         railRow(page, "Attendance").getByLabel("1 outstanding"),
       ).toBeVisible();
@@ -275,6 +311,7 @@ test.describe("portal event detail", () => {
 
       // The rail's badges are server-derived, so this proves the write landed
       // rather than that the card cleared its own form.
+      await showRail(page);
       await expect(
         railRow(page, "Attendance").getByLabel(/outstanding/),
       ).toHaveCount(0);
@@ -283,7 +320,7 @@ test.describe("portal event detail", () => {
       // same definitions the program rollup uses, not from anything the page
       // just typed -- the derivation #649 shipped a bug in because no test
       // ever called it. Participants is the typed headcount when there is one.
-      await railRow(page, "Impact").click();
+      await openSection(page, "Impact");
       const impact = card(page, "Impact");
       const participants = impact
         .locator('[data-slot="card"]')
@@ -310,14 +347,14 @@ test.describe("portal event detail", () => {
           name: "Edit event details",
         }),
       ).toBeVisible();
-      await railRow(page, "Registration & planning").click();
+      await openSection(page, "Registration & planning");
       await expect(
         card(page, "Registration & planning").getByRole("button", {
           name: "Edit registration & planning",
         }),
       ).toBeVisible();
 
-      await railRow(page, "Report").click();
+      await openSection(page, "Report");
       const report = card(page, "Report");
       await report.getByRole("button", { name: "Submit report" }).click();
 
@@ -329,6 +366,7 @@ test.describe("portal event detail", () => {
       ).toHaveCount(0);
       // The Report row's badge is gone; the impact note's is still there, on
       // its own row.
+      await showRail(page);
       await expect(
         railRow(page, "Report").getByLabel(/outstanding/),
       ).toHaveCount(0);
@@ -338,13 +376,13 @@ test.describe("portal event detail", () => {
 
       // Submitted report data must not shift underneath it, so the cards it
       // covers lose their edit affordance entirely.
-      await railRow(page, "Event details").click();
+      await openSection(page, "Event details");
       await expect(
         card(page, "Event details").getByRole("button", {
           name: "Edit event details",
         }),
       ).toHaveCount(0);
-      await railRow(page, "Registration & planning").click();
+      await openSection(page, "Registration & planning");
       await expect(
         card(page, "Registration & planning").getByRole("button", {
           name: "Edit registration & planning",
@@ -386,7 +424,7 @@ test.describe("portal event detail", () => {
       // The walk-in arrives already checked in, so the Attendance card's
       // check-in reference -- the same derived figures the Impact card reads
       // -- has to agree with the door.
-      await railRow(page, "Attendance").click();
+      await openSection(page, "Attendance");
       const attendance = card(page, "Attendance");
       const checkedIn = attendance
         .locator('[data-slot="card"]')

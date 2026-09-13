@@ -45,6 +45,14 @@ export function EventSectionRail({
   const [open, setOpen] = useState(false);
   const trimmed = query.trim().toLowerCase();
 
+  // Below `lg` the rail is a disclosure sitting above the card, so leaving it
+  // open after a pick would push the section the reader just asked for off the
+  // screen. Harmless above `lg`, where `lg:block` keeps the rail up regardless.
+  const pick = (value: TabValue) => {
+    setOpen(false);
+    onSelect(value);
+  };
+
   const matches = useMemo<Match[]>(() => {
     if (!trimmed) return [];
     return phases.flatMap((phase) =>
@@ -117,7 +125,7 @@ export function EventSectionRail({
                     trail={match.group}
                     current={match.value === current}
                     tasks={cardTasks?.[match.value]}
-                    onSelect={() => onSelect(match.value)}
+                    onSelect={() => pick(match.value)}
                   />
                 </li>
               ))}
@@ -136,7 +144,7 @@ export function EventSectionRail({
                           label={section.label}
                           current={section.value === current}
                           tasks={cardTasks?.[section.value]}
-                          onSelect={() => onSelect(section.value)}
+                          onSelect={() => pick(section.value)}
                         />
                       </li>
                     ))}
