@@ -225,10 +225,27 @@ export async function cleanupDonation(donationId: string) {
     .eq("donation_id", donationId);
   const itemIds = (items ?? []).map((item) => item.id as string);
   if (itemIds.length) {
+    // A public request's header (#1032) outlives its movements by design,
+    // so it has to be found through them before they go. Through the
+    // service role: gear_requests has no delete grant for anyone else.
+    const { data: holds } = await adminClient
+      .from("inventory_movements")
+      .select("gear_request_id")
+      .in("inventory_item_id", itemIds)
+      .not("gear_request_id", "is", null);
     await adminClient
       .from("inventory_movements")
       .delete()
       .in("inventory_item_id", itemIds);
+    const requestIds = [
+      ...new Set((holds ?? []).map((hold) => hold.gear_request_id as string)),
+    ];
+    if (requestIds.length) {
+      await serviceRoleClient()
+        .from("gear_requests")
+        .delete()
+        .in("id", requestIds);
+    }
   }
   await adminClient
     .from("inventory_items")

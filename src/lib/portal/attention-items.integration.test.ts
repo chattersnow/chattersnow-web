@@ -56,6 +56,7 @@ describe("getOpsInboxSummary event check-ins (integration)", () => {
       canSeeContactMessages: false,
       canSeeEventCheckins: true,
       canSeeArtworkSubmissions: false,
+      canSeeGearRequests: false,
     });
 
     const itemA = result.items.find((item) => item.href.includes(eventA.id));
@@ -85,6 +86,7 @@ describe("getOpsInboxSummary event check-ins (integration)", () => {
       canSeeContactMessages: false,
       canSeeEventCheckins: true,
       canSeeArtworkSubmissions: false,
+      canSeeGearRequests: false,
     });
 
     expect(result.items.some((item) => item.href.includes(event.id))).toBe(
@@ -107,6 +109,7 @@ describe("getOpsInboxSummary event check-ins (integration)", () => {
       canSeeContactMessages: false,
       canSeeEventCheckins: false,
       canSeeArtworkSubmissions: false,
+      canSeeGearRequests: false,
     });
 
     expect(result.items.some((item) => item.href.includes(event.id))).toBe(
@@ -128,6 +131,7 @@ const ALL_FLAGS_ON = {
   canSeeContactMessages: true,
   canSeeEventCheckins: true,
   canSeeArtworkSubmissions: true,
+  canSeeGearRequests: true,
 };
 
 const EMPTY = { items: [] };

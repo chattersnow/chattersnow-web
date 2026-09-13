@@ -7,6 +7,7 @@ import { GearCatalog } from "../gear-catalog";
 
 import { getPublicSite, publicTitle } from "@/lib/public-site";
 import { isPageVisible } from "@/lib/page-visibility";
+import { getPublicGearRequestOptions } from "@/lib/gear-request-options";
 
 export async function generateMetadata(): Promise<Metadata> {
   const supabase = await createSupabaseServerClient();
@@ -19,20 +20,28 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function GearLibraryPage() {
   const supabase = await createSupabaseServerClient();
 
-  const [{ data: items }, siteImages, { content }, sizingVisible] =
-    await Promise.all([
-      supabase
-        .from("public_gear_catalog")
-        .select(
-          "id, description, size, type, gender, condition, photo_url, created_at, category_key, category_label, category_group_key, category_group_label, category_sort_order, category_group_sort_order",
-        )
-        .order("created_at", { ascending: false }),
-      getSiteImageUrls(supabase),
-      getPublicSite(supabase),
-      // The guide is gated on its own slot, so the CTA has to be too -- a
-      // secondary button that 404s is worse than no button.
-      isPageVisible("gears-sizing"),
-    ]);
+  const [
+    { data: items },
+    siteImages,
+    { content },
+    sizingVisible,
+    requestOptions,
+  ] = await Promise.all([
+    supabase
+      .from("public_gear_catalog")
+      .select(
+        "id, description, size, type, gender, condition, photo_url, created_at, category_key, category_label, category_group_key, category_group_label, category_sort_order, category_group_sort_order",
+      )
+      .order("created_at", { ascending: false }),
+    getSiteImageUrls(supabase),
+    getPublicSite(supabase),
+    // The guide is gated on its own slot, so the CTA has to be too -- a
+    // secondary button that 404s is worse than no button.
+    isPageVisible("gears-sizing"),
+    // What the cart may offer (#1032): a meetup always, shipping when the
+    // organization has turned it on and named a way to pay the postage.
+    getPublicGearRequestOptions(supabase),
+  ]);
 
   return (
     <div>
@@ -61,6 +70,7 @@ export default async function GearLibraryPage() {
         <GearCatalog
           items={items ?? []}
           placeholderUrl={siteImages.gear_placeholder ?? null}
+          requestOptions={requestOptions}
         />
       </div>
     </div>

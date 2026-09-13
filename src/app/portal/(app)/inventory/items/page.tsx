@@ -132,13 +132,17 @@ export default async function InventoryPage({
   type Hold = {
     requester: NonNullable<InventoryItem["holdRequester"]>;
     notes: string | null;
+    request: InventoryItem["holdRequest"];
   };
   const holdByItemId = new Map<string, Hold>();
   if (reservedIds.length > 0) {
+    // The request header (#1032) carries the notes and the delivery choice;
+    // a hold from before the header existed still has its notes on the
+    // movement, so both are read and the header wins.
     const { data: movements } = await supabase
       .from("inventory_movements")
       .select(
-        "inventory_item_id, occurred_at, notes, recipient:people(id, name, email, phone)",
+        "inventory_item_id, occurred_at, notes, recipient:people(id, name, email, phone), gear_request:gear_requests(id, status, delivery_method, quoted_amount, notes)",
       )
       .eq("movement_type", "reserved")
       .in("inventory_item_id", reservedIds)
@@ -149,13 +153,26 @@ export default async function InventoryPage({
       occurred_at: string;
       notes: string | null;
       recipient: NonNullable<InventoryItem["holdRequester"]> | null;
+      gear_request:
+        | (NonNullable<InventoryItem["holdRequest"]> & {
+            notes: string | null;
+          })
+        | null;
     };
 
     for (const movement of (movements ?? []) as unknown as HoldMovement[]) {
       if (movement.recipient && !holdByItemId.has(movement.inventory_item_id)) {
         holdByItemId.set(movement.inventory_item_id, {
           requester: movement.recipient,
-          notes: movement.notes,
+          notes: movement.gear_request?.notes ?? movement.notes,
+          request: movement.gear_request
+            ? {
+                id: movement.gear_request.id,
+                status: movement.gear_request.status,
+                delivery_method: movement.gear_request.delivery_method,
+                quoted_amount: movement.gear_request.quoted_amount,
+              }
+            : null,
         });
       }
     }
@@ -167,6 +184,7 @@ export default async function InventoryPage({
       ...item,
       holdRequester: hold?.requester ?? null,
       holdNotes: hold?.notes ?? null,
+      holdRequest: hold?.request ?? null,
     };
   });
 

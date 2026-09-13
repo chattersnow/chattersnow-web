@@ -291,6 +291,15 @@ export const NAV_ITEMS: readonly NavItem[] = [
         access: [{ resource: "inventory", level: "view" }],
       },
       {
+        // Public requests from the library (#1032): a different job from the
+        // items list -- a queue to work rather than a catalogue to keep -- so
+        // a destination of its own, which is also what the bell links to.
+        value: "requests",
+        label: "Requests",
+        href: "/portal/inventory/requests",
+        access: [{ resource: "inventory", level: "view" }],
+      },
+      {
         value: "donations",
         label: "Donations",
         href: "/portal/inventory/donations",

@@ -1,10 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
   contactMessageHref,
+  gearRequestHref,
   renderContactMessageEmail,
+  renderGearRequestEmail,
   renderVolunteerApplicationEmail,
   volunteerApplicationHref,
 } from "./submission-emails";
+import { DEFAULT_LEXICON } from "@/lib/lexicon";
 
 const SITE_URL = "https://chattersnow.example";
 
@@ -170,5 +173,44 @@ describe("site URL", () => {
     );
     expect(text).toContain(`${SITE_URL}/portal/account`);
     expect(html).toContain(`${SITE_URL}/portal/account`);
+  });
+});
+
+describe("renderGearRequestEmail", () => {
+  const notice = {
+    requestId: "11111111-2222-4333-8444-555555555555",
+    name: "Jo Rivera",
+    email: "jo@example.test",
+    itemCount: 2,
+    deliveryMethod: "shipping",
+  };
+
+  test("names the requester and the collection in the subject", () => {
+    expect(renderGearRequestEmail(notice, SITE_URL).subject).toBe(
+      "New library request: Jo Rivera",
+    );
+    expect(
+      renderGearRequestEmail(notice, SITE_URL, {
+        ...DEFAULT_LEXICON,
+        collection_public: "Tool Library",
+      }).subject,
+    ).toBe("New tool library request: Jo Rivera");
+  });
+
+  test("carries who asked, how many and how, and links to the request", () => {
+    const { text, html } = renderGearRequestEmail(notice, SITE_URL);
+    for (const part of [text, html]) {
+      expect(part).toContain("Jo Rivera");
+      expect(part).toContain("jo@example.test");
+      expect(part).toContain("2 items");
+      expect(part).toContain("Ship it to me");
+      expect(part).toContain(`${SITE_URL}${gearRequestHref(notice.requestId)}`);
+    }
+    expect(factLabels(text)).toEqual([
+      "Requested by",
+      "Email",
+      "Items",
+      "Delivery",
+    ]);
   });
 });

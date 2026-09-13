@@ -18,6 +18,10 @@ import { GearCard } from "./gear-card";
 import { GearDetailSheet } from "./gear-detail-sheet";
 import { GearCartTray } from "./gear-cart-tray";
 import { GearCartSheet } from "./gear-cart-sheet";
+import type {
+  DeliveryMethod,
+  PublicGearRequestOptions,
+} from "@/lib/gear-requests";
 
 const PAGE_SIZE = 12;
 
@@ -44,9 +48,12 @@ const FILTER_ALL = "all";
 export function GearCatalog({
   items,
   placeholderUrl,
+  requestOptions,
 }: {
   items: GearItem[];
   placeholderUrl: string | null;
+  /** What the checkout form may offer (#1032): shipping, and how to pay for it. */
+  requestOptions: PublicGearRequestOptions;
 }) {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
@@ -57,10 +64,12 @@ export function GearCatalog({
   const [detailOpen, setDetailOpen] = useState(false);
   const [cartIds, setCartIds] = useState<Set<string>>(new Set());
   const [cartOpen, setCartOpen] = useState(false);
-  const [cartSuccess, setCartSuccess] = useState(false);
+  // The delivery method of the request just submitted, so the receipt can
+  // say what happens next; null until then and again when the cart reopens.
+  const [cartSuccess, setCartSuccess] = useState<DeliveryMethod | null>(null);
 
   const openCart = () => {
-    setCartSuccess(false);
+    setCartSuccess(null);
     setCartOpen(true);
   };
 
@@ -364,11 +373,12 @@ export function GearCatalog({
         onOpenChange={setCartOpen}
         onRemove={toggleCartItem}
         success={cartSuccess}
-        onSubmitted={() => {
-          setCartSuccess(true);
+        onSubmitted={(deliveryMethod) => {
+          setCartSuccess(deliveryMethod);
           setCartIds(new Set());
         }}
         placeholderUrl={placeholderUrl}
+        requestOptions={requestOptions}
       />
     </div>
   );

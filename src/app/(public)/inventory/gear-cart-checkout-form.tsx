@@ -2,22 +2,38 @@
 
 import { FormEvent, useState, useTransition } from "react";
 import { requestGearItemsAction } from "./gear-cart-request-actions";
-import { GearRequesterFields } from "./gear-requester-fields";
+import {
+  EMPTY_SHIPPING_FIELDS,
+  GearRequesterFields,
+  type ShippingFields,
+} from "./gear-requester-fields";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
+import type {
+  DeliveryMethod,
+  PublicGearRequestOptions,
+} from "@/lib/gear-requests";
 
 export function GearCartCheckoutForm({
   itemIds,
+  options,
   onSuccess,
 }: {
   itemIds: string[];
-  onSuccess: () => void;
+  options: PublicGearRequestOptions;
+  onSuccess: (deliveryMethod: DeliveryMethod) => void;
 }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
+  const [deliveryMethod, setDeliveryMethod] =
+    useState<DeliveryMethod>("meetup");
+  const [shipping, setShipping] = useState<ShippingFields>(
+    EMPTY_SHIPPING_FIELDS,
+  );
+  const [paymentMethod, setPaymentMethod] = useState("");
   const [company, setCompany] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -32,6 +48,17 @@ export function GearCartCheckoutForm({
     formData.set("phone", phone);
     formData.set("notes", notes);
     formData.set("company", company);
+    formData.set("delivery_method", deliveryMethod);
+    if (deliveryMethod === "shipping") {
+      formData.set("ship_name", shipping.name);
+      formData.set("ship_line1", shipping.line1);
+      formData.set("ship_line2", shipping.line2);
+      formData.set("ship_city", shipping.city);
+      formData.set("ship_region", shipping.region);
+      formData.set("ship_postal_code", shipping.postalCode);
+      formData.set("ship_country", shipping.country);
+      formData.set("payment_method", paymentMethod);
+    }
 
     startTransition(async () => {
       const result = await requestGearItemsAction(itemIds, formData);
@@ -39,7 +66,7 @@ export function GearCartCheckoutForm({
         setError(result.error);
         return;
       }
-      onSuccess();
+      onSuccess(deliveryMethod);
     });
   }
 
@@ -56,6 +83,13 @@ export function GearCartCheckoutForm({
           onPhoneChange={setPhone}
           notes={notes}
           onNotesChange={setNotes}
+          options={options}
+          deliveryMethod={deliveryMethod}
+          onDeliveryMethodChange={setDeliveryMethod}
+          shipping={shipping}
+          onShippingChange={setShipping}
+          paymentMethod={paymentMethod}
+          onPaymentMethodChange={setPaymentMethod}
         />
 
         {/* Honeypot: hidden from sighted/keyboard users, but bots that
