@@ -23,6 +23,7 @@ import {
   signInAs,
 } from "../../../test/integration-setup";
 import { SEEDED_PERSON_IDS } from "../../../test/seed-fixtures";
+import { getMyNotificationPreferences } from "./preferences";
 
 const service = serviceRoleClient();
 const anon = anonClient();
@@ -39,6 +40,7 @@ let volunteerPersonId: string;
 let chatterTenantId: string;
 let otherTenantId: string;
 let otherPersonId: string;
+let adminPersonId: string;
 
 beforeAll(async () => {
   const { data: tenant, error: tenantError } = await service
@@ -78,6 +80,14 @@ beforeAll(async () => {
   if (otherPersonError) throw otherPersonError;
   otherPersonId = otherPerson.id as string;
 
+  // The admin already has a people row from supabase/seed.sql; this only reads
+  // its id, for the #1043 cases below.
+  const { data: adminPerson, error: adminPersonError } = await adminClient.rpc(
+    "resolve_current_person_id",
+  );
+  if (adminPersonError) throw adminPersonError;
+  adminPersonId = adminPerson as string;
+
   // The seeded volunteer account has no people row until something makes one.
   // ensure_current_person() is what /portal/account calls on load, so this is
   // the same state a real volunteer reaches by visiting the page.
@@ -94,6 +104,14 @@ afterAll(async () => {
   // person in and records one delivery for them, and the tenant-isolation
   // suite needs both of those rows to still be there.
   const madeHere = [volunteerPersonId, OTHER_PERSON_IN_TENANT, otherPersonId];
+  // The one row this file adds for the admin themselves (#1043's case).
+  // By kind, so the seeded task_digest opt-in the tenant-isolation suite
+  // reads stays put.
+  await service
+    .from("person_notification_preferences")
+    .delete()
+    .eq("person_id", adminPersonId)
+    .eq("kind", "contact_message");
   await service
     .from("person_notification_preferences")
     .delete()
@@ -262,6 +280,63 @@ describe("person_notification_preferences, as everyone else", () => {
       .from("person_notification_preferences")
       .select("tenant_id");
     expect(data!.every((row) => row.tenant_id === chatterTenantId)).toBe(true);
+  });
+});
+
+// Issue #1043: the select policy above is exactly why /portal/account cannot
+// lean on it. An administrator's unfiltered read returns the whole tenant, and
+// the page's `enabledByKind[row.kind] = row.enabled` loop let whichever row
+// PostgREST returned last win -- which with two administrators in a tenant
+// looked like one account's switches moving the other's.
+describe("getMyNotificationPreferences, the query /portal/account runs", () => {
+  const OWN_KIND = "contact_message";
+
+  test("an administrator resolves their own value, not another person's", async () => {
+    const { error: mineError } = await adminClient
+      .from("person_notification_preferences")
+      .insert({ person_id: adminPersonId, kind: OWN_KIND, enabled: false });
+    expect(mineError).toBeNull();
+
+    const { error: theirsError } = await service
+      .from("person_notification_preferences")
+      .insert({
+        tenant_id: chatterTenantId,
+        person_id: OTHER_PERSON_IN_TENANT,
+        kind: OWN_KIND,
+        enabled: true,
+      });
+    expect(theirsError).toBeNull();
+
+    // The bug, pinned: unfiltered, both rows come back, so the page could read
+    // either one.
+    const { data: unfiltered } = await adminClient
+      .from("person_notification_preferences")
+      .select("person_id")
+      .eq("kind", OWN_KIND);
+    expect(unfiltered!.map((row) => row.person_id).sort()).toEqual(
+      [adminPersonId, OTHER_PERSON_IN_TENANT].sort(),
+    );
+
+    const mine = await getMyNotificationPreferences(adminClient, adminPersonId);
+    expect(mine[OWN_KIND]).toBe(false);
+    // The seeded opt-in is still theirs and still on.
+    expect(mine.task_digest).toBe(true);
+  });
+
+  test("another administrator's choice does not reach this one", async () => {
+    // The other side of the same read: the volunteer has no row for this kind,
+    // and absent means off rather than "whatever the administrator picked".
+    const theirs = await getMyNotificationPreferences(
+      volunteer,
+      volunteerPersonId,
+    );
+    expect(theirs[OWN_KIND]).toBeUndefined();
+  });
+
+  test("no person id reads nothing", async () => {
+    // ensureCurrentPerson() can return null, and a page that fell through to an
+    // unfiltered read in that case would be the same bug again.
+    expect(await getMyNotificationPreferences(adminClient, null)).toEqual({});
   });
 });
 

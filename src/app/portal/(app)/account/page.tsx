@@ -10,6 +10,7 @@ import { ReplayTourButton } from "./replay-tour-button";
 import { NotificationPreferences } from "./notification-preferences";
 import { NOTIFICATION_KINDS } from "@/lib/notifications/kinds";
 import { getOrgEmailEnabled } from "@/lib/notifications/settings";
+import { getMyNotificationPreferences } from "@/lib/notifications/preferences";
 import {
   getCurrentUserPermissions,
   hasAnyPermission,
@@ -34,18 +35,14 @@ export default async function AccountPage() {
 
   const person = await ensureCurrentPerson(supabase);
 
-  // Only the caller's own rows come back: the select policy on
-  // person_notification_preferences is scoped to my_person_id().
-  const [{ data: preferenceRows }, orgEmailEnabled, permissions] =
-    await Promise.all([
-      supabase.from("person_notification_preferences").select("kind, enabled"),
-      getOrgEmailEnabled(supabase),
-      getCurrentUserPermissions(supabase),
-    ]);
-  const enabledByKind: Record<string, boolean> = {};
-  for (const row of preferenceRows ?? []) {
-    enabledByKind[row.kind as string] = Boolean(row.enabled);
-  }
+  // Filtered to this person explicitly, not left to the select policy: that
+  // policy also admits administration:manage, so an administrator reading the
+  // table unfiltered gets the whole tenant's rows (#1043).
+  const [enabledByKind, orgEmailEnabled, permissions] = await Promise.all([
+    getMyNotificationPreferences(supabase, person?.person_id ?? null),
+    getOrgEmailEnabled(supabase),
+    getCurrentUserPermissions(supabase),
+  ]);
 
   // Some kinds only exist for the people who own the queue they report on
   // (#742). Showing a volunteer a "New volunteer applications" switch would be
