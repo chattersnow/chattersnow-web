@@ -9,7 +9,7 @@
 //
 //   bun run tenant:provision --name "Example Nonprofit" --slug example \
 //       --domain example.org --admin person@example.org [--plan white_label] \
-//       [--pack starter --pack safety]
+//       [--pack starter --pack safety] [--local]
 //   bun run tenant:list
 //   bun run tenant:export <slug> [--out path.json]
 //   bun run tenant:plan <slug> --plan <internal|demo|white_label>
@@ -44,6 +44,14 @@
 // portal itself is what is broken. The refusals that matter are in
 // scripts/tenant/module-guards.ts, with the #900 trigger as the backstop.
 //
+// `tenant:provision` refuses the local stack unless --local is passed, and
+// warns when it is (#906): a second *active* tenant switches off the
+// sole-active-tenant fallback that the local public site, the integration
+// suite and the e2e suite all depend on, and nothing in the failure says so.
+// `tenant:archive` then `tenant:delete` is the way back, so neither of those
+// is guarded. The check is scripts/tenant/local-guard.ts, shared with the demo
+// reset, which has refused a local URL the same way since #604.
+//
 // Support grants are normally issued by the tenant's own admin from
 // Administration > Users; this command is the fallback for an organization
 // that has locked itself out, and it should be used with their agreement.
@@ -53,6 +61,7 @@ import fs from "node:fs";
 import { parseArgs } from "node:util";
 import { createClient } from "@supabase/supabase-js";
 import { inviteOrigin } from "./tenant/invite-origin";
+import { LocalStackError, guardLocalStack } from "./tenant/local-guard";
 import { TenantPlanError, assertPlanChange } from "./tenant/plan-guards";
 import {
   TenantModuleError,
@@ -97,6 +106,8 @@ const { values, positionals } = parseArgs({
     reason: { type: "string" },
     days: { type: "string", default: "7" },
     role: { type: "string", default: "admin" },
+    // `provision` only: the local stack is refused without it (#906).
+    local: { type: "boolean", default: false },
   },
 });
 
@@ -158,6 +169,22 @@ async function provision() {
   const name = required(values.name, "name");
   const slug = required(values.slug, "slug");
   const admin = required(values.admin, "admin");
+  // Before anything is written: a second active tenant on the local stack
+  // takes the local public site and both database-backed suites down (#906).
+  try {
+    const warning = guardLocalStack({
+      url: url!,
+      local: values.local,
+      creates: "A second tenant",
+      undo:
+        `\`bun run tenant:archive ${slug}\` then ` +
+        `\`bun run tenant:delete ${slug} --confirm ${slug}\``,
+    });
+    if (warning) console.warn(warning);
+  } catch (error) {
+    if (error instanceof LocalStackError) fail(error.message);
+    throw error;
+  }
   const domain = values.domain?.toLowerCase() ?? null;
   // Copied in as drafts, so a pack never puts words on a new organization's
   // public site without somebody there reading them first (#895). An unknown

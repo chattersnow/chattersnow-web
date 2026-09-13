@@ -40,6 +40,7 @@ import {
   requireEnv,
   type TenantRow,
 } from "./demo/guards";
+import { LocalStackError, guardLocalStack } from "./tenant/local-guard";
 
 const { values } = parseArgs({
   args: process.argv.slice(2),
@@ -70,25 +71,22 @@ try {
   );
 }
 
-const isLocal = /localhost|127\.0\.0\.1/.test(env.NEXT_PUBLIC_SUPABASE_URL);
 // Tearing down is always safe, so it needs neither the flag nor the warning --
-// only creating the tenant does.
-if (isLocal && !values.local && !values.teardown) {
-  fail(
-    "That URL is the local stack. The demo tenant makes a local database " +
-      "multi-tenant, which switches off the sole-active-tenant fallback the " +
-      "integration and e2e suites rely on. Pass --local if you mean it, and " +
-      "`bun run demo:teardown` when you are done.",
-  );
-}
-if (values.local && !isLocal) {
-  fail("--local was passed but the URL is not a local stack. Refusing.");
-}
-if (isLocal && !values.teardown) {
-  console.warn(
-    "\n!! Seeding a demo tenant on the LOCAL stack. `bun run test:integration` " +
-      "and `bun run test:e2e` will fail until `bun run demo:teardown`.\n",
-  );
+// only creating the tenant does. The check itself is shared with
+// tenant-cli.ts's provision command (#906).
+if (!values.teardown) {
+  try {
+    const warning = guardLocalStack({
+      url: env.NEXT_PUBLIC_SUPABASE_URL,
+      local: values.local,
+      creates: "The demo tenant",
+      undo: "`bun run demo:teardown`",
+    });
+    if (warning) console.warn(warning);
+  } catch (error) {
+    if (error instanceof LocalStackError) fail(error.message);
+    throw error;
+  }
 }
 
 const service = createClient(
