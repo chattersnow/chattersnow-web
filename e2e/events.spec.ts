@@ -4,7 +4,7 @@ import { modal } from "./helpers/dialog";
 import { SEEDED_EVENT_IDS } from "../test/seed-fixtures";
 
 const EVENT_NAME = "Winter Gear Swap";
-const EVENT_URL = /\/events\/[0-9a-f-]{36}$/;
+const EVENT_URL = /\/events\/e\/[0-9a-f-]{36}$/;
 
 /** The listing's card for an event: an anchor to the event's own URL (#847). */
 function eventLink(page: Page) {
@@ -26,7 +26,7 @@ test.describe("public events", () => {
     await expect(
       dialog.getByRole("heading", { name: EVENT_NAME }),
     ).toBeVisible();
-    // The sheet is the intercepted /events/[id], so the event is shareable
+    // The sheet is the intercepted /events/e/[id], so the event is shareable
     // from the moment it opens -- and the listing is still underneath it,
     // which is why Back lands there without a fetch. Read by tag rather than
     // by role: an open modal makes the rest of the page inert, so the listing
@@ -55,12 +55,26 @@ test.describe("public events", () => {
   test("a shared link renders the event's page, not the sheet", async ({
     page,
   }) => {
-    await page.goto(`/events/${SEEDED_EVENT_IDS.upcoming}`);
+    await page.goto(`/events/e/${SEEDED_EVENT_IDS.upcoming}`);
 
     await expect(
       page.getByRole("heading", { level: 1, name: EVENT_NAME }),
     ).toBeVisible();
     await expect(modal(page)).toHaveCount(0);
+  });
+
+  // Events lived at /events/<uuid> until the sheet forced them a segment down,
+  // and that URL went out in confirmation emails and was pasted into bios, so
+  // it has to keep working rather than 404.
+  test("the URL events used to live at still reaches them", async ({
+    page,
+  }) => {
+    await page.goto(`/events/${SEEDED_EVENT_IDS.upcoming}`);
+
+    await expect(page).toHaveURL(EVENT_URL);
+    await expect(
+      page.getByRole("heading", { level: 1, name: EVENT_NAME }),
+    ).toBeVisible();
   });
 
   test("reloading the sheet's URL renders the page", async ({ page }) => {
@@ -72,6 +86,35 @@ test.describe("public events", () => {
     await expect(
       page.getByRole("heading", { level: 1, name: EVENT_NAME }),
     ).toBeVisible();
+    await expect(modal(page)).toHaveCount(0);
+  });
+
+  // The navigation that was broken in production. While events sat at
+  // /events/[id], `@modal/(.)[id]` matched every single segment under /events
+  // -- ahead of both `[...catchAll]` and the children slot's own static
+  // `community/page.tsx` -- so this click ran the sheet with id="community",
+  // found no such event and `notFound()`, which bubbles to the /events layout
+  // and buries both slots under the not-found page. Moving events down to
+  // /events/e/[id] is what separates them (see events/event-path.ts).
+  //
+  // It only bit on a client-side navigation that started inside /events, so a
+  // hard load and a link from anywhere else were always fine -- which is why
+  // nothing caught it before release, and why this test has to click rather
+  // than `goto`.
+  test("the nav reaches the community calendar from the listing", async ({
+    page,
+  }) => {
+    await page.getByRole("button", { name: "Events" }).click();
+    await page.getByRole("link", { name: "Community Calendar" }).click();
+
+    await expect(page).toHaveURL(/\/events\/community$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Community Calendar" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Page not found" }),
+    ).toHaveCount(0);
+    // The sheet must stay shut rather than open empty over the calendar.
     await expect(modal(page)).toHaveCount(0);
   });
 

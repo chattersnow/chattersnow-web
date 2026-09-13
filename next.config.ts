@@ -76,6 +76,31 @@ const nextConfig: NextConfig = {
         destination: "/inventory/:path*",
         permanent: true,
       },
+      // `/events/<uuid>` -> `/events/e/<uuid>`. Events moved a segment down
+      // because #847's intercepting sheet, `@modal/(.)[id]`, matched every
+      // single segment under /events -- `/events/community` included -- and is
+      // matched ahead of the static route that should have served it. See
+      // (public)/events/event-path.ts for the full account.
+      //
+      // The id is constrained to a uuid rather than `:id`, which is the whole
+      // point: a bare `:id` would swallow `/events/community` here exactly as
+      // the sheet did, having fixed nothing.
+      //
+      // Permanent for the same reason `/gears/*` is, and not for the reason
+      // the two 307s above are not: this is the same content at a new address,
+      // and both URLs sit behind the same Events visibility gate, so a 308 a
+      // browser caches forever still resolves correctly -- it lands on
+      // `/events/e/...`, which 404s exactly as `/events/...` did while the
+      // section is hidden, and works the moment it is not. Done here rather
+      // than as a page that calls `permanentRedirect()`, because that renders
+      // a 200 carrying a client-side redirect; this is a real 308, issued
+      // before any rendering, which is what a crawler needs to move the link
+      // equity over.
+      {
+        source: "/events/:id([0-9a-fA-F-]{36})",
+        destination: "/events/e/:id",
+        permanent: true,
+      },
     ];
   },
 };

@@ -1,7 +1,7 @@
 import { EventCard, type PublicEvent } from "./event-card";
 
 /**
- * Upcoming and past events, each card an anchor to `/events/[id]`.
+ * Upcoming and past events, each card an anchor to `/events/e/[id]`.
  *
  * Opening one used to be local state here -- a detail sheet, and a second
  * sheet on top of it for registration -- which left every event without a URL.

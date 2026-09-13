@@ -28,7 +28,7 @@ describe("events layout", () => {
     visible = true;
     const rendered = await renderSlots();
 
-    // The intercepted /events/[id] is only ever on screen because the layout
+    // The intercepted /events/e/[id] is only ever on screen because the layout
     // renders its slot; drop `modal` and the sheet silently stops opening
     // while every route still resolves (#847).
     expect(rendered).toContain("children-slot");

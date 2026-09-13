@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
-import { EventDetailContent } from "../../event-detail-content";
-import { EventDetailModal } from "../../event-detail-modal";
-import { loadEventDetail } from "../../event-detail-data";
+import { EventDetailContent } from "../../../event-detail-content";
+import { EventDetailModal } from "../../../event-detail-modal";
+import { loadEventDetail } from "../../../event-detail-data";
 
 /**
- * `/events/[id]` intercepted from the listing: the same event, the same query
+ * `/events/e/[id]` intercepted from the listing: the same event, the same query
  * and the same content component as the page next door, rendered in a sheet
  * over the list the visitor clicked from (#847).
  *

@@ -12,6 +12,7 @@ import {
   type PublicEventProgram,
 } from "../events/event-card";
 import { checkRegistrationWindow } from "../events/event-registration-form";
+import { publicEventPath } from "../events/event-path";
 
 /**
  * Matches the events listing and the event page, which both format in the
@@ -152,7 +153,7 @@ function NextUpRibbon({ label }: { label: string }) {
 
 /**
  * A card is a link to the event's own page, not a button that opens a sheet.
- * `/events/[id]` has been live but unlinked since #178 moved the listing to a
+ * `/events/e/[id]` has been live but unlinked since #178 moved the listing to a
  * detail sheet, so this is the only route to it from the site's own pages --
  * which is also what makes an event on the home page shareable (#846).
  */
@@ -169,7 +170,7 @@ function UpcomingEventCard({
   const registration = checkRegistrationWindow(event, new Date(now));
 
   return (
-    <Link href={`/events/${event.id}`} className={CARD_CLASSNAME}>
+    <Link href={publicEventPath(event.id)} className={CARD_CLASSNAME}>
       <div className="relative aspect-[16/9] w-full bg-muted">
         {isRenderableImageSrc(imageUrl) ? (
           <Image
@@ -318,7 +319,7 @@ function UpcomingEventRow({
   const registration = checkRegistrationWindow(event, new Date(now));
 
   return (
-    <Link href={`/events/${event.id}`} className={ROW_CLASSNAME}>
+    <Link href={publicEventPath(event.id)} className={ROW_CLASSNAME}>
       <DateBlock startsAt={event.starts_at} timeZone={event.timezone} />
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">
