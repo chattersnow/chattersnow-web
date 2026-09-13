@@ -23,6 +23,11 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { PronounsField } from "@/components/pronouns-field";
+import {
+  ImagePreviewBox,
+  OpenPictureLink,
+  useImagePreview,
+} from "../website/image-preview";
 
 export type PersonFormState = {
   name: string;
@@ -269,16 +274,11 @@ export function PersonFormFields({
 
       {isOrganization && (
         <Field orientation="responsive">
-          <Field>
-            <FieldLabel htmlFor={`${idPrefix}-logoUrl`}>Logo URL</FieldLabel>
-            <Input
-              id={`${idPrefix}-logoUrl`}
-              type="url"
-              placeholder="https://..."
-              value={form.logoUrl}
-              onChange={(event) => update("logoUrl", event.target.value)}
-            />
-          </Field>
+          <LogoUrlField
+            id={`${idPrefix}-logoUrl`}
+            value={form.logoUrl}
+            onChange={(value) => update("logoUrl", value)}
+          />
           <Field>
             <FieldLabel htmlFor={`${idPrefix}-website`}>Website</FieldLabel>
             <Input
@@ -410,6 +410,65 @@ export function PersonFormFields({
         />
       </Field>
     </>
+  );
+}
+
+/**
+ * The sponsor logo box, with the picture it points at (#1028).
+ *
+ * It was a bare `<Input>` while every other picture field in the portal --
+ * branding, Site Content slots, inventory photos, event fliers -- showed a
+ * preview, and a logo that cannot load is invisible without one: the public
+ * wall silently falls back to the sponsor's name (#914), so nothing anywhere
+ * said the link was dead. Chatter Snow shipped one that way.
+ *
+ * Contained rather than cropped, and in a box roughly the shape of the widest
+ * mark the wall draws, because neither wall layout crops a logo -- previewing
+ * it `object-cover` would show ends cut off that the site never cuts.
+ */
+function LogoUrlField({
+  id,
+  value,
+  onChange,
+}: {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const preview = useImagePreview(value || null);
+
+  return (
+    <Field>
+      <FieldLabel htmlFor={id}>Logo URL</FieldLabel>
+      {preview.url && (
+        <ImagePreviewBox
+          url={preview.url}
+          ratio="4 / 1"
+          fit="contain"
+          className="h-16"
+          onError={preview.markFailed}
+        />
+      )}
+      <Input
+        id={id}
+        type="url"
+        placeholder="https://drive.google.com/file/d/..."
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      {preview.failed ? (
+        <FieldDescription className="text-destructive">
+          That link did not load as a picture. A Google Drive link has to be a
+          file rather than a folder, and shared with anyone who has the link.
+        </FieldDescription>
+      ) : (
+        <FieldDescription>
+          A Google Drive share link or a direct image URL. Shown on the public
+          sponsor wall.
+        </FieldDescription>
+      )}
+      {preview.url && <OpenPictureLink url={preview.url} label="Logo" />}
+    </Field>
   );
 }
 
