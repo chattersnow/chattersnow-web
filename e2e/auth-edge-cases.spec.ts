@@ -5,6 +5,7 @@ import {
   generateRecoveryLink,
 } from "./helpers/admin-client";
 import { markOnboarded } from "./helpers/onboarding";
+import { exactLabel } from "./helpers/labels";
 
 test("invalid credentials show an error and do not redirect", async ({
   page,
@@ -138,7 +139,7 @@ test("setting a password from a recovery link signs the user in", async ({
     await page.goto(confirmUrl.toString());
     await expect(page).toHaveURL(/\/portal\/set-password/);
 
-    await page.getByLabel("Password", { exact: true }).fill("NewPassword123!");
+    await page.getByLabel(exactLabel("Password")).fill("NewPassword123!");
     await page.getByLabel("Confirm password").fill("NewPassword123!");
     await page.getByRole("button", { name: "Set password" }).click();
 
