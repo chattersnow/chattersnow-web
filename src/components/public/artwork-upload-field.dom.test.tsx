@@ -77,7 +77,7 @@ describe("ArtworkUploadField", () => {
   // the a11y assertion for the whole field.
   test("the file input has an accessible name", () => {
     render(<Harness />);
-    expect(screen.getByLabelText("Your artwork")).toBeTruthy();
+    expect(screen.getByLabelText(/^Your artwork/)).toBeTruthy();
   });
 
   test("uploads files dropped onto the zone, not only picked ones", async () => {
@@ -112,7 +112,7 @@ describe("ArtworkUploadField", () => {
     });
 
     render(<Harness />);
-    await userEvent.upload(screen.getByLabelText("Your artwork"), jpeg());
+    await userEvent.upload(screen.getByLabelText(/^Your artwork/), jpeg());
 
     const bar = await screen.findByRole("progressbar");
     expect(bar.getAttribute("aria-valuenow")).toBe("42");
@@ -141,7 +141,7 @@ describe("ArtworkUploadField", () => {
     });
 
     render(<Harness />);
-    await userEvent.upload(screen.getByLabelText("Your artwork"), jpeg());
+    await userEvent.upload(screen.getByLabelText(/^Your artwork/), jpeg());
 
     const bar = await screen.findByRole("progressbar");
     expect(bar.getAttribute("aria-valuenow")).toBeNull();
@@ -174,7 +174,7 @@ describe("ArtworkUploadField", () => {
       />,
     );
 
-    await userEvent.upload(screen.getByLabelText("Your artwork"), [
+    await userEvent.upload(screen.getByLabelText(/^Your artwork/), [
       jpeg("good.jpg"),
       jpeg("bad.jpg"),
     ]);

@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import { Spinner } from "@/components/ui/spinner";
 
 export function SetPasswordForm() {
@@ -47,8 +48,11 @@ export function SetPasswordForm() {
         <p className="app-muted text-sm">
           Choose a password for your portal account.
         </p>
+        <RequiredFieldsNote />
         <Field>
-          <FieldLabel htmlFor="password">Password</FieldLabel>
+          <FieldLabel htmlFor="password" required>
+            Password
+          </FieldLabel>
           <Input
             id="password"
             required
@@ -59,7 +63,9 @@ export function SetPasswordForm() {
           />
         </Field>
         <Field>
-          <FieldLabel htmlFor="confirm-password">Confirm password</FieldLabel>
+          <FieldLabel htmlFor="confirm-password" required>
+            Confirm password
+          </FieldLabel>
           <Input
             id="confirm-password"
             required

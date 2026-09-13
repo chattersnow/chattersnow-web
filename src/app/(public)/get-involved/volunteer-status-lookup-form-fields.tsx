@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 export function VolunteerStatusLookupForm() {
   const [email, setEmail] = useState("");
@@ -36,8 +37,11 @@ export function VolunteerStatusLookupForm() {
   return (
     <form onSubmit={handleSubmit}>
       <FieldGroup>
+        <RequiredFieldsNote />
         <Field>
-          <FieldLabel htmlFor="volunteer-status-email">Email</FieldLabel>
+          <FieldLabel htmlFor="volunteer-status-email" required>
+            Email
+          </FieldLabel>
           <Input
             id="volunteer-status-email"
             type="email"
@@ -48,7 +52,7 @@ export function VolunteerStatusLookupForm() {
           />
         </Field>
         <Field>
-          <FieldLabel htmlFor="volunteer-status-reference-code">
+          <FieldLabel htmlFor="volunteer-status-reference-code" required>
             Reference code
           </FieldLabel>
           <Input

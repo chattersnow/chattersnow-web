@@ -184,7 +184,9 @@ export function ArtworkUploadField({
 
   return (
     <Field>
-      <FieldLabel htmlFor="artwork-files">Your artwork</FieldLabel>
+      <FieldLabel htmlFor="artwork-files" required>
+        Your artwork
+      </FieldLabel>
 
       {items.length > 0 && (
         <ul className="flex flex-wrap gap-3 pt-1">
@@ -250,6 +252,10 @@ export function ArtworkUploadField({
             ref={inputRef}
             id="artwork-files"
             type="file"
+            // aria-required rather than required: the submission carries the
+            // uploads in state, and the input is cleared after each pick, so a
+            // native required here would block a form that already has images.
+            aria-required="true"
             accept="image/jpeg,image/png,image/webp"
             multiple
             disabled={busy || remaining <= 0}

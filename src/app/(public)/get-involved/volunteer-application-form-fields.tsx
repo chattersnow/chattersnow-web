@@ -9,6 +9,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PronounsField } from "@/components/pronouns-field";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 export function VolunteerApplicationForm() {
   const [name, setName] = useState("");
@@ -71,8 +72,11 @@ export function VolunteerApplicationForm() {
   return (
     <form onSubmit={handleSubmit}>
       <FieldGroup>
+        <RequiredFieldsNote />
         <Field>
-          <FieldLabel htmlFor="volunteer-name">Name</FieldLabel>
+          <FieldLabel htmlFor="volunteer-name" required>
+            Name
+          </FieldLabel>
           <Input
             id="volunteer-name"
             required
@@ -83,7 +87,9 @@ export function VolunteerApplicationForm() {
         </Field>
         <Field orientation="responsive">
           <Field>
-            <FieldLabel htmlFor="volunteer-email">Email</FieldLabel>
+            <FieldLabel htmlFor="volunteer-email" required>
+              Email
+            </FieldLabel>
             <Input
               id="volunteer-email"
               type="email"

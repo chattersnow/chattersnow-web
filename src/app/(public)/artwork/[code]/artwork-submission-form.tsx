@@ -16,6 +16,7 @@ import {
   ArtworkUploadField,
   type ArtworkItem,
 } from "@/components/public/artwork-upload-field";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import { submitArtworkAction } from "./artwork-actions";
 
 const STATEMENT_MAX = 2000;
@@ -99,6 +100,7 @@ export function ArtworkSubmissionForm({
   return (
     <form onSubmit={handleSubmit}>
       <FieldGroup>
+        <RequiredFieldsNote />
         <ArtworkUploadField
           code={code}
           items={items}
@@ -108,7 +110,9 @@ export function ArtworkSubmissionForm({
         />
 
         <Field>
-          <FieldLabel htmlFor="artwork-name">Your name</FieldLabel>
+          <FieldLabel htmlFor="artwork-name" required>
+            Your name
+          </FieldLabel>
           <Input
             id="artwork-name"
             required
@@ -122,7 +126,9 @@ export function ArtworkSubmissionForm({
           </FieldDescription>
         </Field>
         <Field>
-          <FieldLabel htmlFor="artwork-email">Email</FieldLabel>
+          <FieldLabel htmlFor="artwork-email" required>
+            Email
+          </FieldLabel>
           <Input
             id="artwork-email"
             type="email"
@@ -141,9 +147,7 @@ export function ArtworkSubmissionForm({
           is not a mistake worth risking to save a form field.
         */}
         <Field>
-          <FieldLabel htmlFor="artwork-credit">
-            Name to credit (optional)
-          </FieldLabel>
+          <FieldLabel htmlFor="artwork-credit">Name to credit</FieldLabel>
           <Input
             id="artwork-credit"
             value={creditName}
@@ -159,7 +163,7 @@ export function ArtworkSubmissionForm({
 
         <Field>
           <FieldLabel htmlFor="artwork-portfolio">
-            Portfolio or Instagram (optional)
+            Portfolio or Instagram
           </FieldLabel>
           <Input
             id="artwork-portfolio"
@@ -171,9 +175,7 @@ export function ArtworkSubmissionForm({
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="artwork-title">
-            Title of the piece (optional)
-          </FieldLabel>
+          <FieldLabel htmlFor="artwork-title">Title of the piece</FieldLabel>
           <Input
             id="artwork-title"
             value={title}
@@ -181,7 +183,7 @@ export function ArtworkSubmissionForm({
           />
         </Field>
         <Field>
-          <FieldLabel htmlFor="artwork-medium">Medium (optional)</FieldLabel>
+          <FieldLabel htmlFor="artwork-medium">Medium</FieldLabel>
           <Input
             id="artwork-medium"
             placeholder="Ink on paper, digital, photography…"
@@ -191,7 +193,7 @@ export function ArtworkSubmissionForm({
         </Field>
         <Field>
           <FieldLabel htmlFor="artwork-statement">
-            Tell us about your work (optional)
+            Tell us about your work
           </FieldLabel>
           <Textarea
             id="artwork-statement"
@@ -217,11 +219,12 @@ export function ArtworkSubmissionForm({
         <Field orientation="horizontal">
           <Checkbox
             id="artwork-consent"
+            required
             checked={consent}
             onCheckedChange={(checked) => setConsent(checked === true)}
             disabled={isPending}
           />
-          <FieldLabel htmlFor="artwork-consent">
+          <FieldLabel htmlFor="artwork-consent" required>
             This is my own work and I have the right to submit it
             {rightsNote
               ? ", and I agree to the rights and credit terms above."

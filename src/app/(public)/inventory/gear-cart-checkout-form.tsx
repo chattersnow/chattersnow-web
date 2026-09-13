@@ -10,6 +10,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import type {
   DeliveryMethod,
   PublicGearRequestOptions,
@@ -73,6 +74,7 @@ export function GearCartCheckoutForm({
   return (
     <form onSubmit={handleSubmit}>
       <FieldGroup>
+        <RequiredFieldsNote />
         <GearRequesterFields
           idPrefix="cart-checkout"
           name={name}

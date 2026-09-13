@@ -95,7 +95,9 @@ export function GearRequesterFields({
   return (
     <>
       <Field>
-        <FieldLabel htmlFor={`${idPrefix}-name`}>Name</FieldLabel>
+        <FieldLabel htmlFor={`${idPrefix}-name`} required>
+          Name
+        </FieldLabel>
         <Input
           id={`${idPrefix}-name`}
           required
@@ -106,7 +108,9 @@ export function GearRequesterFields({
       </Field>
       <Field orientation="responsive">
         <Field>
-          <FieldLabel htmlFor={`${idPrefix}-email`}>Email</FieldLabel>
+          <FieldLabel htmlFor={`${idPrefix}-email`} required>
+            Email
+          </FieldLabel>
           <Input
             id={`${idPrefix}-email`}
             type="email"
@@ -183,7 +187,7 @@ export function GearRequesterFields({
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor={`${idPrefix}-ship-line1`}>
+            <FieldLabel htmlFor={`${idPrefix}-ship-line1`} required>
               Street address
             </FieldLabel>
             <Input
@@ -207,7 +211,9 @@ export function GearRequesterFields({
           </Field>
           <Field orientation="responsive">
             <Field>
-              <FieldLabel htmlFor={`${idPrefix}-ship-city`}>City</FieldLabel>
+              <FieldLabel htmlFor={`${idPrefix}-ship-city`} required>
+                City
+              </FieldLabel>
               <Input
                 id={`${idPrefix}-ship-city`}
                 required
@@ -232,7 +238,7 @@ export function GearRequesterFields({
           </Field>
           <Field orientation="responsive">
             <Field>
-              <FieldLabel htmlFor={`${idPrefix}-ship-postal-code`}>
+              <FieldLabel htmlFor={`${idPrefix}-ship-postal-code`} required>
                 Postal code
               </FieldLabel>
               <Input
@@ -260,14 +266,17 @@ export function GearRequesterFields({
             </Field>
           </Field>
           <Field>
-            <FieldLabel htmlFor={`${idPrefix}-payment-method`}>
+            <FieldLabel htmlFor={`${idPrefix}-payment-method`} required>
               How will you pay for the postage?
             </FieldLabel>
             <Select
               value={paymentMethod || null}
               onValueChange={(value) => onPaymentMethodChange(value ?? "")}
             >
-              <SelectTrigger id={`${idPrefix}-payment-method`}>
+              <SelectTrigger
+                id={`${idPrefix}-payment-method`}
+                aria-required="true"
+              >
                 <SelectValue placeholder="Choose a payment method" />
               </SelectTrigger>
               <SelectContent>

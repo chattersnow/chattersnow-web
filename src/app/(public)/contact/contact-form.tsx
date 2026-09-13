@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import { contactTopics } from "@/lib/contact-topics";
 import { DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
 
@@ -82,8 +83,11 @@ export function ContactForm({
   return (
     <form onSubmit={handleSubmit}>
       <FieldGroup>
+        <RequiredFieldsNote />
         <Field>
-          <FieldLabel htmlFor="contact-name">Name</FieldLabel>
+          <FieldLabel htmlFor="contact-name" required>
+            Name
+          </FieldLabel>
           <Input
             id="contact-name"
             required
@@ -93,7 +97,9 @@ export function ContactForm({
           />
         </Field>
         <Field>
-          <FieldLabel htmlFor="contact-email">Email</FieldLabel>
+          <FieldLabel htmlFor="contact-email" required>
+            Email
+          </FieldLabel>
           <Input
             id="contact-email"
             type="email"
@@ -124,7 +130,9 @@ export function ContactForm({
           </Select>
         </Field>
         <Field>
-          <FieldLabel htmlFor="contact-message">Message</FieldLabel>
+          <FieldLabel htmlFor="contact-message" required>
+            Message
+          </FieldLabel>
           <Textarea
             id="contact-message"
             required
