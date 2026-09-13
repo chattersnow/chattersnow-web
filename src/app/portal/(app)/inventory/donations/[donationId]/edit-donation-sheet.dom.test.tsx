@@ -175,16 +175,28 @@ describe("EditDonationSheet", () => {
     await user.type(notesField, " more");
     await user.click(screen.getByRole("button", { name: "Close" }));
 
-    expect(screen.getByText("Discard changes?")).toBeInTheDocument();
+    // The confirmation opens through Base UI's dialog transition and the sheet
+    // closes through another, so every step here waits for the tree to settle
+    // instead of reading it synchronously off the click. On a loaded full-suite
+    // run the synchronous reads ran before the dialog had mounted (#827).
+    expect(await screen.findByText("Discard changes?")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Keep editing" }));
-    expect(screen.queryByText("Discard changes?")).not.toBeInTheDocument();
+    await user.click(
+      await screen.findByRole("button", { name: "Keep editing" }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByText("Discard changes?")).not.toBeInTheDocument(),
+    );
     expect(screen.getByLabelText("Donation notes")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Close" }));
-    await user.click(screen.getByRole("button", { name: "Discard changes" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Discard changes" }),
+    );
 
-    expect(screen.queryByLabelText("Donation notes")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByLabelText("Donation notes")).not.toBeInTheDocument(),
+    );
   });
 
   test("shows the server error and stays open on failure", async () => {
