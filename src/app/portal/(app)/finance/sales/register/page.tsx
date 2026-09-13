@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSalesTaxRate } from "@/lib/sales-tax";
 import { Button } from "@/components/ui/button";
 import { SalesRegister } from "./sales-register";
 import type { RegisterEvent, RegisterVariant } from "./register-cart";
@@ -45,31 +46,36 @@ export default async function SalesRegisterPage({
   const from = new Date(now - PAST_WINDOW_DAYS * 86_400_000).toISOString();
   const to = new Date(now + FUTURE_WINDOW_DAYS * 86_400_000).toISOString();
 
-  const [{ data: products }, { data: events }] = await Promise.all([
-    supabase
-      .from("products")
-      .select(
-        "id, name, sort_order, product_variants(id, label, price, stock_on_hand, is_active, sort_order)",
-      )
-      .eq("is_active", true)
-      .order("sort_order")
-      .order("name"),
-    // A narrow window rather than every event the tenant has ever run: the
-    // select is a picker somebody uses standing up, and a merch table belongs
-    // to something happening around now.
-    //
-    // `completed` is in the filter as well as `published` because yesterday's
-    // takings are often typed up the morning after, by which point the event
-    // has been marked completed. Draft, cancelled and archived are not:
-    // nothing is sold at an event in any of those states.
-    supabase
-      .from("events")
-      .select("id, name, starts_at, ends_at")
-      .in("status", ["published", "completed"])
-      .gte("starts_at", from)
-      .lte("starts_at", to)
-      .order("starts_at"),
-  ]);
+  const [{ data: products }, { data: events }, defaultTaxRate] =
+    await Promise.all([
+      supabase
+        .from("products")
+        .select(
+          "id, name, sort_order, product_variants(id, label, price, stock_on_hand, is_active, sort_order)",
+        )
+        .eq("is_active", true)
+        .order("sort_order")
+        .order("name"),
+      // A narrow window rather than every event the tenant has ever run: the
+      // select is a picker somebody uses standing up, and a merch table belongs
+      // to something happening around now.
+      //
+      // `completed` is in the filter as well as `published` because yesterday's
+      // takings are often typed up the morning after, by which point the event
+      // has been marked completed. Draft, cancelled and archived are not:
+      // nothing is sold at an event in any of those states.
+      supabase
+        .from("events")
+        .select("id, name, starts_at, ends_at")
+        .in("status", ["published", "completed"])
+        .gte("starts_at", from)
+        .lte("starts_at", to)
+        .order("starts_at"),
+      // The org default, prefilled on every sale and editable per sale (#997).
+      // Read through org_sales_tax so a cashier holding only sales:manage gets
+      // it without app_settings access.
+      getSalesTaxRate(supabase),
+    ]);
 
   // Flattened to variants, because a variant is what the register sells and
   // what a line item references. Inactive variants of an active product are
@@ -142,6 +148,7 @@ export default async function SalesRegisterPage({
           variants={variants}
           events={registerEvents}
           defaultEventId={eventParam}
+          defaultTaxRate={defaultTaxRate}
         />
       </div>
     </>

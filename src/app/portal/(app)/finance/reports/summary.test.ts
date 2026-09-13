@@ -239,9 +239,23 @@ describe("computeFinanceSummary", () => {
       { amount: 100, event_id: null, event_name: null, donor_name: "Jamie" },
       { amount: "25", event_id: null, event_name: null, donor_name: null },
     ],
+    // `amount` arrives already net of tax (20260913030000); `tax` is what was
+    // collected on top of it, as numeric-as-string where PostgREST would.
     sales: [
-      { amount: 120, sold_at: SOLD_AT, event_id: null, event_name: null },
-      { amount: "80", sold_at: SOLD_AT, event_id: "e1", event_name: "Jam" },
+      {
+        amount: 120,
+        tax: 9.9,
+        sold_at: SOLD_AT,
+        event_id: null,
+        event_name: null,
+      },
+      {
+        amount: "80",
+        tax: "6.60",
+        sold_at: SOLD_AT,
+        event_id: "e1",
+        event_name: "Jam",
+      },
     ],
   };
 
@@ -260,6 +274,27 @@ describe("computeFinanceSummary", () => {
     expect(summary.salesTotal).toBe(200);
     expect(summary.salesCount).toBe(2);
     expect(summary.income).toBe(1000 + summary.salesTotal);
+  });
+
+  // #997: collected tax is the state's money. It is reported so the treasurer
+  // knows what to remit, and it reaches neither Income nor Net.
+  test("reports sales tax separately and keeps it out of income", () => {
+    const summary = computeFinanceSummary(data);
+    expect(summary.salesTaxTotal).toBe(16.5);
+    expect(summary.salesTotal).toBe(200);
+    expect(summary.income).toBe(1200);
+    expect(summary.net).toBe(1125);
+  });
+
+  test("a row with no tax field counts as untaxed", () => {
+    const summary = computeFinanceSummary({
+      ...data,
+      sales: [
+        { amount: 50, sold_at: SOLD_AT, event_id: null, event_name: null },
+      ],
+    });
+    expect(summary.salesTaxTotal).toBe(0);
+    expect(summary.salesTotal).toBe(50);
   });
 
   test("leaves income on event revenue alone when nothing was sold", () => {
@@ -302,6 +337,7 @@ describe("computeFinanceSummary", () => {
       income: 0,
       salesTotal: 0,
       salesCount: 0,
+      salesTaxTotal: 0,
       cashDonations: 0,
       cashDonationCount: 0,
       paidSpend: 0,

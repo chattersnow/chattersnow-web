@@ -37,9 +37,13 @@ export type CartLine = {
 export type CartTotals = {
   subtotalCents: number;
   discountCents: number;
+  taxCents: number;
   totalCents: number;
   subtotal: number;
   discount: number;
+  /** The rate the tax was computed at, as a percent, after clamping. */
+  taxRate: number;
+  tax: number;
   total: number;
   itemCount: number;
 };
@@ -117,18 +121,44 @@ export function removeLine(
   return cart.filter((line) => line.variantId !== variantId);
 }
 
+/** The largest rate the register accepts, as a percent. */
+export const MAX_TAX_RATE_PERCENT = 100;
+
 /**
- * Subtotal, discount and total.
+ * The rate a typed figure means, as a percent rounded to three decimals --
+ * what `sales.tax_rate` stores. Blank, unreadable, negative or over 100 all
+ * read as 0: the register never charges tax it cannot explain.
+ */
+export function parseTaxRateInput(taxRateInput: string): number {
+  const typed = Number(taxRateInput);
+  if (
+    taxRateInput.trim() === "" ||
+    !Number.isFinite(typed) ||
+    typed < 0 ||
+    typed > MAX_TAX_RATE_PERCENT
+  ) {
+    return 0;
+  }
+  return Math.round(typed * 1000) / 1000;
+}
+
+/**
+ * Subtotal, discount, tax and total.
  *
- * `discountInput` is whatever was typed, so it may be blank, a partial number
- * ("1."), or more than the cart comes to. An unreadable figure counts as zero
- * and an excessive one is clamped to the subtotal -- the register shows a total
- * rather than NaN or a negative, and the RPC still refuses a discount that
- * exceeds the subtotal it priced itself.
+ * `discountInput` and `taxRateInput` are whatever was typed, so either may be
+ * blank, a partial number ("1."), or out of range. An unreadable figure counts
+ * as zero and an excessive discount is clamped to the subtotal -- the register
+ * shows a total rather than NaN or a negative, and the RPC still refuses a
+ * discount that exceeds the subtotal it priced itself.
+ *
+ * Tax is exclusive and computed on the net of discount, in cents, rounded
+ * once for the whole sale -- the same arithmetic `record_product_sale` does
+ * in SQL, so the Total the cashier reads is the Total that gets stored.
  */
 export function cartTotals(
   cart: readonly CartLine[],
   discountInput: string,
+  taxRateInput: string = "",
 ): CartTotals {
   const subtotalCents = cart.reduce(
     (sum, line) => sum + line.unitPriceCents * line.quantity,
@@ -139,14 +169,22 @@ export function cartTotals(
     discountInput.trim() === "" || !Number.isFinite(typed) || typed < 0
       ? 0
       : Math.min(Math.round(typed * 100), subtotalCents);
+  const taxRate = parseTaxRateInput(taxRateInput);
+  const taxCents = Math.round(
+    ((subtotalCents - discountCents) * taxRate) / 100,
+  );
+  const totalCents = subtotalCents - discountCents + taxCents;
 
   return {
     subtotalCents,
     discountCents,
-    totalCents: subtotalCents - discountCents,
+    taxCents,
+    totalCents,
     subtotal: fromCents(subtotalCents),
     discount: fromCents(discountCents),
-    total: fromCents(subtotalCents - discountCents),
+    taxRate,
+    tax: fromCents(taxCents),
+    total: fromCents(totalCents),
     itemCount: cart.reduce((sum, line) => sum + line.quantity, 0),
   };
 }
@@ -196,7 +234,8 @@ export function pickDefaultEvent(
 /**
  * The payload `recordSaleAction` takes. Quantities and variant ids only -- the
  * RPC prices every line from the catalog, so nothing the cart believes about
- * money is sent or trusted.
+ * money is sent or trusted. The tax goes the same way: a rate, never an
+ * amount, and the RPC computes the amount from its own subtotal.
  */
 export function buildRecordSaleInput({
   cart,
@@ -204,6 +243,7 @@ export function buildRecordSaleInput({
   purchaserPersonId,
   paymentMethod,
   discountInput,
+  taxRateInput = "",
   notes,
 }: {
   cart: readonly CartLine[];
@@ -211,13 +251,16 @@ export function buildRecordSaleInput({
   purchaserPersonId: string | null;
   paymentMethod: PaymentMethod;
   discountInput: string;
+  taxRateInput?: string;
   notes: string;
 }): RecordSaleInput {
+  const totals = cartTotals(cart, discountInput, taxRateInput);
   return {
     event_id: eventId,
     purchaser_person_id: purchaserPersonId,
     payment_method: paymentMethod,
-    discount_amount: cartTotals(cart, discountInput).discount,
+    discount_amount: totals.discount,
+    tax_rate: totals.taxRate,
     notes: notes.trim() || null,
     lines: cart.map((line) => ({
       variant_id: line.variantId,

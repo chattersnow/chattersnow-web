@@ -43,9 +43,10 @@ export async function recordSaleAction(
   if ("error" in parsed) return parsed;
 
   // The RPC owns the rest: it prices the lines from the catalog, refuses a
-  // variant that is retired or short of stock, writes the sale and its line
-  // items, and decrements stock -- all inside one transaction holding a row
-  // lock on each variant. Nothing about the money comes from the client.
+  // variant that is retired or short of stock, computes the tax from the rate
+  // on its own subtotal, writes the sale and its line items, and decrements
+  // stock -- all inside one transaction holding a row lock on each variant.
+  // Nothing about the money comes from the client.
   const { data, error } = await supabase
     .rpc("record_product_sale", {
       p_event_id: parsed.data.event_id,
@@ -55,6 +56,7 @@ export async function recordSaleAction(
       p_sold_at: null,
       p_notes: parsed.data.notes,
       p_lines: parsed.data.lines,
+      p_tax_rate: parsed.data.tax_rate,
     })
     .single();
 

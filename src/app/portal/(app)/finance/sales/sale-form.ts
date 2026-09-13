@@ -9,6 +9,8 @@ export type RecordSaleInput = {
   purchaser_person_id: string | null;
   payment_method: PaymentMethod;
   discount_amount: number;
+  /** Percent, 0-100, three decimals. The RPC derives the amount. */
+  tax_rate: number;
   notes: string | null;
   lines: RecordSaleLine[];
 };
@@ -66,6 +68,18 @@ export function parseRecordSaleInput(
     return { error: "Discount must be zero or more." };
   }
 
+  // A rate, never an amount: the amount is the RPC's to compute from the
+  // subtotal it prices itself (#997). Absent reads as untaxed, so a caller
+  // written before tax existed still records a sale.
+  const taxRateRaw = raw.tax_rate;
+  const taxRate =
+    taxRateRaw === null || taxRateRaw === undefined || taxRateRaw === ""
+      ? 0
+      : Number(taxRateRaw);
+  if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > 100) {
+    return { error: "Tax rate must be between 0 and 100 percent." };
+  }
+
   if (!Array.isArray(raw.lines) || raw.lines.length === 0) {
     return { error: "Add at least one item before recording the sale." };
   }
@@ -100,6 +114,8 @@ export function parseRecordSaleInput(
       // would round it anyway, and the total the toast reports is computed
       // from this figure client-side.
       discount_amount: Math.round(discount * 100) / 100,
+      // Three decimals, matching numeric(6,3) on sales.tax_rate.
+      tax_rate: Math.round(taxRate * 1000) / 1000,
       notes: notes || null,
       lines,
     },

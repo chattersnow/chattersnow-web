@@ -41,6 +41,9 @@ export type SaleRow = {
   payment_method: string;
   subtotal: number | string;
   discount_amount: number | string;
+  /** Percent, snapshotted at the register (#997). */
+  tax_rate: number | string;
+  tax_amount: number | string;
   total: number | string;
   status: SaleStatus;
   voided_at: string | null;
@@ -62,10 +65,22 @@ export type EventOption = { id: string; name: string };
  */
 export const SALE_COLUMNS =
   "id, event_id, purchaser_person_id, sold_at, payment_method, subtotal, " +
-  "discount_amount, total, status, voided_at, void_reason, notes, " +
+  "discount_amount, tax_rate, tax_amount, total, status, voided_at, " +
+  "void_reason, notes, " +
   "events(name), " +
   "purchaser:people!sales_tenant_id_purchaser_person_id_fkey(id, name, preferred_name), " +
   "sale_line_items(id, product_variant_id, description, unit_price, quantity, line_total)";
+
+/**
+ * "8.25%" -- a rate as the ledger shows it. Up to three decimals, trailing
+ * zeros dropped, so a whole-number rate reads "7%" and a thousandth rate reads
+ * "8.375%" without either looking padded.
+ */
+export function formatTaxRate(rate: number | string): string {
+  const numeric = Number(rate);
+  const safe = Number.isFinite(numeric) ? numeric : 0;
+  return `${Number(safe.toFixed(3))}%`;
+}
 
 /** How many items were in a sale — the ledger's Items column. */
 export function saleItemCount(sale: SaleRow): number {
@@ -103,6 +118,8 @@ export function saleRpcErrorMessage(
       return "A discount cannot be negative.";
     case "DISCOUNT_EXCEEDS_SUBTOTAL":
       return "The discount is more than the sale comes to.";
+    case "INVALID_TAX_RATE":
+      return "Tax rate must be between 0 and 100 percent.";
     case "LINES_REQUIRED":
       return "Add at least one item before recording the sale.";
     case "INVALID_LINE":

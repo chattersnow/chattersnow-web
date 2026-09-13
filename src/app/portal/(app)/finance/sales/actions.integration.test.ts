@@ -214,18 +214,25 @@ describe("recordSaleAction (integration)", () => {
 
     const { data: sale } = await service
       .from("sales")
-      .select("subtotal, discount_amount, total, status, event_id, notes")
+      .select(
+        "subtotal, discount_amount, tax_rate, tax_amount, total, status, event_id, notes",
+      )
       .eq("id", (result as { saleId: string }).saleId)
       .single();
     expect({
       subtotal: Number(sale?.subtotal),
       discount: Number(sale?.discount_amount),
+      tax_rate: Number(sale?.tax_rate),
+      tax_amount: Number(sale?.tax_amount),
       total: Number(sale?.total),
       status: sale?.status,
       event_id: sale?.event_id,
     }).toEqual({
       subtotal: 20,
       discount: 2.5,
+      // No rate sent: untaxed, and the total is exactly the net.
+      tax_rate: 0,
+      tax_amount: 0,
       total: 17.5,
       status: "completed",
       event_id: SEEDED_EVENT_IDS.past,
@@ -290,6 +297,62 @@ describe("recordSaleAction (integration)", () => {
     );
     expect(result).toEqual({
       error: `IT Sales Product ${run} — Retired has been retired and cannot be sold.`,
+    });
+  });
+
+  // #997: the client sends a rate and never an amount. The RPC computes the
+  // amount on its own subtotal net of discount, rounds once to the cent, and
+  // snapshots both on the row.
+  test("a nonzero rate is taxed on the discounted subtotal and snapshotted", async () => {
+    const result = await record({
+      discount_amount: 2.5,
+      tax_rate: 8.25,
+      lines: [{ variant_id: variantId, quantity: 2 }],
+    });
+    // (20 - 2.50) * 8.25% = 1.44375 -> 1.44; total 17.50 + 1.44.
+    expect(result).toMatchObject({ success: true, total: 18.94 });
+
+    const { data: sale } = await service
+      .from("sales")
+      .select("subtotal, discount_amount, tax_rate, tax_amount, total")
+      .eq("id", (result as { saleId: string }).saleId)
+      .single();
+    expect({
+      subtotal: Number(sale?.subtotal),
+      discount: Number(sale?.discount_amount),
+      tax_rate: Number(sale?.tax_rate),
+      tax_amount: Number(sale?.tax_amount),
+      total: Number(sale?.total),
+    }).toEqual({
+      subtotal: 20,
+      discount: 2.5,
+      tax_rate: 8.25,
+      tax_amount: 1.44,
+      total: 18.94,
+    });
+  });
+
+  test("a rate outside 0-100 is refused by the RPC, not only the parser", async () => {
+    currentSupabase = adminClient;
+    // Straight to the RPC: the Server Action's parser would refuse these
+    // first, and the point is that the database refuses them too.
+    for (const rate of [-1, 100.5, 10000]) {
+      const { error } = await adminClient.rpc("record_product_sale", {
+        p_event_id: null,
+        p_purchaser_person_id: null,
+        p_payment_method: "cash",
+        p_discount_amount: 0,
+        p_sold_at: null,
+        p_notes: `IT bad rate ${run}`,
+        p_lines: [{ variant_id: variantId, quantity: 1 }],
+        p_tax_rate: rate,
+      });
+      expect(error?.message, String(rate)).toBe("INVALID_TAX_RATE");
+    }
+    expect(await stockOf(variantId)).toBe(5);
+
+    expect(await recordSaleAction(saleInput({ tax_rate: 101 }))).toEqual({
+      error: "Tax rate must be between 0 and 100 percent.",
     });
   });
 
@@ -423,16 +486,44 @@ describe("voidSaleAction (integration)", () => {
 
   test("voiding returns the units, and a second void is refused", async () => {
     const recorded = await record({
+      tax_rate: 8.25,
       lines: [{ variant_id: variantId, quantity: 1 }],
     });
     const saleId = (recorded as { saleId: string }).saleId;
     const afterSale = await stockOf(variantId);
+
+    // Before the void the sale is in the rollup, tax and all (#997): net
+    // amount and the tax beside it.
+    const today = new Date().toISOString().slice(0, 10);
+    const inRollup = async () => {
+      const { data, error } = await adminClient.rpc("get_finance_report_data", {
+        p_from: today,
+        p_to: today,
+      });
+      if (error) throw error;
+      const rows = (data as { sales: { amount: unknown; tax: unknown }[] })
+        .sales;
+      return rows.filter((row) => Number(row.amount) === 10);
+    };
+    const before = await inRollup();
+    expect(before.length).toBeGreaterThanOrEqual(1);
+    expect(before.map((row) => Number(row.tax))).toContain(0.83);
 
     currentSupabase = adminClient;
     expect(await voidSaleAction(saleId, "Rung up twice")).toEqual({
       success: true,
     });
     expect(await stockOf(variantId)).toBe(afterSale + 1);
+
+    // The whole sale leaves the rollup with the void -- the tax is not
+    // zeroed on the row, it just stops counting along with the rest.
+    const { data: voided } = await service
+      .from("sales")
+      .select("tax_amount")
+      .eq("id", saleId)
+      .single();
+    expect(Number(voided?.tax_amount)).toBe(0.83);
+    expect((await inRollup()).length).toBe(before.length - 1);
 
     const { data: sale } = await service
       .from("sales")

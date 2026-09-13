@@ -171,7 +171,9 @@ export async function getFinancialSummary(
   // sales + monetary donations), matching the Finance Reports page's
   // definitions (computeFinanceSummary). `income` there is already event
   // revenue plus completed sales, which is exactly what the Revenue tile
-  // means, so both figures come off the same summaries.
+  // means, so both figures come off the same summaries. Sales arrive from the
+  // RPC net of tax (#997), so the tile and the report agree without a
+  // subtraction here -- collected tax is held for the state, not earned.
   const cashPositionSummary = computeFinanceSummary(allTimeFinanceData);
   const yearIncomeSummary = computeFinanceSummary(yearFinanceData);
   const monthIncomeSummary = computeFinanceSummary(monthFinanceData);

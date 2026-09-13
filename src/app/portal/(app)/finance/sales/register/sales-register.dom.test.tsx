@@ -69,8 +69,14 @@ const EVENTS: RegisterEvent[] = [
   },
 ];
 
-function renderRegister() {
-  return render(<SalesRegister variants={VARIANTS} events={EVENTS} />);
+function renderRegister(defaultTaxRate?: number) {
+  return render(
+    <SalesRegister
+      variants={VARIANTS}
+      events={EVENTS}
+      defaultTaxRate={defaultTaxRate}
+    />,
+  );
 }
 
 const beanieTile = () =>
@@ -121,6 +127,38 @@ describe("SalesRegister", () => {
     expect(beanieTile()).toHaveTextContent("Sold out");
   });
 
+  test("the org rate is prefilled, taxes the cart, and rides on the payload", async () => {
+    const user = userEvent.setup();
+    renderRegister(8.25);
+
+    expect(screen.getByLabelText("Tax rate (%)")).toHaveValue(8.25);
+
+    await user.click(beanieTile());
+    // $20 at 8.25% is $1.65, on top.
+    expect(
+      screen.getByRole("button", { name: "Record sale — $21.65" }),
+    ).toBeEnabled();
+
+    // Editable per sale: a tax-exempt buyer clears it and the total follows.
+    await user.clear(screen.getByLabelText("Tax rate (%)"));
+    expect(
+      screen.getByRole("button", { name: "Record sale — $20.00" }),
+    ).toBeEnabled();
+
+    await user.type(screen.getByLabelText("Tax rate (%)"), "10");
+    await user.click(
+      screen.getByRole("button", { name: "Record sale — $22.00" }),
+    );
+    expect(recordSaleActionMock.mock.calls[0][0]).toMatchObject({
+      tax_rate: 10,
+    });
+    // The rate is kept for the next sale at the same table, like the event.
+    expect(
+      await screen.findByText("Tap a product to start a sale."),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Tax rate (%)")).toHaveValue(10);
+  });
+
   test("a sold-out variant cannot be added", () => {
     renderRegister();
     expect(
@@ -158,6 +196,7 @@ describe("SalesRegister", () => {
       purchaser_person_id: null,
       payment_method: "cash",
       discount_amount: 5,
+      tax_rate: 0,
       notes: "merch table",
       lines: [
         { variant_id: BEANIE, quantity: 1 },

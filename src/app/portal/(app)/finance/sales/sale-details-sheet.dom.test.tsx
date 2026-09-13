@@ -29,7 +29,9 @@ const SALE: SaleRow = {
   payment_method: "cash",
   subtotal: "65.00",
   discount_amount: "5.00",
-  total: "60.00",
+  tax_rate: "8.250",
+  tax_amount: "4.95",
+  total: "64.95",
   status: "completed",
   voided_at: null,
   void_reason: null,
@@ -59,7 +61,7 @@ async function openSheet(canManage = true) {
   render(
     <SaleDetailsSheet sale={SALE} events={EVENTS} canManage={canManage} />,
   );
-  await user.click(screen.getByRole("button", { name: "View sale of $60.00" }));
+  await user.click(screen.getByRole("button", { name: "View sale of $64.95" }));
   return user;
 }
 
@@ -124,7 +126,7 @@ describe("SaleDetailsSheet", () => {
       />,
     );
     await user.click(
-      screen.getByRole("button", { name: "View sale of $60.00" }),
+      screen.getByRole("button", { name: "View sale of $64.95" }),
     );
 
     expect(screen.getByText("Voided")).toBeInTheDocument();
