@@ -58,6 +58,13 @@ if (site.derived && !process.env.TEST_WORKER_INDEX) {
  * those pages by name. Same shape as tenant-branding above: restored in
  * afterAll, safe only because it is serialised.
  *
+ * team-layout.spec.ts writes `layout.team_layout` and, because the seeded
+ * tenant's one team member has an 18-character bio with nothing to clip, a
+ * whole `about_team.members` row of its own (#917). Both are site-wide, so for
+ * the length of the run /about/team is neither the page the seed describes nor
+ * the arrangement any other spec would expect. Given back in afterAll, safe
+ * only because it is serialised.
+ *
  * Playwright runs a dependency project in full, ignoring any file or --grep
  * filter, so run one of these on its own with --no-deps:
  *   bunx playwright test e2e/page-visibility.spec.ts --no-deps
@@ -67,7 +74,7 @@ if (site.derived && !process.env.TEST_WORKER_INDEX) {
  * filter a dependency project ignores.
  */
 const MUTATING_SPECS =
-  /(page-visibility|unresolved-host|tenant-branding|legal-publication|module-gating|programs-source|person-role-labels)\.spec\.ts/;
+  /(page-visibility|unresolved-host|tenant-branding|legal-publication|module-gating|programs-source|person-role-labels|team-layout)\.spec\.ts/;
 
 const ALL_BROWSER_PROJECTS = [
   { name: "chromium", use: { ...devices["Desktop Chrome"] } },

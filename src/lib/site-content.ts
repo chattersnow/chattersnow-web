@@ -939,7 +939,17 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "Team members",
     type: "list",
     fields: [
+      // `name` stays the first `text` field: `listItemLabel()` names each row
+      // in the editor -- "Move Sofie Chavez up", "Remove Sofie Chavez" -- by
+      // the first one it finds, and a row labelled by its role would be a
+      // worse answer for every list of people.
       { key: "name", label: "Name", kind: "text" },
+      // Optional, and that is load-bearing rather than merely kind: a member
+      // row stored before this field existed has no `role` key, and
+      // `isListItem()` rejects a row missing a *required* field -- which would
+      // fail the whole slot and quietly replace a tenant's published team with
+      // the placeholder below (#917).
+      { key: "role", label: "Role", kind: "text", optional: true },
       TEAM_PHOTO_FIELD,
       // Declared so the row's shape is validated and a new row carries the
       // key, but never rendered on its own: the `photo` field above owns it,
@@ -956,6 +966,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     default: [
       {
         name: "Team member name",
+        role: "",
         photo_url: "",
         photo_slot: "",
         bio: ["A short biography."],

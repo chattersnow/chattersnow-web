@@ -7,6 +7,7 @@ import {
   LAYOUT_SLOTS,
   MAX_HOME_UPCOMING_COUNT,
   PROGRAMS_SOURCE_SLOT,
+  TEAM_LAYOUT_SLOT,
   isLayoutValue,
   layoutSettingKey,
   resolveLayout,
@@ -19,6 +20,7 @@ const DEFAULTS: SiteLayout = {
   homeUpcomingCards: "fliers",
   homeUpcomingCommunity: true,
   programsSource: "content",
+  teamLayout: "cards",
 };
 
 const countSlot = LAYOUT_SLOTS.find(
@@ -41,12 +43,14 @@ describe("resolveLayout", () => {
         { slot: HOME_UPCOMING_CARDS_SLOT, value: "compact" },
         { slot: HOME_UPCOMING_COMMUNITY_SLOT, value: false },
         { slot: PROGRAMS_SOURCE_SLOT, value: "module" },
+        { slot: TEAM_LAYOUT_SLOT, value: "rows" },
       ]),
     ).toEqual({
       homeUpcomingCount: 6,
       homeUpcomingCards: "compact",
       homeUpcomingCommunity: false,
       programsSource: "module",
+      teamLayout: "rows",
     });
   });
 
@@ -68,6 +72,19 @@ describe("resolveLayout", () => {
       resolveLayout([{ slot: PROGRAMS_SOURCE_SLOT, value: "module" }])
         .programsSource,
     ).toBe("module");
+  });
+
+  // Same stance as the Programs page one above, for the same reason: #917 made
+  // Meet the Team's arrangement a choice, and a tenant that has not made it
+  // must keep the card grid its page has always had.
+  test("leaves Meet the Team on cards until a tenant says otherwise", () => {
+    expect(resolveLayout([]).teamLayout).toBe("cards");
+    expect(
+      resolveLayout([{ slot: TEAM_LAYOUT_SLOT, value: "row" }]).teamLayout,
+    ).toBe("cards");
+    expect(
+      resolveLayout([{ slot: TEAM_LAYOUT_SLOT, value: "rows" }]).teamLayout,
+    ).toBe("rows");
   });
 
   test("resolves each slot independently", () => {

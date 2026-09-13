@@ -264,6 +264,31 @@ describe("resolveSiteContent", () => {
     );
   });
 
+  // #917 added `role` to a slot three tenants had already published rows for.
+  // Had it been required, every stored member row would have failed validation
+  // and the whole slot would have fallen back to the registry's placeholder --
+  // a live team page replaced by one fictional person, with nothing to say so.
+  test("a team member stored before the role field still validates", () => {
+    const slot = contentSlot("about_team.members")!;
+    expect(
+      isValidSlotValue(slot, [
+        { name: "Sam", photo_url: "", photo_slot: "sam", bio: ["Rides."] },
+      ]),
+    ).toBe(true);
+    expect(isValidSlotValue(slot, [{ name: "Sam", role: "Board chair" }])).toBe(
+      true,
+    );
+    expect(isValidSlotValue(slot, [{ name: "Sam", role: 7 }])).toBe(false);
+  });
+
+  // `listItemLabel()` names each editor row -- "Move Sam up", "Remove Sam" --
+  // by the first `text` field, so the order of these two is behaviour.
+  test("name is the first text field of a team member", () => {
+    const slot = contentSlot("about_team.members")!;
+    const fields = slot.type === "list" ? slot.fields : [];
+    expect(fields.find((field) => field.kind === "text")?.key).toBe("name");
+  });
+
   test("a legal document needs a title, a date, a summary and sections", () => {
     const slot = contentSlot("legal.terms")!;
     const doc = {

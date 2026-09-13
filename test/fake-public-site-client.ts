@@ -14,9 +14,17 @@ export function fakePublicSiteClient({
   content = {},
   branding = {},
   tenant = null,
+  layout = {},
 }: {
   siteImages?: Record<string, string>;
   content?: Record<string, unknown>;
+  /**
+   * `layout.*` rows, keyed by slot: `{ team_layout: "rows" }`. Empty renders
+   * the registry defaults, which is what a tenant that has chosen nothing
+   * gets -- and what every page reading `getSiteLayout()` got from this fake
+   * before the option existed, since an unknown table answers with no rows.
+   */
+  layout?: Record<string, unknown>;
   /**
    * `brand.*` rows, keyed by token: `{ primary: "#123456" }`, or
    * `{ accent_stops: [...] }`. Empty renders the stylesheet's palette, which
@@ -39,6 +47,10 @@ export function fakePublicSiteClient({
       value,
     })),
     public_tenant: tenant ? [tenant] : [],
+    public_site_layout: Object.entries(layout).map(([slot, value]) => ({
+      slot,
+      value,
+    })),
   };
 
   return {
