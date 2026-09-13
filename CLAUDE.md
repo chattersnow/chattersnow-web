@@ -55,6 +55,10 @@ Specs that mutate state the whole site shares can't run beside anything else, so
 
 For ad-hoc browser interaction (manually exercising a UI change, poking at a page) use the `playwright-cli` terminal tool (`npm install -g @playwright/cli`, ships the `playwright-cli` binary), not an MCP browser server — the CLI is far cheaper on tokens since it doesn't round-trip full tool schemas/results through the model. Run `playwright-cli --help` for the command list (`open`, `goto`, `click`, `snapshot`, etc.). The project's `playwright` MCP server was removed for this reason; `@playwright/test` (used by `bun run test:e2e`) is unaffected — that's the automated e2e test runner, unrelated to the CLI/MCP choice above.
 
+## Working in a git worktree
+
+A fresh worktree needs its own `bun install` before `bun run dev`, `bun run build`, `bun run test:e2e` or `bun run typecheck` will work (#810). `bun test` works without one, because Bun resolves `node_modules` by walking up to the primary checkout -- which is exactly what makes the gap easy to miss: the unit suite passes and only the app fails, with an error that names a missing `.next/dev/.../build-manifest.json` rather than the cause. Turbopack requires `node_modules` inside the workspace root, so symlinking the primary checkout's does not work either ("Symlink [project]/node_modules is invalid, it points out of the filesystem root"). `.env.local` is gitignored and has to be copied in too.
+
 ## Ticket workflow
 
 Issues are tracked on the `ChatterWeb` GitHub Project (owner `chattersnow`, project number `1`) via its `Status` field. Keep status in sync with `gh project item-edit`:
