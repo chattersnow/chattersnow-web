@@ -16,6 +16,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { resolveImageUrl } from "@/lib/inventory";
 import { GearCartCheckoutForm } from "./gear-cart-checkout-form";
 import type { GearItem } from "./gear-catalog";
+import type {
+  DeliveryMethod,
+  PublicGearRequestOptions,
+} from "@/lib/gear-requests";
 
 export function GearCartSheet({
   items,
@@ -25,14 +29,17 @@ export function GearCartSheet({
   success,
   onSubmitted,
   placeholderUrl,
+  requestOptions,
 }: {
   items: GearItem[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onRemove: (itemId: string) => void;
-  success: boolean;
-  onSubmitted: () => void;
+  /** The delivery method the submitted request asked for, once it has been. */
+  success: DeliveryMethod | null;
+  onSubmitted: (deliveryMethod: DeliveryMethod) => void;
   placeholderUrl: string | null;
+  requestOptions: PublicGearRequestOptions;
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -50,8 +57,10 @@ export function GearCartSheet({
               <div className="rainbow-accent mb-2 w-10" />
               <AlertDescription>
                 Request received! These items are now on hold for you and no
-                longer available to others. We&apos;ll be in touch to arrange
-                pickup.
+                longer available to others.{" "}
+                {success === "shipping"
+                  ? "We'll weigh the package and email you the postage amount and where to send it."
+                  : "We'll be in touch to arrange a time and place to hand them over."}
               </AlertDescription>
             </Alert>
           ) : items.length === 0 ? (
@@ -110,6 +119,7 @@ export function GearCartSheet({
               <div className="mt-4">
                 <GearCartCheckoutForm
                   itemIds={items.map((item) => item.id)}
+                  options={requestOptions}
                   onSuccess={onSubmitted}
                 />
               </div>

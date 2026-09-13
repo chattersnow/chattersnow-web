@@ -2,15 +2,20 @@
 // real local Supabase stack (request_gear_items RPC, row locking, rate
 // limiting). Requires `bun run db:start && bun run db:reset` first; run via
 // `bun run test:integration`. Not picked up by `bun run test`.
-import { afterEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeAll, describe, expect, mock, test } from "bun:test";
 import {
   adminClient,
   anonClient,
   createAvailableGearItems,
   getInventoryItemStatus,
+  serviceRoleClient,
   uniqueEmail,
   uniqueIp,
 } from "../../../../test/integration-setup";
+import {
+  PAYMENT_METHODS_SETTING_KEY,
+  SHIPPING_ENABLED_SETTING_KEY,
+} from "@/lib/gear-requests";
 
 const revalidatePathMock = mock(() => {});
 mock.module("next/cache", () => ({ revalidatePath: revalidatePathMock }));
@@ -24,6 +29,22 @@ mock.module("@/lib/supabase/server", () => ({
   createSupabaseServerClient: async () => anonClient(),
 }));
 
+// The action schedules its two sends with after() (#1032). This file imports
+// the action directly, so there is no request scope and Next's real after()
+// would throw -- and the notifier it schedules imports "server-only", which
+// throws outside Next's bundler. Everything else in next/server is kept, so
+// the mock cannot surprise another file sharing this process. Same shape as
+// contact-actions.integration.test.ts.
+mock.module("server-only", () => ({}));
+const nextServer = await import("next/server");
+const afterTasks: Promise<unknown>[] = [];
+mock.module("next/server", () => ({
+  ...nextServer,
+  after: (task: () => Promise<unknown>) => {
+    afterTasks.push(task());
+  },
+}));
+
 const { requestGearItemsAction } = await import("./gear-cart-request-actions");
 
 function formData(fields: Record<string, string>) {
@@ -34,6 +55,10 @@ function formData(fields: Record<string, string>) {
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => {
+  // Let the scheduled sends settle before the fixtures they read go away.
+  // RESEND_API_KEY is unset here, so nothing leaves the building; the
+  // requester's confirmation row cascades away with their people row.
+  await Promise.all(afterTasks.splice(0));
   while (cleanups.length) {
     const cleanup = cleanups.pop()!;
     await cleanup();
@@ -131,8 +156,9 @@ describe("requestGearItemsAction (integration)", () => {
 
   // #721: the request text belongs to the request, not to the requester's
   // directory record -- where it survived retention and could overwrite what
-  // staff had written about a returning person.
-  test("stores the request notes on the movements, not on the person", async () => {
+  // staff had written about a returning person. #1032 moved it one step
+  // further, from every movement onto the one request header.
+  test("records one request header for the cart, with the notes on it", async () => {
     currentIp = uniqueIp();
     const [first, second] = await gearItems(2);
     const email = uniqueEmail("notes");
@@ -146,14 +172,29 @@ describe("requestGearItemsAction (integration)", () => {
 
     const { data: movements } = await adminClient
       .from("inventory_movements")
-      .select("notes, recipient_person_id")
+      .select("notes, recipient_person_id, gear_request_id")
       .in("inventory_item_id", [first, second])
       .eq("movement_type", "reserved");
 
     expect(movements).toHaveLength(2);
+    const requestIds = new Set(movements!.map((m) => m.gear_request_id));
+    expect(requestIds.size).toBe(1);
     for (const movement of movements ?? []) {
-      expect(movement.notes).toBe(notes);
+      expect(movement.notes).toBeNull();
     }
+
+    const { data: request } = await adminClient
+      .from("gear_requests")
+      .select("status, delivery_method, notes, person_id, payment_method")
+      .eq("id", movements![0].gear_request_id)
+      .single();
+    expect(request).toEqual({
+      status: "new",
+      delivery_method: "meetup",
+      notes,
+      person_id: movements![0].recipient_person_id,
+      payment_method: null,
+    });
 
     const { data: person } = await adminClient
       .from("people")
@@ -228,6 +269,163 @@ describe("requestGearItemsAction (integration)", () => {
       error: "Too many attempts — please try again in a few minutes.",
     });
     expect(await getInventoryItemStatus(items[8])).toBe("available");
+  });
+});
+
+// #1032. Shipping is the tenant's to offer: the form, the action's parser and
+// the RPC all read the same two settings, and the RPC is the one that counts.
+describe("requestGearItemsAction with shipping", () => {
+  const service = serviceRoleClient();
+  let tenantId: string;
+
+  const shippingFields = {
+    delivery_method: "shipping",
+    ship_name: "Jamie Rivera",
+    ship_line1: "12 Ridge Rd",
+    ship_line2: "Unit 4",
+    ship_city: "Bend",
+    ship_region: "OR",
+    ship_postal_code: "97701",
+    ship_country: "USA",
+    payment_method: "venmo",
+  };
+
+  async function offerShipping(enabled: boolean) {
+    const { error } = await service.from("app_settings").upsert(
+      [
+        {
+          tenant_id: tenantId,
+          key: SHIPPING_ENABLED_SETTING_KEY,
+          value: enabled,
+        },
+        {
+          tenant_id: tenantId,
+          key: PAYMENT_METHODS_SETTING_KEY,
+          value: [
+            { key: "zelle", label: "Zelle", handle: "", instructions: "" },
+            { key: "venmo", label: "Venmo", handle: "@it", instructions: "" },
+          ],
+        },
+      ],
+      { onConflict: "tenant_id,key" },
+    );
+    if (error) throw error;
+  }
+
+  beforeAll(async () => {
+    // The tenant the anon client resolves to: the seeded first one.
+    const { data, error } = await service
+      .from("tenants")
+      .select("id")
+      .order("created_at")
+      .limit(1)
+      .single();
+    if (error) throw error;
+    tenantId = data.id as string;
+  });
+
+  afterEach(async () => {
+    await service
+      .from("app_settings")
+      .delete()
+      .eq("tenant_id", tenantId)
+      .in("key", [SHIPPING_ENABLED_SETTING_KEY, PAYMENT_METHODS_SETTING_KEY]);
+  });
+
+  test("records the address and the postage payment choice on the request", async () => {
+    await offerShipping(true);
+    currentIp = uniqueIp();
+    const [item] = await gearItems(1);
+
+    const result = await requestGearItemsAction(
+      [item],
+      formData({
+        name: "Jamie Rivera",
+        email: uniqueEmail("shipping"),
+        ...shippingFields,
+      }),
+    );
+    expect(result).toEqual({ success: true });
+
+    const { data: movement } = await adminClient
+      .from("inventory_movements")
+      .select(
+        "gear_request:gear_requests(delivery_method, ship_name, ship_line1, ship_line2, ship_city, ship_region, ship_postal_code, ship_country, payment_method, status)",
+      )
+      .eq("inventory_item_id", item)
+      .eq("movement_type", "reserved")
+      .single();
+    // supabase-js types a to-one embed through a composite key as an array;
+    // PostgREST answers with the one object.
+    expect(movement!.gear_request as unknown).toEqual({
+      delivery_method: "shipping",
+      ship_name: "Jamie Rivera",
+      ship_line1: "12 Ridge Rd",
+      ship_line2: "Unit 4",
+      ship_city: "Bend",
+      ship_region: "OR",
+      ship_postal_code: "97701",
+      ship_country: "USA",
+      payment_method: "venmo",
+      status: "new",
+    });
+  });
+
+  test("refuses shipping the tenant has not turned on, and reserves nothing", async () => {
+    await offerShipping(false);
+    currentIp = uniqueIp();
+    const [item] = await gearItems(1);
+
+    const result = await requestGearItemsAction(
+      [item],
+      formData({
+        name: "Jamie Rivera",
+        email: uniqueEmail("no-shipping"),
+        ...shippingFields,
+      }),
+    );
+    expect(result).toEqual({
+      error: "Shipping isn't available right now. Choose a meetup instead.",
+    });
+    expect(await getInventoryItemStatus(item)).toBe("available");
+  });
+
+  // The RPC's own check, bypassing the action's parser: an address the form
+  // would have refused must be refused again underneath it.
+  test("the RPC refuses a shipping request with no address", async () => {
+    await offerShipping(true);
+    const [item] = await gearItems(1);
+
+    const { error } = await anonClient().rpc("request_gear_items", {
+      p_inventory_item_ids: [item],
+      p_name: "Jamie Rivera",
+      p_email: uniqueEmail("rpc-no-address"),
+      p_phone: null,
+      p_ip_address: uniqueIp(),
+      p_delivery_method: "shipping",
+      p_shipping: { name: "Jamie" },
+      p_payment_method: "venmo",
+    });
+    expect(error?.message).toContain("SHIPPING_ADDRESS_REQUIRED");
+    expect(await getInventoryItemStatus(item)).toBe("available");
+  });
+
+  test("the RPC refuses a payment method the tenant does not accept", async () => {
+    await offerShipping(true);
+    const [item] = await gearItems(1);
+
+    const { error } = await anonClient().rpc("request_gear_items", {
+      p_inventory_item_ids: [item],
+      p_name: "Jamie Rivera",
+      p_email: uniqueEmail("rpc-bad-method"),
+      p_phone: null,
+      p_ip_address: uniqueIp(),
+      p_delivery_method: "shipping",
+      p_shipping: { line1: "12 Ridge Rd", city: "Bend", postal_code: "97701" },
+      p_payment_method: "cash",
+    });
+    expect(error?.message).toContain("PAYMENT_METHOD_INVALID");
+    expect(await getInventoryItemStatus(item)).toBe("available");
   });
 });
 

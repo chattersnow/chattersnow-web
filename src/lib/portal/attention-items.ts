@@ -133,10 +133,30 @@ export async function getOpsInboxSummary(
     canSeeContactMessages: boolean;
     canSeeEventCheckins: boolean;
     canSeeArtworkSubmissions: boolean;
+    canSeeGearRequests: boolean;
   },
   nowIso: string = new Date().toISOString(),
 ): Promise<PendingApprovalsSummary> {
   const items: PendingApprovalItem[] = [];
+
+  // #1032. A request sits in `new` until staff quote it, fulfil it or cancel
+  // it -- so unlike a reserved item, which stays reserved for as long as the
+  // hold does, the count actually goes down as the queue is worked.
+  if (options.canSeeGearRequests) {
+    const { count } = await supabase
+      .from("gear_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "new");
+    if ((count ?? 0) > 0) {
+      items.push({
+        key: "gear_requests_new",
+        label: "New item requests",
+        count: count ?? 0,
+        href: "/portal/inventory/requests?status=new",
+        severity: "info",
+      });
+    }
+  }
 
   if (options.canSeeVolunteerApplications) {
     const { count } = await supabase

@@ -1,4 +1,5 @@
 import { contactTopicLabel } from "@/lib/contact-topics";
+import { deliveryMethodLabel } from "@/lib/gear-requests";
 import { DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
 import type { RenderedEmail } from "@/lib/notifications/rendered-email";
 
@@ -42,6 +43,18 @@ export type ArtworkSubmissionNotice = {
   title: string | null;
   imageCount: number;
 };
+
+export type GearRequestNotice = {
+  requestId: string;
+  name: string;
+  email: string;
+  itemCount: number;
+  deliveryMethod: string;
+};
+
+export function gearRequestHref(requestId: string): string {
+  return `/portal/inventory/requests/${encodeURIComponent(requestId)}`;
+}
 
 export function volunteerApplicationHref(applicationId: string): string {
   return `/portal/volunteers/applications?application=${encodeURIComponent(applicationId)}`;
@@ -164,6 +177,57 @@ export function renderArtworkSubmissionEmail(
       url,
       accountUrl: `${origin}/portal/account`,
     }),
+  };
+}
+
+/**
+ * The address is deliberately not here, for the reason the header comment
+ * gives: it is personal data on a three-year clock, and an inbox is where
+ * that clock cannot reach. The link goes to the request, where it is.
+ *
+ * The lexicon names the collection (#896), so a tenant lending tools reads
+ * "tool library" and not "gear library".
+ */
+export function renderGearRequestEmail(
+  notice: GearRequestNotice,
+  siteUrl: string,
+  lexicon: Lexicon = DEFAULT_LEXICON,
+): RenderedEmail {
+  const origin = normalizeOrigin(siteUrl);
+  const url = `${origin}${gearRequestHref(notice.requestId)}`;
+  const collection = lexicon.collection_public.toLowerCase();
+  const items = notice.itemCount === 1 ? "1 item" : `${notice.itemCount} items`;
+
+  const facts: Fact[] = [
+    { label: "Requested by", value: notice.name },
+    { label: "Email", value: notice.email },
+    { label: "Items", value: items },
+    {
+      label: "Delivery",
+      value: deliveryMethodLabel(notice.deliveryMethod),
+    },
+  ];
+
+  return {
+    subject: `New ${collection} request: ${notice.name}`,
+    text: renderText(
+      `Someone has requested ${items} from the ${collection}.`,
+      facts,
+      {
+        linkLabel: "Open the request",
+        url,
+        accountUrl: `${origin}/portal/account`,
+      },
+    ),
+    html: renderHtml(
+      `Someone has requested ${items} from the ${collection}.`,
+      facts,
+      {
+        linkLabel: "Open the request",
+        url,
+        accountUrl: `${origin}/portal/account`,
+      },
+    ),
   };
 }
 

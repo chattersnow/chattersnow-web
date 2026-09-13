@@ -181,6 +181,7 @@ export default async function PortalAppLayout({
     "artwork_submissions",
     "view",
   );
+  const canSeeGearRequests = hasPermission(permissions, "inventory", "view");
   const canSeeContentCalendar = hasPermission(
     permissions,
     "content_calendar",
@@ -230,12 +231,14 @@ export default async function PortalAppLayout({
     canSeeVolunteerApplications ||
     canSeeContactMessages ||
     canSeeEventCheckins ||
-    canSeeArtworkSubmissions
+    canSeeArtworkSubmissions ||
+    canSeeGearRequests
       ? getOpsInboxSummary(supabase, {
           canSeeVolunteerApplications,
           canSeeContactMessages,
           canSeeEventCheckins,
           canSeeArtworkSubmissions,
+          canSeeGearRequests,
         })
       : { items: [] },
     canSeeContentCalendar

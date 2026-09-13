@@ -43,6 +43,17 @@ export type InventoryItem = {
   } | null;
   /** Free text the requester left on the public gear request (#721). */
   holdNotes?: string | null;
+  /**
+   * The request behind the hold (#1032), when there is one: manual holds and
+   * pre-header reservations have none, and the modal shows the movement's
+   * own requester instead.
+   */
+  holdRequest?: {
+    id: string;
+    status: string;
+    delivery_method: string;
+    quoted_amount: number | string | null;
+  } | null;
 };
 
 export type SortColumn =

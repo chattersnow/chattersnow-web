@@ -186,6 +186,9 @@ declare
   -- The one distributed movement, which is what /portal/inventory/distribution
   -- lists and links to.
   v_movement_distributed constant uuid := 'eeeeeeee-0000-4000-8000-000000001001';
+  -- The one open public gear request (#1032), which is what
+  -- /portal/inventory/requests lists and links to.
+  v_gear_request constant uuid := 'eeeeeeee-0000-4000-8000-000000002001';
   v_giveaway_id constant uuid := 'babababa-0000-4000-8000-000000000002';
   v_prize1 uuid;
   v_prize2 uuid;
@@ -376,9 +379,13 @@ begin
 
   insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, created_by)
   values (v_item5, 'received', 1, 'Donation intake', v_admin_id);
-  insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, recipient_person_id, notes, created_by)
-  values (v_item5, 'reserved', 1, 'Public gear library request', v_person_volunteer,
-          'Picking up Saturday morning before the shuttle -- happy to take a smaller size if this one is spoken for.', v_admin_id);
+  -- The request header (#1032) carries the notes and the delivery choice; the
+  -- movement is the hold and points at it.
+  insert into public.gear_requests (id, person_id, delivery_method, notes)
+  values (v_gear_request, v_person_volunteer, 'meetup',
+          'Picking up Saturday morning before the shuttle -- happy to take a smaller size if this one is spoken for.');
+  insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, recipient_person_id, gear_request_id, created_by)
+  values (v_item5, 'reserved', 1, 'Public gear library request', v_person_volunteer, v_gear_request, v_admin_id);
 
   -- Giveaway for the past event: two prizes, one claimed winner.
   insert into public.giveaways (id, event_id, name, tickets_sold, ticket_price, revenue_amount, drawing_date, created_by)
