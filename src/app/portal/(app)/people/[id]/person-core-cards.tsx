@@ -54,34 +54,46 @@ export async function PersonCoreCards({ person }: { person: PersonRow }) {
     ? listRolesAction()
     : Promise.resolve(null);
 
-  const [{ data: peopleOptions }, { data: memberships }, { data: publicTeam }] =
-    await Promise.all([
-      supabase
-        .from("people")
-        .select(
-          "id, name, preferred_name, email, phone, person_type, auth_user_id",
-        )
-        .neq("id", person.id)
-        .order("name", { ascending: true }),
-      supabase
-        .from("person_organizations")
-        .select(
-          "id, role, is_primary, organization:people!person_organizations_organization_id_fkey(id, name, preferred_name, email, phone), person:people!person_organizations_person_id_fkey(id, name, preferred_name, email, phone)",
-        )
-        .eq(
-          isOrganization(person) ? "organization_id" : "person_id",
-          person.id,
-        ),
-      // The public team page is a page of people, so an organization has no
-      // listing to show and the card is not rendered for one below (#1014).
-      isOrganization(person)
-        ? Promise.resolve({ data: null })
-        : supabase
-            .from("public_team_members")
-            .select("id, public_role, photo_url, bio, sort_order")
-            .eq("person_id", person.id)
-            .maybeSingle(),
-    ]);
+  const [
+    { data: peopleOptions },
+    { data: memberships },
+    { data: sponsorTag },
+    { data: publicTeam },
+  ] = await Promise.all([
+    supabase
+      .from("people")
+      .select(
+        "id, name, preferred_name, email, phone, person_type, auth_user_id",
+      )
+      .neq("id", person.id)
+      .order("name", { ascending: true }),
+    supabase
+      .from("person_organizations")
+      .select(
+        "id, role, is_primary, organization:people!person_organizations_organization_id_fkey(id, name, preferred_name, email, phone), person:people!person_organizations_person_id_fkey(id, name, preferred_name, email, phone)",
+      )
+      .eq(isOrganization(person) ? "organization_id" : "person_id", person.id),
+    // The only read of a manual role tag anywhere in the form (#1024). The
+    // role checkboxes are seeded from the *derived* flags on
+    // people_with_roles, which answer "holds this role" rather than "was
+    // tagged by hand", so the publication flag -- which lives on the tag and
+    // nowhere else -- has no source of truth without this.
+    supabase
+      .from("person_role_tags")
+      .select("is_public")
+      .eq("person_id", person.id)
+      .eq("role", "sponsor")
+      .maybeSingle(),
+    // The public team page is a page of people, so an organization has no
+    // listing to show and the card is not rendered for one below (#1014).
+    isOrganization(person)
+      ? Promise.resolve({ data: null })
+      : supabase
+          .from("public_team_members")
+          .select("id, public_role, photo_url, bio, sort_order")
+          .eq("person_id", person.id)
+          .maybeSingle(),
+  ]);
 
   const peopleOptionRows = (peopleOptions ?? []) as unknown as PersonListItem[];
   const membershipRows = (memberships ??
@@ -107,6 +119,7 @@ export async function PersonCoreCards({ person }: { person: PersonRow }) {
         people={peopleOptionRows}
         canManage={canManage}
         canDeleteRiderProfile={canDeleteRiderProfile}
+        sponsorWallPublic={sponsorTag?.is_public ?? false}
       />
 
       <OrganizationsCard

@@ -13,15 +13,23 @@ import { friendlyError } from "@/lib/db-errors";
  * Replaces a person's manual role tags -- the half of the derived role model
  * that no source record backs (20260903030000). Returns an error result to
  * hand straight back to the caller, or null on success.
+ *
+ * `publicRoles` is the subset being published to a public surface (#1024,
+ * today the sponsor wall and nothing else). It has to ride along on every
+ * save, not only on the one that changes it: both callers below re-send the
+ * whole role set unconditionally, so an omitted flag would unpublish a sponsor
+ * the next time anyone edited their phone number.
  */
 async function setRoleTags(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   personId: string,
   roles: string[],
+  publicRoles: string[],
 ): Promise<{ error: string } | null> {
   const { error } = await supabase.rpc("set_person_role_tags", {
     p_person_id: personId,
     p_roles: roles,
+    p_public_roles: publicRoles,
   });
   if (error) {
     return { error: "Could not save this person's roles. Please try again." };
@@ -146,7 +154,12 @@ export async function createPersonAction(
 
   // Roles are derived from source records unioned with these tags, so the
   // checkboxes write tags: there is no role column on `people` to set.
-  const rolesError = await setRoleTags(supabase, data.id, parsed.roles);
+  const rolesError = await setRoleTags(
+    supabase,
+    data.id,
+    parsed.roles,
+    parsed.publicRoles,
+  );
   if (rolesError) return rolesError;
 
   revalidatePath("/portal/people");
@@ -211,7 +224,12 @@ export async function updatePersonAction(
     );
   }
 
-  const rolesError = await setRoleTags(supabase, id, parsed.roles);
+  const rolesError = await setRoleTags(
+    supabase,
+    id,
+    parsed.roles,
+    parsed.publicRoles,
+  );
   if (rolesError) return rolesError;
 
   revalidatePath("/portal/people");

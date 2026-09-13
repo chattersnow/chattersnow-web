@@ -82,6 +82,7 @@ const b = {
   volunteerRoleTypeId: "",
   sponsorId: "",
   publicTeamId: "",
+  taggedSponsorPersonId: "",
   siteContentKey: `home.isolation_probe_b_${run}`,
   disabledModuleKey: "",
 };
@@ -98,6 +99,7 @@ const aPublic = {
   volunteerRoleTypeId: "",
   sponsorId: "",
   sponsorPersonId: "",
+  taggedSponsorPersonId: "",
   publicProgramId: "",
   publicTeamId: "",
   siteContentKey: `home.isolation_probe_${run}`,
@@ -333,6 +335,24 @@ beforeAll(async () => {
         `b ${table}`,
       )
     ).id as string;
+
+  // public_sponsor_wall's second arm (#1024) reaches the public site through
+  // people.tenant_id rather than events.tenant_id, and tenant_isolation_gaps()
+  // cannot see a per-arm predicate -- it matches the whole view definition. So
+  // each side gets an organization published by hand, with no event anywhere,
+  // and the test below is what actually holds that line. An organization, not
+  // b.personId: that arm admits organizations only.
+  b.taggedSponsorPersonId = await bRow("people", {
+    name: `Isolation Tagged Sponsor ${run}`,
+    source_type: "other",
+    person_type: "organization",
+    logo_url: "https://b.example.test/logo.png",
+  });
+  await bRow("person_role_tags", {
+    person_id: b.taggedSponsorPersonId,
+    role: "sponsor",
+    is_public: true,
+  });
 
   b.calendarItemId = await bRow("calendar_items", {
     title: `Isolation calendar item ${run}`,
@@ -662,6 +682,19 @@ beforeAll(async () => {
   // public_sponsor_wall is keyed on the person rather than the sponsorship
   // (#914), so the probe needs the other end of the same row.
   aPublic.sponsorPersonId = aPublicSponsor.person_id as string;
+  // A's own hand-published organization, distinct from the event-credited one
+  // above so the tag arm's check cannot pass on the event arm's row.
+  aPublic.taggedSponsorPersonId = await fixture("people", {
+    name: `Isolation Tagged Sponsor A ${run}`,
+    source_type: "other",
+    person_type: "organization",
+    logo_url: "https://a.example.test/logo.png",
+  });
+  await fixture("person_role_tags", {
+    person_id: aPublic.taggedSponsorPersonId,
+    role: "sponsor",
+    is_public: true,
+  });
   aPublic.gearItemId = (
     await must(
       service
@@ -809,6 +842,9 @@ afterAll(async () => {
     "inventory_items",
     "donations",
     "events",
+    // Before `people`, which it references -- the cascade would take it anyway,
+    // but the list is read as the dependency order it documents.
+    "person_role_tags",
     "people",
     "programs",
     "app_settings",
@@ -1623,6 +1659,32 @@ describe("every anon-readable view follows the host", () => {
       expect(await read()).toEqual([]);
     });
   }
+
+  // The sponsor wall's two arms share a view, so this cannot be another
+  // `probes` entry -- `probe.view` is the relation the loop reads. It is the
+  // same assertion against the hand-published arm (#1024), whose tenant
+  // predicate is its own and unguarded by tenant_isolation_gaps().
+  test("public_sponsor_wall follows the host on its hand-published arm", async () => {
+    const read = async (host?: string) =>
+      (
+        await must<Array<{ sponsor_id: string }>>(
+          anonClient(host ? { host } : undefined)
+            .from("public_sponsor_wall")
+            .select("sponsor_id"),
+          `hand-published sponsors for ${host ?? "no host"}`,
+        )
+      ).map((row) => row.sponsor_id);
+
+    const forA = await read(A_HOST);
+    expect(forA).toContain(aPublic.taggedSponsorPersonId);
+    expect(forA).not.toContain(b.taggedSponsorPersonId);
+
+    const forB = await read(B_HOST);
+    expect(forB).toContain(b.taggedSponsorPersonId);
+    expect(forB).not.toContain(aPublic.taggedSponsorPersonId);
+
+    expect(await read()).toEqual([]);
+  });
 
   // public_tenant_modules (#902) is the one that cannot answer "nothing": it
   // reads the module registry, which is platform data, and falls back to each

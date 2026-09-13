@@ -227,19 +227,24 @@ begin
   insert into public.people (id, name, is_anonymous, source_type, email, phone, notes, created_by)
   values (v_person_volunteer, 'Priya Natarajan', false, 'individual', 'priya.n@example.test', '555-0104', null, v_admin_id);
 
-  insert into public.people (id, name, is_anonymous, source_type, person_type, created_by)
-  values (v_person_local_roasters, 'Local Roasters Coffee', false, 'brand', 'organization', v_admin_id);
+  -- Local Roasters carries a logo and a website so it can stand for the other
+  -- half of the sponsor wall (#1024): an organization published by hand, with
+  -- no event_sponsors row anywhere. Summit Outdoor reaches the wall through its
+  -- sponsorship on the upcoming event, so a reset shows both arms at once.
+  insert into public.people (id, name, is_anonymous, source_type, person_type, logo_url, website, created_by)
+  values (v_person_local_roasters, 'Local Roasters Coffee', false, 'brand', 'organization', 'https://example.test/logos/local-roasters.png', 'https://localroasters.example.test', v_admin_id);
 
-  insert into public.person_role_tags (person_id, role) values
-    (v_person_donor1, 'donor'),
-    (v_person_donor2, 'donor'),
-    (v_person_sponsor, 'sponsor'),
-    (v_person_volunteer, 'volunteer'),
-    (v_person_local_roasters, 'donor');
+  insert into public.person_role_tags (person_id, role, is_public) values
+    (v_person_donor1, 'donor', false),
+    (v_person_donor2, 'donor', false),
+    (v_person_sponsor, 'sponsor', false),
+    (v_person_volunteer, 'volunteer', false),
+    (v_person_local_roasters, 'donor', false),
+    (v_person_local_roasters, 'sponsor', true);
 
   -- Partnerships. Two rows so the partner derivation is exercised both ways:
-  -- the won one makes Summit Outdoor Co. a partner, the prospecting one leaves
-  -- Local Roasters a lead and nothing more. owner_person_id is the internal
+  -- the won one makes Summit Outdoor Co. a partner, the prospecting one adds
+  -- nothing to Local Roasters' own roles. owner_person_id is the internal
   -- person driving the opportunity and derives no role at all.
   insert into public.partnership_opportunities
     (organization_person_id, stage, next_step_date, owner_person_id, notes,

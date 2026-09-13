@@ -40,7 +40,12 @@ export const SEEDED_PERSON_IDS = {
   sponsor: "bbbbbbbb-0000-4000-8000-000000000003",
   /** Priya Natarajan -- volunteer and event lead. */
   volunteer: "bbbbbbbb-0000-4000-8000-000000000004",
-  /** Local Roasters Coffee -- donor org, prospecting partnership. */
+  /**
+   * Local Roasters Coffee -- donor org, prospecting partnership, and the
+   * sponsor published to the wall by hand rather than through an event
+   * (#1024): a `sponsor` role tag with `is_public`, and no `event_sponsors`
+   * row anywhere.
+   */
   localRoasters: "bbbbbbbb-0000-4000-8000-000000000005",
 } as const;
 
