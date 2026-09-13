@@ -129,3 +129,13 @@ export const SEEDED_SALE_IDS = {
   /** Voided, one line (3 five-packs) -- its units are back in stock. */
   voided: "dcdcdcdc-0000-4000-8000-000000000002",
 } as const;
+
+/**
+ * The receipt numbers the seed writes on those two sales (#1016). Spelled out
+ * in the seed rather than left to the trigger precisely so they can be asserted
+ * on, which is what the ledger's e2e pass does.
+ */
+export const SEEDED_SALE_RECEIPT_NUMBERS = {
+  completed: 1,
+  voided: 2,
+} as const;

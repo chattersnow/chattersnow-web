@@ -640,20 +640,25 @@ begin
   -- update: `sales_void_state` asserts that `status = 'voided'` and
   -- `voided_at is not null` are one state, so a two-step write would be
   -- rejected halfway.
+  --
+  -- `receipt_number` is spelled out rather than left to the
+  -- assign_sale_receipt_number trigger (#1016), so the numbers on these two
+  -- rows are the same on every reset -- test/seed-fixtures.ts states them and
+  -- the e2e ledger assertion reads them.
   insert into public.sales (
     id, event_id, purchaser_person_id, sold_at, payment_method,
     subtotal, discount_amount, total, status,
-    voided_at, voided_by, void_reason, notes, created_by
+    voided_at, voided_by, void_reason, notes, receipt_number, created_by
   ) values
     ('dcdcdcdc-0000-4000-8000-000000000001', 'cccccccc-0000-4000-8000-000000000002',
      'bbbbbbbb-0000-4000-8000-000000000001', now() - interval '40 days', 'cash',
      65.00, 5.00, 60.00, 'completed',
-     null, null, null, 'Merch table, paid in cash.', v_admin_id),
+     null, null, null, 'Merch table, paid in cash.', 1, v_admin_id),
     ('dcdcdcdc-0000-4000-8000-000000000002', 'cccccccc-0000-4000-8000-000000000002',
      null, now() - interval '40 days', 'card',
      15.00, 0.00, 15.00, 'voided',
      now() - interval '39 days', v_admin_id,
-     'Duplicate of the cash sale beside it.', 'Rung up twice by mistake.', v_admin_id);
+     'Duplicate of the cash sale beside it.', 'Rung up twice by mistake.', 2, v_admin_id);
 
   -- description and unit_price are snapshots, so they are spelled out here the
   -- way the RPC would have spelled them rather than joined to the catalog.
