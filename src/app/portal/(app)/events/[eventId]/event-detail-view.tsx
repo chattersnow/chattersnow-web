@@ -31,6 +31,7 @@ import {
   EventSharedDataProvider,
   useEventSharedData,
 } from "../event-shared-data";
+import { EventDateProvider } from "../event-date-defaults";
 import { useUrlTabState } from "@/components/portal/use-url-tab-state";
 import { DeleteEventButton } from "./delete-event-button";
 import { EventSectionRail } from "./event-section-rail";
@@ -295,7 +296,14 @@ function EventDetailContent({
   const TabCard = editToggle ? EditableTabCard : PlainTabCard;
 
   return (
-    <>
+    // Every date field on a card below opens on this event's date rather than
+    // on today, since that is the day the thing being recorded happened. See
+    // EventDateProvider for the two limits on that.
+    <EventDateProvider
+      startsAt={event.starts_at}
+      endsAt={event.ends_at}
+      timeZone={event.timezone}
+    >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="w-fit">
@@ -351,6 +359,6 @@ function EventDetailContent({
           />
         </EventSharedDataProvider>
       </div>
-    </>
+    </EventDateProvider>
   );
 }

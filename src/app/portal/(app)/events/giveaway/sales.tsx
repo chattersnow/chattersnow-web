@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toDateInputValue } from "./format";
 import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/portal/empty-state";
+import { useEventDateDefaults } from "../event-date-defaults";
 
 export function GiveawaySalesForm({
   eventId,
@@ -36,8 +37,11 @@ export function GiveawaySalesForm({
   const [revenueAmount, setRevenueAmount] = useState(
     String(giveaway?.revenue_amount ?? 0),
   );
+  // The drawing happens at the event, so a giveaway being set up for the first
+  // time opens on the event's date; an existing one keeps what was saved.
+  const eventDates = useEventDateDefaults();
   const [drawingDate, setDrawingDate] = useState(
-    toDateInputValue(giveaway?.drawing_date ?? null),
+    giveaway ? toDateInputValue(giveaway.drawing_date) : eventDates.date,
   );
   const [notes, setNotes] = useState(giveaway?.notes ?? "");
   const [error, setError] = useState<string | null>(null);
