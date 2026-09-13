@@ -1,8 +1,28 @@
 import type { ParseResult } from "@/lib/forms";
 import { isPaymentMethod, type PaymentMethod } from "./sales-shared";
 
+/** A line for something in the catalog. `unit_price` is present only when the cashier changed it. */
+export type RecordSaleCatalogLine = {
+  variant_id: string;
+  quantity: number;
+  unit_price?: number;
+};
+
+/** A line for something that is not in the catalog at all (#1015). */
+export type RecordSaleCustomLine = {
+  description: string;
+  unit_price: number;
+  quantity: number;
+};
+
 /** One cart line as the register submits it. */
-export type RecordSaleLine = { variant_id: string; quantity: number };
+export type RecordSaleLine = RecordSaleCatalogLine | RecordSaleCustomLine;
+
+/** As long a description as a custom line may carry, matching the table's check. */
+export const MAX_CUSTOM_DESCRIPTION = 120;
+
+/** One cent under the ceiling of numeric(10,2), which is what a price column is. */
+const MAX_UNIT_PRICE = 99999999.99;
 
 export type RecordSaleInput = {
   event_id: string | null;
@@ -37,9 +57,15 @@ function optionalId(value: unknown): string | null | undefined {
  * a Server Action's arguments are a public API, and nothing about being called
  * from our own client component is enforced at runtime.
  *
- * Deliberately *not* a price check. Prices and totals are read from the
- * catalog inside `record_product_sale`, never taken from the client, so the
- * only money this parser sees is the discount somebody typed.
+ * A price *is* checked here, which it deliberately was not before #1015. The
+ * boundary moved rather than disappeared: a catalog line may carry a
+ * `unit_price` the cashier typed, and a custom line must, but in both cases the
+ * figure is only a proposal. `record_product_sale` still prices the catalog
+ * itself, snapshots that as the line's `list_price`, and decides from the two
+ * figures whether the line was overridden. What this parser owes the RPC is a
+ * number of the right shape -- finite, not negative, in cents, inside
+ * `numeric(10,2)` -- so a malformed payload fails with a sentence here rather
+ * than as a Postgres cast error there.
  */
 export function parseRecordSaleInput(
   input: unknown,
@@ -89,10 +115,13 @@ export function parseRecordSaleInput(
     if (typeof line !== "object" || line === null) {
       return { error: "Every line needs a product and a quantity." };
     }
-    const { variant_id: variantId, quantity } = line as Record<string, unknown>;
-    if (typeof variantId !== "string" || !UUID.test(variantId)) {
-      return { error: "Every line needs a product and a quantity." };
-    }
+    const {
+      variant_id: variantId,
+      quantity,
+      unit_price: unitPrice,
+      description,
+    } = line as Record<string, unknown>;
+
     if (
       typeof quantity !== "number" ||
       !Number.isInteger(quantity) ||
@@ -100,7 +129,61 @@ export function parseRecordSaleInput(
     ) {
       return { error: "Every quantity must be a whole number of one or more." };
     }
-    lines.push({ variant_id: variantId, quantity });
+
+    // A price is optional on a catalog line and required on a custom one, so it
+    // is shape-checked once here and required below where it belongs.
+    const hasPrice = unitPrice !== null && unitPrice !== undefined;
+    if (
+      hasPrice &&
+      (typeof unitPrice !== "number" ||
+        !Number.isFinite(unitPrice) ||
+        unitPrice < 0 ||
+        unitPrice > MAX_UNIT_PRICE)
+    ) {
+      return { error: "A price must be a number of zero or more." };
+    }
+    // Rounded to cents for the same reason the discount is: numeric(10,2) would
+    // round it anyway, and the RPC refuses a third decimal rather than silently
+    // charging a different figure.
+    const price = hasPrice
+      ? Math.round((unitPrice as number) * 100) / 100
+      : undefined;
+
+    if (variantId === null || variantId === undefined) {
+      // A custom line. Both of the things the catalog would have supplied have
+      // to come with it.
+      if (typeof description !== "string" || description.trim() === "") {
+        return { error: "A custom item needs a description." };
+      }
+      if (description.trim().length > MAX_CUSTOM_DESCRIPTION) {
+        return {
+          error: `A custom item's description must be ${MAX_CUSTOM_DESCRIPTION} characters or fewer.`,
+        };
+      }
+      if (price === undefined) {
+        return { error: "A custom item needs a price." };
+      }
+      lines.push({
+        description: description.trim(),
+        unit_price: price,
+        quantity,
+      });
+      continue;
+    }
+
+    if (typeof variantId !== "string" || !UUID.test(variantId)) {
+      return { error: "Every line needs a product and a quantity." };
+    }
+    // A catalog line's description is the RPC's to compose from the product and
+    // the variant, so one arriving here means the caller built the wrong shape.
+    if (description !== null && description !== undefined) {
+      return { error: "Every line needs a product and a quantity." };
+    }
+    lines.push({
+      variant_id: variantId,
+      quantity,
+      ...(price === undefined ? {} : { unit_price: price }),
+    });
   }
 
   const notes = typeof raw.notes === "string" ? raw.notes.trim() : "";

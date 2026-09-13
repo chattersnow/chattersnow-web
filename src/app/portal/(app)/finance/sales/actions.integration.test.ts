@@ -239,19 +239,22 @@ describe("recordSaleAction (integration)", () => {
     });
 
     // Snapshotted, not joined: the description and the price are the ones that
-    // were current when it sold.
+    // were current when it sold. With no override sent, the price charged and
+    // the list price the RPC looked up are the same figure (#1015).
     const { data: lines } = await service
       .from("sale_line_items")
-      .select("description, unit_price, quantity, line_total")
+      .select("description, unit_price, list_price, quantity, line_total")
       .eq("sale_id", (result as { saleId: string }).saleId);
     expect(lines).toHaveLength(1);
     expect({
       ...lines![0],
       unit_price: Number(lines![0].unit_price),
+      list_price: Number(lines![0].list_price),
       line_total: Number(lines![0].line_total),
     }).toEqual({
       description: `IT Sales Product ${run} — Plenty`,
       unit_price: 10,
+      list_price: 10,
       quantity: 2,
       line_total: 20,
     });
@@ -425,6 +428,210 @@ describe("recordSaleAction (integration)", () => {
       const rows = outcome.data as { sale_id: string }[];
       createdSaleIds.push(rows[0].sale_id);
     }
+  });
+});
+
+describe("line prices and custom lines (#1015)", () => {
+  async function linesOf(saleId: string) {
+    const { data, error } = await service
+      .from("sale_line_items")
+      .select(
+        "description, product_variant_id, unit_price, list_price, quantity, line_total",
+      )
+      .eq("sale_id", saleId)
+      .order("description");
+    if (error) throw error;
+    return data!.map((line) => ({
+      ...line,
+      unit_price: Number(line.unit_price),
+      list_price: line.list_price === null ? null : Number(line.list_price),
+      line_total: Number(line.line_total),
+    }));
+  }
+
+  test("an override is charged, and the catalog price is snapshotted beside it", async () => {
+    const before = await stockOf(variantId);
+    const result = await record({
+      lines: [{ variant_id: variantId, quantity: 2, unit_price: 4 }],
+      tax_rate: 10,
+    });
+    expect(result).toEqual({
+      success: true,
+      saleId: expect.any(String),
+      total: 8.8,
+    });
+
+    const saleId = (result as { saleId: string }).saleId;
+    expect(await linesOf(saleId)).toEqual([
+      {
+        description: `IT Sales Product ${run} — Plenty`,
+        product_variant_id: variantId,
+        // What was charged, and what the catalog said on the day. The
+        // difference between the two is the whole record of the override --
+        // there is no flag, and the client could not have set one.
+        unit_price: 4,
+        list_price: 10,
+        quantity: 2,
+        line_total: 8,
+      },
+    ]);
+
+    const { data: sale } = await service
+      .from("sales")
+      .select("subtotal, tax_amount, total")
+      .eq("id", saleId)
+      .single();
+    expect(Number(sale!.subtotal)).toBe(8);
+    expect(Number(sale!.tax_amount)).toBe(0.8);
+    // Stock follows the units, not the money.
+    expect(await stockOf(variantId)).toBe(before - 2);
+  });
+
+  test("a price equal to the catalog price stores a line that is not overridden", async () => {
+    const result = await record({
+      lines: [{ variant_id: variantId, quantity: 1, unit_price: 10 }],
+    });
+    const [line] = await linesOf((result as { saleId: string }).saleId);
+    expect(line.list_price).toBe(10);
+    expect(line.unit_price).toBe(10);
+  });
+
+  test("a custom line is stored with no variant and moves no stock", async () => {
+    const before = await stockOf(variantId);
+    const result = await record({
+      lines: [{ description: "Donated print", unit_price: 3.5, quantity: 2 }],
+    });
+    expect(result).toEqual({
+      success: true,
+      saleId: expect.any(String),
+      total: 7,
+    });
+
+    expect(await linesOf((result as { saleId: string }).saleId)).toEqual([
+      {
+        description: "Donated print",
+        product_variant_id: null,
+        unit_price: 3.5,
+        list_price: null,
+        quantity: 2,
+        line_total: 7,
+      },
+    ]);
+    expect(await stockOf(variantId)).toBe(before);
+  });
+
+  test("two custom lines that read the same are two lines", async () => {
+    // `unique (sale_id, product_variant_id)` still stands; Postgres treats the
+    // nulls as distinct, which is what lets a sale hold more than one.
+    const result = await record({
+      lines: [
+        { description: "Raffle ticket", unit_price: 2, quantity: 1 },
+        { description: "Raffle ticket", unit_price: 2, quantity: 1 },
+      ],
+    });
+    expect(await linesOf((result as { saleId: string }).saleId)).toHaveLength(
+      2,
+    );
+  });
+
+  test("voiding a mixed sale returns the catalog units and nothing else", async () => {
+    const before = await stockOf(variantId);
+    const result = await record({
+      lines: [
+        { variant_id: variantId, quantity: 2, unit_price: 4 },
+        { description: "Donated print", unit_price: 3.5, quantity: 1 },
+      ],
+    });
+    const saleId = (result as { saleId: string }).saleId;
+    expect(await stockOf(variantId)).toBe(before - 2);
+
+    expect(await voidSaleAction(saleId, "Rung up twice")).toEqual({
+      success: true,
+    });
+    expect(await stockOf(variantId)).toBe(before);
+    // The lines are kept, custom one included.
+    expect(await linesOf(saleId)).toHaveLength(2);
+  });
+
+  test("the same variant at two prices is refused", async () => {
+    expect(
+      await record({
+        lines: [
+          { variant_id: variantId, quantity: 1, unit_price: 4 },
+          { variant_id: variantId, quantity: 1 },
+        ],
+      }),
+    ).toEqual({
+      error:
+        "One item can only be sold at one price per sale. Record the second price as its own sale.",
+    });
+  });
+
+  test("the RPC refuses a price the parser would have let through", async () => {
+    // Straight at the RPC, because the Server Action's parser would catch these
+    // first and the point is that the database does not rely on it.
+    for (const unitPrice of [-1, 5.005, 100000000]) {
+      const { error } = await adminClient.rpc("record_product_sale", {
+        p_event_id: null,
+        p_purchaser_person_id: null,
+        p_payment_method: "cash",
+        p_discount_amount: 0,
+        p_sold_at: null,
+        p_notes: `IT bad price ${run}`,
+        p_lines: [
+          { variant_id: variantId, quantity: 1, unit_price: unitPrice },
+        ],
+      });
+      expect(error?.message).toBe("INVALID_UNIT_PRICE");
+    }
+  });
+
+  test("the RPC refuses a custom line missing either half of itself", async () => {
+    for (const line of [
+      { unit_price: 3, quantity: 1 },
+      { description: "   ", unit_price: 3, quantity: 1 },
+      { description: "Coffee", quantity: 1 },
+      { description: "x".repeat(121), unit_price: 3, quantity: 1 },
+    ]) {
+      const { error } = await adminClient.rpc("record_product_sale", {
+        p_event_id: null,
+        p_purchaser_person_id: null,
+        p_payment_method: "cash",
+        p_discount_amount: 0,
+        p_sold_at: null,
+        p_notes: `IT bad custom ${run}`,
+        p_lines: [line],
+      });
+      expect(error?.message).toBe("INVALID_LINE");
+    }
+  });
+
+  test("a catalog line may not bring its own description", async () => {
+    const { error } = await adminClient.rpc("record_product_sale", {
+      p_event_id: null,
+      p_purchaser_person_id: null,
+      p_payment_method: "cash",
+      p_discount_amount: 0,
+      p_sold_at: null,
+      p_notes: `IT bad shape ${run}`,
+      p_lines: [
+        { variant_id: variantId, quantity: 1, description: "Smuggled" },
+      ],
+    });
+    expect(error?.message).toBe("INVALID_LINE");
+  });
+
+  test("a line item still cannot be inserted directly, nullable column or not", async () => {
+    const { error } = await adminClient.from("sale_line_items").insert({
+      sale_id: SEEDED_SALE_IDS.completed,
+      product_variant_id: null,
+      description: "Smuggled",
+      unit_price: 1,
+      list_price: null,
+      quantity: 1,
+      line_total: 1,
+    });
+    expect(error?.code).toBe("42501");
   });
 });
 

@@ -48,6 +48,7 @@ const SALE: SaleRow = {
       product_variant_id: "cdcdcdcd-0000-4000-8000-000000001001",
       description: "Chatter Snow Beanie — One size",
       unit_price: "20.00",
+      list_price: "20.00",
       quantity: 2,
       line_total: "40.00",
     },
@@ -134,5 +135,41 @@ describe("SaleDetailsSheet", () => {
     expect(
       screen.queryByRole("button", { name: "Edit sale" }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("SaleDetailsSheet line prices and custom items (#1015)", () => {
+  test("an overridden line shows what it would have cost, and a custom line says so", async () => {
+    const sale = {
+      ...SALE,
+      sale_line_items: [
+        {
+          id: "line-1",
+          product_variant_id: "cdcdcdcd-0000-4000-8000-000000001001",
+          description: "Chatter Snow Beanie — One size",
+          unit_price: "5.00",
+          list_price: "20.00",
+          quantity: 1,
+          line_total: "5.00",
+        },
+        {
+          id: "line-2",
+          product_variant_id: null,
+          description: "Donated print",
+          unit_price: "3.50",
+          list_price: null,
+          quantity: 1,
+          line_total: "3.50",
+        },
+      ],
+    };
+
+    const user = userEvent.setup();
+    render(<SaleDetailsSheet sale={sale} events={EVENTS} canManage />);
+    await user.click(screen.getByRole("button", { name: /View sale/ }));
+
+    // A line through text is not announced, so the label spells it out.
+    expect(await screen.findByLabelText("Was $20.00")).toBeInTheDocument();
+    expect(screen.getByText("Custom")).toBeInTheDocument();
   });
 });

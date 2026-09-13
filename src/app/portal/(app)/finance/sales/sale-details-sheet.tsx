@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -61,6 +62,7 @@ import { updateSaleAction, voidSaleAction } from "./actions";
 import { SaleStatusBadge } from "./sale-badges";
 import {
   formatTaxRate,
+  lineIsOverridden,
   paymentMethodLabel,
   type EventOption,
   type PaymentMethod,
@@ -268,12 +270,35 @@ export function SaleDetailsSheet({
                   <TableBody>
                     {lines.map((line) => (
                       <TableRow key={line.id}>
-                        <TableCell>{line.description}</TableCell>
+                        <TableCell>
+                          <span>{line.description}</span>
+                          {/* A line with no variant was typed at the register
+                              and never existed in the catalog, so nothing in
+                              Products will explain it. */}
+                          {line.product_variant_id === null && (
+                            <Badge variant="muted" className="ml-2">
+                              Custom
+                            </Badge>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right">
                           {line.quantity}
                         </TableCell>
                         <TableCell className="text-right">
-                          {formatCurrency(line.unit_price)}
+                          {formatCurrency(line.unit_price)}{" "}
+                          {/* What it would have come to at the catalog price,
+                              struck through. The aria-label spells it out
+                              because a line through text is not announced. */}
+                          {lineIsOverridden(line) && (
+                            <span
+                              className="app-muted ml-2 line-through"
+                              aria-label={`Was ${formatCurrency(
+                                line.list_price ?? 0,
+                              )}`}
+                            >
+                              {formatCurrency(line.list_price ?? 0)}
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           {formatCurrency(line.line_total)}
