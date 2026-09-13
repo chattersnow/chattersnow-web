@@ -130,12 +130,24 @@ test.describe("how Meet the Team is arranged", () => {
     // markup the server already sent, which is what keeps the whole bio
     // available to a crawler and to a reader without JavaScript.
     await expect(page.getByText(LAST_PARAGRAPH)).toHaveCount(1);
-    await expect(page.getByText(LAST_PARAGRAPH)).not.toBeVisible();
+
+    // `not.toBeVisible()` is the wrong question to ask of a clipped element,
+    // and asking it was a bug in this spec rather than in the page: the bio is
+    // clipped with `overflow: hidden`, so its last paragraph still has a box
+    // and Playwright rightly calls it visible. That is the whole point -- the
+    // words are on the page in both states. What actually changes is whether
+    // the container is clipping, so that is what to measure.
+    const bio = page.locator(".team-bio-clamped");
+    await expect(bio).toHaveCount(1);
+    expect(await bio.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(
+      true,
+    );
 
     const readMore = page.getByRole("button", { name: /Read more/ });
     await expect(readMore).toBeVisible();
     await readMore.click();
 
+    await expect(page.locator(".team-bio-clamped")).toHaveCount(0);
     await expect(page.getByText(LAST_PARAGRAPH)).toBeVisible();
     await expect(page.getByRole("button", { name: /Show less/ })).toBeVisible();
   });
@@ -147,9 +159,14 @@ test.describe("how Meet the Team is arranged", () => {
     const readMore = page.getByRole("button", { name: /Read more/ });
     await readMore.focus();
     await expect(readMore).toBeFocused();
+    await expect(page.locator(".team-bio-clamped")).toHaveCount(1);
     await page.keyboard.press("Enter");
 
-    await expect(page.getByText(LAST_PARAGRAPH)).toBeVisible();
+    // The clip coming off is the assertion. The paragraph is on the page
+    // either way, so its visibility would pass whether or not Enter did
+    // anything at all.
+    await expect(page.locator(".team-bio-clamped")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Show less/ })).toBeFocused();
   });
 
   test("a member with no bio gets no expander and no placeholder", async ({
