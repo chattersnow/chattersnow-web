@@ -12,6 +12,7 @@ import {
   createAvailableGearItems,
   createPerson,
   createPublishedEvent,
+  serviceRoleClient,
   signInAs,
 } from "../../../../../test/integration-setup";
 
@@ -362,7 +363,14 @@ describe("people_with_roles", () => {
 
     expect((await flagsFor(person.id)).is_recipient).toBe(false);
 
-    const { data: request, error } = await adminClient
+    // Service role, not adminClient: gear_requests deliberately carries no
+    // insert grant or policy (20260913230000) -- the public
+    // `request_gear_items` RPC is the only writer, and nothing deletes, because
+    // a request is history once it exists. Going through that RPC here would
+    // drag in the tenant's shipping settings, the rate limiter and item
+    // availability, and would create a `people` row of its own rather than
+    // flagging the fixture this test is asserting about.
+    const { data: request, error } = await serviceRoleClient()
       .from("gear_requests")
       .insert({
         person_id: person.id,
@@ -373,7 +381,10 @@ describe("people_with_roles", () => {
       .single();
     expect(error).toBeNull();
     cleanups.push(async () => {
-      await adminClient.from("gear_requests").delete().eq("id", request!.id);
+      await serviceRoleClient()
+        .from("gear_requests")
+        .delete()
+        .eq("id", request!.id);
     });
 
     expect((await flagsFor(person.id)).is_recipient).toBe(true);
