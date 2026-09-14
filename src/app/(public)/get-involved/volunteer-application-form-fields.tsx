@@ -56,6 +56,11 @@ export function VolunteerApplicationForm() {
             Save your reference code to check your status later:{" "}
             <strong>{referenceCode}</strong>
           </p>
+          {/* So a message that never arrives reads as a problem rather than as
+              normal -- the code is the only key to the status page. */}
+          <p className="mt-2">
+            We&apos;ve emailed your reference code to {email}.
+          </p>
           <p className="mt-2">
             <Link
               href="/get-involved/volunteer/status"

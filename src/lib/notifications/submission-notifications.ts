@@ -10,6 +10,7 @@ import { isOrgEmailEnabled } from "@/lib/notifications/settings";
 import {
   EVENT_REGISTRATION_CONFIRMATION_KIND,
   GEAR_REQUEST_CONFIRMATION_KIND,
+  VOLUNTEER_APPLICATION_CONFIRMATION_KIND,
 } from "@/lib/notifications/kinds";
 import { lexiconForTenant } from "@/lib/tenant-lexicon";
 import {
@@ -20,6 +21,7 @@ import {
 } from "@/lib/notifications/submission-emails";
 import { renderGearRequestConfirmationEmail } from "@/lib/notifications/gear-request-confirmation-email";
 import { renderEventRegistrationConfirmationEmail } from "@/lib/notifications/event-registration-confirmation-email";
+import { renderVolunteerApplicationConfirmationEmail } from "@/lib/notifications/volunteer-application-confirmation-email";
 import {
   MEETUP_INSTRUCTIONS_SETTING_KEY,
   PAYMENT_METHODS_SETTING_KEY,
@@ -405,6 +407,81 @@ export async function sendGearRequestConfirmation(
             : null,
       }),
     logPrefix: "[gear-request-confirm]",
+  });
+}
+
+type VolunteerApplicationRow = {
+  id: string;
+  tenant_id: string;
+  person_id: string;
+  name: string | null;
+  email: string | null;
+  reference_code: string;
+};
+
+/**
+ * The applicant's own confirmation (#1069), carrying the reference code.
+ *
+ * Sits beside notifyNewVolunteerApplication() rather than inside it: the two
+ * are separate sends with separate dedupe keys and separate failure modes, and
+ * the staff notice must not be lost because the applicant's address bounced,
+ * nor the reverse. The action calls both from one after() block.
+ *
+ * Keyed on the reference code with its tenant, for the reason that function
+ * documents: a code is unique only *within* a tenant, and the service-role
+ * client has no RLS underneath it to keep an unscoped lookup honest.
+ *
+ * Not a role-holder send -- the recipient is the applicant, who has no account
+ * and no preference row -- so it bypasses the opt-in and goes straight to the
+ * ledger, gated only by the tenant's kill switch.
+ */
+export async function notifyVolunteerApplicationConfirmation(
+  admin: SupabaseClient,
+  options: { tenantId: string; referenceCode: string; siteUrl: string },
+): Promise<DeliveryOutcome> {
+  const { data, error } = await admin
+    .from("volunteer_applications")
+    .select("id, tenant_id, person_id, name, email, reference_code")
+    .eq("tenant_id", options.tenantId)
+    .eq("reference_code", options.referenceCode)
+    .maybeSingle<VolunteerApplicationRow>();
+
+  if (error) {
+    console.error(
+      "[submission-notify] could not read the volunteer application for its confirmation",
+      error,
+    );
+    return "failed";
+  }
+
+  // No row is a filled honeypot: submit_volunteer_application() answers one
+  // with a freshly generated reference code for a row it never inserted. The
+  // blank-address check is belt and braces -- the RPC refuses an address that
+  // does not match its own format check -- but this must never post to "".
+  const to = data?.email?.trim() ?? "";
+  if (!data || !to) return "skipped";
+
+  if (!(await isOrgEmailEnabled(admin, data.tenant_id))) return "skipped";
+
+  const mail = await tenantMailContext(admin, data.tenant_id, {
+    fallbackOrigin: options.siteUrl,
+  });
+
+  return deliverEmail(admin, {
+    tenantId: data.tenant_id,
+    identity: mail.identity,
+    personId: data.person_id,
+    kind: VOLUNTEER_APPLICATION_CONFIRMATION_KIND,
+    dedupeKey: `${VOLUNTEER_APPLICATION_CONFIRMATION_KIND}:${data.id}`,
+    to,
+    render: () =>
+      renderVolunteerApplicationConfirmationEmail({
+        orgName: mail.displayName,
+        applicantName: (data.name ?? "").trim(),
+        referenceCode: data.reference_code,
+        siteUrl: mail.origin,
+      }),
+    logPrefix: "[volunteer-application-confirm]",
   });
 }
 

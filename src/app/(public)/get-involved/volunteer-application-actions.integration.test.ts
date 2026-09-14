@@ -15,6 +15,7 @@ import {
   uniqueEmail,
   uniqueIp,
 } from "../../../../test/integration-setup";
+import { VOLUNTEER_APPLICATION_CONFIRMATION_KIND } from "@/lib/notifications/kinds";
 
 const service = serviceRoleClient();
 
@@ -72,10 +73,14 @@ afterEach(async () => {
   // Settle the scheduled sends before deleting their rows, so a notify still
   // in flight cannot race the cleanup it is reading through.
   await drainAfterTasks();
+  // Both sends (#1069): the staff notice and the applicant's own confirmation.
   await service
     .from("notification_deliveries")
     .delete()
-    .eq("kind", "volunteer_application");
+    .in("kind", [
+      "volunteer_application",
+      VOLUNTEER_APPLICATION_CONFIRMATION_KIND,
+    ]);
   while (submittedEmails.length) {
     await deleteVolunteerApplications(submittedEmails.pop()!);
   }
@@ -283,5 +288,62 @@ describe("submitVolunteerApplicationAction (integration)", () => {
       expect(await drainAfterTasks()).toBe(1);
       expect(await deliveryCount("volunteer_application")).toBe(1);
     });
+  });
+});
+
+// #1069. The action's own half of the applicant's confirmation: that it is
+// scheduled beside the staff notice, and against the right person. What the
+// message says is unit-tested.
+describe("submitVolunteerApplicationAction confirmation", () => {
+  test("emails the applicant their reference code, whoever is listening", async () => {
+    currentIp = uniqueIp();
+    const email = applicantEmail("confirm-applicant");
+
+    const result = await submitVolunteerApplicationAction(
+      formData({ name: "Confirmed Applicant", email }),
+    );
+    expect(result).toMatchObject({ success: true });
+
+    // Scheduled, not awaited: nothing about it may reach the applicant, so it
+    // has to be drained before the ledger is read.
+    await drainAfterTasks();
+
+    const { data: person } = await service
+      .from("people")
+      .select("id")
+      .eq("email", email)
+      .single();
+    const { data: rows } = await service
+      .from("notification_deliveries")
+      .select("person_id, dedupe_key, status")
+      .eq("kind", VOLUNTEER_APPLICATION_CONFIRMATION_KIND);
+
+    expect(rows).toHaveLength(1);
+    expect(rows![0].person_id).toBe(person!.id);
+    expect(rows![0].status).toBe("sent");
+
+    // Nobody opted in to the staff notice here, and the applicant still hears.
+    const [application] = await findVolunteerApplications(email);
+    expect(rows![0].dedupe_key).toBe(
+      `${VOLUNTEER_APPLICATION_CONFIRMATION_KIND}:${application.id}`,
+    );
+  });
+
+  test("schedules nothing for a filled honeypot", async () => {
+    currentIp = uniqueIp();
+    const email = applicantEmail("confirm-honeypot");
+
+    const result = await submitVolunteerApplicationAction(
+      formData({ name: "Bot", email, company: "Acme Spam Co" }),
+    );
+    expect(result).toMatchObject({ success: true });
+
+    await drainAfterTasks();
+
+    const { data: rows } = await service
+      .from("notification_deliveries")
+      .select("id")
+      .eq("kind", VOLUNTEER_APPLICATION_CONFIRMATION_KIND);
+    expect(rows).toEqual([]);
   });
 });
