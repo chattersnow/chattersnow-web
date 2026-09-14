@@ -1,13 +1,28 @@
+// Pinned to a zone that is neither the org's nor the fixture's, the way
+// event-date-defaults.dom.test.tsx has since #1062: a receipt formatted in the
+// running process's zone is the defect this file guards (#1076), and on a
+// machine that happened to sit in the org's zone the assertions would pass for
+// exactly the wrong reason.
+process.env.TZ = "Australia/Sydney";
+
 import { describe, expect, test } from "bun:test";
-import { formatDateTime } from "@/lib/format";
 import {
   buildReceipt,
+  formatReceiptInstant,
   formatReceiptNumber,
   receiptAsPlainText,
 } from "./receipt";
 import type { SaleRow } from "./sales-shared";
 
 const ORG = { name: "Example Nonprofit", logoUrl: null };
+
+/**
+ * The organization's zone. Seven hours behind the fixture's instants and a day
+ * apart from the pinned process zone, so a 5pm-UTC sale reads as the same
+ * morning in Denver, the previous evening had it been formatted in UTC, and
+ * the following morning in Sydney -- three visibly different answers.
+ */
+const ZONE = "America/Denver";
 
 /**
  * Every money column arrives from PostgREST as a string, which is what the
@@ -75,7 +90,7 @@ describe("formatReceiptNumber", () => {
 
 describe("buildReceipt", () => {
   test("maps the lines, in order, with figures already formatted", () => {
-    expect(buildReceipt(sale(), ORG).lines).toEqual([
+    expect(buildReceipt(sale(), ORG, ZONE).lines).toEqual([
       {
         id: "line-1",
         description: "Chatter Snow Beanie — One size",
@@ -94,7 +109,7 @@ describe("buildReceipt", () => {
   });
 
   test("totals carry the tax rate the sale was rung at", () => {
-    const model = buildReceipt(sale(), ORG);
+    const model = buildReceipt(sale(), ORG, ZONE);
     expect(model.totals).toEqual([
       { label: "Subtotal", value: "$65.00" },
       { label: "Discount", value: "−$5.00" },
@@ -113,12 +128,13 @@ describe("buildReceipt", () => {
         total: "20.00",
       }),
       ORG,
+      ZONE,
     );
     expect(model.totals).toEqual([{ label: "Subtotal", value: "$20.00" }]);
   });
 
   test("the purchaser's name is on it and nothing else about them", () => {
-    const model = buildReceipt(sale(), ORG);
+    const model = buildReceipt(sale(), ORG, ZONE);
     expect(model.purchaserName).toBe("Jamie Rivera");
     // The one thing this asserts is an absence, so it asserts it over the
     // whole model rather than over the fields it expects to be wrong.
@@ -127,13 +143,16 @@ describe("buildReceipt", () => {
 
   test("an anonymous sale has no purchaser line at all", () => {
     expect(
-      buildReceipt(sale({ purchaser: null, purchaser_person_id: null }), ORG)
-        .purchaserName,
+      buildReceipt(
+        sale({ purchaser: null, purchaser_person_id: null }),
+        ORG,
+        ZONE,
+      ).purchaserName,
     ).toBeNull();
   });
 
   test("the internal note never reaches the receipt", () => {
-    expect(JSON.stringify(buildReceipt(sale(), ORG))).not.toContain(
+    expect(JSON.stringify(buildReceipt(sale(), ORG, ZONE))).not.toContain(
       "Merch table",
     );
   });
@@ -142,9 +161,16 @@ describe("buildReceipt", () => {
     const voided = buildReceipt(
       sale({ status: "voided", voided_at: "2026-06-02T17:00:00.000Z" }),
       ORG,
+      ZONE,
     );
-    expect(voided.voidedAt).toBe(formatDateTime("2026-06-02T17:00:00.000Z"));
-    expect(buildReceipt(sale(), ORG).voidedAt).toBeNull();
+    expect(voided.voidedAt).toBe("2026-06-02T17:00:00.000Z");
+    expect(buildReceipt(sale(), ORG, ZONE).voidedAt).toBeNull();
+  });
+
+  test("carries the instants unformatted, with the zone to read them in", () => {
+    const model = buildReceipt(sale(), ORG, ZONE);
+    expect(model.soldAt).toBe("2026-06-01T17:00:00.000Z");
+    expect(model.timeZone).toBe(ZONE);
   });
 
   test("numeric columns that arrive as numbers coerce the same way", () => {
@@ -157,19 +183,24 @@ describe("buildReceipt", () => {
         total: 64.95,
       }),
       ORG,
+      ZONE,
     );
-    expect(asNumbers.totals).toEqual(buildReceipt(sale(), ORG).totals);
+    expect(asNumbers.totals).toEqual(buildReceipt(sale(), ORG, ZONE).totals);
     expect(asNumbers.total).toBe("$64.95");
   });
 });
 
 describe("receiptAsPlainText", () => {
   test("is stable, and reads as a receipt", () => {
-    const text = receiptAsPlainText(buildReceipt(sale(), ORG));
+    const text = receiptAsPlainText(buildReceipt(sale(), ORG, ZONE));
     expect(text.split("\n")).toEqual([
       "Example Nonprofit",
       "Receipt #000123",
-      formatDateTime("2026-06-01T17:00:00.000Z"),
+      // Derived rather than written out, so the clipboard text is asserted to
+      // agree with the rendered receipt rather than with a second literal that
+      // could drift from it. What it resolves to is pinned in
+      // `formatReceiptInstant`'s own tests below.
+      formatReceiptInstant("2026-06-01T17:00:00.000Z", ZONE),
       "Fall Trailhead Cleanup",
       "",
       "2 × Chatter Snow Beanie — One size @ $20.00 — $40.00",
@@ -189,8 +220,51 @@ describe("receiptAsPlainText", () => {
       buildReceipt(
         sale({ status: "voided", voided_at: "2026-06-02T17:00:00.000Z" }),
         ORG,
+        ZONE,
       ),
     );
     expect(text.split("\n")[2]).toStartWith("VOIDED ");
+  });
+});
+
+/**
+ * Asserted in parts rather than against one literal: the separator Intl puts
+ * between the date and the time ("," or " at ") moves with the ICU version the
+ * runner was built against, and a test that fails when Bun is upgraded teaches
+ * nobody anything. The day, the clock time and the zone name are what this
+ * ticket is about, and all three are pinned.
+ */
+function expectReadsAs(formatted: string, day: string, time: string) {
+  expect(formatted).toContain(day);
+  expect(formatted).toContain(time);
+}
+
+describe("formatReceiptInstant", () => {
+  test("reads the instant in the given zone and names it", () => {
+    expectReadsAs(
+      formatReceiptInstant("2026-06-01T17:00:00.000Z", ZONE),
+      "Jun 1, 2026",
+      "11:00 AM MDT",
+    );
+  });
+
+  test("a sale rung up in the evening does not print the next day", () => {
+    // The defect #1076 names: 7pm on 28 February in Denver is stored as
+    // 2026-03-01T02:00Z, and a receipt formatted in the server's zone printed
+    // it as 2:00 AM on 1 March -- the wrong day, the wrong month, and with
+    // nothing on the line to say so.
+    expectReadsAs(
+      formatReceiptInstant("2026-03-01T02:00:00.000Z", ZONE),
+      "Feb 28, 2026",
+      "7:00 PM MST",
+    );
+  });
+
+  test("the same instant in another zone is a different receipt line", () => {
+    expectReadsAs(
+      formatReceiptInstant("2026-03-01T02:00:00.000Z", "UTC"),
+      "Mar 1, 2026",
+      "2:00 AM UTC",
+    );
   });
 });
