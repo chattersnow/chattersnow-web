@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import type { Json } from "@/lib/supabase/types";
 import {
   act,
   configure,
@@ -143,7 +144,7 @@ const PHOTO_URL = "https://example.test/carousel-1.jpg";
 
 function editorSlot(
   slot: ContentSlot,
-  value: unknown,
+  value: Json,
   overridden = false,
   hasDraft = false,
 ): EditorSlot {
@@ -620,7 +621,7 @@ describe("publishing a photo", () => {
   const OLD_PHOTO_URL = "https://example.test/carousel-1-old.jpg";
 
   /** A photo slot whose published picture and pending draft differ. */
-  function replacingPhoto(published: unknown, draft: unknown): EditorSlot {
+  function replacingPhoto(published: Json, draft: Json): EditorSlot {
     return {
       slot: CAROUSEL,
       value: draft,

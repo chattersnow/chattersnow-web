@@ -1,5 +1,6 @@
 "use client";
 
+import type { Json } from "@/lib/supabase/types";
 import { FormEvent, MouseEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -32,7 +33,7 @@ import {
 
 export type { EditorSlot } from "./content-shared";
 
-function initialValues(slots: EditorSlot[]): Record<string, unknown> {
+function initialValues(slots: EditorSlot[]): Record<string, Json> {
   return Object.fromEntries(slots.map(({ slot, value }) => [slot.key, value]));
 }
 
@@ -85,7 +86,7 @@ export function ContentEditor({
   canEdit: boolean;
 }) {
   const router = useRouter();
-  const [values, setValues] = useState<Record<string, unknown>>(() =>
+  const [values, setValues] = useState<Record<string, Json>>(() =>
     initialValues(slots),
   );
   const [error, setError] = useState<string | null>(null);
@@ -129,7 +130,7 @@ export function ContentEditor({
   // only the unsaved edits are worth interrupting for (#791).
   const guard = useUnsavedChangesGuard(canEdit && changed.length > 0);
 
-  function setValue(key: string, value: unknown) {
+  function setValue(key: string, value: Json) {
     setValues((current) => ({ ...current, [key]: value }));
   }
 

@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkPermission } from "@/lib/auth/permissions";
+import type { Json } from "@/lib/supabase/types";
 
 export type SettingActionResult = { error: string } | { success: true };
 
@@ -25,7 +26,7 @@ export type SettingActionResult = { error: string } | { success: true };
  */
 export async function writeAppSetting(
   key: string,
-  value: unknown,
+  value: Json,
   revalidate: readonly string[],
 ): Promise<SettingActionResult> {
   const supabase = await createSupabaseServerClient();

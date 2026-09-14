@@ -6,19 +6,24 @@ import { resolveImageUrl } from "@/lib/inventory";
 // Type-only: @/lib/site-layout also exports getSiteLayout, which pulls in
 // createSupabaseServerClient and must not reach the client bundle.
 import type { SponsorWallLayout } from "@/lib/site-layout";
+import type { NonNullColumns, Views } from "@/lib/supabase/types";
 
 /**
  * A sponsor as the public site sees one: the name, and the logo and website
  * from its `people` row. Shared by the event detail page
  * (`public_event_sponsors`) and the tenant-wide wall (`public_sponsor_wall`),
  * which expose the same columns on purpose.
+ *
+ * Derived from the generated view row (#813 Phase 1) rather than restated, so
+ * a column renamed or retyped in a migration fails the build here instead of
+ * rendering as `undefined`. `sponsor_id` is `people.id` through an inner join
+ * and cannot be null; `name` can be, and used to be typed as though it could
+ * not -- `people.name` is only required of a donor who is not anonymous.
  */
-export type PublicSponsor = {
-  sponsor_id: string;
-  name: string;
-  logo_url: string | null;
-  website: string | null;
-};
+export type PublicSponsor = NonNullColumns<
+  Views<"public_sponsor_wall">,
+  "sponsor_id"
+>;
 
 /**
  * One sponsor's mark, with the chrome left to the caller: the logo, the name
@@ -52,7 +57,7 @@ function SponsorMark({
       // eslint-disable-next-line @next/next/no-img-element -- sponsor logos come from arbitrary external hosts, not the curated Google Drive links next.config.ts allows for next/image
       <img
         src={logoSrc}
-        alt={sponsor.name}
+        alt={sponsor.name ?? ""}
         className={imgClassName}
         onError={() => setLogoFailed(true)}
         // A dead hotlink usually fails while the page is still server-rendered
@@ -65,9 +70,14 @@ function SponsorMark({
           if (node?.complete && node.naturalWidth === 0) setLogoFailed(true);
         }}
       />
-    ) : (
+    ) : sponsor.name ? (
       <span className="text-sm font-medium">{sponsor.name}</span>
-    );
+    ) : // Neither a logo nor a name: `people.name` is nullable (an anonymous
+    // donor row has none), so the fallback has nothing to fall back to and
+    // an empty tile is worse than no tile.
+    null;
+
+  if (!inner) return null;
 
   if (!sponsor.website) return inner;
 

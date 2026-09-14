@@ -25,6 +25,7 @@
     "db:stop": "supabase stop",
     "db:status": "supabase status",
     "db:reset": "supabase db reset",
+    "db:types": "supabase gen types typescript --local > src/lib/database.types.ts && prettier --write --log-level warn src/lib/database.types.ts",
     "tenant:provision": "bun --env-file=.env.local scripts/tenant-cli.ts provision",
     "tenant:list": "bun --env-file=.env.local scripts/tenant-cli.ts list",
     "tenant:export": "bun --env-file=.env.local scripts/tenant-cli.ts export",

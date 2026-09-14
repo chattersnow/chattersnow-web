@@ -1,5 +1,6 @@
 "use client";
 
+import type { Json } from "@/lib/supabase/types";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
@@ -57,7 +58,7 @@ export function ContentSectionCard({
   notice?: ReactNode;
   /** Bumped when a value is replaced from outside, to remount keyed editors. */
   resetToken: number;
-  onChange: (key: string, value: unknown) => void;
+  onChange: (key: string, value: Json) => void;
   onReset: (slotKey: string) => void;
   /** Publish this slot alone, rather than everything pending on the page. */
   onPublish: (slotKey: string) => void;

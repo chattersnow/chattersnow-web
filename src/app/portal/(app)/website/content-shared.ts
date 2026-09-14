@@ -1,3 +1,4 @@
+import type { Json } from "@/lib/supabase/types";
 import {
   resolveSiteContent,
   SITE_CONTENT_SLOTS,
@@ -11,8 +12,8 @@ import {
 /** One `site_content` row as the editor's page reads it (#793). */
 export type SiteContentDraftRow = {
   key: string;
-  value: unknown;
-  draft_value: unknown;
+  value: Json;
+  draft_value: Json;
   has_draft: boolean;
   draft_updated_at: string | null;
   draft_updated_by: string | null;
@@ -30,8 +31,8 @@ export type SiteContentDraftRow = {
  */
 export type EditorSlot = {
   slot: ContentSlot;
-  value: unknown;
-  published: unknown;
+  value: Json;
+  published: Json;
   /** Whether the tenant has a published override rather than the default. */
   overridden: boolean;
   /** Whether a draft is waiting to be published. */
@@ -77,7 +78,7 @@ export function resolveDraftAndPublished(
 }
 
 /** A slot's value out of a resolved `SiteContent`, whatever shape it is in. */
-export function readSlot(slot: ContentSlot, content: SiteContent): unknown {
+export function readSlot(slot: ContentSlot, content: SiteContent): Json {
   switch (slot.type) {
     case "text":
       return content.text(slot.key);

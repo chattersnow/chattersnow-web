@@ -1,10 +1,16 @@
-import { SponsorTile, type PublicSponsor } from "@/components/sponsor-wall";
+import { SponsorTile } from "@/components/sponsor-wall";
+import type { NonNullColumns, Views } from "@/lib/supabase/types";
 
 /**
  * The sponsors of one event. Same shape as the tenant-wide wall's rows, since
- * `public_event_sponsors` and `public_sponsor_wall` expose the same columns.
+ * `public_event_sponsors` and `public_sponsor_wall` expose the same columns --
+ * but derived from its own generated row (#813 Phase 1), so the day the two
+ * views stop agreeing the build says so.
  */
-export type PublicEventSponsor = PublicSponsor;
+export type PublicEventSponsor = NonNullColumns<
+  Omit<Views<"public_event_sponsors">, "event_id">,
+  "sponsor_id"
+>;
 
 export function EventSponsors({
   sponsors,

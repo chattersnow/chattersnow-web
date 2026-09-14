@@ -49,6 +49,14 @@ export async function generateMetadata({
   };
 }
 
+/**
+ * primary_contact is a computed relationship on the view; see PERSON_COLUMNS
+ * in people-directory.tsx for why, and for why this is annotated `string`
+ * rather than left as a literal (#813 Phase 1).
+ */
+const PERSON_DETAIL_COLUMNS: string =
+  "id, name, email, notification_email, notification_email_pending, phone, pronouns, instagram_handle, notes, logo_url, website, auth_user_id, is_donor, is_sponsor, is_volunteer, is_attendee, is_staff, is_partner, is_recipient, person_type, riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain, primary_contact_person_id, primary_contact(id, name, email, phone)";
+
 export default async function PersonDetailPage({
   params,
 }: {
@@ -65,11 +73,7 @@ export default async function PersonDetailPage({
   const [{ data: person }, vocabulary] = await Promise.all([
     supabase
       .from(PEOPLE_WITH_ROLES)
-      .select(
-        // primary_contact is a computed relationship on the view; see
-        // PERSON_COLUMNS in people-directory.tsx for why.
-        "id, name, email, notification_email, notification_email_pending, phone, pronouns, instagram_handle, notes, logo_url, website, auth_user_id, is_donor, is_sponsor, is_volunteer, is_attendee, is_staff, is_partner, is_recipient, person_type, riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain, primary_contact_person_id, primary_contact(id, name, email, phone)",
-      )
+      .select(PERSON_DETAIL_COLUMNS)
       .eq("id", id)
       .maybeSingle(),
     getPortalVocabulary(supabase),

@@ -37,7 +37,12 @@ import {
 } from "@/components/portal/list-navigation";
 import { StatTile } from "../home/stat-tile";
 import { NewPersonDialog } from "./new-person-dialog";
-import { PEOPLE_WITH_ROLES, rolesFor, type PersonRow } from "./people-shared";
+import {
+  PEOPLE_WITH_ROLES,
+  rolesFor,
+  type PersonRow,
+  type PersonType,
+} from "./people-shared";
 import { getPortalVocabulary } from "@/lib/tenant-person-roles";
 import {
   emptyManageDescription,
@@ -54,7 +59,15 @@ import { PeopleSegmentNav } from "./people-segment-nav";
  * directions of that self-reference are visible, which PostgREST rejects as
  * ambiguous (see 20260903030000).
  */
-const PERSON_COLUMNS =
+/**
+ * Annotated `string` rather than left as a literal (#813 Phase 1): with the
+ * schema-typed client, PostgREST's select parser walks this 26-column list and
+ * its embedded `primary_contact(...)` relationship at the type level, and TypeScript
+ * gives up with "type instantiation is excessively deep". Widening the constant
+ * stops the parse; the result is typed by the `PersonRow` assertion below,
+ * which is what typed it before the generated types existed either.
+ */
+const PERSON_COLUMNS: string =
   "id, name, preferred_name, email, notification_email, notification_email_pending, phone, pronouns, instagram_handle, notes, logo_url, website, auth_user_id, is_donor, is_sponsor, is_volunteer, is_attendee, is_staff, is_partner, is_recipient, person_type, riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain, primary_contact_person_id, primary_contact(id, name, email, phone)";
 
 /**
@@ -136,7 +149,12 @@ export async function PeopleDirectory({
         .select(
           "id, name, preferred_name, email, phone, person_type, auth_user_id",
         )
-        .order("name", { ascending: true }),
+        .order("name", { ascending: true })
+        // `people.person_type` is `text` guarded by the
+        // `people_person_type_check` constraint, which the type generator
+        // cannot read, so it comes back as `string` (#813 Phase 1). The
+        // constraint is the guarantee; this states it where the rows are read.
+        .overrideTypes<{ person_type: PersonType }[]>(),
       segment.stats ? segment.stats(supabase) : Promise.resolve(null),
     ]);
   const segmentStats = stats && resolveStats(stats, vocabulary);

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkPermission } from "@/lib/auth/permissions";
+import type { Json } from "@/lib/supabase/types";
 import {
   writeAppSetting,
   type SettingActionResult,
@@ -63,7 +64,7 @@ const SETTINGS_PATH = "/portal/administration/organization-settings";
  */
 export async function updateAppSettingAction(
   key: string,
-  value: unknown,
+  value: Json,
 ): Promise<SettingActionResult> {
   return writeAppSetting(key, value, [SETTINGS_PATH]);
 }
@@ -315,7 +316,7 @@ export async function updateBrandingAction(
   );
   if (permissionError) return permissionError;
 
-  const rows: { key: string; value: unknown }[] = [];
+  const rows: { key: string; value: Json }[] = [];
   for (const token of BRAND_COLOR_TOKENS) {
     const raw = String(formData.get(token.key) ?? "").trim();
     if (!raw) {
@@ -393,7 +394,7 @@ export async function updateLexiconAction(
   );
   if (permissionError) return permissionError;
 
-  const rows: { key: string; value: unknown }[] = [];
+  const rows: { key: string; value: Json }[] = [];
   for (const term of LEXICON_TERMS) {
     const value = String(formData.get(term.key) ?? "").trim();
     if (value.length > MAX_LEXICON_TERM_LENGTH) {

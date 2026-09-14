@@ -4,28 +4,30 @@ import { DATE_TIME_WITH_ZONE, formatDateTimeInZone } from "@/lib/time";
 import { EventFlierTile } from "./event-flier";
 import type { PublicEventSponsor } from "./event-sponsors";
 import { publicEventPath } from "./event-path";
+import type { NonNullColumns, Views } from "@/lib/supabase/types";
 
-export type PublicEvent = {
-  id: string;
-  name: string;
-  location: string | null;
-  starts_at: string;
-  ends_at: string | null;
-  timezone: string;
-  description: string | null;
-  capacity: number | null;
-  registration_enabled: boolean;
-  registration_deadline: string | null;
-  flier_url: string | null;
+/**
+ * One row of `public_events`, derived from the generated view row (#813
+ * Phase 1). The five narrowed columns are `not null` on `events`; a view drops
+ * that, so the generator reports every column nullable and the narrowing has
+ * to be stated (see NonNullColumns). Everything else -- which columns exist,
+ * and their types -- now comes from the migrations.
+ */
+export type PublicEventRow = NonNullColumns<
+  Views<"public_events">,
+  "id" | "name" | "starts_at" | "timezone" | "registration_enabled"
+>;
+
+export type PublicEvent = PublicEventRow & {
   /** The programs this event counts toward, from public_event_programs. */
   programs: PublicEventProgram[];
   sponsors: PublicEventSponsor[];
 };
 
-export type PublicEventProgram = {
-  program_id: string;
-  name: string;
-};
+export type PublicEventProgram = NonNullColumns<
+  Omit<Views<"public_event_programs">, "event_id">,
+  "program_id" | "name"
+>;
 
 /**
  * The eyebrow above an event's title. Events aren't required to belong to a
