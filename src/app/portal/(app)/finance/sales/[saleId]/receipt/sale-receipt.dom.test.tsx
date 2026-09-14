@@ -1,10 +1,19 @@
+// Neither the organization's zone nor the fixture's, deliberately (#1076,
+// following #1062): the receipt must read in ZONE below whatever clock the
+// machine running the tests is on, and a runner sitting in Denver would let a
+// regression to the process zone pass unnoticed.
+process.env.TZ = "Australia/Sydney";
+
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { render, screen } from "@testing-library/react";
-import { buildReceipt } from "../../receipt";
+import { buildReceipt, formatReceiptInstant } from "../../receipt";
 import type { SaleRow } from "../../sales-shared";
 import { SaleReceipt } from "./sale-receipt";
 
 const printMock = mock(() => {});
+
+/** The organization's zone, seven hours behind the fixture's instants. */
+const ZONE = "America/Denver";
 
 function sale(overrides: Partial<SaleRow> = {}): SaleRow {
   return {
@@ -56,10 +65,11 @@ function sale(overrides: Partial<SaleRow> = {}): SaleRow {
 function renderReceipt(overrides: Partial<SaleRow> = {}, autoPrint = false) {
   return render(
     <SaleReceipt
-      model={buildReceipt(sale(overrides), {
-        name: "Example Nonprofit",
-        logoUrl: null,
-      })}
+      model={buildReceipt(
+        sale(overrides),
+        { name: "Example Nonprofit", logoUrl: null },
+        ZONE,
+      )}
       autoPrint={autoPrint}
     />,
   );
@@ -124,6 +134,27 @@ describe("SaleReceipt", () => {
   test("a voided sale carries one, with the date it was voided", () => {
     renderReceipt({ status: "voided", voided_at: "2026-06-02T17:00:00.000Z" });
     expect(screen.getByText("Voided")).toBeInTheDocument();
+    expect(
+      screen.getByText(formatReceiptInstant("2026-06-02T17:00:00.000Z", ZONE)),
+    ).toBeInTheDocument();
+  });
+
+  test("the sale time reads in the organization's zone, and says which", () => {
+    const { container } = renderReceipt();
+
+    // 5pm UTC is 11am in Denver. Rendered in the process zone it would say
+    // "Jun 2" -- the next day, in Sydney -- which is the defect #1076 fixes.
+    const printed = screen.getByText(
+      formatReceiptInstant("2026-06-01T17:00:00.000Z", ZONE),
+    );
+    expect(printed).toHaveTextContent("Jun 1, 2026");
+    expect(printed).toHaveTextContent("11:00 AM MDT");
+
+    // The instant itself stays in the markup whatever the text reads, the way
+    // <ViewerTime> leaves it everywhere else in the portal.
+    expect(
+      container.querySelector('time[datetime="2026-06-01T17:00:00.000Z"]'),
+    ).not.toBeNull();
   });
 
   test("?print=1 opens the print dialog exactly once", () => {

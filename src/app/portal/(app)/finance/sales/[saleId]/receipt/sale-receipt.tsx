@@ -6,7 +6,11 @@ import { ArrowLeft, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BrandLogo } from "@/components/brand-logo";
 import { CopyButton } from "@/components/copy-button";
-import { receiptAsPlainText, type ReceiptModel } from "../../receipt";
+import {
+  formatReceiptInstant,
+  receiptAsPlainText,
+  type ReceiptModel,
+} from "../../receipt";
 
 /**
  * The printable receipt, and the three things you can do with it.
@@ -18,6 +22,13 @@ import { receiptAsPlainText, type ReceiptModel } from "../../receipt";
  * the first. The scoping is the shared `.print-area` rule in globals.css --
  * everything outside the marked element is hidden for the print, so the
  * toolbar, the sidebar and the breadcrumbs stay off the paper.
+ *
+ * The two times are formatted here rather than upstream, from the instants and
+ * the zone the model carries (#1076). `<ViewerTime>` is deliberately not used:
+ * it renders the *viewer's* clock, and a receipt reads in the organization's,
+ * so two people opening the same one see the same document. The `<time>`
+ * wrapper is the same one it produces, so the machine-readable instant is in
+ * the markup whatever the rendered text says.
  */
 export function SaleReceipt({
   model,
@@ -75,7 +86,11 @@ export function SaleReceipt({
           <h1 className="brand-display text-2xl font-semibold tracking-[-0.03em]">
             Receipt {model.receiptNumber}
           </h1>
-          <p className="app-muted">{model.soldAt}</p>
+          <p className="app-muted">
+            <time dateTime={model.soldAt}>
+              {formatReceiptInstant(model.soldAt, model.timeZone)}
+            </time>
+          </p>
           {model.eventName && <p className="app-muted">{model.eventName}</p>}
         </header>
 
@@ -86,7 +101,9 @@ export function SaleReceipt({
           <p className="mt-4 border-2 border-current p-3 text-center font-semibold tracking-[0.2em] uppercase">
             Voided
             <span className="block text-xs font-normal tracking-normal normal-case">
-              {model.voidedAt}
+              <time dateTime={model.voidedAt}>
+                {formatReceiptInstant(model.voidedAt, model.timeZone)}
+              </time>
             </span>
           </p>
         )}

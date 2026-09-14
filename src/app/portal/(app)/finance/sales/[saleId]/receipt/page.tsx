@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantBranding } from "@/lib/tenant-branding";
+import { getOrgTimeZone } from "@/lib/org-timezone";
 import { currentTenant, getTenantContext } from "@/lib/portal/tenants";
 import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Card, CardContent } from "@/components/ui/card";
@@ -57,20 +58,28 @@ export default async function SaleReceiptPage({
   const [{ saleId }, { print }] = await Promise.all([params, searchParams]);
 
   const supabase = await createSupabaseServerClient();
-  const [sale, tenantContext, branding] = await Promise.all([
+  const [sale, tenantContext, branding, timeZone] = await Promise.all([
     loadSale(saleId),
     getTenantContext(supabase),
     getTenantBranding(supabase),
+    // The organization's zone, not the server's and not the viewer's (#1076):
+    // the receipt has to read the same for everyone who opens it, and on the
+    // same day boundary the finance rollup counts on (#1065).
+    getOrgTimeZone(supabase),
   ]);
 
   if (!sale) notFound();
 
-  const model = buildReceipt(sale, {
-    // The tenant's own name, never a literal: this page is served to every
-    // organization on the platform.
-    name: currentTenant(tenantContext)?.name ?? "",
-    logoUrl: branding.logoUrl,
-  });
+  const model = buildReceipt(
+    sale,
+    {
+      // The tenant's own name, never a literal: this page is served to every
+      // organization on the platform.
+      name: currentTenant(tenantContext)?.name ?? "",
+      logoUrl: branding.logoUrl,
+    },
+    timeZone,
+  );
 
   return (
     <>
