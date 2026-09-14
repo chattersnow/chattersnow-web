@@ -35,18 +35,30 @@ export type ClientOptions = {
    * one active tenant, the public views and intake RPCs resolve nothing.
    */
   host?: string;
+  /**
+   * Tenant slug to present as `x-tenant-slug` (#813 Phase 2), the header a
+   * consumer on another origin names its tenant with when it has no
+   * meaningful Host to offer. It beats `host` where both are sent, and a slug
+   * naming no active tenant resolves to nothing rather than falling through.
+   *
+   * Pass the empty string to send the header blank, which is treated as not
+   * sending it at all.
+   */
+  slug?: string;
 };
 
 export function anonClient(options: ClientOptions = {}) {
+  const headers: Record<string, string> = {};
+  if (options.host) headers["x-tenant-host"] = options.host;
+  if (options.slug !== undefined) headers["x-tenant-slug"] = options.slug;
+
   return createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
       detectSessionInUrl: false,
     },
-    global: options.host
-      ? { headers: { "x-tenant-host": options.host } }
-      : undefined,
+    global: Object.keys(headers).length > 0 ? { headers } : undefined,
   });
 }
 
