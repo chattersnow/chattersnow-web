@@ -1,0 +1,82 @@
+<!doctype html>
+<!--
+  The installed portal's offline face (#1083).
+
+  A static file with no organization's name, colour or logo on it, and that is
+  deliberate: it is precached by the service worker before anyone signs in, so
+  it is the one page in the app that is served from a cache rather than from a
+  tenant's row, and a cached page that named an organization would eventually
+  name the wrong one. Everything a tenant owns stays on the network side.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>No connection</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f7f0ff;
+        --fg: #32134f;
+        --muted: #32134fb8;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #171418;
+          --fg: #f6f1fb;
+          --muted: #f6f1fbb8;
+        }
+      }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+        background: var(--bg);
+        color: var(--fg);
+        font-family:
+          ui-rounded,
+          "Quicksand",
+          system-ui,
+          -apple-system,
+          sans-serif;
+      }
+      main {
+        max-width: 28rem;
+        text-align: center;
+      }
+      h1 {
+        font-size: 1.375rem;
+        margin: 0 0 0.75rem;
+      }
+      p {
+        margin: 0 0 1.5rem;
+        line-height: 1.6;
+        color: var(--muted);
+      }
+      button {
+        font: inherit;
+        font-weight: 600;
+        min-height: 2.75rem;
+        padding: 0 1.25rem;
+        border: 0;
+        border-radius: 0.5rem;
+        background: var(--fg);
+        color: var(--bg);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>No connection</h1>
+      <p>
+        This page needs the internet. Nothing you were working on has been sent
+        &mdash; reconnect and try again, and check that anything you were
+        recording actually saved.
+      </p>
+      <button type="button" onclick="location.reload()">Try again</button>
+    </main>
+  </body>
+</html>

@@ -9,6 +9,7 @@ import {
   type SettingActionResult,
 } from "@/lib/settings/write-app-setting";
 import {
+  APP_ICON_URL_TOKEN,
   BRAND_COLOR_TOKENS,
   MAX_ACCENT_STOPS,
   brandSettingKey,
@@ -355,6 +356,13 @@ export async function updateBrandingAction(
   rows.push({
     key: brandSettingKey("logo_url"),
     value: String(formData.get("logo_url") ?? "").trim(),
+  });
+  // Not validated beyond the trim, same as the logo: it is a URL an admin
+  // pasted, and `/api/app-icon` refuses anything that does not come back as a
+  // raster image and draws the generated initials instead (#1083).
+  rows.push({
+    key: brandSettingKey(APP_ICON_URL_TOKEN),
+    value: String(formData.get(APP_ICON_URL_TOKEN) ?? "").trim(),
   });
 
   const { error } = await supabase

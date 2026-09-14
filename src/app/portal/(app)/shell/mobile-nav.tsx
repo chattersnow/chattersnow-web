@@ -25,6 +25,7 @@ import { type Lexicon } from "@/lib/lexicon";
 import { DEFAULT_VOCABULARY } from "@/lib/person-roles";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { InstallAppItem } from "@/components/portal/install-app";
 import { signOutAndRedirect } from "@/lib/auth/sign-out";
 import { sectionIcon } from "../nav-icons";
 import { LogoutConfirmDialog } from "../logout-confirm-dialog";
@@ -39,6 +40,13 @@ import { LogoutConfirmDialog } from "../logout-confirm-dialog";
  * are applied once and a phone can never be offered a module a tenant does
  * not have.
  */
+/**
+ * The sheet's footer rows -- account, install, log out -- which are buttons
+ * and links alike and have to look identical to each other.
+ */
+const ACCOUNT_ROW_CLASS =
+  "flex min-h-11 w-full items-center gap-3 rounded-md px-3 text-left text-base";
+
 export function MobileNav({
   permissions,
   lexicon = DEFAULT_VOCABULARY,
@@ -212,7 +220,7 @@ export function MobileNav({
               <Link
                 href="/portal/account"
                 onClick={() => setSheetOpen(false)}
-                className="flex min-h-11 items-center gap-3 rounded-md px-3 text-base"
+                className={ACCOUNT_ROW_CLASS}
               >
                 <UserRound className="size-4 shrink-0" aria-hidden />
                 My Account
@@ -221,11 +229,16 @@ export function MobileNav({
                 <ThemeToggle className="size-11 rounded-md" />
                 <span className="text-base">Appearance</span>
               </div>
+              {/* Here rather than in the header or on the dashboard (#1083):
+                  installing is a thing you do once, from the same menu that
+                  holds the account and the theme, and it renders nothing at
+                  all on a browser that cannot install or has already. */}
+              <InstallAppItem className={ACCOUNT_ROW_CLASS} />
               <button
                 type="button"
                 disabled={isSigningOut}
                 onClick={() => setConfirmLogout(true)}
-                className="flex min-h-11 w-full items-center gap-3 rounded-md px-3 text-left text-base"
+                className={ACCOUNT_ROW_CLASS}
               >
                 <LogOut className="size-4 shrink-0" aria-hidden />
                 {isSigningOut ? "Signing out..." : "Log out"}
