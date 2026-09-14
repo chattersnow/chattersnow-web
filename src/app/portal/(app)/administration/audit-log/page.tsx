@@ -82,6 +82,11 @@ export default async function AuditLogPage({
 
   return (
     <>
+      {/* TEMPORARY (#844): a deliberate axe violation -- an image with no
+          accessible name -- to prove the sharded a11y gate fails on the
+          shard that owns this route. Reverted immediately after the run. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/file.svg" width={1} height={1} />
       <div className="w-fit">
         <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
           Audit Log
