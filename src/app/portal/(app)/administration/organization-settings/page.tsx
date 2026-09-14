@@ -6,9 +6,11 @@ import { WorkflowThresholdsForm } from "./workflow-thresholds-form";
 import { OrganizationSettingsTabs } from "./organization-settings-tabs";
 import { NotificationsPanel } from "./notifications-panel";
 import { FiscalYearPanel } from "./fiscal-year-panel";
+import { TimeZonePanel } from "./timezone-panel";
 import { BrandingPanel } from "./branding-panel";
 import { DataPanel } from "./data-panel";
 import { getFiscalYearStartMonth } from "@/lib/fiscal-year";
+import { getOrgTimeZone } from "@/lib/org-timezone";
 import { SALES_TAX_RATE_SETTING_KEY } from "@/lib/sales-tax";
 import { getTenantBranding } from "@/lib/tenant-branding";
 import { getStoredLexicon } from "@/lib/tenant-lexicon";
@@ -90,6 +92,7 @@ export default async function OrganizationSettingsPage() {
 
   const [
     fiscalYearStartMonth,
+    orgTimeZone,
     branding,
     tenantContext,
     emailEnabled,
@@ -98,6 +101,7 @@ export default async function OrganizationSettingsPage() {
     recipientsByKind,
   ] = await Promise.all([
     getFiscalYearStartMonth(supabase),
+    getOrgTimeZone(supabase),
     getTenantBranding(supabase),
     getTenantContext(supabase),
     getOrgEmailEnabled(supabase),
@@ -152,6 +156,13 @@ export default async function OrganizationSettingsPage() {
             the audit log.
           </p>
           <FiscalYearPanel fiscalYearStartMonth={fiscalYearStartMonth} />
+          <p className="app-muted max-w-3xl text-sm leading-relaxed">
+            Where this organization&apos;s days begin and end. Reports count a
+            day in this zone, so an evening sale on the last day of the month
+            lands in the month the staff would put it in — and, like the fiscal
+            year, every change is recorded in the audit log.
+          </p>
+          <TimeZonePanel timeZone={orgTimeZone} />
           <p className="app-muted max-w-3xl text-sm leading-relaxed">
             What this organization calls the things it lends. The platform says
             &ldquo;inventory&rdquo; and &ldquo;items&rdquo;; yours may be a gear

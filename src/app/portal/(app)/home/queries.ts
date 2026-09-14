@@ -125,9 +125,12 @@ export async function getFinancialSummary(
   startOfMonthDate: string,
   startOfYearDate: string,
   nowIso: string,
+  // The organization's today, not `nowIso`'s. get_finance_report_data buckets
+  // its rows in the org's zone (#1065), so the end of every window below has
+  // to be the same day the org is having -- deriving it from the instant put
+  // this dashboard a day ahead all evening for a tenant west of Greenwich.
+  todayDate: string,
 ): Promise<FinancialSummary> {
-  const todayDate = nowIso.slice(0, 10);
-
   const [
     { data: expensesThisYear },
     { data: expensesThisMonth },

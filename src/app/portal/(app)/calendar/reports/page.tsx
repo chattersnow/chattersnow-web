@@ -10,6 +10,8 @@ import {
   type AnnualReviewPermissionRow,
 } from "./annual-review";
 import { formatNumber } from "@/lib/format";
+import { getOrgTimeZone } from "@/lib/org-timezone";
+import { todayInZone, utcDateFromIsoDay } from "@/lib/time";
 import {
   fiscalYearForDate,
   fiscalYearOptions,
@@ -55,11 +57,20 @@ export default async function CalendarAnnualReviewPage({
   // The review is scoped to the org's fiscal year, not the calendar year, so
   // a winter season's planning sits in one report. `year` in the URL is the
   // fiscal year, named for the calendar year it ends in.
-  const startMonth = await getFiscalYearStartMonth(supabase);
-  const currentYear = fiscalYearForDate(new Date(), startMonth);
+  //
+  // Which fiscal year is "current" is read off the organization's day rather
+  // than the server's UTC one, so that on 30 June in Denver this report is
+  // still last year's until the org's midnight, not until 6pm (#1065). The RPC
+  // brackets the range in the same zone.
+  const [orgTimeZone, startMonth] = await Promise.all([
+    getOrgTimeZone(supabase),
+    getFiscalYearStartMonth(supabase),
+  ]);
+  const today = utcDateFromIsoDay(todayInZone(orgTimeZone));
+  const currentYear = fiscalYearForDate(today, startMonth);
   const requestedYear = Number(raw("year"));
   const year = Number.isInteger(requestedYear) ? requestedYear : currentYear;
-  const yearOptions = fiscalYearOptions(new Date(), startMonth);
+  const yearOptions = fiscalYearOptions(today, startMonth);
   const range = fiscalYearRange(year, startMonth);
 
   let review: AnnualReview | null = null;

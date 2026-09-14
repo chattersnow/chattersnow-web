@@ -3,6 +3,8 @@ import {
   daysInMonth,
   formatDueRelative,
   isEventActiveToday,
+  todayInZone,
+  utcDateFromIsoDay,
   zonedWallTimeToUtcIso,
 } from "@/lib/time";
 
@@ -136,6 +138,46 @@ describe("zonedWallTimeToUtcIso", () => {
   test("round-trips through UTC itself", () => {
     expect(zonedWallTimeToUtcIso(2027, 1, 1, 0, 0, 0, "UTC")).toBe(
       "2027-01-01T00:00:00.000Z",
+    );
+  });
+});
+
+describe("todayInZone", () => {
+  // The case the whole of #1065 turns on: an evening in Denver is already
+  // tomorrow in UTC, which is the zone the server process runs in.
+  const lateEvening = new Date("2026-03-01T02:00:00Z");
+
+  test("gives the organization's day, not the server's", () => {
+    expect(todayInZone("America/Denver", lateEvening)).toBe("2026-02-28");
+    expect(todayInZone("UTC", lateEvening)).toBe("2026-03-01");
+  });
+
+  test("agrees with UTC once the org's day has caught up", () => {
+    const midday = new Date("2026-03-01T18:00:00Z");
+    expect(todayInZone("America/Denver", midday)).toBe("2026-03-01");
+    expect(todayInZone("UTC", midday)).toBe("2026-03-01");
+  });
+
+  test("pads a single-digit month and day", () => {
+    expect(
+      todayInZone("America/Denver", new Date("2026-07-04T18:00:00Z")),
+    ).toBe("2026-07-04");
+  });
+});
+
+describe("utcDateFromIsoDay", () => {
+  test("reads back as the same day in UTC, which the fiscal-year math uses", () => {
+    const date = utcDateFromIsoDay("2026-08-31");
+    expect(date.getUTCFullYear()).toBe(2026);
+    expect(date.getUTCMonth() + 1).toBe(8);
+    expect(date.getUTCDate()).toBe(31);
+    expect(date.toISOString()).toBe("2026-08-31T00:00:00.000Z");
+  });
+
+  test("round-trips a zone-anchored day", () => {
+    const day = todayInZone("America/Denver", new Date("2026-03-01T02:00:00Z"));
+    expect(utcDateFromIsoDay(day).toISOString().slice(0, 10)).toBe(
+      "2026-02-28",
     );
   });
 });
