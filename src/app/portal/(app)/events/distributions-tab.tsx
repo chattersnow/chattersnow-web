@@ -63,6 +63,7 @@ const COLUMNS: PortalDataTableColumn<EventDistributionRow>[] = [
   {
     key: "reason",
     label: "Reason",
+    hideBelow: "sm",
     sortValue: (movement) => movement.reason,
     cellClassName: "app-muted",
     render: (movement) => movement.reason || "—",

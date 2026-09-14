@@ -126,3 +126,57 @@ test.describe("a phone that gets rotated", () => {
     ).toHaveCount(0);
   });
 });
+
+// Issue #1090: a wide table is carried onto a phone by dropping columns, and
+// dropping a column is only honest if the value it dropped is still reachable.
+test.describe("portal tables on a phone", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("a dropped column comes back through the row's disclosure", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await useShell(page, "mobile");
+    await page.goto("/portal/governance/board-members");
+
+    // Term start and term end are `hideBelow`, so the phone never shows them
+    // as columns of their own.
+    await expect(
+      page.getByRole("columnheader", { name: "Term start" }),
+    ).toBeHidden();
+
+    const row = page.getByRole("row").filter({ hasText: "Secretary" }).first();
+    await row.getByRole("button", { name: "Show more columns" }).click();
+
+    const detail = page.locator("tr[data-row-detail]").first();
+    await expect(detail).toBeVisible();
+    await expect(detail).toContainText("Term start");
+    await expect(detail).toContainText("Term end");
+  });
+
+  test("inventory opens on the gallery, and the toggle still wins", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await useShell(page, "mobile");
+    await page.goto("/portal/inventory/items");
+
+    // The photograph is what identifies a gear item, so on a 390px screen a
+    // 2-up grid beats a table read through a sideways scroll. It is only the
+    // starting point: the toggle and its stored choice still decide.
+    //
+    // Named by a column of the items table rather than by `table`: the page
+    // also carries a short value-by-status aggregate that neither view
+    // touches.
+    const itemsTable = page.getByRole("columnheader", { name: "Description" });
+    await expect(itemsTable).toHaveCount(0);
+
+    await page.getByRole("button", { name: "List view" }).click();
+    await expect(itemsTable).toBeVisible();
+
+    // The stored choice survives a fresh request, where the server is still
+    // saying `mobile`.
+    await page.reload();
+    await expect(itemsTable).toBeVisible();
+  });
+});

@@ -99,12 +99,14 @@ export function SuggestionRulesTable({
         // Truncated free text: there is nothing a reader would look for in
         // its alphabetical order, so it stays unsorted.
         label: "Note",
+        hideBelow: "lg",
         cellClassName: "max-w-xs truncate app-muted",
         render: (rule) => rule.note || "—",
       },
       {
         key: "is_active",
         label: "Active",
+        hideBelow: "sm",
         // The word the cell shows, so ascending groups the "No"s first
         // instead of ordering on a boolean a reader can't see.
         sortValue: (rule) => (rule.is_active ? "Yes" : "No"),

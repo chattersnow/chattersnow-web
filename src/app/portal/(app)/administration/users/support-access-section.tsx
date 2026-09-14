@@ -135,6 +135,7 @@ export function SupportAccessSection({
       {
         key: "reason",
         label: "Reason",
+        hideBelow: "md",
         cellClassName: "max-w-sm",
         render: (grant) => (
           <span className="block truncate" title={grant.reason ?? undefined}>

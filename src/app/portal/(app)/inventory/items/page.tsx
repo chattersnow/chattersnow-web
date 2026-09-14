@@ -19,6 +19,7 @@ import {
   totalPagesFor,
 } from "@/lib/pagination";
 import { InventoryTable } from "./inventory-table";
+import { deviceClass } from "@/lib/portal/device";
 import { InventoryViewProvider } from "./inventory-view-context";
 import { InventoryViewToggle } from "./inventory-view-toggle";
 import {
@@ -54,6 +55,7 @@ export default async function InventoryPage({
 }: InventoryPageProps) {
   const supabase = await createSupabaseServerClient();
   const lexicon = await getTenantLexicon(supabase);
+  const device = await deviceClass();
 
   const params = await searchParams;
   const raw = (key: string) => {
@@ -296,7 +298,14 @@ export default async function InventoryPage({
         <div className="rainbow-accent mt-3 w-full" />
       </div>
 
-      <InventoryViewProvider>
+      {/*
+        A one-line server decision off the proxy's device class (#1079): the
+        gallery is the better way to pick a gear item on a 390px screen,
+        where the photograph is the identifying feature and the table is not.
+      */}
+      <InventoryViewProvider
+        defaultView={device === "mobile" ? "gallery" : "list"}
+      >
         <div className="rainbow-surface mt-6 flex flex-wrap items-end justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
           <InventoryViewToggle />
 

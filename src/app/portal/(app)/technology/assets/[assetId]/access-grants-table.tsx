@@ -211,6 +211,7 @@ export function AccessGrantsTable({
         key: "granted_at",
         // ISO dates here and below, so string order is date order.
         label: "Granted",
+        hideBelow: "lg",
         sortValue: (grant) => grant.granted_at,
         cellClassName: "app-muted",
         render: (grant) => grant.granted_at,
@@ -218,6 +219,7 @@ export function AccessGrantsTable({
       {
         key: "last_verified",
         label: "Last verified",
+        hideBelow: "md",
         sortValue: (grant) => grant.last_verified,
         cellClassName: "app-muted",
         render: (grant) => grant.last_verified || "—",

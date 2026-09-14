@@ -67,6 +67,7 @@ export function MeetingsTable({
       {
         key: "location",
         label: "Location",
+        hideBelow: "md",
         // Left null rather than coalesced to "", so a meeting with no
         // location sorts to the end either way instead of leading the
         // ascending sort with a column of em dashes.

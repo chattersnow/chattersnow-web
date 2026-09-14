@@ -49,7 +49,13 @@ function renderTable(props: React.ComponentProps<typeof Table> = {}) {
   const wrapper = container.querySelector<HTMLElement>(
     '[data-slot="table-container"]',
   )!;
-  return { wrapper, table: container.querySelector<HTMLElement>("table")! };
+  return {
+    wrapper,
+    table: container.querySelector<HTMLElement>("table")!,
+    fade: container.querySelector<HTMLElement>(
+      '[data-slot="table-scroll-fade"]',
+    )!,
+  };
 }
 
 /**
@@ -59,11 +65,15 @@ function renderTable(props: React.ComponentProps<typeof Table> = {}) {
  */
 function measure(
   { wrapper, table }: { wrapper: HTMLElement; table: HTMLElement },
-  widths: { tableWidth: number; clientWidth: number },
+  widths: { tableWidth: number; clientWidth: number; scrollLeft?: number },
 ) {
   Object.defineProperty(wrapper, "clientWidth", {
     configurable: true,
     get: () => widths.clientWidth,
+  });
+  Object.defineProperty(wrapper, "scrollLeft", {
+    configurable: true,
+    get: () => widths.scrollLeft ?? 0,
   });
   table.getBoundingClientRect = () => ({ width: widths.tableWidth }) as DOMRect;
   act(() => notify?.());
@@ -141,5 +151,40 @@ describe("Table", () => {
     });
     measure(rendered, { tableWidth: 900, clientWidth: 900 });
     expect(rendered.table.className).toContain("[&_thead_th:first-child]:z-30");
+  });
+
+  test("fades the right edge while the table continues past it", () => {
+    // `overflow-x-auto` is silent: without this a table that carries on to
+    // the right looks exactly like one that ends there, and on a touch
+    // device there is not even a scrollbar to give it away.
+    const rendered = renderTable();
+    measure(rendered, { tableWidth: 900, clientWidth: 390 });
+    expect(rendered.fade.className).toContain("opacity-100");
+  });
+
+  test("drops the fade once the last column is in view", () => {
+    const rendered = renderTable();
+    measure(rendered, { tableWidth: 900, clientWidth: 390, scrollLeft: 510 });
+    expect(rendered.fade.className).toContain("opacity-0");
+  });
+
+  test("never fades a table that fits", () => {
+    const rendered = renderTable();
+    measure(rendered, { tableWidth: 900, clientWidth: 900 });
+    expect(rendered.fade.className).toContain("opacity-0");
+  });
+
+  test("keeps the pinned-column rules off a row-detail row", () => {
+    // A detail row is one cell spanning the whole row; pinning its first
+    // child would park the disclosure at the left edge under a half-viewport
+    // cap instead of laying it out across the row.
+    const rendered = renderTable({ stickyFirstColumn: true });
+    measure(rendered, { tableWidth: 900, clientWidth: 390 });
+    expect(rendered.table.className).toContain(
+      "[&_tr:not([data-row-detail])>*:first-child]:sticky",
+    );
+    expect(rendered.table.className).not.toContain(
+      "[&_tr>*:first-child]:sticky",
+    );
   });
 });

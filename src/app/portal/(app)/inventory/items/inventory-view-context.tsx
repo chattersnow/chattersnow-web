@@ -10,13 +10,13 @@ function isViewMode(value: unknown): value is InventoryViewMode {
   return value === "list" || value === "gallery";
 }
 
-function readStoredView(): InventoryViewMode {
-  if (typeof window === "undefined") return "list";
+function readStoredView(fallback: InventoryViewMode): InventoryViewMode {
+  if (typeof window === "undefined") return fallback;
   try {
     const stored = window.localStorage.getItem(INVENTORY_VIEW_STORAGE_KEY);
-    return isViewMode(stored) ? stored : "list";
+    return isViewMode(stored) ? stored : fallback;
   } catch {
-    return "list";
+    return fallback;
   }
 }
 
@@ -25,8 +25,24 @@ const InventoryViewContext = createContext<{
   setView: (next: InventoryViewMode) => void;
 } | null>(null);
 
-export function InventoryViewProvider({ children }: { children: ReactNode }) {
-  const [view, setViewState] = useState<InventoryViewMode>(readStoredView);
+/**
+ * `defaultView` is the starting point for a reader who has never chosen, and
+ * the page passes `gallery` on a phone (#1090): the grid is already
+ * `grid-cols-2` at 390px with `sizes="50vw"`, and picking a gear item out of
+ * a 2-up wall of photographs beats reading a four-column table through a
+ * sideways scroll. It is a default and nothing more -- a stored choice still
+ * wins in both directions, which is why the toggle stays device-agnostic.
+ */
+export function InventoryViewProvider({
+  children,
+  defaultView = "list",
+}: {
+  children: ReactNode;
+  defaultView?: InventoryViewMode;
+}) {
+  const [view, setViewState] = useState<InventoryViewMode>(() =>
+    readStoredView(defaultView),
+  );
 
   function setView(next: InventoryViewMode) {
     setViewState(next);
