@@ -83,3 +83,46 @@ test.describe("the portal's two shells", () => {
     );
   });
 });
+
+// Its own describe because it needs a touch context. The other tests force a
+// shell with the cookie; this one is about what the probe decides on its own,
+// and the probe deliberately ignores a narrow *desktop* window -- so resizing
+// the default desktop browser would exercise the wrong branch entirely.
+test.describe("a phone that gets rotated", () => {
+  test.use({ viewport: { width: 430, height: 932 }, hasTouch: true });
+
+  // Reported from a real iPhone and reproduced against the deployed site.
+  // DeviceProbe measured `window.innerWidth`, which a rotation changes: an
+  // iPhone 15 Pro Max is 430px in portrait and 932px in landscape, so turning
+  // the phone once wrote `device_override=desktop`, and the next navigation --
+  // back in portrait -- served the desktop shell at 430px, which is a layout
+  // you have to zoom out to read. It righted itself a navigation later, which
+  // is what made it look intermittent rather than broken.
+  test("keeps the mobile shell through a rotation", async ({ page }) => {
+    await signIn(page);
+
+    // Two loads to start: the user-agent here is a desktop one, so the first
+    // response is the desktop shell and the probe corrects it. That is the
+    // documented behaviour -- the point of this test is what happens after.
+    await page.goto("/portal/home");
+    await page.goto("/portal/home");
+    await expect(
+      page.getByRole("navigation", { name: "Primary" }),
+    ).toBeVisible();
+
+    await page.setViewportSize({ width: 932, height: 430 });
+    await page.goto("/portal/home");
+    await page.setViewportSize({ width: 430, height: 932 });
+    await page.goto("/portal/home");
+
+    // Asserted on what the portrait navigation was *served*, not on the
+    // cookie: the probe rewrites the cookie back on that very page, so a
+    // cookie assertion passes against the broken code too.
+    await expect(
+      page.getByRole("navigation", { name: "Primary" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /toggle sidebar/i }),
+    ).toHaveCount(0);
+  });
+});
