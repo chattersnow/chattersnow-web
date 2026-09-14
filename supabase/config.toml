@@ -390,9 +390,12 @@ authorization_url_path = "/oauth/consent"
 allow_dynamic_registration = false
 
 # Disabled (#1077): there is no `supabase/functions` directory and nothing calls
-# `functions.invoke()` or hits `/functions/v1` -- the Deno runtime is 391MB of pull for
-# a feature this project has never used. Re-enable it together with the first edge
-# function; `supabase functions new` will need it back.
+# `functions.invoke()` or hits `/functions/v1`. Note what this does and does not buy:
+# the container is no longer created or health-checked, but the CLI still pulls the
+# 391MB image -- measured on run 34872747458, after the seed rather than with the other
+# images, costing ~6s. That is a CLI behaviour, not something config.toml can reach.
+# Re-enable this together with the first edge function; `supabase functions new` will
+# need it back.
 [edge_runtime]
 enabled = false
 # Supported request policies: `oneshot`, `per_worker`.
