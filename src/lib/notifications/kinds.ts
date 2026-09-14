@@ -104,6 +104,18 @@ export const GEAR_REQUEST_CONFIRMATION_KIND = "gear_request_confirmation";
 export const EVENT_REGISTRATION_CONFIRMATION_KIND =
   "event_registration_confirmation";
 
+/**
+ * The applicant's own confirmation (#1069), carrying the reference code that
+ * is the only key to the public status page. Outside the registry for the same
+ * reason as the two above: the applicant holds no portal account and so no
+ * preference row, and a switch on /portal/account could never change what they
+ * receive. Note this is *not* the `volunteer_application` kind in the registry
+ * above -- that one is the staff notice, and it stays exactly as it is. The
+ * kill switch governs both.
+ */
+export const VOLUNTEER_APPLICATION_CONFIRMATION_KIND =
+  "volunteer_application_confirmation";
+
 export function isNotificationKind(key: string): boolean {
   return NOTIFICATION_KINDS.some((kind) => kind.key === key);
 }

@@ -35,6 +35,7 @@ import {
   EMAIL_ENABLED_SETTING_KEY,
   EVENT_REGISTRATION_CONFIRMATION_KIND,
   GEAR_REQUEST_CONFIRMATION_KIND,
+  VOLUNTEER_APPLICATION_CONFIRMATION_KIND,
 } from "./kinds";
 
 // submission-notifications.ts, deliver.ts and the send helper all import
@@ -47,6 +48,7 @@ const {
   notifyNewContactMessage,
   notifyNewGearRequest,
   notifyNewVolunteerApplication,
+  notifyVolunteerApplicationConfirmation,
   sendEventRegistrationConfirmation,
   sendGearRequestConfirmation,
 } = await import("./submission-notifications");
@@ -61,6 +63,7 @@ const KINDS = [
   GEAR_REQUEST_KIND,
   GEAR_REQUEST_CONFIRMATION_KIND,
   EVENT_REGISTRATION_CONFIRMATION_KIND,
+  VOLUNTEER_APPLICATION_CONFIRMATION_KIND,
 ];
 
 let tenantId: string;
@@ -617,5 +620,142 @@ describe("a new event registration", () => {
       }),
     ).toBe("skipped");
     expect(await deliveries(EVENT_REGISTRATION_CONFIRMATION_KIND)).toEqual([]);
+  });
+});
+
+// #1069. Two sends per application: the volunteers queue's notice, which goes
+// through the opt-in gate, and the applicant's own confirmation carrying the
+// reference code, which has no preference to honour.
+describe("a volunteer application confirmation", () => {
+  test("sends the applicant their code, ledgered against their people row", async () => {
+    const application = await newApplication();
+
+    expect(
+      await notifyVolunteerApplicationConfirmation(service, {
+        tenantId,
+        referenceCode: application.referenceCode,
+        siteUrl: SITE_URL,
+      }),
+    ).toBe("sent");
+
+    const { data: person } = await service
+      .from("people")
+      .select("id")
+      .eq("email", application.email)
+      .single();
+    const rows = await deliveries(VOLUNTEER_APPLICATION_CONFIRMATION_KIND);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].person_id).toBe(person!.id);
+    expect(rows[0].status).toBe("sent");
+    expect(rows[0].dedupe_key).toBe(
+      `${VOLUNTEER_APPLICATION_CONFIRMATION_KIND}:${application.id}`,
+    );
+
+    // A retried Server Action confirms once.
+    expect(
+      await notifyVolunteerApplicationConfirmation(service, {
+        tenantId,
+        referenceCode: application.referenceCode,
+        siteUrl: SITE_URL,
+      }),
+    ).toBe("skipped");
+    expect(
+      await deliveries(VOLUNTEER_APPLICATION_CONFIRMATION_KIND),
+    ).toHaveLength(1);
+  });
+
+  test("is independent of the staff notice, which has its own gate", async () => {
+    // The applicant hears either way; the queue only hears if somebody opted
+    // in. Nobody has here, so exactly one of the two sends anything.
+    await optIn(VOLUNTEER_APPLICATION_KIND, false);
+    const application = await newApplication();
+
+    const [staff, applicant] = await Promise.all([
+      notifyNewVolunteerApplication(service, {
+        tenantId,
+        referenceCode: application.referenceCode,
+        siteUrl: SITE_URL,
+      }),
+      notifyVolunteerApplicationConfirmation(service, {
+        tenantId,
+        referenceCode: application.referenceCode,
+        siteUrl: SITE_URL,
+      }),
+    ]);
+
+    expect(staff.sent).toBe(0);
+    expect(staff.skipped).toBe(1);
+    expect(applicant).toBe("sent");
+    expect(await deliveries(VOLUNTEER_APPLICATION_KIND)).toEqual([]);
+    expect(
+      await deliveries(VOLUNTEER_APPLICATION_CONFIRMATION_KIND),
+    ).toHaveLength(1);
+  });
+
+  test("both sends are ledgered separately when both go out", async () => {
+    await optIn(VOLUNTEER_APPLICATION_KIND, true);
+    const application = await newApplication();
+
+    await Promise.all([
+      notifyNewVolunteerApplication(service, {
+        tenantId,
+        referenceCode: application.referenceCode,
+        siteUrl: SITE_URL,
+      }),
+      notifyVolunteerApplicationConfirmation(service, {
+        tenantId,
+        referenceCode: application.referenceCode,
+        siteUrl: SITE_URL,
+      }),
+    ]);
+
+    // Different kinds, so the ledger's unique constraint never makes one
+    // collide with the other even though both are keyed on the same row.
+    expect(await deliveries(VOLUNTEER_APPLICATION_KIND)).toHaveLength(1);
+    expect(
+      await deliveries(VOLUNTEER_APPLICATION_CONFIRMATION_KIND),
+    ).toHaveLength(1);
+  });
+
+  test("honours the tenant's switch and ignores a honeypot", async () => {
+    await setOrgEmailEnabled(false);
+    const application = await newApplication();
+
+    expect(
+      await notifyVolunteerApplicationConfirmation(service, {
+        tenantId,
+        referenceCode: application.referenceCode,
+        siteUrl: SITE_URL,
+      }),
+    ).toBe("skipped");
+    // What submit_volunteer_application() hands back for a filled honeypot: a
+    // freshly generated code for a row it never inserted.
+    expect(
+      await notifyVolunteerApplicationConfirmation(service, {
+        tenantId,
+        referenceCode: "VOL-NOPE",
+        siteUrl: SITE_URL,
+      }),
+    ).toBe("skipped");
+    expect(await deliveries(VOLUNTEER_APPLICATION_CONFIRMATION_KIND)).toEqual(
+      [],
+    );
+  });
+
+  test("stays inside its tenant when a code is looked up", async () => {
+    const application = await newApplication();
+
+    // A reference code is unique only within a tenant, so an unscoped lookup
+    // would be a cross-tenant read waiting to happen.
+    expect(
+      await notifyVolunteerApplicationConfirmation(service, {
+        tenantId: crypto.randomUUID(),
+        referenceCode: application.referenceCode,
+        siteUrl: SITE_URL,
+      }),
+    ).toBe("skipped");
+    expect(await deliveries(VOLUNTEER_APPLICATION_CONFIRMATION_KIND)).toEqual(
+      [],
+    );
   });
 });
