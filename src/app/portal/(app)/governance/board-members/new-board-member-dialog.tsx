@@ -25,6 +25,7 @@ import {
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 export function NewBoardMemberDialog({ people }: { people: PersonListItem[] }) {
   const router = useRouter();
@@ -99,6 +100,7 @@ export function NewBoardMemberDialog({ people }: { people: PersonListItem[] }) {
 
         <form onSubmit={handleSubmit}>
           <FieldGroup>
+            <RequiredFieldsNote />
             <Field>
               <FieldLabel>Person</FieldLabel>
               <PersonPicker

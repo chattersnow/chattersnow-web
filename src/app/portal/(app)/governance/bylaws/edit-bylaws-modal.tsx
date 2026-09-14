@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import { formatCalendarDate } from "@/lib/format";
 
 function formStateFor(bylaws: Bylaws): BylawsFormState {
@@ -273,6 +274,7 @@ export function EditBylawsModal({ bylaws }: { bylaws: Bylaws }) {
             >
               <div className="flex-1 overflow-y-auto px-4 pb-4">
                 <FieldGroup>
+                  <RequiredFieldsNote />
                   <BylawsFormFields
                     form={form}
                     update={update}

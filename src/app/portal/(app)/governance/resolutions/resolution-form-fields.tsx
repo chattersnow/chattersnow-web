@@ -45,7 +45,9 @@ export function ResolutionFormFields({
   return (
     <>
       <Field>
-        <FieldLabel htmlFor={`${idPrefix}-motion-text`}>Motion text</FieldLabel>
+        <FieldLabel htmlFor={`${idPrefix}-motion-text`} required>
+          Motion text
+        </FieldLabel>
         <Textarea
           id={`${idPrefix}-motion-text`}
           required

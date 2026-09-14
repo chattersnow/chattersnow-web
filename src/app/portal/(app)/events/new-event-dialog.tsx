@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import {
   useControlledOpen,
   type ControlledOpenProps,
@@ -176,8 +177,11 @@ export function NewEventDialog({
 
         <form onSubmit={handleSubmit}>
           <FieldGroup>
+            <RequiredFieldsNote />
             <Field>
-              <FieldLabel htmlFor="name">Event name</FieldLabel>
+              <FieldLabel htmlFor="name" required>
+                Event name
+              </FieldLabel>
               <Input
                 id="name"
                 required
@@ -245,7 +249,9 @@ export function NewEventDialog({
 
             <Field orientation="responsive">
               <Field>
-                <FieldLabel htmlFor="startsAt">Starts</FieldLabel>
+                <FieldLabel htmlFor="startsAt" required>
+                  Starts
+                </FieldLabel>
                 <Input
                   id="startsAt"
                   required
@@ -266,7 +272,9 @@ export function NewEventDialog({
             </Field>
 
             <Field>
-              <FieldLabel htmlFor="timezone">Timezone</FieldLabel>
+              <FieldLabel htmlFor="timezone" required>
+                Timezone
+              </FieldLabel>
               <Input
                 id="timezone"
                 required

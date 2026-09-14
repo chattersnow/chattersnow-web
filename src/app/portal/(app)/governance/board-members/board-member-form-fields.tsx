@@ -38,7 +38,9 @@ export function BoardMemberFormFields({
   return (
     <>
       <Field>
-        <FieldLabel htmlFor={`${idPrefix}-role-title`}>Role / title</FieldLabel>
+        <FieldLabel htmlFor={`${idPrefix}-role-title`} required>
+          Role / title
+        </FieldLabel>
         <Input
           id={`${idPrefix}-role-title`}
           required
@@ -50,7 +52,9 @@ export function BoardMemberFormFields({
 
       <Field orientation="responsive">
         <Field>
-          <FieldLabel htmlFor={`${idPrefix}-term-start`}>Term start</FieldLabel>
+          <FieldLabel htmlFor={`${idPrefix}-term-start`} required>
+            Term start
+          </FieldLabel>
           <Input
             id={`${idPrefix}-term-start`}
             type="date"

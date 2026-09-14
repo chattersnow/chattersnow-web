@@ -43,7 +43,7 @@ export function DisclosureFormFields({
     <>
       <Field orientation="responsive">
         <Field>
-          <FieldLabel htmlFor={`${idPrefix}-disclosure-year`}>
+          <FieldLabel htmlFor={`${idPrefix}-disclosure-year`} required>
             Disclosure fiscal year
           </FieldLabel>
           <Input

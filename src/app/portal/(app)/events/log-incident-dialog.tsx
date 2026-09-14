@@ -26,6 +26,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import { useEventDateDefaults } from "./event-date-defaults";
 import { nowDatetimeLocalInBrowser } from "@/lib/time";
 
@@ -121,6 +122,7 @@ export function LogIncidentDialog({
 
         <form onSubmit={handleSubmit}>
           <FieldGroup>
+            <RequiredFieldsNote />
             <Field orientation="responsive">
               <Field>
                 <FieldLabel htmlFor="incident-occurredAt">When</FieldLabel>
@@ -157,7 +159,7 @@ export function LogIncidentDialog({
             </Field>
 
             <Field>
-              <FieldLabel htmlFor="incident-description">
+              <FieldLabel htmlFor="incident-description" required>
                 Description
               </FieldLabel>
               <Textarea

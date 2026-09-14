@@ -74,7 +74,7 @@ export function TemplateFieldsEditor({
               </Field>
               <Field>
                 <FieldLabel htmlFor={`field-help-${index}`}>
-                  Help text (optional)
+                  Help text
                 </FieldLabel>
                 <Input
                   id={`field-help-${index}`}

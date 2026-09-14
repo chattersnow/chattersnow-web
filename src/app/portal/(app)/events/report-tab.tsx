@@ -32,6 +32,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import { useTabData } from "@/hooks/use-tab-data";
 import { runAction } from "@/components/portal/action-toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 function formStateFor(event: EventRow) {
   return {
@@ -237,8 +238,11 @@ export function ReportTab({
             </DialogHeader>
             <form onSubmit={handleReopen}>
               <FieldGroup>
+                <RequiredFieldsNote />
                 <Field>
-                  <FieldLabel htmlFor="reopen-report-reason">Reason</FieldLabel>
+                  <FieldLabel htmlFor="reopen-report-reason" required>
+                    Reason
+                  </FieldLabel>
                   <Textarea
                     id="reopen-report-reason"
                     required
