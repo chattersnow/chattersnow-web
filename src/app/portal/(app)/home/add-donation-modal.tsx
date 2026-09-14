@@ -45,6 +45,7 @@ import { PhotoUploadField } from "@/components/portal/photo-upload-field";
 import { listInventoryCategoriesAction } from "../inventory/categories/actions";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import {
   useControlledOpen,
   type ControlledOpenProps,
@@ -346,6 +347,7 @@ export function AddDonationModal({
           >
             {step === "donor" ? (
               <FieldGroup>
+                <RequiredFieldsNote />
                 <Field orientation="horizontal">
                   <Checkbox
                     id="isAnonymous"
@@ -358,7 +360,9 @@ export function AddDonationModal({
                 </Field>
 
                 <Field>
-                  <FieldLabel htmlFor="donorName">Donor name</FieldLabel>
+                  <FieldLabel htmlFor="donorName" required={!donor.isAnonymous}>
+                    Donor name
+                  </FieldLabel>
                   <Input
                     id="donorName"
                     required={!donor.isAnonymous}
@@ -426,7 +430,7 @@ export function AddDonationModal({
                 {showEventPicker && (
                   <Field>
                     <FieldLabel htmlFor="sourceEventId">
-                      Source event (optional)
+                      Source event
                     </FieldLabel>
                     <Select
                       value={sourceEventId || null}
@@ -497,7 +501,10 @@ export function AddDonationModal({
                     </div>
 
                     <Field>
-                      <FieldLabel htmlFor={`itemDescription-${item.key}`}>
+                      <FieldLabel
+                        htmlFor={`itemDescription-${item.key}`}
+                        required
+                      >
                         Item description
                       </FieldLabel>
                       <Textarea

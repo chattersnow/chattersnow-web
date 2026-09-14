@@ -32,6 +32,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useActionToast } from "@/components/portal/action-toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import {
   provisionTenantAction,
   setTenantDomainAction,
@@ -302,17 +303,22 @@ export function PlatformTenants({
               }}
             >
               <FieldGroup>
+                <RequiredFieldsNote />
                 {formError ? (
                   <Alert variant="destructive">
                     <AlertDescription>{formError}</AlertDescription>
                   </Alert>
                 ) : null}
                 <Field>
-                  <FieldLabel htmlFor="tenant-name">Name</FieldLabel>
+                  <FieldLabel htmlFor="tenant-name" required>
+                    Name
+                  </FieldLabel>
                   <Input id="tenant-name" name="name" required />
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor="tenant-slug">Slug</FieldLabel>
+                  <FieldLabel htmlFor="tenant-slug" required>
+                    Slug
+                  </FieldLabel>
                   <Input
                     id="tenant-slug"
                     name="slug"
@@ -321,9 +327,7 @@ export function PlatformTenants({
                   />
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor="tenant-domain">
-                    Domain (optional)
-                  </FieldLabel>
+                  <FieldLabel htmlFor="tenant-domain">Domain</FieldLabel>
                   <Input
                     id="tenant-domain"
                     name="domain"
@@ -348,7 +352,7 @@ export function PlatformTenants({
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="tenant-admin">
-                    First admin&rsquo;s email (optional)
+                    First admin&rsquo;s email
                   </FieldLabel>
                   <Input id="tenant-admin" name="admin" type="email" />
                 </Field>

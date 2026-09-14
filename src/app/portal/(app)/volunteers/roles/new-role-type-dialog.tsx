@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 function getInitialFormState() {
   return { name: "", description: "", isPublic: false };
@@ -86,8 +87,11 @@ export function NewRoleTypeDialog() {
 
         <form onSubmit={handleSubmit}>
           <FieldGroup>
+            <RequiredFieldsNote />
             <Field>
-              <FieldLabel htmlFor="name">Role name</FieldLabel>
+              <FieldLabel htmlFor="name" required>
+                Role name
+              </FieldLabel>
               <Input
                 id="name"
                 required

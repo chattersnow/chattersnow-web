@@ -4,6 +4,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { PersonActionResult, PersonListItem } from "./actions";
 import * as PeopleActions from "./actions";
+import { labelText } from "../../../../../test/labels";
 
 const createPersonActionMock = mock(async (): Promise<PersonActionResult> => ({
   success: true,
@@ -172,7 +173,7 @@ describe("PersonPicker", () => {
     await user.click(
       screen.getByRole("button", { name: "+ Create new person" }),
     );
-    await user.type(screen.getByLabelText("Name"), "New Person");
+    await user.type(screen.getByLabelText(labelText("Name")), "New Person");
     await user.click(screen.getByRole("button", { name: "Create & select" }));
 
     await waitFor(() => expect(onSelect).toHaveBeenCalled());
@@ -204,7 +205,7 @@ describe("PersonPicker", () => {
     await user.click(
       screen.getByRole("button", { name: "+ Create new person" }),
     );
-    await user.type(screen.getByLabelText("Name"), "New Person");
+    await user.type(screen.getByLabelText(labelText("Name")), "New Person");
     await user.click(screen.getByRole("button", { name: "Create & select" }));
 
     expect(

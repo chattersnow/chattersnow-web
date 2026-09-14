@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import {
   useControlledOpen,
   type ControlledOpenProps,
@@ -161,6 +162,7 @@ export function LogHoursDialog({
 
         <form onSubmit={handleSubmit}>
           <FieldGroup>
+            <RequiredFieldsNote />
             <Field>
               {lockedToSelf && selfPerson ? (
                 <ReadOnlyField label="Volunteer" htmlFor="hours-volunteer">
@@ -168,8 +170,9 @@ export function LogHoursDialog({
                 </ReadOnlyField>
               ) : (
                 <>
-                  <FieldLabel>Volunteer</FieldLabel>
+                  <FieldLabel required>Volunteer</FieldLabel>
                   <PersonPicker
+                    required
                     people={people}
                     selected={selectedPerson}
                     onSelect={setSelectedPerson}
@@ -184,9 +187,12 @@ export function LogHoursDialog({
 
             <Field orientation="responsive">
               <Field>
-                <FieldLabel htmlFor="hours-hours">Hours</FieldLabel>
+                <FieldLabel htmlFor="hours-hours" required>
+                  Hours
+                </FieldLabel>
                 <Input
                   id="hours-hours"
+                  required
                   type="number"
                   min="0"
                   step="0.25"
@@ -195,9 +201,12 @@ export function LogHoursDialog({
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor="hours-loggedDate">Date</FieldLabel>
+                <FieldLabel htmlFor="hours-loggedDate" required>
+                  Date
+                </FieldLabel>
                 <Input
                   id="hours-loggedDate"
+                  required
                   type="date"
                   value={form.loggedDate}
                   onChange={(event) => update("loggedDate", event.target.value)}
@@ -206,7 +215,7 @@ export function LogHoursDialog({
             </Field>
 
             <Field>
-              <FieldLabel htmlFor="hours-event">Event (optional)</FieldLabel>
+              <FieldLabel htmlFor="hours-event">Event</FieldLabel>
               <Select
                 value={form.eventId}
                 onValueChange={(value) =>
@@ -235,9 +244,7 @@ export function LogHoursDialog({
             </Field>
 
             <Field>
-              <FieldLabel htmlFor="hours-role-type">
-                Role type (optional)
-              </FieldLabel>
+              <FieldLabel htmlFor="hours-role-type">Role type</FieldLabel>
               <Select
                 value={form.volunteerRoleTypeId}
                 onValueChange={(value) =>

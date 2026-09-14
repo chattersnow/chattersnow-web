@@ -34,6 +34,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import {
   useControlledOpen,
   type ControlledOpenProps,
@@ -159,13 +160,20 @@ export function RecordDistributionModal({
 
         <form onSubmit={handleSubmit}>
           <FieldGroup>
+            <RequiredFieldsNote />
             <Field>
-              <FieldLabel htmlFor="dist-item">Inventory item</FieldLabel>
+              <FieldLabel htmlFor="dist-item" required>
+                Inventory item
+              </FieldLabel>
               <Select
                 value={inventoryItemId || null}
                 onValueChange={(value) => setInventoryItemId(value ?? "")}
               >
-                <SelectTrigger id="dist-item" className="w-full">
+                <SelectTrigger
+                  id="dist-item"
+                  aria-required="true"
+                  className="w-full"
+                >
                   <SelectValue placeholder="Select an available item">
                     {(value: string) => {
                       const item = availableItems.find(
@@ -190,9 +198,12 @@ export function RecordDistributionModal({
 
             <Field orientation="responsive">
               <Field>
-                <FieldLabel htmlFor="dist-quantity">Quantity</FieldLabel>
+                <FieldLabel htmlFor="dist-quantity" required>
+                  Quantity
+                </FieldLabel>
                 <Input
                   id="dist-quantity"
+                  required
                   type="number"
                   min={1}
                   step={1}
@@ -215,7 +226,7 @@ export function RecordDistributionModal({
 
             {showRecipientField && (
               <Field>
-                <FieldLabel>Recipient (optional)</FieldLabel>
+                <FieldLabel>Recipient</FieldLabel>
                 <PersonPicker
                   people={people}
                   selected={recipient}

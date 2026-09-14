@@ -7,6 +7,7 @@ import userEvent from "@testing-library/user-event";
 import type { DonationRow } from "../donation-shared";
 import * as DonationActions from "../actions";
 import * as ItemActions from "../../items/actions";
+import { labelText } from "../../../../../../../test/labels";
 
 type ActionResult = { error: string } | { success: true };
 
@@ -120,7 +121,7 @@ describe("EditDonationSheet", () => {
     expect(screen.getByLabelText("Donation notes")).toHaveValue(
       "Dropped off at HQ",
     );
-    expect(screen.getByLabelText("Item description")).toHaveValue(
+    expect(screen.getByLabelText(labelText("Item description"))).toHaveValue(
       "Winter jacket",
     );
   });
@@ -146,7 +147,9 @@ describe("EditDonationSheet", () => {
     const user = userEvent.setup();
     await openSheet(user);
 
-    const descriptionField = screen.getByLabelText("Item description");
+    const descriptionField = screen.getByLabelText(
+      labelText("Item description"),
+    );
     await user.clear(descriptionField);
     await user.type(descriptionField, "Winter parka");
     await user.click(screen.getByRole("button", { name: "Save changes" }));

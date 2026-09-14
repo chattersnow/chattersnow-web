@@ -61,6 +61,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import { formatDateTime } from "@/lib/format";
 
 const STATUSES = [
@@ -383,8 +384,9 @@ export function ProgramDetailsDialog({
             >
               <div className="flex-1 overflow-y-auto px-4 pb-4">
                 <FieldGroup>
+                  <RequiredFieldsNote />
                   <Field>
-                    <FieldLabel htmlFor="program-edit-name">
+                    <FieldLabel htmlFor="program-edit-name" required>
                       Program name
                     </FieldLabel>
                     <Input

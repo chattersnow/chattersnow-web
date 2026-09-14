@@ -27,6 +27,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { ProgramPublicFields } from "./program-public-fields";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 const STATUSES = [
   { value: "pilot", label: "Pilot" },
@@ -111,8 +112,11 @@ export function NewProgramDialog() {
 
         <form onSubmit={handleSubmit}>
           <FieldGroup>
+            <RequiredFieldsNote />
             <Field>
-              <FieldLabel htmlFor="name">Program name</FieldLabel>
+              <FieldLabel htmlFor="name" required>
+                Program name
+              </FieldLabel>
               <Input
                 id="name"
                 required

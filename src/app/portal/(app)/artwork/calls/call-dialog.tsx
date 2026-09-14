@@ -29,6 +29,7 @@ import {
   utcIsoToDatetimeLocalInBrowser,
 } from "@/lib/time";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import { createArtworkCallAction, updateArtworkCallAction } from "./actions";
 import type { ArtworkCall } from "../submission-types";
 
@@ -115,8 +116,11 @@ export function ArtworkCallDialog({
 
           <div className="px-4 py-2">
             <FieldGroup>
+              <RequiredFieldsNote />
               <Field>
-                <FieldLabel htmlFor="call-title">Title</FieldLabel>
+                <FieldLabel htmlFor="call-title" required>
+                  Title
+                </FieldLabel>
                 <Input
                   id="call-title"
                   name="title"
@@ -133,7 +137,7 @@ export function ArtworkCallDialog({
 
               {editing ? null : (
                 <Field>
-                  <FieldLabel htmlFor="call-event">Event (optional)</FieldLabel>
+                  <FieldLabel htmlFor="call-event">Event</FieldLabel>
                   <select
                     id="call-event"
                     name="eventId"
