@@ -5,6 +5,7 @@ import type { DonationActionResult } from "./actions";
 import type { MonetaryDonationRow } from "./donations-shared";
 import type { PersonListItem } from "../../people/actions";
 import * as DonationActions from "./actions";
+import { labelText } from "../../../../../../test/labels";
 
 const updateDonationActionMock = mock<
   (id: string, formData: FormData) => Promise<DonationActionResult>
@@ -58,7 +59,7 @@ async function enterEditMode(user: ReturnType<typeof userEvent.setup>) {
   // step="0.01"> misreports valid values (e.g. "100") as invalid, which
   // silently blocks click-driven form submission — the same happy-dom bug
   // the inventory edit-donation-sheet test dodges.
-  screen.getByLabelText("Amount").removeAttribute("step");
+  screen.getByLabelText(labelText("Amount")).removeAttribute("step");
 }
 
 describe("EditDonationModal", () => {
@@ -95,8 +96,8 @@ describe("EditDonationModal", () => {
     const user = userEvent.setup();
     await enterEditMode(user);
 
-    expect(screen.getByLabelText("Amount")).toHaveValue(100);
-    expect(screen.getByLabelText("Date")).toHaveValue("2026-08-08");
+    expect(screen.getByLabelText(labelText("Amount"))).toHaveValue(100);
+    expect(screen.getByLabelText(labelText("Date"))).toHaveValue("2026-08-08");
     expect(screen.getByLabelText("Notes")).toHaveValue("Annual gift.");
   });
 
@@ -104,8 +105,8 @@ describe("EditDonationModal", () => {
     const user = userEvent.setup();
     await enterEditMode(user);
 
-    await user.clear(screen.getByLabelText("Amount"));
-    await user.type(screen.getByLabelText("Amount"), "150");
+    await user.clear(screen.getByLabelText(labelText("Amount")));
+    await user.type(screen.getByLabelText(labelText("Amount")), "150");
     await user.click(screen.getByRole("button", { name: "View" }));
 
     expect(screen.getByText("Discard changes?")).toBeInTheDocument();
@@ -118,8 +119,8 @@ describe("EditDonationModal", () => {
     const user = userEvent.setup();
     await enterEditMode(user);
 
-    await user.clear(screen.getByLabelText("Amount"));
-    await user.type(screen.getByLabelText("Amount"), "150");
+    await user.clear(screen.getByLabelText(labelText("Amount")));
+    await user.type(screen.getByLabelText(labelText("Amount")), "150");
     await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     await screen.findByRole("button", { name: "Edit donation" });
@@ -146,7 +147,7 @@ describe("EditDonationModal", () => {
         "Could not update the donation. Please try again.",
       ),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText("Amount")).toBeInTheDocument();
+    expect(screen.getByLabelText(labelText("Amount"))).toBeInTheDocument();
   });
 
   test("deletes the donation after confirming", async () => {

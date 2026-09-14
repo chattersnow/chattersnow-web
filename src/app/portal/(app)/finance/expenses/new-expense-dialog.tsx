@@ -31,6 +31,7 @@ import {
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import {
   useControlledOpen,
   type ControlledOpenProps,
@@ -165,8 +166,9 @@ export function NewExpenseDialog({
 
           <form onSubmit={handleSubmit}>
             <FieldGroup>
+              <RequiredFieldsNote />
               <Field>
-                <FieldLabel>Paid by (optional)</FieldLabel>
+                <FieldLabel>Paid by</FieldLabel>
                 <PersonPicker
                   people={people}
                   selected={selectedPayer}

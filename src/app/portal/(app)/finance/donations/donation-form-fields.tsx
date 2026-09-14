@@ -74,12 +74,18 @@ export function DonationFormFields({
       </Field>
 
       <Field>
-        <FieldLabel htmlFor={`${idPrefix}-method`}>Payment method</FieldLabel>
+        <FieldLabel htmlFor={`${idPrefix}-method`} required>
+          Payment method
+        </FieldLabel>
         <Select
           value={form.method}
           onValueChange={(value) => update("method", value ?? "")}
         >
-          <SelectTrigger id={`${idPrefix}-method`} className="w-full">
+          <SelectTrigger
+            id={`${idPrefix}-method`}
+            aria-required="true"
+            className="w-full"
+          >
             <SelectValue placeholder="Select payment method" />
           </SelectTrigger>
           <SelectContent>
@@ -123,7 +129,9 @@ export function DonationFormFields({
 
       <Field orientation="responsive">
         <Field>
-          <FieldLabel htmlFor={`${idPrefix}-receivedDate`}>Date</FieldLabel>
+          <FieldLabel htmlFor={`${idPrefix}-receivedDate`} required>
+            Date
+          </FieldLabel>
           <Input
             id={`${idPrefix}-receivedDate`}
             type="date"
@@ -133,7 +141,9 @@ export function DonationFormFields({
           />
         </Field>
         <Field>
-          <FieldLabel htmlFor={`${idPrefix}-amount`}>Amount</FieldLabel>
+          <FieldLabel htmlFor={`${idPrefix}-amount`} required>
+            Amount
+          </FieldLabel>
           <Input
             id={`${idPrefix}-amount`}
             type="number"

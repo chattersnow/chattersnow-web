@@ -6,6 +6,7 @@ import type { PersonListItem } from "../../people/actions";
 import * as DonationActions from "./actions";
 import * as EventActions from "../../events/actions";
 import * as PeopleActions from "../../people/actions";
+import { labelText } from "../../../../../../test/labels";
 
 const createDonationActionMock = mock<
   (formData: FormData) => Promise<DonationActionResult>
@@ -60,7 +61,7 @@ async function fillAmount(
   user: ReturnType<typeof userEvent.setup>,
   value: string,
 ) {
-  const amount = screen.getByLabelText("Amount");
+  const amount = screen.getByLabelText(labelText("Amount"));
   await user.type(amount, value);
   amount.removeAttribute("step");
 }
@@ -69,7 +70,7 @@ async function selectMethod(
   user: ReturnType<typeof userEvent.setup>,
   label: string,
 ) {
-  await user.click(screen.getByLabelText("Payment method"));
+  await user.click(screen.getByLabelText(labelText("Payment method")));
   const listbox = await screen.findByRole("listbox");
   await user.click(within(listbox).getByText(label, { exact: true }));
 }

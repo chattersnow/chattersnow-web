@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 export function NewServiceDialog() {
   const router = useRouter();
@@ -69,8 +70,11 @@ export function NewServiceDialog() {
 
         <form onSubmit={handleSubmit}>
           <FieldGroup>
+            <RequiredFieldsNote />
             <Field>
-              <FieldLabel htmlFor="new-service-page-name">Name</FieldLabel>
+              <FieldLabel htmlFor="new-service-page-name" required>
+                Name
+              </FieldLabel>
               <Input
                 id="new-service-page-name"
                 required

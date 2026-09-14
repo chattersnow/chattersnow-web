@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { useActionToast } from "@/components/portal/action-toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import { articleSlugify } from "@/lib/articles";
 import { formatDateTime } from "@/lib/format";
 import type { EditorCategory } from "./article-shared";
@@ -143,8 +144,9 @@ export function CategoryList({
         <Card className="mt-6 max-w-3xl">
           <CardContent>
             <form className="space-y-4" onSubmit={handleCreate}>
+              <RequiredFieldsNote />
               <Field>
-                <FieldLabel htmlFor="new-category-title">
+                <FieldLabel htmlFor="new-category-title" required>
                   New category
                 </FieldLabel>
                 <Input
@@ -160,7 +162,9 @@ export function CategoryList({
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor="new-category-slug">Web address</FieldLabel>
+                <FieldLabel htmlFor="new-category-slug" required>
+                  Web address
+                </FieldLabel>
                 <Input
                   id="new-category-slug"
                   value={slug}

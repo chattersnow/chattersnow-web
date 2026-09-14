@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 export function NewAssetDialog({
   services,
@@ -87,6 +88,7 @@ export function NewAssetDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
+          <RequiredFieldsNote />
           <AssetFormFields
             idPrefix="new-asset"
             form={form}

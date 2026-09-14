@@ -33,6 +33,7 @@ import {
 import { FieldGroup, FieldSeparator } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 /**
  * Creates a product and its first variant in one submission.
@@ -136,6 +137,7 @@ export function NewProductDialog() {
 
           <form onSubmit={handleSubmit}>
             <FieldGroup>
+              <RequiredFieldsNote />
               <ProductFormFields
                 form={product}
                 update={updateProduct}

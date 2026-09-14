@@ -61,7 +61,9 @@ export function ExpenseFormFields({
   return (
     <>
       <Field>
-        <FieldLabel htmlFor={`${idPrefix}-description`}>Description</FieldLabel>
+        <FieldLabel htmlFor={`${idPrefix}-description`} required>
+          Description
+        </FieldLabel>
         <Textarea
           id={`${idPrefix}-description`}
           required
@@ -102,7 +104,9 @@ export function ExpenseFormFields({
 
       <Field orientation="responsive">
         <Field>
-          <FieldLabel htmlFor={`${idPrefix}-expenseDate`}>Date</FieldLabel>
+          <FieldLabel htmlFor={`${idPrefix}-expenseDate`} required>
+            Date
+          </FieldLabel>
           <Input
             id={`${idPrefix}-expenseDate`}
             type="date"
@@ -112,7 +116,9 @@ export function ExpenseFormFields({
           />
         </Field>
         <Field>
-          <FieldLabel htmlFor={`${idPrefix}-amount`}>Amount</FieldLabel>
+          <FieldLabel htmlFor={`${idPrefix}-amount`} required>
+            Amount
+          </FieldLabel>
           <Input
             id={`${idPrefix}-amount`}
             type="number"
