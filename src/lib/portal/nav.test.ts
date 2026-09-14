@@ -2,10 +2,12 @@ import { describe, expect, test } from "bun:test";
 import type { PermissionMap } from "@/lib/auth/permissions";
 import {
   NAV_ITEMS,
+  PRIMARY_NAV_LIMIT,
   activeSectionFor,
   activeSubItemFor,
   firstAccessibleHref,
   navGroups,
+  primaryNavItems,
   visibleNavItems,
 } from "./nav";
 
@@ -533,5 +535,51 @@ describe("navGroups", () => {
     for (const sub of administration.subItems ?? []) {
       expect(sub.group ?? "").not.toContain("{");
     }
+  });
+});
+
+describe("primaryNavItems", () => {
+  test("puts the flagged sections first, in tree order", () => {
+    const everything: PermissionMap = Object.fromEntries(
+      NAV_ITEMS.flatMap((item) => [
+        ...(item.access ?? []),
+        ...(item.subItems ?? []).flatMap((sub) => [
+          ...sub.access,
+          ...(sub.alsoRequires ?? []),
+        ]),
+      ]).map((check) => [check.resource, "manage"]),
+    );
+    expect(primaryNavItems(visibleNavItems(everything))).toHaveLength(
+      PRIMARY_NAV_LIMIT,
+    );
+    expect(
+      primaryNavItems(visibleNavItems(everything)).map((item) => item.value),
+    ).toEqual(["overview", "events", "calendar", "people"]);
+  });
+
+  // A treasurer sees Dashboard and Finance and nothing else that is flagged.
+  // Leaving the bar at one lonely tab beside More wastes the whole affordance,
+  // so the rest of the visible tree fills it.
+  test("fills the remaining slots from what else this reader can see", () => {
+    const treasurer: PermissionMap = {
+      finance: "manage",
+      reimbursements: "view",
+    };
+    const tabs = primaryNavItems(visibleNavItems(treasurer));
+    expect(tabs[0].value).toBe("overview");
+    expect(tabs.length).toBeGreaterThan(1);
+    expect(tabs.map((item) => item.value)).toContain("finance");
+  });
+
+  test("never returns more than the bar can hold", () => {
+    expect(
+      primaryNavItems(visibleNavItems({ events: "view" }), 2),
+    ).toHaveLength(2);
+  });
+
+  // Slicing a shorter list must not pad it with anything.
+  test("returns only what the reader can see when that is fewer than the limit", () => {
+    const tabs = primaryNavItems(visibleNavItems({}), PRIMARY_NAV_LIMIT);
+    expect(tabs.map((item) => item.value)).toEqual(["overview"]);
   });
 });

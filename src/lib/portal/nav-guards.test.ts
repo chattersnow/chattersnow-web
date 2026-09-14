@@ -20,9 +20,18 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { PermissionCheck, PermissionLevel } from "@/lib/auth/permissions";
+import type {
+  PermissionCheck,
+  PermissionLevel,
+  PermissionMap,
+} from "@/lib/auth/permissions";
 import { hasAnyPermission } from "@/lib/auth/permissions";
-import { NAV_ITEMS } from "./nav";
+import {
+  NAV_ITEMS,
+  PRIMARY_NAV_LIMIT,
+  primaryNavItems,
+  visibleNavItems,
+} from "./nav";
 
 const APP_ROOT = join(import.meta.dir, "../../app/portal/(app)");
 
@@ -140,5 +149,50 @@ describe("sidebar links against their routes' guards", () => {
     // into one that asserts nothing at all and stays green forever.
     expect(guardChain("/portal/finance/reimbursements").length).toBe(2);
     expect(guardChain("/portal/people").length).toBeGreaterThan(0);
+  });
+});
+
+// The mobile shell's bottom tab bar (#1079). It draws from the same tree, so
+// the test above already covers each tab's destination; what is left to prove
+// is that the tab bar cannot invent a destination the sidebar would not show,
+// and cannot be silently emptied by a later edit to the flag.
+describe("the mobile tab bar's primary sections", () => {
+  test("a tab is only ever a section this reader can already see", () => {
+    // One grant each, at the narrowest level, standing in for the roles that
+    // reach the least of the portal.
+    const narrowReaders: PermissionMap[] = [
+      { events: "view" },
+      { people: "view" },
+      { content_calendar: "view" },
+      { finance_reports: "view" },
+      { governance: "view" },
+    ];
+
+    for (const permissions of narrowReaders) {
+      const visible = visibleNavItems(permissions);
+      const visibleValues = new Set(visible.map((item) => item.value));
+      for (const tab of primaryNavItems(visible)) {
+        expect(visibleValues.has(tab.value)).toBe(true);
+      }
+    }
+  });
+
+  // Four tabs plus More. Flagging a fifth section would silently drop whichever
+  // one now falls off the end, so the flag count is the thing to assert.
+  test("no more sections are flagged primary than the bar can hold", () => {
+    const flagged = NAV_ITEMS.filter((item) => item.primary);
+    expect(flagged.length).toBeLessThanOrEqual(PRIMARY_NAV_LIMIT);
+    expect(flagged.map((item) => item.value)).toEqual([
+      "overview",
+      "events",
+      "calendar",
+      "people",
+    ]);
+  });
+
+  // Dashboard has no `access`, so every signed-in reader keeps at least one
+  // tab even when the permission filter takes everything else.
+  test("the bar is never empty", () => {
+    expect(primaryNavItems(visibleNavItems({})).length).toBeGreaterThan(0);
   });
 });

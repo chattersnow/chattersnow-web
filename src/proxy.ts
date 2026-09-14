@@ -1,5 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, userAgent, type NextRequest } from "next/server";
 import {
   isPortalHost,
   isPortalPathname,
@@ -33,6 +33,52 @@ const ROOT_PATH_PREFIXES = ["/auth/", "/api/"];
  * the dashboard with the original URL gone. The proxy does see it.
  */
 export const PORTAL_PATH_HEADER = "x-portal-path";
+
+/**
+ * Header carrying which shell the portal should render (#1079).
+ *
+ * `useIsMobile()` deliberately answers `false` on the server so hydration is
+ * safe, which means it can never choose a *shell*: the first paint would
+ * always be the desktop one and swap afterwards, flashing on every navigation
+ * and shipping both trees. The proxy is the one place that sees the request
+ * before anything renders, so the decision is made here and read once, by
+ * `deviceClass()` in `src/lib/portal/device.ts`.
+ *
+ * The portal is authenticated and fully dynamic, so there is no CDN cache to
+ * `Vary` on. If anything under `/portal` ever becomes cacheable, it has to
+ * vary on this header.
+ */
+export const DEVICE_HEADER = "x-device";
+
+/**
+ * Cookie that overrides the user-agent's answer.
+ *
+ * UA sniffing gets desktop-mode phones and tablets wrong, and there is no
+ * server-side way to see a viewport. One client effect can write the real
+ * width into this cookie after first load, so the *next* request is right even
+ * where the UA is not -- and a Playwright run can force either shell by
+ * setting it, with no UA spoofing.
+ */
+export const DEVICE_OVERRIDE_COOKIE = "device_override";
+
+export type DeviceClass = "mobile" | "desktop";
+
+/**
+ * The shell decision, from the UA's device type and the override cookie.
+ *
+ * Tablets resolve to `desktop`: they have room for the sidebar, and the
+ * mobile shell's bottom tab bar is a thumb-reach affordance that a 10" screen
+ * does not want. `userAgent().device.type` is `undefined` on desktop, so
+ * anything that isn't explicitly a phone falls through to the desktop shell --
+ * the safe direction, since that is the layout every existing test expects.
+ */
+export function resolveDeviceClass(
+  deviceType: string | undefined,
+  override: string | undefined,
+): DeviceClass {
+  if (override === "mobile" || override === "desktop") return override;
+  return deviceType === "mobile" ? "mobile" : "desktop";
+}
 
 export type PortalRoute =
   | { kind: "pass" }
@@ -127,7 +173,11 @@ export function resolvePortalRoute(
  * the refresh path below writes through `request.headers`, so an early copy
  * would forward a stale cookie header and undo the session refresh.
  */
-function forwardHeaders(request: NextRequest, portalPath: string | null) {
+function forwardHeaders(
+  request: NextRequest,
+  portalPath: string | null,
+  device: DeviceClass | null,
+) {
   const headers = new Headers(request.headers);
   if (portalPath) {
     headers.set(PORTAL_PATH_HEADER, portalPath);
@@ -135,16 +185,24 @@ function forwardHeaders(request: NextRequest, portalPath: string | null) {
     // Never let a client-supplied value through: it decides a redirect target.
     headers.delete(PORTAL_PATH_HEADER);
   }
+  if (device) {
+    headers.set(DEVICE_HEADER, device);
+  } else {
+    // Same reason: it decides which shell renders, so the only value the app
+    // ever sees is the one stamped here.
+    headers.delete(DEVICE_HEADER);
+  }
   return headers;
 }
 
 async function refreshPortalSession(
   request: NextRequest,
   portalPath: string | null,
+  device: DeviceClass | null,
 ) {
   const forward = () =>
     NextResponse.next({
-      request: { headers: forwardHeaders(request, portalPath) },
+      request: { headers: forwardHeaders(request, portalPath, device) },
     });
   let refreshedResponse = forward();
 
@@ -196,10 +254,19 @@ export async function proxy(request: NextRequest) {
     ? `${route.kind === "rewrite" ? route.pathname : pathname}${request.nextUrl.search}`
     : null;
 
+  // Portal requests only: the public site is one responsive tree and has no
+  // shell to choose, so stamping it there would only invite a second reader.
+  const device = isPortalRequest
+    ? resolveDeviceClass(
+        userAgent(request).device.type,
+        request.cookies.get(DEVICE_OVERRIDE_COOKIE)?.value,
+      )
+    : null;
+
   const refreshedResponse = isPortalRequest
-    ? await refreshPortalSession(request, portalPath)
+    ? await refreshPortalSession(request, portalPath, device)
     : NextResponse.next({
-        request: { headers: forwardHeaders(request, portalPath) },
+        request: { headers: forwardHeaders(request, portalPath, device) },
       });
 
   const withRefreshedCookies = (response: NextResponse) => {
@@ -214,7 +281,7 @@ export async function proxy(request: NextRequest) {
     url.pathname = route.pathname;
     return withRefreshedCookies(
       NextResponse.rewrite(url, {
-        request: { headers: forwardHeaders(request, portalPath) },
+        request: { headers: forwardHeaders(request, portalPath, device) },
       }),
     );
   }

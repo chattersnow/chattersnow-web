@@ -4,27 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { toPortalPathname } from "@/lib/portal/paths";
-import {
-  Building2,
-  CalendarDays,
-  CalendarRange,
-  ChevronRight,
-  Globe,
-  HandCoins,
-  HandHeart,
-  Handshake,
-  Landmark,
-  Layers,
-  LayoutDashboard,
-  Mail,
-  Package,
-  Palette,
-  Scale,
-  Server,
-  ShieldCheck,
-  Ticket,
-  Users,
-} from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,
@@ -53,32 +33,7 @@ import {
 } from "@/lib/portal/nav";
 import { type Lexicon } from "@/lib/lexicon";
 import { DEFAULT_VOCABULARY } from "@/lib/person-roles";
-
-/**
- * Icons live here rather than in the shared nav tree: they're a rendering
- * concern, and keeping them out lets the section index routes import the tree
- * on the server without an icon library coming with it.
- */
-const SECTION_ICONS: Record<string, typeof LayoutDashboard> = {
-  overview: LayoutDashboard,
-  events: CalendarDays,
-  artwork: Palette,
-  calendar: CalendarRange,
-  programs: Layers,
-  inventory: Package,
-  volunteers: HandHeart,
-  messages: Mail,
-  finance: Landmark,
-  people: Users,
-  donors: HandCoins,
-  sponsors: Handshake,
-  attendees: Ticket,
-  governance: Scale,
-  platform: Building2,
-  website: Globe,
-  technology: Server,
-  administration: ShieldCheck,
-};
+import { sectionIcon } from "./nav-icons";
 
 export function PortalNav({
   permissions,
@@ -149,7 +104,7 @@ export function PortalNav({
             const activeSub = isSectionActive
               ? activeSubItemFor(pathname, item)
               : undefined;
-            const Icon = SECTION_ICONS[item.value] ?? LayoutDashboard;
+            const Icon = sectionIcon(item.value);
             const sectionId = `nav-section-${item.value}`;
             // Collapsed to icons there is nowhere to put a sub-list, so a section
             // is a link to its first reachable page. Rendering it as a link rather

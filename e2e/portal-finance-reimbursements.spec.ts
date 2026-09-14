@@ -16,6 +16,7 @@ import { createAdminClient } from "./helpers/admin-client";
 import { modal } from "./helpers/dialog";
 import { markOnboarded } from "./helpers/onboarding";
 import { pickPerson } from "./helpers/people";
+import { logOutOfPortal } from "./helpers/portal-nav";
 
 type RoleUser = {
   userId: string;
@@ -64,21 +65,6 @@ async function seedRequester(admin: ReturnType<typeof createAdminClient>) {
     .single();
   if (error) throw error;
   return { id: data.id as string, name };
-}
-
-async function logOut(page: Page) {
-  const logoutButton = page.getByRole("button", { name: "Log out" });
-  if (!(await logoutButton.isVisible())) {
-    await page.getByRole("button", { name: "Toggle Sidebar" }).click();
-  }
-  await logoutButton.click();
-  // Logging out asks for confirmation since 355a8f7; the dialog's action
-  // button carries the same "Log out" label as the sidebar trigger.
-  await page
-    .getByRole("alertdialog")
-    .getByRole("button", { name: "Log out" })
-    .click();
-  await expect(page).toHaveURL(/\/portal\/login$/);
 }
 
 test.describe("portal finance reimbursements", () => {
@@ -202,7 +188,7 @@ test.describe("portal finance reimbursements", () => {
       ).not.toBeAttached();
       await submitterSheet.getByRole("button", { name: "Close" }).click();
 
-      await logOut(page);
+      await logOutOfPortal(page);
       await signIn(page, {
         email: approver.email,
         password: approver.password,
