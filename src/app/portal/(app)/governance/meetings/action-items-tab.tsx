@@ -339,6 +339,7 @@ export function ActionItemsTab({
     {
       key: "owner",
       label: "Owner",
+      hideBelow: "md",
       sortValue: (actionItem) => personDisplayName(actionItem.owner),
       cellClassName: "app-muted",
       render: (actionItem) => personDisplayName(actionItem.owner),

@@ -75,6 +75,7 @@ export function BoardMembersTable({
       {
         key: "term_start",
         label: "Term start",
+        hideBelow: "lg",
         sortValue: (boardMember) => boardMember.term_start,
         cellClassName: "app-muted",
         render: (boardMember) => formatCalendarDate(boardMember.term_start),
@@ -82,6 +83,7 @@ export function BoardMembersTable({
       {
         key: "term_end",
         label: "Term end",
+        hideBelow: "md",
         sortValue: (boardMember) => boardMember.term_end,
         cellClassName: "app-muted",
         render: (boardMember) => formatCalendarDate(boardMember.term_end),

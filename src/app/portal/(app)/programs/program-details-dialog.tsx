@@ -126,6 +126,7 @@ const EVENT_COLUMNS: PortalDataTableColumn<ProgramEvent>[] = [
   {
     key: "visibility",
     label: "Visibility",
+    hideBelow: "sm",
     sortValue: (event) => event.visibility,
     render: (event) => <VisibilityBadge visibility={event.visibility} />,
   },

@@ -88,6 +88,7 @@ export function RevenueTable({
       {
         key: "event",
         label: "Event",
+        hideBelow: "md",
         cellClassName: "app-muted",
         render: (row) => row.events?.name ?? "—",
       },

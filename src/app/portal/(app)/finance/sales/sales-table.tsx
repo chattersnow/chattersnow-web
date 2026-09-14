@@ -134,6 +134,7 @@ export function SalesTable({
       {
         key: "purchaser",
         label: "Purchaser",
+        hideBelow: "md",
         cellClassName: "app-muted",
         sortValue: (sale) => personDisplayName(sale.purchaser, ""),
         render: (sale) => personDisplayName(sale.purchaser),
@@ -165,6 +166,7 @@ export function SalesTable({
       {
         key: "status",
         label: "Status",
+        hideBelow: "sm",
         sortValue: (sale) => STATUS_LABELS[sale.status],
         render: (sale) => <SaleStatusBadge status={sale.status} />,
       },

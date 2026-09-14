@@ -158,6 +158,7 @@ export function DiscountCodesTab({
       {
         key: "description",
         label: "Description",
+        hideBelow: "md",
         sortValue: (code) => code.description,
         cellClassName: "max-w-xs truncate app-muted",
         render: (code) => code.description ?? "—",
@@ -165,6 +166,7 @@ export function DiscountCodesTab({
       {
         key: "source",
         label: "Source",
+        hideBelow: "lg",
         sortValue: (code) => code.source,
         cellClassName: "app-muted",
         render: (code) => code.source ?? "—",
@@ -222,6 +224,7 @@ export function DiscountCodesTab({
       {
         key: "assigned_at",
         label: "Assigned",
+        hideBelow: "sm",
         sortValue: (code) => code.assigned_at,
         cellClassName: "app-muted whitespace-nowrap",
         render: (code) => formatInstantDate(code.assigned_at),

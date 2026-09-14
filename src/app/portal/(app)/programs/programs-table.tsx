@@ -47,6 +47,7 @@ export function ProgramsTable({
       {
         key: "is_public",
         label: "Public site",
+        hideBelow: "md",
         // Public first when sorted, since the question the column answers is
         // "what is on the website".
         sortValue: (program) => (program.is_public ? 0 : 1),

@@ -107,6 +107,7 @@ export function ProductsTable({
       {
         key: "variants",
         label: "Variants",
+        hideBelow: "md",
         render: (row) => <VariantList product={row} />,
       },
       {

@@ -62,6 +62,7 @@ const COLUMNS: PortalDataTableColumn<DonatedItem>[] = [
   {
     key: "condition",
     label: "Condition",
+    hideBelow: "md",
     sortValue: (item) => item.condition,
     cellClassName: "app-muted capitalize",
     render: (item) => item.condition.replace("_", " "),
@@ -78,6 +79,7 @@ const COLUMNS: PortalDataTableColumn<DonatedItem>[] = [
   {
     key: "donatedAt",
     label: "Date",
+    hideBelow: "sm",
     sortValue: (item) => item.donatedAt,
     cellClassName: "app-muted",
     render: (item) => formatInstantDate(item.donatedAt),

@@ -209,6 +209,7 @@ export function DecisionsTab({
     {
       key: "decision_date",
       label: "Date",
+      hideBelow: "sm",
       sortValue: (decision) => decision.decision_date,
       cellClassName: "app-muted",
       render: (decision) => formatCalendarDate(decision.decision_date),

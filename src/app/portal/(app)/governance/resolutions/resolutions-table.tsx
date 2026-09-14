@@ -80,6 +80,7 @@ export function ResolutionsTable({
       {
         key: "mover",
         label: "Mover",
+        hideBelow: "md",
         sortValue: (resolution) => resolution.mover.name,
         cellClassName: "app-muted",
         render: (resolution) => resolution.mover.name ?? "—",
@@ -104,6 +105,7 @@ export function ResolutionsTable({
         // Sorted on the meeting's own timestamp rather than the formatted
         // date, so the order is chronological rather than alphabetical.
         label: "Meeting",
+        hideBelow: "lg",
         sortValue: (resolution) =>
           meetingFor(resolution.meeting_id, meetings)?.meeting_date,
         cellClassName: "app-muted",

@@ -71,6 +71,7 @@ export function PoliciesTable({
       {
         key: "version",
         label: "Version",
+        hideBelow: "md",
         sortValue: (policy) => policy.version,
         cellClassName: "app-muted",
         render: (policy) => policy.version,

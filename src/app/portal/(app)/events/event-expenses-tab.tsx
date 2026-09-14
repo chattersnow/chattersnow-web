@@ -88,6 +88,7 @@ export function EventExpensesTab({
       {
         key: "expense_date",
         label: "Date",
+        hideBelow: "sm",
         sortValue: (expense) => expense.expense_date,
         cellClassName: "app-muted",
         render: (expense) => formatCalendarDate(expense.expense_date),

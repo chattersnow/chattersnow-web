@@ -69,6 +69,7 @@ export function GrantsTable({
         // Sorted on the number, not the formatted currency, so $9,000 lands
         // below $10,000 instead of after it.
         label: "Amount",
+        hideBelow: "md",
         sortValue: (grant) => grant.amount,
         cellClassName: "app-muted",
         render: (grant) => formatCurrency(grant.amount),
@@ -91,6 +92,7 @@ export function GrantsTable({
       {
         key: "owner",
         label: "Owner",
+        hideBelow: "lg",
         sortValue: (grant) => personDisplayName(grant.owner),
         cellClassName: "app-muted",
         render: (grant) => personDisplayName(grant.owner),

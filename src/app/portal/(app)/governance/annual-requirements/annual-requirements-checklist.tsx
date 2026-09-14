@@ -129,6 +129,7 @@ export function AnnualRequirementsChecklist({
       {
         key: "responsible",
         label: "Responsible",
+        hideBelow: "md",
         sortValue: (requirement) => personDisplayName(requirement.responsible),
         cellClassName: "app-muted",
         render: (requirement) => personDisplayName(requirement.responsible),
