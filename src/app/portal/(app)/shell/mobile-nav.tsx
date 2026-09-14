@@ -3,9 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut, Menu, UserRound } from "lucide-react";
+import { LogOut, Menu, UserRound, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Sheet,
+  SheetClose,
   SheetContent,
   SheetDescription,
   SheetHeader,
@@ -112,12 +114,34 @@ export function MobileNav({
       </nav>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent side="right" className="w-[85%] overflow-y-auto p-0">
-          <SheetHeader className="px-5 pt-5">
-            <SheetTitle>Menu</SheetTitle>
-            <SheetDescription>
-              Everywhere in the portal your roles can reach.
-            </SheetDescription>
+        <SheetContent
+          side="right"
+          className="w-[85%] overflow-y-auto p-0"
+          // The sheet's own X is `size-8`, and this is the one surface in the
+          // portal where touch is the only input -- 44px is the target the
+          // tab bar, the theme toggle and the hamburger already meet (#1096).
+          showCloseButton={false}
+        >
+          <SheetHeader className="flex-row items-start gap-2 space-y-0 px-3 pt-3">
+            <SheetClose
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-11 shrink-0"
+                  aria-label="Close menu"
+                />
+              }
+            >
+              <X />
+            </SheetClose>
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5 pt-2">
+              <SheetTitle>Menu</SheetTitle>
+              <SheetDescription>
+                Everywhere in the portal your roles can reach.
+              </SheetDescription>
+            </div>
           </SheetHeader>
           {/* Every section and every sub-item, flat and scrollable rather than
               collapsed: this is the surface that has to make good on "no real

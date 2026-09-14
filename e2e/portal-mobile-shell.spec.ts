@@ -55,6 +55,58 @@ test.describe("the portal's two shells", () => {
     await expect(page).toHaveURL(/\/portal\/administration/);
   });
 
+  // Issue #1096: every other modal surface in the app offers a visible exit --
+  // 31 sheets render their own control, every dialog keeps the primitive's X.
+  // Navigation was the one that did not, on the surface where touch is the
+  // only input and Escape is not available.
+  test("the More sheet closes from a control you can see and hit", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await useShell(page, "mobile");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/portal/home");
+
+    await page.getByRole("button", { name: "More" }).click();
+    const sheet = page.getByRole("dialog");
+    await expect(sheet).toBeVisible();
+
+    const close = sheet.getByRole("button", { name: "Close menu" });
+    const box = await close.boundingBox();
+    expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+    await close.click();
+    await expect(sheet).toHaveCount(0);
+    // Closing is not navigating: the reader who opened the menu to look and
+    // then decided to stay put is still where they were.
+    await expect(page).toHaveURL(/\/portal\/home/);
+  });
+
+  // The other half of #1096: a desktop-classified browser under `md` still
+  // gets the sidebar's own sheet, which hid the close button outright.
+  test("the sidebar's sheet closes from a control you can see and hit", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await useShell(page, "desktop");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/portal/home");
+
+    await page.getByRole("button", { name: /toggle sidebar/i }).click();
+    const sheet = page.getByRole("navigation", { name: "Sidebar" });
+    await expect(sheet).toBeVisible();
+
+    const close = sheet.getByRole("button", { name: "Close menu" });
+    const box = await close.boundingBox();
+    expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+    await close.click();
+    await expect(sheet).toHaveCount(0);
+    await expect(page).toHaveURL(/\/portal\/home/);
+  });
+
   test("the dashboard leads with what needs the reader", async ({ page }) => {
     await signIn(page);
     await useShell(page, "mobile");
