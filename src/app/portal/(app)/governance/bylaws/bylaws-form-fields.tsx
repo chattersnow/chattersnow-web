@@ -38,7 +38,9 @@ export function BylawsFormFields({
     <>
       <Field orientation="responsive">
         <Field>
-          <FieldLabel htmlFor={`${idPrefix}-version`}>Version</FieldLabel>
+          <FieldLabel htmlFor={`${idPrefix}-version`} required>
+            Version
+          </FieldLabel>
           <Input
             id={`${idPrefix}-version`}
             required
@@ -48,7 +50,7 @@ export function BylawsFormFields({
           />
         </Field>
         <Field>
-          <FieldLabel htmlFor={`${idPrefix}-effective-date`}>
+          <FieldLabel htmlFor={`${idPrefix}-effective-date`} required>
             Effective date
           </FieldLabel>
           <Input

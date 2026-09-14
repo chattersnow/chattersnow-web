@@ -52,7 +52,9 @@ export function GrantFormFields({
   return (
     <>
       <Field>
-        <FieldLabel htmlFor={`${idPrefix}-funder-name`}>Funder name</FieldLabel>
+        <FieldLabel htmlFor={`${idPrefix}-funder-name`} required>
+          Funder name
+        </FieldLabel>
         <Input
           id={`${idPrefix}-funder-name`}
           required
@@ -74,7 +76,7 @@ export function GrantFormFields({
           />
         </Field>
         <Field>
-          <FieldLabel htmlFor={`${idPrefix}-application-deadline`}>
+          <FieldLabel htmlFor={`${idPrefix}-application-deadline`} required>
             Application deadline
           </FieldLabel>
           <Input

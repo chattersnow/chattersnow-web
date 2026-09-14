@@ -3,6 +3,7 @@ import { signIn, reloadStayingSignedIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { pickPerson, seedPerson } from "./helpers/people";
 import { modal } from "./helpers/dialog";
+import { exactLabel } from "./helpers/labels";
 
 // The document-shaped governance routes (#442): bylaws, policies, conflict
 // of interest, and annual requirements. Board members, meetings, and
@@ -224,7 +225,7 @@ test.describe("portal governance records", () => {
       // Exact, because the dialog also holds a person picker whose search
       // input labels itself "Search by name or email..." -- a substring match
       // on "Name" or "Email" resolves to both.
-      await addDialog.getByLabel("Name", { exact: true }).fill(requirementName);
+      await addDialog.getByLabel(exactLabel("Name")).fill(requirementName);
       await addDialog.getByLabel("Due date").fill("2026-05-15");
       await pickPerson(addDialog, person.name);
       await addDialog

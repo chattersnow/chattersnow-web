@@ -24,6 +24,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { formatCalendarDate } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
 import { runAction } from "@/components/portal/action-toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 function AddDecisionForm({
   defaultDate,
@@ -74,6 +75,7 @@ function AddDecisionForm({
       className="rounded-md border border-[var(--line)] p-4"
     >
       <FieldGroup>
+        <RequiredFieldsNote />
         <Field>
           <FieldLabel htmlFor="new-decision-topic">Topic</FieldLabel>
           <Input
@@ -84,7 +86,9 @@ function AddDecisionForm({
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="new-decision-description">Discussion</FieldLabel>
+          <FieldLabel htmlFor="new-decision-description" required>
+            Discussion
+          </FieldLabel>
           <Textarea
             id="new-decision-description"
             required
@@ -104,7 +108,9 @@ function AddDecisionForm({
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="new-decision-date">Date</FieldLabel>
+          <FieldLabel htmlFor="new-decision-date" required>
+            Date
+          </FieldLabel>
           <Input
             id="new-decision-date"
             type="date"

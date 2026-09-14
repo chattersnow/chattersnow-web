@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import type { Giveaway, GiveawayPrize } from "../giveaway-actions";
 import type { PersonListItem } from "../../people/actions";
 import * as GiveawayActions from "../giveaway-actions";
+import { labelText } from "../../../../../../test/labels";
 
 type PrizeActionResult = { error: string } | { success: true };
 type PrizeAction = (
@@ -185,7 +186,9 @@ describe("PrizeForm", () => {
       ),
     );
 
-    expect(screen.getByLabelText("Prize name")).toHaveValue("Season pass");
+    expect(screen.getByLabelText(labelText("Prize name"))).toHaveValue(
+      "Season pass",
+    );
     expect(screen.getByLabelText("Estimated value ($)")).toHaveValue(250);
     expect(screen.getByLabelText("Notes")).toHaveValue("Signed by the team");
 

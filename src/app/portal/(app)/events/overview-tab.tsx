@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/select";
 import { runAction } from "@/components/portal/action-toast";
 import { ViewerTime } from "@/components/viewer-time";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 const VISIBILITIES = [
   { value: "private", label: "Private" },
@@ -237,6 +238,7 @@ export function OverviewTab({
   return (
     <form id={formId} onSubmit={handleSubmit}>
       <FieldGroup>
+        <RequiredFieldsNote />
         <Field orientation="responsive">
           <Field>
             <FieldLabel htmlFor="details-visibility">Visibility</FieldLabel>
@@ -327,7 +329,9 @@ export function OverviewTab({
 
         <Field orientation="responsive">
           <Field>
-            <FieldLabel htmlFor="details-startsAt">Starts</FieldLabel>
+            <FieldLabel htmlFor="details-startsAt" required>
+              Starts
+            </FieldLabel>
             <Input
               id="details-startsAt"
               required
@@ -382,7 +386,9 @@ export function OverviewTab({
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="details-name">Event name</FieldLabel>
+          <FieldLabel htmlFor="details-name" required>
+            Event name
+          </FieldLabel>
           <Input
             id="details-name"
             required

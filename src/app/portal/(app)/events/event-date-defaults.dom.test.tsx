@@ -12,6 +12,7 @@ import { EventDateProvider } from "./event-date-defaults";
 import { ShiftForm } from "./volunteers/shifts";
 import { WinnerForm } from "./giveaway/winners";
 import type { GiveawayPrize } from "./giveaway-actions";
+import { labelText } from "../../../../../test/labels";
 
 // 18:00 on the 14th in Denver, the event's own zone; 20:00 on the 14th in New
 // York, the reader's; the 15th in UTC. Three different answers from one
@@ -59,8 +60,12 @@ describe("event date defaults", () => {
 
     // 20:00, not Denver's 18:00: the reader's own clock, which is the zone
     // ShiftForm converts back from on submit.
-    expect(screen.getByLabelText("Starts")).toHaveValue("2026-03-14T20:00");
-    expect(screen.getByLabelText("Ends")).toHaveValue("2026-03-15T01:00");
+    expect(screen.getByLabelText(labelText("Starts"))).toHaveValue(
+      "2026-03-14T20:00",
+    );
+    expect(screen.getByLabelText(labelText("Ends"))).toHaveValue(
+      "2026-03-15T01:00",
+    );
   });
 
   test("outside an event those fields stay empty", () => {
@@ -72,8 +77,8 @@ describe("event date defaults", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Starts")).toHaveValue("");
-    expect(screen.getByLabelText("Ends")).toHaveValue("");
+    expect(screen.getByLabelText(labelText("Starts"))).toHaveValue("");
+    expect(screen.getByLabelText(labelText("Ends"))).toHaveValue("");
   });
 
   test("a first winner opens on the event's date, in the reader's zone", () => {

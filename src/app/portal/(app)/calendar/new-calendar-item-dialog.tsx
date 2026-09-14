@@ -43,6 +43,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 import { datetimeLocalToUtcIsoInBrowser } from "@/lib/time";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 function getInitialFormState() {
   return {
@@ -179,8 +180,11 @@ export function NewCalendarItemDialog({
 
         <form onSubmit={handleSubmit}>
           <FieldGroup>
+            <RequiredFieldsNote />
             <Field>
-              <FieldLabel htmlFor="title">Title</FieldLabel>
+              <FieldLabel htmlFor="title" required>
+                Title
+              </FieldLabel>
               <Input
                 id="title"
                 required
@@ -225,7 +229,9 @@ export function NewCalendarItemDialog({
 
             <Field orientation="responsive">
               <Field>
-                <FieldLabel htmlFor="startsAt">Starts</FieldLabel>
+                <FieldLabel htmlFor="startsAt" required>
+                  Starts
+                </FieldLabel>
                 <Input
                   id="startsAt"
                   required
@@ -247,7 +253,9 @@ export function NewCalendarItemDialog({
 
             <Field orientation="responsive">
               <Field>
-                <FieldLabel htmlFor="timeZone">Time zone</FieldLabel>
+                <FieldLabel htmlFor="timeZone" required>
+                  Time zone
+                </FieldLabel>
                 <Input
                   id="timeZone"
                   required

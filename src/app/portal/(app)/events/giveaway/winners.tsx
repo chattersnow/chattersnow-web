@@ -21,6 +21,7 @@ import {
 import { Pencil } from "lucide-react";
 import { DISTRIBUTION_STATUS_LABELS, DISTRIBUTION_STATUSES } from "./format";
 import { Spinner } from "@/components/ui/spinner";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import { formatCalendarDate } from "@/lib/format";
 import { useEventDateDefaults } from "../event-date-defaults";
 
@@ -75,13 +76,15 @@ export function WinnerForm({
   return (
     <form onSubmit={handleSubmit} className="mt-3 rounded-md bg-muted/40 p-3">
       <FieldGroup>
+        <RequiredFieldsNote />
         <Field orientation="responsive">
           <Field>
-            <FieldLabel htmlFor={`winner-name-${prize.id}`}>
+            <FieldLabel htmlFor={`winner-name-${prize.id}`} required>
               Winner name
             </FieldLabel>
             <Input
               id={`winner-name-${prize.id}`}
+              required
               value={winnerName}
               onChange={(e) => setWinnerName(e.target.value)}
             />

@@ -65,6 +65,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDateTime } from "@/lib/format";
 import { runAction } from "@/components/portal/action-toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 // Seeded in the browser's zone so the prefill and the save agree (#1063).
 // The item's own `time_zone` is no longer consulted here: it says where the
@@ -354,8 +355,11 @@ export function ScheduleDetailsCard({
       ) : (
         <form onSubmit={card.handleSubmit}>
           <FieldGroup>
+            <RequiredFieldsNote />
             <Field>
-              <FieldLabel htmlFor="edit-title">Title</FieldLabel>
+              <FieldLabel htmlFor="edit-title" required>
+                Title
+              </FieldLabel>
               <Input
                 id="edit-title"
                 required
@@ -400,7 +404,9 @@ export function ScheduleDetailsCard({
 
             <Field orientation="responsive">
               <Field>
-                <FieldLabel htmlFor="edit-startsAt">Starts</FieldLabel>
+                <FieldLabel htmlFor="edit-startsAt" required>
+                  Starts
+                </FieldLabel>
                 <Input
                   id="edit-startsAt"
                   required
@@ -422,7 +428,9 @@ export function ScheduleDetailsCard({
 
             <Field orientation="responsive">
               <Field>
-                <FieldLabel htmlFor="edit-timeZone">Time zone</FieldLabel>
+                <FieldLabel htmlFor="edit-timeZone" required>
+                  Time zone
+                </FieldLabel>
                 <Input
                   id="edit-timeZone"
                   required

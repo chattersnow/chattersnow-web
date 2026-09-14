@@ -26,6 +26,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 const MEETING_TYPES = [
   { value: "board", label: "Board" },
@@ -108,8 +109,9 @@ export function NewMeetingDialog() {
 
         <form onSubmit={handleSubmit}>
           <FieldGroup>
+            <RequiredFieldsNote />
             <Field>
-              <FieldLabel htmlFor="new-meeting-date">
+              <FieldLabel htmlFor="new-meeting-date" required>
                 Date &amp; time
               </FieldLabel>
               <Input

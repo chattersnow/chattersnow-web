@@ -45,6 +45,7 @@ import { formatDateTime } from "@/lib/format";
 import { utcIsoToDatetimeLocalInBrowser } from "@/lib/time";
 import { EmptyState } from "@/components/portal/empty-state";
 import { runAction } from "@/components/portal/action-toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 function formStateFor(
   opportunity: ContentOpportunityRow | null,
@@ -498,8 +499,9 @@ export function ContentOpportunityTab({
                 ) : (
                   <form onSubmit={handleConsentSubmit}>
                     <FieldGroup>
+                      <RequiredFieldsNote />
                       <Field>
-                        <FieldLabel htmlFor="consent-permittedUse">
+                        <FieldLabel htmlFor="consent-permittedUse" required>
                           Permitted use
                         </FieldLabel>
                         <Textarea
@@ -531,7 +533,7 @@ export function ContentOpportunityTab({
                         />
                       </Field>
                       <Field>
-                        <FieldLabel htmlFor="consent-onFileAt">
+                        <FieldLabel htmlFor="consent-onFileAt" required>
                           Consent on file
                         </FieldLabel>
                         <Input

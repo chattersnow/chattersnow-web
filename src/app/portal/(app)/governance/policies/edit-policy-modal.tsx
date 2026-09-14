@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import { formatCalendarDate } from "@/lib/format";
 
 function formStateFor(policy: Policy): PolicyFormState {
@@ -273,6 +274,7 @@ export function EditPolicyModal({ policy }: { policy: Policy }) {
             >
               <div className="flex-1 overflow-y-auto px-4 pb-4">
                 <FieldGroup>
+                  <RequiredFieldsNote />
                   <PolicyFormFields
                     form={form}
                     update={update}

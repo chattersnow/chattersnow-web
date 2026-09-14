@@ -43,6 +43,7 @@ import {
 import type { TemplateField } from "../../content-brief-template-shared";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 type DetailsFormState = {
   key: string;
@@ -237,8 +238,11 @@ export function EditTemplateSheet({
             <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
               {variant === "details" ? (
                 <FieldGroup>
+                  <RequiredFieldsNote />
                   <Field>
-                    <FieldLabel htmlFor="template-edit-key">Key</FieldLabel>
+                    <FieldLabel htmlFor="template-edit-key" required>
+                      Key
+                    </FieldLabel>
                     <Input
                       id="template-edit-key"
                       required
@@ -252,7 +256,9 @@ export function EditTemplateSheet({
                     />
                   </Field>
                   <Field>
-                    <FieldLabel htmlFor="template-edit-name">Name</FieldLabel>
+                    <FieldLabel htmlFor="template-edit-name" required>
+                      Name
+                    </FieldLabel>
                     <Input
                       id="template-edit-name"
                       required

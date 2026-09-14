@@ -359,7 +359,7 @@ export function PlatformTenants({
                 {offeredPacks.length > 0 && (
                   <fieldset className="space-y-2">
                     <legend className="text-sm font-medium">
-                      Content packs (optional)
+                      Content packs
                     </legend>
                     <p className="app-muted text-sm">
                       Copied in as drafts. The organization reads them and
