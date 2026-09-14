@@ -113,6 +113,21 @@ test.describe("a host that resolves to no tenant", () => {
     expect((await page.title()).trim()).not.toBe("");
   });
 
+  test("the manifest names no organization on an unresolved host", async ({
+    page,
+  }) => {
+    // Still running with the second tenant active. A manifest is what an
+    // install is named after permanently, so the root-metadata rule above
+    // applies to it with more force than to a title: a home-screen icon
+    // labelled with the wrong nonprofit outlives the misconfiguration that
+    // produced it (#1083).
+    const response = await page.request.get("/manifest.webmanifest");
+    expect(response.status()).toBe(200);
+    const manifest = await response.json();
+    expect(manifest.name).toBe("Operations portal");
+    expect(JSON.stringify(manifest)).not.toMatch(/chatter|example nonprofit/i);
+  });
+
   test("the portal is not affected by an unresolved host", async ({ page }) => {
     // Still running with the second tenant active, so nothing claims this
     // host. The portal is pinned to the host's tenant since #956, but only

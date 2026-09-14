@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { BrandStyle } from "@/components/brand-style";
 import { getTenantBranding } from "@/lib/tenant-branding";
 import { currentTenant, getTenantContext } from "@/lib/portal/tenants";
+import { APPLE_TOUCH_ICON_SIZE, APP_ICON_PATH } from "@/lib/pwa/manifest";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { PortalUrlCanonicalizer } from "./portal-url-canonicalizer";
 
@@ -17,6 +18,12 @@ export async function generateMetadata(): Promise<Metadata> {
   const name = tenant ? `${tenant.name} Portal` : "Portal";
   return {
     title: { default: name, template: `%s | ${name}` },
+    // iOS reads `apple-touch-icon` rather than the manifest's icons when it
+    // adds a page to the home screen, so the manifest alone would install the
+    // portal as a screenshot of the page (#1083). The route composes whatever
+    // the tenant has into the same padded square the manifest points at, so
+    // both platforms install the same mark.
+    icons: { apple: `${APP_ICON_PATH}/${APPLE_TOUCH_ICON_SIZE}` },
   };
 }
 

@@ -4,6 +4,8 @@ import { BrandLogoProvider } from "@/components/brand-logo-context";
 import { SkipLink } from "@/components/skip-link";
 import { BrandLogo } from "@/components/brand-logo";
 import { LexiconProvider } from "@/components/lexicon-context";
+import { OfflineBanner } from "@/components/portal/offline-banner";
+import { ServiceWorkerRegistrar } from "@/components/portal/service-worker-registrar";
 import { CommandPalette } from "../command-palette";
 import { HelpButton } from "../help/help-button";
 import { IdleTimeout } from "../idle-timeout";
@@ -86,6 +88,7 @@ export function PortalShellMobile({
         </div>
       </header>
       {isDemo && <DemoBanner />}
+      <OfflineBanner />
       <main
         id="portal-main"
         tabIndex={-1}
@@ -109,6 +112,7 @@ export function PortalShellMobile({
       )}
       {whatsNewOwed && <WhatsNewDialog key={CURRENT_RELEASE} initialOpen />}
       <IdleTimeout />
+      <ServiceWorkerRegistrar />
       <Toaster />
     </div>
   );
