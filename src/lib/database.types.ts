@@ -8961,6 +8961,7 @@ export type Database = {
         Returns: string;
       };
       request_host: { Args: never; Returns: string };
+      request_tenant_slug: { Args: never; Returns: string };
       require_platform_operator: { Args: never; Returns: undefined };
       reserve_inventory_item_for_giveaway: {
         Args: { p_event_id: string; p_inventory_item_id: string };
@@ -8988,6 +8989,10 @@ export type Database = {
       };
       resolve_tenant_id_from_host: {
         Args: { p_host: string };
+        Returns: string;
+      };
+      resolve_tenant_id_from_slug: {
+        Args: { p_slug: string };
         Returns: string;
       };
       retention_log: {
