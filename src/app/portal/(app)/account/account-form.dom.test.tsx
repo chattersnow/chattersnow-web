@@ -116,7 +116,7 @@ describe("AccountForm", () => {
       />,
     );
 
-    await user.type(screen.getByLabelText("Pronouns (optional)"), "they/them");
+    await user.type(screen.getByLabelText("Pronouns"), "they/them");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(pronounsMock).toHaveBeenCalledTimes(1));

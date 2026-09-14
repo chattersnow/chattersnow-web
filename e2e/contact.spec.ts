@@ -1,6 +1,7 @@
 import { test, expect } from "./helpers/test";
 import { clickNavLink } from "./helpers/nav";
 import { createAdminClient } from "./helpers/admin-client";
+import { exactLabel } from "./helpers/labels";
 
 test.describe("public contact page", () => {
   test("contact page loads", async ({ page }) => {
@@ -30,7 +31,7 @@ test.describe("public contact page", () => {
     try {
       await page.goto("/contact");
 
-      await page.getByLabel("Name", { exact: true }).fill("E2E Contact");
+      await page.getByLabel(exactLabel("Name")).fill("E2E Contact");
       await page.getByLabel("Email").fill(email);
       await page
         .getByLabel("Message")
@@ -51,7 +52,7 @@ test.describe("public contact page", () => {
   }) => {
     await page.goto("/contact");
 
-    const name = page.getByLabel("Name", { exact: true });
+    const name = page.getByLabel(exactLabel("Name"));
     const email = page.getByLabel("Email");
     const message = page.getByLabel("Message");
     const submit = page.getByRole("button", { name: "Send message" });

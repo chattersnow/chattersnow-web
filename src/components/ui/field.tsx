@@ -98,10 +98,25 @@ function FieldContent({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
+/**
+ * `required` marks the field for people reading the page (#1070).
+ *
+ * Visual only, and deliberately so: the marker is `aria-hidden` because the
+ * control itself already carries `required`/`aria-required`, which is what a
+ * screen reader announces. An "(required)" in the label on top of that is read
+ * out twice -- "Name required, required" -- so the rule for a marked field is
+ * that its control must carry the attribute, not that its label must repeat it.
+ *
+ * This file is vendored from shadcn, so the addition is deliberately a prop
+ * and a span -- nothing restructured -- to survive a future
+ * `npx shadcn@latest add field`.
+ */
 function FieldLabel({
   className,
+  children,
+  required,
   ...props
-}: React.ComponentProps<typeof Label>) {
+}: React.ComponentProps<typeof Label> & { required?: boolean }) {
   return (
     <Label
       data-slot="field-label"
@@ -111,7 +126,20 @@ function FieldLabel({
         className,
       )}
       {...props}
-    />
+    >
+      {children}
+      {/* -ml-1 because the label is a flex row with gap-2: without it the
+          marker floats a full gap away from the word it belongs to. */}
+      {required && (
+        <span
+          data-slot="field-required"
+          aria-hidden="true"
+          className="-ml-1 text-destructive"
+        >
+          *
+        </span>
+      )}
+    </Label>
   );
 }
 
