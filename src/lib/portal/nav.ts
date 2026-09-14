@@ -75,6 +75,18 @@ export type NavItem = {
    * one of the subject areas, and sits above the first heading.
    */
   group?: string;
+  /**
+   * Marks a section as thumb-reachable work, for the mobile shell's bottom tab
+   * bar (#1079).
+   *
+   * A flag on this tree rather than a second list in the mobile shell: a
+   * parallel list would let mobile and desktop entitlements drift, and
+   * `nav-guards.test.ts` would stop meaning anything about what a phone can
+   * reach. `primaryNavItems` below is what reads it; everything a phone can
+   * open but is not flagged here is still reachable through the sheet and the
+   * command palette.
+   */
+  primary?: boolean;
   subItems?: readonly NavSubItem[];
 };
 
@@ -96,6 +108,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     value: "overview",
     label: "Dashboard",
     href: "/portal/home",
+    primary: true,
   },
   {
     value: "events",
@@ -103,6 +116,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     group: "Delivery",
     href: "/portal/events",
     access: [{ resource: "events", level: "view" }],
+    primary: true,
   },
   {
     value: "calendar",
@@ -110,6 +124,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     group: "Delivery",
     href: "/portal/calendar",
     basePath: "/portal/calendar",
+    primary: true,
     subItems: [
       {
         value: "items",
@@ -221,6 +236,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     // from: visibleNavItems keeps an access-less section unconditionally,
     // which is right for Dashboard and wrong for this.
     access: [{ resource: "people", level: "view" }],
+    primary: true,
   },
   {
     value: "volunteers",
@@ -881,6 +897,34 @@ export function visibleNavItems(
           : undefined,
     };
   });
+}
+
+/**
+ * How many destinations the mobile tab bar holds beside its "More" button.
+ * Four plus More is five targets across a phone's width, which is as many as
+ * stay thumb-sized at 360px.
+ */
+export const PRIMARY_NAV_LIMIT = 4;
+
+/**
+ * The tab bar's entries, from the sections this user can actually reach.
+ *
+ * Takes `visibleNavItems()`'s output, so entitlements are applied once and the
+ * tab bar can never advertise a module a tenant does not have. `primary`
+ * sections come first in tree order; if fewer than `limit` of them survive the
+ * permission filter -- a treasurer with finance and nothing else -- the rest
+ * of the visible tree fills the gap in order, so the bar is never a single
+ * lonely Dashboard tab beside More. Ordering within the result stays the
+ * tree's, which is what keeps a tab from moving between two people's phones
+ * for reasons neither can see.
+ */
+export function primaryNavItems(
+  items: readonly NavItem[],
+  limit: number = PRIMARY_NAV_LIMIT,
+): NavItem[] {
+  const flagged = items.filter((item) => item.primary);
+  const rest = items.filter((item) => !item.primary);
+  return [...flagged, ...rest].slice(0, limit);
 }
 
 /**

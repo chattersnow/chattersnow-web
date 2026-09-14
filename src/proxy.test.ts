@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { resolvePortalRoute } from "./proxy";
+import { resolveDeviceClass, resolvePortalRoute } from "./proxy";
 
 const PORTAL = "portal.example.org";
 const PUBLIC = "www.example.org";
@@ -154,5 +154,35 @@ describe("resolvePortalRoute on the public hosts", () => {
     expect(resolvePortalRoute("localhost:3000", "/portal/home")).toEqual({
       kind: "pass",
     });
+  });
+});
+
+describe("resolveDeviceClass", () => {
+  test("a phone user-agent gets the mobile shell", () => {
+    expect(resolveDeviceClass("mobile", undefined)).toBe("mobile");
+  });
+
+  test("a desktop user-agent reports no device type at all", () => {
+    expect(resolveDeviceClass(undefined, undefined)).toBe("desktop");
+  });
+
+  // A 10" screen has room for the sidebar, and the bottom tab bar is a
+  // thumb-reach affordance it does not want.
+  test("a tablet gets the desktop shell", () => {
+    expect(resolveDeviceClass("tablet", undefined)).toBe("desktop");
+  });
+
+  // The whole point of the cookie: UA sniffing cannot see a viewport, so a
+  // phone in desktop mode -- and a Playwright run -- says so explicitly.
+  test("the override cookie beats the user-agent in both directions", () => {
+    expect(resolveDeviceClass(undefined, "mobile")).toBe("mobile");
+    expect(resolveDeviceClass("mobile", "desktop")).toBe("desktop");
+  });
+
+  // The cookie is client-writable, so a junk value must fall through to the
+  // user-agent rather than decide anything.
+  test("ignores an override it does not recognise", () => {
+    expect(resolveDeviceClass("mobile", "phablet")).toBe("mobile");
+    expect(resolveDeviceClass(undefined, "")).toBe("desktop");
   });
 });
