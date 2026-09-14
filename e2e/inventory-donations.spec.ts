@@ -1,6 +1,7 @@
 import { test, expect } from "./helpers/test";
 import { reloadStayingSignedIn, signIn } from "./helpers/auth";
 import { modal } from "./helpers/dialog";
+import { exactLabel } from "./helpers/labels";
 
 /** A 1x1 PNG, small enough to inline and real enough for the browser to decode. */
 const PNG_PIXEL = Buffer.from(
@@ -37,7 +38,7 @@ test.describe("portal inventory donations", () => {
       addSheet.getByRole("heading", { name: "Record a donation" }),
     ).toBeVisible();
 
-    await addSheet.getByLabel("Donor name").fill(donorName);
+    await addSheet.getByLabel(exactLabel("Donor name")).fill(donorName);
     await addSheet.getByLabel("Donor source").click();
     await page
       .getByRole("listbox")
@@ -45,7 +46,9 @@ test.describe("portal inventory donations", () => {
       .click();
     await addSheet.getByRole("button", { name: "Continue" }).click();
 
-    await addSheet.getByLabel("Item description").fill(itemDescription);
+    await addSheet
+      .getByLabel(exactLabel("Item description"))
+      .fill(itemDescription);
     await addSheet.getByLabel("Item category").click();
     await page
       .getByRole("listbox")

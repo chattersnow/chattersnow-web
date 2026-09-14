@@ -85,11 +85,12 @@ export function GearRequestStatusActions({
             className="flex flex-wrap items-end gap-2"
           >
             <Field className="w-36">
-              <FieldLabel htmlFor="request-quote-amount">
+              <FieldLabel htmlFor="request-quote-amount" required>
                 {status === "quoted" ? "Re-quote postage ($)" : "Postage ($)"}
               </FieldLabel>
               <Input
                 id="request-quote-amount"
+                required
                 type="number"
                 inputMode="decimal"
                 min={0}

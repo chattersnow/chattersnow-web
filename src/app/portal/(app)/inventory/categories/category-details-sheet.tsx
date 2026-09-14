@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 export type CategoryRow = {
   id: string;
@@ -289,6 +290,7 @@ export function CategoryDetailsSheet({
             >
               <div className="flex-1 overflow-y-auto px-4 pb-4">
                 <FieldGroup>
+                  <RequiredFieldsNote />
                   <Field>
                     <FieldLabel htmlFor="category-edit-group">Group</FieldLabel>
                     <Select
@@ -314,7 +316,7 @@ export function CategoryDetailsSheet({
                   </Field>
 
                   <Field>
-                    <FieldLabel htmlFor="category-edit-label">
+                    <FieldLabel htmlFor="category-edit-label" required>
                       Category name
                     </FieldLabel>
                     <Input

@@ -14,6 +14,7 @@ import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { markOnboarded } from "./helpers/onboarding";
+import { exactLabel } from "./helpers/labels";
 
 test("self-log-only volunteer sees their own name pre-filled and can log hours", async ({
   page,
@@ -71,7 +72,7 @@ test("self-log-only volunteer sees their own name pre-filled and can log hours",
       dialog.getByRole("button", { name: "Change" }),
     ).not.toBeAttached();
 
-    await dialog.getByLabel("Hours").fill("2.5");
+    await dialog.getByLabel(exactLabel("Hours")).fill("2.5");
     await dialog.getByRole("button", { name: "Log hours" }).click();
 
     await expect(dialog).not.toBeVisible();

@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 /**
  * The organization's mark, at the shape and fit the public sponsor wall draws
@@ -310,6 +311,7 @@ export function ProfileCard({
         ) : (
           <form id={formId} onSubmit={handleSubmit}>
             <FieldGroup>
+              <RequiredFieldsNote />
               <PersonFormFields
                 form={form}
                 update={update}

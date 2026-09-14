@@ -138,7 +138,9 @@ export function PersonFormFields({
     <>
       <Field orientation="responsive">
         <Field>
-          <FieldLabel htmlFor={`${idPrefix}-name`}>Name</FieldLabel>
+          <FieldLabel htmlFor={`${idPrefix}-name`} required>
+            Name
+          </FieldLabel>
           <Input
             id={`${idPrefix}-name`}
             required

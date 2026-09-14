@@ -3,6 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { PickedPerson } from "../../people/person-picker";
 import * as PeopleActions from "../../people/actions";
+import { labelText } from "../../../../../../test/labels";
 
 // Mocks the Supabase client the same way participation/actions.test.ts and
 // roles/actions.test.ts do (rather than mocking ./actions or ../roles/actions
@@ -115,7 +116,7 @@ describe("LogHoursDialog", () => {
     ).not.toBeInTheDocument();
     expect(listPeopleActionMock).not.toHaveBeenCalled();
 
-    await user.type(screen.getByLabelText("Hours"), "2");
+    await user.type(screen.getByLabelText(labelText("Hours")), "2");
     await user.click(screen.getByRole("button", { name: "Log hours" }));
 
     await waitFor(() => expect(inserts).toHaveLength(1));
@@ -135,7 +136,7 @@ describe("LogHoursDialog", () => {
     ).toBeInTheDocument();
     await waitFor(() => expect(listPeopleActionMock).toHaveBeenCalled());
 
-    await user.type(screen.getByLabelText("Hours"), "2");
+    await user.type(screen.getByLabelText(labelText("Hours")), "2");
     await user.click(screen.getByRole("button", { name: "Log hours" }));
 
     expect(

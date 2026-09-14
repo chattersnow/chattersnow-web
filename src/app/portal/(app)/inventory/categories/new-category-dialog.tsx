@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 export type CategoryGroupOption = { id: string; label: string };
 
@@ -109,6 +110,7 @@ export function NewCategoryDialog({
 
         <form onSubmit={handleSubmit}>
           <FieldGroup>
+            <RequiredFieldsNote />
             <Field>
               <FieldLabel htmlFor="category-group">Group</FieldLabel>
               <Select
@@ -134,7 +136,7 @@ export function NewCategoryDialog({
             </Field>
 
             <Field>
-              <FieldLabel htmlFor="category-label">
+              <FieldLabel htmlFor="category-label" required>
                 {creatingGroup ? "Group name" : "Category name"}
               </FieldLabel>
               <Input
