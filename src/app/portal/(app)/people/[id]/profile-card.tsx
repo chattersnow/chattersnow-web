@@ -93,6 +93,7 @@ function formStateFor(
       is_attendee: person.is_attendee,
       is_staff: person.is_staff,
       is_partner: person.is_partner,
+      is_recipient: person.is_recipient,
     },
     sponsorWallPublic,
     personType: person.person_type,

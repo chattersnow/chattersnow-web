@@ -14,6 +14,18 @@ const NONE = {
   is_attendee: false,
   is_staff: false,
   is_partner: false,
+  is_recipient: false,
+};
+
+/** Everything `rolesFor` is willing to name, plus the one role it is not. */
+const EVERY_ROLE = {
+  is_donor: true,
+  is_sponsor: true,
+  is_volunteer: true,
+  is_attendee: true,
+  is_staff: true,
+  is_partner: true,
+  is_recipient: true,
 };
 
 /** An organization that runs classes rather than a charity. */
@@ -38,19 +50,7 @@ describe("rolesFor", () => {
   });
 
   test("returns all labels when every role is set", () => {
-    expect(
-      rolesFor(
-        {
-          is_donor: true,
-          is_sponsor: true,
-          is_volunteer: true,
-          is_attendee: true,
-          is_staff: true,
-          is_partner: true,
-        },
-        DEFAULT_VOCABULARY,
-      ),
-    ).toEqual([
+    expect(rolesFor(EVERY_ROLE, DEFAULT_VOCABULARY)).toEqual([
       "Donor",
       "Sponsor",
       "Volunteer",
@@ -58,6 +58,31 @@ describe("rolesFor", () => {
       "Staff Member",
       "Partner",
     ]);
+  });
+
+  /**
+   * #1073. The Roles column renders across a browsable, searchable directory,
+   * and the flag behind it is `security definer` while the distributions it
+   * describes are RLS-gated on `inventory:view` -- so a Recipient chip would be
+   * legible to almost every portal reader while the rows behind it would not
+   * be, and it would assemble the roster of aid recipients the ticket
+   * explicitly declined. The aspect card is the disclosure; this list is not.
+   */
+  test("never names Recipient, even when the flag is set", () => {
+    expect(rolesFor(EVERY_ROLE, DEFAULT_VOCABULARY)).not.toContain("Recipient");
+    expect(
+      rolesFor({ ...NONE, is_recipient: true }, DEFAULT_VOCABULARY),
+    ).toEqual([]);
+  });
+
+  // A tenant that renames the role does not get it back, either: the exclusion
+  // is on the key, which is what the schema and the routes mean (#911).
+  test("a renamed Recipient stays out too", () => {
+    const shop = withPersonRoleTerms(DEFAULT_LEXICON, {
+      ...DEFAULT_PERSON_ROLE_LABELS,
+      is_recipient: { singular: "Customer", plural: "Customers" },
+    });
+    expect(rolesFor({ ...NONE, is_recipient: true }, shop)).toEqual([]);
   });
 
   // #911: the column is what the tenant calls the role, not what the schema

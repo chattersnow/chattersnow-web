@@ -1,4 +1,4 @@
-// Issue #911 (phase A): the six person roles are nonprofit vocabulary, and a
+// Issue #911 (phase A): the person roles are nonprofit vocabulary, and a
 // tenant that runs classes has students rather than attendees.
 //
 // The words reach the browser through four different mechanisms -- the nav

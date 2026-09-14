@@ -84,4 +84,24 @@ export const ASPECT_ACTIONS: Record<RoleKey, readonly PersonAspectAction[]> = {
       access: [{ resource: "governance", level: "manage" }],
     },
   ],
+  // Both halves of the card have a queue of their own in Inventory, and they
+  // answer to different authorities: the requests list is inventory:view
+  // alone, while Distribution also admits an intake-only volunteer.
+  is_recipient: [
+    {
+      key: "requests",
+      label: "Requests",
+      href: "/portal/inventory/requests",
+      access: [{ resource: "inventory", level: "view" }],
+    },
+    {
+      key: "distribution",
+      label: "Distribution",
+      href: "/portal/inventory/distribution",
+      access: [
+        { resource: "inventory", level: "view" },
+        { resource: "inventory_intake", level: "manage" },
+      ],
+    },
+  ],
 };
