@@ -759,18 +759,24 @@ const shards: Shard[] = [
     required: true,
     routes: slice,
   })),
-  // Each role sweep is already one context per role, so it is a shard as it
-  // stands. QUICK drops them, as it always did.
-  // A role sweep is a whole sign-in for 2-3 routes, so it is indivisible --
-  // it is distributed across runners whole rather than split.
+  // Sweeps are distributed across runners whole -- a sweep is 2-3 routes, and
+  // splitting one across machines would repeat its sign-in on each -- but the
+  // routes inside one are split across this runner's contexts like any others.
+  // A sweep used to be a single indivisible shard, which is what made it the
+  // tail: once the admin slices were done, one worker scanned three routes at
+  // ~27s each while the other three sat idle, 82s of a 318s run (#844). The
+  // extra sign-in per context is ~5s and runs in parallel with the others.
+  // QUICK drops the sweeps entirely, as it always did.
   ...(QUICK
     ? []
-    : shardSlice(ROLE_SWEEPS).map((sweep) => ({
-        label: sweep.label,
-        email: sweep.email,
-        required: false,
-        routes: sweep.routes.map((pattern) => ({ pattern, isDynamic: false })),
-      }))),
+    : shardSlice(ROLE_SWEEPS).flatMap((sweep) =>
+        shardRoutes(sweep.routes, A11Y_WORKERS).map((slice) => ({
+          label: sweep.label,
+          email: sweep.email,
+          required: false,
+          routes: slice.map((pattern) => ({ pattern, isDynamic: false })),
+        })),
+      )),
 ];
 
 const scannedRouteCount = anonRoutes.length + portalRoutes.length;
@@ -798,6 +804,14 @@ try {
   // baseline below is built by walking this sorted list, so its own key order
   // is fixed too.
   results.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  // A role whose sign-in fails is now reported by each of that sweep's slices,
+  // so the same (pattern, reason) can arrive several times. The report should
+  // say it once.
+  const uniqueSkipped = new Map(
+    skipped.map((s) => [`${s.pattern}\u0000${s.reason}`, s]),
+  );
+  skipped.length = 0;
+  skipped.push(...uniqueSkipped.values());
   skipped.sort((a, b) =>
     a.pattern === b.pattern
       ? a.reason < b.reason
