@@ -1,8 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getClientIp } from "@/lib/get-client-ip";
+import { getRequestOrigin } from "@/lib/request-origin";
+import { sendEventRegistrationConfirmation } from "@/lib/notifications/submission-notifications";
 import { PRONOUNS_TOO_LONG_ERROR } from "@/lib/pronouns";
 import { parseEventRegistrationForm } from "./event-registration-form";
 import { publicEventPath } from "./event-path";
@@ -63,8 +67,30 @@ export async function registerForEventAction(
 
   revalidatePath(publicEventPath(eventId));
   revalidatePath("/portal/events");
+
   // The new registration id is handed back so the rider-profile follow-up
   // step (#564) can authorize its own write; it's an unguessable uuid and
   // reveals nothing about the event or other registrants.
-  return { success: true, registrationId: String(data) };
+  const registrationId = String(data);
+
+  // After the response, never before it (#742): the registration is already
+  // committed, and the registrant's confirmation must not hold up "you're
+  // registered" or turn a committed registration into an error on screen.
+  // Read the origin first -- after() runs once the response is on its way and
+  // may no longer have the request's headers. It is only the fallback: a tenant
+  // with a domain of its own is linked to that instead (#860).
+  //
+  // The only input reaching the service-role client is the id the RPC just
+  // minted; for a filled honeypot that is a uuid with no row behind it, which
+  // the sender treats as nothing to do.
+  const siteUrl = await getRequestOrigin();
+
+  after(async () => {
+    await sendEventRegistrationConfirmation(createSupabaseAdminClient(), {
+      registrationId,
+      siteUrl,
+    });
+  });
+
+  return { success: true, registrationId };
 }

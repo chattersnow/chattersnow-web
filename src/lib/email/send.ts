@@ -20,6 +20,8 @@ import "server-only";
  * RESEND_API_KEY is the only environment this file still touches.
  */
 
+import type { EmailAttachment } from "@/lib/email/attachment";
+
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 
 export type EmailMessage = {
@@ -43,6 +45,12 @@ export type EmailMessage = {
    * header points at a real monitored inbox.
    */
   replyTo?: string;
+  /**
+   * Files to send alongside the body (#1068, the registration confirmation's
+   * calendar file). Base64 encoding happens here rather than in the caller: it
+   * is Resend's wire format, not something a renderer should know about.
+   */
+  attachments?: readonly EmailAttachment[];
 };
 
 /**
@@ -60,15 +68,21 @@ export async function sendEmail(
   message: EmailMessage,
 ): Promise<SendEmailResult> {
   const apiKey = process.env.RESEND_API_KEY;
-  const { from, replyTo } = message;
+  const { from, replyTo, attachments } = message;
 
   // No key configured: log and succeed. Development, preview deploys and CI all
   // run without one, and this is what lets the whole path -- the cron route,
   // the digest query, the ledger writes, both control levels -- be exercised
   // end to end without a single real message leaving the building.
   if (!apiKey) {
+    // The attachment filenames are named here, not just counted: reading this
+    // line out of the dev log is how a change to an attachment gets checked
+    // without a provider, which is the whole point of the no-op path.
+    const attached = attachments?.length
+      ? ` (attachments: ${attachments.map((file) => file.filename).join(", ")})`
+      : "";
     console.info(
-      `[email] RESEND_API_KEY unset; not sending "${message.subject}" to ${message.to}`,
+      `[email] RESEND_API_KEY unset; not sending "${message.subject}" to ${message.to}${attached}`,
     );
     return { ok: true, id: null };
   }
@@ -94,8 +108,18 @@ export async function sendEmail(
         text: message.text,
         html: message.html,
         // Omitted rather than sent empty when unset: an empty Reply-To is
-        // worse than none, and some providers reject it outright.
+        // worse than none, and some providers reject it outright. The same for
+        // an empty attachment list, which is every message but one.
         ...(replyTo ? { reply_to: replyTo } : {}),
+        ...(attachments?.length
+          ? {
+              attachments: attachments.map((file) => ({
+                filename: file.filename,
+                content: Buffer.from(file.content, "utf8").toString("base64"),
+                content_type: file.contentType,
+              })),
+            }
+          : {}),
       }),
     });
   } catch (cause) {
