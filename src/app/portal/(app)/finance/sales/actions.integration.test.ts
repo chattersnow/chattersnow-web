@@ -27,6 +27,7 @@ import {
   adminClient,
   serviceRoleClient,
   signInAs,
+  tenantToday,
   uniqueEmail,
   unprivilegedActors,
 } from "../../../../../../test/integration-setup";
@@ -791,7 +792,10 @@ describe("voidSaleAction (integration)", () => {
 
     // Before the void the sale is in the rollup, tax and all (#997): net
     // amount and the tax beside it.
-    const today = new Date().toISOString().slice(0, 10);
+    // The organization's today, not the runner's: the rollup buckets `sold_at`
+    // in the tenant's zone (#1065), so a sale rung during a Mountain evening
+    // is yesterday's as far as this report is concerned.
+    const today = tenantToday();
     const inRollup = async () => {
       const { data, error } = await adminClient.rpc("get_finance_report_data", {
         p_from: today,

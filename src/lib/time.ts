@@ -292,6 +292,31 @@ export function todayInBrowser(): string {
 }
 
 /**
+ * Today as "YYYY-MM-DD" in a named zone -- the organization's, when a report
+ * or a dashboard tile has to choose a default period (#1065).
+ *
+ * The server process runs in UTC, so `new Date().toISOString().slice(0, 10)`
+ * is already tomorrow for anyone west of Greenwich working in the evening.
+ * Read off a preset range that is a rendered figure rather than a typed value,
+ * that shows up as a month tile rolling over to the next month at 6pm on the
+ * last day of the current one.
+ */
+export function todayInZone(timeZone: string, now: Date = new Date()): string {
+  return formatDateInZone(now, timeZone);
+}
+
+/**
+ * A "YYYY-MM-DD" day as the Date that reads back as that day in UTC.
+ *
+ * The fiscal-year helpers do their arithmetic with `getUTC*`, so this is how a
+ * day chosen in some other zone is handed to them without the local-time
+ * parsing of `new Date("2026-08-31")` sliding it a day (#1053, #1065).
+ */
+export function utcDateFromIsoDay(day: string): Date {
+  return new Date(`${day}T00:00:00Z`);
+}
+
+/**
  * Converts a `<input type="datetime-local">` value to the UTC instant it
  * represents when read in the browser's timezone -- the platform convention,
  * and the conversion that has to happen in the *client* so that the server

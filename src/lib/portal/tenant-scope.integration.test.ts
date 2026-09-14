@@ -461,6 +461,48 @@ describe("per-tenant uniqueness", () => {
     }
   });
 
+  // #1065: the reporting zone, through the same definer-view shape again.
+  // This one matters more than most for isolation -- reading another tenant's
+  // zone would silently re-cut this tenant's month boundaries.
+  test("org_timezone reads the current tenant's zone and nobody else's", async () => {
+    const { error } = await service.from("app_settings").upsert(
+      {
+        tenant_id: secondTenantId,
+        key: "org.timezone",
+        value: "America/New_York",
+      },
+      { onConflict: "tenant_id,key" },
+    );
+    expect(error).toBeNull();
+
+    const multi = await signInAs(SEEDED_USERS.multi);
+    await service.from("tenant_memberships").insert({
+      user_id: SEEDED_USER_IDS.multi,
+      tenant_id: secondTenantId,
+      kind: "member",
+    });
+    try {
+      await multi.rpc("set_current_tenant", { p_tenant_id: secondTenantId });
+      const away = await multi.from("org_timezone").select("zone");
+      expect(away.error).toBeNull();
+      expect(away.data?.map((row) => row.zone)).toEqual(["America/New_York"]);
+
+      await multi.rpc("set_current_tenant", { p_tenant_id: chatterTenantId });
+      const home = await multi.from("org_timezone").select("zone");
+      expect(home.error).toBeNull();
+      // Inferred from the seeded events, which are all in Denver; one row,
+      // not two.
+      expect(home.data?.map((row) => row.zone)).toEqual(["America/Denver"]);
+    } finally {
+      await multi.rpc("set_current_tenant", { p_tenant_id: chatterTenantId });
+      await service
+        .from("tenant_memberships")
+        .delete()
+        .eq("user_id", SEEDED_USER_IDS.multi)
+        .eq("tenant_id", secondTenantId);
+    }
+  });
+
   test("a volunteer reference code is unique within a tenant", async () => {
     const { data: existing } = await service
       .from("volunteer_applications")
