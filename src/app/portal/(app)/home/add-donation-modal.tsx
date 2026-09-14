@@ -742,7 +742,7 @@ export function AddDonationModal({
           </form>
         </div>
 
-        <SheetFooter className="flex-row justify-end border-t bg-muted/50">
+        <SheetFooter>
           {step === "tickets" ? (
             <Button type="button" onClick={() => handleOpenChange(false)}>
               Done

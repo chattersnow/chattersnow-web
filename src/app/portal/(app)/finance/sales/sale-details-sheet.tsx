@@ -453,7 +453,7 @@ export function SaleDetailsSheet({
           )}
 
           {mode === "edit" && (
-            <SheetFooter className="flex-row justify-between border-t bg-muted/50">
+            <SheetFooter className="justify-between">
               <Button
                 type="button"
                 variant="destructive"
