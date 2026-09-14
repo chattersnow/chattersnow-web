@@ -1,14 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatDateTimeInZone } from "@/lib/time";
+
 import { AddDonationModal } from "./add-donation-modal";
 import { CheckInModal } from "./check-in-modal";
 import { RecordDistributionModal } from "./record-distribution-modal";
 import type { ActiveEventForPerson } from "./queries";
-
-const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
-  dateStyle: "medium",
-  timeStyle: "short",
-};
+import { ViewerTime } from "@/components/viewer-time";
 
 export function ActiveEventCard({
   event,
@@ -28,12 +24,7 @@ export function ActiveEventCard({
       </CardHeader>
       <CardContent>
         <p className="app-muted text-sm">
-          {formatDateTimeInZone(
-            event.starts_at,
-            event.timezone,
-            DATE_FORMAT_OPTIONS,
-            "en-US",
-          )}
+          <ViewerTime iso={event.starts_at} fallbackZone={event.timezone} />
           {event.location ? ` · ${event.location}` : ""}
         </p>
         {(canCheckIn || canRecordDonation || canRecordDistribution) && (

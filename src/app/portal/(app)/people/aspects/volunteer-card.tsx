@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { formatCalendarDate, formatInstantDate } from "@/lib/format";
+import { formatCalendarDate } from "@/lib/format";
 import { signupRoleLabel, type ShiftRoleRef } from "@/lib/volunteer-roles";
 import { getPortalVocabulary } from "@/lib/tenant-person-roles";
 import { HistoryCard, HistoryGroups, HistorySection } from "./history-card";
+import { ViewerTime } from "@/components/viewer-time";
 
 type EventRef = { id: string; name: string } | null;
 type Signup = {
@@ -107,8 +108,12 @@ export async function VolunteerCard({
         >
           {applications.map((application) => (
             <li key={application.id}>
-              {formatInstantDate(application.created_at)} ·{" "}
-              <span className="capitalize">{application.status}</span>
+              <ViewerTime
+                iso={application.created_at}
+                fallbackZone="UTC"
+                options={{ dateStyle: "medium" }}
+              />{" "}
+              · <span className="capitalize">{application.status}</span>
               {application.role_interest
                 ? ` · ${application.role_interest}`
                 : ""}

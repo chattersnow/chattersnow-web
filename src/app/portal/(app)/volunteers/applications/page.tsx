@@ -40,7 +40,8 @@ import {
   type VolunteerApplication,
   type VolunteerApplicationStatus,
 } from "./application-types";
-import { formatInstantDate } from "@/lib/format";
+
+import { ViewerTime } from "@/components/viewer-time";
 
 type ApplicationsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -325,7 +326,11 @@ export default async function VolunteerApplicationsPage({
                             {application.role_interest || "—"}
                           </TableCell>
                           <TableCell className="app-muted">
-                            {formatInstantDate(application.created_at)}
+                            <ViewerTime
+                              iso={application.created_at}
+                              fallbackZone="UTC"
+                              options={{ dateStyle: "medium" }}
+                            />
                           </TableCell>
                           <TableCell>
                             <VolunteerApplicationStatusBadge

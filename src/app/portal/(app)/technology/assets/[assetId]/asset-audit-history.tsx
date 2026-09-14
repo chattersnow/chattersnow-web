@@ -2,8 +2,9 @@ import Link from "next/link";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ActionBadge } from "../../../administration/audit-log/audit-log-badges";
-import { formatDateTime } from "@/lib/format";
+
 import { EmptyState } from "@/components/portal/empty-state";
+import { ViewerTime } from "@/components/viewer-time";
 
 type AuditEntry = { id: string; action: string; occurred_at: string };
 
@@ -46,7 +47,7 @@ export async function AssetAuditHistory({
               >
                 <ActionBadge action={entry.action} />
                 <span className="app-muted">
-                  {formatDateTime(entry.occurred_at)}
+                  <ViewerTime iso={entry.occurred_at} fallbackZone="UTC" />
                 </span>
               </li>
             ))}

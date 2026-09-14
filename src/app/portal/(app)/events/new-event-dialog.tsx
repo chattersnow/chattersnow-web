@@ -37,6 +37,7 @@ import {
   useControlledOpen,
   type ControlledOpenProps,
 } from "@/components/portal/use-controlled-open";
+import { datetimeLocalToUtcIsoInBrowser } from "@/lib/time";
 
 const VISIBILITIES = [
   { value: "private", label: "Private" },
@@ -123,8 +124,16 @@ export function NewEventDialog({
     formData.set("name", form.name);
     formData.set("description", form.description);
     formData.set("location", form.location);
-    formData.set("startsAt", form.startsAt);
-    formData.set("endsAt", form.endsAt);
+    // Converted here, in the browser, so the event's instants are fixed from
+    // the typist's own clock rather than the server's (#1063).
+    formData.set(
+      "startsAt",
+      datetimeLocalToUtcIsoInBrowser(form.startsAt) ?? "",
+    );
+    formData.set(
+      "endsAt",
+      form.endsAt ? (datetimeLocalToUtcIsoInBrowser(form.endsAt) ?? "") : "",
+    );
     formData.set("timezone", form.timezone);
     formData.set("visibility", form.visibility);
     formData.set("status", form.status);

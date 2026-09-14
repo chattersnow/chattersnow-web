@@ -3,7 +3,10 @@
 import { FormEvent, ReactNode, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
-import { utcIsoToDatetimeLocalInZone } from "@/lib/time";
+import {
+  datetimeLocalToUtcIsoInBrowser,
+  utcIsoToDatetimeLocalInBrowser,
+} from "@/lib/time";
 import {
   recordSensitiveTopicReviewAction,
   updateCalendarItemAction,
@@ -63,17 +66,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatDateTime } from "@/lib/format";
 import { runAction } from "@/components/portal/action-toast";
 
-function toDatetimeLocalValue(iso: string | null, timeZone: string) {
-  if (!iso) return "";
-  return utcIsoToDatetimeLocalInZone(iso, timeZone);
-}
+// Seeded in the browser's zone so the prefill and the save agree (#1063).
+// The item's own `time_zone` is no longer consulted here: it says where the
+// item happens and governs the public site, not how a typed time is read.
+const toDatetimeLocalValue = utcIsoToDatetimeLocalInBrowser;
 
 function formStateFor(item: CalendarItemRow) {
   return {
     title: item.title,
     itemType: item.item_type,
-    startsAt: toDatetimeLocalValue(item.starts_at, item.time_zone),
-    endsAt: toDatetimeLocalValue(item.ends_at, item.time_zone),
+    startsAt: toDatetimeLocalValue(item.starts_at),
+    endsAt: toDatetimeLocalValue(item.ends_at),
     timeZone: item.time_zone,
     recurrenceRule: item.recurrence_rule ?? "",
     summary: item.summary ?? "",
@@ -100,8 +103,13 @@ function buildFormData(form: FormState) {
   const formData = new FormData();
   formData.set("title", form.title);
   formData.set("itemType", form.itemType);
-  formData.set("startsAt", form.startsAt);
-  formData.set("endsAt", form.endsAt);
+  // Converted here, in the browser, so the item's instants are fixed from
+  // the typist's own clock rather than the server's (#1063).
+  formData.set("startsAt", datetimeLocalToUtcIsoInBrowser(form.startsAt) ?? "");
+  formData.set(
+    "endsAt",
+    form.endsAt ? (datetimeLocalToUtcIsoInBrowser(form.endsAt) ?? "") : "",
+  );
   formData.set("timeZone", form.timeZone);
   formData.set("recurrenceRule", form.recurrenceRule);
   formData.set("summary", form.summary);

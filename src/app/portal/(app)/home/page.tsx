@@ -36,11 +36,8 @@ import {
   getFiscalYearStartMonth,
 } from "@/lib/fiscal-year";
 import { listRecentDonationsAction } from "./actions";
-import {
-  formatCalendarDate,
-  formatCurrency,
-  formatDateTime,
-} from "@/lib/format";
+import { formatCalendarDate, formatCurrency } from "@/lib/format";
+import { ViewerTime } from "@/components/viewer-time";
 
 // For plain `date` columns (e.g. grants.application_deadline) rather than
 // timestamptz -- pinned to UTC so `new Date("2026-09-10")` (parsed as UTC
@@ -273,13 +270,19 @@ export default async function PortalHomePage({
               label="Next event"
               eventName={upcoming.nextEvent ? upcoming.nextEvent.name : "—"}
               caption={
-                upcoming.nextEvent
-                  ? `${formatDateTime(upcoming.nextEvent.starts_at)}${
-                      upcoming.nextEvent.location
-                        ? ` · ${upcoming.nextEvent.location}`
-                        : ""
-                    }`
-                  : "No upcoming events"
+                upcoming.nextEvent ? (
+                  <>
+                    <ViewerTime
+                      iso={upcoming.nextEvent.starts_at}
+                      fallbackZone="UTC"
+                    />
+                    {upcoming.nextEvent.location
+                      ? ` · ${upcoming.nextEvent.location}`
+                      : ""}
+                  </>
+                ) : (
+                  "No upcoming events"
+                )
               }
             />
             <DashboardStatRow
@@ -464,13 +467,19 @@ export default async function PortalHomePage({
                   : "—"
               }
               caption={
-                organization.nextMeeting
-                  ? `${formatDateTime(organization.nextMeeting.meeting_date)}${
-                      organization.nextMeeting.location
-                        ? ` · ${organization.nextMeeting.location}`
-                        : ""
-                    }`
-                  : "No meetings scheduled"
+                organization.nextMeeting ? (
+                  <>
+                    <ViewerTime
+                      iso={organization.nextMeeting.meeting_date}
+                      fallbackZone="UTC"
+                    />
+                    {organization.nextMeeting.location
+                      ? ` · ${organization.nextMeeting.location}`
+                      : ""}
+                  </>
+                ) : (
+                  "No meetings scheduled"
+                )
               }
             />
             <DashboardStatRow

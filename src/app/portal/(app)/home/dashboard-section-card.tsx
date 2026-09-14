@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,7 +46,7 @@ export function DashboardStatRow({
 }: {
   label: string;
   value: string | number;
-  caption?: string;
+  caption?: ReactNode;
   /** Where this figure's underlying records live, filtered to match it. */
   href?: string;
 }) {
@@ -96,7 +97,7 @@ export function DashboardEventRow({
 }: {
   label: string;
   eventName: string;
-  caption?: string;
+  caption?: ReactNode;
 }) {
   return (
     <div className="py-3 first:pt-0 last:pb-0">

@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { formatInstantDate } from "@/lib/format";
+
 import { HistoryCard, HistoryItem, HistoryList } from "./history-card";
+import { ViewerTime } from "@/components/viewer-time";
 
 type Registration = {
   id: string;
@@ -52,9 +53,16 @@ export async function AttendeeCard({
                 )}
               </>
             }
-            secondary={`Party of ${registration.party_size} · ${formatInstantDate(
-              registration.created_at,
-            )}`}
+            secondary={
+              <>
+                {`Party of ${registration.party_size} · `}
+                <ViewerTime
+                  iso={registration.created_at}
+                  fallbackZone="UTC"
+                  options={{ dateStyle: "medium" }}
+                />
+              </>
+            }
           />
         ))}
       </HistoryList>

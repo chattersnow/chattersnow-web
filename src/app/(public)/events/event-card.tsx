@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
-import { formatDateTimeInZone } from "@/lib/time";
+import { DATE_TIME_WITH_ZONE, formatDateTimeInZone } from "@/lib/time";
 import { EventFlierTile } from "./event-flier";
 import type { PublicEventSponsor } from "./event-sponsors";
 import { publicEventPath } from "./event-path";
@@ -38,11 +38,6 @@ export function eventProgramsLabel(programs: PublicEventProgram[]) {
     : "Event";
 }
 
-const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
-  dateStyle: "medium",
-  timeStyle: "short",
-};
-
 /**
  * A card is a link to the event's own page. From the listing that URL is
  * intercepted into a sheet over the list, and everywhere else it is a full
@@ -74,11 +69,11 @@ export function EventCard({ event }: { event: PublicEvent }) {
           {formatDateTimeInZone(
             event.starts_at,
             event.timezone,
-            DATE_FORMAT_OPTIONS,
+            DATE_TIME_WITH_ZONE,
             "en-US",
           )}
           {event.ends_at &&
-            ` – ${formatDateTimeInZone(event.ends_at, event.timezone, DATE_FORMAT_OPTIONS, "en-US")}`}
+            ` – ${formatDateTimeInZone(event.ends_at, event.timezone, DATE_TIME_WITH_ZONE, "en-US")}`}
         </p>
         {event.location && (
           <p className="text-xs text-muted-foreground">{event.location}</p>
