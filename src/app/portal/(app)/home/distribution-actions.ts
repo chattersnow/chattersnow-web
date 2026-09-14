@@ -2,14 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { RecordDistributionInput } from "./distribution-form";
 import {
-  parseDistributionInput,
-  type RecordDistributionInput,
-} from "./distribution-form";
+  recordEventDistribution,
+  type DistributionActionResult,
+} from "./distribution-core";
 import { checkAnyPermission } from "@/lib/auth/permissions";
-import { checkUser } from "@/lib/auth/current-user";
 
 export type { RecordDistributionInput };
+export type { DistributionActionResult } from "./distribution-core";
 
 export type EventDistributionRow = {
   id: string;
@@ -36,8 +37,6 @@ export type AvailableInventoryItem = {
   type: string | null;
   inventory_categories?: { key: string; label: string } | null;
 };
-
-export type DistributionActionResult = { error: string } | { success: true };
 
 export async function listEventDistributionsAction(
   eventId: string,
@@ -116,46 +115,20 @@ export async function listAvailableInventoryItemsAction(): Promise<
   return { data: (data ?? []) as unknown as AvailableInventoryItem[] };
 }
 
+/**
+ * Web transport for `recordEventDistribution` (#1082 Phase 1). The decision to
+ * record lives in distribution-core.ts, which has no Next imports.
+ */
 export async function recordEventDistributionAction(
   input: RecordDistributionInput,
 ): Promise<DistributionActionResult> {
   const supabase = await createSupabaseServerClient();
-  const userResult = await checkUser(
-    supabase,
-    "You must be signed in to record a distribution.",
-  );
-  if ("error" in userResult) return userResult;
-  const permissionError = await checkAnyPermission(supabase, [
-    { resource: "inventory", level: "manage" },
-    { resource: "inventory_intake", level: "manage" },
-  ]);
-  if (permissionError) return permissionError;
-
-  const parsed = parseDistributionInput(input);
-  if ("error" in parsed) return parsed;
-
-  const { error } = await supabase.rpc(
-    "record_event_distribution",
-    parsed.data,
-  );
-
-  if (error) {
-    // Raised by record_event_distribution when the item was claimed between
-    // this picker being rendered and this submit landing -- another staffer
-    // gave it out first (#748). Worth naming, since "try again" is the one
-    // thing that cannot help here.
-    if (error.message === "ITEM_ALREADY_DISTRIBUTED") {
-      return {
-        error:
-          "That item has already been distributed. Refresh and pick another.",
-      };
-    }
-    return { error: "Could not record the distribution. Please try again." };
-  }
+  const result = await recordEventDistribution(supabase, input);
+  if ("error" in result) return result;
 
   revalidatePath("/portal/home");
   revalidatePath("/portal/inventory/items");
   revalidatePath("/portal/inventory/distribution");
   revalidatePath("/portal/events");
-  return { success: true };
+  return result;
 }
