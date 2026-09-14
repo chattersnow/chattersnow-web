@@ -202,6 +202,7 @@ function outlineFor(slots: EditorSlot[]): OutlineEntry[] {
 function renderEditor(slots: EditorSlot[], hiddenPages: string[] = []) {
   const props = (next: EditorSlot[]) => ({
     page: PAGES[0],
+    device: "desktop" as const,
     pages: PAGES,
     sections: SECTIONS,
     slots: next,

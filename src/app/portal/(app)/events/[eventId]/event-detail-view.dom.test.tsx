@@ -214,6 +214,7 @@ function renderView(
 ) {
   return render(
     <EventDetailView
+      device="desktop"
       event={makeEvent()}
       programs={[]}
       canManage={true}

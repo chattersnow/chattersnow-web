@@ -1,5 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { EventSectionRail } from "./event-section-rail";
 import type { EventPhase } from "../event-tabs-config";
 
@@ -32,6 +33,7 @@ function renderRail(
   const onSelect = mock(() => {});
   render(
     <EventSectionRail
+      device="desktop"
       phases={PHASES}
       current="overview"
       currentTitle="Event details"
@@ -173,5 +175,63 @@ describe("EventSectionRail", () => {
     expect(
       screen.getByRole("button", { name: /^Sections · / }),
     ).toHaveAttribute("aria-expanded", "false");
+  });
+});
+
+describe("EventSectionRail on a phone", () => {
+  // The shape #1093 gave the rail below `lg`: the same button, a sheet rather
+  // than a list shoved in above the card.
+  test("opens the sections in a sheet, with search above them", async () => {
+    const user = userEvent.setup();
+    render(
+      <EventSectionRail
+        device="mobile"
+        phases={PHASES}
+        current="overview"
+        currentTitle="Event details"
+        onSelect={() => {}}
+      />,
+    );
+
+    const toggle = screen.getByRole("button", {
+      name: "Sections · Event details",
+    });
+    expect(toggle).toHaveAttribute("aria-haspopup", "dialog");
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    await user.click(toggle);
+
+    const sheet = within(await screen.findByRole("dialog"));
+    expect(sheet.getByRole("searchbox")).toBeInTheDocument();
+    expect(
+      sheet.getByRole("button", { name: /Registration & planning/ }),
+    ).toBeVisible();
+  });
+
+  test("closes on a pick, and reports it once it is gone", async () => {
+    // The pick runs after the sheet has closed, not beside it: a modal sheet
+    // holds the page's scroll and restores it on the way out, so anything that
+    // moves the page underneath has to wait.
+    const user = userEvent.setup();
+    const onSelect = mock(() => {});
+    render(
+      <EventSectionRail
+        device="mobile"
+        phases={PHASES}
+        current="overview"
+        currentTitle="Event details"
+        onSelect={onSelect}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /^Sections · / }));
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: /^Checklist/,
+      }),
+    );
+
+    expect(onSelect).toHaveBeenCalledWith("checklist");
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

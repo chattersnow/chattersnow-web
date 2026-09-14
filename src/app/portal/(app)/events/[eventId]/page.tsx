@@ -12,6 +12,7 @@ import type { EventRow } from "../event-badges";
 import { eventPhases, isTabValue, type TabValue } from "../event-tabs-config";
 import { eventCardTaskLabels, isPhaseKey } from "../phase-status";
 import { listProgramsAction } from "../../programs/actions";
+import { deviceClass } from "@/lib/portal/device";
 import { EventDetailView } from "./event-detail-view";
 
 /**
@@ -134,6 +135,10 @@ export default async function EventDetailPage({
       .maybeSingle(),
   ]);
 
+  // Which shape the section rail takes, decided here rather than measured in
+  // the browser: `useIsMobile()` answers `false` on the server, so a phone
+  // would paint the full column and swap it after hydration (#1093).
+  const device = await deviceClass();
   const programs = "data" in programsResult ? programsResult.data : [];
   const cardTasks = eventCardTaskLabels(event, {
     hasImpactNote: Boolean(impactNote),
@@ -145,6 +150,7 @@ export default async function EventDetailPage({
       <PortalBreadcrumbs current={event.name} />
 
       <EventDetailView
+        device={device}
         event={event}
         programs={programs}
         canManage={canManage}

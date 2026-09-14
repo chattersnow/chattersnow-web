@@ -1,10 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { PanelLeftOpen, Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useMemo } from "react";
+import { PortalRail, PortalRailResults } from "@/components/portal/portal-rail";
 import { cn } from "@/lib/utils";
+import type { DeviceClass } from "@/proxy";
 import { OutstandingBadge } from "../event-badges";
 import type { EventPhase, EventSection, TabValue } from "../event-tabs-config";
 
@@ -25,137 +24,121 @@ type Match = EventSection & { group: string };
  * So the phases stay as headings and stop being controls, and search runs over
  * every section at once -- with `keywords` behind it, since "budget" is on a
  * card called Registration & planning and "raffle" is on one called Giveaway.
+ *
+ * The disclosure, the sticky column and the sheet a phone gets are
+ * `PortalRail`'s (#1093); what is left here is what this event lists.
  */
 export function EventSectionRail({
+  device,
   phases,
   current,
   currentTitle,
   cardTasks,
   onSelect,
 }: {
+  device: DeviceClass;
   phases: readonly EventPhase[];
   current: TabValue;
-  /** The open card's title, so the collapsed rail still says where you are. */
+  /** The open card's title, so the closed rail still says where you are. */
   currentTitle: string;
   /** Outstanding work, by the card it is done on. */
   cardTasks?: Partial<Record<TabValue, string[]>>;
   onSelect: (value: TabValue) => void;
 }) {
-  const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(false);
-  const trimmed = query.trim().toLowerCase();
+  return (
+    <PortalRail
+      id="event-section-rail"
+      device={device}
+      label={`Sections · ${currentTitle}`}
+      hideLabel="Hide sections"
+      title="Sections"
+      description="Every part of this event, grouped by when it matters."
+      searchLabel="Search this event's sections"
+      searchPlaceholder="Search this event"
+    >
+      {({ query, close }) => (
+        <RailBody
+          phases={phases}
+          current={current}
+          cardTasks={cardTasks}
+          query={query}
+          // Picking closes the rail: on a phone the sheet is over the card the
+          // reader just asked for, and above `lg` the column is up regardless.
+          onSelect={(value) => close(() => onSelect(value))}
+        />
+      )}
+    </PortalRail>
+  );
+}
 
-  // Below `lg` the rail is a disclosure sitting above the card, so leaving it
-  // open after a pick would push the section the reader just asked for off the
-  // screen. Harmless above `lg`, where `lg:block` keeps the rail up regardless.
-  const pick = (value: TabValue) => {
-    setOpen(false);
-    onSelect(value);
-  };
-
+function RailBody({
+  phases,
+  current,
+  cardTasks,
+  query,
+  onSelect,
+}: {
+  phases: readonly EventPhase[];
+  current: TabValue;
+  cardTasks?: Partial<Record<TabValue, string[]>>;
+  query: string;
+  onSelect: (value: TabValue) => void;
+}) {
   const matches = useMemo<Match[]>(() => {
-    if (!trimmed) return [];
+    if (!query) return [];
     return phases.flatMap((phase) =>
       phase.tabs
         .filter((section) =>
           [section.label, phase.label, ...section.keywords].some((field) =>
-            field.toLowerCase().includes(trimmed),
+            field.toLowerCase().includes(query),
           ),
         )
         .map((section) => ({ ...section, group: phase.label })),
     );
-  }, [phases, trimmed]);
+  }, [phases, query]);
+
+  if (query) {
+    return (
+      <PortalRailResults count={matches.length} noun="section">
+        <ul className="space-y-0.5">
+          {matches.map((match) => (
+            <li key={match.value}>
+              <SectionRow
+                label={match.label}
+                trail={match.group}
+                current={match.value === current}
+                tasks={cardTasks?.[match.value]}
+                onSelect={() => onSelect(match.value)}
+              />
+            </li>
+          ))}
+        </ul>
+      </PortalRailResults>
+    );
+  }
 
   return (
-    <div>
-      <Button
-        type="button"
-        variant="secondary"
-        size="sm"
-        className="mb-3 lg:hidden"
-        aria-expanded={open}
-        aria-controls="event-section-rail"
-        onClick={() => setOpen((current) => !current)}
-      >
-        <PanelLeftOpen />
-        {open ? "Hide sections" : `Sections · ${currentTitle}`}
-      </Button>
-
-      <div
-        id="event-section-rail"
-        className={cn(
-          // Clears the portal's own sticky header. The underscores are
-          // Tailwind's spaces: `calc(a+b)` without them is invalid CSS and
-          // silently drops the offset, which leaves the rail scrolling away.
-          "space-y-6 lg:sticky lg:top-[calc(var(--portal-header-height)_+_1.5rem)] lg:block",
-          // Nineteen sections under four headings is taller than the viewport,
-          // and a sticky box taller than its viewport puts its own foot out of
-          // reach. It scrolls itself instead.
-          "lg:max-h-[calc(100vh_-_var(--portal-header-height)_-_3rem)] lg:overflow-y-auto",
-          !open && "hidden",
-        )}
-      >
-        <div className="relative">
-          <Search
-            className="app-muted pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2"
-            aria-hidden
-          />
-          <Input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search this event"
-            aria-label="Search this event's sections"
-            className="pl-9"
-          />
-        </div>
-
-        {trimmed ? (
-          <nav aria-label="Search results">
-            <p className="app-muted mb-2 text-xs">
-              {matches.length === 0
-                ? "Nothing matches."
-                : `${matches.length} section${matches.length === 1 ? "" : "s"}`}
-            </p>
-            <ul className="space-y-0.5">
-              {matches.map((match) => (
-                <li key={match.value}>
+    <nav aria-label="Event sections">
+      <ul className="space-y-4">
+        {phases.map((phase) => (
+          <li key={phase.key}>
+            <span className="app-eyebrow px-2">{phase.label}</span>
+            <ul className="mt-1 space-y-0.5">
+              {phase.tabs.map((section) => (
+                <li key={section.value}>
                   <SectionRow
-                    label={match.label}
-                    trail={match.group}
-                    current={match.value === current}
-                    tasks={cardTasks?.[match.value]}
-                    onSelect={() => pick(match.value)}
+                    label={section.label}
+                    current={section.value === current}
+                    tasks={cardTasks?.[section.value]}
+                    onSelect={() => onSelect(section.value)}
                   />
                 </li>
               ))}
             </ul>
-          </nav>
-        ) : (
-          <nav aria-label="Event sections">
-            <ul className="space-y-4">
-              {phases.map((phase) => (
-                <li key={phase.key}>
-                  <span className="app-eyebrow px-2">{phase.label}</span>
-                  <ul className="mt-1 space-y-0.5">
-                    {phase.tabs.map((section) => (
-                      <li key={section.value}>
-                        <SectionRow
-                          label={section.label}
-                          current={section.value === current}
-                          tasks={cardTasks?.[section.value]}
-                          onSelect={() => pick(section.value)}
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        )}
-      </div>
-    </div>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }
 

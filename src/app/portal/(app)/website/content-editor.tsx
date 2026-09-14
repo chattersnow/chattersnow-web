@@ -17,6 +17,7 @@ import {
   type ContentPage,
   type ContentSection,
 } from "@/lib/site-content";
+import type { DeviceClass } from "@/proxy";
 import type { EditorSlot, OutlineEntry } from "./content-shared";
 import { draftValueFor, slotChanges } from "./content-diff";
 import { ContentOutline } from "./content-outline";
@@ -49,6 +50,7 @@ function same(a: unknown, b: unknown): boolean {
  * moved.
  */
 export function ContentEditor({
+  device,
   page,
   pages,
   sections,
@@ -59,6 +61,8 @@ export function ContentEditor({
   teamFromPeople,
   canEdit,
 }: {
+  /** Which shape the rail takes, decided on the server (#1079, #1093). */
+  device: DeviceClass;
   page: ContentPage;
   pages: readonly ContentPage[];
   sections: readonly ContentSection[];
@@ -246,6 +250,7 @@ export function ContentEditor({
     <>
       <div className="grid gap-8 lg:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
         <ContentOutline
+          device={device}
           page={page}
           pages={pages}
           sections={sections}
