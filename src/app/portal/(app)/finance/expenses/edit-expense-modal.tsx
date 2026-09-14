@@ -77,6 +77,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import {
   actorDisplayName,
   formatCalendarDate,
@@ -601,8 +602,9 @@ export function EditExpenseModal({
             >
               <div className="flex-1 overflow-y-auto px-4 pb-4">
                 <FieldGroup>
+                  <RequiredFieldsNote />
                   <Field>
-                    <FieldLabel>Paid by (optional)</FieldLabel>
+                    <FieldLabel>Paid by</FieldLabel>
                     <PersonPicker
                       people={people}
                       selected={selectedPayer}
@@ -829,7 +831,9 @@ export function EditExpenseModal({
           <form onSubmit={handleReject}>
             <FieldGroup>
               <Field>
-                <FieldLabel htmlFor="reject-expense-reason">Reason</FieldLabel>
+                <FieldLabel htmlFor="reject-expense-reason" required>
+                  Reason
+                </FieldLabel>
                 <Textarea
                   id="reject-expense-reason"
                   required

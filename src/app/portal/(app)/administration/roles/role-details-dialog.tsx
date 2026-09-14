@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 export type RoleRow = {
   id: string;
@@ -263,6 +264,7 @@ export function RoleDetailsDialog({ role }: { role: RoleRow }) {
             >
               <div className="flex-1 overflow-y-auto px-4 pb-4">
                 <FieldGroup>
+                  <RequiredFieldsNote />
                   <Field>
                     <FieldLabel htmlFor="role-edit-label">
                       Display name
@@ -280,7 +282,9 @@ export function RoleDetailsDialog({ role }: { role: RoleRow }) {
                   </Field>
 
                   <Field>
-                    <FieldLabel htmlFor="role-edit-name">Role key</FieldLabel>
+                    <FieldLabel htmlFor="role-edit-name" required>
+                      Role key
+                    </FieldLabel>
                     <Input
                       id="role-edit-name"
                       required

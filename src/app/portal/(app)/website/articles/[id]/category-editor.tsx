@@ -20,6 +20,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { useActionToast } from "@/components/portal/action-toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import {
   DiscardChangesDialog,
   useUnsavedChangesGuard,
@@ -211,11 +212,14 @@ export function CategoryEditor({
       )}
 
       <form className="mt-6 max-w-3xl space-y-6" onSubmit={handleSave}>
+        <RequiredFieldsNote />
         <fieldset disabled={!canEdit || isPending} className="space-y-6">
           <Card>
             <CardContent className="space-y-4">
               <Field>
-                <FieldLabel htmlFor="category-title">Title</FieldLabel>
+                <FieldLabel htmlFor="category-title" required>
+                  Title
+                </FieldLabel>
                 <Input
                   id="category-title"
                   value={body.title}
@@ -243,7 +247,9 @@ export function CategoryEditor({
                 </FieldDescription>
               </Field>
               <Field>
-                <FieldLabel htmlFor="category-slug">Web address</FieldLabel>
+                <FieldLabel htmlFor="category-slug" required>
+                  Web address
+                </FieldLabel>
                 <Input
                   id="category-slug"
                   value={slug}
@@ -332,7 +338,9 @@ export function CategoryEditor({
                   </div>
 
                   <Field>
-                    <FieldLabel htmlFor={`${row.id}-title`}>Title</FieldLabel>
+                    <FieldLabel htmlFor={`${row.id}-title`} required>
+                      Title
+                    </FieldLabel>
                     <Input
                       id={`${row.id}-title`}
                       value={article.title}

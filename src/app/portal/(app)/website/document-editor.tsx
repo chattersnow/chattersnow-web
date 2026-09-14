@@ -117,7 +117,7 @@ function SectionsEditor({
               </div>
             </div>
             <Field>
-              <FieldLabel htmlFor={`${slot.key}-${row.id}-title`}>
+              <FieldLabel htmlFor={`${slot.key}-${row.id}-title`} required>
                 Heading
               </FieldLabel>
               <Input
@@ -241,7 +241,9 @@ export function DocumentEditor({
     <div className="space-y-4">
       <FieldGroup>
         <Field>
-          <FieldLabel htmlFor={`${slot.key}-title`}>Title</FieldLabel>
+          <FieldLabel htmlFor={`${slot.key}-title`} required>
+            Title
+          </FieldLabel>
           <Input
             id={`${slot.key}-title`}
             value={doc.title}
@@ -250,7 +252,9 @@ export function DocumentEditor({
           />
         </Field>
         <Field>
-          <FieldLabel htmlFor={`${slot.key}-updated`}>Last updated</FieldLabel>
+          <FieldLabel htmlFor={`${slot.key}-updated`} required>
+            Last updated
+          </FieldLabel>
           <Input
             id={`${slot.key}-updated`}
             value={doc.last_updated}

@@ -62,6 +62,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import { formatCurrency } from "@/lib/format";
 
 function isProductDirty(form: ProductFormState, product: ProductRow) {
@@ -394,6 +395,7 @@ export function ProductDetailsSheet({
                       {editingVariantId === variant.id && variantForm ? (
                         <form onSubmit={handleVariantSubmit}>
                           <FieldGroup>
+                            <RequiredFieldsNote />
                             <VariantFormFields
                               form={variantForm}
                               update={updateVariant}

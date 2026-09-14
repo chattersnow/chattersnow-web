@@ -76,7 +76,7 @@ export function PurchaserSearch({
 
   return (
     <Field>
-      <FieldLabel htmlFor="purchaser-search">Purchaser (optional)</FieldLabel>
+      <FieldLabel htmlFor="purchaser-search">Purchaser</FieldLabel>
       <Input
         id="purchaser-search"
         value={query}

@@ -77,13 +77,19 @@ export function RevenueFormFields({
   return (
     <>
       <Field>
-        <FieldLabel htmlFor={`${idPrefix}-source`}>Source</FieldLabel>
+        <FieldLabel htmlFor={`${idPrefix}-source`} required>
+          Source
+        </FieldLabel>
         <Select
           value={form.source}
           onValueChange={(value) => update("source", value ?? "")}
           disabled={legacyMerchandise}
         >
-          <SelectTrigger id={`${idPrefix}-source`} className="w-full">
+          <SelectTrigger
+            id={`${idPrefix}-source`}
+            aria-required="true"
+            className="w-full"
+          >
             <SelectValue placeholder="Select source" />
           </SelectTrigger>
           <SelectContent>
@@ -134,7 +140,9 @@ export function RevenueFormFields({
 
       <Field orientation="responsive">
         <Field>
-          <FieldLabel htmlFor={`${idPrefix}-receivedDate`}>Date</FieldLabel>
+          <FieldLabel htmlFor={`${idPrefix}-receivedDate`} required>
+            Date
+          </FieldLabel>
           <Input
             id={`${idPrefix}-receivedDate`}
             type="date"
@@ -144,7 +152,9 @@ export function RevenueFormFields({
           />
         </Field>
         <Field>
-          <FieldLabel htmlFor={`${idPrefix}-amount`}>Amount</FieldLabel>
+          <FieldLabel htmlFor={`${idPrefix}-amount`} required>
+            Amount
+          </FieldLabel>
           <Input
             id={`${idPrefix}-amount`}
             type="number"

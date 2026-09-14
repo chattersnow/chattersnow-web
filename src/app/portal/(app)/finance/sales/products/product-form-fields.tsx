@@ -57,7 +57,9 @@ export function ProductFormFields({
   return (
     <>
       <Field>
-        <FieldLabel htmlFor={`${idPrefix}-name`}>Product name</FieldLabel>
+        <FieldLabel htmlFor={`${idPrefix}-name`} required>
+          Product name
+        </FieldLabel>
         <Input
           id={`${idPrefix}-name`}
           required

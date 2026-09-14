@@ -20,6 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { runAction } from "@/components/portal/action-toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 /**
  * One numeric setting with its own Save. The field defaults describe a USD
@@ -75,8 +76,9 @@ function ThresholdCard({
       <CardContent>
         <form onSubmit={handleSubmit}>
           <FieldGroup>
+            <RequiredFieldsNote />
             <Field>
-              <FieldLabel htmlFor={`${idPrefix}-${fieldName}`}>
+              <FieldLabel htmlFor={`${idPrefix}-${fieldName}`} required>
                 {fieldLabel}
               </FieldLabel>
               <Input
