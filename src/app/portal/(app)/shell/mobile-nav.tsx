@@ -59,12 +59,18 @@ export function MobileNav({
   return (
     <>
       {/* `fixed`, not `sticky`: the page scrolls under it and the bar has to
-          stay on the glass whatever the content does. The padding picks up
-          the home-indicator inset so the last row of tabs is not sitting
-          under it on a notched phone. */}
+          stay on the glass whatever the content does.
+
+          The padding is `max(env(safe-area-inset-bottom), 0.5rem)` rather than
+          the inset alone, because `env()` safe-area insets resolve to 0 unless
+          the page opts in with `viewport-fit=cover` -- which this app does not,
+          and which is not a change to make blind, since it would also let the
+          public site slide under the notch in landscape. The constant clears
+          the home indicator today and the inset takes over automatically if
+          `viewport-fit` is ever turned on. */}
       <nav
         aria-label="Primary"
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--line)] bg-[var(--background)] pb-[env(safe-area-inset-bottom)]"
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--line)] bg-[var(--background)] pb-[max(env(safe-area-inset-bottom),0.5rem)]"
       >
         <ul className="flex items-stretch">
           {tabs.map((item) => {

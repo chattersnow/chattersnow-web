@@ -1,8 +1,8 @@
 import Link from "next/link";
-import Image from "next/image";
 import { Toaster } from "@/components/ui/toast";
 import { BrandLogoProvider } from "@/components/brand-logo-context";
 import { SkipLink } from "@/components/skip-link";
+import { BrandLogo } from "@/components/brand-logo";
 import { LexiconProvider } from "@/components/lexicon-context";
 import { CommandPalette } from "../command-palette";
 import { HelpButton } from "../help/help-button";
@@ -54,15 +54,16 @@ export function PortalShellMobile({
           aria-label={`${tenantName} portal home`}
           className="flex min-w-0 items-center gap-2"
         >
-          {branding.logoUrl && (
-            <Image
-              src={branding.logoUrl}
-              alt=""
-              width={28}
-              height={28}
-              className="size-7 shrink-0 rounded object-contain"
-            />
-          )}
+          {/* The shared component, not a hand-rolled <Image>: it renders a
+              tenant's upload `fill` inside a box this caller sizes -- a logo is
+              whatever shape it was uploaded in -- and draws the placeholder
+              mark for a tenant that has set none, which the desktop shell's
+              TenantSwitcher has always done and this header did not. */}
+          <BrandLogo
+            logoUrl={branding.logoUrl}
+            alt=""
+            className="size-7 shrink-0"
+          />
           <span className="truncate text-base font-semibold text-[var(--purple-deep)]">
             {tenantName}
           </span>
