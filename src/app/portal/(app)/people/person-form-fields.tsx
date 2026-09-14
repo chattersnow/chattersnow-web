@@ -75,6 +75,7 @@ export function emptyPersonForm(
       is_attendee: defaultRole === "is_attendee",
       is_staff: defaultRole === "is_staff",
       is_partner: defaultRole === "is_partner",
+      is_recipient: defaultRole === "is_recipient",
     },
     sponsorWallPublic: false,
     personType: defaultPersonType,
@@ -119,7 +120,7 @@ export function PersonFormFields({
   ) => void;
   idPrefix: string;
 }) {
-  // What this organization calls the six roles (#911). From the shell's
+  // What this organization calls the seven roles (#911). From the shell's
   // context rather than a prop: this form renders inside the New Person dialog
   // on eight segment pages and inside the profile card's edit mode, and a prop
   // threaded through all of them is one that gets dropped.
@@ -241,9 +242,9 @@ export function PersonFormFields({
         </div>
         <FieldDescription>
           These mark someone manually. Roles are also set automatically from
-          donations, sponsorships, event registrations, volunteer records, and
-          won partnerships, so a role earned that way stays on even when
-          unchecked here.
+          donations, sponsorships, event registrations, volunteer records, won
+          partnerships, and gear requested or handed over, so a role earned that
+          way stays on even when unchecked here.
         </FieldDescription>
       </Field>
 
@@ -491,6 +492,7 @@ export function packPersonFormData(form: PersonFormState) {
   formData.set("isAttendee", String(form.roles.is_attendee));
   formData.set("isStaff", String(form.roles.is_staff));
   formData.set("isPartner", String(form.roles.is_partner));
+  formData.set("isRecipient", String(form.roles.is_recipient));
   // Sent on every save, like the roles themselves: the server rewrites the
   // whole tag set each time, so an omitted flag would read as "unpublish".
   formData.set("sponsorWallPublic", String(form.sponsorWallPublic));

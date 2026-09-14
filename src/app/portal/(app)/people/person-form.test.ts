@@ -17,7 +17,7 @@ describe("parsePersonForm", () => {
   test("requires at least one role, and names the field in the error", () => {
     expect(parsePersonForm(formData({ name: "Jane" }))).toEqual({
       error:
-        "Select at least one role for this person — Donor, Sponsor, Volunteer, Attendee, Staff, or Partner.",
+        "Select at least one role for this person — Donor, Sponsor, Volunteer, Attendee, Staff, Partner, or Recipient.",
     });
   });
 
@@ -35,6 +35,15 @@ describe("parsePersonForm", () => {
       formData({ name: "Summit Outdoor Co.", isPartner: "true" }),
     );
     expect("roles" in result && result.roles).toEqual(["partner"]);
+  });
+
+  test("recipient alone satisfies the role requirement", () => {
+    // Gear handed over before this system existed, or at a giveaway somebody
+    // wrote down on paper: the person has no record of any other kind (#1073).
+    const result = parsePersonForm(
+      formData({ name: "Alex Rivera", isRecipient: "true" }),
+    );
+    expect("roles" in result && result.roles).toEqual(["recipient"]);
   });
 
   test("publishes a sponsor organization to the wall when ticked", () => {

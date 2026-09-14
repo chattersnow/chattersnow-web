@@ -29,7 +29,7 @@ const SHOP = personRoleLabelsFromValue({
 });
 
 describe("PERSON_ROLES", () => {
-  test("is the six derived roles, in the order every surface renders", () => {
+  test("is the seven derived roles, in the order every surface renders", () => {
     expect(PERSON_ROLES.map((role) => role.key)).toEqual([
       "is_donor",
       "is_sponsor",
@@ -37,6 +37,7 @@ describe("PERSON_ROLES", () => {
       "is_attendee",
       "is_staff",
       "is_partner",
+      "is_recipient",
     ]);
     expect([...PERSON_ROLE_KEYS]).toEqual(PERSON_ROLES.map((role) => role.key));
   });

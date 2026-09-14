@@ -420,7 +420,7 @@ export async function updateLexiconAction(
 }
 
 /**
- * What this organization calls the six person roles (#911).
+ * What this organization calls the seven person roles (#911).
  *
  * One row rather than twelve: the whole map is the value of
  * `people.role_labels`, so a save is atomic and the panel's "reset" is an empty
