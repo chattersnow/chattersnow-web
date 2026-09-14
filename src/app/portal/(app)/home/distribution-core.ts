@@ -7,10 +7,16 @@ import {
 } from "./distribution-form";
 import { checkAnyPermission } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
+import {
+  actionError,
+  fromGuard,
+  fromParseError,
+  type ActionFailure,
+} from "@/lib/portal/action-result";
 
 export type { RecordDistributionInput };
 
-export type DistributionActionResult = { error: string } | { success: true };
+export type DistributionActionResult = ActionFailure | { success: true };
 
 export async function recordEventDistribution(
   supabase: SupabaseClient,
@@ -20,15 +26,15 @@ export async function recordEventDistribution(
     supabase,
     "You must be signed in to record a distribution.",
   );
-  if ("error" in userResult) return userResult;
+  if ("error" in userResult) return fromGuard("unauthenticated", userResult);
   const permissionError = await checkAnyPermission(supabase, [
     { resource: "inventory", level: "manage" },
     { resource: "inventory_intake", level: "manage" },
   ]);
-  if (permissionError) return permissionError;
+  if (permissionError) return fromGuard("forbidden", permissionError);
 
   const parsed = parseDistributionInput(input);
-  if ("error" in parsed) return parsed;
+  if ("error" in parsed) return fromParseError(parsed);
 
   const { error } = await supabase.rpc(
     "record_event_distribution",
@@ -41,12 +47,15 @@ export async function recordEventDistribution(
     // gave it out first (#748). Worth naming, since "try again" is the one
     // thing that cannot help here.
     if (error.message === "ITEM_ALREADY_DISTRIBUTED") {
-      return {
-        error:
-          "That item has already been distributed. Refresh and pick another.",
-      };
+      return actionError(
+        "conflict",
+        "That item has already been distributed. Refresh and pick another.",
+      );
     }
-    return { error: "Could not record the distribution. Please try again." };
+    return actionError(
+      "server_error",
+      "Could not record the distribution. Please try again.",
+    );
   }
 
   return { success: true };

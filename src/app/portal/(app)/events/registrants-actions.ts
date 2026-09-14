@@ -14,6 +14,11 @@ import {
   type RegistrantActionResult,
 } from "./registrant-core";
 import { parseRiderProfileForm } from "@/lib/rider-profile-form";
+import {
+  actionError,
+  fromGuard,
+  fromParseError,
+} from "@/lib/portal/action-result";
 
 /**
  * The rider level recorded when this registrant was checked in, alongside the
@@ -160,16 +165,16 @@ export async function setRegistrantRiderProfileAction(
   formData: FormData,
 ): Promise<RegistrantActionResult> {
   const parsed = parseRiderProfileForm(formData);
-  if ("error" in parsed) return parsed;
+  if ("error" in parsed) return fromParseError(parsed);
 
   const supabase = await createSupabaseServerClient();
   const userResult = await checkUser(
     supabase,
     "You must be signed in to edit a rider profile.",
   );
-  if ("error" in userResult) return userResult;
+  if ("error" in userResult) return fromGuard("unauthenticated", userResult);
   const permissionError = await checkPermission(supabase, "events", "manage");
-  if (permissionError) return permissionError;
+  if (permissionError) return fromGuard("forbidden", permissionError);
 
   const { error } = await supabase.rpc("set_registrant_rider_profile", {
     p_registration_id: registrationId,
@@ -180,12 +185,12 @@ export async function setRegistrantRiderProfileAction(
   });
 
   if (error) {
-    return {
-      error:
-        error.message === "REGISTRANT_NOT_FOUND"
-          ? "That registration no longer exists."
-          : "Could not save this rider profile. Please try again.",
-    };
+    return error.message === "REGISTRANT_NOT_FOUND"
+      ? actionError("conflict", "That registration no longer exists.")
+      : actionError(
+          "server_error",
+          "Could not save this rider profile. Please try again.",
+        );
   }
 
   revalidatePath("/portal/events");
@@ -212,12 +217,14 @@ export async function addRegistrantAction(
     supabase,
     "You must be signed in to add a registrant.",
   );
-  if ("error" in userResult) return userResult;
+  if ("error" in userResult) return fromGuard("unauthenticated", userResult);
   const permissionError = await checkPermission(supabase, "events", "manage");
-  if (permissionError) return permissionError;
+  if (permissionError) return fromGuard("forbidden", permissionError);
 
   if (!Number.isInteger(partySize) || partySize < 1) {
-    return { error: "Party size must be at least 1." };
+    return actionError("invalid_input", "Party size must be at least 1.", {
+      partySize: "Party size must be at least 1.",
+    });
   }
 
   const { error } = await supabase.from("event_registrations").insert({
@@ -231,11 +238,15 @@ export async function addRegistrantAction(
 
   if (error) {
     if (error.code === "23505") {
-      return {
-        error: "This person already has a registration for this event.",
-      };
+      return actionError(
+        "conflict",
+        "This person already has a registration for this event.",
+      );
     }
-    return { error: "Could not add this registrant. Please try again." };
+    return actionError(
+      "server_error",
+      "Could not add this registrant. Please try again.",
+    );
   }
 
   revalidatePath("/portal/events");
@@ -257,12 +268,14 @@ export async function createWalkInCheckInAction(
     supabase,
     "You must be signed in to check in a walk-in.",
   );
-  if ("error" in userResult) return userResult;
+  if ("error" in userResult) return fromGuard("unauthenticated", userResult);
   const permissionError = await checkPermission(supabase, "events", "manage");
-  if (permissionError) return permissionError;
+  if (permissionError) return fromGuard("forbidden", permissionError);
 
   if (!Number.isInteger(partySize) || partySize < 1) {
-    return { error: "Party size must be at least 1." };
+    return actionError("invalid_input", "Party size must be at least 1.", {
+      partySize: "Party size must be at least 1.",
+    });
   }
 
   const { error } = await supabase.from("event_registrations").insert({
@@ -277,12 +290,15 @@ export async function createWalkInCheckInAction(
 
   if (error) {
     if (error.code === "23505") {
-      return {
-        error:
-          "This person already has a registration for this event. Check them in from the existing row instead.",
-      };
+      return actionError(
+        "conflict",
+        "This person already has a registration for this event. Check them in from the existing row instead.",
+      );
     }
-    return { error: "Could not check in this walk-in. Please try again." };
+    return actionError(
+      "server_error",
+      "Could not check in this walk-in. Please try again.",
+    );
   }
 
   revalidatePath("/portal/events");

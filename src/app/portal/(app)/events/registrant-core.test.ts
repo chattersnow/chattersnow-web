@@ -19,7 +19,10 @@ describe("checkInRegistrant", () => {
     const result = await checkInRegistrant(supabase.client, "reg-1");
 
     expect(result).toEqual({
-      error: "You must be signed in to check in a registrant.",
+      error: {
+        code: "unauthenticated",
+        message: "You must be signed in to check in a registrant.",
+      },
     });
     expect(supabase.updates).toEqual([]);
   });
@@ -30,7 +33,10 @@ describe("checkInRegistrant", () => {
     const result = await checkInRegistrant(supabase.client, "reg-1");
 
     expect(result).toEqual({
-      error: "You don't have permission to perform this action.",
+      error: {
+        code: "forbidden",
+        message: "You don't have permission to perform this action.",
+      },
     });
     expect(supabase.updates).toEqual([]);
   });
@@ -60,7 +66,10 @@ describe("checkInRegistrant", () => {
     const result = await checkInRegistrant(supabase.client, "reg-1");
 
     expect(result).toEqual({
-      error: "Could not check in this registrant. Please try again.",
+      error: {
+        code: "server_error",
+        message: "Could not check in this registrant. Please try again.",
+      },
     });
   });
 });
@@ -72,7 +81,10 @@ describe("undoCheckIn", () => {
     const result = await undoCheckIn(supabase.client, "reg-2");
 
     expect(result).toEqual({
-      error: "You don't have permission to perform this action.",
+      error: {
+        code: "forbidden",
+        message: "You don't have permission to perform this action.",
+      },
     });
     expect(supabase.updates).toEqual([]);
   });
@@ -102,7 +114,10 @@ describe("undoCheckIn", () => {
     const result = await undoCheckIn(supabase.client, "reg-2");
 
     expect(result).toEqual({
-      error: "Could not undo this check-in. Please try again.",
+      error: {
+        code: "server_error",
+        message: "Could not undo this check-in. Please try again.",
+      },
     });
   });
 });

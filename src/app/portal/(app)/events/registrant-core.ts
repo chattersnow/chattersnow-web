@@ -9,8 +9,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { checkPermission } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
+import {
+  actionError,
+  fromGuard,
+  type ActionFailure,
+} from "@/lib/portal/action-result";
 
-export type RegistrantActionResult = { error: string } | { success: true };
+export type RegistrantActionResult = ActionFailure | { success: true };
 
 export async function checkInRegistrant(
   supabase: SupabaseClient,
@@ -20,9 +25,9 @@ export async function checkInRegistrant(
     supabase,
     "You must be signed in to check in a registrant.",
   );
-  if ("error" in userResult) return userResult;
+  if ("error" in userResult) return fromGuard("unauthenticated", userResult);
   const permissionError = await checkPermission(supabase, "events", "manage");
-  if (permissionError) return permissionError;
+  if (permissionError) return fromGuard("forbidden", permissionError);
 
   const { error } = await supabase
     .from("event_registrations")
@@ -30,7 +35,10 @@ export async function checkInRegistrant(
     .eq("id", id);
 
   if (error) {
-    return { error: "Could not check in this registrant. Please try again." };
+    return actionError(
+      "server_error",
+      "Could not check in this registrant. Please try again.",
+    );
   }
 
   return { success: true };
@@ -44,9 +52,9 @@ export async function undoCheckIn(
     supabase,
     "You must be signed in to undo a check-in.",
   );
-  if ("error" in userResult) return userResult;
+  if ("error" in userResult) return fromGuard("unauthenticated", userResult);
   const permissionError = await checkPermission(supabase, "events", "manage");
-  if (permissionError) return permissionError;
+  if (permissionError) return fromGuard("forbidden", permissionError);
 
   const { error } = await supabase
     .from("event_registrations")
@@ -54,7 +62,10 @@ export async function undoCheckIn(
     .eq("id", id);
 
   if (error) {
-    return { error: "Could not undo this check-in. Please try again." };
+    return actionError(
+      "server_error",
+      "Could not undo this check-in. Please try again.",
+    );
   }
 
   return { success: true };

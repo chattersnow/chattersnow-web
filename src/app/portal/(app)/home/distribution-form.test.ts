@@ -19,18 +19,21 @@ describe("parseDistributionInput", () => {
   test("requires an inventory item", () => {
     expect(parseDistributionInput(input({ inventoryItemId: "" }))).toEqual({
       error: "Select an inventory item.",
+      field: "inventoryItemId",
     });
   });
 
   test("rejects a zero quantity", () => {
     expect(parseDistributionInput(input({ quantity: 0 }))).toEqual({
       error: "Quantity must be a whole number greater than zero.",
+      field: "quantity",
     });
   });
 
   test("rejects a non-integer quantity", () => {
     expect(parseDistributionInput(input({ quantity: 1.5 }))).toEqual({
       error: "Quantity must be a whole number greater than zero.",
+      field: "quantity",
     });
   });
 

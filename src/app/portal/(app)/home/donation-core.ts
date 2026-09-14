@@ -18,6 +18,12 @@ import {
 } from "./donation-form";
 import { checkAnyPermission } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
+import {
+  actionError,
+  fromGuard,
+  fromParseError,
+  type ActionFailure,
+} from "@/lib/portal/action-result";
 
 export type { CreateDonationInput, DonationItemInput };
 
@@ -40,7 +46,7 @@ export type DonationGiveawayGrant = {
 };
 
 export type CreateDonationResult =
-  { error: string } | { success: true; giveaway: DonationGiveawayGrant | null };
+  ActionFailure | { success: true; giveaway: DonationGiveawayGrant | null };
 
 export async function createDonation(
   supabase: SupabaseClient,
@@ -50,15 +56,15 @@ export async function createDonation(
     supabase,
     "You must be signed in to record a donation.",
   );
-  if ("error" in userResult) return userResult;
+  if ("error" in userResult) return fromGuard("unauthenticated", userResult);
   const permissionError = await checkAnyPermission(supabase, [
     { resource: "finance", level: "manage" },
     { resource: "inventory_intake", level: "manage" },
   ]);
-  if (permissionError) return permissionError;
+  if (permissionError) return fromGuard("forbidden", permissionError);
 
   const parsed = parseDonationInput(input);
-  if ("error" in parsed) return parsed;
+  if ("error" in parsed) return fromParseError(parsed);
 
   const { data, error } = await supabase.rpc(
     "create_donation_with_items",
@@ -66,7 +72,10 @@ export async function createDonation(
   );
 
   if (error) {
-    return { error: "Could not save the donation. Please try again." };
+    return actionError(
+      "server_error",
+      "Could not save the donation. Please try again.",
+    );
   }
 
   const row = (Array.isArray(data) ? data[0] : data) as
