@@ -441,7 +441,7 @@ export function CalendarFiltersSheet({
           </div>
         </div>
 
-        <SheetFooter className="flex-row flex-wrap justify-end gap-2 border-t bg-muted/50">
+        <SheetFooter className="flex-wrap">
           <Button type="button" variant="ghost" onClick={handleClear}>
             Clear
           </Button>

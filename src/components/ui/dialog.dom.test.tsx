@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { render, screen } from "@testing-library/react";
-import { Dialog, DialogContent, DialogTitle } from "./dialog";
+import { Dialog, DialogContent, DialogFooter, DialogTitle } from "./dialog";
 
 function open(className?: string) {
   render(
@@ -44,5 +44,42 @@ describe("DialogContent height", () => {
     const popup = open("overflow-visible");
     expect(popup.className).toContain("overflow-visible");
     expect(popup.className).not.toContain("overflow-y-auto");
+  });
+});
+
+// #1094. Being scrollable made the submit button reachable; it did not make it
+// visible. On anything taller than 85vh the footer started below the fold with
+// nothing to suggest the form continued, so the operator filled the last field
+// they could see and stopped. The pin is what turns "reachable" into "there".
+describe("DialogFooter", () => {
+  function footer(className?: string) {
+    render(
+      <Dialog open>
+        <DialogContent>
+          <DialogTitle>Add an event</DialogTitle>
+          <DialogFooter className={className}>Save</DialogFooter>
+        </DialogContent>
+      </Dialog>,
+    );
+    return document.querySelector("[data-slot=dialog-footer]")!;
+  }
+
+  test("pins itself to the bottom of the popup", () => {
+    expect(footer().className).toContain("sticky");
+    expect(footer().className).toContain("-bottom-4");
+  });
+
+  // `bg-muted/50` is half transparent, so pinning it without an opaque layer
+  // underneath would let the fields passing beneath read through the footer.
+  test("carries an opaque layer under its translucent tint", () => {
+    const className = footer().className;
+    expect(className).toContain("before:bg-popover");
+    expect(className).toContain("bg-muted/50");
+  });
+
+  test("still lets a call site override the layout", () => {
+    const className = footer("sm:justify-between").className;
+    expect(className).toContain("sm:justify-between");
+    expect(className).not.toContain("sm:justify-end");
   });
 });
