@@ -34,7 +34,17 @@
 //
 // A11Y_WORKERS shards the scan across that many browser contexts (#751). It
 // defaults to 4 on CI and 1 everywhere else: concurrent Chromium contexts on
-// a dev machine that is also running Docker and Next would only swap.
+// a dev machine that is also running Docker and Next would only swap. Raising
+// it past 4 was measured on CI and does nothing -- 6 workers scanned 860s
+// against 4 workers' 844s on the same commit -- so the runner is saturated
+// there and the second axis is A11Y_SHARD (#844).
+//
+// A11Y_SHARD=i/N splits the route list across N *processes*, one per CI runner,
+// and defaults to 1/1 so a local run is unchanged. Where A11Y_WORKERS overlaps
+// waiting inside one machine, this buys more machines: at 129 routes the scan
+// is ~900s and only the runner count divides it. Each shard is a whole run --
+// its own server, database and baseline check -- so no merge step is needed
+// for the gate. See the note on --check below.
 //
 // Navigations deliberately still wait on `networkidle`, which #752 proposed
 // replacing. Measured against a production build, this app requests its CSS,
@@ -58,6 +68,11 @@ import {
   type DiscoveredRoute,
 } from "./a11y-routes";
 import { OVERLAY_SELECTOR, surfacesFor } from "./a11y-surfaces";
+import {
+  baselineUpdateBlockedReason,
+  parseShard,
+  sliceForShard,
+} from "./a11y-shard";
 
 const baseURL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://127.0.0.1:3000";
 const args = new Set(process.argv.slice(2));
@@ -123,6 +138,31 @@ const A11Y_WORKERS = (() => {
   }
   return parsed;
 })();
+
+/**
+ * Which slice of the routes this process scans, as `i/N` (#844).
+ *
+ * The scan had outgrown one runner: 129 routes at ~900s while every other CI
+ * job finished in 4-7 min, and it grows with every route added to src/app.
+ * A11Y_WORKERS could not divide it any further (see above), so the CI job runs
+ * as a matrix of N runners and each one takes every Nth route. The arithmetic
+ * lives in ./a11y-shard so it can be unit tested; this file launches Chromium
+ * at import time.
+ *
+ * Defaults to 1/1, which returns the full route list untouched -- `bun run
+ * test:a11y` locally is exactly what it was.
+ */
+const A11Y_SHARD = parseShard(process.env.A11Y_SHARD);
+
+const baselineBlocked = UPDATE_BASELINE
+  ? baselineUpdateBlockedReason(A11Y_SHARD)
+  : null;
+if (baselineBlocked) throw new Error(baselineBlocked);
+
+/** This runner's share of a list; the whole list when unsharded. */
+function shardSlice<T>(items: T[]): T[] {
+  return sliceForShard(items, A11Y_SHARD);
+}
 
 /** Longest a theme crossfade is waited on before scanning anyway. */
 const THEME_TRANSITION_CAP_MS = 1_000;
@@ -687,18 +727,24 @@ for (const [pattern, reason] of Object.entries(SKIPPED_ROUTES)) {
   skipped.push({ pattern, reason });
 }
 
-const anonRoutes: ShardRoute[] = routes
-  .filter((r: DiscoveredRoute) => r.kind === "public" || r.kind === "auth")
-  .map((r: DiscoveredRoute) => ({
-    pattern: r.pattern,
-    isDynamic: r.isDynamic,
-  }));
-const portalRoutes: ShardRoute[] = routes
-  .filter((r: DiscoveredRoute) => r.kind === "portal")
-  .map((r: DiscoveredRoute) => ({
-    pattern: r.pattern,
-    isDynamic: r.isDynamic,
-  }));
+// Sliced per runner (#844) before A11Y_WORKERS splits what is left across
+// contexts. The two are independent: N runners each running W contexts.
+const anonRoutes: ShardRoute[] = shardSlice(
+  routes
+    .filter((r: DiscoveredRoute) => r.kind === "public" || r.kind === "auth")
+    .map((r: DiscoveredRoute) => ({
+      pattern: r.pattern,
+      isDynamic: r.isDynamic,
+    })),
+);
+const portalRoutes: ShardRoute[] = shardSlice(
+  routes
+    .filter((r: DiscoveredRoute) => r.kind === "portal")
+    .map((r: DiscoveredRoute) => ({
+      pattern: r.pattern,
+      isDynamic: r.isDynamic,
+    })),
+);
 
 const shards: Shard[] = [
   ...shardRoutes(anonRoutes, A11Y_WORKERS).map((slice) => ({
@@ -715,9 +761,11 @@ const shards: Shard[] = [
   })),
   // Each role sweep is already one context per role, so it is a shard as it
   // stands. QUICK drops them, as it always did.
+  // A role sweep is a whole sign-in for 2-3 routes, so it is indivisible --
+  // it is distributed across runners whole rather than split.
   ...(QUICK
     ? []
-    : ROLE_SWEEPS.map((sweep) => ({
+    : shardSlice(ROLE_SWEEPS).map((sweep) => ({
         label: sweep.label,
         email: sweep.email,
         required: false,
@@ -725,11 +773,18 @@ const shards: Shard[] = [
       }))),
 ];
 
+const scannedRouteCount = anonRoutes.length + portalRoutes.length;
+/** Empty unless this is one runner of several, so an unsharded log is unchanged. */
+const shardSuffix =
+  A11Y_SHARD.total === 1
+    ? ""
+    : ` (runner ${A11Y_SHARD.index}/${A11Y_SHARD.total} of ${routes.length})`;
+
 const browser = await chromium.launch({ headless: true });
 try {
   console.log(
-    `Scanning ${routes.length} routes across ${shards.length} shards ` +
-      `on ${A11Y_WORKERS} worker(s)…`,
+    `Scanning ${scannedRouteCount} routes${shardSuffix} across ` +
+      `${shards.length} context shards on ${A11Y_WORKERS} worker(s)…`,
   );
   await runShards(shards, A11Y_WORKERS);
   console.log();
@@ -789,7 +844,7 @@ try {
 
   console.log(`\nDone. Report written to ${outPath}`);
   console.log(
-    `${results.length} scans across ${routes.length} routes; ` +
+    `${results.length} scans across ${scannedRouteCount} routes${shardSuffix}; ` +
       `${withViolations.length} with violations, ${withErrors.length} errored, ` +
       `${skipped.length} skipped.`,
   );
@@ -876,7 +931,12 @@ try {
       for (const r of regressions) console.error(`  ✗ ${r}`);
       process.exitCode = 1;
     } else {
-      console.log("\nNo new violations against the baseline.");
+      console.log(
+        A11Y_SHARD.total === 1
+          ? "\nNo new violations against the baseline."
+          : `\nNo new violations against the baseline in runner ` +
+              `${A11Y_SHARD.index}/${A11Y_SHARD.total}'s routes.`,
+      );
     }
   }
 } finally {
