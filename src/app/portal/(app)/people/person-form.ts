@@ -15,7 +15,13 @@ const INSTAGRAM_HANDLE_PATTERN = /^[A-Za-z0-9._]{1,30}$/;
 
 /** The manual role assertions behind the form's role checkboxes. */
 export type PersonRoleTag =
-  "donor" | "sponsor" | "volunteer" | "attendee" | "staff" | "partner";
+  | "donor"
+  | "sponsor"
+  | "volunteer"
+  | "attendee"
+  | "staff"
+  | "partner"
+  | "recipient";
 
 /**
  * The role columns are no longer written directly: since
@@ -95,6 +101,9 @@ export function parsePersonForm(
     formData.get("isStaff") === "on" || formData.get("isStaff") === "true";
   const is_partner =
     formData.get("isPartner") === "on" || formData.get("isPartner") === "true";
+  const is_recipient =
+    formData.get("isRecipient") === "on" ||
+    formData.get("isRecipient") === "true";
   const sponsorWallPublic =
     formData.get("sponsorWallPublic") === "on" ||
     formData.get("sponsorWallPublic") === "true";
@@ -121,11 +130,12 @@ export function parsePersonForm(
     !is_volunteer &&
     !is_attendee &&
     !is_staff &&
-    !is_partner
+    !is_partner &&
+    !is_recipient
   ) {
     return {
       error:
-        "Select at least one role for this person — Donor, Sponsor, Volunteer, Attendee, Staff, or Partner.",
+        "Select at least one role for this person — Donor, Sponsor, Volunteer, Attendee, Staff, Partner, or Recipient.",
     };
   }
   if ("error" in pronouns) return pronouns;
@@ -159,6 +169,7 @@ export function parsePersonForm(
   if (is_attendee) roles.push("attendee");
   if (is_staff) roles.push("staff");
   if (is_partner) roles.push("partner");
+  if (is_recipient) roles.push("recipient");
 
   const publicRoles: PersonRoleTag[] = [];
   if (sponsorWallPublic && is_sponsor && personTypeRaw === "organization") {

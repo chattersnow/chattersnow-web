@@ -1,8 +1,3 @@
-export function toDateInputValue(iso: string | null) {
-  if (!iso) return "";
-  return new Date(iso).toISOString().slice(0, 10);
-}
-
 export const DISTRIBUTION_STATUSES = [
   { value: "pending", label: "Pending" },
   { value: "distributed", label: "Distributed" },

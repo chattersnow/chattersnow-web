@@ -21,6 +21,7 @@ import { personDisplayName } from "@/lib/format";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { runAction } from "@/components/portal/action-toast";
@@ -46,6 +47,7 @@ export function PersonPicker({
   allowCreate = true,
   onlyOrganizations = false,
   id,
+  required = false,
 }: {
   people: PersonListItem[];
   selected: PickedPerson | null;
@@ -68,6 +70,12 @@ export function PersonPicker({
    * so every existing call site still has an accessible name.
    */
   id?: string;
+  /**
+   * States on the search input that a person has to be picked (#1071). The
+   * asterisk a FieldLabel renders is aria-hidden, so without this a required
+   * picker says nothing to a screen reader.
+   */
+  required?: boolean;
 }) {
   const pickerPersonType: PersonType = onlyOrganizations
     ? "organization"
@@ -215,6 +223,7 @@ export function PersonPicker({
           ref={inputRef}
           id={id}
           aria-label={id ? undefined : placeholder}
+          aria-required={required || undefined}
           placeholder={placeholder}
           onKeyDown={(event) => {
             // Close the list, not the surrounding dialog. Base UI hangs both
@@ -284,6 +293,7 @@ export function PersonPicker({
       ) : (
         <div className="rounded-md border border-[var(--line)] p-3">
           <FieldGroup>
+            <RequiredFieldsNote />
             <PersonFormFields
               form={createForm}
               update={updateCreateForm}

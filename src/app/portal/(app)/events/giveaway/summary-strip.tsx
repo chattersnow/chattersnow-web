@@ -1,6 +1,6 @@
 import type { Giveaway } from "../giveaway-actions";
 import type { GiveawayTierConfig } from "../giveaway-tier-actions";
-import { formatCurrency, formatInstantDate } from "@/lib/format";
+import { formatCurrency, formatCalendarDate } from "@/lib/format";
 
 /**
  * The giveaway at a glance: the handful of numbers that move while the event
@@ -23,7 +23,7 @@ export function GiveawaySummaryStrip({
     { label: "Tickets sold", value: String(giveaway.tickets_sold) },
     { label: "Ticket price", value: formatCurrency(giveaway.ticket_price) },
     { label: "Revenue", value: formatCurrency(giveaway.revenue_amount) },
-    { label: "Drawing date", value: formatInstantDate(giveaway.drawing_date) },
+    { label: "Drawing date", value: formatCalendarDate(giveaway.drawing_date) },
     ...(hasTickets
       ? issued.map((total) => ({
           label: `${total.tier_label} issued`,

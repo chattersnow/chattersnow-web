@@ -9,6 +9,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PronounsField } from "@/components/pronouns-field";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 export function EventRegistrationForm({ eventId }: { eventId: string }) {
   const [name, setName] = useState("");
@@ -56,6 +57,12 @@ export function EventRegistrationForm({ eventId }: { eventId: string }) {
           <div className="rainbow-accent mb-2 w-10" />
           <AlertDescription>
             You&apos;re registered! We look forward to seeing you there.
+            {/* Named so the absence of a message in a minute's time reads as a
+                problem rather than as normal. Its own element, not appended to
+                the sentence above, which e2e/events.spec.ts locates by text. */}
+            <span className="mt-1 block">
+              We&apos;ve emailed a copy to {email}.
+            </span>
           </AlertDescription>
         </Alert>
         <RiderProfileForm registrationId={registrationId} />
@@ -66,8 +73,11 @@ export function EventRegistrationForm({ eventId }: { eventId: string }) {
   return (
     <form onSubmit={handleSubmit}>
       <FieldGroup>
+        <RequiredFieldsNote />
         <Field>
-          <FieldLabel htmlFor="registration-name">Name</FieldLabel>
+          <FieldLabel htmlFor="registration-name" required>
+            Name
+          </FieldLabel>
           <Input
             id="registration-name"
             required
@@ -78,7 +88,9 @@ export function EventRegistrationForm({ eventId }: { eventId: string }) {
         </Field>
         <Field orientation="responsive">
           <Field>
-            <FieldLabel htmlFor="registration-email">Email</FieldLabel>
+            <FieldLabel htmlFor="registration-email" required>
+              Email
+            </FieldLabel>
             <Input
               id="registration-email"
               type="email"
@@ -101,7 +113,7 @@ export function EventRegistrationForm({ eventId }: { eventId: string }) {
         </Field>
         <Field>
           <FieldLabel htmlFor="registration-instagram">
-            Instagram handle (optional)
+            Instagram handle
           </FieldLabel>
           <Input
             id="registration-instagram"

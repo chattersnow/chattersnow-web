@@ -16,6 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { useActionToast } from "@/components/portal/action-toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import { contentPackSlugify, type ContentPack } from "@/lib/content-packs";
 import {
   deleteContentPackAction,
@@ -112,8 +113,11 @@ export function PackManager({
       <Card className="mt-6 max-w-3xl">
         <CardContent>
           <form className="space-y-4" onSubmit={handleCreate}>
+            <RequiredFieldsNote />
             <Field>
-              <FieldLabel htmlFor="new-pack-name">New pack</FieldLabel>
+              <FieldLabel htmlFor="new-pack-name" required>
+                New pack
+              </FieldLabel>
               <Input
                 id="new-pack-name"
                 value={name}
@@ -127,7 +131,9 @@ export function PackManager({
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor="new-pack-key">Key</FieldLabel>
+              <FieldLabel htmlFor="new-pack-key" required>
+                Key
+              </FieldLabel>
               <Input
                 id="new-pack-key"
                 value={key}

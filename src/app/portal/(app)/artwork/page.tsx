@@ -23,7 +23,7 @@ import {
   quoteOrValue,
   totalPagesFor,
 } from "@/lib/pagination";
-import { formatInstantDate } from "@/lib/format";
+
 import { ArtworkSubmissionStatusBadge } from "./submission-badges";
 import { ArtworkSubmissionReviewSheet } from "./submission-review-sheet";
 import { signArtworkImages } from "./signed-images";
@@ -34,6 +34,7 @@ import {
   type ArtworkSubmissionStatus,
   type SignedArtworkImage,
 } from "./submission-types";
+import { ViewerTime } from "@/components/viewer-time";
 
 export const metadata: Metadata = {
   title: "Artwork Submissions",
@@ -306,7 +307,11 @@ export default async function ArtworkSubmissionsPage({
                             {submission.submitter_name}
                           </p>
                           <p className="app-muted truncate text-xs">
-                            {formatInstantDate(submission.created_at)}
+                            <ViewerTime
+                              iso={submission.created_at}
+                              fallbackZone="UTC"
+                              options={{ dateStyle: "medium" }}
+                            />
                           </p>
                           <div className="mt-1 flex items-center justify-between gap-2">
                             <ArtworkSubmissionStatusBadge

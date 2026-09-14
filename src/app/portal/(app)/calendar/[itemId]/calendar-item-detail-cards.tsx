@@ -3,7 +3,10 @@
 import { FormEvent, ReactNode, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
-import { utcIsoToDatetimeLocalInZone } from "@/lib/time";
+import {
+  datetimeLocalToUtcIsoInBrowser,
+  utcIsoToDatetimeLocalInBrowser,
+} from "@/lib/time";
 import {
   recordSensitiveTopicReviewAction,
   updateCalendarItemAction,
@@ -62,18 +65,19 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDateTime } from "@/lib/format";
 import { runAction } from "@/components/portal/action-toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
-function toDatetimeLocalValue(iso: string | null, timeZone: string) {
-  if (!iso) return "";
-  return utcIsoToDatetimeLocalInZone(iso, timeZone);
-}
+// Seeded in the browser's zone so the prefill and the save agree (#1063).
+// The item's own `time_zone` is no longer consulted here: it says where the
+// item happens and governs the public site, not how a typed time is read.
+const toDatetimeLocalValue = utcIsoToDatetimeLocalInBrowser;
 
 function formStateFor(item: CalendarItemRow) {
   return {
     title: item.title,
     itemType: item.item_type,
-    startsAt: toDatetimeLocalValue(item.starts_at, item.time_zone),
-    endsAt: toDatetimeLocalValue(item.ends_at, item.time_zone),
+    startsAt: toDatetimeLocalValue(item.starts_at),
+    endsAt: toDatetimeLocalValue(item.ends_at),
     timeZone: item.time_zone,
     recurrenceRule: item.recurrence_rule ?? "",
     summary: item.summary ?? "",
@@ -100,8 +104,13 @@ function buildFormData(form: FormState) {
   const formData = new FormData();
   formData.set("title", form.title);
   formData.set("itemType", form.itemType);
-  formData.set("startsAt", form.startsAt);
-  formData.set("endsAt", form.endsAt);
+  // Converted here, in the browser, so the item's instants are fixed from
+  // the typist's own clock rather than the server's (#1063).
+  formData.set("startsAt", datetimeLocalToUtcIsoInBrowser(form.startsAt) ?? "");
+  formData.set(
+    "endsAt",
+    form.endsAt ? (datetimeLocalToUtcIsoInBrowser(form.endsAt) ?? "") : "",
+  );
   formData.set("timeZone", form.timeZone);
   formData.set("recurrenceRule", form.recurrenceRule);
   formData.set("summary", form.summary);
@@ -346,8 +355,11 @@ export function ScheduleDetailsCard({
       ) : (
         <form onSubmit={card.handleSubmit}>
           <FieldGroup>
+            <RequiredFieldsNote />
             <Field>
-              <FieldLabel htmlFor="edit-title">Title</FieldLabel>
+              <FieldLabel htmlFor="edit-title" required>
+                Title
+              </FieldLabel>
               <Input
                 id="edit-title"
                 required
@@ -392,7 +404,9 @@ export function ScheduleDetailsCard({
 
             <Field orientation="responsive">
               <Field>
-                <FieldLabel htmlFor="edit-startsAt">Starts</FieldLabel>
+                <FieldLabel htmlFor="edit-startsAt" required>
+                  Starts
+                </FieldLabel>
                 <Input
                   id="edit-startsAt"
                   required
@@ -414,7 +428,9 @@ export function ScheduleDetailsCard({
 
             <Field orientation="responsive">
               <Field>
-                <FieldLabel htmlFor="edit-timeZone">Time zone</FieldLabel>
+                <FieldLabel htmlFor="edit-timeZone" required>
+                  Time zone
+                </FieldLabel>
                 <Input
                   id="edit-timeZone"
                   required

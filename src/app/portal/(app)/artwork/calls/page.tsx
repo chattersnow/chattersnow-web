@@ -9,11 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/portal/empty-state";
 import { LinkPendingPulse } from "@/components/link-pending";
-import { formatDateTimeInZone } from "@/lib/time";
+
 import { ArtworkCallStatusBadge } from "../submission-badges";
 import type { ArtworkCall } from "../submission-types";
 import { ArtworkCallDialog } from "./call-dialog";
 import { ShareLink } from "./share-link";
+import { ViewerTime } from "@/components/viewer-time";
 
 export const metadata: Metadata = {
   title: "Calls for Artwork",
@@ -126,19 +127,24 @@ export default async function ArtworkCallsPage() {
                       {" · "}
                       {call.max_images} image
                       {call.max_images === 1 ? "" : "s"} per artist
-                      {/* In the call's own zone, resolved the same way the
-                          public page resolves it. formatInstantDate would use
-                          the server's, so a curator and the artist they are
-                          waiting on could read different days off the same
-                          deadline. */}
-                      {call.closes_at
-                        ? ` · closes ${formatDateTimeInZone(
-                            call.closes_at,
-                            call.timezone ?? call.event?.timezone ?? "UTC",
-                            { dateStyle: "medium" },
-                            "en-US",
-                          )}`
-                        : ""}
+                      {/* The curator's own clock, named, like every other
+                          instant in the portal (#1063). The artist still reads
+                          the call's own zone on the public page, which is why
+                          the deadline says which zone it is in on both sides
+                          rather than leaving either reader to guess. */}
+                      {call.closes_at ? (
+                        <>
+                          {" · closes "}
+                          <ViewerTime
+                            iso={call.closes_at}
+                            fallbackZone={
+                              call.timezone ?? call.event?.timezone ?? "UTC"
+                            }
+                          />
+                        </>
+                      ) : (
+                        ""
+                      )}
                     </p>
                     <ShareLink code={call.submission_code} />
                     {canManage && (

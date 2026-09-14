@@ -138,7 +138,7 @@ beforeAll(async () => {
     "template custom role permission",
   );
 
-  // What the template calls the six person roles is a platform default a new
+  // What the template calls the person roles is a platform default a new
   // tenant inherits (#911), so it has to be set before the provisioning call
   // below rather than asserted against a template that has never been taught
   // anything.
@@ -279,7 +279,7 @@ describe("provisioning", () => {
     expect(keys).toContain("org.fiscal_year_start_month");
     expect(keys.some((k: string) => k.startsWith("site_images."))).toBe(false);
 
-    // #911: what the template calls the six person roles comes with it, so an
+    // #911: what the template calls the person roles comes with it, so an
     // operator who has taught the template to say "Students" does not retype
     // it for every tenant they provision.
     const roleLabels = await must(

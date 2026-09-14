@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { CreateEventResult } from "./actions";
 import * as EventActions from "./actions";
+import { labelText } from "../../../../../test/labels";
 
 const createEventActionMock = mock<
   (formData: FormData) => Promise<CreateEventResult>
@@ -44,7 +45,7 @@ describe("NewEventDialog", () => {
     const user = userEvent.setup();
     await openDialog(user);
 
-    expect(screen.getByLabelText("Timezone")).toHaveValue(
+    expect(screen.getByLabelText(labelText("Timezone"))).toHaveValue(
       Intl.DateTimeFormat().resolvedOptions().timeZone,
     );
   });
@@ -53,8 +54,14 @@ describe("NewEventDialog", () => {
     const user = userEvent.setup();
     await openDialog(user);
 
-    await user.type(screen.getByLabelText("Event name"), "Winter Fest");
-    await user.type(screen.getByLabelText("Starts"), "2026-12-01T10:00");
+    await user.type(
+      screen.getByLabelText(labelText("Event name")),
+      "Winter Fest",
+    );
+    await user.type(
+      screen.getByLabelText(labelText("Starts")),
+      "2026-12-01T10:00",
+    );
     await user.click(screen.getByRole("button", { name: "Create event" }));
 
     await screen.findByRole("button", { name: "New Event" });
@@ -73,24 +80,35 @@ describe("NewEventDialog", () => {
     const user = userEvent.setup();
     await openDialog(user);
 
-    await user.type(screen.getByLabelText("Event name"), "Winter Fest");
-    await user.type(screen.getByLabelText("Starts"), "2026-12-01T10:00");
+    await user.type(
+      screen.getByLabelText(labelText("Event name")),
+      "Winter Fest",
+    );
+    await user.type(
+      screen.getByLabelText(labelText("Starts")),
+      "2026-12-01T10:00",
+    );
     await user.click(screen.getByRole("button", { name: "Create event" }));
 
     expect(
       await screen.findByText("Could not create the event. Please try again."),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText("Event name")).toHaveValue("Winter Fest");
+    expect(screen.getByLabelText(labelText("Event name"))).toHaveValue(
+      "Winter Fest",
+    );
   });
 
   test("resets the form after closing and reopening", async () => {
     const user = userEvent.setup();
     await openDialog(user);
 
-    await user.type(screen.getByLabelText("Event name"), "Draft event");
+    await user.type(
+      screen.getByLabelText(labelText("Event name")),
+      "Draft event",
+    );
     await user.keyboard("{Escape}");
 
     await user.click(screen.getByRole("button", { name: "New Event" }));
-    expect(screen.getByLabelText("Event name")).toHaveValue("");
+    expect(screen.getByLabelText(labelText("Event name"))).toHaveValue("");
   });
 });

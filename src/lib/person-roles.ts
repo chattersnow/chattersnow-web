@@ -1,10 +1,10 @@
 import { DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
 
 /**
- * The words an organization uses for the six roles a person can hold (#911).
+ * The words an organization uses for the seven roles a person can hold (#911).
  *
- * Donor, sponsor, volunteer, attendee, staff and partner are nonprofit
- * vocabulary, written when Chatter Snow was the product. An organization that
+ * Donor, sponsor, volunteer, attendee, staff, partner and recipient are
+ * nonprofit vocabulary, written when Chatter Snow was the product. An organization that
  * sells things has customers; a studio has members and students; a shop has
  * clients and suppliers. Before this, none of those could be expressed and
  * "Donors" sat in the sidebar whether or not the tenant fundraised.
@@ -16,6 +16,10 @@ import { DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
  * `person_role_tags` against a check constraint. Every one of those is written
  * against the key. So the key is what the schema, the routes and the tests
  * mean, and this registry holds only what a reader sees.
+ *
+ * Recipient is the one role the directory's Roles column declines to show;
+ * see `rolesFor` in the people module for why. It is still renamed here like
+ * the rest, because the aspect card and the person form both name it.
  *
  * Two words per role, not one: the plural is rarely the singular plus an "s"
  * once a tenant chooses it (Staff Member/Staff, Person/People), and the
@@ -41,6 +45,7 @@ export const PERSON_ROLE_KEYS = [
   "is_attendee",
   "is_staff",
   "is_partner",
+  "is_recipient",
 ] as const;
 
 export type PersonRoleKey = (typeof PERSON_ROLE_KEYS)[number];
@@ -117,6 +122,13 @@ export const PERSON_ROLES: readonly PersonRoleDefinition[] = [
     description:
       "An organization you work with: Partner, Client, Supplier, Affiliate.",
     default: { singular: "Partner", plural: "Partners" },
+  },
+  {
+    key: "is_recipient",
+    term: "recipient",
+    description:
+      "Someone who receives what you hand out: Recipient, Customer, Borrower.",
+    default: { singular: "Recipient", plural: "Recipients" },
   },
 ] as const;
 

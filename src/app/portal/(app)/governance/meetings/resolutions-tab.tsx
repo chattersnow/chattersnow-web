@@ -41,6 +41,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { formatCalendarDate, personDisplayName } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
 import { runAction } from "@/components/portal/action-toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 function AddResolutionForm({
   people,
@@ -110,6 +111,7 @@ function AddResolutionForm({
       className="rounded-md border border-[var(--line)] p-4"
     >
       <FieldGroup>
+        <RequiredFieldsNote />
         <Field>
           <FieldLabel>Mover</FieldLabel>
           <PersonPicker

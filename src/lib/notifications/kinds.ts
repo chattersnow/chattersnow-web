@@ -93,6 +93,29 @@ export const NOTIFICATION_KINDS: NotificationKind[] = [
  */
 export const GEAR_REQUEST_CONFIRMATION_KIND = "gear_request_confirmation";
 
+/**
+ * The registrant's own confirmation (#1068), on the same footing as the gear
+ * one above: it is addressed to whoever signed up for a public event, who holds
+ * no portal account and therefore no preference row. Listing it in the registry
+ * would grow a switch on /portal/account that could never change what anyone
+ * receives. Its key is here only so the ledger and the sender agree on the
+ * spelling; the kill switch below still governs it.
+ */
+export const EVENT_REGISTRATION_CONFIRMATION_KIND =
+  "event_registration_confirmation";
+
+/**
+ * The applicant's own confirmation (#1069), carrying the reference code that
+ * is the only key to the public status page. Outside the registry for the same
+ * reason as the two above: the applicant holds no portal account and so no
+ * preference row, and a switch on /portal/account could never change what they
+ * receive. Note this is *not* the `volunteer_application` kind in the registry
+ * above -- that one is the staff notice, and it stays exactly as it is. The
+ * kill switch governs both.
+ */
+export const VOLUNTEER_APPLICATION_CONFIRMATION_KIND =
+  "volunteer_application_confirmation";
+
 export function isNotificationKind(key: string): boolean {
   return NOTIFICATION_KINDS.some((kind) => kind.key === key);
 }

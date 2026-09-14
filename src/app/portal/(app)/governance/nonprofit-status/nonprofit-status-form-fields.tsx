@@ -49,7 +49,9 @@ export function NonprofitStatusFormFields({
   return (
     <>
       <Field>
-        <FieldLabel htmlFor={`${idPrefix}-description`}>Description</FieldLabel>
+        <FieldLabel htmlFor={`${idPrefix}-description`} required>
+          Description
+        </FieldLabel>
         <Textarea
           id={`${idPrefix}-description`}
           required
@@ -59,7 +61,9 @@ export function NonprofitStatusFormFields({
       </Field>
 
       <Field>
-        <FieldLabel htmlFor={`${idPrefix}-phase`}>Phase</FieldLabel>
+        <FieldLabel htmlFor={`${idPrefix}-phase`} required>
+          Phase
+        </FieldLabel>
         <Input
           id={`${idPrefix}-phase`}
           list={datalistId}

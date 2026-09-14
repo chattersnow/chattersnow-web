@@ -351,7 +351,10 @@ describe("run_retention_purge", () => {
 
       const { data, error } = await adminClient
         .from("donations")
-        .insert({ donor_id: donorId, donated_at: new Date().toISOString() })
+        .insert({
+          donor_id: donorId,
+          donated_at: new Date().toISOString().slice(0, 10),
+        })
         .select("id")
         .single();
       if (error) throw error;
@@ -821,7 +824,7 @@ describe("run_retention_purge", () => {
         .from("donations")
         .insert({
           donor_id: person.id,
-          donated_at: new Date().toISOString(),
+          donated_at: new Date().toISOString().slice(0, 10),
           notes: "Dropping off two jackets on Saturday.",
         })
         .select("id")

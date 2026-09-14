@@ -157,9 +157,12 @@ test("deep-links from the awaiting check-in attention item to the event's Regist
       .getByRole("button", { name: /items? needing attention/ })
       .click();
 
-    const reviewLink = page.locator(
-      `a[href="/portal/events/${fixture.eventId}?tab=registrants"]`,
-    );
+    // Scoped to the menu just opened. The mobile shell's dashboard also
+    // leads with these items as a list (#1079), so the same href is on the
+    // page twice there -- and this test is about the bell's deep link.
+    const reviewLink = page
+      .getByRole("menu")
+      .locator(`a[href="/portal/events/${fixture.eventId}?tab=registrants"]`);
     await expect(reviewLink).toBeVisible();
     await reviewLink.click();
 

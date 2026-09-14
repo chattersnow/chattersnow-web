@@ -9,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -204,8 +205,11 @@ export function LoginForm() {
 
       <form onSubmit={handleSubmit}>
         <FieldGroup>
+          <RequiredFieldsNote />
           <Field>
-            <FieldLabel htmlFor="email">Email</FieldLabel>
+            <FieldLabel htmlFor="email" required>
+              Email
+            </FieldLabel>
             <Input
               id="email"
               required
@@ -217,7 +221,9 @@ export function LoginForm() {
           </Field>
           <Field>
             <div className="flex items-baseline justify-between gap-3">
-              <FieldLabel htmlFor="password">Password</FieldLabel>
+              <FieldLabel htmlFor="password" required>
+                Password
+              </FieldLabel>
               <button
                 type="button"
                 onClick={handleReset}

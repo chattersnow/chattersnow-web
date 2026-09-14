@@ -76,6 +76,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 function formStateFor(item: InventoryItem) {
   return {
@@ -402,8 +403,9 @@ export function EditInventoryModal({
             >
               <div className="flex-1 overflow-y-auto px-4 pb-4">
                 <FieldGroup>
+                  <RequiredFieldsNote />
                   <Field>
-                    <FieldLabel htmlFor="edit-description">
+                    <FieldLabel htmlFor="edit-description" required>
                       Item description
                     </FieldLabel>
                     <Textarea

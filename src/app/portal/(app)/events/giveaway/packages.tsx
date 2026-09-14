@@ -263,9 +263,12 @@ export function PackagesSection({
       {canEdit && showAdd && (
         <div className="flex flex-wrap items-end gap-2 border-t border-[var(--line)] pt-4">
           <Field className="w-48">
-            <FieldLabel htmlFor="package-name">Package name</FieldLabel>
+            <FieldLabel htmlFor="package-name" required>
+              Package name
+            </FieldLabel>
             <Input
               id="package-name"
+              required
               placeholder="e.g. Gold entry"
               value={name}
               onChange={(event) => setName(event.target.value)}

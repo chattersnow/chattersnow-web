@@ -25,6 +25,7 @@ import {
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 export function NewDisclosureDialog({
   people,
@@ -107,6 +108,7 @@ export function NewDisclosureDialog({
 
         <form onSubmit={handleSubmit}>
           <FieldGroup>
+            <RequiredFieldsNote />
             <Field>
               <FieldLabel>Person</FieldLabel>
               <PersonPicker

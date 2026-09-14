@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import { formatInstantDate } from "@/lib/format";
 
 const NO_MEETING = "none";
@@ -126,6 +127,7 @@ export function NewResolutionDialog({
 
         <form onSubmit={handleSubmit}>
           <FieldGroup>
+            <RequiredFieldsNote />
             <Field>
               <FieldLabel htmlFor="resolution-meeting">Meeting</FieldLabel>
               <Select

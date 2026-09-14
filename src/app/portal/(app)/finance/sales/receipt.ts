@@ -1,8 +1,5 @@
-import {
-  formatCurrency,
-  formatDateTime,
-  personDisplayName,
-} from "@/lib/format";
+import { formatCurrency, personDisplayName } from "@/lib/format";
+import { DATE_TIME_WITH_ZONE, formatDateTimeInZone } from "@/lib/time";
 import {
   formatTaxRate,
   paymentMethodLabel,
@@ -21,6 +18,11 @@ import {
  * Nothing here reads the catalog. `sale_line_items` already snapshots the
  * description and the price charged, so a receipt reprinted next year says what
  * it said on the day, whatever has since been renamed or repriced.
+ *
+ * The instants are the one thing this module does *not* pre-format (#1076).
+ * They carry a zone with them and are rendered through `formatReceiptInstant`
+ * wherever they are shown, so the receipt, its plain-text twin and the emailed
+ * version cannot disagree about when the sale happened.
  */
 
 export type ReceiptOrg = {
@@ -45,6 +47,20 @@ export type ReceiptModel = {
   logoUrl: string | null;
   /** "#000123" -- what a buyer reads back over the phone. */
   receiptNumber: string;
+  /**
+   * The zone every instant below is read in: the organization's own
+   * (`org.timezone`, #1065), not the viewer's and not the server's.
+   *
+   * This is the one portal surface that departs from "display in the viewer's
+   * zone" (docs/technical-spec.md 6.1), deliberately. A receipt is printed,
+   * pasted into an email and filed; it is a record of when a sale happened
+   * rather than a live screen, so two people opening it from different states
+   * must read the same time off it. It is also the boundary the finance rollup
+   * now counts its days on, so a sale near midnight falls in the same period on
+   * the receipt as it does in the report.
+   */
+  timeZone: string;
+  /** The stored instant, unformatted -- see `timeZone` above. */
   soldAt: string;
   eventName: string | null;
   lines: ReceiptLine[];
@@ -58,9 +74,20 @@ export type ReceiptModel = {
    * contact detail the buyer did not already know.
    */
   purchaserName: string | null;
-  /** Set only on a voided sale: when it was voided. */
+  /** Set only on a voided sale: the instant it was voided. */
   voidedAt: string | null;
 };
+
+/**
+ * One instant as a receipt says it: "Jun 1, 2026, 11:00 AM MDT".
+ *
+ * The zone is named rather than implied, per docs/technical-spec.md 6.1 -- on
+ * a document that outlives the screen it was printed from, an unlabelled
+ * "11:00 AM" is a time nobody can check.
+ */
+export function formatReceiptInstant(iso: string, timeZone: string): string {
+  return formatDateTimeInZone(iso, timeZone, DATE_TIME_WITH_ZONE, "en-US");
+}
 
 /**
  * "#000123". Six digits because a number a buyer reads out loud wants a fixed
@@ -83,7 +110,11 @@ export function formatReceiptNumber(value: number): string {
  * view -- the wrong resolution for a session page. One footer line is not worth
  * a session-resolved view; the email follow-on can revisit it.
  */
-export function buildReceipt(sale: SaleRow, org: ReceiptOrg): ReceiptModel {
+export function buildReceipt(
+  sale: SaleRow,
+  org: ReceiptOrg,
+  timeZone: string,
+): ReceiptModel {
   const discount = Number(sale.discount_amount);
   const taxAmount = Number(sale.tax_amount);
 
@@ -106,7 +137,8 @@ export function buildReceipt(sale: SaleRow, org: ReceiptOrg): ReceiptModel {
     orgName: org.name,
     logoUrl: org.logoUrl,
     receiptNumber: formatReceiptNumber(sale.receipt_number),
-    soldAt: formatDateTime(sale.sold_at),
+    timeZone,
+    soldAt: sale.sold_at,
     eventName: sale.events?.name ?? null,
     lines: (sale.sale_line_items ?? []).map((line) => ({
       id: line.id,
@@ -121,7 +153,7 @@ export function buildReceipt(sale: SaleRow, org: ReceiptOrg): ReceiptModel {
     purchaserName: sale.purchaser
       ? personDisplayName(sale.purchaser, "") || null
       : null,
-    voidedAt: sale.status === "voided" ? formatDateTime(sale.voided_at) : null,
+    voidedAt: sale.status === "voided" ? sale.voided_at : null,
   };
 }
 
@@ -129,12 +161,21 @@ export function buildReceipt(sale: SaleRow, org: ReceiptOrg): ReceiptModel {
  * The same receipt as text, for the copy button -- and, later, for the
  * `text` half of the emailed version. Plain columns rather than a table: it is
  * pasted into a message or a note, where anything cleverer wraps badly.
+ *
+ * The times are formatted here from the model's own instants and zone rather
+ * than handed in already formatted: the clipboard text and the rendered
+ * receipt then cannot drift apart, because neither holds a string the other
+ * cannot derive.
  */
 export function receiptAsPlainText(model: ReceiptModel): string {
   const lines: string[] = [model.orgName, `Receipt ${model.receiptNumber}`];
 
-  if (model.voidedAt) lines.push(`VOIDED ${model.voidedAt}`);
-  lines.push(model.soldAt);
+  if (model.voidedAt) {
+    lines.push(
+      `VOIDED ${formatReceiptInstant(model.voidedAt, model.timeZone)}`,
+    );
+  }
+  lines.push(formatReceiptInstant(model.soldAt, model.timeZone));
   if (model.eventName) lines.push(model.eventName);
 
   lines.push("");

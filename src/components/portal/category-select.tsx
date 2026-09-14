@@ -63,13 +63,19 @@ export function CategorySelect({
   return (
     <>
       <Field>
-        <FieldLabel htmlFor={`${idPrefix}-category`}>Item category</FieldLabel>
+        <FieldLabel htmlFor={`${idPrefix}-category`} required={required}>
+          Item category
+        </FieldLabel>
         <Select
           value={categoryId || null}
           disabled={disabled}
           onValueChange={(value) => onCategoryChange((value as string) ?? "")}
         >
-          <SelectTrigger id={`${idPrefix}-category`} className="w-full">
+          <SelectTrigger
+            id={`${idPrefix}-category`}
+            aria-required={required || undefined}
+            className="w-full"
+          >
             <SelectValue placeholder="Select a category">
               {() => selected?.label ?? "Select a category"}
             </SelectValue>

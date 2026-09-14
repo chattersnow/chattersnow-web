@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import type { EventShift } from "../shifts-actions";
 import type { RoleType } from "../../volunteers/roles/actions";
 import { ShiftForm, ShiftsSection, NONE_VALUE } from "./shifts";
+import { labelText } from "../../../../../../test/labels";
 
 const roleTypes: RoleType[] = [
   { id: "role-1", name: "Ride Buddy" },
@@ -24,6 +25,15 @@ const baseShift: EventShift = {
 
 function noop() {}
 
+/** The shift window both tests have to fill before the form will submit. */
+async function fillShiftWindow(user: ReturnType<typeof userEvent.setup>) {
+  await user.type(
+    screen.getByLabelText(labelText("Starts")),
+    "2026-01-01T09:00",
+  );
+  await user.type(screen.getByLabelText(labelText("Ends")), "2026-01-01T12:00");
+}
+
 describe("ShiftForm", () => {
   test("defaults to no role and omits volunteerRoleTypeId when unset", async () => {
     const onSubmit = mock(
@@ -41,7 +51,13 @@ describe("ShiftForm", () => {
     expect(screen.getByText("No role")).toBeInTheDocument();
 
     const user = userEvent.setup();
-    await user.type(screen.getByLabelText("Duty / location"), "Basecamp AM");
+    await user.type(
+      screen.getByLabelText(labelText("Duty / location")),
+      "Basecamp AM",
+    );
+    // Start and end are required now that the form says so (#1071), and
+    // happy-dom enforces native validation on submit exactly as a browser does.
+    await fillShiftWindow(user);
     await user.click(screen.getByRole("button", { name: "Add shift" }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
@@ -62,7 +78,13 @@ describe("ShiftForm", () => {
       <ShiftForm roleTypes={roleTypes} onSubmit={onSubmit} onCancel={noop} />,
     );
 
-    await user.type(screen.getByLabelText("Duty / location"), "Basecamp AM");
+    await user.type(
+      screen.getByLabelText(labelText("Duty / location")),
+      "Basecamp AM",
+    );
+    // Start and end are required now that the form says so (#1071), and
+    // happy-dom enforces native validation on submit exactly as a browser does.
+    await fillShiftWindow(user);
     await user.click(screen.getByRole("combobox", { name: "Role" }));
     await user.click(await screen.findByRole("option", { name: "Ride Buddy" }));
     await user.click(screen.getByRole("button", { name: "Add shift" }));

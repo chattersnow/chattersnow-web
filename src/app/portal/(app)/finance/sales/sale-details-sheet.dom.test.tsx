@@ -93,7 +93,7 @@ describe("SaleDetailsSheet", () => {
     expect(screen.getByText("Void this sale?")).toBeInTheDocument();
     expect(voidSaleActionMock).not.toHaveBeenCalled();
 
-    await user.type(screen.getByLabelText("Reason (optional)"), "Wrong size");
+    await user.type(screen.getByLabelText("Reason"), "Wrong size");
     const confirm = screen
       .getAllByRole("button", { name: "Void sale" })
       .at(-1)!;

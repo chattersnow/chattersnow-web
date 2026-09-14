@@ -73,7 +73,9 @@ export function VariantFormFields({
     <>
       <Field orientation="responsive">
         <Field>
-          <FieldLabel htmlFor={`${idPrefix}-label`}>Variant</FieldLabel>
+          <FieldLabel htmlFor={`${idPrefix}-label`} required>
+            Variant
+          </FieldLabel>
           <Input
             id={`${idPrefix}-label`}
             required
@@ -95,7 +97,9 @@ export function VariantFormFields({
 
       <Field orientation="responsive">
         <Field>
-          <FieldLabel htmlFor={`${idPrefix}-price`}>Price</FieldLabel>
+          <FieldLabel htmlFor={`${idPrefix}-price`} required>
+            Price
+          </FieldLabel>
           <Input
             id={`${idPrefix}-price`}
             type="number"
@@ -107,7 +111,9 @@ export function VariantFormFields({
           />
         </Field>
         <Field>
-          <FieldLabel htmlFor={`${idPrefix}-stock`}>Stock on hand</FieldLabel>
+          <FieldLabel htmlFor={`${idPrefix}-stock`} required>
+            Stock on hand
+          </FieldLabel>
           <Input
             id={`${idPrefix}-stock`}
             type="number"

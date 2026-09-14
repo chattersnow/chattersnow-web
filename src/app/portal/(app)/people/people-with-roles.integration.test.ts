@@ -9,8 +9,10 @@ import { afterEach, describe, expect, test } from "bun:test";
 import {
   SEEDED_USERS,
   adminClient,
+  createAvailableGearItems,
   createPerson,
   createPublishedEvent,
+  serviceRoleClient,
   signInAs,
 } from "../../../../../test/integration-setup";
 
@@ -22,7 +24,9 @@ afterEach(async () => {
 async function flagsFor(personId: string) {
   const { data, error } = await adminClient
     .from("people_with_roles")
-    .select("is_donor, is_sponsor, is_volunteer, is_attendee, is_partner")
+    .select(
+      "is_donor, is_sponsor, is_volunteer, is_attendee, is_partner, is_recipient",
+    )
     .eq("id", personId)
     .single();
   if (error) throw error;
@@ -313,6 +317,93 @@ describe("people_with_roles", () => {
     expect((await flagsFor(org.id)).is_partner).toBe(true);
     // owner_person_id is the internal staff member driving the opportunity.
     expect((await flagsFor(owner.id)).is_partner).toBe(false);
+  });
+
+  /**
+   * #1073. Recipient is the seventh role and the only one derived from two
+   * tables at once: the movement is the authoritative record of gear leaving,
+   * and the request header is what exists before anything has left.
+   */
+  test("gear handed to someone makes them a recipient", async () => {
+    const person = await createPerson();
+    cleanups.push(person.cleanup);
+    const gear = await createAvailableGearItems(1);
+    cleanups.push(gear.cleanup);
+
+    expect((await flagsFor(person.id)).is_recipient).toBe(false);
+
+    const { data: movement, error } = await adminClient
+      .from("inventory_movements")
+      .insert({
+        inventory_item_id: gear.itemIds[0],
+        movement_type: "distributed",
+        quantity: 1,
+        recipient_person_id: person.id,
+      })
+      .select("id")
+      .single();
+    expect(error).toBeNull();
+    cleanups.push(async () => {
+      await adminClient
+        .from("inventory_movements")
+        .delete()
+        .eq("id", movement!.id);
+    });
+
+    expect((await flagsFor(person.id)).is_recipient).toBe(true);
+  });
+
+  test("an unfulfilled request makes them one too", async () => {
+    // The deliberate half of the decision: a pending request is not yet a
+    // receipt, but a person with an open request is exactly who a staffer has
+    // the record open for, so the flag reads "has asked or received". The card
+    // keeps the two apart so neither reads as the other.
+    const person = await createPerson();
+    cleanups.push(person.cleanup);
+
+    expect((await flagsFor(person.id)).is_recipient).toBe(false);
+
+    // Service role, not adminClient: gear_requests deliberately carries no
+    // insert grant or policy (20260913230000) -- the public
+    // `request_gear_items` RPC is the only writer, and nothing deletes, because
+    // a request is history once it exists. Going through that RPC here would
+    // drag in the tenant's shipping settings, the rate limiter and item
+    // availability, and would create a `people` row of its own rather than
+    // flagging the fixture this test is asserting about.
+    const { data: request, error } = await serviceRoleClient()
+      .from("gear_requests")
+      .insert({
+        person_id: person.id,
+        delivery_method: "meetup",
+        status: "new",
+      })
+      .select("id")
+      .single();
+    expect(error).toBeNull();
+    cleanups.push(async () => {
+      await serviceRoleClient()
+        .from("gear_requests")
+        .delete()
+        .eq("id", request!.id);
+    });
+
+    expect((await flagsFor(person.id)).is_recipient).toBe(true);
+  });
+
+  test("the recipient tag carries the role with no gear record at all", async () => {
+    // Gear handed over before this system existed, or at a giveaway somebody
+    // wrote down on paper. A tag rather than a fabricated movement: nothing
+    // invents inventory history to carry a claim about a person.
+    const person = await createPerson();
+    cleanups.push(person.cleanup);
+
+    expect((await flagsFor(person.id)).is_recipient).toBe(false);
+
+    const { error } = await adminClient
+      .from("person_role_tags")
+      .insert({ person_id: person.id, role: "recipient" });
+    expect(error).toBeNull();
+    expect((await flagsFor(person.id)).is_recipient).toBe(true);
   });
 
   test("the partner tag carries the role with no opportunity at all", async () => {

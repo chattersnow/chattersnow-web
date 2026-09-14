@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import {
   formatCalendarDate,
   formatCurrency,
@@ -281,6 +282,7 @@ export function EditGrantModal({
             >
               <div className="flex-1 overflow-y-auto px-4 pb-4">
                 <FieldGroup>
+                  <RequiredFieldsNote />
                   <GrantFormFields
                     form={form}
                     update={update}

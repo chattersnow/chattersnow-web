@@ -1,6 +1,7 @@
 import { test, expect } from "./helpers/test";
 import { clickNavLink } from "./helpers/nav";
 import { createAdminClient } from "./helpers/admin-client";
+import { exactLabel } from "./helpers/labels";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -99,7 +100,7 @@ test.describe("public get-involved pages", () => {
 
       const sheet = page.getByRole("dialog", { name: "Apply to volunteer" });
       await sheet
-        .getByLabel("Name", { exact: true })
+        .getByLabel(exactLabel("Name"))
         .fill(`E2E Applicant ${suffix}`);
       await sheet.getByLabel("Email").fill(email);
       await sheet

@@ -3,6 +3,7 @@ import type { Lexicon } from "@/lib/lexicon";
 import {
   PERSON_ROLES,
   personRoleLabel,
+  type PersonRoleDefinition,
   type PersonRoleKey,
 } from "@/lib/person-roles";
 
@@ -70,6 +71,7 @@ export type PersonRow = {
   is_attendee: boolean;
   is_staff: boolean;
   is_partner: boolean;
+  is_recipient: boolean;
   person_type: PersonType;
   primary_contact_person_id: string | null;
   primary_contact: PersonSummary | null;
@@ -95,22 +97,47 @@ export type OrganizationMembership = {
 export type RoleKey = PersonRoleKey;
 
 /**
+ * The roles this list is willing to name, which is every role but Recipient
+ * (#1073).
+ *
+ * Two reasons, and the narrower one is not the privacy one. The flag comes
+ * from `person_role_flags()`, which is `security definer` and so bypasses RLS;
+ * the rows behind it -- `inventory_movements`, `gear_requests` -- are gated on
+ * `inventory:view`. So a Recipient chip would be legible to every holder of
+ * `people:view`, which the nav's own comment notes "is held by almost
+ * everyone", while the distributions it describes would not be. The label
+ * would leak more than the data.
+ *
+ * The wider reason is what a column does that a card does not. The Roles
+ * column renders across a browsable, searchable directory, so a chip there
+ * assembles a roster of aid recipients out of a list nobody asked for one
+ * from -- the segment #1073 explicitly declined, arrived at from the side.
+ * The aspect card discloses the same fact to a staffer who already has one
+ * person's record open for a reason, which is the disclosure that was asked
+ * for.
+ *
+ * Recipient is still in `PERSON_ROLES`: the person form offers it, the admin
+ * panel renames it, and the aspect registry keys its card on it. This list is
+ * the one surface that declines it.
+ */
+const LISTED_ROLES: readonly PersonRoleDefinition[] = PERSON_ROLES.filter(
+  (role) => role.key !== "is_recipient",
+);
+
+/**
  * The roles a person holds, in the tenant's words, in registry order -- for
- * the Roles column and the badges on their profile.
+ * the Roles column and the badges on their profile. See `LISTED_ROLES` for the
+ * one it leaves out.
  */
 export function rolesFor(
-  person: Pick<
-    PersonRow,
-    | "is_donor"
-    | "is_sponsor"
-    | "is_volunteer"
-    | "is_attendee"
-    | "is_staff"
-    | "is_partner"
-  >,
+  // Every flag, including the one this declines to name: the callers hand over
+  // a whole `people_with_roles` row, and which of them reach the screen is this
+  // function's decision rather than something a caller can be trusted to make
+  // consistently at four call sites.
+  person: Pick<PersonRow, PersonRoleKey>,
   vocabulary: Lexicon,
 ) {
-  return PERSON_ROLES.filter((role) => person[role.key]).map((role) =>
+  return LISTED_ROLES.filter((role) => person[role.key]).map((role) =>
     personRoleLabel(role.key, vocabulary),
   );
 }

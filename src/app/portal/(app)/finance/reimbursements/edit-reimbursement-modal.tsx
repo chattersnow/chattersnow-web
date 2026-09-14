@@ -65,6 +65,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import {
   formatDateTime,
   formatInstantDate,
@@ -464,6 +465,7 @@ export function EditReimbursementModal({
             >
               <div className="flex-1 overflow-y-auto px-4 pb-4">
                 <FieldGroup>
+                  <RequiredFieldsNote />
                   <Field>
                     <FieldLabel>Requester</FieldLabel>
                     <PersonPicker
@@ -594,7 +596,7 @@ export function EditReimbursementModal({
           <form onSubmit={handleReject}>
             <FieldGroup>
               <Field>
-                <FieldLabel htmlFor="reject-reimbursement-reason">
+                <FieldLabel htmlFor="reject-reimbursement-reason" required>
                   Reason
                 </FieldLabel>
                 <Textarea

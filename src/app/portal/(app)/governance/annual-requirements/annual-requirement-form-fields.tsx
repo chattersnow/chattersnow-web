@@ -45,7 +45,9 @@ export function AnnualRequirementFormFields({
   return (
     <>
       <Field>
-        <FieldLabel htmlFor={`${idPrefix}-name`}>Name</FieldLabel>
+        <FieldLabel htmlFor={`${idPrefix}-name`} required>
+          Name
+        </FieldLabel>
         <Input
           id={`${idPrefix}-name`}
           required
@@ -57,7 +59,9 @@ export function AnnualRequirementFormFields({
 
       <Field orientation="responsive">
         <Field>
-          <FieldLabel htmlFor={`${idPrefix}-due-date`}>Due date</FieldLabel>
+          <FieldLabel htmlFor={`${idPrefix}-due-date`} required>
+            Due date
+          </FieldLabel>
           <Input
             id={`${idPrefix}-due-date`}
             type="date"

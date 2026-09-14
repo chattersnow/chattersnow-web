@@ -389,7 +389,7 @@ begin
 
   -- Giveaway for the past event: two prizes, one claimed winner.
   insert into public.giveaways (id, event_id, name, tickets_sold, ticket_price, revenue_amount, drawing_date, created_by)
-  values (v_giveaway_id, v_event_past, 'Trailhead Cleanup Giveaway', 142, 5.00, 710.00, now() - interval '40 days', v_admin_id);
+  values (v_giveaway_id, v_event_past, 'Trailhead Cleanup Giveaway', 142, 5.00, 710.00, (now() - interval '40 days')::date, v_admin_id);
 
   insert into public.giveaway_prizes (giveaway_id, prize_name, donor_person_id, estimated_value, created_by)
   values (v_giveaway_id, 'Weekend cabin stay', v_person_sponsor, 400.00, v_admin_id)
@@ -400,7 +400,7 @@ begin
   returning id into v_prize2;
 
   insert into public.giveaway_winners (giveaway_prize_id, winner_name, winner_contact, distribution_status, distributed_at, created_by)
-  values (v_prize1, 'M. Alvarez', '555-0199', 'distributed', now() - interval '38 days', v_admin_id);
+  values (v_prize1, 'M. Alvarez', '555-0199', 'distributed', (now() - interval '38 days')::date, v_admin_id);
 
   insert into public.giveaway_winners (giveaway_prize_id, winner_name, distribution_status, created_by)
   values (v_prize2, 'T. Nguyen', 'pending', v_admin_id);
@@ -1076,7 +1076,7 @@ begin
     -- Giveaway for about 1 in 6 past events.
     if v_starts_at < now() and random() < 0.16 then
       insert into public.giveaways (event_id, name, tickets_sold, ticket_price, revenue_amount, drawing_date, created_by)
-      values (v_event_id, 'Event Giveaway', 40 + floor(random()*200)::int, 5.00, round((200 + random()*800)::numeric, 2), v_starts_at, v_admin_id)
+      values (v_event_id, 'Event Giveaway', 40 + floor(random()*200)::int, 5.00, round((200 + random()*800)::numeric, 2), v_starts_at::date, v_admin_id)
       returning id into v_giveaway_id;
 
       for j in 1..(1 + floor(random()*3)::int) loop
@@ -1094,7 +1094,7 @@ begin
           values (
             v_prize_id, v_first || ' ' || upper(left(last_names[1 + floor(random()*array_length(last_names,1))::int], 1)) || '.',
             (array['pending','distributed','unclaimed'])[1 + floor(random()*3)::int],
-            case when random() < 0.6 then v_starts_at + interval '2 days' end, v_admin_id
+            case when random() < 0.6 then (v_starts_at + interval '2 days')::date end, v_admin_id
           );
         end if;
       end loop;
@@ -1583,6 +1583,17 @@ on conflict (tenant_id, key) do update set value = excluded.value;
 -- be set to would make them drift.
 insert into public.app_settings (key, value) values
   ('org.fiscal_year_start_month', to_jsonb(7))
+on conflict (tenant_id, key) do update set value = excluded.value;
+
+-- Reporting time zone (20260916000000, #1065). The migration infers a tenant's
+-- zone from the mode of its events, but it runs on an empty database here --
+-- the seed comes after -- so a reset would leave local development on UTC
+-- while a real deployment lands on the zone its events are in. Every seeded
+-- event is in Denver, so this is what that inference would have produced, and
+-- pinning it is what lets the rollup and dashboard specs assert against a
+-- known month boundary.
+insert into public.app_settings (key, value) values
+  ('org.timezone', to_jsonb('America/Denver'::text))
 on conflict (tenant_id, key) do update set value = excluded.value;
 
 -- Outbound email (#488). The admin account opts in to the daily task digest and

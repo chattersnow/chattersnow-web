@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { useState } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { labelText } from "../../../../../test/labels";
 import {
   PersonFormFields,
   emptyPersonForm,
@@ -34,7 +35,7 @@ describe("PersonFormFields", () => {
     const user = userEvent.setup();
     render(<ControlledForm />);
 
-    const nameInput = screen.getByLabelText("Name");
+    const nameInput = screen.getByLabelText(labelText("Name"));
     await user.type(nameInput, "Jane Donor");
 
     expect(nameInput).toHaveValue("Jane Donor");
@@ -54,6 +55,7 @@ describe("PersonFormFields", () => {
       is_attendee: false,
       is_staff: false,
       is_partner: false,
+      is_recipient: false,
     });
   });
 

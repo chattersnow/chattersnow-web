@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { TemplateField } from "../content-brief-template-shared";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 function getInitialFormState() {
   return { key: "", name: "", description: "", requiresConsent: false };
@@ -95,9 +96,12 @@ export function NewTemplateDialog() {
 
         <form onSubmit={handleSubmit}>
           <FieldGroup>
+            <RequiredFieldsNote />
             <Field orientation="responsive">
               <Field>
-                <FieldLabel htmlFor="template-key">Key</FieldLabel>
+                <FieldLabel htmlFor="template-key" required>
+                  Key
+                </FieldLabel>
                 <Input
                   id="template-key"
                   required
@@ -107,7 +111,9 @@ export function NewTemplateDialog() {
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor="template-name">Name</FieldLabel>
+                <FieldLabel htmlFor="template-name" required>
+                  Name
+                </FieldLabel>
                 <Input
                   id="template-name"
                   required

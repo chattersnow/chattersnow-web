@@ -42,15 +42,10 @@ import type {
 } from "./content-brief-template-shared";
 import { Spinner } from "@/components/ui/spinner";
 import { formatDateTime } from "@/lib/format";
+import { utcIsoToDatetimeLocalInBrowser } from "@/lib/time";
 import { EmptyState } from "@/components/portal/empty-state";
 import { runAction } from "@/components/portal/action-toast";
-
-function toDatetimeLocalValue(iso: string | null) {
-  if (!iso) return "";
-  const date = new Date(iso);
-  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
-  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
-}
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 function formStateFor(
   opportunity: ContentOpportunityRow | null,
@@ -68,11 +63,15 @@ function formStateFor(
     ownerId: opportunity?.owner_id ?? "",
     reviewerId: opportunity?.reviewer_id ?? "",
     leadTimeDays: String(opportunity?.lead_time_days ?? defaultLeadTimeDays),
-    publishDueAt: toDatetimeLocalValue(
+    publishDueAt: utcIsoToDatetimeLocalInBrowser(
       opportunity?.publish_due_at ?? itemStartsAt,
     ),
-    reviewDueAt: toDatetimeLocalValue(opportunity?.review_due_at ?? null),
-    draftDueAt: toDatetimeLocalValue(opportunity?.draft_due_at ?? null),
+    reviewDueAt: utcIsoToDatetimeLocalInBrowser(
+      opportunity?.review_due_at ?? null,
+    ),
+    draftDueAt: utcIsoToDatetimeLocalInBrowser(
+      opportunity?.draft_due_at ?? null,
+    ),
     // Seeded from the brief's OWN pinned version's fields, never the
     // template's current/live version -- so opening an existing brief for
     // edit never silently upgrades its structure. Only picking a template
@@ -201,8 +200,8 @@ export function ContentOpportunityTab({
     setError(null);
     setForm((prev) => ({
       ...prev,
-      draftDueAt: toDatetimeLocalValue(draftDueAt.toISOString()),
-      reviewDueAt: toDatetimeLocalValue(reviewDueAt.toISOString()),
+      draftDueAt: utcIsoToDatetimeLocalInBrowser(draftDueAt.toISOString()),
+      reviewDueAt: utcIsoToDatetimeLocalInBrowser(reviewDueAt.toISOString()),
     }));
   }
 
@@ -500,8 +499,9 @@ export function ContentOpportunityTab({
                 ) : (
                   <form onSubmit={handleConsentSubmit}>
                     <FieldGroup>
+                      <RequiredFieldsNote />
                       <Field>
-                        <FieldLabel htmlFor="consent-permittedUse">
+                        <FieldLabel htmlFor="consent-permittedUse" required>
                           Permitted use
                         </FieldLabel>
                         <Textarea
@@ -533,7 +533,7 @@ export function ContentOpportunityTab({
                         />
                       </Field>
                       <Field>
-                        <FieldLabel htmlFor="consent-onFileAt">
+                        <FieldLabel htmlFor="consent-onFileAt" required>
                           Consent on file
                         </FieldLabel>
                         <Input

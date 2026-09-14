@@ -39,7 +39,9 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDateTime, personDisplayName } from "@/lib/format";
+import { utcIsoToDatetimeLocalInBrowser } from "@/lib/time";
 import { runAction } from "@/components/portal/action-toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 const MEETING_TYPES = [
   { value: "board", label: "Board" },
@@ -54,15 +56,9 @@ const STATUSES = [
   { value: "cancelled", label: "Cancelled" },
 ];
 
-function toDatetimeLocalValue(iso: string) {
-  const date = new Date(iso);
-  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
-  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
-}
-
 function formStateFor(meeting: MeetingRow) {
   return {
-    meetingDate: toDatetimeLocalValue(meeting.meeting_date),
+    meetingDate: utcIsoToDatetimeLocalInBrowser(meeting.meeting_date),
     meetingType: meeting.meeting_type,
     status: meeting.status,
     location: meeting.location ?? "",
@@ -259,8 +255,11 @@ function MeetingDetailsCard({
       ) : (
         <form onSubmit={card.handleSubmit}>
           <FieldGroup>
+            <RequiredFieldsNote />
             <Field>
-              <FieldLabel htmlFor="meeting-date">Date &amp; time</FieldLabel>
+              <FieldLabel htmlFor="meeting-date" required>
+                Date &amp; time
+              </FieldLabel>
               <Input
                 id="meeting-date"
                 type="datetime-local"

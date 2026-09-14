@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import { formatCalendarDate } from "@/lib/format";
 
 function formStateFor(disclosure: Disclosure): DisclosureFormState {
@@ -307,6 +308,7 @@ export function EditDisclosureModal({
             >
               <div className="flex-1 overflow-y-auto px-4 pb-4">
                 <FieldGroup>
+                  <RequiredFieldsNote />
                   <div className="flex flex-col gap-1.5">
                     <span className="text-sm font-medium">Person</span>
                     <PersonPicker

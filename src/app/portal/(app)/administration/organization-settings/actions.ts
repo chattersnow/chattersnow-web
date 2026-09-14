@@ -22,6 +22,7 @@ import {
   isSalesTaxRate,
   MAX_SALES_TAX_RATE,
 } from "@/lib/sales-tax";
+import { ORG_TIMEZONE_SETTING_KEY, isOrgTimeZone } from "@/lib/org-timezone";
 import {
   LEXICON_TERMS,
   MAX_LEXICON_TERM_LENGTH,
@@ -132,6 +133,27 @@ export async function updateFiscalYearStartMonthAction(
   }
 
   return updateAppSettingAction(FISCAL_YEAR_SETTING_KEY, startMonth);
+}
+
+/**
+ * Sets the zone the organization's reporting days are cut in (#1065). A sale
+ * rung at 7pm on the last day of February belongs in February, and only a zone
+ * says which day that instant was.
+ *
+ * Restricted to the zones the portal offers, the same closed list the event
+ * and artwork-call forms use: `at time zone` in the reporting RPCs would raise
+ * on a value Postgres does not know, and a zone nobody can pick in this
+ * dropdown is a zone nobody could correct here either.
+ */
+export async function updateOrgTimeZoneAction(
+  formData: FormData,
+): Promise<SettingActionResult> {
+  const zone = String(formData.get("timeZone") ?? "").trim();
+  if (!isOrgTimeZone(zone)) {
+    return { error: "Pick one of the listed time zones." };
+  }
+
+  return updateAppSettingAction(ORG_TIMEZONE_SETTING_KEY, zone);
 }
 
 /**
@@ -398,7 +420,7 @@ export async function updateLexiconAction(
 }
 
 /**
- * What this organization calls the six person roles (#911).
+ * What this organization calls the seven person roles (#911).
  *
  * One row rather than twelve: the whole map is the value of
  * `people.role_labels`, so a save is atomic and the panel's "reset" is an empty

@@ -143,7 +143,9 @@ export function AssetFormFields({
       <TabsContent value="overview" className="mt-4">
         <FieldGroup>
           <Field>
-            <FieldLabel htmlFor={`${idPrefix}-name`}>Name</FieldLabel>
+            <FieldLabel htmlFor={`${idPrefix}-name`} required>
+              Name
+            </FieldLabel>
             <Input
               id={`${idPrefix}-name`}
               required

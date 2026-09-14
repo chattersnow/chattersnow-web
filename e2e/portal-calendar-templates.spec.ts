@@ -10,6 +10,7 @@ import { test, expect } from "./helpers/test";
 import { reloadStayingSignedIn, signIn } from "./helpers/auth";
 import { modal } from "./helpers/dialog";
 import { portalMain } from "./helpers/regions";
+import { exactLabel } from "./helpers/labels";
 
 function uniqueSuffix() {
   return `${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
@@ -110,8 +111,8 @@ test.describe("portal calendar brief templates", () => {
       dialog.getByRole("heading", { name: "Create content brief template" }),
     ).toBeVisible();
 
-    await dialog.getByLabel("Key", { exact: true }).fill(templateKey);
-    await dialog.getByLabel("Name", { exact: true }).fill(templateName);
+    await dialog.getByLabel(exactLabel("Key")).fill(templateKey);
+    await dialog.getByLabel(exactLabel("Name")).fill(templateName);
     await dialog.getByLabel("Description").fill("Created by an e2e test.");
     await dialog.locator("#field-key-0").fill("headline");
     await dialog.locator("#field-label-0").fill("Headline");
@@ -190,9 +191,9 @@ test.describe("portal calendar brief templates", () => {
     await page.getByRole("button", { name: "New template" }).click();
     const dialog = modal(page);
 
-    await dialog.getByLabel("Key", { exact: true }).fill("Not A Key");
+    await dialog.getByLabel(exactLabel("Key")).fill("Not A Key");
     await dialog
-      .getByLabel("Name", { exact: true })
+      .getByLabel(exactLabel("Name"))
       .fill(`E2E Invalid ${uniqueSuffix()}`);
     await dialog.locator("#field-key-0").fill("headline");
     await dialog.locator("#field-label-0").fill("Headline");

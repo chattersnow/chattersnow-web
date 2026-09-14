@@ -5,7 +5,6 @@ import {
   VISIBILITIES,
 } from "./calendar-shared";
 import type { ParseResult } from "@/lib/forms";
-import { datetimeLocalToUtcIso } from "@/lib/time";
 
 const ITEM_TYPE_VALUES = ITEM_TYPES.map((option) => option.value);
 const CALENDAR_STATUS_VALUES = CALENDAR_STATUSES.map((option) => option.value);
@@ -40,6 +39,12 @@ export type CalendarItemFormData = {
  * is the real authority; this is the check that produces a readable error
  * instead of a constraint violation.
  */
+/** A UTC instant as the client sent it, or null if it is not one. */
+function toInstant(value: string): string | null {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
 export function parseCalendarItemForm(
   formData: FormData,
   validCategories: readonly string[],
@@ -97,11 +102,13 @@ export function parseCalendarItemForm(
     }
   }
 
-  // Parsed against the submitted timeZone (not the server's runtime
-  // timezone) since this is a naive "YYYY-MM-DDTHH:mm" value with no offset.
-  const startsAtIso = datetimeLocalToUtcIso(startsAt, timeZone);
+  // Already instants: the browser converts before submitting (#1063), since
+  // this parser runs on the server where the only zone available is the
+  // server's own. `calendar_items.time_zone` is still stored and still says
+  // where the item happens; it no longer says how a typed time is read.
+  const startsAtIso = toInstant(startsAt);
   if (!startsAtIso) return { error: "Enter a valid start date." };
-  const endsAtIso = endsAt ? datetimeLocalToUtcIso(endsAt, timeZone) : null;
+  const endsAtIso = endsAt ? toInstant(endsAt) : null;
   if (endsAt && !endsAtIso) return { error: "Enter a valid end date." };
   if (endsAtIso && endsAtIso < startsAtIso) {
     return { error: "End date must be after the start date." };

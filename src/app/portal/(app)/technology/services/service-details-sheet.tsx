@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 type FormState = { name: string; website: string; notes: string };
 
@@ -219,8 +220,11 @@ export function ServiceDetailsSheet({
             >
               <div className="flex-1 overflow-y-auto px-4 pb-4">
                 <FieldGroup>
+                  <RequiredFieldsNote />
                   <Field>
-                    <FieldLabel htmlFor="service-edit-name">Name</FieldLabel>
+                    <FieldLabel htmlFor="service-edit-name" required>
+                      Name
+                    </FieldLabel>
                     <Input
                       id="service-edit-name"
                       required

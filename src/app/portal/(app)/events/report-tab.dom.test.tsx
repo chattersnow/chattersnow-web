@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { EventRow } from "./event-badges";
 import * as EventsActions from "./actions";
+import { labelText } from "../../../../../test/labels";
 
 type ActionResult = { error: string } | { success: true };
 
@@ -123,7 +124,7 @@ describe("ReportTab", () => {
       .getAllByRole("button", { name: "Reopen report" })
       .find((button) => button.getAttribute("type") === "submit")!;
 
-    fireEvent.change(screen.getByLabelText("Reason"), {
+    fireEvent.change(screen.getByLabelText(labelText("Reason")), {
       target: { value: "Capacity needs correcting after the fact." },
     });
     fireEvent.click(submitButton);

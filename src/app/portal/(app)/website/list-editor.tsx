@@ -176,11 +176,12 @@ export function ListEditor({
                       : undefined
                   }
                 >
-                  <FieldLabel id={labelId} htmlFor={isSwitch ? undefined : id}>
+                  <FieldLabel
+                    id={labelId}
+                    htmlFor={isSwitch ? undefined : id}
+                    required={!field.optional}
+                  >
                     {field.label}
-                    {field.optional && (
-                      <span className="app-muted font-normal"> (optional)</span>
-                    )}
                   </FieldLabel>
                   {field.kind === "photo" ? (
                     <ListPhotoField

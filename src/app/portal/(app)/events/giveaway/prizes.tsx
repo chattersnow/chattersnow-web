@@ -35,6 +35,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { formatCurrency } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
 import { runAction } from "@/components/portal/action-toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 const NO_SOURCE = "none";
 
@@ -189,9 +190,10 @@ export function PrizeForm({
       className="rounded-md border border-[var(--line)] p-4"
     >
       <FieldGroup>
+        <RequiredFieldsNote />
         {hasSources && (
           <Field>
-            <FieldLabel>Link to an existing donation (optional)</FieldLabel>
+            <FieldLabel>Link to an existing donation</FieldLabel>
             <Select
               value={selectedSourceKey}
               onValueChange={handleSourceChange}
@@ -239,7 +241,9 @@ export function PrizeForm({
         )}
 
         <Field>
-          <FieldLabel htmlFor={`${idPrefix}-name`}>Prize name</FieldLabel>
+          <FieldLabel htmlFor={`${idPrefix}-name`} required>
+            Prize name
+          </FieldLabel>
           <Input
             id={`${idPrefix}-name`}
             required

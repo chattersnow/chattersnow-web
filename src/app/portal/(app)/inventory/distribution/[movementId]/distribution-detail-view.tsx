@@ -4,7 +4,8 @@ import { FieldGroup } from "@/components/ui/field";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { EditDistributionSheet } from "./edit-distribution-sheet";
 import { DeleteDistributionButton } from "./delete-distribution-button";
-import { formatDateTime, personDisplayName } from "@/lib/format";
+import { personDisplayName } from "@/lib/format";
+import { ViewerTime } from "@/components/viewer-time";
 
 export type DistributionDetailRow = {
   id: string;
@@ -44,7 +45,8 @@ export function DistributionDetailView({
           <div className="rainbow-accent mt-3 w-full" />
         </div>
         <p className="app-muted mt-2 text-sm">
-          Distributed {formatDateTime(movement.occurred_at)}
+          Distributed{" "}
+          <ViewerTime iso={movement.occurred_at} fallbackZone="UTC" />
         </p>
       </div>
 
@@ -93,7 +95,7 @@ export function DistributionDetailView({
                 label="Date & time"
                 htmlFor="distribution-occurred-at-view"
               >
-                {formatDateTime(movement.occurred_at)}
+                <ViewerTime iso={movement.occurred_at} fallbackZone="UTC" />
               </ReadOnlyField>
             </FieldGroup>
           </CardContent>

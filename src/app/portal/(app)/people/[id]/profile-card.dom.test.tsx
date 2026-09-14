@@ -9,6 +9,7 @@ import userEvent from "@testing-library/user-event";
 import type { PersonActionResult } from "../actions";
 import type { PersonRow } from "../people-shared";
 import * as PeopleActions from "../actions";
+import { labelText } from "../../../../../../test/labels";
 
 const updatePersonActionMock = mock<
   (
@@ -49,6 +50,7 @@ const person: PersonRow = {
   is_attendee: false,
   is_staff: false,
   is_partner: false,
+  is_recipient: false,
   person_type: "individual",
   primary_contact_person_id: null,
   primary_contact: null,
@@ -85,7 +87,7 @@ describe("ProfileCard", () => {
 
     await user.click(screen.getByRole("button", { name: "Edit profile" }));
 
-    expect(screen.getByLabelText("Name")).toHaveValue("Jane Donor");
+    expect(screen.getByLabelText(labelText("Name"))).toHaveValue("Jane Donor");
     expect(screen.getByRole("checkbox", { name: "Donor" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Sponsor" })).not.toBeChecked();
   });

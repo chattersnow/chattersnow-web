@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import { formatCalendarDate, personDisplayName } from "@/lib/format";
 
 function formStateFor(milestone: Milestone): MilestoneFormState {
@@ -314,6 +315,7 @@ export function EditMilestoneModal({
             >
               <div className="flex-1 overflow-y-auto px-4 pb-4">
                 <FieldGroup>
+                  <RequiredFieldsNote />
                   <div className="flex flex-col gap-1.5">
                     <span className="text-sm font-medium">Owner</span>
                     <PersonPicker

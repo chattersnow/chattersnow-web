@@ -39,9 +39,13 @@ Colocated with the source they exercise, same as unit tests, but run against a r
 
 Both browser-driving suites serve `bun run build && bun run start`, not `next dev` (#744) — under the dev server whichever test or scan pass reached a route first paid to compile it out of its own budget, which was the largest source of e2e churn. Playwright's `reuseExistingServer` is still on locally, so a `bun run dev` you already have open is used as-is. Consequences: React dev warnings, the dev error overlay and the `<nextjs-portal>` overlay aren't present in these runs (`skip-link.spec.ts` and `portal-finance-reports.spec.ts` already account for that), and a broken build fails the e2e/a11y jobs as well as the build job.
 
-### The a11y scan's concurrency (`A11Y_WORKERS`)
+### The a11y scan's two concurrency axes (`A11Y_WORKERS`, `A11Y_SHARD`)
 
-`e2e/a11y-scan.ts` shards its ~520 axe passes across that many browser contexts, each with its own context, page and sign-in (#751). It defaults to **4 on CI and 1 everywhere else** — four concurrent Chromium contexts alongside Docker and Next will swap an 8 GB machine — so `bun run test:a11y` with nothing set behaves exactly as it always did. Results are sorted by their scan key before the report and baseline are written, so two runs at any worker count produce identical files; a key emitted by two shards fails the run.
+`A11Y_WORKERS` splits one process's routes across that many browser contexts, each with its own context, page and sign-in (#751). It defaults to **4 on CI and 1 everywhere else** — four concurrent Chromium contexts alongside Docker and Next will swap an 8 GB machine — so `bun run test:a11y` with nothing set behaves exactly as it always did. Don't raise it above 4 on CI: 6 workers was measured at 860s against 4 workers' 844s on the same commit, so the runner is saturated (#844).
+
+`A11Y_SHARD=i/N` picks which routes a process owns at all, and is how the CI job spans four runners (#844). Each shard takes every Nth route, so the slices are disjoint and cover the list exactly (`e2e/a11y-shard.ts`, asserted in `test/a11y-shard.test.ts`). No merge step is needed for the gate: `--check` only reports a baselined violation as fixed for keys the run actually scanned, so a shard fails on its own regressions and stays silent about routes it never visited. It defaults to `1/1`, and `--update-baseline` refuses to run under anything else — writing the baseline from a shard would drop every route the other shards own. Changing the shard count means changing `A11Y_SHARD_TOTAL`, the `shard:` matrix list and the job's name in `ci.yml` together.
+
+Results are sorted by their scan key before the report and baseline are written, so two runs at any worker count produce identical files; a key emitted by two contexts fails the run.
 
 Its navigations still wait on `networkidle` on purpose. Anything cheaper measured worse: this app requests its CSS, font and JS chunks 150–330ms _after_ DOMContentLoaded, so a `domcontentloaded` wait scans an unstyled page, and several portal pages replace the URL on mount, so leaving early interrupts the next route's navigation. See #752.
 

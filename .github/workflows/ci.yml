@@ -109,13 +109,35 @@ jobs:
       artifact-prefix: pr
 
   a11y:
-    name: Accessibility scan (axe-core)
+    name: Accessibility scan ${{ matrix.shard }}/4 (axe-core)
     runs-on: ubuntu-latest
     # Gated on a checked-in baseline (e2e/a11y-baseline.json): known violations
     # are tolerated, new ones fail the job. Previously continue-on-error, which
     # is how #436's regression re-landed and sat unnoticed for months -- the
     # only thing that caught it was someone re-reading the console summary by
     # hand. See e2e/a11y-scan.ts and issues #240/#477.
+    #
+    # Sharded across runners (#844). One runner scanned 129 routes in ~900s and
+    # was CI's critical path at ~19 min against 4-7 for every other job, and it
+    # grew with every route added to src/app. A11Y_WORKERS was not the lever --
+    # 6 workers measured no faster than 4 on a 4-vCPU runner -- so each runner
+    # takes every Nth route instead. ~235s of the job is fixed setup that every
+    # shard repeats (`supabase start` alone is 125s), which is what puts the
+    # useful ceiling at 4: N=2 lands ~11.5 min and N=3 ~9 min, both still over
+    # the 8 min target, and N=5 would buy 45s for a fifth Postgres.
+    #
+    # Changing the count means changing A11Y_SHARD_TOTAL, the `shard:` matrix
+    # list and this job's name together -- a matrix list can't be built from
+    # `env`, and neither can a job name.
+    env:
+      A11Y_SHARD_TOTAL: "4"
+    strategy:
+      # A regression in shard 2 must not cancel shards 3 and 4: the run would
+      # then report one failing route and stay silent about every route that
+      # never got scanned -- which is the shape #436 had.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -171,19 +193,30 @@ jobs:
           NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
 
       - name: Accessibility scan
-        # Shards the scan across browser contexts (#751). Set explicitly rather
-        # than left to the script's CI default so the runner's concurrency is
-        # visible and tunable here.
+        # Two independent axes. A11Y_WORKERS splits this runner's routes across
+        # browser contexts (#751); A11Y_SHARD picks which routes this runner
+        # owns at all (#844). Both are set explicitly rather than left to the
+        # script's defaults so the run's shape is visible here.
+        #
+        # A11Y_WORKERS stays at 4 on purpose: raising it to 6 was measured on
+        # this job and scanned 860s against 4 workers' 844s on the same commit,
+        # so the runner is saturated and six Chromium contexts is only more
+        # memory. See #844 for the numbers.
         run: bun run test:a11y:check
         env:
           NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
           A11Y_WORKERS: "4"
+          A11Y_SHARD: ${{ matrix.shard }}/${{ env.A11Y_SHARD_TOTAL }}
 
       - name: Upload a11y report
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: a11y-report
+          # Per shard: four jobs uploading `a11y-report` would collide, and
+          # each report only describes its own routes anyway. They are not
+          # merged -- nothing reads them programmatically, and the gate is each
+          # shard's own exit code, not the artifact.
+          name: a11y-report-${{ matrix.shard }}
           path: e2e/a11y-report.json
           retention-days: 30
 

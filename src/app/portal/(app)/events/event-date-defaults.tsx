@@ -1,7 +1,10 @@
 "use client";
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
-import { utcIsoToDateInZone, utcIsoToDatetimeLocalInZone } from "@/lib/time";
+import {
+  utcIsoToDateInBrowser,
+  utcIsoToDatetimeLocalInBrowser,
+} from "@/lib/time";
 
 /**
  * The event's own dates, pre-formatted for the two date inputs a form uses.
@@ -22,9 +25,20 @@ import { utcIsoToDateInZone, utcIsoToDatetimeLocalInZone } from "@/lib/time";
  *   where the same dialog opens with no event in context; there the provider
  *   is absent, every value is "", and today's default stands.
  *
- * Formatted in the *event's* timezone (`utcIsoToDateInZone`), so an evening
- * event does not open its forms on the following day for a reader whose
- * browser sits east of it.
+ * Formatted in the *browser's* timezone, because that is the zone the forms
+ * these defaults feed convert back from when the user saves (#1055). Reading
+ * the event's own zone here instead -- which is what shipped with #1046 --
+ * prefilled an event's wall-clock time and then stored it as the reader's: an
+ * event starting 15:07 in Denver, opened from a laptop in New York, offered
+ * 15:07 and saved 19:07Z, two hours before the event actually starts. The
+ * prefill and the save have to agree, and per the platform convention both
+ * are the browser's.
+ *
+ * The consequence to expect: a reader east of an evening event sees the
+ * event's day as their own calendar day, which may be the following one. That
+ * is the same day their own clock would give them for that instant, so it is
+ * consistent with everything else they read, rather than a shift they have to
+ * reason about.
  */
 export type EventDateDefaults = {
   /** The event's start date, "YYYY-MM-DD", for `<input type="date">`. */
@@ -49,21 +63,19 @@ export function useEventDateDefaults(): EventDateDefaults {
 export function EventDateProvider({
   startsAt,
   endsAt,
-  timeZone,
   children,
 }: {
   startsAt: string;
   endsAt: string | null;
-  timeZone: string;
   children: ReactNode;
 }) {
   const value = useMemo<EventDateDefaults>(
     () => ({
-      date: utcIsoToDateInZone(startsAt, timeZone),
-      startsAt: utcIsoToDatetimeLocalInZone(startsAt, timeZone),
-      endsAt: endsAt ? utcIsoToDatetimeLocalInZone(endsAt, timeZone) : "",
+      date: utcIsoToDateInBrowser(startsAt),
+      startsAt: utcIsoToDatetimeLocalInBrowser(startsAt),
+      endsAt: utcIsoToDatetimeLocalInBrowser(endsAt),
     }),
-    [startsAt, endsAt, timeZone],
+    [startsAt, endsAt],
   );
 
   return (

@@ -21,6 +21,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { runAction } from "@/components/portal/action-toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import {
   MAX_PAYMENT_METHODS,
   paymentMethodKeyFor,
@@ -120,6 +121,7 @@ export function GearRequestSettingsPanel({
       <CardContent>
         <form onSubmit={handleSubmit}>
           <FieldGroup>
+            <RequiredFieldsNote />
             {error ? (
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
@@ -224,7 +226,10 @@ export function GearRequestSettingsPanel({
                     <FieldGroup>
                       <Field orientation="responsive">
                         <Field>
-                          <FieldLabel htmlFor={`payment-method-${index}-label`}>
+                          <FieldLabel
+                            htmlFor={`payment-method-${index}-label`}
+                            required
+                          >
                             Name
                           </FieldLabel>
                           <Input

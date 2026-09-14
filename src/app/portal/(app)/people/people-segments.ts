@@ -284,11 +284,20 @@ export const ORGANIZATIONS_SEGMENT: PeopleSegment = {
 /**
  * The strip, in the order it reads (#957).
  *
- * All first, then the six role segments in `PERSON_ROLES` order, then
+ * All first, then six of the seven role segments in `PERSON_ROLES` order, then
  * Organizations -- which is last because it is the odd one out: #625 split
  * `is_organization` out of the role flags into a `person_type`, so it narrows
  * by what kind of record a row is rather than by what the person does. It is
  * still a view of the same directory, which is why it is here at all.
+ *
+ * The seventh role, Recipient, deliberately has no segment (#1073). The other
+ * six name counterparties; a segment of recipients is a browsable roster of aid
+ * recipients, which is a different privacy posture and a different product
+ * decision -- this schema already clears their request notes on retention
+ * (20260905170000), redacts them out of snapshots (20260907150000) and can
+ * delete a rider's profile on request (20260905130000), none of which is true
+ * of anyone else. Their history is on their own record, on the aspect card, for
+ * a staffer who opened it for a reason.
  */
 export const PEOPLE_SEGMENTS: readonly PeopleSegment[] = [
   PEOPLE_SEGMENT,

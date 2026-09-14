@@ -39,11 +39,13 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { INTENDED_USES, type InventoryCategory } from "@/lib/inventory";
+import { todayInBrowser } from "@/lib/time";
 import { CategorySelect } from "@/components/portal/category-select";
 import { PhotoUploadField } from "@/components/portal/photo-upload-field";
 import { listInventoryCategoriesAction } from "../inventory/categories/actions";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import {
   useControlledOpen,
   type ControlledOpenProps,
@@ -269,6 +271,9 @@ export function AddDonationModal({
         photoUrl: item.photoUrl || undefined,
       })),
       eventId: eventId ?? (sourceEventId || undefined),
+      // The staffer's own day, not the server's. Gear arrives at an event,
+      // after dark, which on a UTC server is already tomorrow (#1053).
+      donatedOn: todayInBrowser(),
     };
 
     startTransition(async () => {
@@ -342,6 +347,7 @@ export function AddDonationModal({
           >
             {step === "donor" ? (
               <FieldGroup>
+                <RequiredFieldsNote />
                 <Field orientation="horizontal">
                   <Checkbox
                     id="isAnonymous"
@@ -354,7 +360,9 @@ export function AddDonationModal({
                 </Field>
 
                 <Field>
-                  <FieldLabel htmlFor="donorName">Donor name</FieldLabel>
+                  <FieldLabel htmlFor="donorName" required={!donor.isAnonymous}>
+                    Donor name
+                  </FieldLabel>
                   <Input
                     id="donorName"
                     required={!donor.isAnonymous}
@@ -422,7 +430,7 @@ export function AddDonationModal({
                 {showEventPicker && (
                   <Field>
                     <FieldLabel htmlFor="sourceEventId">
-                      Source event (optional)
+                      Source event
                     </FieldLabel>
                     <Select
                       value={sourceEventId || null}
@@ -493,7 +501,10 @@ export function AddDonationModal({
                     </div>
 
                     <Field>
-                      <FieldLabel htmlFor={`itemDescription-${item.key}`}>
+                      <FieldLabel
+                        htmlFor={`itemDescription-${item.key}`}
+                        required
+                      >
                         Item description
                       </FieldLabel>
                       <Textarea

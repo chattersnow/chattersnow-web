@@ -146,9 +146,12 @@ export function BucketsSection({
       {canEdit && showAdd && (
         <div className="flex flex-wrap items-end gap-2 border-t border-[var(--line)] pt-4">
           <Field className="w-56">
-            <FieldLabel htmlFor="bucket-name">Bucket name</FieldLabel>
+            <FieldLabel htmlFor="bucket-name" required>
+              Bucket name
+            </FieldLabel>
             <Input
               id="bucket-name"
+              required
               placeholder="e.g. Snowboard bucket"
               value={name}
               onChange={(event) => setName(event.target.value)}

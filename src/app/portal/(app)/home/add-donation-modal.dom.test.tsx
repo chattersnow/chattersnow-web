@@ -3,6 +3,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { CreateDonationInput } from "./donation-form";
 import * as HomeActions from "./actions";
+import { labelText } from "../../../../../test/labels";
 
 type CreateDonationResult =
   | { error: string }
@@ -87,7 +88,7 @@ async function selectItemCategory(
   user: ReturnType<typeof userEvent.setup>,
   label: string,
 ) {
-  await user.click(screen.getByLabelText("Item category"));
+  await user.click(screen.getByLabelText(labelText("Item category")));
   const listbox = await screen.findByRole("listbox");
   await user.click(within(listbox).getByRole("option", { name: label }));
 }
@@ -105,7 +106,7 @@ async function fillDonorAndContinue(
   user: ReturnType<typeof userEvent.setup>,
   name: string,
 ) {
-  await user.type(screen.getByLabelText("Donor name"), name);
+  await user.type(screen.getByLabelText(labelText("Donor name")), name);
   await selectSourceType(user, "Individual");
   await user.click(screen.getByRole("button", { name: "Continue" }));
 }
@@ -156,7 +157,10 @@ describe("AddDonationModal", () => {
     const user = userEvent.setup();
     await openModal(user);
 
-    await user.type(screen.getByLabelText("Donor name"), "Jane Donor");
+    await user.type(
+      screen.getByLabelText(labelText("Donor name")),
+      "Jane Donor",
+    );
     await user.click(screen.getByRole("button", { name: "Continue" }));
 
     expect(screen.getByText("Select a donor source.")).toBeInTheDocument();
@@ -196,7 +200,10 @@ describe("AddDonationModal", () => {
     await openModal(user);
     await fillDonorAndContinue(user, "Jane Donor");
 
-    await user.type(screen.getByLabelText("Item description"), "Winter jacket");
+    await user.type(
+      screen.getByLabelText(labelText("Item description")),
+      "Winter jacket",
+    );
     await selectItemCategory(user, "Jacket");
     await user.click(screen.getByRole("button", { name: "Save donation" }));
 
@@ -229,13 +236,18 @@ describe("AddDonationModal", () => {
     await openModal(user);
     await fillDonorAndContinue(user, "Jane Donor");
 
-    await user.type(screen.getByLabelText("Item description"), "Jacket");
+    await user.type(
+      screen.getByLabelText(labelText("Item description")),
+      "Jacket",
+    );
     await selectItemCategory(user, "Jacket");
     await user.click(
       screen.getByRole("button", { name: "+ Add another item" }),
     );
 
-    const descriptions = screen.getAllByLabelText("Item description");
+    const descriptions = screen.getAllByLabelText(
+      labelText("Item description"),
+    );
     await user.type(descriptions[1], "Helmet");
     await user.upload(
       screen.getAllByLabelText("Photo")[1],
@@ -261,7 +273,10 @@ describe("AddDonationModal", () => {
     await openModal(user);
     await fillDonorAndContinue(user, "Jane Donor");
 
-    await user.type(screen.getByLabelText("Item description"), "Winter jacket");
+    await user.type(
+      screen.getByLabelText(labelText("Item description")),
+      "Winter jacket",
+    );
     await selectItemCategory(user, "Jacket");
     await user.click(screen.getByRole("button", { name: "Save donation" }));
 
@@ -275,7 +290,7 @@ describe("AddDonationModal", () => {
     const user = userEvent.setup();
     await openModal(user);
 
-    expect(screen.queryByLabelText("Source event (optional)")).toBeNull();
+    expect(screen.queryByLabelText(labelText("Source event"))).toBeNull();
   });
 
   test("hides the source event picker when a fixed eventId is given", async () => {
@@ -288,7 +303,7 @@ describe("AddDonationModal", () => {
     );
     await user.click(screen.getByRole("button", { name: "Record donation" }));
 
-    expect(screen.queryByLabelText("Source event (optional)")).toBeNull();
+    expect(screen.queryByLabelText(labelText("Source event"))).toBeNull();
   });
 
   test("submits the selected source event when no fixed eventId is given", async () => {
@@ -305,12 +320,15 @@ describe("AddDonationModal", () => {
     await fillDonorAndContinue(user, "Jane Donor");
 
     await user.click(screen.getByRole("button", { name: "Back" }));
-    await user.click(screen.getByLabelText("Source event (optional)"));
+    await user.click(screen.getByLabelText(labelText("Source event")));
     const listbox = await screen.findByRole("listbox");
     await user.click(within(listbox).getByText("Spring Cleanup"));
     await user.click(screen.getByRole("button", { name: "Continue" }));
 
-    await user.type(screen.getByLabelText("Item description"), "Winter jacket");
+    await user.type(
+      screen.getByLabelText(labelText("Item description")),
+      "Winter jacket",
+    );
     await selectItemCategory(user, "Jacket");
     await user.click(screen.getByRole("button", { name: "Save donation" }));
 

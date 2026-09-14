@@ -29,6 +29,7 @@ import {
 import { FieldGroup } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 export function NewRevenueDialog({
   events,
@@ -124,6 +125,7 @@ export function NewRevenueDialog({
 
           <form onSubmit={handleSubmit}>
             <FieldGroup>
+              <RequiredFieldsNote />
               <RevenueFormFields
                 form={form}
                 update={update}

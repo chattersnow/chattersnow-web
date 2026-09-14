@@ -39,7 +39,9 @@ export function PolicyFormFields({
   return (
     <>
       <Field>
-        <FieldLabel htmlFor={`${idPrefix}-name`}>Policy name</FieldLabel>
+        <FieldLabel htmlFor={`${idPrefix}-name`} required>
+          Policy name
+        </FieldLabel>
         <Input
           id={`${idPrefix}-name`}
           required
@@ -60,7 +62,9 @@ export function PolicyFormFields({
           />
         </Field>
         <Field>
-          <FieldLabel htmlFor={`${idPrefix}-version`}>Version</FieldLabel>
+          <FieldLabel htmlFor={`${idPrefix}-version`} required>
+            Version
+          </FieldLabel>
           <Input
             id={`${idPrefix}-version`}
             required
@@ -72,7 +76,7 @@ export function PolicyFormFields({
       </Field>
 
       <Field>
-        <FieldLabel htmlFor={`${idPrefix}-effective-date`}>
+        <FieldLabel htmlFor={`${idPrefix}-effective-date`} required>
           Effective date
         </FieldLabel>
         <Input

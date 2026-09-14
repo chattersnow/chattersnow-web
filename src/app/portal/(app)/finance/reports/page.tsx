@@ -27,6 +27,8 @@ import {
   getFiscalYearStartMonth,
 } from "@/lib/fiscal-year";
 import { formatCurrency, formatNumber } from "@/lib/format";
+import { getOrgTimeZone } from "@/lib/org-timezone";
+import { todayInZone, utcDateFromIsoDay } from "@/lib/time";
 import { EmptyState } from "@/components/portal/empty-state";
 
 type FinanceReportsPageProps = {
@@ -65,8 +67,14 @@ export default async function FinancialReportsPage({
   // rather than the current month the inventory report defaults to. The
   // boundary is the org's fiscal year (July by default), not January -- a
   // winter season would otherwise be split across two reports.
-  const now = new Date();
-  const fiscalYearStartMonth = await getFiscalYearStartMonth(supabase);
+  // "Now" is the organization's day, not the server's: the RPC buckets this
+  // range in the org's zone (#1065), and a range end taken off the server's
+  // UTC clock disagrees with it all evening.
+  const [orgTimeZone, fiscalYearStartMonth] = await Promise.all([
+    getOrgTimeZone(supabase),
+    getFiscalYearStartMonth(supabase),
+  ]);
+  const now = utcDateFromIsoDay(todayInZone(orgTimeZone));
   const fiscalYearLabel = formatFiscalYearLabel(
     fiscalYearForDate(now, fiscalYearStartMonth),
   );

@@ -25,6 +25,7 @@ import {
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 export function NewMilestoneDialog({
   people,
@@ -100,6 +101,7 @@ export function NewMilestoneDialog({
 
         <form onSubmit={handleSubmit}>
           <FieldGroup>
+            <RequiredFieldsNote />
             <Field>
               <FieldLabel>Owner</FieldLabel>
               <PersonPicker

@@ -1,6 +1,4 @@
-import Link from "next/link";
-import { UserRound } from "lucide-react";
-import { cookies, headers } from "next/headers";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
@@ -18,26 +16,8 @@ import {
   getOpsInboxSummary,
   getPendingApprovalsSummary,
 } from "@/lib/portal/attention-items";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
-import { Toaster } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { BrandLogoProvider } from "@/components/brand-logo-context";
 import { BrandStyle } from "@/components/brand-style";
-import { SkipLink } from "@/components/skip-link";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { CommandPalette } from "./command-palette";
-import { HelpButton } from "./help/help-button";
 import { PortalHelpProvider } from "./help/help-context";
 import { getContentWorkSummary } from "./home/queries";
 import { ensureCurrentPerson } from "@/lib/auth/current-person";
@@ -47,24 +27,18 @@ import {
   getTenantContext,
   isDemoTenant,
 } from "@/lib/portal/tenants";
+import { deviceClass } from "@/lib/portal/device";
 import { getTenantBranding } from "@/lib/tenant-branding";
 import { getPortalVocabulary } from "@/lib/tenant-person-roles";
-import { LexiconProvider } from "@/components/lexicon-context";
 import { ensureMyOnboarding } from "@/lib/portal/onboarding";
 import { personDisplayName } from "@/lib/format";
-import { IdleTimeout } from "./idle-timeout";
-import { LogoutButton } from "./logout-button";
 import { ChooseTenant } from "./choose-tenant";
-import { DemoBanner } from "./demo-banner";
 import { NoTenant } from "./no-tenant";
-import { NotificationsMenu } from "./notifications-menu";
-import { PortalNav } from "./portal-nav";
-import { TenantSwitcher } from "./tenant-switcher";
 import { WrongOrganization } from "./wrong-organization";
-import { SidebarQuickActions } from "./sidebar-quick-actions";
 import { CURRENT_RELEASE, RELEASE_NOTES } from "./welcome/releases";
-import { WelcomeDialog } from "./welcome/welcome-dialog";
-import { WhatsNewDialog } from "./welcome/whats-new-dialog";
+import { DeviceProbe } from "./shell/device-probe";
+import { PortalShellDesktop } from "./shell/portal-shell-desktop";
+import { PortalShellMobile } from "./shell/portal-shell-mobile";
 
 export default async function PortalAppLayout({
   children,
@@ -287,12 +261,6 @@ export default async function PortalAppLayout({
     user.email ?? "",
   );
 
-  const cookieStore = await cookies();
-  const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false";
-  // Left undefined until the reader has actually toggled the quick-actions
-  // group, so SidebarQuickActions can fall back to its own rule (#979) rather
-  // than to a default that ignores how many actions the role even has.
-  const quickActionsCookie = cookieStore.get("quick_actions_state")?.value;
   // One vocabulary for the whole shell: what this organization calls what it
   // lends (#896) and what it calls the people it works with (#911). The nav
   // tree, the command palette and the breadcrumbs all hold templates and none
@@ -301,6 +269,27 @@ export default async function PortalAppLayout({
     getTenantBranding(supabase),
     getPortalVocabulary(supabase),
   ]);
+
+  const shellProps = {
+    permissions,
+    lexicon,
+    branding,
+    currentPerson,
+    attentionItems,
+    tenantContext,
+    hostPinned: hostDecision.kind !== "unenforced",
+    isDemo: isDemoTenant(currentTenant(tenantContext)),
+    displayName,
+    welcomeOwed,
+    whatsNewOwed,
+    children,
+  };
+
+  // Everything above this line is the expensive part of every portal
+  // navigation and deliberately does not fork -- only the returned tree does,
+  // so a phone never downloads the sidebar and a desktop never downloads the
+  // tab bar (#1079).
+  const device = await deviceClass();
 
   return (
     <TooltipProvider>
@@ -313,137 +302,15 @@ export default async function PortalAppLayout({
           3), which would leave every tenant a grey portal. */}
       <BrandStyle branding={branding} />
       <PortalHelpProvider>
-        <SidebarProvider defaultOpen={sidebarOpen}>
-          {/* Before <Sidebar>, not inside <SidebarInset>. Reaching the page
-              content otherwise costs 25-40 tab stops on every navigation: the
-              logo, the collapsed quick-actions row, 14 nav items with the open
-              section expanded, account, log out, then the whole header. It used
-              to sit inside the inset, which renders after the sidebar -- so a
-              keyboard user tabbed through everything it was meant to skip
-              before they could reach it (issue #595). */}
-          <SkipLink href="#portal-main" />
-          <Sidebar collapsible="icon">
-            <SidebarHeader>
-              <TenantSwitcher
-                tenants={tenantContext.tenants}
-                currentTenantId={tenantContext.currentTenantId}
-                logoUrl={branding.logoUrl}
-                hostPinned={hostDecision.kind !== "unenforced"}
-              />
-            </SidebarHeader>
-            <SidebarContent className="scroll-smooth">
-              <SidebarQuickActions
-                permissions={permissions}
-                currentPerson={currentPerson}
-                defaultOpen={
-                  quickActionsCookie ? quickActionsCookie === "true" : undefined
-                }
-              />
-              <PortalNav permissions={permissions} lexicon={lexicon} />
-            </SidebarContent>
-            <SidebarFooter>
-              {/* Not in PortalNav: that list is permission-scoped module nav,
-                  and every signed-in user has an account page. */}
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    tooltip="My Account"
-                    render={<Link href="/portal/account" />}
-                  >
-                    <UserRound />
-                    <span>My Account</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-              <LogoutButton />
-            </SidebarFooter>
-          </Sidebar>
-          <SidebarInset>
-            <header className="sticky top-0 z-20 flex h-(--portal-header-height) items-center gap-3 border-b border-[var(--line)] bg-[var(--background)] px-6 py-4 sm:px-10">
-              <SidebarTrigger />
-              {/* The label is hidden below `sm`, which takes it out of the
-                  accessibility tree too, so the link carries its own name. */}
-              <Link
-                href="/portal/home"
-                aria-label="Operations Portal home"
-                className="flex items-center"
-              >
-                <span className="app-muted hidden text-sm font-semibold uppercase tracking-[0.14em] sm:inline">
-                  Operations Portal
-                </span>
-              </Link>
-              <div className="ml-auto flex items-center gap-3">
-                {displayName && (
-                  <Link
-                    href="/portal/account"
-                    className="hidden max-w-48 truncate text-base font-semibold text-[var(--purple)] hover:underline sm:inline"
-                  >
-                    Hi, {displayName}
-                  </Link>
-                )}
-                <CommandPalette
-                  permissions={permissions}
-                  lexicon={lexicon}
-                  currentPerson={currentPerson}
-                />
-                <ThemeToggle className="size-10 rounded-full" />
-                <HelpButton />
-                <NotificationsMenu items={attentionItems} />
-              </div>
-            </header>
-            {isDemoTenant(currentTenant(tenantContext)) && <DemoBanner />}
-            <main
-              id="portal-main"
-              // Focusable only as a skip-link target, so focus actually lands
-              // in the content rather than staying on the link.
-              tabIndex={-1}
-              className="app-shell px-6 py-8 outline-none sm:px-10"
-            >
-              <div className="mx-auto max-w-6xl">
-                {/* The tenant's own mark for the inventory placeholders, which
-                    sit too deep -- and in a client modal -- to be handed it.
-                    Its words likewise: the breadcrumbs on a few dozen pages
-                    read the nav tree, which holds lexicon templates (#896). */}
-                <BrandLogoProvider logoUrl={branding.logoUrl}>
-                  <LexiconProvider lexicon={lexicon}>
-                    {children}
-                  </LexiconProvider>
-                </BrandLogoProvider>
-              </div>
-            </main>
-            {/* Rendered here rather than on the dashboard: the sidebar, help
-                button and bell the tour explains are all part of this shell,
-                and a new user's first URL is often an invite deep link.
-
-                Mounted conditionally rather than always-rendered-and-hidden:
-                each dialog seeds its own open state at mount and this layout
-                doesn't remount on navigation, so unmounting when the flag
-                clears is what lets "Show the tour again" (or a release bump)
-                bring it back. Only one is ever mounted -- whatsNewOwed already
-                excludes welcomeOwed. */}
-            {welcomeOwed && (
-              <WelcomeDialog
-                key="welcome"
-                initialOpen
-                permissions={permissions}
-              />
-            )}
-            {whatsNewOwed && (
-              <WhatsNewDialog key={CURRENT_RELEASE} initialOpen />
-            )}
-            {/* Mounted here because this shell is the one thing that doesn't
-                remount on navigation, so the idle clock survives moving around
-                the portal -- and because everything inside `(app)` is already
-                past the signed-in guard above, which is what keeps the timeout
-                off the login page and off every public route. */}
-            <IdleTimeout />
-            {/* One viewport for the whole portal: the sidebar quick actions
-                save from every route, so the confirmation has to live above
-                the page rather than inside it. */}
-            <Toaster />
-          </SidebarInset>
-        </SidebarProvider>
+        {device === "mobile" ? (
+          <PortalShellMobile {...shellProps} />
+        ) : (
+          <PortalShellDesktop {...shellProps} />
+        )}
       </PortalHelpProvider>
+      {/* Corrects the shell on the next request when the user-agent got the
+          viewport wrong -- a phone in desktop mode, or a narrow window. */}
+      <DeviceProbe device={device} />
     </TooltipProvider>
   );
 }

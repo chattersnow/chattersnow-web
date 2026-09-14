@@ -18,13 +18,16 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { datetimeLocalToUtcIso, utcIsoToDatetimeLocalInZone } from "@/lib/time";
+import {
+  datetimeLocalToUtcIsoInBrowser,
+  utcIsoToDatetimeLocalInBrowser,
+} from "@/lib/time";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { runAction } from "@/components/portal/action-toast";
 
-function toDatetimeLocalValue(iso: string | null, timezone: string) {
-  if (!iso) return "";
-  return utcIsoToDatetimeLocalInZone(iso, timezone);
+function toDatetimeLocalValue(iso: string | null) {
+  // The browser's zone, so the prefill and the save agree (#1063).
+  return utcIsoToDatetimeLocalInBrowser(iso);
 }
 
 function formStateFor(event: EventRow) {
@@ -32,10 +35,7 @@ function formStateFor(event: EventRow) {
     eventLead: event.event_lead,
     capacity: event.capacity === null ? "" : String(event.capacity),
     registrationEnabled: event.registration_enabled,
-    registrationDeadline: toDatetimeLocalValue(
-      event.registration_deadline,
-      event.timezone,
-    ),
+    registrationDeadline: toDatetimeLocalValue(event.registration_deadline),
     autoAssignDiscountCodes: event.auto_assign_discount_codes,
     budgetAmount:
       event.budget_amount === null ? "" : String(event.budget_amount),
@@ -114,11 +114,11 @@ export function PlanningTab({
       "registrationEnabled",
       form.registrationEnabled ? "on" : "off",
     );
-    // Parsed against the event's own timezone (not the browser's or the
-    // server's) since this is a naive "YYYY-MM-DDTHH:mm" value with no
-    // offset, and must round-trip consistently with `toDatetimeLocalValue`.
+    // Converted here, in the browser, from the typist's own clock -- and it
+    // round-trips with `toDatetimeLocalValue` above, which now seeds from the
+    // same zone (#1063).
     const registrationDeadlineIso = form.registrationDeadline
-      ? datetimeLocalToUtcIso(form.registrationDeadline, event.timezone)
+      ? datetimeLocalToUtcIsoInBrowser(form.registrationDeadline)
       : "";
     formData.set("registrationDeadline", registrationDeadlineIso ?? "");
     formData.set(
@@ -143,7 +143,6 @@ export function PlanningTab({
   // are bounded by their start instead.
   const registrationCutoff = toDatetimeLocalValue(
     event.ends_at ?? event.starts_at,
-    event.timezone,
   );
 
   function toggleRegistration(enabled: boolean) {

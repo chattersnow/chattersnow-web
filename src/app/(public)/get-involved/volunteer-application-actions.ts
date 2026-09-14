@@ -6,7 +6,10 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getRequestOrigin } from "@/lib/request-origin";
 import { getClientIp } from "@/lib/get-client-ip";
 import { PRONOUNS_TOO_LONG_ERROR } from "@/lib/pronouns";
-import { notifyNewVolunteerApplication } from "@/lib/notifications/submission-notifications";
+import {
+  notifyNewVolunteerApplication,
+  notifyVolunteerApplicationConfirmation,
+} from "@/lib/notifications/submission-notifications";
 import { parseVolunteerApplicationForm } from "./volunteer-application-form";
 
 export type SubmitVolunteerApplicationResult =
@@ -77,11 +80,23 @@ export async function submitVolunteerApplicationAction(
     const { data: tenantId } = await supabase.rpc("public_tenant_id");
     if (!tenantId) return;
 
-    await notifyNewVolunteerApplication(createSupabaseAdminClient(), {
-      tenantId: tenantId as string,
-      referenceCode,
-      siteUrl,
-    });
+    // Two independent sends (#1069): the volunteers queue hears about the
+    // application, and the applicant gets the reference code that is the only
+    // key to the status page. Separate dedupe keys and separate outcomes, in
+    // parallel, so neither is lost because the other's address bounced.
+    const admin = createSupabaseAdminClient();
+    await Promise.all([
+      notifyNewVolunteerApplication(admin, {
+        tenantId: tenantId as string,
+        referenceCode,
+        siteUrl,
+      }),
+      notifyVolunteerApplicationConfirmation(admin, {
+        tenantId: tenantId as string,
+        referenceCode,
+        siteUrl,
+      }),
+    ]);
   });
 
   return { success: true, referenceCode };

@@ -47,6 +47,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { personDisplayName } from "@/lib/format";
 import { runAction } from "@/components/portal/action-toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 function formStateFor(asset: AssetDetail): AssetFormState {
   return {
@@ -295,8 +296,11 @@ export function AssetDetailsCard({
       ) : (
         <form onSubmit={card.handleSubmit}>
           <FieldGroup>
+            <RequiredFieldsNote />
             <Field>
-              <FieldLabel htmlFor="asset-edit-name">Name</FieldLabel>
+              <FieldLabel htmlFor="asset-edit-name" required>
+                Name
+              </FieldLabel>
               <Input
                 id="asset-edit-name"
                 required

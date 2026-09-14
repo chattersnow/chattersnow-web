@@ -9,6 +9,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PronounsField } from "@/components/pronouns-field";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 export function VolunteerApplicationForm() {
   const [name, setName] = useState("");
@@ -55,6 +56,11 @@ export function VolunteerApplicationForm() {
             Save your reference code to check your status later:{" "}
             <strong>{referenceCode}</strong>
           </p>
+          {/* So a message that never arrives reads as a problem rather than as
+              normal -- the code is the only key to the status page. */}
+          <p className="mt-2">
+            We&apos;ve emailed your reference code to {email}.
+          </p>
           <p className="mt-2">
             <Link
               href="/get-involved/volunteer/status"
@@ -71,8 +77,11 @@ export function VolunteerApplicationForm() {
   return (
     <form onSubmit={handleSubmit}>
       <FieldGroup>
+        <RequiredFieldsNote />
         <Field>
-          <FieldLabel htmlFor="volunteer-name">Name</FieldLabel>
+          <FieldLabel htmlFor="volunteer-name" required>
+            Name
+          </FieldLabel>
           <Input
             id="volunteer-name"
             required
@@ -83,7 +92,9 @@ export function VolunteerApplicationForm() {
         </Field>
         <Field orientation="responsive">
           <Field>
-            <FieldLabel htmlFor="volunteer-email">Email</FieldLabel>
+            <FieldLabel htmlFor="volunteer-email" required>
+              Email
+            </FieldLabel>
             <Input
               id="volunteer-email"
               type="email"

@@ -19,7 +19,7 @@ export function PronounsField({
   id,
   value,
   onChange,
-  description = "Optional. We'll use these when we talk about you and when we introduce you at events.",
+  description = "We'll use these when we talk about you and when we introduce you at events.",
   disabled,
 }: {
   id: string;
@@ -32,7 +32,7 @@ export function PronounsField({
 
   return (
     <Field>
-      <FieldLabel htmlFor={id}>Pronouns (optional)</FieldLabel>
+      <FieldLabel htmlFor={id}>Pronouns</FieldLabel>
       <Input
         id={id}
         list={listId}

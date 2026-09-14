@@ -32,18 +32,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import { formatDateTime } from "@/lib/format";
 import { runAction } from "@/components/portal/action-toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import { useEventDateDefaults } from "../event-date-defaults";
+import { utcIsoToDatetimeLocalInBrowser } from "@/lib/time";
 
 export const NONE_VALUE = "none";
 
 export function formatShiftRange(shift: EventShift) {
   return `${formatDateTime(shift.starts_at)} – ${formatDateTime(shift.ends_at)}`;
-}
-
-function toDatetimeLocal(iso: string) {
-  const date = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 export function ShiftForm({
@@ -67,11 +63,13 @@ export function ShiftForm({
   const eventDates = useEventDateDefaults();
   const [startsAt, setStartsAt] = useState(
     initialShift
-      ? toDatetimeLocal(initialShift.starts_at)
+      ? utcIsoToDatetimeLocalInBrowser(initialShift.starts_at)
       : eventDates.startsAt,
   );
   const [endsAt, setEndsAt] = useState(
-    initialShift ? toDatetimeLocal(initialShift.ends_at) : eventDates.endsAt,
+    initialShift
+      ? utcIsoToDatetimeLocalInBrowser(initialShift.ends_at)
+      : eventDates.endsAt,
   );
   const [targetHeadcount, setTargetHeadcount] = useState(
     initialShift?.target_headcount != null
@@ -123,10 +121,14 @@ export function ShiftForm({
       className="rounded-md border border-[var(--line)] p-4"
     >
       <FieldGroup>
+        <RequiredFieldsNote />
         <Field>
-          <FieldLabel htmlFor="shift-label">Duty / location</FieldLabel>
+          <FieldLabel htmlFor="shift-label" required>
+            Duty / location
+          </FieldLabel>
           <Input
             id="shift-label"
+            required
             placeholder="e.g. Basecamp AM"
             value={label}
             onChange={(event) => setLabel(event.target.value)}
@@ -135,18 +137,24 @@ export function ShiftForm({
 
         <Field orientation="responsive">
           <Field>
-            <FieldLabel htmlFor="shift-startsAt">Starts</FieldLabel>
+            <FieldLabel htmlFor="shift-startsAt" required>
+              Starts
+            </FieldLabel>
             <Input
               id="shift-startsAt"
+              required
               type="datetime-local"
               value={startsAt}
               onChange={(event) => setStartsAt(event.target.value)}
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="shift-endsAt">Ends</FieldLabel>
+            <FieldLabel htmlFor="shift-endsAt" required>
+              Ends
+            </FieldLabel>
             <Input
               id="shift-endsAt"
+              required
               type="datetime-local"
               value={endsAt}
               onChange={(event) => setEndsAt(event.target.value)}

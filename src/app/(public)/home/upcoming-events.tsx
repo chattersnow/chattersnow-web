@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { formatDateTimeInZone } from "@/lib/time";
+import { DATE_TIME_WITH_ZONE, formatDateTimeInZone } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import type { HomeUpcomingCards } from "@/lib/site-layout";
 import {
@@ -17,10 +17,6 @@ import { publicEventPath } from "../events/event-path";
  * event's own zone. The home page used to format in the viewer's zone, so a
  * Vermont start time read differently here than everywhere else (#846).
  */
-const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
-  dateStyle: "medium",
-  timeStyle: "short",
-};
 
 /** The compact style splits the same instant into a date block and a time. */
 const MONTH_OPTIONS: Intl.DateTimeFormatOptions = { month: "short" };
@@ -90,11 +86,11 @@ function formatRange(
   const starts = formatDateTimeInZone(
     startsAt,
     timeZone,
-    DATE_FORMAT_OPTIONS,
+    DATE_TIME_WITH_ZONE,
     "en-US",
   );
   if (!endsAt) return starts;
-  return `${starts} – ${formatDateTimeInZone(endsAt, timeZone, DATE_FORMAT_OPTIONS, "en-US")}`;
+  return `${starts} – ${formatDateTimeInZone(endsAt, timeZone, DATE_TIME_WITH_ZONE, "en-US")}`;
 }
 
 /**

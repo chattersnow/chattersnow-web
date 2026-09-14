@@ -487,9 +487,7 @@ export function SaleDetailsSheet({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Field>
-            <FieldLabel htmlFor={`void-reason-${sale.id}`}>
-              Reason (optional)
-            </FieldLabel>
+            <FieldLabel htmlFor={`void-reason-${sale.id}`}>Reason</FieldLabel>
             <Input
               id={`void-reason-${sale.id}`}
               value={voidReason}

@@ -1,6 +1,7 @@
 import { ASPECT_ACTIONS } from "./aspect-actions";
 import { AttendeeCard } from "./attendee-card";
 import { PartnerCard } from "./partner-card";
+import { RecipientCard } from "./recipient-card";
 import { DonorCard } from "./donor-card";
 import { SponsorCard } from "./sponsor-card";
 import { StaffCard } from "./staff-card";
@@ -19,7 +20,10 @@ import type { PersonAspect } from "./types";
  * Adding a type is a card file, an ASPECT_ACTIONS entry, and one line here.
  * Staff (#626) was the first to go through the seam and needed nothing else;
  * Partner was the second, and the first to arrive by moving an existing
- * standalone card ([id]/partnerships-card.tsx) into the registry.
+ * standalone card ([id]/partnerships-card.tsx) into the registry. Recipient
+ * (#1073) was the third and needed nothing else either -- the one thing it
+ * does differently is sit out the Roles column, which is a decision in
+ * `rolesFor` rather than anything this registry knows about.
  */
 export const PERSON_ASPECTS: readonly PersonAspect[] = [
   {
@@ -57,5 +61,11 @@ export const PERSON_ASPECTS: readonly PersonAspect[] = [
     label: "{partner}",
     HistoryCard: PartnerCard,
     actions: ASPECT_ACTIONS.is_partner,
+  },
+  {
+    key: "is_recipient",
+    label: "{recipient}",
+    HistoryCard: RecipientCard,
+    actions: ASPECT_ACTIONS.is_recipient,
   },
 ];

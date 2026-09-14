@@ -207,7 +207,27 @@ The model is grouped by module and each group lives in that module's file under
 [`docs/spec/`](spec/) — see the index above. A reference of the form "§6, 'Multi-tenancy'"
 means the group of that name, now the "Data model" section of the matching file.
 
-Foreign keys should enforce relationships. Monetary amounts should use a fixed-precision numeric type, not floating-point values. Dates should be stored with timezone-aware timestamps; event display timezone is an event or organization configuration decision.
+Foreign keys should enforce relationships. Monetary amounts should use a fixed-precision numeric type, not floating-point values.
+
+### 6.1 Dates and times
+
+**A time someone types is in their browser's timezone. It is stored in UTC. The portal shows it in the viewer's browser timezone; the public site shows an event in the event's own timezone. Every displayed time names the zone it is in** (#1057, #1063, #1064).
+
+The labelling is not decoration — it is what makes either half safe. A reader must never have to work out whose clock a bare "5:00 PM" is on.
+
+Why the public site differs: public pages are server-rendered and cached, so the viewer's zone is not knowable when the HTML is built. Rendering every public time in the browser would cost crawlers and no-JS visitors the time entirely and shift it visibly after hydration — and for a physical event the event's own clock is the useful one anyway. A Denver meetup reads "6:00 PM MDT" to a visitor in New York, which is what they need in order to turn up.
+
+An instant is stored in a timezone-aware column (`timestamptz`). A value that is a calendar day rather than an instant — the day a prize was handed over, the day a donation is dated — belongs in a `date` column, because a date-only input written to a `timestamptz` becomes UTC midnight and reads back as the previous day for every viewer west of Greenwich (#1053).
+
+Some records carry a timezone of their own (`events.timezone`, `calendar_items.time_zone`, `artwork_calls.timezone`): where the thing physically happens. **It governs public display only.** It does not say how a typed time is read — a coordinator entering an event types in their own clock wherever they are sitting — and it does not govern the portal, which shows the reader their own time like every other surface.
+
+**A reporting day is a day in the organization's own timezone** (`app_settings.org.timezone`, set at Administration › Organization Settings › General; #1065). This is a third and separate use of a zone, and it governs neither entry nor display: a report has to cut a period somewhere, and cutting it at UTC midnight puts a sale rung at 7pm on 28 February into March, so a February total is quietly short its last evening — by a different amount for every tenant. `get_finance_report_data` and `get_calendar_annual_review_data` bracket their instants in that zone, and any page choosing a default range (fiscal-year-to-date, "this month") anchors "today" on it with `todayInZone` rather than on the server's UTC clock. Only genuine instants need it; a `date` column carries no zone and means the same day to every reader.
+
+**A sales receipt is the one portal surface that reads in the organization's zone rather than the viewer's** (#1076). It is a document rather than a screen: it is printed, pasted into an email and filed, so two people opening the same receipt from different states must read the same time off it -- and it is the same boundary the finance rollup counts the sale on. `ReceiptModel` therefore carries raw instants plus the zone, and `formatReceiptInstant` renders them wherever the receipt is shown, so the printed page and its plain-text twin cannot disagree. Naming the zone is what keeps this safe, exactly as it does everywhere else.
+
+The helpers are in `src/lib/time.ts`, named for the zone each answers in: the `...InBrowser` family for entry, `...InZone` for rendering a record in its own zone, and `DATE_TIME_WITH_ZONE` for the labelled format.
+
+**A server component cannot render the viewer's zone.** `formatInstantDate` and `formatDateTime` in `src/lib/format.ts` build an `Intl.DateTimeFormat` with no `timeZone`, which resolves to the _running process_ — the browser in a client component, but UTC on Vercel in a server component. Any portal surface showing an instant must therefore render it through `<ViewerTime>` (`src/components/viewer-time.tsx`), which reads the zone via `useViewerTimeZone()` and falls back to a zone the caller names until the browser has answered. Use `formatCalendarDate` for `date` columns, which carry no zone and need none.
 
 ## 7. Security and Privacy
 

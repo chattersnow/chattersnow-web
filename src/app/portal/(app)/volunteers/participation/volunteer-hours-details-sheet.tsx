@@ -52,6 +52,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 import { formatCalendarDate, personDisplayName } from "@/lib/format";
 
 const NONE_VALUE = "none";
@@ -317,9 +318,11 @@ export function VolunteerHoursDetailsSheet({
             >
               <div className="flex-1 overflow-y-auto px-4 pb-4">
                 <FieldGroup>
+                  <RequiredFieldsNote />
                   <Field>
-                    <FieldLabel>Volunteer</FieldLabel>
+                    <FieldLabel required>Volunteer</FieldLabel>
                     <PersonPicker
+                      required
                       people={people}
                       selected={selectedPerson}
                       onSelect={setSelectedPerson}
@@ -332,9 +335,12 @@ export function VolunteerHoursDetailsSheet({
 
                   <Field orientation="responsive">
                     <Field>
-                      <FieldLabel htmlFor="hours-edit-hours">Hours</FieldLabel>
+                      <FieldLabel htmlFor="hours-edit-hours" required>
+                        Hours
+                      </FieldLabel>
                       <Input
                         id="hours-edit-hours"
+                        required
                         type="number"
                         min="0"
                         step="0.25"
@@ -360,9 +366,7 @@ export function VolunteerHoursDetailsSheet({
                   </Field>
 
                   <Field>
-                    <FieldLabel htmlFor="hours-edit-event">
-                      Event (optional)
-                    </FieldLabel>
+                    <FieldLabel htmlFor="hours-edit-event">Event</FieldLabel>
                     <Select
                       value={form.eventId}
                       onValueChange={(value) =>
@@ -392,7 +396,7 @@ export function VolunteerHoursDetailsSheet({
 
                   <Field>
                     <FieldLabel htmlFor="hours-edit-role-type">
-                      Role type (optional)
+                      Role type
                     </FieldLabel>
                     <Select
                       value={form.volunteerRoleTypeId}

@@ -40,17 +40,13 @@ import {
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
-
-function toDatetimeLocalValue(iso: string) {
-  const date = new Date(iso);
-  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
-  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
-}
+import { RequiredFieldsNote } from "@/components/required-fields-note";
+import { utcIsoToDatetimeLocalInBrowser } from "@/lib/time";
 
 function formStateFor(movement: DistributionDetailRow) {
   return {
     quantity: String(movement.quantity),
-    occurredAt: toDatetimeLocalValue(movement.occurred_at),
+    occurredAt: utcIsoToDatetimeLocalInBrowser(movement.occurred_at),
     reason: movement.reason ?? "",
     recipient: movement.recipient,
   };
@@ -181,6 +177,7 @@ export function EditDistributionSheet({
           >
             <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
               <FieldGroup>
+                <RequiredFieldsNote />
                 <ReadOnlyField label="Item" htmlFor="edit-dist-item">
                   {movement.inventory_item?.description ?? "—"}
                 </ReadOnlyField>
@@ -190,7 +187,7 @@ export function EditDistributionSheet({
 
                 <Field orientation="responsive">
                   <Field>
-                    <FieldLabel htmlFor="edit-dist-quantity">
+                    <FieldLabel htmlFor="edit-dist-quantity" required>
                       Quantity
                     </FieldLabel>
                     <Input
@@ -206,7 +203,7 @@ export function EditDistributionSheet({
                     />
                   </Field>
                   <Field>
-                    <FieldLabel htmlFor="edit-dist-occurredAt">
+                    <FieldLabel htmlFor="edit-dist-occurredAt" required>
                       Date &amp; time
                     </FieldLabel>
                     <Input
@@ -222,7 +219,7 @@ export function EditDistributionSheet({
                 </Field>
 
                 <Field>
-                  <FieldLabel>Recipient (optional)</FieldLabel>
+                  <FieldLabel>Recipient</FieldLabel>
                   <PersonPicker
                     people={people}
                     selected={form.recipient}

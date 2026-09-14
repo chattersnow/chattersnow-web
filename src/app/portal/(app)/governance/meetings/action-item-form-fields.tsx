@@ -34,7 +34,9 @@ export function ActionItemFormFields({
   return (
     <>
       <Field>
-        <FieldLabel htmlFor={`${idPrefix}-description`}>Description</FieldLabel>
+        <FieldLabel htmlFor={`${idPrefix}-description`} required>
+          Description
+        </FieldLabel>
         <Textarea
           id={`${idPrefix}-description`}
           required

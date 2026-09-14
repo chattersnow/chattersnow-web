@@ -18,6 +18,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 function getInitialFormState() {
   return { label: "", sortOrder: "" };
@@ -85,6 +86,7 @@ export function NewCalendarCategoryDialog() {
 
         <form onSubmit={handleSubmit}>
           <FieldGroup>
+            <RequiredFieldsNote />
             {error ? (
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
@@ -92,7 +94,9 @@ export function NewCalendarCategoryDialog() {
             ) : null}
 
             <Field>
-              <FieldLabel htmlFor="calendar-category-label">Name</FieldLabel>
+              <FieldLabel htmlFor="calendar-category-label" required>
+                Name
+              </FieldLabel>
               <Input
                 id="calendar-category-label"
                 name="label"

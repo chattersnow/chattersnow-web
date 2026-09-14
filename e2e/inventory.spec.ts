@@ -1,6 +1,7 @@
 import { test, expect } from "./helpers/test";
 import { clickNavLink } from "./helpers/nav";
 import { createAdminClient } from "./helpers/admin-client";
+import { exactLabel } from "./helpers/labels";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -169,7 +170,7 @@ test.describe("public inventory pages", () => {
       await expect(cart.getByText(gear.descriptions[0])).toBeVisible();
       await expect(cart.getByText(gear.descriptions[1])).toBeVisible();
 
-      await cart.getByLabel("Name", { exact: true }).fill("E2E Gear Requester");
+      await cart.getByLabel(exactLabel("Name")).fill("E2E Gear Requester");
       await cart.getByLabel("Email").fill(requesterEmail);
       await cart.getByRole("button", { name: "Request 2 items" }).click();
 

@@ -51,7 +51,9 @@ export function ReimbursementFormFields({
   return (
     <>
       <Field>
-        <FieldLabel htmlFor={`${idPrefix}-description`}>Description</FieldLabel>
+        <FieldLabel htmlFor={`${idPrefix}-description`} required>
+          Description
+        </FieldLabel>
         <Textarea
           id={`${idPrefix}-description`}
           required
@@ -61,7 +63,7 @@ export function ReimbursementFormFields({
       </Field>
 
       <Field>
-        <FieldLabel htmlFor={`${idPrefix}-event`}>Event (optional)</FieldLabel>
+        <FieldLabel htmlFor={`${idPrefix}-event`}>Event</FieldLabel>
         <Select
           value={form.eventId || "none"}
           onValueChange={(value) =>
@@ -91,7 +93,9 @@ export function ReimbursementFormFields({
 
       <Field orientation="responsive">
         <Field>
-          <FieldLabel htmlFor={`${idPrefix}-amount`}>Amount</FieldLabel>
+          <FieldLabel htmlFor={`${idPrefix}-amount`} required>
+            Amount
+          </FieldLabel>
           <Input
             id={`${idPrefix}-amount`}
             type="number"

@@ -15,7 +15,7 @@ import {
 import type { Lexicon } from "@/lib/lexicon";
 
 /**
- * What the current tenant calls the six person roles (#911).
+ * What the current tenant calls the seven person roles (#911).
  *
  * Read through `tenant_person_role_labels` rather than from `app_settings`
  * directly, for the reason the lexicon and the brand tokens are: that table's

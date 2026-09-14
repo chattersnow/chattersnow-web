@@ -15,29 +15,37 @@ import {
   createMonetaryDonation,
   serviceRoleClient,
   signInAs,
+  tenantToday,
   unprivilegedActors,
 } from "../../../../../test/integration-setup";
 import { getFinancialSummary } from "./queries";
+import { utcDateFromIsoDay } from "@/lib/time";
 import {
   DEFAULT_FISCAL_YEAR_START_MONTH,
   fiscalYearToDateRange,
 } from "@/lib/fiscal-year";
 
 function summaryFor(client: SupabaseClient) {
-  const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  // Every *day* here is the organization's day, exactly as the dashboard
+  // computes them (#1065): off the runner's UTC clock, "this month" is the
+  // next month for six hours every evening and this file's fixtures fall
+  // outside their own window. `nowIso` stays a real instant -- it is what the
+  // upcoming-events queries compare against.
+  const today = tenantToday();
+  const startOfMonth = `${today.slice(0, 7)}-01`;
   // The dashboard's "this year" figures are fiscal-year-to-date, so mirror the
   // page rather than reimplementing a calendar year here. seed.sql pins the
   // start month to the default (July).
   const { from: startOfYear } = fiscalYearToDateRange(
-    now,
+    utcDateFromIsoDay(today),
     DEFAULT_FISCAL_YEAR_START_MONTH,
   );
   return getFinancialSummary(
     client,
-    startOfMonth.toISOString().slice(0, 10),
+    startOfMonth,
     startOfYear,
-    now.toISOString(),
+    new Date().toISOString(),
+    today,
   );
 }
 

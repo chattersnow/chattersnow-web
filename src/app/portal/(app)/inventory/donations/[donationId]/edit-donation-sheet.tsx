@@ -11,7 +11,6 @@ import { OTHER_CATEGORY_KEY, type InventoryCategory } from "@/lib/inventory";
 import {
   CONDITIONS,
   GENDERS,
-  donatedAtInputValue,
   donorLabel,
   labelFor,
   type DonationItemRow,
@@ -57,10 +56,12 @@ import {
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 function donationFormStateFor(donation: DonationRow) {
   return {
-    donatedAt: donatedAtInputValue(donation.donated_at),
+    // Already "YYYY-MM-DD": a `date` column, straight into the date input.
+    donatedAt: donation.donated_at,
     notes: donation.notes ?? "",
   };
 }
@@ -277,11 +278,12 @@ export function EditDonationSheet({ donation }: { donation: DonationRow }) {
           >
             <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
               <FieldGroup>
+                <RequiredFieldsNote />
                 <ReadOnlyField label="Donor" htmlFor="donation-donor-edit">
                   {donorLabel(donation.donor)}
                 </ReadOnlyField>
                 <Field>
-                  <FieldLabel htmlFor="donation-donatedAt">
+                  <FieldLabel htmlFor="donation-donatedAt" required>
                     Date received
                   </FieldLabel>
                   <Input
@@ -328,6 +330,7 @@ export function EditDonationSheet({ donation }: { donation: DonationRow }) {
                       <Field>
                         <FieldLabel
                           htmlFor={`edit-item-description-${item.id}`}
+                          required
                         >
                           Item description
                         </FieldLabel>
