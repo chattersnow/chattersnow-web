@@ -561,11 +561,7 @@ async function scanRoute(
       (pass.viewport === "desktop" || pass.viewport === "mobile");
     if (!scanSurfaces) continue;
 
-    for (const surface of surfacesFor(route)) {
-      if (pass.viewport === "mobile" && surface.name !== "mobile-nav") continue;
-      if (pass.viewport === "desktop" && surface.name === "mobile-nav")
-        continue;
-
+    for (const surface of surfacesFor(route, pass.viewport)) {
       let opened = false;
       try {
         opened = await surface.open(page);

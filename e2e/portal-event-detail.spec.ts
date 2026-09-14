@@ -125,8 +125,9 @@ async function seedEventFixture(admin: AdminClient) {
  * and the card strip under them: every section is listed at once, so reaching
  * one is a single click from wherever you are.
  *
- * Call `showRail` first -- below `lg` the rail is behind a disclosure button,
- * and this spec runs in the mobile projects as well as the desktop ones.
+ * Call `showRail` first -- below `lg` the rail is behind a button and opens as
+ * a sheet (#1093), and this spec runs in the mobile projects as well as the
+ * desktop ones.
  */
 function railRow(page: import("@playwright/test").Page, title: string) {
   return page
@@ -135,12 +136,28 @@ function railRow(page: import("@playwright/test").Page, title: string) {
 }
 
 /**
- * Expands the rail if it is collapsed. A no-op above `lg`, where the toggle is
+ * The rail's sheet, which is the shape it takes below `lg` (#1093). Empty
+ * above it, where the rail is a column that is always up.
+ */
+function railSheet(page: import("@playwright/test").Page) {
+  return page
+    .getByRole("dialog")
+    .filter({ has: page.getByRole("navigation", { name: "Event sections" }) });
+}
+
+/**
+ * Opens the rail if it is closed. A no-op above `lg`, where the toggle is
  * `lg:hidden`.
  *
  * Retried because the toggle is server-rendered before React attaches to it,
  * so a click that lands in that window does nothing and would otherwise leave
  * the rail shut for the rest of the test.
+ *
+ * Below `lg` this leaves a *modal* sheet open, and everything on the page
+ * behind it is inert -- so a test that reads the rail has to `hideRail` before
+ * it touches a card again. It also waits out the sheet's slide-in: a click on
+ * a row that is still moving is retried against a node the animation is about
+ * to replace.
  */
 async function showRail(page: import("@playwright/test").Page) {
   const toggle = page.getByRole("button", { name: /^Sections · / });
@@ -150,12 +167,37 @@ async function showRail(page: import("@playwright/test").Page) {
     if (!(await rail.isVisible())) await toggle.click();
     await expect(rail).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 15_000 });
+  await settleRailSheet(page);
+}
+
+/** Waits for the sheet's open or close transition to finish, if there is one. */
+async function settleRailSheet(page: import("@playwright/test").Page) {
+  await page
+    .locator('[data-slot="sheet-content"]')
+    .first()
+    .evaluate((element) =>
+      Promise.all(
+        element.getAnimations().map((animation) => animation.finished),
+      ),
+    )
+    .catch(() => {});
 }
 
 /**
- * Opens a section the way a reader does. Picking one collapses the rail again
- * below `lg`, so the card is not pushed off the screen by the list that named
- * it.
+ * Puts the rail away. Only does anything below `lg`: above it the rail is a
+ * column beside the card and there is nothing in the way.
+ */
+async function hideRail(page: import("@playwright/test").Page) {
+  const sheet = railSheet(page);
+  if ((await sheet.count()) === 0) return;
+  await page.keyboard.press("Escape");
+  await expect(sheet).toHaveCount(0);
+}
+
+/**
+ * Opens a section the way a reader does. Picking one closes the rail again
+ * below `lg`, so the card is neither pushed off the screen nor left behind a
+ * sheet by the list that named it.
  */
 async function openSection(
   page: import("@playwright/test").Page,
@@ -163,6 +205,7 @@ async function openSection(
 ) {
   await showRail(page);
   await railRow(page, title).click();
+  await expect(railSheet(page)).toHaveCount(0);
 }
 
 /** A phase card, addressed by its own title rather than any text inside it. */
@@ -268,6 +311,7 @@ test.describe("portal event detail", () => {
       const results = page.getByRole("navigation", { name: "Search results" });
       await expect(results.getByRole("button")).toHaveCount(1);
       await results.getByRole("button").click();
+      await expect(railSheet(page)).toHaveCount(0);
 
       await expect(card(page, "Registration & planning")).toBeVisible();
       await expect(page).toHaveURL(/[?&]tab=planning/);
@@ -291,6 +335,7 @@ test.describe("portal event detail", () => {
       await expect(
         railRow(page, "Attendance").getByLabel("1 outstanding"),
       ).toBeVisible();
+      await hideRail(page);
 
       const attendance = card(page, "Attendance");
       await attendance.getByRole("button", { name: "Edit attendance" }).click();
@@ -373,6 +418,7 @@ test.describe("portal event detail", () => {
       await expect(
         railRow(page, "Impact").getByLabel("1 outstanding"),
       ).toBeVisible();
+      await hideRail(page);
 
       // Submitted report data must not shift underneath it, so the cards it
       // covers lose their edit affordance entirely.

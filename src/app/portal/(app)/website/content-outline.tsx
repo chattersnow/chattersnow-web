@@ -1,11 +1,11 @@
 "use client";
 
-import { MouseEvent, useMemo, useState } from "react";
+import { MouseEvent, useMemo } from "react";
 import Link from "next/link";
-import { EyeOff, ImageIcon, PanelLeftOpen, Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { EyeOff, ImageIcon } from "lucide-react";
+import { PortalRail, PortalRailResults } from "@/components/portal/portal-rail";
 import { cn } from "@/lib/utils";
+import type { DeviceClass } from "@/proxy";
 import {
   CONTENT_SECTIONS,
   type ContentPage,
@@ -29,26 +29,8 @@ function snippet(text: string, query: string): string {
 
 type Match = OutlineEntry & { page_label: string; section_label: string };
 
-/**
- * The page list, the search box and the outline of the page being edited.
- *
- * Thirteen pages used to be a strip of pills -- six stacked rows at 390px
- * before any content -- and eighty-six slots had no overview and no search at
- * all, so "where does this sentence live?" meant clicking through every page
- * (#792). Search runs over every page's current copy, not just this one's,
- * because that is the question it exists to answer.
- */
-export function ContentOutline({
-  page,
-  pages,
-  sections,
-  outline,
-  hiddenPages,
-  dirtyKeys,
-  unpublishedKeys,
-  onJump,
-  onPageLink,
-}: {
+type OutlineProps = {
+  device: DeviceClass;
   page: ContentPage;
   pages: readonly ContentPage[];
   sections: readonly ContentSection[];
@@ -60,11 +42,58 @@ export function ContentOutline({
   unpublishedKeys: ReadonlySet<string>;
   onJump: (slotKey: string) => void;
   onPageLink: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
-}) {
-  const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(false);
-  const trimmed = query.trim().toLowerCase();
+};
 
+/**
+ * The page list, the search box and the outline of the page being edited.
+ *
+ * Thirteen pages used to be a strip of pills -- six stacked rows at 390px
+ * before any content -- and eighty-six slots had no overview and no search at
+ * all, so "where does this sentence live?" meant clicking through every page
+ * (#792). Search runs over every page's current copy, not just this one's,
+ * because that is the question it exists to answer.
+ *
+ * The disclosure, the sticky column and the sheet a phone gets are
+ * `PortalRail`'s (#1093); what is left here is what this editor lists.
+ */
+export function ContentOutline({ device, page, ...rest }: OutlineProps) {
+  return (
+    <PortalRail
+      id="site-content-rail"
+      device={device}
+      // Named after where the reader is, the way the event rail's has always
+      // been: "Pages and search" said what the rail held and not where in it
+      // you were standing.
+      label={`Pages · ${page.label}`}
+      hideLabel="Hide pages"
+      title="Pages"
+      description="Every page of the public site, and a search over all their copy."
+      searchLabel="Search all site content"
+      searchPlaceholder="Search all site content"
+    >
+      {({ query, close }) => (
+        <OutlineBody page={page} query={query} close={close} {...rest} />
+      )}
+    </PortalRail>
+  );
+}
+
+function OutlineBody({
+  page,
+  pages,
+  sections,
+  outline,
+  hiddenPages,
+  dirtyKeys,
+  unpublishedKeys,
+  onJump,
+  onPageLink,
+  query,
+  close,
+}: Omit<OutlineProps, "device"> & {
+  query: string;
+  close: (after?: () => void) => void;
+}) {
   const pageLabels = useMemo(
     () => new Map(pages.map((candidate) => [candidate.key, candidate.label])),
     [pages],
@@ -89,7 +118,7 @@ export function ContentOutline({
   }, [outline]);
 
   const matches = useMemo<Match[]>(() => {
-    if (!trimmed) return [];
+    if (!query) return [];
     return outline
       .map((entry) => ({
         ...entry,
@@ -98,216 +127,178 @@ export function ContentOutline({
       }))
       .filter((entry) =>
         [entry.label, entry.text, entry.page_label, entry.section_label].some(
-          (field) => field.toLowerCase().includes(trimmed),
+          (field) => field.toLowerCase().includes(query),
         ),
       )
       .slice(0, 40);
-  }, [outline, pageLabels, trimmed]);
+  }, [outline, pageLabels, query]);
+
+  // A jump scrolls the page behind the rail and puts focus on a control there,
+  // so on a phone it has to wait for the sheet to be gone. A page link is a
+  // click the caller may still want to cancel -- its handler reads the event
+  // and calls `preventDefault()` -- so that one runs now and closes alongside.
+  const jump = (slotKey: string) => close(() => onJump(slotKey));
+  const follow = (event: MouseEvent<HTMLAnchorElement>, href: string) => {
+    onPageLink(event, href);
+    close();
+  };
+
+  if (query) {
+    return (
+      <PortalRailResults count={matches.length} noun="slot">
+        <ul className="space-y-1">
+          {matches.map((match) => {
+            const href = `/portal/website?page=${match.page}`;
+            const trail = `${match.page_label} › ${match.section_label}`;
+            return (
+              <li key={match.key}>
+                {match.page === page.key ? (
+                  <button
+                    type="button"
+                    onClick={() => jump(match.key)}
+                    className="hover:bg-[var(--purple-soft)] block w-full rounded-md px-2 py-1.5 text-left"
+                  >
+                    <ResultBody
+                      label={match.label}
+                      trail={trail}
+                      text={snippet(match.text, query)}
+                    />
+                  </button>
+                ) : (
+                  <Link
+                    href={href}
+                    onClick={(event) => follow(event, href)}
+                    className="hover:bg-[var(--purple-soft)] block rounded-md px-2 py-1.5"
+                  >
+                    <ResultBody
+                      label={match.label}
+                      trail={trail}
+                      text={snippet(match.text, query)}
+                    />
+                  </Link>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </PortalRailResults>
+    );
+  }
 
   return (
-    <div>
-      <Button
-        type="button"
-        variant="secondary"
-        size="sm"
-        className="mb-3 lg:hidden"
-        aria-expanded={open}
-        aria-controls="site-content-rail"
-        onClick={() => setOpen((current) => !current)}
-      >
-        <PanelLeftOpen />
-        {open ? "Hide pages and search" : "Pages and search"}
-      </Button>
+    <>
+      <nav aria-label="Pages">
+        <span className="app-eyebrow">Pages</span>
+        <ul className="mt-2 space-y-0.5">
+          {pages.map((candidate) => {
+            const href = `/portal/website?page=${candidate.key}`;
+            const current = candidate.key === page.key;
+            const customized = overriddenPerPage.get(candidate.key) ?? 0;
+            const drafts = current
+              ? unpublishedKeys.size
+              : (draftsPerPage.get(candidate.key) ?? 0);
+            return (
+              <li key={candidate.key}>
+                <Link
+                  href={href}
+                  aria-current={current ? "page" : undefined}
+                  onClick={(event) => follow(event, href)}
+                  className={cn(
+                    "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm",
+                    current
+                      ? "bg-[var(--purple-soft)] font-semibold text-[var(--purple-deep)]"
+                      : "hover:bg-[var(--purple-soft)]",
+                  )}
+                >
+                  <span className="min-w-0 flex-1 truncate">
+                    {candidate.label}
+                  </span>
+                  {hiddenPages.includes(candidate.key) && (
+                    <EyeOff
+                      className="app-muted size-3.5 shrink-0"
+                      aria-label="Hidden on the public site"
+                    />
+                  )}
+                  {drafts > 0 && (
+                    <span
+                      className="bg-[var(--purple-soft)] text-[var(--purple-deep)] shrink-0 rounded-full px-1.5 text-xs font-medium tabular-nums"
+                      title="Not published yet"
+                    >
+                      {drafts}
+                    </span>
+                  )}
+                  {customized > 0 && (
+                    <span className="app-muted shrink-0 text-xs tabular-nums">
+                      {customized}
+                    </span>
+                  )}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+        <p className="app-muted mt-2 px-2 text-xs">
+          The grey number is how many slots on that page you have written
+          yourself; a highlighted number is changes not published yet.
+        </p>
+      </nav>
 
-      <div
-        id="site-content-rail"
-        className={cn(
-          // Clears the portal's own sticky header. The underscores are Tailwind's
-          // spaces: `calc(a+b)` without them is invalid CSS and silently
-          // drops the offset, which leaves the rail scrolling away.
-          "space-y-6 lg:sticky lg:top-[calc(var(--portal-header-height)_+_1.5rem)] lg:block",
-          // Thirteen pages plus an outline is taller than the viewport on
-          // the longer pages, and a sticky box taller than its viewport puts
-          // its own foot out of reach. It scrolls itself instead.
-          "lg:max-h-[calc(100vh_-_var(--portal-header-height)_-_3rem)] lg:overflow-y-auto",
-          !open && "hidden",
-        )}
-      >
-        <div className="relative">
-          <Search
-            className="app-muted pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2"
-            aria-hidden
-          />
-          <Input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search all site content"
-            aria-label="Search all site content"
-            className="pl-9"
-          />
-        </div>
-
-        {trimmed ? (
-          <nav aria-label="Search results">
-            <p className="app-muted mb-2 text-xs">
-              {matches.length === 0
-                ? "Nothing matches."
-                : `${matches.length} slot${matches.length === 1 ? "" : "s"}`}
-            </p>
-            <ul className="space-y-1">
-              {matches.map((match) => {
-                const href = `/portal/website?page=${match.page}`;
-                const trail = `${match.page_label} › ${match.section_label}`;
-                return (
-                  <li key={match.key}>
-                    {match.page === page.key ? (
+      <nav aria-label="On this page">
+        <span className="app-eyebrow">On this page</span>
+        <ul className="mt-2 space-y-2">
+          {sections.map((section) => (
+            <li key={section.key}>
+              <span className="app-muted block px-2 text-xs font-semibold">
+                {section.label}
+              </span>
+              <ul>
+                {outline
+                  .filter((entry) => entry.section === section.key)
+                  .map((entry) => (
+                    <li key={entry.key}>
                       <button
                         type="button"
-                        onClick={() => onJump(match.key)}
-                        className="hover:bg-[var(--purple-soft)] block w-full rounded-md px-2 py-1.5 text-left"
+                        onClick={() => jump(entry.key)}
+                        className="hover:bg-[var(--purple-soft)] flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm"
                       >
-                        <ResultBody
-                          label={match.label}
-                          trail={trail}
-                          text={snippet(match.text, trimmed)}
-                        />
-                      </button>
-                    ) : (
-                      <Link
-                        href={href}
-                        onClick={(event) => onPageLink(event, href)}
-                        className="hover:bg-[var(--purple-soft)] block rounded-md px-2 py-1.5"
-                      >
-                        <ResultBody
-                          label={match.label}
-                          trail={trail}
-                          text={snippet(match.text, trimmed)}
-                        />
-                      </Link>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
-        ) : (
-          <>
-            <nav aria-label="Pages">
-              <span className="app-eyebrow">Pages</span>
-              <ul className="mt-2 space-y-0.5">
-                {pages.map((candidate) => {
-                  const href = `/portal/website?page=${candidate.key}`;
-                  const current = candidate.key === page.key;
-                  const customized = overriddenPerPage.get(candidate.key) ?? 0;
-                  const drafts = current
-                    ? unpublishedKeys.size
-                    : (draftsPerPage.get(candidate.key) ?? 0);
-                  return (
-                    <li key={candidate.key}>
-                      <Link
-                        href={href}
-                        aria-current={current ? "page" : undefined}
-                        onClick={(event) => onPageLink(event, href)}
-                        className={cn(
-                          "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm",
-                          current
-                            ? "bg-[var(--purple-soft)] font-semibold text-[var(--purple-deep)]"
-                            : "hover:bg-[var(--purple-soft)]",
-                        )}
-                      >
-                        <span className="min-w-0 flex-1 truncate">
-                          {candidate.label}
-                        </span>
-                        {hiddenPages.includes(candidate.key) && (
-                          <EyeOff
+                        {/* Which entries are photos, without scrolling
+                            to the section that holds them (#918). */}
+                        {entry.image && (
+                          <ImageIcon
                             className="app-muted size-3.5 shrink-0"
-                            aria-label="Hidden on the public site"
+                            aria-label="Photo"
                           />
                         )}
-                        {drafts > 0 && (
-                          <span
-                            className="bg-[var(--purple-soft)] text-[var(--purple-deep)] shrink-0 rounded-full px-1.5 text-xs font-medium tabular-nums"
-                            title="Not published yet"
-                          >
-                            {drafts}
+                        <span className="min-w-0 flex-1 truncate">
+                          {entry.label}
+                        </span>
+                        {dirtyKeys.has(entry.key) ? (
+                          <span className="text-[var(--purple)] shrink-0 text-xs">
+                            Unsaved
                           </span>
-                        )}
-                        {customized > 0 && (
-                          <span className="app-muted shrink-0 text-xs tabular-nums">
-                            {customized}
+                        ) : unpublishedKeys.has(entry.key) ? (
+                          <span className="text-[var(--purple)] shrink-0 text-xs">
+                            Not published
                           </span>
+                        ) : (
+                          entry.overridden && (
+                            <span
+                              className="size-1.5 shrink-0 rounded-full bg-[var(--purple)]"
+                              aria-label={
+                                entry.image ? "Your image" : "Your text"
+                              }
+                            />
+                          )
                         )}
-                      </Link>
+                      </button>
                     </li>
-                  );
-                })}
+                  ))}
               </ul>
-              <p className="app-muted mt-2 px-2 text-xs">
-                The grey number is how many slots on that page you have written
-                yourself; a highlighted number is changes not published yet.
-              </p>
-            </nav>
-
-            <nav aria-label="On this page">
-              <span className="app-eyebrow">On this page</span>
-              <ul className="mt-2 space-y-2">
-                {sections.map((section) => (
-                  <li key={section.key}>
-                    <span className="app-muted block px-2 text-xs font-semibold">
-                      {section.label}
-                    </span>
-                    <ul>
-                      {outline
-                        .filter((entry) => entry.section === section.key)
-                        .map((entry) => (
-                          <li key={entry.key}>
-                            <button
-                              type="button"
-                              onClick={() => onJump(entry.key)}
-                              className="hover:bg-[var(--purple-soft)] flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm"
-                            >
-                              {/* Which entries are photos, without scrolling
-                                  to the section that holds them (#918). */}
-                              {entry.image && (
-                                <ImageIcon
-                                  className="app-muted size-3.5 shrink-0"
-                                  aria-label="Photo"
-                                />
-                              )}
-                              <span className="min-w-0 flex-1 truncate">
-                                {entry.label}
-                              </span>
-                              {dirtyKeys.has(entry.key) ? (
-                                <span className="text-[var(--purple)] shrink-0 text-xs">
-                                  Unsaved
-                                </span>
-                              ) : unpublishedKeys.has(entry.key) ? (
-                                <span className="text-[var(--purple)] shrink-0 text-xs">
-                                  Not published
-                                </span>
-                              ) : (
-                                entry.overridden && (
-                                  <span
-                                    className="size-1.5 shrink-0 rounded-full bg-[var(--purple)]"
-                                    aria-label={
-                                      entry.image ? "Your image" : "Your text"
-                                    }
-                                  />
-                                )
-                              )}
-                            </button>
-                          </li>
-                        ))}
-                    </ul>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          </>
-        )}
-      </div>
-    </div>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </>
   );
 }
 

@@ -22,6 +22,7 @@ import {
   sectionsForPage,
   slotsForPage,
 } from "@/lib/site-content";
+import { deviceClass } from "@/lib/portal/device";
 import { ContentEditor } from "./content-editor";
 import {
   buildOutline,
@@ -103,6 +104,10 @@ export default async function SiteContentPage({
     rows.filter((row) => row.has_draft).map((row) => row.key),
   );
   const canEdit = hasPermission(permissions, "site_content", "manage");
+  // Which shape the rail takes, decided here rather than measured in the
+  // browser: `useIsMobile()` answers `false` on the server, so a phone would
+  // paint the full column and swap it after hydration (#1093).
+  const device = await deviceClass();
   const actors = await actorNames(supabase, rows);
 
   // Who the platform's own legal documents are about, read the way the public
@@ -186,6 +191,7 @@ export default async function SiteContentPage({
       <div className="mt-6">
         <ContentEditor
           key={page.key}
+          device={device}
           page={page}
           pages={CONTENT_PAGES}
           sections={sectionsForPage(page.key)}

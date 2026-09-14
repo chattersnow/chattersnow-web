@@ -46,6 +46,17 @@ were two sidebar entries because they look like two topics; they are one object
    replaced took six stacked rows at 390px, and with no overview and no search,
    "where does this sentence live?" meant opening every page.
 
+   There is one rail, `src/components/portal/portal-rail.tsx` (#1093). Use it
+   rather than writing a third: it owns the disclosure button, the search box,
+   the sticky self-scrolling column above `lg` and the sheet a phone gets, and
+   asks the caller only for what is in the list. Its `device` prop comes from
+   `deviceClass()` on the server, never from `useIsMobile()` — the hook answers
+   `false` during SSR, so a phone would paint the full column and swap it after
+   hydration, which is the flash #1079 exists to remove. Picking an entry
+   dismisses the rail; anything that then moves or measures the page behind it
+   (a scroll, a focus) is passed to `close(after)` rather than run beside it,
+   because a modal sheet holds the page's scroll until it has finished closing.
+
 3. **A lifecycle is something to group by, not a level to navigate through.**
    Events tried the second level first: 19 cards behind four phase tabs — basic,
    planning, during, after — each with its own strip of cards (#958). It read
@@ -65,8 +76,8 @@ the reader can be expected to know where each one lives.
 
 ## The models
 
-Two existing surfaces are the reference implementations. Copy them rather than
-inventing a third answer.
+Two existing surfaces are the reference implementations. Both render
+`PortalRail`; what is worth copying is how each fills it.
 
 **Event detail** (`events/[eventId]/event-detail-view.tsx`) — one sidebar entry,
 19 cards under four phase headings in a rail, one card on screen at a time and
