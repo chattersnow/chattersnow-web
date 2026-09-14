@@ -22,6 +22,7 @@ import {
 import { type Lexicon } from "@/lib/lexicon";
 import { DEFAULT_VOCABULARY } from "@/lib/person-roles";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { signOutAndRedirect } from "@/lib/auth/sign-out";
 import { sectionIcon } from "../nav-icons";
 import { LogoutConfirmDialog } from "../logout-confirm-dialog";
@@ -174,7 +175,9 @@ export function MobileNav({
             ))}
 
             {/* Not part of the permission-scoped module nav, the same way the
-                desktop sidebar keeps them in its footer. */}
+                desktop sidebar keeps them in its footer. The theme toggle
+                joins them here rather than in the header: it is a preference
+                set once, not a question about the page you are on. */}
             <div className="mt-2 border-t border-[var(--line)] pt-2">
               <Link
                 href="/portal/account"
@@ -184,6 +187,10 @@ export function MobileNav({
                 <UserRound className="size-4 shrink-0" aria-hidden />
                 My Account
               </Link>
+              <div className="flex min-h-11 items-center gap-1 px-1">
+                <ThemeToggle className="size-11 rounded-md" />
+                <span className="text-base">Appearance</span>
+              </div>
               <button
                 type="button"
                 disabled={isSigningOut}

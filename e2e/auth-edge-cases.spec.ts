@@ -6,6 +6,7 @@ import {
 } from "./helpers/admin-client";
 import { markOnboarded } from "./helpers/onboarding";
 import { exactLabel } from "./helpers/labels";
+import { logOutOfPortal } from "./helpers/portal-nav";
 
 test("invalid credentials show an error and do not redirect", async ({
   page,
@@ -24,21 +25,7 @@ test("invalid credentials show an error and do not redirect", async ({
 test("logging out returns to a signed-out state", async ({ page }) => {
   await signIn(page);
 
-  // On mobile viewports the sidebar (and its Log out button) starts inside
-  // a closed off-canvas sheet; open it via its trigger first. On desktop
-  // it's already visible, so this is skipped.
-  const logoutButton = page.getByRole("button", { name: "Log out" });
-  if (!(await logoutButton.isVisible())) {
-    await page.getByRole("button", { name: "Toggle Sidebar" }).click();
-  }
-  await logoutButton.click();
-  // Logging out asks for confirmation since 355a8f7; the dialog's action
-  // button carries the same "Log out" label as the sidebar trigger.
-  await page
-    .getByRole("alertdialog")
-    .getByRole("button", { name: "Log out" })
-    .click();
-  await expect(page).toHaveURL(/\/portal\/login$/);
+  await logOutOfPortal(page);
 
   await page.goto("/portal/home");
   await expect(page).toHaveURL(/\/portal\/login$/);

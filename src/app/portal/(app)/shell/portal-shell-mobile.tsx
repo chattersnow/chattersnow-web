@@ -5,6 +5,7 @@ import { BrandLogoProvider } from "@/components/brand-logo-context";
 import { SkipLink } from "@/components/skip-link";
 import { LexiconProvider } from "@/components/lexicon-context";
 import { CommandPalette } from "../command-palette";
+import { HelpButton } from "../help/help-button";
 import { IdleTimeout } from "../idle-timeout";
 import { DemoBanner } from "../demo-banner";
 import { NotificationsMenu } from "../notifications-menu";
@@ -19,9 +20,10 @@ import type { PortalShellProps } from "./shell-props";
  * The portal shell a phone gets (#1079).
  *
  * Not the desktop shell with things hidden: no sidebar markup reaches the
- * response at all. A compact header carries the identity and the two controls
- * worth a permanent slot -- search and the bell -- and everything else lives
- * in the bottom tab bar or the sheet behind its "More" button.
+ * response at all. A compact header carries the organization's identity and
+ * the three controls that answer a question about the page you are on --
+ * search, help and the bell -- and everything else lives in the bottom tab bar
+ * or the sheet behind its "More" button.
  *
  * The dialogs, idle timeout and toaster mount here for the same reasons they
  * mount in the desktop shell: this is the one tree that survives a navigation.
@@ -65,15 +67,20 @@ export function PortalShellMobile({
             {tenantName}
           </span>
         </Link>
-        {/* Search and the bell only. The theme toggle, help and the account
-            link are all in the sheet: a phone header that carries six controls
-            leaves no room for the name of the organization you are in. */}
-        <div className="ml-auto flex shrink-0 items-center gap-1">
+        {/* The three controls that answer a question about the page you are
+            on. The theme toggle and the account link are preferences rather
+            than page actions, so they live in the sheet -- a phone header
+            carrying six controls leaves no room for the name of the
+            organization you are in. Help stays here on purpose: it is
+            contextual to the current route, and a contextual control behind a
+            menu is one nobody finds. */}
+        <div className="ml-auto flex shrink-0 items-center gap-0.5">
           <CommandPalette
             permissions={permissions}
             lexicon={lexicon}
             currentPerson={currentPerson}
           />
+          <HelpButton />
           <NotificationsMenu items={attentionItems} />
         </div>
       </header>
