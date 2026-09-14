@@ -6,6 +6,14 @@ on:
   pull_request:
     branches: [main, development]
 
+# One run per workflow per ref. A second push to a branch cancels the first
+# run still working on the superseded commit, whose result nobody will read.
+# `main` is exempt: that run is the deploy gate, and a push landing behind it
+# must not leave the branch with no verdict at all.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   quality:
     name: Lint, Type-check, Format, Test, Build
