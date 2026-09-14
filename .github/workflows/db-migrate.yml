@@ -1,8 +1,8 @@
 # Applies supabase/migrations/** to the hosted Supabase project.
 #
-# Nothing used to do this. CI only ever ran `supabase db reset` against a
-# throwaway local database, so a merged migration was applied everywhere except
-# the database the deployed site actually reads from. Issue #584 shipped that
+# Nothing used to do this. CI only ever applied them to the throwaway local
+# database it stands up per job, so a merged migration was applied everywhere
+# except the database the deployed site actually reads from. Issue #584 shipped that
 # way: `public_page_visibility` existed locally and in CI but not in production,
 # every read of it 404'd, and the board's page-visibility toggles looked like
 # they simply refused to save.

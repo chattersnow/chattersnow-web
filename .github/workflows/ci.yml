@@ -83,14 +83,15 @@ jobs:
         # supabase-js's http(s):// validation).
         run: supabase status -o env | sed -E 's/="(.*)"$/=\1/' >> "$GITHUB_ENV"
 
-      - name: Reset DB (migrate + seed)
-        run: supabase db reset
+      - name: Verify the database is migrated and seeded
+        uses: ./.github/actions/verify-db-ready
 
       # plpgsql static analysis over the migrated schema — unresolved
       # identifiers, type mismatches, and dead code in functions and RLS
-      # policy expressions, which `supabase db reset` alone will not surface
-      # because Postgres only checks function bodies at execution time.
-      # Reuses this job's already-running stack rather than starting another.
+      # policy expressions, which applying the migrations does not surface on
+      # its own because Postgres only checks function bodies at execution
+      # time. Reuses this job's already-running stack rather than starting
+      # another; the schema it reads is the one `supabase start` built.
       - name: Lint database schema
         run: supabase db lint --level warning --fail-on error
 
@@ -169,8 +170,8 @@ jobs:
       - name: Load Supabase env
         run: supabase status -o env | sed -E 's/="(.*)"$/=\1/' >> "$GITHUB_ENV"
 
-      - name: Reset DB (migrate + seed)
-        run: supabase db reset
+      - name: Verify the database is migrated and seeded
+        uses: ./.github/actions/verify-db-ready
 
       - name: Drop the unused Google Chrome apt source
         uses: ./.github/actions/drop-google-apt-source
